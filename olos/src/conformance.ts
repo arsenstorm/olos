@@ -288,6 +288,36 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     testFile: "src/state/publication.test.ts",
   },
   {
+    id: "OBJ-CACHE-001",
+    level: "object",
+    status: "covered",
+    testFile: "src/state/cache-policy.test.ts",
+  },
+  {
+    id: "OBJ-CACHE-002",
+    level: "object",
+    status: "covered",
+    testFile: "src/state/cache-policy.test.ts",
+  },
+  {
+    id: "OBJ-CACHE-003",
+    level: "object",
+    status: "covered",
+    testFile: "src/state/cache-policy.test.ts",
+  },
+  {
+    id: "OBJ-CACHE-004",
+    level: "object",
+    status: "covered",
+    testFile: "src/state/cache-policy.test.ts",
+  },
+  {
+    id: "OBJ-CACHE-005",
+    level: "object",
+    status: "covered",
+    testFile: "src/state/cache-policy.test.ts",
+  },
+  {
     id: "HLS-GOLDEN-001",
     level: "hls",
     status: "covered",

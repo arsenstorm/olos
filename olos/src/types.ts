@@ -1,3 +1,7 @@
+export type {
+  DeliveryCachePolicy,
+  DeliveryCacheTarget,
+} from "./types/cache-policy";
 export type { Commit } from "./types/commit";
 export type {
   CommittedObject,

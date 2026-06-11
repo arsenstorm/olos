@@ -1,6 +1,10 @@
 // biome-ignore-all lint/performance/noBarrelFile: public state facade for the olos/state export
 
 export {
+  type CreateDeliveryCachePolicyOptions,
+  createDeliveryCachePolicy,
+} from "./state/cache-policy";
+export {
   type CommitAttemptResolution,
   type CommitObservedUploadOptions,
   type CommitObservedUploadResult,
