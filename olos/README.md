@@ -311,6 +311,11 @@ Publisher processes can use `runStoredS3PublisherUploadStep` to compose one
 object publication step: issue a grant, let the app PUT to the granted URL, then
 commit the slot through S3 object observation.
 
+Recovery jobs can use `reconcileStoredS3CoordinatorUploads` to retry commits for
+issued slots after missed provider events or process restarts. The helper reads
+coordinator state and attempts S3-backed commits; the application decides when
+to run it and which slots to target.
+
 ### Direct-Public Security
 
 `direct-public` means uploaded media objects may be readable from storage before
