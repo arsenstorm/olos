@@ -1,6 +1,10 @@
 // biome-ignore-all lint/performance/noBarrelFile: public S3 facade for the olos/s3 export
 
 export {
+  type CommitS3CoordinatorUploadOptions,
+  commitS3CoordinatorUpload,
+} from "./s3/coordinator";
+export {
   type CreateObservedUploadFromS3HeadObjectOptions,
   createObservedUploadFromS3HeadObject,
   type ObserveS3ObjectOptions,

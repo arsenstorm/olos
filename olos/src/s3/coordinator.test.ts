@@ -1,0 +1,175 @@
+import { describe, expect, test } from "bun:test";
+import type {
+  HeadObjectCommand,
+  HeadObjectCommandOutput,
+} from "@aws-sdk/client-s3";
+import {
+  createCoordinatorPipeline,
+  issueCoordinatorSlot,
+} from "../protocol/coordinator";
+import type { Pathway } from "../types/pathway";
+import type { Session } from "../types/session";
+import { commitS3CoordinatorUpload } from "./coordinator";
+import type { S3HeadObjectClient } from "./object-observation";
+
+const session: Session = {
+  createdAt: "2026-01-01T00:00:00.000Z",
+  epoch: 1,
+  latencyProfile: "object-ll",
+  olos: "1.0",
+  partTarget: 0.5,
+  renditions: [
+    {
+      bitrate: 5_000_000,
+      codec: "avc1.640028",
+      frameRate: 30,
+      height: 1080,
+      kind: "video",
+      renditionId: "v1080",
+      width: 1920,
+    },
+  ],
+  segmentTarget: 2,
+  sessionId: "session_1",
+  state: "live",
+  tenantId: "tenant_1",
+};
+
+const pathways: Pathway[] = [
+  {
+    baseUrl: "https://media.example.com",
+    pathwayId: "primary",
+    priority: 0,
+    providerId: "s3_primary",
+    state: "active",
+  },
+];
+
+describe("s3 coordinator uploads", () => {
+  test("observes the issued S3 object before committing", async () => {
+    const headObjectInputs: unknown[] = [];
+    let state = createCoordinatorPipeline({ pathways, session });
+    state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/init.mp4",
+      duration: 1,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/init.mp4",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_init",
+      state,
+    }).state;
+
+    const initCommit = await commitS3CoordinatorUpload({
+      bucket: "media",
+      client: clientFor("media/init.mp4", 1024, headObjectInputs),
+      commitId: "commit_init",
+      committedAt: "2026-01-01T00:00:01.000Z",
+      providerId: "s3_primary",
+      slotId: "slot_init",
+      state,
+    });
+
+    if (initCommit.status !== "committed") {
+      throw new Error("expected init commit");
+    }
+
+    state = initCommit.state;
+    state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state,
+    }).state;
+
+    const segmentCommit = await commitS3CoordinatorUpload({
+      bucket: "media",
+      client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      providerId: "s3_primary",
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(segmentCommit.status).toBe("committed");
+    if (segmentCommit.status !== "committed") {
+      throw new Error("expected segment commit");
+    }
+
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/init.mp4",
+      },
+      {
+        Bucket: "media",
+        Key: "media/s3810.m4s",
+      },
+    ]);
+    expect(segmentCommit.commit.objectKey).toBe("media/s3810.m4s");
+    expect(segmentCommit.cursor?.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+  });
+
+  test("does not query S3 for unknown slots", async () => {
+    const state = createCoordinatorPipeline({ pathways, session });
+    const result = await commitS3CoordinatorUpload({
+      bucket: "media",
+      client: {
+        send(): Promise<HeadObjectCommandOutput> {
+          throw new Error("unexpected s3 call");
+        },
+      },
+      commitId: "commit_unknown",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "s3_primary",
+      slotId: "slot_unknown",
+      state,
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected upload");
+    }
+
+    expect(result.error.error.code).toBe("olos.unknown_slot");
+  });
+});
+
+function clientFor(
+  objectKey: string,
+  size: number,
+  inputs: unknown[]
+): S3HeadObjectClient {
+  return {
+    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
+      inputs.push(command.input);
+
+      return Promise.resolve({
+        $metadata: {},
+        ContentLength: size,
+        ContentType: "video/mp4",
+        ETag: `"${objectKey}"`,
+        LastModified: new Date("2026-01-01T00:00:01.000Z"),
+      });
+    },
+  };
+}
