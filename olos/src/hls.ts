@@ -16,6 +16,7 @@ export {
   type CreateHlsManifestArtifactsOptions,
   createHlsManifestArtifactResponse,
   createHlsManifestArtifacts,
+  createHlsManifestWebResponse,
   type HlsManifestArtifact,
   type HlsManifestArtifactResponse,
   type HlsManifestResponseArtifact,

@@ -117,6 +117,7 @@ the current playlist immediately or block until the trusted cursor advances.
 
 ```ts
 import {
+  createHlsManifestWebResponse,
   parseHlsBlockingReloadRequest,
   resolveBlockingHlsManifestArtifactResponse,
   resolveHlsBlockingReload,
@@ -163,6 +164,10 @@ const response = await resolveBlockingHlsManifestArtifactResponse({
   timeoutMs: 3000,
   waitForCursor: ({ signal }) => cursorStore.waitForNext(sessionId, { signal }),
 });
+
+if (response.status === "ready" || response.status === "timeout") {
+  return createHlsManifestWebResponse(response.response);
+}
 ```
 
 ## Upload Event Identity

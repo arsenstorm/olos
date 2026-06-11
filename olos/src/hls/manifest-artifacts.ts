@@ -130,6 +130,15 @@ export function createHlsManifestArtifactResponse(
   };
 }
 
+export function createHlsManifestWebResponse(
+  response: HlsManifestArtifactResponse
+): Response {
+  return new Response(response.body, {
+    headers: response.headers,
+    status: response.status,
+  });
+}
+
 export function resolveHlsManifestArtifactResponse(
   artifacts: readonly HlsManifestResponseArtifact[],
   requestPath: string

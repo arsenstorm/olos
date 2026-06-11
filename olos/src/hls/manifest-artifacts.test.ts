@@ -6,6 +6,7 @@ import type { Session } from "../types/session";
 import {
   createHlsManifestArtifactResponse,
   createHlsManifestArtifacts,
+  createHlsManifestWebResponse,
   resolveBlockingHlsManifestArtifactResponse,
   resolveHlsManifestArtifactResponse,
 } from "./manifest-artifacts";
@@ -208,6 +209,30 @@ describe("HLS manifest artifacts", () => {
       },
       status: 200,
     });
+  });
+
+  test("creates a web response from manifest response metadata", async () => {
+    const [artifact] = createHlsManifestArtifacts(session, committedWindow, {
+      allowedMediaOrigins: ["https://media.example.com"],
+      partTarget: session.partTarget,
+      segmentTarget: session.segmentTarget,
+    });
+
+    if (artifact === undefined) {
+      throw new Error("expected manifest artifact");
+    }
+
+    const metadata = createHlsManifestArtifactResponse(artifact);
+    const response = createHlsManifestWebResponse(metadata);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe(
+      "public, max-age=1, must-revalidate"
+    );
+    expect(response.headers.get("content-type")).toBe(
+      "application/vnd.apple.mpegurl"
+    );
+    expect(await response.text()).toBe(metadata.body);
   });
 
   test("keeps manifest response freshness within target latency", () => {
