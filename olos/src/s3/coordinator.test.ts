@@ -9,6 +9,7 @@ import {
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
 } from "../protocol/coordinator";
+import { normalizeUploadEvent } from "../state/observed-upload";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
@@ -18,6 +19,7 @@ import {
   completeStoredS3CoordinatorUploadByObjectKey,
   issueS3CoordinatorUploadGrant,
   issueStoredS3CoordinatorUploadGrant,
+  routeStoredS3CoordinatorUploadEvent,
 } from "./coordinator";
 import type { S3HeadObjectClient } from "./object-observation";
 
@@ -498,6 +500,138 @@ describe("s3 coordinator uploads", () => {
     }
 
     expect(result.error.error.code).toBe("olos.unknown_slot");
+  });
+
+  test("routes object-created events to object-key S3 completion", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state: createCoordinatorPipeline({ pathways, session }),
+    }).state;
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const result = await routeStoredS3CoordinatorUploadEvent({
+      bucket: "media",
+      client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+      event: normalizeUploadEvent({
+        event: {
+          contentType: "video/mp4",
+          eventId: "evt_3810",
+          eventTime: "2026-01-01T00:00:02.000Z",
+          eventType: "object.created",
+          objectKey: "media/s3810.m4s",
+          providerId: "s3_primary",
+          size: 98_304,
+        },
+      }),
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("committed");
+    if (result.status !== "committed") {
+      throw new Error("expected routed object-created commit");
+    }
+
+    expect(result.commit.commitId).toBe("evt_3810");
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/s3810.m4s",
+      },
+    ]);
+  });
+
+  test("routes upload-completed hints to keyed S3 completion", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state: createCoordinatorPipeline({ pathways, session }),
+    }).state;
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const result = await routeStoredS3CoordinatorUploadEvent({
+      bucket: "media",
+      client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+      event: normalizeUploadEvent({
+        event: {
+          eventId: "hint_3810",
+          eventTime: "2026-01-01T00:00:02.000Z",
+          eventType: "upload.completed",
+          objectKey: "media/s3810.m4s",
+          slotId: "slot_3810",
+        },
+      }),
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("committed");
+    if (result.status !== "committed") {
+      throw new Error("expected routed upload-completed commit");
+    }
+
+    expect(result.commit.commitId).toBe("hint_3810");
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/s3810.m4s",
+      },
+    ]);
+  });
+
+  test("returns invalid upload events without querying S3", async () => {
+    const result = await routeStoredS3CoordinatorUploadEvent({
+      bucket: "media",
+      client: {
+        send(): Promise<HeadObjectCommandOutput> {
+          throw new Error("unexpected s3 call");
+        },
+      },
+      event: normalizeUploadEvent({ event: null }),
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store: createMemoryCoordinatorStore(),
+    });
+
+    expect(result.status).toBe("invalid_event");
+    if (result.status !== "invalid_event") {
+      throw new Error("expected invalid event");
+    }
+
+    expect(result.error.error.code).toBe("olos.invalid_state");
   });
 
   test("does not query S3 for missing stored coordinator sessions", async () => {

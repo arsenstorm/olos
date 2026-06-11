@@ -11,6 +11,7 @@ import type {
   CoordinatorPipelineState,
   IssueCoordinatorSlotOptions,
 } from "../protocol/coordinator";
+import type { UploadEventNormalization } from "../state/observed-upload";
 import type { OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { UploadGrant } from "../types/upload-grant";
@@ -52,6 +53,20 @@ export interface CompleteStoredS3CoordinatorUploadByObjectKeyOptions
   objectKey: string;
 }
 
+export interface RouteStoredS3CoordinatorUploadEventOptions {
+  bucket: string;
+  client: S3HeadObjectClient;
+  event: UploadEventNormalization;
+  independent?: boolean;
+  maxAttempts?: number;
+  maxSegments?: number;
+  programDateTime?: string;
+  providerId: string;
+  sessionId: OlosId;
+  store: CoordinatorPipelineStore;
+  versionId?: string;
+}
+
 export type StoredS3CoordinatorUploadCommit =
   | (Extract<
       CoordinatorUploadCommit,
@@ -70,6 +85,13 @@ export type StoredS3CoordinatorUploadCommit =
 
 export type StoredS3CoordinatorUploadCompletion =
   StoredS3CoordinatorUploadCommit;
+
+export type StoredS3CoordinatorUploadEventRoute =
+  | StoredS3CoordinatorUploadCompletion
+  | {
+      error: OlosError;
+      status: "invalid_event";
+    };
 
 export interface IssueS3CoordinatorUploadGrantOptions
   extends IssueCoordinatorSlotOptions {
@@ -353,6 +375,49 @@ export async function completeStoredS3CoordinatorUploadByObjectKey(
   return completeStoredS3CoordinatorUpload({
     ...options,
     slotId: slot.slotId,
+  });
+}
+
+export async function routeStoredS3CoordinatorUploadEvent(
+  options: RouteStoredS3CoordinatorUploadEventOptions
+): Promise<StoredS3CoordinatorUploadEventRoute> {
+  if (options.event.status === "invalid_event") {
+    return options.event;
+  }
+
+  if (options.event.status === "object_created") {
+    return await completeStoredS3CoordinatorUploadByObjectKey({
+      bucket: options.bucket,
+      client: options.client,
+      commitId: options.event.event.eventId,
+      committedAt: options.event.event.object.observedAt,
+      independent: options.independent,
+      maxAttempts: options.maxAttempts,
+      maxSegments: options.maxSegments,
+      objectKey: options.event.event.object.objectKey,
+      programDateTime: options.programDateTime,
+      providerId: options.event.event.object.providerId,
+      sessionId: options.sessionId,
+      store: options.store,
+      versionId: options.versionId,
+    });
+  }
+
+  return await completeStoredS3CoordinatorUpload({
+    bucket: options.bucket,
+    client: options.client,
+    commitId: options.event.hint.eventId,
+    committedAt: options.event.hint.eventTime,
+    independent: options.independent,
+    maxAttempts: options.maxAttempts,
+    maxSegments: options.maxSegments,
+    objectKey: options.event.hint.objectKey,
+    programDateTime: options.programDateTime,
+    providerId: options.providerId,
+    sessionId: options.sessionId,
+    slotId: options.event.hint.slotId,
+    store: options.store,
+    versionId: options.versionId,
   });
 }
 

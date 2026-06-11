@@ -13,9 +13,12 @@ export {
   type IssueStoredS3CoordinatorUploadGrantOptions,
   issueS3CoordinatorUploadGrant,
   issueStoredS3CoordinatorUploadGrant,
+  type RouteStoredS3CoordinatorUploadEventOptions,
+  routeStoredS3CoordinatorUploadEvent,
   type S3CoordinatorUploadGrantIssue,
   type StoredS3CoordinatorUploadCommit,
   type StoredS3CoordinatorUploadCompletion,
+  type StoredS3CoordinatorUploadEventRoute,
   type StoredS3CoordinatorUploadGrantIssue,
 } from "./s3/coordinator";
 export {
