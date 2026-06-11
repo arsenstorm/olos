@@ -46,6 +46,11 @@
       "import": "./dist/types.js",
       "default": "./dist/types.js"
     },
+    "./validation": {
+      "types": "./dist/validation.d.ts",
+      "import": "./dist/validation.js",
+      "default": "./dist/validation.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
