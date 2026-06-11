@@ -35,6 +35,7 @@ export const OLOS_CONFORMANCE_ASSERTION_IDS = [
   "OBJ-HEAD-001",
   "OBJ-PUB-001",
   "OBJ-PUB-002",
+  "OBJ-FLOW-001",
   "OBJ-CACHE-001",
   "OBJ-CACHE-002",
   "OBJ-CACHE-003",
@@ -286,6 +287,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     level: "object",
     status: "covered",
     testFile: "src/state/publication.test.ts",
+  },
+  {
+    id: "OBJ-FLOW-001",
+    level: "object",
+    status: "covered",
+    testFile: "e2e/object-store-flow.test.ts",
   },
   {
     id: "OBJ-CACHE-001",

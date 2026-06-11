@@ -29,7 +29,7 @@ describe("conformance manifest", () => {
 
     for (const entry of OLOS_CONFORMANCE_COVERAGE) {
       expect(assertionIds.has(entry.id)).toBe(true);
-      expect(entry.testFile).toStartWith("src/");
+      expect(isCoveredTestFile(entry.testFile)).toBe(true);
     }
   });
 
@@ -48,3 +48,7 @@ describe("conformance manifest", () => {
     });
   });
 });
+
+function isCoveredTestFile(value: string): boolean {
+  return value.startsWith("src/") || value.startsWith("e2e/");
+}
