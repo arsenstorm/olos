@@ -81,7 +81,7 @@ describe("s3 upload grants", () => {
     expect(
       createS3UploadGrant({
         presignedUrl:
-          "https://bucket.s3.example.com/live/session/3810.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
         slot,
       })
     ).toEqual({
@@ -93,8 +93,41 @@ describe("s3 upload grants", () => {
         "x-olos-slot-id": "slot_1",
       },
       slotId: "slot_1",
-      url: "https://bucket.s3.example.com/live/session/3810.m4s?X-Amz-Signature=abc",
+      url: "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
     });
+  });
+
+  test("creates an upload grant from a path-style S3 presigned PUT URL", () => {
+    expect(
+      createS3UploadGrant({
+        bucket: "media",
+        presignedUrl:
+          "https://s3.example.com/media/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+        slot,
+      }).url
+    ).toBe(
+      "https://s3.example.com/media/live/session/v1080/3810.m4s?X-Amz-Signature=abc"
+    );
+  });
+
+  test("rejects presigned URLs for a different object key", () => {
+    expect(() =>
+      createS3UploadGrant({
+        presignedUrl:
+          "https://bucket.s3.example.com/live/session/v1080/3811.m4s?X-Amz-Signature=abc",
+        slot,
+      })
+    ).toThrow("presignedUrl path must match uploadSlot.objectKey");
+  });
+
+  test("rejects presigned URLs with extra path prefixes", () => {
+    expect(() =>
+      createS3UploadGrant({
+        presignedUrl:
+          "https://bucket.s3.example.com/prefix/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+        slot,
+      })
+    ).toThrow("presignedUrl path must match uploadSlot.objectKey");
   });
 
   test("supports provider-specific signed headers", () => {
@@ -105,7 +138,7 @@ describe("s3 upload grants", () => {
         },
         expiresAt: "2026-01-01T00:00:03.000Z",
         presignedUrl:
-          "https://bucket.s3.example.com/live/session/3810.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
         slot,
       })
     ).toMatchObject({
@@ -123,7 +156,7 @@ describe("s3 upload grants", () => {
     expect(() =>
       createS3UploadGrant({
         presignedUrl:
-          "https://bucket.s3.example.com/live/session/3810.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
         slot: { ...slot, state: "expired" },
       })
     ).toThrow("uploadSlot.state must be issued");
@@ -136,7 +169,7 @@ describe("s3 upload grants", () => {
           "if-none-match": "etag",
         },
         presignedUrl:
-          "https://bucket.s3.example.com/live/session/3810.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
         slot,
       })
     ).toThrow("additionalHeaders must not override if-none-match");

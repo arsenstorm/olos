@@ -6,6 +6,7 @@ import type { UploadSlot } from "../types/upload-slot";
 
 export interface CreateS3UploadGrantOptions {
   additionalHeaders?: Record<string, string>;
+  bucket?: string;
   expiresAt?: string;
   presignedUrl: string;
   slot: UploadSlot;
@@ -23,12 +24,36 @@ export interface CreatePresignedS3UploadGrantOptions {
 export function createS3UploadGrant(
   options: CreateS3UploadGrantOptions
 ): UploadGrant {
+  assertPresignedUrlMatchesSlot(options);
+
   return createUploadGrant({
     additionalHeaders: options.additionalHeaders,
     expiresAt: options.expiresAt,
     slot: options.slot,
     url: options.presignedUrl,
   });
+}
+
+function assertPresignedUrlMatchesSlot(
+  options: CreateS3UploadGrantOptions
+): void {
+  const pathSegments = pathParts(new URL(options.presignedUrl).pathname);
+  const keySegments = pathParts(options.slot.objectKey);
+
+  if (
+    pathSegments.join("/") === keySegments.join("/") ||
+    (options.bucket !== undefined &&
+      pathSegments[0] === options.bucket &&
+      pathSegments.slice(1).join("/") === keySegments.join("/"))
+  ) {
+    return;
+  }
+
+  throw new Error("presignedUrl path must match uploadSlot.objectKey");
+}
+
+function pathParts(value: string): string[] {
+  return value.split("/").filter(Boolean);
 }
 
 export async function createPresignedS3UploadGrant(
@@ -71,6 +96,7 @@ export async function createPresignedS3UploadGrant(
 
   return createS3UploadGrant({
     additionalHeaders: options.additionalHeaders,
+    bucket: options.bucket,
     expiresAt: expiresAt(options),
     presignedUrl,
     slot: options.slot,
