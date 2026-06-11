@@ -3,6 +3,9 @@
 export {
   type CommitS3CoordinatorUploadOptions,
   commitS3CoordinatorUpload,
+  type IssueS3CoordinatorUploadGrantOptions,
+  issueS3CoordinatorUploadGrant,
+  type S3CoordinatorUploadGrantIssue,
 } from "./s3/coordinator";
 export {
   type CreateObservedUploadFromS3HeadObjectOptions,

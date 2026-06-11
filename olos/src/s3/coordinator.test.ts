@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  HeadObjectCommand,
-  HeadObjectCommandOutput,
+import {
+  type HeadObjectCommand,
+  type HeadObjectCommandOutput,
+  S3Client,
 } from "@aws-sdk/client-s3";
 import {
   createCoordinatorPipeline,
@@ -9,7 +10,10 @@ import {
 } from "../protocol/coordinator";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
-import { commitS3CoordinatorUpload } from "./coordinator";
+import {
+  commitS3CoordinatorUpload,
+  issueS3CoordinatorUploadGrant,
+} from "./coordinator";
 import type { S3HeadObjectClient } from "./object-observation";
 
 const session: Session = {
@@ -46,6 +50,48 @@ const pathways: Pathway[] = [
 ];
 
 describe("s3 coordinator uploads", () => {
+  test("issues a coordinator slot with an S3 upload grant", async () => {
+    const state = createCoordinatorPipeline({ pathways, session });
+    const issue = await issueS3CoordinatorUploadGrant({
+      bucket: "media",
+      client: createClient(),
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      expiresInSeconds: 3,
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      now: "2026-01-01T00:00:00.000Z",
+      objectKey: "live/session/v1080/3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state,
+    });
+    const url = new URL(issue.grant.url);
+
+    expect(issue.slot).toMatchObject({
+      objectKey: "live/session/v1080/3810.m4s",
+      slotId: "slot_3810",
+      state: "issued",
+    });
+    expect(issue.state.slots).toEqual([issue.slot]);
+    expect(issue.grant).toMatchObject({
+      expiresAt: "2026-01-01T00:00:03.000Z",
+      method: "PUT",
+      requiredHeaders: {
+        "Content-Type": "video/mp4",
+        "If-None-Match": "*",
+        "x-olos-slot-id": "slot_3810",
+      },
+      slotId: "slot_3810",
+    });
+    expect(url.pathname).toBe("/media/live/session/v1080/3810.m4s");
+  });
+
   test("observes the issued S3 object before committing", async () => {
     const headObjectInputs: unknown[] = [];
     let state = createCoordinatorPipeline({ pathways, session });
@@ -172,4 +218,16 @@ function clientFor(
       });
     },
   };
+}
+
+function createClient(): S3Client {
+  return new S3Client({
+    credentials: {
+      accessKeyId: "test-access-key",
+      secretAccessKey: "test-secret-key",
+    },
+    endpoint: "https://s3.example.com",
+    forcePathStyle: true,
+    region: "us-east-1",
+  });
 }
