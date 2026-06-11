@@ -1,3 +1,7 @@
+import {
+  type CreateDeliveryCachePolicyOptions,
+  createDeliveryCachePolicy,
+} from "../state/cache-policy";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Rendition, Session } from "../types/session";
 import {
@@ -17,6 +21,15 @@ export interface HlsManifestArtifact {
   contentType: typeof HLS_CONTENT_TYPE;
   path: string;
 }
+
+export interface HlsManifestArtifactResponse {
+  body: string;
+  headers: Record<string, string>;
+  status: 200;
+}
+
+export interface CreateHlsManifestArtifactResponseOptions
+  extends Omit<CreateDeliveryCachePolicyOptions, "target"> {}
 
 export interface CreateHlsManifestArtifactsOptions
   extends Omit<RenderMediaPlaylistOptions, "renditionId"> {
@@ -62,6 +75,25 @@ export function createHlsManifestArtifacts(
   }
 
   return artifacts;
+}
+
+export function createHlsManifestArtifactResponse(
+  artifact: HlsManifestArtifact,
+  options: CreateHlsManifestArtifactResponseOptions = {}
+): HlsManifestArtifactResponse {
+  const cache = createDeliveryCachePolicy({
+    ...options,
+    target: "manifest",
+  });
+
+  return {
+    body: artifact.body,
+    headers: {
+      "cache-control": cache.cacheControl,
+      "content-type": artifact.contentType,
+    },
+    status: 200,
+  };
 }
 
 function defaultMasterPath(session: Session): string {

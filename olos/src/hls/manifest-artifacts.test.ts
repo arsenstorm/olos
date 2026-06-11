@@ -2,7 +2,10 @@ import { describe, expect, test } from "bun:test";
 
 import type { CommittedWindow } from "../types/committed-window";
 import type { Session } from "../types/session";
-import { createHlsManifestArtifacts } from "./manifest-artifacts";
+import {
+  createHlsManifestArtifactResponse,
+  createHlsManifestArtifacts,
+} from "./manifest-artifacts";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -121,5 +124,47 @@ describe("HLS manifest artifacts", () => {
         segmentTarget: session.segmentTarget,
       })
     ).toThrow("master playlist path must be a safe relative path");
+  });
+
+  test("creates HTTP response metadata for manifest artifacts", () => {
+    const [artifact] = createHlsManifestArtifacts(session, committedWindow, {
+      allowedMediaOrigins: ["https://media.example.com"],
+      partTarget: session.partTarget,
+      segmentTarget: session.segmentTarget,
+    });
+
+    if (artifact === undefined) {
+      throw new Error("expected manifest artifact");
+    }
+
+    expect(createHlsManifestArtifactResponse(artifact)).toEqual({
+      body: artifact.body,
+      headers: {
+        "cache-control": "public, max-age=1, must-revalidate",
+        "content-type": "application/vnd.apple.mpegurl",
+      },
+      status: 200,
+    });
+  });
+
+  test("keeps manifest response freshness within target latency", () => {
+    const [artifact] = createHlsManifestArtifacts(session, committedWindow, {
+      allowedMediaOrigins: ["https://media.example.com"],
+      partTarget: session.partTarget,
+      segmentTarget: session.segmentTarget,
+    });
+
+    if (artifact === undefined) {
+      throw new Error("expected manifest artifact");
+    }
+
+    expect(() =>
+      createHlsManifestArtifactResponse(artifact, {
+        maxAgeSeconds: 5,
+        targetLatencySeconds: 3,
+      })
+    ).toThrow(
+      "maxAgeSeconds must be less than or equal to targetLatencySeconds"
+    );
   });
 });
