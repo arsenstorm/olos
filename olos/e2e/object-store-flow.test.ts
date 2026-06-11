@@ -78,6 +78,16 @@ describe("object-store flow", () => {
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
       independent: true,
+      manifest: {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        response: {
+          maxAgeSeconds: 1,
+          targetLatencySeconds: 3,
+        },
+        segmentTarget: session.segmentTarget,
+        targetLatency: 3,
+      },
       providerId: "s3_primary",
       sessionId: session.sessionId,
       slotId: "slot_3810",
@@ -96,22 +106,43 @@ describe("object-store flow", () => {
 
     assertCursor(cursor);
 
-    const playlist = renderMediaPlaylist(cursor.committedWindow, {
-      allowedMediaOrigins: ["https://media.example.com"],
-      partTarget: session.partTarget,
-      renditionId: "v1080",
-      segmentTarget: session.segmentTarget,
-      targetLatency: 3,
-    });
+    if (segmentCommit.status !== "committed") {
+      throw new Error("expected segment commit");
+    }
+
+    const master = segmentCommit.manifest?.artifacts.find(
+      (artifact) => artifact.path === "/v1/live/session_1/master.m3u8"
+    );
+    const media = segmentCommit.manifest?.artifacts.find(
+      (artifact) => artifact.path === "/v1/live/session_1/v1080/media.m3u8"
+    );
 
     expect(cursor.window).toEqual({
       firstMediaSequenceNumber: 3810,
       lastMediaSequenceNumber: 3810,
     });
-    expect(playlist).toContain(
+    expect(segmentCommit.manifest?.cursor).toEqual(cursor);
+    expect(master?.response).toMatchObject({
+      headers: {
+        "cache-control": "public, max-age=1, must-revalidate",
+        "content-type": "application/vnd.apple.mpegurl",
+      },
+      status: 200,
+    });
+    expect(master?.response.body).toContain(
+      "/v1/live/session_1/v1080/media.m3u8"
+    );
+    expect(media?.response).toMatchObject({
+      headers: {
+        "cache-control": "public, max-age=1, must-revalidate",
+        "content-type": "application/vnd.apple.mpegurl",
+      },
+      status: 200,
+    });
+    expect(media?.response.body).toContain(
       '#EXT-X-MAP:URI="https://media.example.com/media/v1080/init.mp4"'
     );
-    expect(playlist).toContain(
+    expect(media?.response.body).toContain(
       "https://media.example.com/media/v1080/3810.m4s"
     );
     expect(headObjectInputs).toEqual([
