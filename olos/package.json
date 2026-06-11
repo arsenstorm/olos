@@ -36,6 +36,11 @@
       "import": "./dist/protocol.js",
       "default": "./dist/protocol.js"
     },
+    "./state": {
+      "types": "./dist/state.d.ts",
+      "import": "./dist/state.js",
+      "default": "./dist/state.js"
+    },
     "./types": {
       "types": "./dist/types.d.ts",
       "import": "./dist/types.js",

@@ -9,4 +9,7 @@ export {
   RENDITION_KINDS,
   SESSION_STATES,
 } from "./config/session";
-export { UPLOAD_SLOT_STATES } from "./config/upload-slot";
+export {
+  UPLOAD_SLOT_STATES,
+  UPLOAD_SLOT_TRANSITIONS,
+} from "./config/upload-slot";
