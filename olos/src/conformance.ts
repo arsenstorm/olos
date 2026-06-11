@@ -192,6 +192,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     testFile: "src/validation/committed-window.test.ts",
   },
   {
+    id: "CORE-WINDOW-006",
+    level: "core",
+    status: "covered",
+    testFile: "src/hls/media-playlist.test.ts",
+  },
+  {
     id: "CORE-WINDOW-007",
     level: "core",
     status: "covered",
@@ -235,6 +241,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
   },
   {
     id: "HLS-GOLDEN-005",
+    level: "hls",
+    status: "covered",
+    testFile: "src/hls/media-playlist.test.ts",
+  },
+  {
+    id: "HLS-GOLDEN-006",
     level: "hls",
     status: "covered",
     testFile: "src/hls/media-playlist.test.ts",

@@ -143,6 +143,38 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
     ).toContain("PART-HOLD-BACK=2.000,HOLD-BACK=4.000");
   });
 
+  test("renders discontinuities before flagged segments", () => {
+    const playlist = renderMediaPlaylist(
+      {
+        ...committedWindow,
+        discontinuitySequence: 1,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: validRendition().segments.map((segment) =>
+              segment.mediaSequenceNumber === 3811
+                ? { ...segment, discontinuityBefore: true }
+                : segment
+            ),
+          },
+        },
+      },
+      {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+      }
+    );
+
+    expect(playlist).toContain(`#EXT-X-DISCONTINUITY-SEQUENCE:1
+#EXT-X-MAP:URI=`);
+    expect(playlist).toContain(`#EXT-X-DISCONTINUITY
+#EXT-X-PROGRAM-DATE-TIME:2026-06-08T12:00:02.000Z
+#EXTINF:2.000,
+https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment-slot_s3811.m4s`);
+  });
+
   test("rejects absolute media URLs without an allowed origin", () => {
     expect(() =>
       renderMediaPlaylist(committedWindow, {
