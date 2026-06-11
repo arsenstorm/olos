@@ -69,6 +69,36 @@ describe("pathway failover", () => {
     }
   });
 
+  test("keeps pathway order stable for cursor updates", () => {
+    const result = resolvePathwayFailover({
+      pathwayId: "backup_1",
+      pathways: [
+        { ...backupPathway, pathwayId: "backup_2", priority: 2 },
+        { ...backupPathway, pathwayId: "backup_1", priority: 1 },
+        primaryPathway,
+      ],
+    });
+
+    expect(result.pathways.map((pathway) => pathway.pathwayId)).toEqual([
+      "backup_2",
+      "backup_1",
+      "primary",
+    ]);
+
+    if (result.status === "failed_over") {
+      expect(result.activePathway).toEqual(primaryPathway);
+    }
+  });
+
+  test("does not mutate the input pathways", () => {
+    resolvePathwayFailover({
+      pathwayId: "primary",
+      pathways,
+    });
+
+    expect(pathways).toEqual([primaryPathway, backupPathway]);
+  });
+
   test("returns provider unavailable when no active pathway remains", () => {
     expect(
       resolvePathwayFailover({
