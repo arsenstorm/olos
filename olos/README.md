@@ -19,6 +19,8 @@ import { resolveHlsManifestArtifactResponse } from "olos/hls";
 import {
   commitStoredS3CoordinatorUpload,
   issueStoredS3CoordinatorUploadGrant,
+  normalizeS3ObjectCreatedEvents,
+  routeStoredS3CoordinatorUploadEvent,
 } from "olos/s3";
 
 const issued = await issueStoredS3CoordinatorUploadGrant({
@@ -72,6 +74,36 @@ if (
     "/v1/live/session_1/v1080/media.m3u8"
   );
 }
+```
+
+S3 `ObjectCreated:*` event payloads can also be routed through the same stored
+coordinator flow:
+
+```ts
+const [event] = normalizeS3ObjectCreatedEvents({
+  contentType: "video/mp4",
+  payload: s3EventPayload,
+  providerId: "s3_primary",
+});
+
+if (event?.status !== "object_created") {
+  throw new Error("S3 object-created event was invalid");
+}
+
+await routeStoredS3CoordinatorUploadEvent({
+  bucket: "media",
+  client: s3,
+  event,
+  manifest: {
+    allowedMediaOrigins: ["https://media.example.com"],
+    partTarget: 0.5,
+    segmentTarget: 2,
+    targetLatency: 3,
+  },
+  providerId: "s3_primary",
+  sessionId: "session_1",
+  store,
+});
 ```
 
 The application owns the coordinator store, HTTP routing, and S3 client
