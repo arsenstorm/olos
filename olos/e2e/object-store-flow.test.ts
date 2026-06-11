@@ -3,7 +3,10 @@ import {
   type HeadObjectCommandOutput,
   S3Client,
 } from "@aws-sdk/client-s3";
-import { renderMediaPlaylist } from "olos/hls";
+import {
+  renderMediaPlaylist,
+  resolveHlsManifestArtifactResponse,
+} from "olos/hls";
 import {
   createCoordinatorPipeline,
   createMemoryCoordinatorStore,
@@ -116,6 +119,20 @@ describe("object-store flow", () => {
     const media = segmentCommit.manifest?.artifacts.find(
       (artifact) => artifact.path === "/v1/live/session_1/v1080/media.m3u8"
     );
+    const resolvedMaster =
+      segmentCommit.manifest === undefined
+        ? undefined
+        : resolveHlsManifestArtifactResponse(
+            segmentCommit.manifest.artifacts,
+            "https://edge.example.com/v1/live/session_1/master.m3u8"
+          );
+    const resolvedMedia =
+      segmentCommit.manifest === undefined
+        ? undefined
+        : resolveHlsManifestArtifactResponse(
+            segmentCommit.manifest.artifacts,
+            "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810"
+          );
 
     expect(cursor.window).toEqual({
       firstMediaSequenceNumber: 3810,
@@ -132,6 +149,7 @@ describe("object-store flow", () => {
     expect(master?.response.body).toContain(
       "/v1/live/session_1/v1080/media.m3u8"
     );
+    expect(resolvedMaster).toEqual(master?.response);
     expect(media?.response).toMatchObject({
       headers: {
         "cache-control": "public, max-age=1, must-revalidate",
@@ -139,6 +157,7 @@ describe("object-store flow", () => {
       },
       status: 200,
     });
+    expect(resolvedMedia).toEqual(media?.response);
     expect(media?.response.body).toContain(
       '#EXT-X-MAP:URI="https://media.example.com/media/v1080/init.mp4"'
     );
