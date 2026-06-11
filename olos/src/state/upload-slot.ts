@@ -41,6 +41,15 @@ export interface UploadObservationResult {
   status: "already_observed" | "observed";
 }
 
+export interface ResolveUploadRejectionOptions {
+  slot: UploadSlot;
+}
+
+export interface UploadRejectionResult {
+  slot: UploadSlot;
+  status: "already_rejected" | "rejected";
+}
+
 export function createIssuedUploadSlot(
   options: CreateIssuedUploadSlotOptions
 ): UploadSlot {
@@ -120,6 +129,35 @@ export function resolveUploadObservation(
   }
 
   return result;
+}
+
+export function rejectUpload(
+  options: ResolveUploadRejectionOptions
+): UploadSlot {
+  return resolveUploadRejection(options).slot;
+}
+
+export function resolveUploadRejection(
+  options: ResolveUploadRejectionOptions
+): UploadRejectionResult {
+  assertUploadSlot(options.slot);
+
+  if (options.slot.state === "rejected") {
+    return {
+      slot: options.slot,
+      status: "already_rejected",
+    };
+  }
+
+  assertUploadSlotTransition(options.slot.state, "rejected");
+
+  return {
+    slot: {
+      ...options.slot,
+      state: "rejected",
+    },
+    status: "rejected",
+  };
 }
 
 export function canTransitionUploadSlot(

@@ -9,7 +9,9 @@ import {
   canTransitionUploadSlot,
   createIssuedUploadSlot,
   observeUpload,
+  rejectUpload,
   resolveUploadObservation,
+  resolveUploadRejection,
 } from "./upload-slot";
 
 const session: Session = {
@@ -259,5 +261,41 @@ describe("observe upload", () => {
         slot: { ...slot, state: "committed" },
       })
     ).toThrow("uploadSlot.state must be issued or upload_observed");
+  });
+});
+
+describe("reject upload", () => {
+  const observedSlot: UploadSlot = { ...slot, state: "upload_observed" };
+
+  test("marks an observed slot as rejected", () => {
+    expect(rejectUpload({ slot: observedSlot })).toEqual({
+      ...observedSlot,
+      state: "rejected",
+    });
+  });
+
+  test("returns a rejection result", () => {
+    expect(resolveUploadRejection({ slot: observedSlot })).toEqual({
+      slot: {
+        ...observedSlot,
+        state: "rejected",
+      },
+      status: "rejected",
+    });
+  });
+
+  test("keeps rejected slots idempotent", () => {
+    const rejectedSlot: UploadSlot = { ...slot, state: "rejected" };
+
+    expect(resolveUploadRejection({ slot: rejectedSlot })).toEqual({
+      slot: rejectedSlot,
+      status: "already_rejected",
+    });
+  });
+
+  test("rejects non-rejectable slots", () => {
+    expect(() => rejectUpload({ slot })).toThrow(
+      "Invalid upload slot transition: issued -> rejected"
+    );
   });
 });

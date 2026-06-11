@@ -90,6 +90,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     testFile: "src/state/commit.test.ts",
   },
   {
+    id: "CORE-SLOT-004",
+    level: "core",
+    status: "covered",
+    testFile: "src/state/upload-slot.test.ts",
+  },
+  {
     id: "CORE-SLOT-007",
     level: "core",
     status: "partial",
