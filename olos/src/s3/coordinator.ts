@@ -1,8 +1,11 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import {
+  type CoordinatorPipelineSnapshot,
+  type CoordinatorPipelineStore,
   type CoordinatorUploadCommit,
   commitCoordinatorUpload,
   issueCoordinatorSlot,
+  mutateCoordinatorPipeline,
 } from "../protocol";
 import type {
   CoordinatorPipelineState,
@@ -44,6 +47,29 @@ export interface S3CoordinatorUploadGrantIssue {
   state: CoordinatorPipelineState;
 }
 
+export interface IssueStoredS3CoordinatorUploadGrantOptions
+  extends Omit<IssueS3CoordinatorUploadGrantOptions, "state"> {
+  maxAttempts?: number;
+  sessionId: OlosId;
+  store: CoordinatorPipelineStore;
+}
+
+export type StoredS3CoordinatorUploadGrantIssue =
+  | {
+      etag: string;
+      grant: UploadGrant;
+      slot: UploadSlot;
+      state: CoordinatorPipelineState;
+      status: "saved";
+    }
+  | {
+      current?: CoordinatorPipelineSnapshot;
+      status: "conflict";
+    }
+  | {
+      status: "not_found";
+    };
+
 export async function issueS3CoordinatorUploadGrant(
   options: IssueS3CoordinatorUploadGrantOptions
 ): Promise<S3CoordinatorUploadGrantIssue> {
@@ -63,6 +89,59 @@ export async function issueS3CoordinatorUploadGrant(
     grant,
     slot: issued.slot,
     state: issued.state,
+  };
+}
+
+export async function issueStoredS3CoordinatorUploadGrant(
+  options: IssueStoredS3CoordinatorUploadGrantOptions
+): Promise<StoredS3CoordinatorUploadGrantIssue> {
+  const {
+    additionalHeaders,
+    bucket,
+    client,
+    expiresInSeconds,
+    maxAttempts,
+    now,
+    sessionId,
+    store,
+    ...slotOptions
+  } = options;
+  let slot: UploadSlot | undefined;
+  const mutation = await mutateCoordinatorPipeline({
+    maxAttempts,
+    mutate: (state) => {
+      const issued = issueCoordinatorSlot({ ...slotOptions, state });
+      slot = issued.slot;
+
+      return issued.state;
+    },
+    sessionId,
+    store,
+  });
+
+  if (mutation.status !== "saved") {
+    return mutation;
+  }
+
+  if (slot === undefined) {
+    throw new Error("stored S3 upload grant mutation did not issue a slot");
+  }
+
+  const grant = await createPresignedS3UploadGrant({
+    additionalHeaders,
+    bucket,
+    client,
+    expiresInSeconds,
+    now,
+    slot,
+  });
+
+  return {
+    etag: mutation.etag,
+    grant,
+    slot,
+    state: mutation.state,
+    status: "saved",
   };
 }
 

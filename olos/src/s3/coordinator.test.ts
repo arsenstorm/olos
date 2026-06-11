@@ -6,6 +6,7 @@ import {
 } from "@aws-sdk/client-s3";
 import {
   createCoordinatorPipeline,
+  createMemoryCoordinatorStore,
   issueCoordinatorSlot,
 } from "../protocol/coordinator";
 import type { Pathway } from "../types/pathway";
@@ -13,6 +14,7 @@ import type { Session } from "../types/session";
 import {
   commitS3CoordinatorUpload,
   issueS3CoordinatorUploadGrant,
+  issueStoredS3CoordinatorUploadGrant,
 } from "./coordinator";
 import type { S3HeadObjectClient } from "./object-observation";
 
@@ -50,6 +52,74 @@ const pathways: Pathway[] = [
 ];
 
 describe("s3 coordinator uploads", () => {
+  test("issues and persists an S3 coordinator upload grant", async () => {
+    const store = createMemoryCoordinatorStore();
+    const state = createCoordinatorPipeline({ pathways, session });
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const issue = await issueStoredS3CoordinatorUploadGrant({
+      bucket: "media",
+      client: createClient(),
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      expiresInSeconds: 3,
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      now: "2026-01-01T00:00:00.000Z",
+      objectKey: "live/session/v1080/3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      sessionId: session.sessionId,
+      slotId: "slot_3810",
+      store,
+    });
+
+    expect(issue.status).toBe("saved");
+    if (issue.status !== "saved") {
+      throw new Error("expected stored grant issue");
+    }
+
+    const stored = await store.load(session.sessionId);
+
+    expect(issue.etag).toBe("2");
+    expect(issue.grant.slotId).toBe("slot_3810");
+    expect(issue.slot.objectKey).toBe("live/session/v1080/3810.m4s");
+    expect(stored?.etag).toBe("2");
+    expect(stored?.state.slots).toEqual([issue.slot]);
+  });
+
+  test("does not sign stored S3 grants for missing coordinator sessions", async () => {
+    const result = await issueStoredS3CoordinatorUploadGrant({
+      bucket: "media",
+      client: createClient(),
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      expiresInSeconds: 3,
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      now: "2026-01-01T00:00:00.000Z",
+      objectKey: "live/session/v1080/3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      sessionId: session.sessionId,
+      slotId: "slot_3810",
+      store: createMemoryCoordinatorStore(),
+    });
+
+    expect(result).toEqual({ status: "not_found" });
+  });
+
   test("issues a coordinator slot with an S3 upload grant", async () => {
     const state = createCoordinatorPipeline({ pathways, session });
     const issue = await issueS3CoordinatorUploadGrant({
