@@ -8,7 +8,10 @@ export {
   createCommit,
   type DuplicateCommitResolution,
   type ResolveDuplicateCommitOptions,
+  type ResolveUploadCommitOptions,
   resolveDuplicateCommit,
+  resolveUploadCommit,
+  type UploadCommitResolution,
 } from "./state/commit";
 export {
   type CreateCommittedWindowOptions,

@@ -6,6 +6,7 @@ import {
   commitObservedUpload,
   createCommit,
   resolveDuplicateCommit,
+  resolveUploadCommit,
 } from "./commit";
 
 const slot: UploadSlot = {
@@ -156,6 +157,40 @@ describe("commit builder", () => {
   });
 });
 
+describe("upload commit resolution", () => {
+  test("creates a commit and marks the slot as committed", () => {
+    expect(
+      resolveUploadCommit({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        mediaObject,
+        slot,
+      })
+    ).toEqual({
+      commit: {
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        deliveryUrl: "/objects/tenant/session/v1080/3810.m4s",
+        duration: 2,
+        epoch: 0,
+        etag: '"abc123"',
+        mediaSequenceNumber: 3810,
+        objectKey: "tenant/session/v1080/3810.m4s",
+        providerId: "r2_primary",
+        publicationMode: "direct-public",
+        renditionId: "v1080",
+        sessionId: "session_1",
+        size: 98_304,
+        slotId: "slot_1",
+      },
+      slot: {
+        ...slot,
+        state: "committed",
+      },
+    });
+  });
+});
+
 describe("observed upload commit builder", () => {
   test("observes an issued slot and creates a commit", () => {
     expect(
@@ -186,11 +221,14 @@ describe("observed upload commit builder", () => {
         size: 98_304,
         slotId: "slot_1",
       },
-      slot,
+      slot: {
+        ...slot,
+        state: "committed",
+      },
     });
   });
 
-  test("keeps already observed slots idempotent", () => {
+  test("commits already observed slots idempotently", () => {
     expect(
       commitObservedUpload({
         commitId: "commit_1",
@@ -198,7 +236,10 @@ describe("observed upload commit builder", () => {
         object: observedUpload,
         slot,
       }).slot
-    ).toEqual(slot);
+    ).toEqual({
+      ...slot,
+      state: "committed",
+    });
   });
 
   test("rejects invalid observations", () => {
