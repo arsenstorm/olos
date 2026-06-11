@@ -7,6 +7,7 @@ import {
   createCoordinatorPipeline,
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
+  mutateCoordinatorPipeline,
 } from "./coordinator";
 
 const session: Session = {
@@ -136,6 +137,127 @@ describe("coordinator pipeline", () => {
     expect(first.state).not.toBe(second.state);
     expect(first.state.session).not.toBe(second.state.session);
     expect(first.state.pathways).not.toBe(second.state.pathways);
+  });
+
+  test("mutates stored coordinator state", async () => {
+    const store = createMemoryCoordinatorStore();
+    const state = createCoordinatorPipeline({ pathways, session });
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const result = await mutateCoordinatorPipeline({
+      mutate: (current) =>
+        issueCoordinatorSlot({
+          contentType: "video/mp4",
+          deliveryUrl: "https://media.example.com/init.mp4",
+          duration: 1,
+          expiresAt: "2026-01-01T00:00:05.000Z",
+          kind: "init",
+          maxBytes: 2048,
+          mediaSequenceNumber: 0,
+          objectKey: "media/init.mp4",
+          publicationMode: "direct-public",
+          publisherInstanceId: "pub_1",
+          renditionId: "v1080",
+          slotId: "slot_init",
+          state: current,
+        }).state,
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("saved");
+    if (result.status !== "saved") {
+      throw new Error("expected saved mutation");
+    }
+
+    expect(result.etag).toBe("2");
+    expect(result.state.slots).toHaveLength(1);
+  });
+
+  test("does not mutate missing coordinator sessions", async () => {
+    const store = createMemoryCoordinatorStore();
+    const result = await mutateCoordinatorPipeline({
+      mutate: (state) => state,
+      sessionId: "missing_session",
+      store,
+    });
+
+    expect(result).toEqual({ status: "not_found" });
+  });
+
+  test("retries coordinator store conflicts with the latest state", async () => {
+    const store = createMemoryCoordinatorStore();
+    const state = createCoordinatorPipeline({ pathways, session });
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    let attempts = 0;
+    const result = await mutateCoordinatorPipeline({
+      mutate: async (current) => {
+        attempts += 1;
+
+        if (attempts === 1) {
+          await store.save({
+            sessionId: session.sessionId,
+            state: {
+              ...current,
+              slots: [
+                ...current.slots,
+                issueCoordinatorSlot({
+                  contentType: "video/mp4",
+                  deliveryUrl: "https://media.example.com/init.mp4",
+                  duration: 1,
+                  expiresAt: "2026-01-01T00:00:05.000Z",
+                  kind: "init",
+                  maxBytes: 2048,
+                  mediaSequenceNumber: 0,
+                  objectKey: "media/init.mp4",
+                  publicationMode: "direct-public",
+                  publisherInstanceId: "pub_1",
+                  renditionId: "v1080",
+                  slotId: "slot_init",
+                  state: current,
+                }).slot,
+              ],
+            },
+          });
+        }
+
+        return issueCoordinatorSlot({
+          contentType: "video/mp4",
+          deliveryUrl: "https://media.example.com/s3810.m4s",
+          duration: 2,
+          expiresAt: "2026-01-01T00:00:05.000Z",
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "media/s3810.m4s",
+          publicationMode: "direct-public",
+          publisherInstanceId: "pub_1",
+          renditionId: "v1080",
+          slotId: "slot_3810",
+          state: current,
+        }).state;
+      },
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("saved");
+    if (result.status !== "saved") {
+      throw new Error("expected saved retry");
+    }
+
+    expect(attempts).toBe(2);
+    expect(result.state.slots.map((slot) => slot.slotId)).toEqual([
+      "slot_init",
+      "slot_3810",
+    ]);
   });
 
   test("issues slots, commits verified uploads, and advances trusted state", () => {

@@ -6,6 +6,7 @@ export const OLOS_SPEC_STATUS = "draft-v0.1.2";
 export const OLOS_WIRE_VERSION = "1.0";
 export {
   type CommitCoordinatorUploadOptions,
+  type CoordinatorPipelineMutation,
   type CoordinatorPipelineSnapshot,
   type CoordinatorPipelineState,
   type CoordinatorPipelineStore,
@@ -18,5 +19,7 @@ export {
   createMemoryCoordinatorStore,
   type IssueCoordinatorSlotOptions,
   issueCoordinatorSlot,
+  type MutateCoordinatorPipelineOptions,
+  mutateCoordinatorPipeline,
   type SaveCoordinatorPipelineOptions,
 } from "./protocol/coordinator";

@@ -61,6 +61,29 @@ export type CoordinatorStoreSave =
       status: "conflict";
     };
 
+export interface MutateCoordinatorPipelineOptions {
+  maxAttempts?: number;
+  mutate(
+    state: CoordinatorPipelineState
+  ): CoordinatorPipelineState | Promise<CoordinatorPipelineState>;
+  sessionId: OlosId;
+  store: CoordinatorPipelineStore;
+}
+
+export type CoordinatorPipelineMutation =
+  | {
+      etag: string;
+      state: CoordinatorPipelineState;
+      status: "saved";
+    }
+  | {
+      current?: CoordinatorPipelineSnapshot;
+      status: "conflict";
+    }
+  | {
+      status: "not_found";
+    };
+
 export interface IssueCoordinatorSlotOptions
   extends Omit<CreateIssuedUploadSlotOptions, "session"> {
   state: CoordinatorPipelineState;
@@ -150,6 +173,41 @@ export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
         status: "saved" as const,
       });
     },
+  };
+}
+
+export async function mutateCoordinatorPipeline(
+  options: MutateCoordinatorPipelineOptions
+): Promise<CoordinatorPipelineMutation> {
+  const maxAttempts = options.maxAttempts ?? 2;
+  let snapshot = await options.store.load(options.sessionId);
+
+  if (snapshot === undefined) {
+    return { status: "not_found" };
+  }
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const state = await options.mutate(snapshot.state);
+    const saved = await options.store.save({
+      expectedEtag: snapshot.etag,
+      sessionId: options.sessionId,
+      state,
+    });
+
+    if (saved.status === "saved") {
+      return saved;
+    }
+
+    if (saved.current === undefined) {
+      return saved;
+    }
+
+    snapshot = saved.current;
+  }
+
+  return {
+    current: snapshot,
+    status: "conflict",
   };
 }
 
