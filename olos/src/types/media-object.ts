@@ -1,4 +1,6 @@
-export type MediaObjectKind = "init" | "part" | "segment" | "sidecar";
+import type { MEDIA_OBJECT_KINDS } from "../config/media-object";
+
+export type MediaObjectKind = (typeof MEDIA_OBJECT_KINDS)[number];
 
 export interface MediaObject {
   contentType: string;

@@ -1,19 +1,10 @@
+import type { PUBLICATION_MODES } from "../config/publication";
+import type { UPLOAD_SLOT_STATES } from "../config/upload-slot";
 import type { Epoch, MediaSequenceNumber, OlosId, PartNumber } from "./ids";
 import type { MediaObjectKind } from "./media-object";
 
-export type PublicationMode =
-  | "direct-public"
-  | "read-gated"
-  | "private-upload-public-promotion";
-
-export type UploadSlotState =
-  | "issued"
-  | "upload_observed"
-  | "committed"
-  | "announced"
-  | "expired"
-  | "rejected"
-  | "revoked";
+export type PublicationMode = (typeof PUBLICATION_MODES)[number];
+export type UploadSlotState = (typeof UPLOAD_SLOT_STATES)[number];
 
 export interface UploadSlot {
   contentType: string;

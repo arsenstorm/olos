@@ -1,22 +1,13 @@
+import type {
+  LATENCY_PROFILES,
+  RENDITION_KINDS,
+  SESSION_STATES,
+} from "../config/session";
 import type { Epoch, OlosId } from "./ids";
 
-export type LatencyProfile =
-  | "object-standard"
-  | "object-ll"
-  | "object-experimental"
-  | "origin-ll"
-  | "relay-bridge";
-
-export type RenditionKind = "audio" | "video" | "text" | "metadata";
-
-export type SessionState =
-  | "created"
-  | "starting"
-  | "live"
-  | "ending"
-  | "ended"
-  | "aborted"
-  | "expired";
+export type LatencyProfile = (typeof LATENCY_PROFILES)[number];
+export type RenditionKind = (typeof RENDITION_KINDS)[number];
+export type SessionState = (typeof SESSION_STATES)[number];
 
 export interface Rendition {
   bitrate?: number;
