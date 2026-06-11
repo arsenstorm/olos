@@ -1,11 +1,11 @@
-import {
-  createCoordinatorPipeline,
-  createMemoryCoordinatorStore,
-} from "olos/protocol";
+import { createMemoryCoordinatorStore } from "olos/protocol";
 import {
   commitStoredCoordinatorUploadFromRequest,
+  createStoredCoordinatorSession,
   issueStoredCoordinatorSlotFromRequest,
+  planStoredCoordinatorRetention,
   serveStoredCoordinatorManifest,
+  transitionStoredCoordinatorSession,
 } from "olos/runtime";
 import type { Pathway, Session } from "olos/types";
 import { assertCursor } from "olos/validation";
@@ -45,12 +45,16 @@ const pathways = [
 ] satisfies Pathway[];
 
 describe("runtime pipeline", () => {
-  test("issues, commits, and serves HLS from stored coordinator state", async () => {
+  test("runs stored coordinator lifecycle through public runtime exports", async () => {
     const store = createMemoryCoordinatorStore();
-    await store.save({
-      sessionId: session.sessionId,
-      state: createCoordinatorPipeline({ pathways, session }),
+
+    const created = await createStoredCoordinatorSession({
+      pathways,
+      session,
+      store,
     });
+
+    expect(created.status).toBe("created");
 
     const initIssue = await issueStoredCoordinatorSlotFromRequest({
       request: slotPayload({
@@ -78,9 +82,23 @@ describe("runtime pipeline", () => {
       sessionId: session.sessionId,
       store,
     });
+    const nextIssue = await issueStoredCoordinatorSlotFromRequest({
+      request: slotPayload({
+        deliveryUrl: "https://media.example.com/media/v1080/3811.m4s",
+        duration: 2,
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3811,
+        objectKey: "media/v1080/3811.m4s",
+        slotId: "slot_3811",
+      }),
+      sessionId: session.sessionId,
+      store,
+    });
 
     expect(initIssue.status).toBe("issued");
     expect(segmentIssue.status).toBe("issued");
+    expect(nextIssue.status).toBe("issued");
 
     const initCommit = await commitStoredCoordinatorUploadFromRequest({
       request: commitPayload({
@@ -149,6 +167,38 @@ describe("runtime pipeline", () => {
     expect(await media.text()).toContain(
       "https://media.example.com/media/v1080/3810.m4s"
     );
+
+    const transitioned = await transitionStoredCoordinatorSession({
+      sessionId: session.sessionId,
+      state: "ending",
+      store,
+    });
+
+    expect(transitioned.status).toBe("transitioned");
+
+    if (transitioned.status !== "transitioned") {
+      throw new Error("expected session transition");
+    }
+
+    expect(transitioned.state.session.state).toBe("ending");
+    expect(transitioned.state.cursor?.state).toBe("ending");
+
+    const retention = await planStoredCoordinatorRetention({
+      now: "2026-01-01T00:00:06.000Z",
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(retention.status).toBe("planned");
+
+    if (retention.status !== "planned") {
+      throw new Error("expected retention plan");
+    }
+
+    expect(retention.plan.expiredSlots.map((slot) => slot.slotId)).toEqual([
+      "slot_3811",
+    ]);
+    expect(retention.plan.retiredObjects).toEqual([]);
   });
 });
 
