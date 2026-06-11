@@ -128,7 +128,7 @@ describe("cursor validation", () => {
         ...validCursor,
         pathways: [{ ...validCursor.pathways[0], state: "warming" }],
       })
-    ).toThrow("cursor.pathways[].state must be one of:");
+    ).toThrow("pathway.state must be one of:");
   });
 
   test("rejects non-monotonic cursor windows", () => {

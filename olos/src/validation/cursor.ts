@@ -1,9 +1,9 @@
-import { PATHWAY_STATES } from "../config/pathway";
 import { LATENCY_PROFILES, SESSION_STATES } from "../config/session";
 import { OLOS_WIRE_VERSION } from "../protocol";
 import type { Cursor, CursorWindow } from "../types/cursor";
 import { assertCommittedWindow } from "./committed-window";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
+import { assertPathway } from "./pathway";
 
 export function isCursor(value: unknown): value is Cursor {
   try {
@@ -88,15 +88,7 @@ function assertPathways(value: unknown): void {
   const seenPathways = new Set<string>();
 
   for (const pathway of value) {
-    if (!isRecord(pathway)) {
-      throw new Error("cursor.pathways[] must be an object");
-    }
-
-    assertUrlSafeField(pathway, "pathwayId", "cursor.pathways[]");
-    assertUrlSafeField(pathway, "providerId", "cursor.pathways[]");
-    assertNonEmptyStringField(pathway, "baseUrl", "cursor.pathways[]");
-    assertNonNegativeIntegerField(pathway, "priority", "cursor.pathways[]");
-    assertOneOfField(pathway, "state", PATHWAY_STATES, "cursor.pathways[]");
+    assertPathway(pathway);
 
     if (seenPathways.has(pathway.pathwayId as string)) {
       throw new Error("cursor.pathways must not contain duplicate pathway IDs");
@@ -141,16 +133,6 @@ function assertPositiveNumberField(
     value[field] <= 0
   ) {
     throw new Error(`${name}.${field} must be a positive number`);
-  }
-}
-
-function assertNonEmptyStringField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (typeof value[field] !== "string" || value[field].length === 0) {
-    throw new Error(`${name}.${field} must be a non-empty string`);
   }
 }
 
