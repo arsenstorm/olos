@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { MediaObject } from "../types/media-object";
+import type { Session } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
 import {
@@ -44,6 +45,27 @@ const observedUpload: ObservedUpload = {
   metadata: {
     "x-olos-slot-id": "slot_1",
   },
+};
+
+const session: Session = {
+  createdAt: "2026-01-01T00:00:00.000Z",
+  epoch: 0,
+  latencyProfile: "object-ll",
+  olos: "1.0",
+  partTarget: 0.5,
+  renditions: [
+    {
+      codec: "avc1.640028",
+      height: 1080,
+      kind: "video",
+      renditionId: "v1080",
+      width: 1920,
+    },
+  ],
+  segmentTarget: 2,
+  sessionId: "session_1",
+  state: "live",
+  tenantId: "tenant_1",
 };
 
 describe("commit builder", () => {
@@ -221,10 +243,37 @@ describe("commit attempt resolution", () => {
         commitId: "commit_1",
         committedAt: "2026-01-01T00:00:02.000Z",
         mediaObject,
+        session,
         slot,
         slotId: "slot_1",
       }).status
     ).toBe("committed");
+  });
+
+  test("returns an invalid state error after session abort", () => {
+    expect(
+      resolveCommitAttempt({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        mediaObject,
+        session: { ...session, state: "aborted" },
+        slot,
+        slotId: "slot_1",
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          details: {
+            sessionId: "session_1",
+            slotId: "slot_1",
+            state: "aborted",
+          },
+          message: "session is aborted",
+        },
+      },
+      status: "invalid_state",
+    });
   });
 
   test("returns a key mismatch error for a different object key", () => {

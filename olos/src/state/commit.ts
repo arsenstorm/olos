@@ -2,6 +2,7 @@ import type { Commit } from "../types/commit";
 import type { OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { MediaObject } from "../types/media-object";
+import type { Session } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertCommit } from "../validation/commit";
 import { assertMediaObject } from "../validation/media-object";
@@ -27,6 +28,7 @@ export interface UploadCommitResolution {
 
 export interface ResolveCommitAttemptOptions
   extends Omit<CreateCommitOptions, "slot"> {
+  session?: Session;
   slot?: UploadSlot;
   slotId: OlosId;
 }
@@ -39,7 +41,11 @@ export type CommitAttemptResolution =
     }
   | {
       error: OlosError;
-      status: "key_mismatch" | "object_too_large" | "unknown_slot";
+      status:
+        | "invalid_state"
+        | "key_mismatch"
+        | "object_too_large"
+        | "unknown_slot";
     };
 
 export interface CommitObservedUploadOptions {
@@ -151,6 +157,17 @@ export function resolveCommitAttempt(
         slotId: options.slotId,
       }),
       status: "unknown_slot",
+    };
+  }
+
+  if (options.session?.state === "aborted") {
+    return {
+      error: commitError("olos.invalid_state", "session is aborted", {
+        sessionId: options.session.sessionId,
+        slotId: options.slot.slotId,
+        state: options.session.state,
+      }),
+      status: "invalid_state",
     };
   }
 
