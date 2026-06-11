@@ -6,7 +6,10 @@ import {
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
 } from "../protocol";
-import type { CoordinatorPipelineStore } from "../protocol/coordinator";
+import type {
+  CoordinatorPipelineSnapshot,
+  CoordinatorPipelineStore,
+} from "../protocol/coordinator";
 import { createObservedUpload } from "../state/observed-upload";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
@@ -116,6 +119,50 @@ describe("stored runtime mutations", () => {
     expect(result.status).toBe("not_found");
     expect(result.response.status).toBe(404);
   });
+
+  test("retries issue mutations after save conflicts with current state", async () => {
+    const store = await createConflictingStore();
+
+    const result = await issueStoredCoordinatorSlotFromRequest({
+      request: slotPayload(),
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("issued");
+
+    if (result.status !== "issued") {
+      throw new Error("expected issued slot after conflict retry");
+    }
+
+    expect(result.response.status).toBe(201);
+    expect(result.state.slots).toHaveLength(2);
+    expect(result.state.slots.map((slot) => slot.slotId)).toEqual([
+      "slot_existing",
+      "slot_3810",
+    ]);
+  });
+
+  test("returns conflict responses when save conflicts cannot be retried", async () => {
+    const store = await createConflictOnlyStore();
+
+    const result = await issueStoredCoordinatorSlotFromRequest({
+      request: slotPayload(),
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("conflict");
+
+    if (result.status !== "conflict") {
+      throw new Error("expected conflict result");
+    }
+
+    expect(result.response.status).toBe(409);
+    expect(await result.response.json()).toEqual({
+      error: { message: "coordinator session changed during mutation" },
+    });
+  });
 });
 
 async function createSeededStore(): Promise<CoordinatorPipelineStore> {
@@ -130,6 +177,66 @@ async function createSeededStore(): Promise<CoordinatorPipelineStore> {
   }
 
   return store;
+}
+
+async function createConflictingStore(): Promise<CoordinatorPipelineStore> {
+  const store = await createSeededStore();
+  const originalSave = store.save;
+  const currentState = issueCoordinatorSlot({
+    ...slotPayload(),
+    deliveryUrl: "https://media.example.com/existing.m4s",
+    objectKey: "media/existing.m4s",
+    slotId: "slot_existing",
+    state: createCoordinatorPipeline({ pathways, session }),
+  }).state;
+  let conflicted = false;
+
+  return {
+    load: store.load,
+    save: async (options) => {
+      if (!conflicted) {
+        conflicted = true;
+        const saved = await originalSave({
+          sessionId: session.sessionId,
+          state: currentState,
+        });
+
+        if (saved.status !== "saved") {
+          throw new Error("expected external coordinator save");
+        }
+
+        return {
+          current: {
+            etag: saved.etag,
+            state: saved.state,
+          },
+          status: "conflict",
+        };
+      }
+
+      return await originalSave(options);
+    },
+  };
+}
+
+async function createConflictOnlyStore(): Promise<CoordinatorPipelineStore> {
+  const snapshot = await createSeededSnapshot();
+
+  return {
+    load: async () => snapshot,
+    save: async () => ({ status: "conflict" }),
+  };
+}
+
+async function createSeededSnapshot(): Promise<CoordinatorPipelineSnapshot> {
+  const store = await createSeededStore();
+  const snapshot = await store.load(session.sessionId);
+
+  if (snapshot === undefined) {
+    throw new Error("expected seeded coordinator snapshot");
+  }
+
+  return snapshot;
 }
 
 async function createReadyStore(): Promise<CoordinatorPipelineStore> {
