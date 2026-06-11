@@ -14,4 +14,8 @@ export {
 } from "./validation/ids";
 export { assertPathway, isPathway } from "./validation/pathway";
 export { assertSession, isSession } from "./validation/session";
+export {
+  assertUploadGrant,
+  isUploadGrant,
+} from "./validation/upload-grant";
 export { assertUploadSlot, isUploadSlot } from "./validation/upload-slot";
