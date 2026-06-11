@@ -1,9 +1,12 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import {
+  type CoordinatorManifestArtifacts,
   type CoordinatorPipelineSnapshot,
   type CoordinatorPipelineStore,
   type CoordinatorUploadCommit,
+  type CreateCoordinatorManifestArtifactsOptions,
   commitCoordinatorUpload,
+  createCoordinatorManifestArtifacts,
   issueCoordinatorSlot,
   mutateCoordinatorPipeline,
 } from "../protocol";
@@ -35,6 +38,7 @@ export interface CommitS3CoordinatorUploadOptions {
 
 export interface CommitStoredS3CoordinatorUploadOptions
   extends Omit<CommitS3CoordinatorUploadOptions, "state"> {
+  manifest?: StoredS3CoordinatorManifestOptions;
   maxAttempts?: number;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
@@ -58,6 +62,7 @@ export interface RouteStoredS3CoordinatorUploadEventOptions {
   client: S3HeadObjectClient;
   event: UploadEventNormalization;
   independent?: boolean;
+  manifest?: StoredS3CoordinatorManifestOptions;
   maxAttempts?: number;
   maxSegments?: number;
   programDateTime?: string;
@@ -67,12 +72,16 @@ export interface RouteStoredS3CoordinatorUploadEventOptions {
   versionId?: string;
 }
 
+export interface StoredS3CoordinatorManifestOptions
+  extends Omit<CreateCoordinatorManifestArtifactsOptions, "state"> {}
+
 export type StoredS3CoordinatorUploadCommit =
   | (Extract<
       CoordinatorUploadCommit,
       { status: "committed" | "idempotent" }
     > & {
       etag: string;
+      manifest?: CoordinatorManifestArtifacts;
     })
   | Extract<CoordinatorUploadCommit, { status: "rejected" }>
   | {
@@ -247,7 +256,7 @@ export async function commitS3CoordinatorUpload(
 export async function commitStoredS3CoordinatorUpload(
   options: CommitStoredS3CoordinatorUploadOptions
 ): Promise<StoredS3CoordinatorUploadCommit> {
-  const { maxAttempts, sessionId, store, ...commitOptions } = options;
+  const { manifest, maxAttempts, sessionId, store, ...commitOptions } = options;
   const attempts = maxAttempts ?? 2;
   let snapshot = await store.load(sessionId);
 
@@ -266,10 +275,13 @@ export async function commitStoredS3CoordinatorUpload(
     }
 
     if (commit.status === "idempotent") {
-      return {
-        ...commit,
-        etag: snapshot.etag,
-      };
+      return withManifest(
+        {
+          ...commit,
+          etag: snapshot.etag,
+        },
+        manifest
+      );
     }
 
     const saved = await store.save({
@@ -279,14 +291,17 @@ export async function commitStoredS3CoordinatorUpload(
     });
 
     if (saved.status === "saved") {
-      return {
-        ...commit,
-        etag: saved.etag,
-        ...(saved.state.cursor === undefined
-          ? {}
-          : { cursor: saved.state.cursor }),
-        state: saved.state,
-      };
+      return withManifest(
+        {
+          ...commit,
+          etag: saved.etag,
+          ...(saved.state.cursor === undefined
+            ? {}
+            : { cursor: saved.state.cursor }),
+          state: saved.state,
+        },
+        manifest
+      );
     }
 
     if (saved.current === undefined) {
@@ -392,6 +407,7 @@ export async function routeStoredS3CoordinatorUploadEvent(
       commitId: options.event.event.eventId,
       committedAt: options.event.event.object.observedAt,
       independent: options.independent,
+      manifest: options.manifest,
       maxAttempts: options.maxAttempts,
       maxSegments: options.maxSegments,
       objectKey: options.event.event.object.objectKey,
@@ -409,6 +425,7 @@ export async function routeStoredS3CoordinatorUploadEvent(
     commitId: options.event.hint.eventId,
     committedAt: options.event.hint.eventTime,
     independent: options.independent,
+    manifest: options.manifest,
     maxAttempts: options.maxAttempts,
     maxSegments: options.maxSegments,
     objectKey: options.event.hint.objectKey,
@@ -419,6 +436,23 @@ export async function routeStoredS3CoordinatorUploadEvent(
     store: options.store,
     versionId: options.versionId,
   });
+}
+
+function withManifest<T extends { state: CoordinatorPipelineState }>(
+  result: T,
+  manifest: StoredS3CoordinatorManifestOptions | undefined
+): T & { manifest?: CoordinatorManifestArtifacts } {
+  if (manifest === undefined) {
+    return result;
+  }
+
+  return {
+    ...result,
+    manifest: createCoordinatorManifestArtifacts({
+      ...manifest,
+      state: result.state,
+    }),
+  };
 }
 
 function coordinatorError(

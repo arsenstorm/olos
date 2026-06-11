@@ -338,6 +338,94 @@ describe("s3 coordinator uploads", () => {
     ]);
   });
 
+  test("derives manifests from stored S3 coordinator commits", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    let state = createCoordinatorPipeline({ pathways, session });
+    state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/init.mp4",
+      duration: 1,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/init.mp4",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_init",
+      state,
+    }).state;
+    state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state,
+    }).state;
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: clientFor("media/init.mp4", 1024, headObjectInputs),
+      commitId: "commit_init",
+      committedAt: "2026-01-01T00:00:01.000Z",
+      manifest: {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotId: "slot_init",
+      store,
+    });
+
+    const segmentCommit = await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      manifest: {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotId: "slot_3810",
+      store,
+    });
+
+    expect(segmentCommit.status).toBe("committed");
+    if (segmentCommit.status !== "committed") {
+      throw new Error("expected persisted segment commit");
+    }
+
+    expect(
+      segmentCommit.manifest?.artifacts.map((artifact) => artifact.path)
+    ).toEqual([
+      "/v1/live/session_1/master.m3u8",
+      "/v1/live/session_1/v1080/media.m3u8",
+    ]);
+    expect(segmentCommit.manifest?.artifacts[1]?.body).toContain(
+      "https://media.example.com/s3810.m4s"
+    );
+  });
+
   test("completes stored S3 uploads from a matching object key hint", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();

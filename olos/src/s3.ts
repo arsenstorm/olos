@@ -16,6 +16,7 @@ export {
   type RouteStoredS3CoordinatorUploadEventOptions,
   routeStoredS3CoordinatorUploadEvent,
   type S3CoordinatorUploadGrantIssue,
+  type StoredS3CoordinatorManifestOptions,
   type StoredS3CoordinatorUploadCommit,
   type StoredS3CoordinatorUploadCompletion,
   type StoredS3CoordinatorUploadEventRoute,
