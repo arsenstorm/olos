@@ -78,6 +78,10 @@ export interface ResolveUploadEvidenceOptions {
   object?: ObservedUpload;
 }
 
+export interface NormalizeUploadEventOptions {
+  event: unknown;
+}
+
 export type ObjectCreatedEventObservationResolution =
   | {
       event: ObservedUploadObjectCreatedEvent;
@@ -113,6 +117,20 @@ export type UploadEvidenceResolution =
     }
   | {
       status: "idle";
+    };
+
+export type UploadEventNormalization =
+  | {
+      event: ObservedUploadObjectCreatedEvent;
+      status: "object_created";
+    }
+  | {
+      hint: UploadCompletionHint;
+      status: "upload_completed";
+    }
+  | {
+      error: OlosError;
+      status: "invalid_event";
     };
 
 export function createObservedUpload(
@@ -241,6 +259,52 @@ export function resolveUploadEvidence(
   return { status: "idle" };
 }
 
+export function normalizeUploadEvent(
+  options: NormalizeUploadEventOptions
+): UploadEventNormalization {
+  const event = options.event as Record<string, unknown> | null;
+
+  if (event === null || typeof event !== "object") {
+    return invalidUploadEvent("upload event must be an object");
+  }
+
+  try {
+    if (event.eventType === OBJECT_CREATED_EVENT_TYPE) {
+      return {
+        event: createObservedUploadFromObjectCreatedEvent({
+          contentType: event.contentType as string,
+          etag: event.etag as string | undefined,
+          eventId: event.eventId as string,
+          eventTime: event.eventTime as string,
+          eventType: OBJECT_CREATED_EVENT_TYPE,
+          metadata: event.metadata as Record<string, string | undefined>,
+          objectKey: event.objectKey as string,
+          providerId: event.providerId as string,
+          size: event.size as number,
+        }),
+        status: "object_created",
+      };
+    }
+
+    if (event.eventType === UPLOAD_COMPLETED_HINT_TYPE) {
+      return {
+        hint: createUploadCompletionHint({
+          eventId: event.eventId as string,
+          eventTime: event.eventTime as string,
+          eventType: UPLOAD_COMPLETED_HINT_TYPE,
+          objectKey: event.objectKey as string,
+          slotId: event.slotId as string,
+        }),
+        status: "upload_completed",
+      };
+    }
+  } catch (error) {
+    return invalidUploadEvent(errorMessage(error));
+  }
+
+  return invalidUploadEvent("upload event type is unsupported");
+}
+
 export function resolveObjectCreatedEventSlot(
   options: ResolveObjectCreatedEventSlotOptions
 ): ObjectCreatedEventSlotResolution {
@@ -274,6 +338,26 @@ export function resolveObjectCreatedEventSlot(
     },
     status: "unknown_object_key",
   };
+}
+
+function invalidUploadEvent(message: string): UploadEventNormalization {
+  return {
+    error: {
+      error: {
+        code: "olos.invalid_state",
+        message,
+      },
+    },
+    status: "invalid_event",
+  };
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "upload event is invalid";
 }
 
 function assertObjectCreatedEvent(

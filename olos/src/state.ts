@@ -36,6 +36,8 @@ export {
   createObservedUploadFromHeadObject,
   createObservedUploadFromObjectCreatedEvent,
   createUploadCompletionHint,
+  type NormalizeUploadEventOptions,
+  normalizeUploadEvent,
   OBJECT_CREATED_EVENT_TYPE,
   type ObjectCreatedEventObservationResolution,
   type ObjectCreatedEventSlotResolution,
@@ -48,6 +50,7 @@ export {
   resolveUploadEvidence,
   UPLOAD_COMPLETED_HINT_TYPE,
   type UploadCompletionHint,
+  type UploadEventNormalization,
   type UploadEvidenceResolution,
 } from "./state/observed-upload";
 export {

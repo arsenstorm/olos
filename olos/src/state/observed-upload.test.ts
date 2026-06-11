@@ -5,6 +5,7 @@ import {
   createObservedUploadFromHeadObject,
   createObservedUploadFromObjectCreatedEvent,
   createUploadCompletionHint,
+  normalizeUploadEvent,
   resolveObjectCreatedEventObservation,
   resolveObjectCreatedEventSlot,
   resolveUploadEvidence,
@@ -216,6 +217,102 @@ describe("object created event normalization", () => {
         providerId: "s3_primary",
         size: 98_304,
       },
+    });
+  });
+
+  test("normalizes object-created upload events", () => {
+    expect(
+      normalizeUploadEvent({
+        event: {
+          contentType: "video/mp4",
+          etag: '"abc123"',
+          eventId: "evt_1",
+          eventTime: "2026-01-01T00:00:01.000Z",
+          eventType: "object.created",
+          metadata: {
+            "x-olos-slot-id": "slot_1",
+          },
+          objectKey: "media/session/v1080/3810.m4s",
+          providerId: "s3_primary",
+          size: 98_304,
+        },
+      })
+    ).toEqual({
+      event: objectCreatedEvent,
+      status: "object_created",
+    });
+  });
+
+  test("normalizes upload-completed hints", () => {
+    expect(
+      normalizeUploadEvent({
+        event: {
+          eventId: "hint_1",
+          eventTime: "2026-01-01T00:00:00.900Z",
+          eventType: "upload.completed",
+          objectKey: "media/session/v1080/3810.m4s",
+          slotId: "slot_1",
+        },
+      })
+    ).toEqual({
+      hint: uploadCompletionHint,
+      status: "upload_completed",
+    });
+  });
+
+  test("rejects malformed upload event envelopes", () => {
+    expect(normalizeUploadEvent({ event: null })).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          message: "upload event must be an object",
+        },
+      },
+      status: "invalid_event",
+    });
+  });
+
+  test("rejects unsupported upload event types", () => {
+    expect(
+      normalizeUploadEvent({
+        event: {
+          eventId: "evt_1",
+          eventType: "object.deleted",
+        },
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          message: "upload event type is unsupported",
+        },
+      },
+      status: "invalid_event",
+    });
+  });
+
+  test("rejects invalid upload event payloads", () => {
+    expect(
+      normalizeUploadEvent({
+        event: {
+          contentType: "video/mp4",
+          eventId: "not safe",
+          eventTime: "2026-01-01T00:00:01.000Z",
+          eventType: "object.created",
+          objectKey: "media/session/v1080/3810.m4s",
+          providerId: "s3_primary",
+          size: 98_304,
+        },
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          message:
+            "objectCreatedEvent.eventId must be a non-empty URL-safe identifier",
+        },
+      },
+      status: "invalid_event",
     });
   });
 
