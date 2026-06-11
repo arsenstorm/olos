@@ -221,9 +221,16 @@ describe("stored coordinator runtime handler", () => {
     );
     const stored = await store.load(session.sessionId);
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
     expect(await response.json()).toEqual({
-      error: { message: "publication operation is disabled" },
+      error: {
+        code: "olos.security_policy_violation",
+        details: {
+          operation: "issue_slot",
+          reason: "incident",
+        },
+        message: "publication operation is disabled",
+      },
     });
     expect(stored?.state.slots).toEqual([]);
   });

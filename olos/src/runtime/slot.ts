@@ -3,7 +3,11 @@ import {
   issueCoordinatorSlot,
 } from "../protocol";
 import type { CoordinatorPipelineState } from "../protocol/coordinator";
-import type { PublicationControlPolicy } from "../state/publication-control";
+import {
+  type PublicationControlPolicy,
+  resolvePublicationControl,
+} from "../state/publication-control";
+import type { OlosError } from "../types/errors";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode, UploadSlot } from "../types/upload-slot";
 
@@ -29,6 +33,12 @@ export type RuntimeCoordinatorSlotIssue =
       message: string;
       response: Response;
       status: "invalid";
+    }
+  | {
+      error: OlosError;
+      response: Response;
+      state: CoordinatorPipelineState;
+      status: "rejected";
     };
 
 export async function issueCoordinatorSlotFromRequest(
@@ -38,6 +48,15 @@ export async function issueCoordinatorSlotFromRequest(
 
   if (payload.status === "invalid") {
     return payload;
+  }
+
+  const publication = resolvePublicationControl({
+    operation: "issue_slot",
+    policy: options.publicationControl,
+  });
+
+  if (publication.status === "blocked") {
+    return rejected(publication.error, options.state);
   }
 
   try {
@@ -106,6 +125,22 @@ function invalid(
     response: jsonResponse({ error: { message } }, 400),
     status: "invalid",
   };
+}
+
+function rejected(
+  error: OlosError,
+  state: CoordinatorPipelineState
+): Extract<RuntimeCoordinatorSlotIssue, { status: "rejected" }> {
+  return {
+    error,
+    response: jsonResponse(error, rejectionStatus(error)),
+    state,
+    status: "rejected",
+  };
+}
+
+function rejectionStatus(error: OlosError): number {
+  return error.error.code === "olos.unknown_slot" ? 404 : 409;
 }
 
 function jsonResponse(body: unknown, status: number): Response {
