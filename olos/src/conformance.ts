@@ -141,13 +141,13 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     id: "CORE-SLOT-006",
     level: "core",
     status: "covered",
-    testFile: "src/state/upload-slot.test.ts",
+    testFile: "src/protocol/coordinator.test.ts",
   },
   {
     id: "CORE-SLOT-007",
     level: "core",
     status: "covered",
-    testFile: "src/state/pathway.test.ts",
+    testFile: "src/protocol/coordinator.test.ts",
   },
   {
     id: "CORE-COMMIT-001",

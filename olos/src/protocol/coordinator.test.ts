@@ -15,6 +15,7 @@ import {
   mutateCoordinatorPipeline,
   parseCoordinatorPipelineSnapshot,
   planCoordinatorRetention,
+  revokeCoordinatorUpload,
   serializeCoordinatorPipelineSnapshot,
 } from "./coordinator";
 
@@ -422,6 +423,107 @@ describe("coordinator pipeline", () => {
 
     expect(duplicateCommit.status).toBe("idempotent");
     expect(duplicateCommit.state.commits).toHaveLength(1);
+  });
+
+  test("revokes committed uploads before they are announced", () => {
+    let state = createCoordinatorPipeline({ pathways, session });
+    const issued = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state,
+    });
+    state = issued.state;
+
+    const committed = commitCoordinatorUpload({
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "media/s3810.m4s",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3810",
+      state,
+    });
+
+    if (committed.status !== "committed") {
+      throw new Error("expected unannounced segment commit");
+    }
+
+    const revoked = revokeCoordinatorUpload({
+      slotId: "slot_3810",
+      state: committed.state,
+    });
+
+    expect(revoked.status).toBe("revoked");
+    if (revoked.status !== "revoked") {
+      throw new Error("expected revoked upload");
+    }
+
+    expect(revoked.slot.state).toBe("revoked");
+    expect(revoked.state.commits).toEqual([]);
+    expect(revoked.state.cursor).toBeUndefined();
+  });
+
+  test("rejects revocation after upload reaches the trusted cursor", () => {
+    let state = createCoordinatorPipeline({ pathways, session });
+
+    state = commitSlot(state, {
+      commitId: "commit_init",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/init.mp4",
+      duration: 1,
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/init.mp4",
+      slotId: "slot_init",
+      size: 1024,
+    });
+    state = commitSlot(state, {
+      commitId: "commit_3810",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      independent: true,
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      slotId: "slot_3810",
+      size: 98_304,
+    });
+
+    const rejected = revokeCoordinatorUpload({
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(rejected.status).toBe("rejected");
+    if (rejected.status !== "rejected") {
+      throw new Error("expected rejected revocation");
+    }
+
+    expect(rejected.error.error).toEqual({
+      code: "olos.invalid_state",
+      details: {
+        slotId: "slot_3810",
+        state: "committed",
+      },
+      message: "announced upload slots cannot be silently revoked",
+    });
+    expect(rejected.state).toBe(state);
   });
 
   test("publishes low-latency parts before the full segment is committed", () => {

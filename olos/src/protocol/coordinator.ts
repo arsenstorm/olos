@@ -17,8 +17,10 @@ import {
 } from "../state/retention";
 import {
   type CreateIssuedUploadSlotOptions,
+  canTransitionUploadSlot,
   createIssuedUploadSlot,
   observeUpload,
+  revokeUpload,
 } from "../state/upload-slot";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
@@ -115,6 +117,11 @@ export interface CommitCoordinatorUploadOptions {
   state: CoordinatorPipelineState;
 }
 
+export interface RevokeCoordinatorUploadOptions {
+  slotId: OlosId;
+  state: CoordinatorPipelineState;
+}
+
 export interface CreateCoordinatorManifestArtifactsOptions
   extends CreateHlsManifestArtifactsOptions {
   state: CoordinatorPipelineState;
@@ -142,6 +149,18 @@ export type CoordinatorUploadCommit =
       cursor?: Cursor;
       state: CoordinatorPipelineState;
       status: "committed" | "idempotent";
+    }
+  | {
+      error: OlosError;
+      state: CoordinatorPipelineState;
+      status: "rejected";
+    };
+
+export type CoordinatorUploadRevocation =
+  | {
+      slot: UploadSlot;
+      state: CoordinatorPipelineState;
+      status: "already_revoked" | "revoked";
     }
   | {
       error: OlosError;
@@ -404,6 +423,64 @@ export function commitCoordinatorUpload(
   };
 }
 
+export function revokeCoordinatorUpload(
+  options: RevokeCoordinatorUploadOptions
+): CoordinatorUploadRevocation {
+  const slot = findSlot(options.state, options.slotId);
+
+  if (slot === undefined) {
+    return {
+      error: coordinatorError(
+        "olos.unknown_slot",
+        "upload slot was not found",
+        {
+          slotId: options.slotId,
+        }
+      ),
+      state: options.state,
+      status: "rejected",
+    };
+  }
+
+  if (isSlotInCursor(options.state, slot)) {
+    return {
+      error: coordinatorError(
+        "olos.invalid_state",
+        "announced upload slots cannot be silently revoked",
+        { slotId: slot.slotId, state: slot.state }
+      ),
+      state: options.state,
+      status: "rejected",
+    };
+  }
+
+  if (
+    slot.state !== "revoked" &&
+    !canTransitionUploadSlot(slot.state, "revoked")
+  ) {
+    return {
+      error: coordinatorError(
+        "olos.invalid_state",
+        "upload slot cannot be revoked from its current state",
+        { slotId: slot.slotId, state: slot.state }
+      ),
+      state: options.state,
+      status: "rejected",
+    };
+  }
+
+  const result = revokeUpload({ slot });
+
+  return {
+    slot: result,
+    state: removeSlotCommit({
+      slot: result,
+      state: options.state,
+    }),
+    status: slot.state === "revoked" ? "already_revoked" : "revoked",
+  };
+}
+
 export function createCoordinatorManifestArtifacts(
   options: CreateCoordinatorManifestArtifactsOptions
 ): CoordinatorManifestArtifacts {
@@ -443,6 +520,61 @@ export function planCoordinatorRetention(
             retainedWindow: cursor.committedWindow,
           }),
     ...(cursor === undefined ? {} : { cursor }),
+  };
+}
+
+function removeSlotCommit(options: {
+  slot: UploadSlot;
+  state: CoordinatorPipelineState;
+}): CoordinatorPipelineState {
+  return {
+    ...options.state,
+    commits: options.state.commits.filter(
+      (commit) => commit.slotId !== options.slot.slotId
+    ),
+    initCommits: options.state.initCommits.filter(
+      (commit) => commit.slotId !== options.slot.slotId
+    ),
+    slots: options.state.slots.map((slot) =>
+      slot.slotId === options.slot.slotId ? options.slot : slot
+    ),
+  };
+}
+
+function isSlotInCursor(
+  state: CoordinatorPipelineState,
+  slot: UploadSlot
+): boolean {
+  const cursor = state.cursor;
+
+  if (cursor === undefined) {
+    return false;
+  }
+
+  return Object.values(cursor.committedWindow.renditions).some((rendition) => {
+    if (rendition.init.slotId === slot.slotId) {
+      return true;
+    }
+
+    return rendition.segments.some(
+      (segment) =>
+        segment.segment?.slotId === slot.slotId ||
+        segment.parts?.some((part) => part.slotId === slot.slotId) === true
+    );
+  });
+}
+
+function coordinatorError(
+  code: OlosError["error"]["code"],
+  message: string,
+  details: Record<string, unknown>
+): OlosError {
+  return {
+    error: {
+      code,
+      details,
+      message,
+    },
   };
 }
 
