@@ -34,3 +34,10 @@ export {
   type SaveCoordinatorPipelineOptions,
   serializeCoordinatorPipelineSnapshot,
 } from "./protocol/coordinator";
+export {
+  createSerializedCoordinatorStore,
+  type SaveSerializedCoordinatorStoreOptions,
+  type SerializedCoordinatorStoreBackend,
+  type SerializedCoordinatorStoreRecord,
+  type SerializedCoordinatorStoreSave,
+} from "./protocol/serialized-store";

@@ -120,6 +120,19 @@ const body = serializeCoordinatorPipelineSnapshot({
 The adapter owns transactions, indexes, and backend-specific conflict checks.
 OLOS owns snapshot cloning, JSON parsing, and ETag sequencing.
 
+For stores that persist an opaque JSON snapshot plus a separate ETag column,
+`createSerializedCoordinatorStore` adapts the backend to the coordinator store
+contract:
+
+```ts
+import { createSerializedCoordinatorStore } from "olos/protocol";
+
+const store = createSerializedCoordinatorStore({
+  load: (sessionId) => loadSnapshotRow(sessionId),
+  save: (options) => saveSnapshotRowAtomically(options),
+});
+```
+
 ## Stored S3 Serving Flow
 
 `olos/s3` can bind S3 object uploads to coordinator state and return HLS
