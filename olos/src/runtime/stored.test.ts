@@ -270,7 +270,14 @@ async function createConflictingStore(): Promise<CoordinatorPipelineStore> {
     save: async (options) => {
       if (!conflicted) {
         conflicted = true;
+        const current = await store.load(session.sessionId);
+
+        if (current === undefined) {
+          throw new Error("expected seeded coordinator snapshot");
+        }
+
         const saved = await originalSave({
+          expectedEtag: current.etag,
           sessionId: session.sessionId,
           state: currentState,
         });

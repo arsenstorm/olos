@@ -9,6 +9,8 @@ import type { Session } from "./types/session";
 export const OLOS_CONFORMANCE_ASSERTION_IDS = [
   "CORE-STORE-001",
   "CORE-STORE-002",
+  "CORE-STORE-003",
+  "CORE-STORE-004",
   "CORE-SLOT-001",
   "CORE-SLOT-002",
   "CORE-SLOT-003",
@@ -105,6 +107,18 @@ export const OLOS_CONFORMANCE_COVERAGE = [
   },
   {
     id: "CORE-STORE-002",
+    level: "core",
+    status: "covered",
+    testFile: "src/conformance.test.ts",
+  },
+  {
+    id: "CORE-STORE-003",
+    level: "core",
+    status: "covered",
+    testFile: "src/conformance.test.ts",
+  },
+  {
+    id: "CORE-STORE-004",
     level: "core",
     status: "covered",
     testFile: "src/conformance.test.ts",
@@ -588,12 +602,41 @@ export async function assertCoordinatorPipelineStoreConformance(
   });
   assertStoreStatus(stale.status, "conflict", "stale save must conflict");
 
+  const duplicateInsert = await store.save({
+    sessionId: conformanceSession.sessionId,
+    state: initial,
+  });
+  assertStoreStatus(
+    duplicateInsert.status,
+    "conflict",
+    "duplicate insert must conflict"
+  );
+
+  if (duplicateInsert.status === "conflict") {
+    expectStoreValue(
+      duplicateInsert.current?.etag,
+      first.etag,
+      "duplicate insert conflict should expose current etag when available"
+    );
+  }
+
   const second = await store.save({
     expectedEtag: first.etag,
     sessionId: conformanceSession.sessionId,
     state: initial,
   });
   assertSavedStoreResult(second, "matching etag save must succeed");
+
+  const missingUpdate = await store.save({
+    expectedEtag: "1",
+    sessionId: "missing_session",
+    state: initial,
+  });
+  assertStoreStatus(
+    missingUpdate.status,
+    "conflict",
+    "missing update must conflict"
+  );
 }
 
 function assertSavedStoreResult(

@@ -207,11 +207,20 @@ export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
     save(options) {
       const current = entries.get(options.sessionId);
 
-      if (
-        current !== undefined &&
-        options.expectedEtag !== undefined &&
-        current.etag !== options.expectedEtag
-      ) {
+      if (current === undefined && options.expectedEtag !== undefined) {
+        return Promise.resolve({
+          status: "conflict" as const,
+        });
+      }
+
+      if (current !== undefined && options.expectedEtag === undefined) {
+        return Promise.resolve({
+          current: cloneSnapshot(current),
+          status: "conflict" as const,
+        });
+      }
+
+      if (current !== undefined && current.etag !== options.expectedEtag) {
         return Promise.resolve({
           current: cloneSnapshot(current),
           status: "conflict" as const,

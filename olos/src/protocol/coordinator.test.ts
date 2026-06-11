@@ -129,6 +129,42 @@ describe("coordinator pipeline", () => {
     expect(stale.current?.state.slots).toHaveLength(1);
   });
 
+  test("rejects duplicate coordinator state inserts", async () => {
+    const store = createMemoryCoordinatorStore();
+    const state = createCoordinatorPipeline({ pathways, session });
+    const first = await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+    const duplicate = await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    if (first.status !== "saved") {
+      throw new Error("expected first save");
+    }
+
+    expect(duplicate.status).toBe("conflict");
+    if (duplicate.status !== "conflict") {
+      throw new Error("expected duplicate insert conflict");
+    }
+
+    expect(duplicate.current?.etag).toBe(first.etag);
+  });
+
+  test("rejects coordinator state updates for missing sessions", async () => {
+    const store = createMemoryCoordinatorStore();
+    const state = createCoordinatorPipeline({ pathways, session });
+    const result = await store.save({
+      expectedEtag: "1",
+      sessionId: session.sessionId,
+      state,
+    });
+
+    expect(result.status).toBe("conflict");
+  });
+
   test("returns independent coordinator state snapshots", async () => {
     const store = createMemoryCoordinatorStore();
     const state = createCoordinatorPipeline({ pathways, session });
@@ -264,7 +300,14 @@ describe("coordinator pipeline", () => {
         attempts += 1;
 
         if (attempts === 1) {
+          const snapshot = await store.load(session.sessionId);
+
+          if (snapshot === undefined) {
+            throw new Error("expected current snapshot");
+          }
+
           await store.save({
+            expectedEtag: snapshot.etag,
             sessionId: session.sessionId,
             state: {
               ...current,
