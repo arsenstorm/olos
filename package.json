@@ -15,6 +15,7 @@
     "check-types": "bun --filter olos check-types",
     "fix": "ultracite fix",
     "prepare": "husky",
+    "publish:check": "bun --filter olos publish:check",
     "test": "bun --filter olos test",
     "test:e2e": "bun --filter olos test:e2e"
   },
