@@ -5,6 +5,7 @@ import type { Session } from "../types/session";
 import {
   createHlsManifestArtifactResponse,
   createHlsManifestArtifacts,
+  resolveHlsManifestArtifactResponse,
 } from "./manifest-artifacts";
 
 const session: Session = {
@@ -166,5 +167,38 @@ describe("HLS manifest artifacts", () => {
     ).toThrow(
       "maxAgeSeconds must be less than or equal to targetLatencySeconds"
     );
+  });
+
+  test("resolves manifest responses by request path", () => {
+    const artifacts = createHlsManifestArtifacts(session, committedWindow, {
+      allowedMediaOrigins: ["https://media.example.com"],
+      partTarget: session.partTarget,
+      segmentTarget: session.segmentTarget,
+    }).map((artifact) => ({
+      ...artifact,
+      response: createHlsManifestArtifactResponse(artifact),
+    }));
+
+    const response = resolveHlsManifestArtifactResponse(
+      artifacts,
+      "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810"
+    );
+
+    expect(response?.body).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
+    expect(
+      resolveHlsManifestArtifactResponse(
+        artifacts,
+        "https://edge.example.com/v1/live/session_1/master.m3u8"
+      )?.body
+    ).toContain("/v1/live/session_1/v1080/media.m3u8");
+    expect(
+      resolveHlsManifestArtifactResponse(
+        artifacts,
+        "/v1/live/session_1/missing.m3u8"
+      )
+    ).toBeUndefined();
+    expect(
+      resolveHlsManifestArtifactResponse(artifacts, "media.m3u8")
+    ).toBeUndefined();
   });
 });

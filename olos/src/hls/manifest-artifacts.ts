@@ -28,6 +28,10 @@ export interface HlsManifestArtifactResponse {
   status: 200;
 }
 
+export interface HlsManifestResponseArtifact extends HlsManifestArtifact {
+  response: HlsManifestArtifactResponse;
+}
+
 export interface CreateHlsManifestArtifactResponseOptions
   extends Omit<CreateDeliveryCachePolicyOptions, "target"> {}
 
@@ -96,6 +100,19 @@ export function createHlsManifestArtifactResponse(
   };
 }
 
+export function resolveHlsManifestArtifactResponse(
+  artifacts: readonly HlsManifestResponseArtifact[],
+  requestPath: string
+): HlsManifestArtifactResponse | undefined {
+  const pathname = parseRequestPath(requestPath);
+
+  if (pathname === undefined) {
+    return;
+  }
+
+  return artifacts.find((artifact) => artifact.path === pathname)?.response;
+}
+
 function defaultMasterPath(session: Session): string {
   return `/v1/live/${session.sessionId}/master.m3u8`;
 }
@@ -105,4 +122,22 @@ function defaultMediaPlaylistPath(
   rendition: Rendition
 ): string {
   return `/v1/live/${session.sessionId}/${rendition.renditionId}/media.m3u8`;
+}
+
+function parseRequestPath(value: string): string | undefined {
+  if (value.startsWith("/")) {
+    return new URL(value, "https://olos.local").pathname;
+  }
+
+  try {
+    const url = new URL(value);
+
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return;
+    }
+
+    return url.pathname;
+  } catch {
+    return;
+  }
 }
