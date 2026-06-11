@@ -13,6 +13,12 @@ export {
   isUrlSafeIdentifier,
 } from "./validation/ids";
 export { assertMediaObject, isMediaObject } from "./validation/media-object";
+export {
+  assertObservedUploadMatchesSlot,
+  type ObservedUpload,
+  type ObservedUploadMatchOptions,
+  observedUploadMatchesSlot,
+} from "./validation/observed-upload";
 export { assertPathway, isPathway } from "./validation/pathway";
 export {
   assertProviderCapabilityDocument,

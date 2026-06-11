@@ -1,0 +1,105 @@
+import type { MediaObject } from "../types/media-object";
+import type { UploadSlot } from "../types/upload-slot";
+import { assertMediaObject } from "./media-object";
+import { assertUploadSlot } from "./upload-slot";
+
+export interface ObservedUpload extends MediaObject {
+  metadata?: Record<string, string | undefined>;
+}
+
+export interface ObservedUploadMatchOptions {
+  object: ObservedUpload;
+  slot: UploadSlot;
+}
+
+export function observedUploadMatchesSlot(
+  options: ObservedUploadMatchOptions
+): boolean {
+  try {
+    assertObservedUploadMatchesSlot(options);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function assertObservedUploadMatchesSlot(
+  options: ObservedUploadMatchOptions
+): void {
+  assertUploadSlot(options.slot);
+  assertObservedUpload(options.object);
+  assertObservableSlotState(options.slot);
+  assertObjectMatchesSlot(options);
+}
+
+function assertObservedUpload(value: unknown): asserts value is ObservedUpload {
+  assertMediaObject(value);
+
+  const observed = value as MediaObject & { metadata?: unknown };
+
+  if (
+    observed.metadata !== undefined &&
+    !isOptionalStringMap(observed.metadata)
+  ) {
+    throw new Error("observedUpload.metadata must be a string map");
+  }
+}
+
+function assertObservableSlotState(slot: UploadSlot): void {
+  if (slot.state !== "issued" && slot.state !== "upload_observed") {
+    throw new Error("uploadSlot.state must be issued or upload_observed");
+  }
+}
+
+function assertObjectMatchesSlot(options: ObservedUploadMatchOptions): void {
+  const { object, slot } = options;
+
+  if (object.objectKey !== slot.objectKey) {
+    throw new Error("observedUpload.objectKey must match uploadSlot.objectKey");
+  }
+
+  if (object.contentType !== slot.contentType) {
+    throw new Error(
+      "observedUpload.contentType must match uploadSlot.contentType"
+    );
+  }
+
+  if (object.size > slot.maxBytes) {
+    throw new Error(
+      "observedUpload.size must be less than or equal to uploadSlot.maxBytes"
+    );
+  }
+
+  if (slot.minBytes !== undefined && object.size < slot.minBytes) {
+    throw new Error(
+      "observedUpload.size must be greater than or equal to uploadSlot.minBytes"
+    );
+  }
+
+  if (Date.parse(object.observedAt) > Date.parse(slot.expiresAt)) {
+    throw new Error(
+      "observedUpload.observedAt must be before or equal to uploadSlot.expiresAt"
+    );
+  }
+
+  const observedSlotId = object.metadata?.["x-olos-slot-id"];
+
+  if (observedSlotId !== undefined && observedSlotId !== slot.slotId) {
+    throw new Error(
+      "observedUpload.metadata.x-olos-slot-id must match uploadSlot.slotId"
+    );
+  }
+}
+
+function isOptionalStringMap(
+  value: unknown
+): value is Record<string, string | undefined> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  return Object.entries(value).every(
+    ([key, entry]) =>
+      key.length > 0 && (typeof entry === "string" || entry === undefined)
+  );
+}
