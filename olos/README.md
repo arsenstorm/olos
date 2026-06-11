@@ -110,6 +110,25 @@ The application owns the coordinator store, HTTP routing, and S3 client
 configuration. OLOS owns the upload-slot rules, S3 object observation, cursor
 update, manifest rendering, and response metadata.
 
+## Retention Planning
+
+`olos/state` can select cleanup candidates without deleting app-owned data:
+
+```ts
+import {
+  selectExpiredUploadSlots,
+  selectRetiredCommittedObjects,
+} from "olos/state";
+
+const expiredSlots = selectExpiredUploadSlots({ now, slots });
+const retiredObjects = selectRetiredCommittedObjects({
+  commits,
+  retainedWindow: cursor.committedWindow,
+});
+```
+
+The application owns object deletion, slot persistence, and retry policy.
+
 ## HLS Blocking Reload
 
 `olos/hls` can decide whether an LL-HLS media playlist request should return

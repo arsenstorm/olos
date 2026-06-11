@@ -75,6 +75,13 @@ export {
   type CreateObjectPublicationOptions,
   createObjectPublication,
 } from "./state/publication";
+export {
+  type RetiredCommittedObject,
+  type SelectExpiredUploadSlotsOptions,
+  type SelectRetiredCommittedObjectsOptions,
+  selectExpiredUploadSlots,
+  selectRetiredCommittedObjects,
+} from "./state/retention";
 export { assertSessionTransition, canTransitionSession } from "./state/session";
 export {
   type CreateUploadGrantOptions,
