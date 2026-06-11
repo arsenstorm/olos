@@ -12,4 +12,5 @@ export {
   isNonNegativeInteger,
   isUrlSafeIdentifier,
 } from "./validation/ids";
+export { assertSession, isSession } from "./validation/session";
 export { assertUploadSlot, isUploadSlot } from "./validation/upload-slot";
