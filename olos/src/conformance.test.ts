@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
+  assertCoordinatorPipelineStoreConformance,
   getOlosConformanceCoverage,
   isOlosConformanceAssertionId,
   OLOS_CONFORMANCE_ASSERTION_IDS,
   OLOS_CONFORMANCE_COVERAGE,
 } from "./conformance";
+import { createMemoryCoordinatorStore } from "./protocol";
 
 const ASSERTION_ID_PATTERN = /^(CORE|OBJ|HLS|SEC)-[A-Z]+-\d{3}$/;
 
@@ -46,6 +48,14 @@ describe("conformance manifest", () => {
       status: "covered",
       testFile: "src/s3/upload-grant.test.ts",
     });
+  });
+
+  test("asserts coordinator store conformance", async () => {
+    await expect(
+      assertCoordinatorPipelineStoreConformance({
+        createStore: createMemoryCoordinatorStore,
+      })
+    ).resolves.toBeUndefined();
   });
 });
 
