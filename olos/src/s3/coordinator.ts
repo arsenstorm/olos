@@ -39,6 +39,11 @@ export interface CommitStoredS3CoordinatorUploadOptions
   store: CoordinatorPipelineStore;
 }
 
+export interface CompleteStoredS3CoordinatorUploadOptions
+  extends CommitStoredS3CoordinatorUploadOptions {
+  objectKey?: string;
+}
+
 export type StoredS3CoordinatorUploadCommit =
   | (Extract<
       CoordinatorUploadCommit,
@@ -54,6 +59,9 @@ export type StoredS3CoordinatorUploadCommit =
   | {
       status: "not_found";
     };
+
+export type StoredS3CoordinatorUploadCompletion =
+  StoredS3CoordinatorUploadCommit;
 
 export interface IssueS3CoordinatorUploadGrantOptions
   extends IssueCoordinatorSlotOptions {
@@ -262,6 +270,53 @@ export async function commitStoredS3CoordinatorUpload(
     current: snapshot,
     status: "conflict",
   };
+}
+
+export async function completeStoredS3CoordinatorUpload(
+  options: CompleteStoredS3CoordinatorUploadOptions
+): Promise<StoredS3CoordinatorUploadCompletion> {
+  const { objectKey, ...commitOptions } = options;
+
+  if (objectKey === undefined) {
+    return commitStoredS3CoordinatorUpload(commitOptions);
+  }
+
+  const snapshot = await options.store.load(options.sessionId);
+
+  if (snapshot === undefined) {
+    return { status: "not_found" };
+  }
+
+  const slot = snapshot.state.slots.find(
+    (entry) => entry.slotId === options.slotId
+  );
+
+  if (slot === undefined) {
+    return {
+      error: coordinatorError("olos.unknown_slot", "upload slot is unknown", {
+        slotId: options.slotId,
+      }),
+      state: snapshot.state,
+      status: "rejected",
+    };
+  }
+
+  if (slot.objectKey !== objectKey) {
+    return {
+      error: coordinatorError(
+        "olos.key_mismatch",
+        "object key mismatches slot",
+        {
+          objectKey,
+          slotId: options.slotId,
+        }
+      ),
+      state: snapshot.state,
+      status: "rejected",
+    };
+  }
+
+  return commitStoredS3CoordinatorUpload(commitOptions);
 }
 
 function coordinatorError(
