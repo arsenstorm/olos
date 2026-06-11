@@ -11,6 +11,7 @@ export {
   type CoordinatorPipelineSnapshot,
   type CoordinatorPipelineState,
   type CoordinatorPipelineStore,
+  type CoordinatorRetentionPlan,
   type CoordinatorSlotIssue,
   type CoordinatorStoreSave,
   type CoordinatorUploadCommit,
@@ -24,5 +25,7 @@ export {
   issueCoordinatorSlot,
   type MutateCoordinatorPipelineOptions,
   mutateCoordinatorPipeline,
+  type PlanCoordinatorRetentionOptions,
+  planCoordinatorRetention,
   type SaveCoordinatorPipelineOptions,
 } from "./protocol/coordinator";

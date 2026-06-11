@@ -11,6 +11,7 @@ import {
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
   mutateCoordinatorPipeline,
+  planCoordinatorRetention,
 } from "./coordinator";
 
 const session: Session = {
@@ -505,6 +506,93 @@ describe("coordinator pipeline", () => {
     );
   });
 
+  test("plans retention from coordinator state", () => {
+    let state = createCoordinatorPipeline({ pathways, session });
+
+    state = commitSlot(state, {
+      commitId: "commit_init",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/init.mp4",
+      duration: 1,
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/init.mp4",
+      slotId: "slot_init",
+      size: 1024,
+    });
+    state = commitSlot(state, {
+      commitId: "commit_3810",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      independent: true,
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      slotId: "slot_3810",
+      size: 98_304,
+    });
+    state = commitSlot(state, {
+      commitId: "commit_3811",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3811.m4s",
+      duration: 2,
+      independent: true,
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3811,
+      objectKey: "media/s3811.m4s",
+      slotId: "slot_3811",
+      size: 98_304,
+    });
+    state = commitSlot(state, {
+      commitId: "commit_3812",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3812.m4s",
+      duration: 2,
+      independent: true,
+      maxBytes: 100_000,
+      maxSegments: 2,
+      mediaSequenceNumber: 3812,
+      objectKey: "media/s3812.m4s",
+      slotId: "slot_3812",
+      size: 98_304,
+    });
+
+    state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3813.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3813,
+      objectKey: "media/s3813.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3813",
+      state,
+    }).state;
+
+    const plan = planCoordinatorRetention({
+      now: "2026-01-01T00:00:06.000Z",
+      state,
+    });
+
+    expect(plan.cursor?.window).toEqual({
+      firstMediaSequenceNumber: 3811,
+      lastMediaSequenceNumber: 3812,
+    });
+    expect(plan.expiredSlots.map((slot) => slot.slotId)).toEqual(["slot_3813"]);
+    expect(plan.retiredObjects).toEqual([
+      {
+        commitId: "commit_3810",
+        objectKey: "media/s3810.m4s",
+        slotId: "slot_3810",
+      },
+    ]);
+  });
+
   test("rejects uploads for unknown slots", () => {
     const state = createCoordinatorPipeline({ pathways, session });
     const result = commitCoordinatorUpload({
@@ -537,6 +625,7 @@ interface CommitSlotOptions {
   duration: number;
   independent?: boolean;
   maxBytes: number;
+  maxSegments?: number;
   mediaSequenceNumber: number;
   objectKey: string;
   partNumber?: number;
@@ -568,6 +657,7 @@ function commitSlot(
     commitId: options.commitId,
     committedAt: "2026-01-01T00:00:02.000Z",
     independent: options.independent,
+    maxSegments: options.maxSegments,
     object: createObservedUpload({
       contentType: options.contentType,
       objectKey: options.objectKey,

@@ -119,12 +119,14 @@ import {
   selectExpiredUploadSlots,
   selectRetiredCommittedObjects,
 } from "olos/state";
+import { planCoordinatorRetention } from "olos/protocol";
 
 const expiredSlots = selectExpiredUploadSlots({ now, slots });
 const retiredObjects = selectRetiredCommittedObjects({
   commits,
   retainedWindow: cursor.committedWindow,
 });
+const plan = planCoordinatorRetention({ now, state });
 ```
 
 The application owns object deletion, slot persistence, and retry policy.

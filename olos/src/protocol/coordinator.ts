@@ -11,6 +11,11 @@ import {
 import { createCommittedWindow } from "../state/committed-window";
 import { createCursor, resolveCursorUpdate } from "../state/cursor";
 import {
+  type RetiredCommittedObject,
+  selectExpiredUploadSlots,
+  selectRetiredCommittedObjects,
+} from "../state/retention";
+import {
   type CreateIssuedUploadSlotOptions,
   createIssuedUploadSlot,
   observeUpload,
@@ -118,6 +123,17 @@ export interface CreateCoordinatorManifestArtifactsOptions
 export interface CoordinatorManifestArtifacts {
   artifacts: readonly HlsManifestArtifact[];
   cursor?: Cursor;
+}
+
+export interface PlanCoordinatorRetentionOptions {
+  now: string;
+  state: CoordinatorPipelineState;
+}
+
+export interface CoordinatorRetentionPlan {
+  cursor?: Cursor;
+  expiredSlots: readonly UploadSlot[];
+  retiredObjects: readonly RetiredCommittedObject[];
 }
 
 export type CoordinatorUploadCommit =
@@ -346,6 +362,27 @@ export function createCoordinatorManifestArtifacts(
       artifactOptions
     ),
     cursor,
+  };
+}
+
+export function planCoordinatorRetention(
+  options: PlanCoordinatorRetentionOptions
+): CoordinatorRetentionPlan {
+  const cursor = options.state.cursor;
+
+  return {
+    expiredSlots: selectExpiredUploadSlots({
+      now: options.now,
+      slots: options.state.slots,
+    }),
+    retiredObjects:
+      cursor === undefined
+        ? []
+        : selectRetiredCommittedObjects({
+            commits: options.state.commits,
+            retainedWindow: cursor.committedWindow,
+          }),
+    ...(cursor === undefined ? {} : { cursor }),
   };
 }
 
