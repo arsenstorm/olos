@@ -3,6 +3,7 @@ import {
   createObservedUpload,
   createObservedUploadFromHeadObject,
   createObservedUploadFromObjectCreatedEvent,
+  resolveObjectCreatedEventObservation,
 } from "./observed-upload";
 
 describe("observed upload builder", () => {
@@ -155,22 +156,22 @@ describe("head object normalization", () => {
 });
 
 describe("object created event normalization", () => {
+  const objectCreatedEvent = createObservedUploadFromObjectCreatedEvent({
+    contentType: "video/mp4",
+    etag: '"abc123"',
+    eventId: "evt_1",
+    eventTime: "2026-01-01T00:00:01.000Z",
+    eventType: "object.created",
+    metadata: {
+      "x-olos-slot-id": "slot_1",
+    },
+    objectKey: "media/session/v1080/3810.m4s",
+    providerId: "s3_primary",
+    size: 98_304,
+  });
+
   test("creates an observed upload from an object-created event", () => {
-    expect(
-      createObservedUploadFromObjectCreatedEvent({
-        contentType: "video/mp4",
-        etag: '"abc123"',
-        eventId: "evt_1",
-        eventTime: "2026-01-01T00:00:01.000Z",
-        eventType: "object.created",
-        metadata: {
-          "x-olos-slot-id": "slot_1",
-        },
-        objectKey: "media/session/v1080/3810.m4s",
-        providerId: "s3_primary",
-        size: 98_304,
-      })
-    ).toEqual({
+    expect(objectCreatedEvent).toEqual({
       eventId: "evt_1",
       eventType: "object.created",
       object: {
@@ -184,6 +185,30 @@ describe("object created event normalization", () => {
         providerId: "s3_primary",
         size: 98_304,
       },
+    });
+  });
+
+  test("observes object-created events once", () => {
+    expect(
+      resolveObjectCreatedEventObservation({
+        event: objectCreatedEvent,
+        observedEventIds: [],
+      })
+    ).toEqual({
+      event: objectCreatedEvent,
+      status: "observed",
+    });
+  });
+
+  test("treats duplicate object-created events idempotently", () => {
+    expect(
+      resolveObjectCreatedEventObservation({
+        event: objectCreatedEvent,
+        observedEventIds: new Set(["evt_1"]),
+      })
+    ).toEqual({
+      eventId: "evt_1",
+      status: "duplicate",
     });
   });
 

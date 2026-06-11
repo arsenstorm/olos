@@ -44,6 +44,21 @@ export interface ObservedUploadObjectCreatedEvent {
   object: ObservedUpload;
 }
 
+export interface ResolveObjectCreatedEventObservationOptions {
+  event: ObservedUploadObjectCreatedEvent;
+  observedEventIds: ReadonlySet<string> | readonly string[];
+}
+
+export type ObjectCreatedEventObservationResolution =
+  | {
+      event: ObservedUploadObjectCreatedEvent;
+      status: "observed";
+    }
+  | {
+      eventId: string;
+      status: "duplicate";
+    };
+
 export function createObservedUpload(
   options: CreateObservedUploadOptions
 ): ObservedUpload {
@@ -95,6 +110,22 @@ export function createObservedUploadFromHeadObject(
   });
 }
 
+export function resolveObjectCreatedEventObservation(
+  options: ResolveObjectCreatedEventObservationOptions
+): ObjectCreatedEventObservationResolution {
+  if (hasObservedEvent(options.observedEventIds, options.event.eventId)) {
+    return {
+      eventId: options.event.eventId,
+      status: "duplicate",
+    };
+  }
+
+  return {
+    event: options.event,
+    status: "observed",
+  };
+}
+
 function assertObjectCreatedEvent(
   options: CreateObservedUploadFromObjectCreatedEventOptions
 ): void {
@@ -111,4 +142,15 @@ function headObjectTimestamp(value: string | Date): string {
   }
 
   return value;
+}
+
+function hasObservedEvent(
+  observedEventIds: ReadonlySet<string> | readonly string[],
+  eventId: string
+): boolean {
+  if ("has" in observedEventIds) {
+    return observedEventIds.has(eventId);
+  }
+
+  return observedEventIds.includes(eventId);
 }

@@ -162,6 +162,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     testFile: "src/state/committed-window.test.ts",
   },
   {
+    id: "CORE-EVENT-001",
+    level: "core",
+    status: "covered",
+    testFile: "src/state/observed-upload.test.ts",
+  },
+  {
     id: "CORE-WINDOW-001",
     level: "core",
     status: "covered",
