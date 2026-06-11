@@ -6,6 +6,11 @@ export {
   createCommittedWindow,
 } from "./state/committed-window";
 export { type CreateCursorOptions, createCursor } from "./state/cursor";
+export {
+  assertProviderCanIssueUploadGrant,
+  canProviderIssueUploadGrant,
+  type ProviderUploadGrantPolicyOptions,
+} from "./state/provider-upload-grant-policy";
 export { assertSessionTransition, canTransitionSession } from "./state/session";
 export {
   type CreateUploadGrantOptions,
