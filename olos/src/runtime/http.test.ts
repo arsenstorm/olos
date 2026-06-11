@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { createMemoryCoordinatorStore } from "../protocol";
+import { createPublicationKillSwitch } from "../state";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import { createStoredCoordinatorRuntimeHandler } from "./http";
@@ -183,6 +184,48 @@ describe("stored coordinator runtime handler", () => {
         new Request("https://edge.example.com/sessions/session_1/slots")
       )
     ).toHaveProperty("status", 405);
+  });
+
+  test("applies publication control to slot issuance", async () => {
+    const store = createMemoryCoordinatorStore();
+    const setup = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      store,
+    });
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      publicationControl: createPublicationKillSwitch("incident"),
+      store,
+    });
+
+    await setup(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+
+    const response = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "media/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: { message: "publication operation is disabled" },
+    });
+    expect(stored?.state.slots).toEqual([]);
   });
 });
 

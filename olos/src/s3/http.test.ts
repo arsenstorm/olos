@@ -6,6 +6,7 @@ import {
 } from "@aws-sdk/client-s3";
 
 import { createMemoryCoordinatorStore } from "../protocol";
+import { createPublicationKillSwitch } from "../state";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import { createStoredS3CoordinatorRuntimeHandler } from "./http";
@@ -217,6 +218,57 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(
       await handle(new Request("https://edge.example.com/unknown"))
     ).toHaveProperty("status", 404);
+  });
+
+  test("applies publication control to S3 grant issuance", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      publicationControl: createPublicationKillSwitch("incident"),
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+
+    const response = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+    const body = (await response.json()) as {
+      error: {
+        code: string;
+        details: Record<string, unknown>;
+      };
+    };
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(409);
+    expect(body.error).toMatchObject({
+      code: "olos.security_policy_violation",
+      details: {
+        operation: "issue_slot",
+        reason: "incident",
+      },
+    });
+    expect(stored?.state.slots).toEqual([]);
   });
 });
 

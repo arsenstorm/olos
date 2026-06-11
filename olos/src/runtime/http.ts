@@ -1,5 +1,6 @@
 import type { CreateHlsManifestArtifactResponseOptions } from "../hls";
 import type { CoordinatorPipelineStore } from "../protocol";
+import type { PublicationControlPolicy } from "../state";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
 import { planStoredCoordinatorRetention } from "./retention";
@@ -22,6 +23,7 @@ export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   livePath?: string;
   maxAttempts?: number;
   now?: () => string;
+  publicationControl?: PublicationControlPolicy;
   response?: CreateHlsManifestArtifactResponseOptions;
   sessionPath?: string;
   store: CoordinatorPipelineStore;
@@ -95,6 +97,7 @@ async function handleSessionRoute(
     return (
       await issueStoredCoordinatorSlotFromRequest({
         maxAttempts: options.maxAttempts,
+        publicationControl: options.publicationControl,
         request,
         sessionId,
         store: options.store,
@@ -106,6 +109,7 @@ async function handleSessionRoute(
     return (
       await commitStoredCoordinatorUploadFromRequest({
         maxAttempts: options.maxAttempts,
+        publicationControl: options.publicationControl,
         request,
         sessionId,
         store: options.store,

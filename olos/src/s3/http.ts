@@ -71,6 +71,7 @@ async function handleS3SlotGrant(
     expiresInSeconds: options.expiresInSeconds,
     maxAttempts: options.maxAttempts,
     now: options.grantNow?.(),
+    publicationControl: options.publicationControl,
     sessionId,
     store: options.store,
   });
@@ -106,6 +107,7 @@ async function handleS3Commit(
     bucket: options.bucket,
     client: options.objectClient ?? options.client,
     maxAttempts: options.maxAttempts,
+    publicationControl: options.publicationControl,
     sessionId,
     store: options.store,
   });
