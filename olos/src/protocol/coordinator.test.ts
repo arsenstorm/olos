@@ -5,13 +5,17 @@ import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
   type CoordinatorPipelineState,
+  cloneCoordinatorPipelineSnapshot,
   commitCoordinatorUpload,
   createCoordinatorManifestArtifacts,
   createCoordinatorPipeline,
   createMemoryCoordinatorStore,
+  createNextCoordinatorPipelineEtag,
   issueCoordinatorSlot,
   mutateCoordinatorPipeline,
+  parseCoordinatorPipelineSnapshot,
   planCoordinatorRetention,
+  serializeCoordinatorPipelineSnapshot,
 } from "./coordinator";
 
 const session: Session = {
@@ -141,6 +145,58 @@ describe("coordinator pipeline", () => {
     expect(first.state).not.toBe(second.state);
     expect(first.state.session).not.toBe(second.state.session);
     expect(first.state.pathways).not.toBe(second.state.pathways);
+  });
+
+  test("clones coordinator snapshots for external stores", () => {
+    const snapshot = {
+      etag: "1",
+      state: createCoordinatorPipeline({ pathways, session }),
+    };
+    const cloned = cloneCoordinatorPipelineSnapshot(snapshot);
+
+    expect(cloned).toEqual(snapshot);
+    expect(cloned).not.toBe(snapshot);
+    expect(cloned.state).not.toBe(snapshot.state);
+    expect(cloned.state.session).not.toBe(snapshot.state.session);
+  });
+
+  test("serializes and parses coordinator snapshots", () => {
+    const snapshot = {
+      etag: "1",
+      state: createCoordinatorPipeline({ pathways, session }),
+    };
+    const serialized = serializeCoordinatorPipelineSnapshot(snapshot);
+    const parsed = parseCoordinatorPipelineSnapshot(serialized);
+
+    expect(parsed).toEqual(snapshot);
+    expect(parsed).not.toBe(snapshot);
+    expect(parsed.state).not.toBe(snapshot.state);
+  });
+
+  test("rejects malformed stored coordinator snapshots", () => {
+    expect(() =>
+      parseCoordinatorPipelineSnapshot({
+        etag: "",
+        state: createCoordinatorPipeline({ pathways, session }),
+      })
+    ).toThrow("coordinator pipeline snapshot etag must be a non-empty string");
+    expect(() =>
+      parseCoordinatorPipelineSnapshot({
+        etag: "1",
+        state: {
+          ...createCoordinatorPipeline({ pathways, session }),
+          commits: undefined,
+        },
+      })
+    ).toThrow("coordinator pipeline state commits must be an array");
+  });
+
+  test("creates monotonic coordinator etags", () => {
+    expect(createNextCoordinatorPipelineEtag()).toBe("1");
+    expect(createNextCoordinatorPipelineEtag("1")).toBe("2");
+    expect(() => createNextCoordinatorPipelineEtag("not-an-etag")).toThrow(
+      "coordinator pipeline etag must be a non-negative integer"
+    );
   });
 
   test("mutates stored coordinator state", async () => {

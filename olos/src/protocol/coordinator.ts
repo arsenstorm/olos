@@ -207,6 +207,66 @@ export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
   };
 }
 
+export function cloneCoordinatorPipelineSnapshot(
+  snapshot: CoordinatorPipelineSnapshot
+): CoordinatorPipelineSnapshot {
+  return {
+    etag: snapshot.etag,
+    state: cloneCoordinatorPipelineState(snapshot.state),
+  };
+}
+
+export function cloneCoordinatorPipelineState(
+  state: CoordinatorPipelineState
+): CoordinatorPipelineState {
+  return {
+    ...state,
+    commits: state.commits.map((commit) => ({ ...commit })),
+    initCommits: state.initCommits.map((commit) => ({ ...commit })),
+    pathways: state.pathways.map((pathway) => ({ ...pathway })),
+    slots: state.slots.map((slot) => ({ ...slot })),
+    ...(state.cursor === undefined
+      ? {}
+      : { cursor: cloneCursor(state.cursor) }),
+    session: {
+      ...state.session,
+      renditions: state.session.renditions.map((rendition) => ({
+        ...rendition,
+      })),
+    },
+  };
+}
+
+export function createNextCoordinatorPipelineEtag(current?: string): string {
+  if (current === undefined) {
+    return "1";
+  }
+
+  const value = Number(current);
+
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error("coordinator pipeline etag must be a non-negative integer");
+  }
+
+  return String(value + 1);
+}
+
+export function serializeCoordinatorPipelineSnapshot(
+  snapshot: CoordinatorPipelineSnapshot
+): string {
+  return JSON.stringify(cloneCoordinatorPipelineSnapshot(snapshot));
+}
+
+export function parseCoordinatorPipelineSnapshot(
+  value: unknown
+): CoordinatorPipelineSnapshot {
+  const parsed = typeof value === "string" ? JSON.parse(value) : value;
+
+  assertCoordinatorPipelineSnapshot(parsed);
+
+  return cloneCoordinatorPipelineSnapshot(parsed);
+}
+
 export async function mutateCoordinatorPipeline(
   options: MutateCoordinatorPipelineOptions
 ): Promise<CoordinatorPipelineMutation> {
@@ -489,39 +549,17 @@ function lastPartNumber(commits: readonly Commit[]): number | undefined {
 }
 
 function nextEtag(current: CoordinatorPipelineSnapshot | undefined): string {
-  if (current === undefined) {
-    return "1";
-  }
-
-  return String(Number(current.etag) + 1);
+  return createNextCoordinatorPipelineEtag(current?.etag);
 }
 
 function cloneSnapshot(
   snapshot: CoordinatorPipelineSnapshot
 ): CoordinatorPipelineSnapshot {
-  return {
-    etag: snapshot.etag,
-    state: cloneState(snapshot.state),
-  };
+  return cloneCoordinatorPipelineSnapshot(snapshot);
 }
 
 function cloneState(state: CoordinatorPipelineState): CoordinatorPipelineState {
-  return {
-    ...state,
-    commits: state.commits.map((commit) => ({ ...commit })),
-    initCommits: state.initCommits.map((commit) => ({ ...commit })),
-    pathways: state.pathways.map((pathway) => ({ ...pathway })),
-    slots: state.slots.map((slot) => ({ ...slot })),
-    ...(state.cursor === undefined
-      ? {}
-      : { cursor: cloneCursor(state.cursor) }),
-    session: {
-      ...state.session,
-      renditions: state.session.renditions.map((rendition) => ({
-        ...rendition,
-      })),
-    },
-  };
+  return cloneCoordinatorPipelineState(state);
 }
 
 function cloneCursor(cursor: Cursor): Cursor {
@@ -529,4 +567,48 @@ function cloneCursor(cursor: Cursor): Cursor {
     ...cursor,
     pathways: cursor.pathways.map((pathway) => ({ ...pathway })),
   };
+}
+
+function assertCoordinatorPipelineSnapshot(
+  value: unknown
+): asserts value is CoordinatorPipelineSnapshot {
+  if (!isRecord(value)) {
+    throw new Error("coordinator pipeline snapshot must be an object");
+  }
+
+  if (typeof value.etag !== "string" || value.etag.length === 0) {
+    throw new Error(
+      "coordinator pipeline snapshot etag must be a non-empty string"
+    );
+  }
+
+  assertCoordinatorPipelineState(value.state);
+}
+
+function assertCoordinatorPipelineState(
+  value: unknown
+): asserts value is CoordinatorPipelineState {
+  if (!isRecord(value)) {
+    throw new Error("coordinator pipeline state must be an object");
+  }
+
+  assertSession(value.session);
+  assertArray(value.pathways, "coordinator pipeline state pathways");
+  assertArray(value.slots, "coordinator pipeline state slots");
+  assertArray(value.initCommits, "coordinator pipeline state initCommits");
+  assertArray(value.commits, "coordinator pipeline state commits");
+
+  if (value.cursor !== undefined && !isRecord(value.cursor)) {
+    throw new Error("coordinator pipeline state cursor must be an object");
+  }
+}
+
+function assertArray(value: unknown, name: string): void {
+  if (!Array.isArray(value)) {
+    throw new Error(`${name} must be an array`);
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

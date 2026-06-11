@@ -96,6 +96,30 @@ wake-ups, object deletion, and retries. OLOS owns session transitions, slot
 rules, commit idempotency, cursor updates, HLS responses, and retention
 planning.
 
+### Store Adapter Helpers
+
+The coordinator store is intentionally small: load a session snapshot and save a
+new snapshot with an optional expected ETag. Real adapters can use protocol
+helpers to keep persistence format and optimistic concurrency consistent:
+
+```ts
+import {
+  createNextCoordinatorPipelineEtag,
+  parseCoordinatorPipelineSnapshot,
+  serializeCoordinatorPipelineSnapshot,
+} from "olos/protocol";
+
+const snapshot = parseCoordinatorPipelineSnapshot(row.snapshot_json);
+const nextEtag = createNextCoordinatorPipelineEtag(snapshot.etag);
+const body = serializeCoordinatorPipelineSnapshot({
+  etag: nextEtag,
+  state: nextState,
+});
+```
+
+The adapter owns transactions, indexes, and backend-specific conflict checks.
+OLOS owns snapshot cloning, JSON parsing, and ETag sequencing.
+
 ## Stored S3 Serving Flow
 
 `olos/s3` can bind S3 object uploads to coordinator state and return HLS
