@@ -11,6 +11,7 @@ export {
   waitForHlsBlockingReload,
 } from "./hls/blocking-reload";
 export {
+  type BlockingHlsManifestArtifactResponseResolution,
   type CreateHlsManifestArtifactResponseOptions,
   type CreateHlsManifestArtifactsOptions,
   createHlsManifestArtifactResponse,
@@ -18,6 +19,8 @@ export {
   type HlsManifestArtifact,
   type HlsManifestArtifactResponse,
   type HlsManifestResponseArtifact,
+  type ResolveBlockingHlsManifestArtifactResponseOptions,
+  resolveBlockingHlsManifestArtifactResponse,
   resolveHlsManifestArtifactResponse,
 } from "./hls/manifest-artifacts";
 export {

@@ -3,7 +3,13 @@ import {
   createDeliveryCachePolicy,
 } from "../state/cache-policy";
 import type { CommittedWindow } from "../types/committed-window";
+import type { Cursor } from "../types/cursor";
 import type { Rendition, Session } from "../types/session";
+import {
+  parseHlsBlockingReloadRequest,
+  type WaitForHlsBlockingReloadOptions,
+  waitForHlsBlockingReload,
+} from "./blocking-reload";
 import {
   type RenderMasterPlaylistOptions,
   renderMasterPlaylist,
@@ -40,6 +46,30 @@ export interface CreateHlsManifestArtifactsOptions
   masterPath?: string;
   mediaPlaylistPath?: RenderMasterPlaylistOptions["mediaPlaylistPath"];
 }
+
+export interface ResolveBlockingHlsManifestArtifactResponseOptions {
+  cursor: Cursor;
+  manifest: CreateHlsManifestArtifactsOptions;
+  requestUrl: string;
+  response?: CreateHlsManifestArtifactResponseOptions;
+  session: Session;
+  timeoutMs: number;
+  waitForCursor: WaitForHlsBlockingReloadOptions["waitForCursor"];
+}
+
+export type BlockingHlsManifestArtifactResponseResolution =
+  | {
+      cursor: Cursor;
+      response: HlsManifestArtifactResponse;
+      status: "ready" | "timeout";
+    }
+  | {
+      status: "not_found";
+    }
+  | {
+      message: string;
+      status: "invalid";
+    };
 
 export function createHlsManifestArtifacts(
   session: Session,
@@ -113,6 +143,57 @@ export function resolveHlsManifestArtifactResponse(
   return artifacts.find((artifact) => artifact.path === pathname)?.response;
 }
 
+export async function resolveBlockingHlsManifestArtifactResponse(
+  options: ResolveBlockingHlsManifestArtifactResponseOptions
+): Promise<BlockingHlsManifestArtifactResponseResolution> {
+  const request = parseBlockingReloadRequest(options.requestUrl);
+
+  if ("status" in request) {
+    return request;
+  }
+
+  const wait = await waitForHlsBlockingReload({
+    cursor: options.cursor,
+    request,
+    timeoutMs: options.timeoutMs,
+    waitForCursor: options.waitForCursor,
+  });
+
+  if (wait.status === "invalid") {
+    return wait;
+  }
+
+  const response = resolveHlsManifestArtifactResponse(
+    createResponseArtifacts(options.session, wait.cursor, options),
+    options.requestUrl
+  );
+
+  if (!response) {
+    return { status: "not_found" };
+  }
+
+  return {
+    cursor: wait.cursor,
+    response,
+    status: wait.status,
+  };
+}
+
+function parseBlockingReloadRequest(
+  requestUrl: string
+):
+  | ReturnType<typeof parseHlsBlockingReloadRequest>
+  | { message: string; status: "invalid" } {
+  try {
+    return parseHlsBlockingReloadRequest(requestUrl);
+  } catch (error) {
+    return {
+      message: error instanceof Error ? error.message : "invalid request URL",
+      status: "invalid",
+    };
+  }
+}
+
 function defaultMasterPath(session: Session): string {
   return `/v1/live/${session.sessionId}/master.m3u8`;
 }
@@ -140,4 +221,19 @@ function parseRequestPath(value: string): string | undefined {
   } catch {
     return;
   }
+}
+
+function createResponseArtifacts(
+  session: Session,
+  cursor: Cursor,
+  options: ResolveBlockingHlsManifestArtifactResponseOptions
+): HlsManifestResponseArtifact[] {
+  return createHlsManifestArtifacts(
+    session,
+    cursor.committedWindow,
+    options.manifest
+  ).map((artifact) => ({
+    ...artifact,
+    response: createHlsManifestArtifactResponse(artifact, options.response),
+  }));
 }

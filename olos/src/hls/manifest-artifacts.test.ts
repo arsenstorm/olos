@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
 import type { CommittedWindow } from "../types/committed-window";
+import type { Cursor } from "../types/cursor";
 import type { Session } from "../types/session";
 import {
   createHlsManifestArtifactResponse,
   createHlsManifestArtifacts,
+  resolveBlockingHlsManifestArtifactResponse,
   resolveHlsManifestArtifactResponse,
 } from "./manifest-artifacts";
 
@@ -66,6 +68,66 @@ const committedWindow: CommittedWindow = {
         },
       ],
     },
+  },
+};
+
+const cursor: Cursor = {
+  committedWindow,
+  epoch: 1,
+  latencyProfile: "object-ll",
+  olos: "1.0",
+  partTarget: session.partTarget,
+  pathways: [
+    {
+      baseUrl: "https://media.example.com",
+      pathwayId: "primary",
+      priority: 0,
+      providerId: "s3_primary",
+      state: "active",
+    },
+  ],
+  segmentTarget: session.segmentTarget,
+  sessionId: session.sessionId,
+  state: "live",
+  tenantId: session.tenantId,
+  updatedAt: "2026-01-01T00:00:02.000Z",
+  window: {
+    firstMediaSequenceNumber: 3810,
+    lastMediaSequenceNumber: 3810,
+  },
+};
+
+const advancedCommittedWindow: CommittedWindow = {
+  ...committedWindow,
+  lastMediaSequenceNumber: 3811,
+  renditions: {
+    v1080: {
+      init: committedWindow.renditions.v1080?.init ?? missingInit(),
+      renditionId: "v1080",
+      segments: [
+        ...(committedWindow.renditions.v1080?.segments ?? []),
+        {
+          duration: 2,
+          mediaSequenceNumber: 3811,
+          segment: {
+            commitId: "commit_3811",
+            deliveryUrl: "https://media.example.com/media/3811.m4s",
+            objectKey: "media/3811.m4s",
+            slotId: "slot_3811",
+          },
+        },
+      ],
+    },
+  },
+};
+
+const advancedCursor: Cursor = {
+  ...cursor,
+  committedWindow: advancedCommittedWindow,
+  updatedAt: "2026-01-01T00:00:04.000Z",
+  window: {
+    firstMediaSequenceNumber: 3810,
+    lastMediaSequenceNumber: 3811,
   },
 };
 
@@ -201,4 +263,142 @@ describe("HLS manifest artifacts", () => {
       resolveHlsManifestArtifactResponse(artifacts, "media.m3u8")
     ).toBeUndefined();
   });
+
+  test("resolves blocking manifest responses immediately when ready", async () => {
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810",
+      session,
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result.status).toBe("ready");
+
+    if (result.status === "ready" || result.status === "timeout") {
+      expect(result.response.body).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
+      expect(result.response.body).toContain(
+        "https://media.example.com/media/3810.m4s"
+      );
+    }
+  });
+
+  test("waits before resolving a future media playlist request", async () => {
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3811",
+      session,
+      timeoutMs: 100,
+      waitForCursor: () => Promise.resolve(advancedCursor),
+    });
+
+    expect(result.status).toBe("ready");
+
+    if (result.status === "ready" || result.status === "timeout") {
+      expect(result.cursor).toBe(advancedCursor);
+      expect(result.response.body).toContain(
+        "https://media.example.com/media/3811.m4s"
+      );
+    }
+  });
+
+  test("returns the current playlist on blocking timeout", async () => {
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3811",
+      session,
+      timeoutMs: 0,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result.status).toBe("timeout");
+
+    if (result.status === "ready" || result.status === "timeout") {
+      expect(result.cursor).toBe(cursor);
+      expect(result.response.body).toContain(
+        "https://media.example.com/media/3810.m4s"
+      );
+    }
+  });
+
+  test("returns invalid blocking manifest requests", async () => {
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/v1080/media.m3u8?_HLS_part=0",
+      session,
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result).toEqual({
+      message: "_HLS_part requires _HLS_msn",
+      status: "invalid",
+    });
+  });
+
+  test("returns invalid malformed blocking query params", async () => {
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=-1",
+      session,
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result).toEqual({
+      message: "_HLS_msn must be a non-negative integer",
+      status: "invalid",
+    });
+  });
+
+  test("returns not_found for unknown manifest paths", async () => {
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/missing.m3u8",
+      session,
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result).toEqual({ status: "not_found" });
+  });
 });
+
+function missingInit(): never {
+  throw new Error("missing v1080 init fixture");
+}

@@ -118,6 +118,7 @@ the current playlist immediately or block until the trusted cursor advances.
 ```ts
 import {
   parseHlsBlockingReloadRequest,
+  resolveBlockingHlsManifestArtifactResponse,
   resolveHlsBlockingReload,
   waitForHlsBlockingReload,
 } from "olos/hls";
@@ -146,6 +147,23 @@ const result = await waitForHlsBlockingReload({
 
 OLOS owns the blocking decision and timeout boundary. The application owns the
 cursor store and wake-up mechanism.
+
+Gateways can resolve a complete manifest response through the same boundary:
+
+```ts
+const response = await resolveBlockingHlsManifestArtifactResponse({
+  cursor,
+  manifest: {
+    allowedMediaOrigins: ["https://media.example.com"],
+    partTarget: cursor.partTarget,
+    segmentTarget: cursor.segmentTarget,
+  },
+  requestUrl: request.url,
+  session,
+  timeoutMs: 3000,
+  waitForCursor: ({ signal }) => cursorStore.waitForNext(sessionId, { signal }),
+});
+```
 
 ## Upload Event Identity
 
