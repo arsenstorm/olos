@@ -162,6 +162,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     testFile: "src/state/committed-window.test.ts",
   },
   {
+    id: "CORE-WINDOW-001",
+    level: "core",
+    status: "covered",
+    testFile: "src/state/cursor.test.ts",
+  },
+  {
     id: "CORE-WINDOW-002",
     level: "core",
     status: "covered",
