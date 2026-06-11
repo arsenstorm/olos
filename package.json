@@ -1,15 +1,27 @@
 {
-  "name": "olos-root",
-  "type": "module",
-  "private": true,
   "devDependencies": {
-    "@types/bun": "latest"
+    "@biomejs/biome": "2.4.12",
+    "@types/bun": "^1.3.14",
+    "husky": "^9.1.7",
+    "ultracite": "7.6.1"
   },
+  "name": "olos-root",
   "peerDependencies": {
     "typescript": "^5"
   },
+  "scripts": {
+    "build": "bun --filter olos build",
+    "check": "ultracite check",
+    "check-types": "bun --filter olos check-types",
+    "fix": "ultracite fix",
+    "prepare": "husky",
+    "test": "bun --filter olos test"
+  },
+  "type": "module",
   "workspaces": [
     "examples/*",
-    "packages/*"
-  ]
+    "packages/*",
+    "olos"
+  ],
+  "private": true
 }

@@ -1,0 +1,94 @@
+name: Bug report
+description: Report something broken, regressed, or different from documented behaviour.
+title: "[bug]: "
+labels: ["bug", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill in every section.
+
+        For security issues, **do not open a public issue or pull request.** Follow `SECURITY.md` instead.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences describing the bug.
+      placeholder: "When I do X, I expect Y, but Z happens instead."
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit SHA
+      description: The OLOS package version or the commit you are running.
+      placeholder: "0.0.0 or abc1234"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      description: Which part of OLOS appears to be affected?
+      options:
+        - Core protocol model
+        - State machine / commits / cursor
+        - HLS mapping
+        - Object binding
+        - Provider profile
+        - NPM package / exports
+        - Documentation / specification
+        - CI / repository tooling
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal reproducible steps. Include commands, inputs, or fixtures.
+      placeholder: |
+        1. Install `olos@...`
+        2. Run `...`
+        3. Observe `...`
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include logs, stack traces, or generated output. Redact secrets before posting.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Bun version, Node version, package manager, and anything else relevant.
+      render: text
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      options:
+        - label: I have searched existing issues and confirmed this is not a duplicate.
+          required: true
+        - label: I am not reporting a security vulnerability or proposed vulnerability fix.
+          required: true
