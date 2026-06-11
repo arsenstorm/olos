@@ -140,7 +140,7 @@ export const OLOS_CONFORMANCE_COVERAGE = [
   {
     id: "CORE-COMMIT-005",
     level: "core",
-    status: "partial",
+    status: "covered",
     testFile: "src/state/commit.test.ts",
   },
   {
