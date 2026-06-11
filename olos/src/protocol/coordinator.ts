@@ -1,4 +1,9 @@
 import {
+  type CreateHlsManifestArtifactsOptions,
+  createHlsManifestArtifacts,
+  type HlsManifestArtifact,
+} from "../hls/manifest-artifacts";
+import {
   createCommit,
   resolveCommitAttempt,
   resolveDuplicateCommit,
@@ -103,6 +108,16 @@ export interface CommitCoordinatorUploadOptions {
   programDateTime?: string;
   slotId: OlosId;
   state: CoordinatorPipelineState;
+}
+
+export interface CreateCoordinatorManifestArtifactsOptions
+  extends CreateHlsManifestArtifactsOptions {
+  state: CoordinatorPipelineState;
+}
+
+export interface CoordinatorManifestArtifacts {
+  artifacts: readonly HlsManifestArtifact[];
+  cursor?: Cursor;
 }
 
 export type CoordinatorUploadCommit =
@@ -310,6 +325,27 @@ export function commitCoordinatorUpload(
     cursor: state.cursor,
     state,
     status: "committed",
+  };
+}
+
+export function createCoordinatorManifestArtifacts(
+  options: CreateCoordinatorManifestArtifactsOptions
+): CoordinatorManifestArtifacts {
+  const cursor = options.state.cursor;
+
+  if (cursor === undefined) {
+    return { artifacts: [] };
+  }
+
+  const { state, ...artifactOptions } = options;
+
+  return {
+    artifacts: createHlsManifestArtifacts(
+      state.session,
+      cursor.committedWindow,
+      artifactOptions
+    ),
+    cursor,
   };
 }
 

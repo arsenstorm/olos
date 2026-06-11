@@ -6,6 +6,7 @@ import type { Session } from "../types/session";
 import {
   type CoordinatorPipelineState,
   commitCoordinatorUpload,
+  createCoordinatorManifestArtifacts,
   createCoordinatorPipeline,
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
@@ -444,6 +445,63 @@ describe("coordinator pipeline", () => {
     );
     expect(playlist).toContain(
       '#EXT-X-PART:DURATION=0.500,URI="https://media.example.com/s3811.p1.m4s"'
+    );
+  });
+
+  test("derives manifest artifacts from the current cursor", () => {
+    let state = createCoordinatorPipeline({ pathways, session });
+
+    state = commitSlot(state, {
+      commitId: "commit_init",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/init.mp4",
+      duration: 1,
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/init.mp4",
+      slotId: "slot_init",
+      size: 1024,
+    });
+
+    expect(
+      createCoordinatorManifestArtifacts({
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+        state,
+      })
+    ).toEqual({ artifacts: [] });
+
+    state = commitSlot(state, {
+      commitId: "commit_3810",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      independent: true,
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      slotId: "slot_3810",
+      size: 98_304,
+    });
+
+    const manifests = createCoordinatorManifestArtifacts({
+      allowedMediaOrigins: ["https://media.example.com"],
+      partTarget: session.partTarget,
+      segmentTarget: session.segmentTarget,
+      state,
+    });
+
+    expect(manifests.cursor?.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+    expect(manifests.artifacts.map((artifact) => artifact.path)).toEqual([
+      "/v1/live/session_1/master.m3u8",
+      "/v1/live/session_1/v1080/media.m3u8",
+    ]);
+    expect(manifests.artifacts[1]?.body).toContain(
+      "https://media.example.com/s3810.m4s"
     );
   });
 
