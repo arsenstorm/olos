@@ -1,4 +1,7 @@
-import type { CreateHlsManifestArtifactResponseOptions } from "../hls";
+import type {
+  CreateHlsManifestArtifactResponseOptions,
+  HlsCursorWaitContext,
+} from "../hls";
 import type { CoordinatorPipelineStore } from "../protocol";
 import type { PublicationControlPolicy } from "../state";
 import type { Pathway } from "../types/pathway";
@@ -11,6 +14,7 @@ import {
 import {
   commitStoredCoordinatorUploadFromRequest,
   issueStoredCoordinatorSlotFromRequest,
+  serveStoredBlockingCoordinatorManifest,
   serveStoredCoordinatorManifest,
 } from "./stored";
 
@@ -20,6 +24,12 @@ const DEFAULT_TARGET_LATENCY = 3;
 
 export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   allowedMediaOrigins: readonly string[];
+  blockingReload?: {
+    timeoutMs: number;
+    waitForCursor: (
+      context: HlsCursorWaitContext
+    ) => Promise<HlsCursorWaitContext["cursor"] | undefined>;
+  };
   livePath?: string;
   maxAttempts?: number;
   now?: () => string;
@@ -171,7 +181,7 @@ async function handleLiveRoute(
     return notFound();
   }
 
-  return await serveStoredCoordinatorManifest({
+  const manifest = {
     allowedMediaOrigins: options.allowedMediaOrigins,
     partTarget: snapshot.state.session.partTarget,
     request,
@@ -180,7 +190,17 @@ async function handleLiveRoute(
     sessionId,
     store: options.store,
     targetLatency: options.targetLatency ?? DEFAULT_TARGET_LATENCY,
-  });
+  };
+
+  if (isMedia && options.blockingReload !== undefined) {
+    return await serveStoredBlockingCoordinatorManifest({
+      ...manifest,
+      timeoutMs: options.blockingReload.timeoutMs,
+      waitForCursor: options.blockingReload.waitForCursor,
+    });
+  }
+
+  return await serveStoredCoordinatorManifest(manifest);
 }
 
 async function parseSessionCreateRequest(request: Request): Promise<

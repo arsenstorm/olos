@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { createMemoryCoordinatorStore } from "../protocol";
 import { createPublicationKillSwitch } from "../state";
+import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import { createStoredCoordinatorRuntimeHandler } from "./http";
@@ -234,6 +235,39 @@ describe("stored coordinator runtime handler", () => {
     });
     expect(stored?.state.slots).toEqual([]);
   });
+
+  test("waits for blocking media playlist reloads", async () => {
+    const store = createMemoryCoordinatorStore();
+    const advancedStore = createMemoryCoordinatorStore();
+
+    await seedRuntimeStore(store, 3810);
+    const advancedCursor = await seedRuntimeStore(advancedStore, 3811);
+    let waits = 0;
+
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      blockingReload: {
+        timeoutMs: 100,
+        waitForCursor: () => {
+          waits += 1;
+          return Promise.resolve(advancedCursor);
+        },
+      },
+      store,
+    });
+
+    const response = await handle(
+      new Request(
+        "https://edge.example.com/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3811"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(waits).toBe(1);
+    expect(await response.text()).toContain(
+      "https://media.example.com/media/v1080/3811.m4s"
+    );
+  });
 });
 
 interface SlotPayloadOptions {
@@ -291,4 +325,101 @@ function jsonRequest(url: string, body: unknown): Request {
     headers: { "content-type": "application/json" },
     method: "POST",
   });
+}
+
+async function seedRuntimeStore(
+  store: ReturnType<typeof createMemoryCoordinatorStore>,
+  through: 3810 | 3811
+): Promise<Cursor> {
+  const handle = createStoredCoordinatorRuntimeHandler({
+    allowedMediaOrigins: ["https://media.example.com"],
+    store,
+  });
+
+  await handle(
+    jsonRequest("https://edge.example.com/sessions", {
+      pathways,
+      session,
+    })
+  );
+
+  const slots: SlotPayloadOptions[] = [
+    {
+      deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+      duration: 1,
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/v1080/init.mp4",
+      slotId: "slot_init",
+    },
+    {
+      deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+      duration: 2,
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/v1080/3810.m4s",
+      slotId: "slot_3810",
+    },
+    {
+      deliveryUrl: "https://media.example.com/media/v1080/3811.m4s",
+      duration: 2,
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3811,
+      objectKey: "media/v1080/3811.m4s",
+      slotId: "slot_3811",
+    },
+  ];
+  const commits: Array<CommitPayloadOptions & { independent: boolean }> = [
+    {
+      commitId: "commit_init",
+      independent: false,
+      objectKey: "media/v1080/init.mp4",
+      size: 1024,
+      slotId: "slot_init",
+    },
+    {
+      commitId: "commit_3810",
+      independent: true,
+      objectKey: "media/v1080/3810.m4s",
+      size: 98_304,
+      slotId: "slot_3810",
+    },
+    {
+      commitId: "commit_3811",
+      independent: false,
+      objectKey: "media/v1080/3811.m4s",
+      size: 98_304,
+      slotId: "slot_3811",
+    },
+  ];
+  const seedCount = through === 3810 ? 2 : 3;
+
+  for (const slot of slots.slice(0, seedCount)) {
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/slots",
+        slotPayload(slot)
+      )
+    );
+  }
+
+  for (const commit of commits.slice(0, seedCount)) {
+    await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/commits", {
+        ...commitPayload(commit),
+        independent: commit.independent,
+      })
+    );
+  }
+
+  const snapshot = await store.load(session.sessionId);
+
+  if (snapshot?.state.cursor === undefined) {
+    throw new Error("expected seeded cursor");
+  }
+
+  return snapshot.state.cursor;
 }

@@ -107,6 +107,11 @@ import { createPublicationKillSwitch } from "olos/state";
 
 const handleOlos = createStoredCoordinatorRuntimeHandler({
   allowedMediaOrigins: ["https://media.example.com"],
+  blockingReload: {
+    timeoutMs: 3000,
+    waitForCursor: ({ cursor, signal }) =>
+      cursorStore.waitForNext(cursor.sessionId, { signal }),
+  },
   publicationControl: createPublicationKillSwitch("incident"),
   store,
 });
