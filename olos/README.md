@@ -159,6 +159,11 @@ const store = createSerializedCoordinatorStore({
 });
 ```
 
+`saveSnapshotRowAtomically` should insert only when `expectedEtag` is absent and
+the row does not exist. When `expectedEtag` is present, it should update only if
+the current row has that ETag. On conflict, return the current row when the
+backend can read it in the same transaction.
+
 ## Stored S3 Serving Flow
 
 `olos/s3` can bind S3 object uploads to coordinator state and return HLS

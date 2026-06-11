@@ -94,6 +94,32 @@ describe("serialized coordinator store", () => {
     expect(record?.snapshot).toContain('"slotId":"slot_init"');
   });
 
+  test("returns the current snapshot when an insert races an existing row", async () => {
+    const backend = createBackend();
+    const store = createSerializedCoordinatorStore(backend);
+    const state = createCoordinatorPipeline({ pathways, session });
+    const first = await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+    const raced = await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    if (first.status !== "saved") {
+      throw new Error("expected first save");
+    }
+
+    expect(raced.status).toBe("conflict");
+    if (raced.status !== "conflict") {
+      throw new Error("expected raced insert conflict");
+    }
+
+    expect(raced.current?.etag).toBe(first.etag);
+    expect(raced.current?.state.session.sessionId).toBe(session.sessionId);
+  });
+
   test("rejects serialized records with mismatched etags", async () => {
     const backend = createBackend();
     const store = createSerializedCoordinatorStore(backend);
@@ -131,11 +157,20 @@ function createBackend(): SerializedCoordinatorStoreBackend & {
     save(options) {
       const current = records.get(options.sessionId);
 
-      if (
-        current !== undefined &&
-        options.expectedEtag !== undefined &&
-        current.etag !== options.expectedEtag
-      ) {
+      if (current === undefined && options.expectedEtag !== undefined) {
+        return Promise.resolve({
+          status: "conflict",
+        });
+      }
+
+      if (current !== undefined && options.expectedEtag === undefined) {
+        return Promise.resolve({
+          current,
+          status: "conflict",
+        });
+      }
+
+      if (current !== undefined && current.etag !== options.expectedEtag) {
         return Promise.resolve({
           current,
           status: "conflict",
