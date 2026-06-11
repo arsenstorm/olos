@@ -6,3 +6,4 @@ export {
   isNonNegativeInteger,
   isUrlSafeIdentifier,
 } from "./validation/ids";
+export { assertUploadSlot, isUploadSlot } from "./validation/upload-slot";
