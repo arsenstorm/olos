@@ -5,6 +5,7 @@ import {
 } from "@aws-sdk/client-s3";
 import {
   renderMediaPlaylist,
+  resolveBlockingHlsManifestArtifactResponse,
   resolveHlsManifestArtifactResponse,
 } from "olos/hls";
 import {
@@ -399,6 +400,108 @@ describe("object-store flow", () => {
     ]);
   });
 
+  test("waits for cursor advancement before resolving a blocking media playlist", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = await createStoredPipeline();
+    const issued = await issueBlockingReloadSlots(store);
+
+    for (const issue of Object.values(issued)) {
+      expect(issue.status).toBe("saved");
+    }
+
+    await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: headObjectClient(headObjectInputs, 1024),
+      commitId: "commit_init",
+      committedAt: "2026-01-01T00:00:01.000Z",
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotId: "slot_init",
+      store,
+    });
+    await routeUploadEvent({
+      headObjectInputs,
+      independent: true,
+      objectKey: "media/v1080/3810.m4s",
+      size: 98_304,
+      store,
+    });
+
+    const stored = await store.load(session.sessionId);
+    const cursor = stored?.state.cursor;
+
+    if (cursor === undefined) {
+      throw new Error("expected stored cursor");
+    }
+
+    assertCursor(cursor);
+    expect(cursor.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+        targetLatency: 3,
+      },
+      requestUrl: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3811",
+      session,
+      timeoutMs: 1000,
+      waitForCursor: async () => {
+        await routeUploadEvent({
+          eventId: "evt_3811",
+          eventTime: "2026-01-01T00:00:04.000Z",
+          headObjectInputs,
+          independent: true,
+          objectKey: "media/v1080/3811.m4s",
+          size: 99_000,
+          store,
+        });
+
+        const next = await store.load(session.sessionId);
+        const nextCursor = next?.state.cursor;
+
+        if (nextCursor === undefined) {
+          throw new Error("expected advanced cursor");
+        }
+
+        return nextCursor;
+      },
+    });
+
+    expect(result.status).toBe("ready");
+
+    if (result.status !== "ready") {
+      throw new Error("expected blocking response to resolve");
+    }
+
+    expect(result.cursor.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3811,
+    });
+    expect(result.response.body).toContain(
+      "https://media.example.com/media/v1080/3811.m4s"
+    );
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/v1080/init.mp4",
+      },
+      {
+        Bucket: "media",
+        Key: "media/v1080/3810.m4s",
+      },
+      {
+        Bucket: "media",
+        Key: "media/v1080/3811.m4s",
+      },
+    ]);
+  });
+
   test("publishes multiple S3 renditions into coherent HLS manifests", async () => {
     const headObjectInputs: unknown[] = [];
     const store = await createStoredPipeline(multiRenditionSession);
@@ -623,6 +726,34 @@ async function issueLowLatencySlots(
   });
 
   return { ...issued, part0, part1 };
+}
+
+async function issueBlockingReloadSlots(
+  store: ReturnType<typeof createMemoryCoordinatorStore>
+) {
+  const issued = await issueInitAndSegment(store);
+  const nextSegment = await issueStoredS3CoordinatorUploadGrant({
+    bucket: "media",
+    client: createS3Client(),
+    contentType: "video/mp4",
+    deliveryUrl: "https://media.example.com/media/v1080/3811.m4s",
+    duration: 2,
+    expiresAt: "2026-01-01T00:00:05.000Z",
+    expiresInSeconds: 3,
+    kind: "segment",
+    maxBytes: 100_000,
+    mediaSequenceNumber: 3811,
+    now: "2026-01-01T00:00:00.000Z",
+    objectKey: "media/v1080/3811.m4s",
+    publicationMode: "direct-public",
+    publisherInstanceId: "pub_1",
+    renditionId: "v1080",
+    sessionId: session.sessionId,
+    slotId: "slot_3811",
+    store,
+  });
+
+  return { ...issued, nextSegment };
 }
 
 async function issueMultiRenditionSlots(
