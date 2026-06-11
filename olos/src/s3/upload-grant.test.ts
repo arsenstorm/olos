@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { S3Client } from "@aws-sdk/client-s3";
 import type { UploadSlot } from "../types/upload-slot";
-import { createS3UploadGrant } from "./upload-grant";
+import {
+  createPresignedS3UploadGrant,
+  createS3UploadGrant,
+} from "./upload-grant";
 
 const slot: UploadSlot = {
   contentType: "video/mp4",
@@ -22,6 +26,57 @@ const slot: UploadSlot = {
 };
 
 describe("s3 upload grants", () => {
+  test("creates an upload grant with an SDK-presigned PUT URL", async () => {
+    const grant = await createPresignedS3UploadGrant({
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      now: "2026-01-01T00:00:00.000Z",
+      slot,
+    });
+    const url = new URL(grant.url);
+
+    expect(grant).toMatchObject({
+      expiresAt: "2026-01-01T00:00:03.000Z",
+      method: "PUT",
+      requiredHeaders: {
+        "Content-Type": "video/mp4",
+        "If-None-Match": "*",
+        "x-olos-slot-id": "slot_1",
+      },
+      slotId: "slot_1",
+    });
+    expect(url.hostname).toBe("s3.example.com");
+    expect(url.pathname).toBe("/media/live/session/v1080/3810.m4s");
+    expect(url.searchParams.get("X-Amz-SignedHeaders")).toBe(
+      "content-type;host;if-none-match;x-olos-slot-id"
+    );
+  });
+
+  test("creates an SDK-presigned grant with provider-specific signed headers", async () => {
+    const grant = await createPresignedS3UploadGrant({
+      additionalHeaders: {
+        "x-amz-checksum-sha256": "abc123",
+      },
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      now: "2026-01-01T00:00:00.000Z",
+      slot,
+    });
+    const url = new URL(grant.url);
+
+    expect(grant.requiredHeaders).toMatchObject({
+      "Content-Type": "video/mp4",
+      "If-None-Match": "*",
+      "x-amz-checksum-sha256": "abc123",
+      "x-olos-slot-id": "slot_1",
+    });
+    expect(url.searchParams.get("X-Amz-SignedHeaders")).toBe(
+      "content-type;host;if-none-match;x-amz-checksum-sha256;x-olos-slot-id"
+    );
+  });
+
   test("creates an upload grant from an S3 presigned PUT URL", () => {
     expect(
       createS3UploadGrant({
@@ -87,3 +142,15 @@ describe("s3 upload grants", () => {
     ).toThrow("additionalHeaders must not override if-none-match");
   });
 });
+
+function createClient(): S3Client {
+  return new S3Client({
+    credentials: {
+      accessKeyId: "test-access-key",
+      secretAccessKey: "test-secret-key",
+    },
+    endpoint: "https://s3.example.com",
+    forcePathStyle: true,
+    region: "us-east-1",
+  });
+}
