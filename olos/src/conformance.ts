@@ -122,13 +122,13 @@ export const OLOS_CONFORMANCE_COVERAGE = [
   {
     id: "CORE-COMMIT-002",
     level: "core",
-    status: "partial",
+    status: "covered",
     testFile: "src/state/commit.test.ts",
   },
   {
     id: "CORE-COMMIT-003",
     level: "core",
-    status: "partial",
+    status: "covered",
     testFile: "src/state/commit.test.ts",
   },
   {

@@ -226,6 +226,57 @@ describe("commit attempt resolution", () => {
       }).status
     ).toBe("committed");
   });
+
+  test("returns a key mismatch error for a different object key", () => {
+    expect(
+      resolveCommitAttempt({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        mediaObject: { ...mediaObject, objectKey: "other.m4s" },
+        slot,
+        slotId: "slot_1",
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.key_mismatch",
+          details: {
+            objectKey: "other.m4s",
+            slotId: "slot_1",
+            slotObjectKey: "tenant/session/v1080/3810.m4s",
+          },
+          message: "object key does not match slot",
+        },
+      },
+      status: "key_mismatch",
+    });
+  });
+
+  test("returns an object too large error for oversized objects", () => {
+    expect(
+      resolveCommitAttempt({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        mediaObject: { ...mediaObject, size: 100_001 },
+        slot,
+        slotId: "slot_1",
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.object_too_large",
+          details: {
+            maxBytes: 100_000,
+            objectKey: "tenant/session/v1080/3810.m4s",
+            size: 100_001,
+            slotId: "slot_1",
+          },
+          message: "object exceeds slot limit",
+        },
+      },
+      status: "object_too_large",
+    });
+  });
 });
 
 describe("observed upload commit builder", () => {

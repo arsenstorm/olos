@@ -39,7 +39,7 @@ export type CommitAttemptResolution =
     }
   | {
       error: OlosError;
-      status: "unknown_slot";
+      status: "key_mismatch" | "object_too_large" | "unknown_slot";
     };
 
 export interface CommitObservedUploadOptions {
@@ -147,16 +147,37 @@ export function resolveCommitAttempt(
 ): CommitAttemptResolution {
   if (options.slot === undefined) {
     return {
-      error: {
-        error: {
-          code: "olos.unknown_slot",
-          details: {
-            slotId: options.slotId,
-          },
-          message: "upload slot is unknown",
-        },
-      },
+      error: commitError("olos.unknown_slot", "upload slot is unknown", {
+        slotId: options.slotId,
+      }),
       status: "unknown_slot",
+    };
+  }
+
+  if (options.mediaObject.objectKey !== options.slot.objectKey) {
+    return {
+      error: commitError(
+        "olos.key_mismatch",
+        "object key does not match slot",
+        {
+          objectKey: options.mediaObject.objectKey,
+          slotId: options.slot.slotId,
+          slotObjectKey: options.slot.objectKey,
+        }
+      ),
+      status: "key_mismatch",
+    };
+  }
+
+  if (options.mediaObject.size > options.slot.maxBytes) {
+    return {
+      error: commitError("olos.object_too_large", "object exceeds slot limit", {
+        maxBytes: options.slot.maxBytes,
+        objectKey: options.mediaObject.objectKey,
+        size: options.mediaObject.size,
+        slotId: options.slot.slotId,
+      }),
+      status: "object_too_large",
     };
   }
 
@@ -172,6 +193,20 @@ export function resolveCommitAttempt(
   return {
     ...result,
     status: "committed",
+  };
+}
+
+function commitError(
+  code: OlosError["error"]["code"],
+  message: string,
+  details?: Record<string, unknown>
+): OlosError {
+  return {
+    error: {
+      code,
+      ...(details === undefined ? {} : { details }),
+      message,
+    },
   };
 }
 
