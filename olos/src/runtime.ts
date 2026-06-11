@@ -9,6 +9,10 @@ export {
   type RuntimeObservedUploadPayload,
 } from "./runtime/commit";
 export {
+  createMemoryRuntimeCursorNotifier,
+  type RuntimeCursorNotifier,
+} from "./runtime/cursor-notifier";
+export {
   type CreateStoredCoordinatorRuntimeHandlerOptions,
   createStoredCoordinatorRuntimeHandler,
   type StoredCoordinatorRuntimeHandler,

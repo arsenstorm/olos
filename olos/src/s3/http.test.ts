@@ -7,6 +7,7 @@ import {
 
 import { createMemoryCoordinatorStore } from "../protocol";
 import { createPublicationKillSwitch } from "../state";
+import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import { createStoredS3CoordinatorRuntimeHandler } from "./http";
@@ -48,6 +49,7 @@ const pathways: Pathway[] = [
 describe("stored S3 coordinator runtime handler", () => {
   test("delegates runtime routes and issues S3 upload grants", async () => {
     const headObjectInputs: unknown[] = [];
+    const notifiedCursors: Cursor[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
@@ -62,6 +64,11 @@ describe("stored S3 coordinator runtime handler", () => {
         },
         headObjectInputs
       ),
+      cursorNotifier: {
+        notify: (cursor) => notifiedCursors.push(cursor),
+        waitForCursor: () =>
+          Promise.reject(new Error("waiter should not be called")),
+      },
       store,
     });
 
@@ -172,6 +179,12 @@ describe("stored S3 coordinator runtime handler", () => {
       firstMediaSequenceNumber: 3810,
       lastMediaSequenceNumber: 3810,
     });
+    expect(notifiedCursors.map((cursor) => cursor.window)).toEqual([
+      {
+        firstMediaSequenceNumber: 3810,
+        lastMediaSequenceNumber: 3810,
+      },
+    ]);
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",

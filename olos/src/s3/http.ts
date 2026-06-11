@@ -4,6 +4,7 @@ import {
   type CreateStoredCoordinatorRuntimeHandlerOptions,
   createStoredCoordinatorRuntimeHandler,
 } from "../runtime";
+import type { Cursor } from "../types/cursor";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
 import {
@@ -120,6 +121,8 @@ async function handleS3Commit(
   });
 
   if (result.status === "committed" || result.status === "idempotent") {
+    notifyCursor(options.cursorNotifier, result.cursor);
+
     return jsonResponse(
       {
         commit: result.commit,
@@ -138,6 +141,17 @@ async function handleS3Commit(
   }
 
   return conflict();
+}
+
+function notifyCursor(
+  notifier:
+    | CreateStoredS3CoordinatorRuntimeHandlerOptions["cursorNotifier"]
+    | undefined,
+  cursor: Cursor | undefined
+): void {
+  if (notifier !== undefined && cursor !== undefined) {
+    notifier.notify(cursor);
+  }
 }
 
 async function handleS3Events(

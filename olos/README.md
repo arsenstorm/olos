@@ -96,6 +96,10 @@ wake-ups, object deletion, and retries. OLOS owns session transitions, slot
 rules, commit idempotency, cursor updates, HLS responses, and retention
 planning.
 
+For single-process runtimes, `createMemoryRuntimeCursorNotifier` can connect
+commit routes to blocking reload waits. Distributed deployments should provide a
+notifier backed by their own queue, pub/sub, or durable runtime.
+
 ### Publication Control
 
 Use `publicationControl` to stop new publication during an incident or budget

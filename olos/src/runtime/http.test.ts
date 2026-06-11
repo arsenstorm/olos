@@ -5,6 +5,7 @@ import { createPublicationKillSwitch } from "../state";
 import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
+import { createMemoryRuntimeCursorNotifier } from "./cursor-notifier";
 import { createStoredCoordinatorRuntimeHandler } from "./http";
 
 const session: Session = {
@@ -268,6 +269,67 @@ describe("stored coordinator runtime handler", () => {
       "https://media.example.com/media/v1080/3811.m4s"
     );
   });
+
+  test("wakes blocking media playlist reloads after commit routes advance the cursor", async () => {
+    const store = createMemoryCoordinatorStore();
+    const notifier = createMemoryRuntimeCursorNotifier();
+    let waits = 0;
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      blockingReload: {
+        timeoutMs: 1000,
+        waitForCursor: (context) => {
+          waits += 1;
+          return notifier.waitForCursor(context);
+        },
+      },
+      cursorNotifier: notifier,
+      store,
+    });
+
+    await seedRuntimeStore(store, 3810);
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/3811.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3811,
+          objectKey: "media/v1080/3811.m4s",
+          slotId: "slot_3811",
+        })
+      )
+    );
+
+    const pending = handle(
+      new Request(
+        "https://edge.example.com/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3811"
+      )
+    );
+
+    await waitFor(() => waits === 1);
+
+    const committed = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/commits", {
+        ...commitPayload({
+          commitId: "commit_3811",
+          objectKey: "media/v1080/3811.m4s",
+          size: 98_304,
+          slotId: "slot_3811",
+        }),
+        independent: false,
+      })
+    );
+    const response = await pending;
+
+    expect(committed.status).toBe(201);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain(
+      "https://media.example.com/media/v1080/3811.m4s"
+    );
+  });
 });
 
 interface SlotPayloadOptions {
@@ -422,4 +484,16 @@ async function seedRuntimeStore(
   }
 
   return snapshot.state.cursor;
+}
+
+async function waitFor(predicate: () => boolean): Promise<void> {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    if (predicate()) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  throw new Error("condition was not met");
 }

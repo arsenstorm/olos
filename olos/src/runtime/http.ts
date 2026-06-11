@@ -4,8 +4,10 @@ import type {
 } from "../hls";
 import type { CoordinatorPipelineStore } from "../protocol";
 import type { PublicationControlPolicy } from "../state";
+import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
+import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { planStoredCoordinatorRetention } from "./retention";
 import {
   createStoredCoordinatorSession,
@@ -30,6 +32,7 @@ export interface CreateStoredCoordinatorRuntimeHandlerOptions {
       context: HlsCursorWaitContext
     ) => Promise<HlsCursorWaitContext["cursor"] | undefined>;
   };
+  cursorNotifier?: RuntimeCursorNotifier;
   livePath?: string;
   maxAttempts?: number;
   now?: () => string;
@@ -116,15 +119,20 @@ async function handleSessionRoute(
   }
 
   if (request.method === "POST" && action === "commits") {
-    return (
-      await commitStoredCoordinatorUploadFromRequest({
-        maxAttempts: options.maxAttempts,
-        publicationControl: options.publicationControl,
-        request,
-        sessionId,
-        store: options.store,
-      })
-    ).response;
+    const result = await commitStoredCoordinatorUploadFromRequest({
+      maxAttempts: options.maxAttempts,
+      publicationControl: options.publicationControl,
+      request,
+      sessionId,
+      store: options.store,
+    });
+
+    notifyCursor(
+      options.cursorNotifier,
+      "state" in result ? result.state.cursor : undefined
+    );
+
+    return result.response;
   }
 
   if (request.method === "POST" && action === "transition") {
@@ -155,6 +163,15 @@ async function handleSessionRoute(
   }
 
   return methodNotAllowed();
+}
+
+function notifyCursor(
+  notifier: RuntimeCursorNotifier | undefined,
+  cursor: Cursor | undefined
+): void {
+  if (notifier !== undefined && cursor !== undefined) {
+    notifier.notify(cursor);
+  }
 }
 
 async function handleLiveRoute(
