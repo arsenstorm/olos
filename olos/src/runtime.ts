@@ -22,3 +22,12 @@ export {
   type RuntimeSlotIssuePayload,
   type RuntimeSlotIssueRequest,
 } from "./runtime/slot";
+export {
+  type CommitStoredCoordinatorUploadFromRequestOptions,
+  commitStoredCoordinatorUploadFromRequest,
+  type IssueStoredCoordinatorSlotFromRequestOptions,
+  issueStoredCoordinatorSlotFromRequest,
+  type StoredRuntimeMutation,
+  type StoredRuntimeSlotIssue,
+  type StoredRuntimeUploadCommit,
+} from "./runtime/stored";

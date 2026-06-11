@@ -1,0 +1,218 @@
+import { describe, expect, test } from "bun:test";
+
+import {
+  commitCoordinatorUpload,
+  createCoordinatorPipeline,
+  createMemoryCoordinatorStore,
+  issueCoordinatorSlot,
+} from "../protocol";
+import type { CoordinatorPipelineStore } from "../protocol/coordinator";
+import { createObservedUpload } from "../state/observed-upload";
+import type { Pathway } from "../types/pathway";
+import type { Session } from "../types/session";
+import {
+  commitStoredCoordinatorUploadFromRequest,
+  issueStoredCoordinatorSlotFromRequest,
+} from "./stored";
+
+const session: Session = {
+  createdAt: "2026-01-01T00:00:00.000Z",
+  epoch: 1,
+  latencyProfile: "object-ll",
+  olos: "1.0",
+  partTarget: 0.5,
+  renditions: [
+    {
+      bitrate: 5_000_000,
+      codec: "avc1.640028",
+      frameRate: 30,
+      height: 1080,
+      kind: "video",
+      renditionId: "v1080",
+      width: 1920,
+    },
+  ],
+  segmentTarget: 2,
+  sessionId: "session_1",
+  state: "live",
+  tenantId: "tenant_1",
+};
+
+const pathways: Pathway[] = [
+  {
+    baseUrl: "https://media.example.com",
+    pathwayId: "primary",
+    priority: 0,
+    providerId: "s3_primary",
+    state: "active",
+  },
+];
+
+describe("stored runtime mutations", () => {
+  test("issues a slot and saves the updated coordinator state", async () => {
+    const store = await createSeededStore();
+
+    const result = await issueStoredCoordinatorSlotFromRequest({
+      request: slotPayload(),
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("issued");
+
+    if (result.status !== "issued") {
+      throw new Error("expected issued slot");
+    }
+
+    const snapshot = await store.load(session.sessionId);
+    expect(result.response.status).toBe(201);
+
+    if (snapshot === undefined) {
+      throw new Error("expected saved coordinator state");
+    }
+
+    expect(result.etag).toBe(snapshot?.etag);
+    expect(snapshot?.state.slots).toHaveLength(1);
+    expect(snapshot?.state.slots[0]?.slotId).toBe("slot_3810");
+  });
+
+  test("commits an upload and saves the updated coordinator state", async () => {
+    const store = await createReadyStore();
+
+    const result = await commitStoredCoordinatorUploadFromRequest({
+      request: commitPayload(),
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("committed");
+
+    if (result.status !== "committed") {
+      throw new Error("expected committed upload");
+    }
+
+    const snapshot = await store.load(session.sessionId);
+    expect(result.response.status).toBe(201);
+
+    if (snapshot === undefined) {
+      throw new Error("expected saved coordinator state");
+    }
+
+    expect(result.etag).toBe(snapshot?.etag);
+    expect(snapshot?.state.commits).toHaveLength(1);
+    expect(snapshot?.state.cursor?.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+  });
+
+  test("returns not found responses for missing coordinator sessions", async () => {
+    const result = await issueStoredCoordinatorSlotFromRequest({
+      request: slotPayload(),
+      sessionId: "missing",
+      store: createMemoryCoordinatorStore(),
+    });
+
+    expect(result.status).toBe("not_found");
+    expect(result.response.status).toBe(404);
+  });
+});
+
+async function createSeededStore(): Promise<CoordinatorPipelineStore> {
+  const store = createMemoryCoordinatorStore();
+  const saved = await store.save({
+    sessionId: session.sessionId,
+    state: createCoordinatorPipeline({ pathways, session }),
+  });
+
+  if (saved.status !== "saved") {
+    throw new Error("expected seeded coordinator state");
+  }
+
+  return store;
+}
+
+async function createReadyStore(): Promise<CoordinatorPipelineStore> {
+  const store = createMemoryCoordinatorStore();
+  const state = createCoordinatorPipeline({ pathways, session });
+  const init = issueCoordinatorSlot({
+    contentType: "video/mp4",
+    deliveryUrl: "https://media.example.com/init.mp4",
+    duration: 1,
+    expiresAt: "2026-01-01T00:00:05.000Z",
+    kind: "init",
+    maxBytes: 2048,
+    mediaSequenceNumber: 0,
+    objectKey: "media/init.mp4",
+    publicationMode: "direct-public",
+    publisherInstanceId: "pub_1",
+    renditionId: "v1080",
+    slotId: "slot_init",
+    state,
+  });
+  const initCommit = commitCoordinatorUpload({
+    commitId: "commit_init",
+    committedAt: "2026-01-01T00:00:02.000Z",
+    object: createObservedUpload({
+      contentType: "video/mp4",
+      objectKey: "media/init.mp4",
+      observedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "s3_primary",
+      size: 1024,
+    }),
+    slotId: "slot_init",
+    state: init.state,
+  });
+
+  if (initCommit.status !== "committed") {
+    throw new Error("expected committed init");
+  }
+
+  const slot = issueCoordinatorSlot({
+    ...slotPayload(),
+    state: initCommit.state,
+  });
+  const saved = await store.save({
+    sessionId: session.sessionId,
+    state: slot.state,
+  });
+
+  if (saved.status !== "saved") {
+    throw new Error("expected ready coordinator state");
+  }
+
+  return store;
+}
+
+function slotPayload() {
+  return {
+    contentType: "video/mp4",
+    deliveryUrl: "https://media.example.com/s3810.m4s",
+    duration: 2,
+    expiresAt: "2026-01-01T00:00:05.000Z",
+    kind: "segment" as const,
+    maxBytes: 100_000,
+    mediaSequenceNumber: 3810,
+    objectKey: "media/s3810.m4s",
+    publicationMode: "direct-public" as const,
+    publisherInstanceId: "pub_1",
+    renditionId: "v1080",
+    slotId: "slot_3810",
+  };
+}
+
+function commitPayload() {
+  return {
+    commitId: "commit_3810",
+    committedAt: "2026-01-01T00:00:02.000Z",
+    independent: true,
+    object: {
+      contentType: "video/mp4",
+      objectKey: "media/s3810.m4s",
+      observedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "s3_primary",
+      size: 98_304,
+    },
+    slotId: "slot_3810",
+  };
+}
