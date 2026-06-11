@@ -16,6 +16,15 @@ export {
   serveCoordinatorManifest,
 } from "./runtime/manifest";
 export {
+  type CreateStoredCoordinatorSessionOptions,
+  createStoredCoordinatorSession,
+  type StoredRuntimeSessionCreate,
+  type StoredRuntimeSessionMutation,
+  type StoredRuntimeSessionTransition,
+  type TransitionStoredCoordinatorSessionOptions,
+  transitionStoredCoordinatorSession,
+} from "./runtime/session";
+export {
   type IssueCoordinatorSlotFromRequestOptions,
   issueCoordinatorSlotFromRequest,
   type RuntimeCoordinatorSlotIssue,
