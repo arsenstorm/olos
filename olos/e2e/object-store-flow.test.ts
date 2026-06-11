@@ -46,6 +46,22 @@ const session = {
   tenantId: "tenant_1",
 } satisfies Session;
 
+const multiRenditionSession = {
+  ...session,
+  renditions: [
+    session.renditions[0],
+    {
+      bitrate: 2_800_000,
+      codec: "avc1.64001f",
+      frameRate: 30,
+      height: 720,
+      kind: "video",
+      renditionId: "v720",
+      width: 1280,
+    },
+  ],
+} satisfies Session;
+
 const pathways = [
   {
     baseUrl: "https://media.example.com",
@@ -382,13 +398,131 @@ describe("object-store flow", () => {
       },
     ]);
   });
+
+  test("publishes multiple S3 renditions into coherent HLS manifests", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = await createStoredPipeline(multiRenditionSession);
+    const issued = await issueMultiRenditionSlots(store);
+
+    for (const issue of Object.values(issued)) {
+      expect(issue.status).toBe("saved");
+    }
+
+    await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: headObjectClient(headObjectInputs, 1024),
+      commitId: "commit_v1080_init",
+      committedAt: "2026-01-01T00:00:01.000Z",
+      providerId: "s3_primary",
+      sessionId: multiRenditionSession.sessionId,
+      slotId: "slot_v1080_init",
+      store,
+    });
+    await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: headObjectClient(headObjectInputs, 768),
+      commitId: "commit_v720_init",
+      committedAt: "2026-01-01T00:00:01.000Z",
+      providerId: "s3_primary",
+      sessionId: multiRenditionSession.sessionId,
+      slotId: "slot_v720_init",
+      store,
+    });
+    await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: headObjectClient(headObjectInputs, 98_304),
+      commitId: "commit_v1080_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      providerId: "s3_primary",
+      sessionId: multiRenditionSession.sessionId,
+      slotId: "slot_v1080_3810",
+      store,
+    });
+    const segmentCommit = await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: headObjectClient(headObjectInputs, 64_000),
+      commitId: "commit_v720_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      manifest: {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: multiRenditionSession.partTarget,
+        segmentTarget: multiRenditionSession.segmentTarget,
+        targetLatency: 3,
+      },
+      providerId: "s3_primary",
+      sessionId: multiRenditionSession.sessionId,
+      slotId: "slot_v720_3810",
+      store,
+    });
+
+    expect(segmentCommit.status).toBe("committed");
+
+    if (segmentCommit.status !== "committed") {
+      throw new Error("expected segment commit");
+    }
+
+    const master = resolveHlsManifestArtifactResponse(
+      segmentCommit.manifest?.artifacts ?? [],
+      "/v1/live/session_1/master.m3u8"
+    );
+    const v1080 = resolveHlsManifestArtifactResponse(
+      segmentCommit.manifest?.artifacts ?? [],
+      "/v1/live/session_1/v1080/media.m3u8"
+    );
+    const v720 = resolveHlsManifestArtifactResponse(
+      segmentCommit.manifest?.artifacts ?? [],
+      "/v1/live/session_1/v720/media.m3u8"
+    );
+
+    expect(
+      segmentCommit.manifest?.artifacts.map((artifact) => artifact.path)
+    ).toEqual([
+      "/v1/live/session_1/master.m3u8",
+      "/v1/live/session_1/v1080/media.m3u8",
+      "/v1/live/session_1/v720/media.m3u8",
+    ]);
+    expect(master?.body).toContain("/v1/live/session_1/v1080/media.m3u8");
+    expect(master?.body).toContain("/v1/live/session_1/v720/media.m3u8");
+    expect(v1080?.body).toContain(
+      '#EXT-X-MAP:URI="https://media.example.com/media/v1080/init.mp4"'
+    );
+    expect(v1080?.body).toContain(
+      "https://media.example.com/media/v1080/3810.m4s"
+    );
+    expect(v720?.body).toContain(
+      '#EXT-X-MAP:URI="https://media.example.com/media/v720/init.mp4"'
+    );
+    expect(v720?.body).toContain(
+      "https://media.example.com/media/v720/3810.m4s"
+    );
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/v1080/init.mp4",
+      },
+      {
+        Bucket: "media",
+        Key: "media/v720/init.mp4",
+      },
+      {
+        Bucket: "media",
+        Key: "media/v1080/3810.m4s",
+      },
+      {
+        Bucket: "media",
+        Key: "media/v720/3810.m4s",
+      },
+    ]);
+  });
 });
 
-async function createStoredPipeline() {
+async function createStoredPipeline(activeSession: Session = session) {
   const store = createMemoryCoordinatorStore();
   await store.save({
-    sessionId: session.sessionId,
-    state: createCoordinatorPipeline({ pathways, session }),
+    sessionId: activeSession.sessionId,
+    state: createCoordinatorPipeline({ pathways, session: activeSession }),
   });
 
   return store;
@@ -489,6 +623,90 @@ async function issueLowLatencySlots(
   });
 
   return { ...issued, part0, part1 };
+}
+
+async function issueMultiRenditionSlots(
+  store: ReturnType<typeof createMemoryCoordinatorStore>
+) {
+  const v1080Init = await issueRenditionUploadSlot({
+    deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+    duration: 1,
+    kind: "init",
+    maxBytes: 2048,
+    mediaSequenceNumber: 0,
+    objectKey: "media/v1080/init.mp4",
+    renditionId: "v1080",
+    slotId: "slot_v1080_init",
+    store,
+  });
+  const v720Init = await issueRenditionUploadSlot({
+    deliveryUrl: "https://media.example.com/media/v720/init.mp4",
+    duration: 1,
+    kind: "init",
+    maxBytes: 2048,
+    mediaSequenceNumber: 0,
+    objectKey: "media/v720/init.mp4",
+    renditionId: "v720",
+    slotId: "slot_v720_init",
+    store,
+  });
+  const v1080Segment = await issueRenditionUploadSlot({
+    deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+    duration: 2,
+    kind: "segment",
+    maxBytes: 100_000,
+    mediaSequenceNumber: 3810,
+    objectKey: "media/v1080/3810.m4s",
+    renditionId: "v1080",
+    slotId: "slot_v1080_3810",
+    store,
+  });
+  const v720Segment = await issueRenditionUploadSlot({
+    deliveryUrl: "https://media.example.com/media/v720/3810.m4s",
+    duration: 2,
+    kind: "segment",
+    maxBytes: 75_000,
+    mediaSequenceNumber: 3810,
+    objectKey: "media/v720/3810.m4s",
+    renditionId: "v720",
+    slotId: "slot_v720_3810",
+    store,
+  });
+
+  return { v1080Init, v1080Segment, v720Init, v720Segment };
+}
+
+function issueRenditionUploadSlot(options: {
+  deliveryUrl: string;
+  duration: number;
+  kind: "init" | "segment";
+  maxBytes: number;
+  mediaSequenceNumber: number;
+  objectKey: string;
+  renditionId: string;
+  slotId: string;
+  store: ReturnType<typeof createMemoryCoordinatorStore>;
+}) {
+  return issueStoredS3CoordinatorUploadGrant({
+    bucket: "media",
+    client: createS3Client(),
+    contentType: "video/mp4",
+    deliveryUrl: options.deliveryUrl,
+    duration: options.duration,
+    expiresAt: "2026-01-01T00:00:05.000Z",
+    expiresInSeconds: 3,
+    kind: options.kind,
+    maxBytes: options.maxBytes,
+    mediaSequenceNumber: options.mediaSequenceNumber,
+    now: "2026-01-01T00:00:00.000Z",
+    objectKey: options.objectKey,
+    publicationMode: "direct-public",
+    publisherInstanceId: "pub_1",
+    renditionId: options.renditionId,
+    sessionId: multiRenditionSession.sessionId,
+    slotId: options.slotId,
+    store: options.store,
+  });
 }
 
 async function routeUploadEvent(options: {

@@ -170,6 +170,49 @@ describe("cursor update resolution", () => {
     });
   });
 
+  test("accepts same-position candidates with expanded committed windows", () => {
+    const candidateCursor = createCursor({
+      ...options,
+      committedWindow: {
+        ...committedWindow,
+        renditions: {
+          ...committedWindow.renditions,
+          v720: {
+            init: {
+              commitId: "commit_v720_init",
+              deliveryUrl: "/media/v720/init.mp4",
+              objectKey: "tenant/session/v720/init.mp4",
+              slotId: "slot_v720_init",
+            },
+            renditionId: "v720",
+            segments: [
+              {
+                duration: 1,
+                mediaSequenceNumber: 3810,
+                segment: {
+                  commitId: "commit_v720_3810",
+                  deliveryUrl: "/media/v720/3810.m4s",
+                  objectKey: "tenant/session/v720/3810.m4s",
+                  slotId: "slot_v720_3810",
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(
+      resolveCursorUpdate({
+        candidateCursor,
+        currentCursor,
+      })
+    ).toEqual({
+      cursor: candidateCursor,
+      status: "advanced",
+    });
+  });
+
   test("rejects candidates behind the current media sequence", () => {
     const candidateCursor = createCursor({
       ...options,

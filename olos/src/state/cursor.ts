@@ -81,6 +81,13 @@ export function resolveCursorUpdate(
   }
 
   if (comparison === 0) {
+    if (!sameCommittedWindow(options.candidateCursor, options.currentCursor)) {
+      return {
+        cursor: options.candidateCursor,
+        status: "advanced",
+      };
+    }
+
     return {
       cursor: options.currentCursor,
       status: "idempotent",
@@ -121,4 +128,11 @@ function compareCursorPosition(first: Cursor, second: Cursor): number {
 
 function compareNumber(first: number, second: number): number {
   return Math.sign(first - second);
+}
+
+function sameCommittedWindow(first: Cursor, second: Cursor): boolean {
+  return (
+    JSON.stringify(first.committedWindow) ===
+    JSON.stringify(second.committedWindow)
+  );
 }
