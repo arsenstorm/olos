@@ -25,6 +25,23 @@ export interface UploadCommitResolution {
   slot: UploadSlot;
 }
 
+export interface ResolveCommitAttemptOptions
+  extends Omit<CreateCommitOptions, "slot"> {
+  slot?: UploadSlot;
+  slotId: OlosId;
+}
+
+export type CommitAttemptResolution =
+  | {
+      commit: Commit;
+      slot: UploadSlot;
+      status: "committed";
+    }
+  | {
+      error: OlosError;
+      status: "unknown_slot";
+    };
+
 export interface CommitObservedUploadOptions {
   commitId: OlosId;
   committedAt: string;
@@ -122,6 +139,39 @@ export function resolveUploadCommit(
       ...options.slot,
       state: "committed",
     },
+  };
+}
+
+export function resolveCommitAttempt(
+  options: ResolveCommitAttemptOptions
+): CommitAttemptResolution {
+  if (options.slot === undefined) {
+    return {
+      error: {
+        error: {
+          code: "olos.unknown_slot",
+          details: {
+            slotId: options.slotId,
+          },
+          message: "upload slot is unknown",
+        },
+      },
+      status: "unknown_slot",
+    };
+  }
+
+  const result = resolveUploadCommit({
+    commitId: options.commitId,
+    committedAt: options.committedAt,
+    independent: options.independent,
+    mediaObject: options.mediaObject,
+    programDateTime: options.programDateTime,
+    slot: options.slot,
+  });
+
+  return {
+    ...result,
+    status: "committed",
   };
 }
 

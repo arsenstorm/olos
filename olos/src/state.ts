@@ -1,14 +1,17 @@
 // biome-ignore-all lint/performance/noBarrelFile: public state facade for the olos/state export
 
 export {
+  type CommitAttemptResolution,
   type CommitObservedUploadOptions,
   type CommitObservedUploadResult,
   type CreateCommitOptions,
   commitObservedUpload,
   createCommit,
   type DuplicateCommitResolution,
+  type ResolveCommitAttemptOptions,
   type ResolveDuplicateCommitOptions,
   type ResolveUploadCommitOptions,
+  resolveCommitAttempt,
   resolveDuplicateCommit,
   resolveUploadCommit,
   type UploadCommitResolution,

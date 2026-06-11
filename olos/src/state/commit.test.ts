@@ -5,6 +5,7 @@ import type { ObservedUpload } from "../validation/observed-upload";
 import {
   commitObservedUpload,
   createCommit,
+  resolveCommitAttempt,
   resolveDuplicateCommit,
   resolveUploadCommit,
 } from "./commit";
@@ -188,6 +189,42 @@ describe("upload commit resolution", () => {
         state: "committed",
       },
     });
+  });
+});
+
+describe("commit attempt resolution", () => {
+  test("returns an unknown slot error when the slot lookup misses", () => {
+    expect(
+      resolveCommitAttempt({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        mediaObject,
+        slotId: "slot_missing",
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.unknown_slot",
+          details: {
+            slotId: "slot_missing",
+          },
+          message: "upload slot is unknown",
+        },
+      },
+      status: "unknown_slot",
+    });
+  });
+
+  test("commits when the slot lookup succeeds", () => {
+    expect(
+      resolveCommitAttempt({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        mediaObject,
+        slot,
+        slotId: "slot_1",
+      }).status
+    ).toBe("committed");
   });
 });
 
