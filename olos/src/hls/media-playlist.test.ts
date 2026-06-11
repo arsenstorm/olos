@@ -79,10 +79,21 @@ const committedWindow: CommittedWindow = {
   },
 };
 
+function validRendition() {
+  const rendition = committedWindow.renditions.v1080;
+
+  if (!rendition) {
+    throw new Error("missing v1080 test fixture");
+  }
+
+  return rendition;
+}
+
 describe("media playlist rendering", () => {
   test("renders deterministic LL-HLS from a committed window", () => {
     expect(
       renderMediaPlaylist(committedWindow, {
+        allowedMediaOrigins: ["https://media.example.com"],
         partTarget: 0.5,
         renditionId: "v1080",
         segmentTarget: 2,
@@ -111,6 +122,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
   test("throws for unknown renditions", () => {
     expect(() =>
       renderMediaPlaylist(committedWindow, {
+        allowedMediaOrigins: ["https://media.example.com"],
         partTarget: 0.5,
         renditionId: "missing",
         segmentTarget: 2,
@@ -121,6 +133,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
   test("supports explicit hold-back values", () => {
     expect(
       renderMediaPlaylist(committedWindow, {
+        allowedMediaOrigins: ["https://media.example.com"],
         partHoldBack: 2,
         partTarget: 0.5,
         renditionId: "v1080",
@@ -128,5 +141,91 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
         targetLatency: 4,
       })
     ).toContain("PART-HOLD-BACK=2.000,HOLD-BACK=4.000");
+  });
+
+  test("rejects absolute media URLs without an allowed origin", () => {
+    expect(() =>
+      renderMediaPlaylist(committedWindow, {
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+      })
+    ).toThrow("rendition.init.deliveryUrl origin is not allowed");
+  });
+
+  test("rejects unsafe media URL schemes", () => {
+    expect(() =>
+      renderMediaPlaylist(
+        {
+          ...committedWindow,
+          renditions: {
+            v1080: {
+              ...validRendition(),
+              init: {
+                ...validRendition().init,
+                deliveryUrl: "javascript:alert(1)",
+              },
+            },
+          },
+        },
+        {
+          allowedMediaOrigins: ["https://media.example.com"],
+          partTarget: 0.5,
+          renditionId: "v1080",
+          segmentTarget: 2,
+        }
+      )
+    ).toThrow(
+      "rendition.init.deliveryUrl must be a safe relative path or allowed absolute URL"
+    );
+  });
+
+  test("rejects protocol-relative media URLs", () => {
+    expect(() =>
+      renderMediaPlaylist(
+        {
+          ...committedWindow,
+          renditions: {
+            v1080: {
+              ...validRendition(),
+              init: {
+                ...validRendition().init,
+                deliveryUrl: "//media.example.com/init.mp4",
+              },
+            },
+          },
+        },
+        {
+          allowedMediaOrigins: ["https://media.example.com"],
+          partTarget: 0.5,
+          renditionId: "v1080",
+          segmentTarget: 2,
+        }
+      )
+    ).toThrow("rendition.init.deliveryUrl must be a safe relative path");
+  });
+
+  test("rejects media URLs with control characters", () => {
+    expect(() =>
+      renderMediaPlaylist(
+        {
+          ...committedWindow,
+          renditions: {
+            v1080: {
+              ...validRendition(),
+              init: {
+                ...validRendition().init,
+                deliveryUrl: "/media/init.mp4\n#EXT-X-ENDLIST",
+              },
+            },
+          },
+        },
+        {
+          partTarget: 0.5,
+          renditionId: "v1080",
+          segmentTarget: 2,
+        }
+      )
+    ).toThrow("rendition.init.deliveryUrl must not contain control characters");
   });
 });

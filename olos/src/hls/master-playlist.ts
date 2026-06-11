@@ -1,7 +1,7 @@
 import type { Rendition, Session } from "../types/session";
 import { isUrlSafeIdentifier } from "../validation/ids";
-
-const PATH_CONTROL_CHARACTER_PATTERN = /[\r\n]/;
+import { escapePlaylistValue, formatFrameRate } from "./format";
+import { assertSafeRelativePath } from "./uri";
 
 export interface RenderMasterPlaylistOptions {
   mediaPlaylistPath?: (session: Session, rendition: Rendition) => string;
@@ -32,7 +32,7 @@ export function renderMasterPlaylist(
 
   for (const rendition of videoRenditions) {
     const path = mediaPlaylistPath(session, rendition);
-    assertRelativePath(path);
+    assertSafeRelativePath(path, "media playlist path");
 
     lines.push(
       `#EXT-X-STREAM-INF:${renderStreamAttributes(rendition, audioCodecs)}`,
@@ -107,24 +107,4 @@ function assertSessionShape(session: Session): void {
       throw new Error(`rendition ${rendition.renditionId} must define codec`);
     }
   }
-}
-
-function assertRelativePath(value: string): void {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    !value.startsWith("/") ||
-    value.startsWith("//") ||
-    PATH_CONTROL_CHARACTER_PATTERN.test(value)
-  ) {
-    throw new Error("media playlist path must be a safe relative path");
-  }
-}
-
-function escapePlaylistValue(value: string): string {
-  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
-}
-
-function formatFrameRate(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(3);
 }

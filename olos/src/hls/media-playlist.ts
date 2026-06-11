@@ -3,8 +3,10 @@ import type {
   CommittedWindow,
 } from "../types/committed-window";
 import { assertCommittedWindow } from "../validation/committed-window";
+import { escapePlaylistValue, formatSeconds } from "./format";
+import { assertSafeMediaUri, type MediaUriPolicy } from "./uri";
 
-export interface RenderMediaPlaylistOptions {
+export interface RenderMediaPlaylistOptions extends MediaUriPolicy {
   partHoldBack?: number;
   partTarget: number;
   renditionId: string;
@@ -37,18 +39,21 @@ export function renderMediaPlaylist(
     `#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=${formatSeconds(partHoldBack)},HOLD-BACK=${formatSeconds(targetLatency)}`,
     `#EXT-X-MEDIA-SEQUENCE:${committedWindow.firstMediaSequenceNumber}`,
     `#EXT-X-DISCONTINUITY-SEQUENCE:${committedWindow.discontinuitySequence}`,
-    `#EXT-X-MAP:URI="${escapePlaylistValue(rendition.init.deliveryUrl)}"`,
+    `#EXT-X-MAP:URI="${renderMediaUri(rendition.init.deliveryUrl, options, "rendition.init.deliveryUrl")}"`,
     "",
   ];
 
   for (const segment of rendition.segments) {
-    lines.push(...renderSegment(segment));
+    lines.push(...renderSegment(segment, options));
   }
 
   return `${lines.join("\n")}\n`;
 }
 
-function renderSegment(segment: CommittedSegment): string[] {
+function renderSegment(
+  segment: CommittedSegment,
+  policy: MediaUriPolicy
+): string[] {
   const lines: string[] = [];
 
   if (segment.discontinuityBefore) {
@@ -62,7 +67,7 @@ function renderSegment(segment: CommittedSegment): string[] {
   if (segment.segment) {
     lines.push(
       `#EXTINF:${formatSeconds(segment.duration)},`,
-      escapePlaylistValue(segment.segment.deliveryUrl)
+      renderMediaUri(segment.segment.deliveryUrl, policy, "segment.deliveryUrl")
     );
     return lines;
   }
@@ -71,7 +76,7 @@ function renderSegment(segment: CommittedSegment): string[] {
     const attributes = [
       `DURATION=${formatSeconds(part.duration)}`,
       part.independent ? "INDEPENDENT=YES" : undefined,
-      `URI="${escapePlaylistValue(part.deliveryUrl)}"`,
+      `URI="${renderMediaUri(part.deliveryUrl, policy, "part.deliveryUrl")}"`,
     ].filter((attribute) => attribute !== undefined);
 
     lines.push(`#EXT-X-PART:${attributes.join(",")}`);
@@ -80,12 +85,13 @@ function renderSegment(segment: CommittedSegment): string[] {
   return lines;
 }
 
-function formatSeconds(value: number): string {
-  return value.toFixed(3);
-}
-
-function escapePlaylistValue(value: string): string {
-  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+function renderMediaUri(
+  value: string,
+  policy: MediaUriPolicy,
+  name: string
+): string {
+  assertSafeMediaUri(value, policy, name);
+  return escapePlaylistValue(value);
 }
 
 function assertPositiveNumber(value: unknown, name: string): void {
