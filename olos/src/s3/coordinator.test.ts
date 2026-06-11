@@ -126,6 +126,53 @@ describe("s3 coordinator uploads", () => {
     expect(result).toEqual({ status: "not_found" });
   });
 
+  test("does not issue stored S3 grants while the kill switch is active", async () => {
+    const store = createMemoryCoordinatorStore();
+    const state = createCoordinatorPipeline({ pathways, session });
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const result = await issueStoredS3CoordinatorUploadGrant({
+      bucket: "media",
+      client: createClient(),
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      expiresInSeconds: 3,
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      now: "2026-01-01T00:00:00.000Z",
+      objectKey: "live/session/v1080/3810.m4s",
+      publicationControl: createPublicationKillSwitch("incident"),
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      sessionId: session.sessionId,
+      slotId: "slot_3810",
+      store,
+    });
+    const stored = await store.load(session.sessionId);
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected grant issue");
+    }
+
+    expect(result.error.error).toMatchObject({
+      code: "olos.security_policy_violation",
+      details: {
+        operation: "issue_slot",
+        reason: "incident",
+      },
+    });
+    expect(stored?.etag).toBe("1");
+    expect(stored?.state.slots).toEqual([]);
+  });
+
   test("issues a coordinator slot with an S3 upload grant", async () => {
     const state = createCoordinatorPipeline({ pathways, session });
     const issue = await issueS3CoordinatorUploadGrant({

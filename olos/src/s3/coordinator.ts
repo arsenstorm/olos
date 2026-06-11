@@ -157,6 +157,11 @@ export type StoredS3CoordinatorUploadGrantIssue =
       status: "saved";
     }
   | {
+      error: OlosError;
+      state: CoordinatorPipelineState;
+      status: "rejected";
+    }
+  | {
       current?: CoordinatorPipelineSnapshot;
       status: "conflict";
     }
@@ -200,6 +205,25 @@ export async function issueStoredS3CoordinatorUploadGrant(
     store,
     ...slotOptions
   } = options;
+  const publication = resolvePublicationControl({
+    operation: "issue_slot",
+    policy: slotOptions.publicationControl,
+  });
+
+  if (publication.status === "blocked") {
+    const snapshot = await store.load(sessionId);
+
+    if (snapshot === undefined) {
+      return { status: "not_found" };
+    }
+
+    return {
+      error: publication.error,
+      state: snapshot.state,
+      status: "rejected",
+    };
+  }
+
   let slot: UploadSlot | undefined;
   const mutation = await mutateCoordinatorPipeline({
     maxAttempts,

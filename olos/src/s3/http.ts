@@ -83,6 +83,10 @@ async function handleS3SlotGrant(
     return notFound();
   }
 
+  if (result.status === "rejected") {
+    return jsonResponse(result.error, rejectionStatus(result.error.error.code));
+  }
+
   return conflict();
 }
 
