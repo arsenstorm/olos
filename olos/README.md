@@ -237,6 +237,7 @@ const handleOlos = createStoredS3CoordinatorRuntimeHandler({
   bucket: "media",
   client: s3,
   expiresInSeconds: 3,
+  providerId: "s3_primary",
   store,
 });
 
@@ -253,6 +254,7 @@ The S3 runtime handler delegates the stored runtime routes and adds:
 | --- | --- | --- |
 | `POST` | `/sessions/:id/s3/slots` | Issue a stored upload slot and return an S3 upload grant. |
 | `POST` | `/sessions/:id/s3/commits` | Observe the uploaded S3 object, commit it, and return commit/cursor data. |
+| `POST` | `/sessions/:id/s3/events` | Normalize S3 object-created records and route them through coordinator commits. |
 
 The generic runtime routes remain available through the same handler, including
 `POST /sessions`, `POST /sessions/:id/transition`, `GET /sessions/:id/retention`,

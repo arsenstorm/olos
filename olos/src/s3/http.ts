@@ -9,7 +9,9 @@ import type { PublicationMode } from "../types/upload-slot";
 import {
   completeStoredS3CoordinatorUpload,
   issueStoredS3CoordinatorUploadGrant,
+  routeStoredS3CoordinatorUploadEvent,
 } from "./coordinator";
+import { normalizeS3ObjectCreatedEvents } from "./event";
 import type { S3HeadObjectClient } from "./object-observation";
 
 const DEFAULT_SESSION_PATH = "/sessions";
@@ -22,6 +24,7 @@ export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
   expiresInSeconds: number;
   grantNow?: () => Date | string;
   objectClient?: S3HeadObjectClient;
+  providerId?: string;
 }
 
 export type StoredS3CoordinatorRuntimeHandler = (
@@ -48,7 +51,11 @@ export function createStoredS3CoordinatorRuntimeHandler(
       return await handleS3SlotGrant(request, route.sessionId, options);
     }
 
-    return await handleS3Commit(request, route.sessionId, options);
+    if (route.action === "commits") {
+      return await handleS3Commit(request, route.sessionId, options);
+    }
+
+    return await handleS3Events(request, route.sessionId, options);
   };
 }
 
@@ -133,8 +140,50 @@ async function handleS3Commit(
   return conflict();
 }
 
+async function handleS3Events(
+  request: Request,
+  sessionId: string,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  if (options.providerId === undefined) {
+    return badRequest("providerId must be configured for S3 event routes");
+  }
+
+  const parsed = await parseJsonRequest(request, "S3 event request");
+
+  if (parsed.status === "invalid") {
+    return badRequest(parsed.message);
+  }
+
+  const events = normalizeS3ObjectCreatedEvents({
+    payload: parsed.payload,
+    providerId: options.providerId,
+  });
+  const results: Record<string, unknown>[] = [];
+
+  for (const event of events) {
+    const result = await routeStoredS3CoordinatorUploadEvent({
+      bucket: options.bucket,
+      client: options.objectClient ?? options.client,
+      event,
+      providerId: options.providerId,
+      publicationControl: options.publicationControl,
+      sessionId,
+      store: options.store,
+    });
+
+    results.push(eventRouteResult(result));
+  }
+
+  return jsonResponse({ results }, 202);
+}
+
 type S3Route =
-  | { action: "commits" | "slots"; sessionId: string; status: "matched" }
+  | {
+      action: "commits" | "events" | "slots";
+      sessionId: string;
+      status: "matched";
+    }
   | { status: "method_not_allowed" }
   | { status: "not_s3" };
 
@@ -157,7 +206,7 @@ function s3Route(
   if (
     sessionId === undefined ||
     provider !== "s3" ||
-    (action !== "slots" && action !== "commits") ||
+    (action !== "slots" && action !== "commits" && action !== "events") ||
     parts.length !== 3
   ) {
     return { status: "not_s3" };
@@ -189,6 +238,22 @@ async function parseS3SlotGrantRequest(
     };
   } catch (error) {
     return invalid(errorMessage(error));
+  }
+}
+
+async function parseJsonRequest(
+  request: Request,
+  name: string
+): Promise<
+  { payload: unknown; status: "valid" } | { message: string; status: "invalid" }
+> {
+  try {
+    return {
+      payload: await request.json(),
+      status: "valid",
+    };
+  } catch (error) {
+    return invalid(errorMessage(error, `invalid ${name}`));
   }
 }
 
@@ -314,6 +379,33 @@ function rejectionStatus(code: string): number {
   return code === "olos.unknown_slot" ? 404 : 409;
 }
 
+function eventRouteResult(
+  result: Awaited<ReturnType<typeof routeStoredS3CoordinatorUploadEvent>>
+): Record<string, unknown> {
+  if (result.status === "committed" || result.status === "idempotent") {
+    return {
+      commit: result.commit,
+      status: result.status,
+    };
+  }
+
+  if (result.status === "invalid_event") {
+    return {
+      error: result.error.error,
+      status: result.status,
+    };
+  }
+
+  if (result.status === "rejected") {
+    return {
+      error: result.error.error,
+      status: result.status,
+    };
+  }
+
+  return { status: result.status };
+}
+
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     headers: { "content-type": "application/json; charset=utf-8" },
@@ -385,8 +477,9 @@ function optionalStringField<
   >;
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "invalid S3 slot grant request";
+function errorMessage(
+  error: unknown,
+  fallback = "invalid S3 slot grant request"
+): string {
+  return error instanceof Error ? error.message : fallback;
 }
