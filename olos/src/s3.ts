@@ -43,6 +43,11 @@ export {
   type S3HeadObjectClient,
 } from "./s3/object-observation";
 export {
+  type RunStoredS3PublisherUploadStepOptions,
+  runStoredS3PublisherUploadStep,
+  type StoredS3PublisherUploadStep,
+} from "./s3/publisher";
+export {
   type CreatePresignedS3UploadGrantOptions,
   type CreateS3UploadGrantOptions,
   createPresignedS3UploadGrant,

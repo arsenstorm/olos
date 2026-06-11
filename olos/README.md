@@ -307,6 +307,10 @@ The application owns authentication, handler mounting, the coordinator store,
 and S3 client configuration. OLOS owns the upload-slot rules, S3 object
 observation, cursor update, manifest rendering, and response metadata.
 
+Publisher processes can use `runStoredS3PublisherUploadStep` to compose one
+object publication step: issue a grant, let the app PUT to the granted URL, then
+commit the slot through S3 object observation.
+
 ### Direct-Public Security
 
 `direct-public` means uploaded media objects may be readable from storage before
