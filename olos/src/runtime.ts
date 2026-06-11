@@ -7,3 +7,10 @@ export {
   serveBlockingCoordinatorManifest,
   serveCoordinatorManifest,
 } from "./runtime/manifest";
+export {
+  type IssueCoordinatorSlotFromRequestOptions,
+  issueCoordinatorSlotFromRequest,
+  type RuntimeCoordinatorSlotIssue,
+  type RuntimeSlotIssuePayload,
+  type RuntimeSlotIssueRequest,
+} from "./runtime/slot";
