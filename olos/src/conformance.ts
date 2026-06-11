@@ -371,6 +371,42 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     status: "covered",
     testFile: "src/hls/media-playlist.test.ts",
   },
+  {
+    id: "SEC-DIRECT-001",
+    level: "security",
+    status: "covered",
+    testFile: "src/state/direct-public-security-policy.test.ts",
+  },
+  {
+    id: "SEC-DIRECT-002",
+    level: "security",
+    status: "covered",
+    testFile: "src/state/direct-public-security-policy.test.ts",
+  },
+  {
+    id: "SEC-DIRECT-003",
+    level: "security",
+    status: "covered",
+    testFile: "src/state/direct-public-security-policy.test.ts",
+  },
+  {
+    id: "SEC-DIRECT-005",
+    level: "security",
+    status: "covered",
+    testFile: "src/state/direct-public-security-policy.test.ts",
+  },
+  {
+    id: "SEC-DIRECT-006",
+    level: "security",
+    status: "covered",
+    testFile: "src/state/direct-public-security-policy.test.ts",
+  },
+  {
+    id: "SEC-DIRECT-007",
+    level: "security",
+    status: "covered",
+    testFile: "src/state/direct-public-security-policy.test.ts",
+  },
 ] as const satisfies readonly OlosConformanceCoverage[];
 
 export function getOlosConformanceCoverage(

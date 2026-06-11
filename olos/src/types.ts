@@ -11,6 +11,7 @@ export type {
   RenditionWindow,
 } from "./types/committed-window";
 export type { Cursor, CursorWindow } from "./types/cursor";
+export type { DirectPublicSecurityPolicy } from "./types/direct-public-security-policy";
 export type { OlosError, OlosErrorCode } from "./types/errors";
 export type {
   Epoch,

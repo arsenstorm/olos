@@ -32,6 +32,10 @@ export {
   resolveCursorUpdate,
 } from "./state/cursor";
 export {
+  type CreateDirectPublicSecurityPolicyOptions,
+  createDirectPublicSecurityPolicy,
+} from "./state/direct-public-security-policy";
+export {
   type CreateObservedUploadFromHeadObjectOptions,
   type CreateObservedUploadFromObjectCreatedEventOptions,
   type CreateObservedUploadOptions,
