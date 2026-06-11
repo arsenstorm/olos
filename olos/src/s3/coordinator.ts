@@ -1,5 +1,11 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import {
+  type CreateHlsManifestArtifactResponseOptions,
+  createHlsManifestArtifactResponse,
+  type HlsManifestArtifact,
+  type HlsManifestArtifactResponse,
+} from "../hls/manifest-artifacts";
+import {
   type CoordinatorManifestArtifacts,
   type CoordinatorPipelineSnapshot,
   type CoordinatorPipelineStore,
@@ -73,7 +79,19 @@ export interface RouteStoredS3CoordinatorUploadEventOptions {
 }
 
 export interface StoredS3CoordinatorManifestOptions
-  extends Omit<CreateCoordinatorManifestArtifactsOptions, "state"> {}
+  extends Omit<CreateCoordinatorManifestArtifactsOptions, "state"> {
+  response?: CreateHlsManifestArtifactResponseOptions;
+}
+
+export interface StoredS3CoordinatorManifestArtifact
+  extends HlsManifestArtifact {
+  response: HlsManifestArtifactResponse;
+}
+
+export interface StoredS3CoordinatorManifest {
+  artifacts: readonly StoredS3CoordinatorManifestArtifact[];
+  cursor?: CoordinatorManifestArtifacts["cursor"];
+}
 
 export type StoredS3CoordinatorUploadCommit =
   | (Extract<
@@ -81,7 +99,7 @@ export type StoredS3CoordinatorUploadCommit =
       { status: "committed" | "idempotent" }
     > & {
       etag: string;
-      manifest?: CoordinatorManifestArtifacts;
+      manifest?: StoredS3CoordinatorManifest;
     })
   | Extract<CoordinatorUploadCommit, { status: "rejected" }>
   | {
@@ -441,17 +459,26 @@ export async function routeStoredS3CoordinatorUploadEvent(
 function withManifest<T extends { state: CoordinatorPipelineState }>(
   result: T,
   manifest: StoredS3CoordinatorManifestOptions | undefined
-): T & { manifest?: CoordinatorManifestArtifacts } {
+): T & { manifest?: StoredS3CoordinatorManifest } {
   if (manifest === undefined) {
     return result;
   }
 
+  const { response, ...manifestOptions } = manifest;
+  const artifacts = createCoordinatorManifestArtifacts({
+    ...manifestOptions,
+    state: result.state,
+  });
+
   return {
     ...result,
-    manifest: createCoordinatorManifestArtifacts({
-      ...manifest,
-      state: result.state,
-    }),
+    manifest: {
+      ...(artifacts.cursor === undefined ? {} : { cursor: artifacts.cursor }),
+      artifacts: artifacts.artifacts.map((artifact) => ({
+        ...artifact,
+        response: createHlsManifestArtifactResponse(artifact, response),
+      })),
+    },
   };
 }
 

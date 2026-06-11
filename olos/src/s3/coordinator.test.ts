@@ -402,6 +402,10 @@ describe("s3 coordinator uploads", () => {
       manifest: {
         allowedMediaOrigins: ["https://media.example.com"],
         partTarget: session.partTarget,
+        response: {
+          maxAgeSeconds: 2,
+          targetLatencySeconds: 3,
+        },
         segmentTarget: session.segmentTarget,
       },
       providerId: "s3_primary",
@@ -424,6 +428,10 @@ describe("s3 coordinator uploads", () => {
     expect(segmentCommit.manifest?.artifacts[1]?.body).toContain(
       "https://media.example.com/s3810.m4s"
     );
+    expect(segmentCommit.manifest?.artifacts[1]?.response.headers).toEqual({
+      "cache-control": "public, max-age=2, must-revalidate",
+      "content-type": "application/vnd.apple.mpegurl",
+    });
   });
 
   test("completes stored S3 uploads from a matching object key hint", async () => {
