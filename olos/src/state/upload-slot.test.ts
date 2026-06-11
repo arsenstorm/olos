@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { Cursor } from "../types/cursor";
 import type { Session } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
@@ -8,6 +9,7 @@ import {
   canTransitionUploadSlot,
   createIssuedUploadSlot,
   observeUpload,
+  resolveUploadObservation,
 } from "./upload-slot";
 
 const session: Session = {
@@ -63,6 +65,60 @@ const object: ObservedUpload = {
   observedAt: "2026-01-01T00:00:03.000Z",
   providerId: "s3_primary",
   size: 50_000,
+};
+
+const cursor: Cursor = {
+  committedWindow: {
+    discontinuitySequence: 0,
+    epoch: 0,
+    firstMediaSequenceNumber: 3810,
+    lastMediaSequenceNumber: 3810,
+    renditions: {
+      v1080: {
+        init: {
+          commitId: "commit_init",
+          deliveryUrl: "/media/init.mp4",
+          objectKey: "media/init.mp4",
+          slotId: "slot_init",
+        },
+        renditionId: "v1080",
+        segments: [
+          {
+            duration: 2,
+            mediaSequenceNumber: 3810,
+            segment: {
+              commitId: "commit_3810",
+              deliveryUrl: "/media/3810.m4s",
+              objectKey: "media/3810.m4s",
+              slotId: "slot_3810",
+            },
+          },
+        ],
+      },
+    },
+  },
+  epoch: 0,
+  latencyProfile: "object-ll",
+  olos: "1.0",
+  partTarget: 0.5,
+  pathways: [
+    {
+      baseUrl: "https://media.example.com",
+      pathwayId: "primary",
+      priority: 0,
+      providerId: "s3_primary",
+      state: "active",
+    },
+  ],
+  segmentTarget: 2,
+  sessionId: "session_1",
+  state: "live",
+  tenantId: "tenant_1",
+  updatedAt: "2026-01-01T00:00:02.000Z",
+  window: {
+    firstMediaSequenceNumber: 3810,
+    lastMediaSequenceNumber: 3810,
+  },
 };
 
 describe("upload slot issuance", () => {
@@ -161,10 +217,30 @@ describe("observe upload", () => {
     });
   });
 
+  test("returns an observation result without advancing the cursor", () => {
+    expect(resolveUploadObservation({ cursor, object, slot })).toEqual({
+      cursor,
+      cursorAdvanced: false,
+      slot: {
+        ...slot,
+        state: "upload_observed",
+      },
+      status: "observed",
+    });
+  });
+
   test("keeps already observed slots idempotent", () => {
     const observedSlot: UploadSlot = { ...slot, state: "upload_observed" };
 
     expect(observeUpload({ object, slot: observedSlot })).toEqual(observedSlot);
+    expect(
+      resolveUploadObservation({ cursor, object, slot: observedSlot })
+    ).toEqual({
+      cursor,
+      cursorAdvanced: false,
+      slot: observedSlot,
+      status: "already_observed",
+    });
   });
 
   test("rejects object mismatches", () => {

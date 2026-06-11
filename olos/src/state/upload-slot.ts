@@ -1,4 +1,5 @@
 import { UPLOAD_SLOT_TRANSITIONS } from "../config/upload-slot";
+import type { Cursor } from "../types/cursor";
 import type { MediaObjectKind } from "../types/media-object";
 import type { Session } from "../types/session";
 import type { UploadSlot, UploadSlotState } from "../types/upload-slot";
@@ -28,8 +29,16 @@ export interface CreateIssuedUploadSlotOptions {
 }
 
 export interface ObserveUploadOptions {
+  cursor?: Cursor;
   object: ObservedUpload;
   slot: UploadSlot;
+}
+
+export interface UploadObservationResult {
+  cursor?: Cursor;
+  cursorAdvanced: false;
+  slot: UploadSlot;
+  status: "already_observed" | "observed";
 }
 
 export function createIssuedUploadSlot(
@@ -82,16 +91,35 @@ export function createIssuedUploadSlot(
 }
 
 export function observeUpload(options: ObserveUploadOptions): UploadSlot {
+  return resolveUploadObservation(options).slot;
+}
+
+export function resolveUploadObservation(
+  options: ObserveUploadOptions
+): UploadObservationResult {
   assertObservedUploadMatchesSlot(options);
+
+  const result: UploadObservationResult = {
+    cursorAdvanced: false,
+    slot: {
+      ...options.slot,
+      state: "upload_observed",
+    },
+    status:
+      options.slot.state === "upload_observed"
+        ? "already_observed"
+        : "observed",
+  };
+
+  if (options.cursor !== undefined) {
+    result.cursor = options.cursor;
+  }
 
   if (options.slot.state === "issued") {
     assertUploadSlotTransition(options.slot.state, "upload_observed");
   }
 
-  return {
-    ...options.slot,
-    state: "upload_observed",
-  };
+  return result;
 }
 
 export function canTransitionUploadSlot(

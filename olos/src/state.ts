@@ -53,4 +53,6 @@ export {
   createIssuedUploadSlot,
   type ObserveUploadOptions,
   observeUpload,
+  resolveUploadObservation,
+  type UploadObservationResult,
 } from "./state/upload-slot";
