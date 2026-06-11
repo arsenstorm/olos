@@ -13,9 +13,11 @@ export {
 } from "./state/committed-window";
 export { type CreateCursorOptions, createCursor } from "./state/cursor";
 export {
+  type CreateObservedUploadFromHeadObjectOptions,
   type CreateObservedUploadFromObjectCreatedEventOptions,
   type CreateObservedUploadOptions,
   createObservedUpload,
+  createObservedUploadFromHeadObject,
   createObservedUploadFromObjectCreatedEvent,
   OBJECT_CREATED_EVENT_TYPE,
   type ObservedUploadObjectCreatedEvent,

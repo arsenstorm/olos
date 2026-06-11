@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   createObservedUpload,
+  createObservedUploadFromHeadObject,
   createObservedUploadFromObjectCreatedEvent,
 } from "./observed-upload";
 
@@ -86,6 +87,70 @@ describe("observed upload builder", () => {
         size: 98_304,
       })
     ).toThrow("observedUpload.metadata must be a string map");
+  });
+});
+
+describe("head object normalization", () => {
+  test("creates an observed upload from a head object response", () => {
+    expect(
+      createObservedUploadFromHeadObject({
+        contentLength: 98_304,
+        contentType: "video/mp4",
+        etag: '"abc123"',
+        lastModified: "2026-01-01T00:00:01.000Z",
+        metadata: {
+          "x-olos-slot-id": "slot_1",
+        },
+        objectKey: "media/session/v1080/3810.m4s",
+        providerId: "s3_primary",
+      })
+    ).toEqual({
+      contentType: "video/mp4",
+      etag: '"abc123"',
+      metadata: {
+        "x-olos-slot-id": "slot_1",
+      },
+      objectKey: "media/session/v1080/3810.m4s",
+      observedAt: "2026-01-01T00:00:01.000Z",
+      providerId: "s3_primary",
+      size: 98_304,
+    });
+  });
+
+  test("accepts date last-modified values", () => {
+    expect(
+      createObservedUploadFromHeadObject({
+        contentLength: 98_304,
+        contentType: "video/mp4",
+        lastModified: new Date("2026-01-01T00:00:01.000Z"),
+        objectKey: "media/session/v1080/3810.m4s",
+        providerId: "s3_primary",
+      }).observedAt
+    ).toBe("2026-01-01T00:00:01.000Z");
+  });
+
+  test("rejects missing content length", () => {
+    expect(() =>
+      createObservedUploadFromHeadObject({
+        contentLength: undefined as unknown as number,
+        contentType: "video/mp4",
+        lastModified: "2026-01-01T00:00:01.000Z",
+        objectKey: "media/session/v1080/3810.m4s",
+        providerId: "s3_primary",
+      })
+    ).toThrow("mediaObject.size must be a positive number");
+  });
+
+  test("rejects invalid last-modified values", () => {
+    expect(() =>
+      createObservedUploadFromHeadObject({
+        contentLength: 98_304,
+        contentType: "video/mp4",
+        lastModified: "not-a-date",
+        objectKey: "media/session/v1080/3810.m4s",
+        providerId: "s3_primary",
+      })
+    ).toThrow("mediaObject.observedAt must be a valid timestamp");
   });
 });
 

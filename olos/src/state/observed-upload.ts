@@ -28,6 +28,16 @@ export interface CreateObservedUploadFromObjectCreatedEventOptions {
   size: number;
 }
 
+export interface CreateObservedUploadFromHeadObjectOptions {
+  contentLength: number;
+  contentType: string;
+  etag?: string;
+  lastModified: string | Date;
+  metadata?: Record<string, string | undefined>;
+  objectKey: string;
+  providerId: string;
+}
+
 export interface ObservedUploadObjectCreatedEvent {
   eventId: string;
   eventType: typeof OBJECT_CREATED_EVENT_TYPE;
@@ -71,6 +81,20 @@ export function createObservedUploadFromObjectCreatedEvent(
   };
 }
 
+export function createObservedUploadFromHeadObject(
+  options: CreateObservedUploadFromHeadObjectOptions
+): ObservedUpload {
+  return createObservedUpload({
+    contentType: options.contentType,
+    etag: options.etag,
+    metadata: options.metadata,
+    objectKey: options.objectKey,
+    observedAt: headObjectTimestamp(options.lastModified),
+    providerId: options.providerId,
+    size: options.contentLength,
+  });
+}
+
 function assertObjectCreatedEvent(
   options: CreateObservedUploadFromObjectCreatedEventOptions
 ): void {
@@ -79,4 +103,12 @@ function assertObjectCreatedEvent(
   if (options.eventType !== OBJECT_CREATED_EVENT_TYPE) {
     throw new Error("objectCreatedEvent.eventType must be object.created");
   }
+}
+
+function headObjectTimestamp(value: string | Date): string {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  return value;
 }
