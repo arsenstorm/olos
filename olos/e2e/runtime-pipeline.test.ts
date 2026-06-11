@@ -5,7 +5,7 @@ import {
 import {
   commitStoredCoordinatorUploadFromRequest,
   issueStoredCoordinatorSlotFromRequest,
-  serveCoordinatorManifest,
+  serveStoredCoordinatorManifest,
 } from "olos/runtime";
 import type { Pathway, Session } from "olos/types";
 import { assertCursor } from "olos/validation";
@@ -118,20 +118,22 @@ describe("runtime pipeline", () => {
 
     assertCursor(cursor);
 
-    const master = serveCoordinatorManifest({
+    const master = await serveStoredCoordinatorManifest({
       allowedMediaOrigins: ["https://media.example.com"],
       partTarget: session.partTarget,
       request: "https://edge.example.com/v1/live/session_1/master.m3u8",
       segmentTarget: session.segmentTarget,
-      state: snapshot.state,
+      sessionId: session.sessionId,
+      store,
       targetLatency: 3,
     });
-    const media = serveCoordinatorManifest({
+    const media = await serveStoredCoordinatorManifest({
       allowedMediaOrigins: ["https://media.example.com"],
       partTarget: session.partTarget,
       request: "https://edge.example.com/v1/live/session_1/v1080/media.m3u8",
       segmentTarget: session.segmentTarget,
-      state: snapshot.state,
+      sessionId: session.sessionId,
+      store,
       targetLatency: 3,
     });
 
