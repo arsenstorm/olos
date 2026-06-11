@@ -501,7 +501,7 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     id: "SEC-DIRECT-007",
     level: "security",
     status: "covered",
-    testFile: "src/state/direct-public-security-policy.test.ts",
+    testFile: "src/protocol/coordinator.test.ts",
   },
 ] as const satisfies readonly OlosConformanceCoverage[];
 

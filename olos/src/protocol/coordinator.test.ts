@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderMediaPlaylist } from "../hls/media-playlist";
 import { createObservedUpload } from "../state/observed-upload";
+import { createPublicationKillSwitch } from "../state/publication-control";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
@@ -773,6 +774,74 @@ describe("coordinator pipeline", () => {
     }
 
     expect(result.error.error.code).toBe("olos.unknown_slot");
+  });
+
+  test("blocks publication while the kill switch is active", () => {
+    const policy = createPublicationKillSwitch("incident");
+    const state = createCoordinatorPipeline({ pathways, session });
+
+    expect(() =>
+      issueCoordinatorSlot({
+        contentType: "video/mp4",
+        deliveryUrl: "https://media.example.com/init.mp4",
+        duration: 1,
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "init",
+        maxBytes: 2048,
+        mediaSequenceNumber: 0,
+        objectKey: "media/init.mp4",
+        publicationControl: policy,
+        publicationMode: "direct-public",
+        publisherInstanceId: "pub_1",
+        renditionId: "v1080",
+        slotId: "slot_init",
+        state,
+      })
+    ).toThrow("publication operation is disabled");
+
+    const issued = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/init.mp4",
+      duration: 1,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/init.mp4",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_init",
+      state,
+    });
+    const committed = commitCoordinatorUpload({
+      commitId: "commit_init",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "media/init.mp4",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        size: 1024,
+      }),
+      publicationControl: policy,
+      slotId: "slot_init",
+      state: issued.state,
+    });
+
+    expect(committed.status).toBe("rejected");
+    if (committed.status !== "rejected") {
+      throw new Error("expected rejected commit");
+    }
+
+    expect(committed.error.error).toMatchObject({
+      code: "olos.security_policy_violation",
+      details: {
+        operation: "commit_upload",
+        reason: "incident",
+      },
+    });
+    expect(committed.state.cursor).toBeUndefined();
   });
 });
 

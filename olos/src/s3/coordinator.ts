@@ -21,6 +21,10 @@ import type {
   IssueCoordinatorSlotOptions,
 } from "../protocol/coordinator";
 import type { UploadEventNormalization } from "../state/observed-upload";
+import {
+  type PublicationControlPolicy,
+  resolvePublicationControl,
+} from "../state/publication-control";
 import type { OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { UploadGrant } from "../types/upload-grant";
@@ -37,6 +41,7 @@ export interface CommitS3CoordinatorUploadOptions {
   maxSegments?: number;
   programDateTime?: string;
   providerId: string;
+  publicationControl?: PublicationControlPolicy;
   slotId: OlosId;
   state: CoordinatorPipelineState;
   versionId?: string;
@@ -73,6 +78,7 @@ export interface RouteStoredS3CoordinatorUploadEventOptions {
   maxSegments?: number;
   programDateTime?: string;
   providerId: string;
+  publicationControl?: PublicationControlPolicy;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
   versionId?: string;
@@ -265,6 +271,7 @@ export async function commitS3CoordinatorUpload(
     independent: options.independent,
     maxSegments: options.maxSegments,
     object,
+    publicationControl: options.publicationControl,
     programDateTime: options.programDateTime,
     slotId: options.slotId,
     state: options.state,
@@ -419,6 +426,12 @@ export async function routeStoredS3CoordinatorUploadEvent(
   }
 
   if (options.event.status === "object_created") {
+    const publication = await resolveStoredProviderEventPublication(options);
+
+    if (publication !== undefined) {
+      return publication;
+    }
+
     return await completeStoredS3CoordinatorUploadByObjectKey({
       bucket: options.bucket,
       client: options.client,
@@ -429,6 +442,7 @@ export async function routeStoredS3CoordinatorUploadEvent(
       maxAttempts: options.maxAttempts,
       maxSegments: options.maxSegments,
       objectKey: options.event.event.object.objectKey,
+      publicationControl: options.publicationControl,
       programDateTime: options.programDateTime,
       providerId: options.event.event.object.providerId,
       sessionId: options.sessionId,
@@ -447,6 +461,7 @@ export async function routeStoredS3CoordinatorUploadEvent(
     maxAttempts: options.maxAttempts,
     maxSegments: options.maxSegments,
     objectKey: options.event.hint.objectKey,
+    publicationControl: options.publicationControl,
     programDateTime: options.programDateTime,
     providerId: options.providerId,
     sessionId: options.sessionId,
@@ -454,6 +469,31 @@ export async function routeStoredS3CoordinatorUploadEvent(
     store: options.store,
     versionId: options.versionId,
   });
+}
+
+async function resolveStoredProviderEventPublication(
+  options: RouteStoredS3CoordinatorUploadEventOptions
+): Promise<StoredS3CoordinatorUploadCommit | undefined> {
+  const publication = resolvePublicationControl({
+    operation: "process_provider_event",
+    policy: options.publicationControl,
+  });
+
+  if (publication.status === "allowed") {
+    return;
+  }
+
+  const snapshot = await options.store.load(options.sessionId);
+
+  if (snapshot === undefined) {
+    return { status: "not_found" };
+  }
+
+  return {
+    error: publication.error,
+    state: snapshot.state,
+    status: "rejected",
+  };
 }
 
 function withManifest<T extends { state: CoordinatorPipelineState }>(

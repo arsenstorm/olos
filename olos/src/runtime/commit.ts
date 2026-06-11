@@ -4,6 +4,7 @@ import {
 } from "../protocol";
 import type { CoordinatorPipelineState } from "../protocol/coordinator";
 import { createObservedUpload } from "../state/observed-upload";
+import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
 import type { ObservedUpload } from "../validation/observed-upload";
 
@@ -20,6 +21,7 @@ export interface RuntimeCommitPayload
 }
 
 export interface CommitCoordinatorUploadFromRequestOptions {
+  publicationControl?: PublicationControlPolicy;
   request: RuntimeCommitRequest;
   state: CoordinatorPipelineState;
 }
@@ -55,6 +57,7 @@ export async function commitCoordinatorUploadFromRequest(
     const committed = commitCoordinatorUpload({
       ...payload.value,
       object: createObservedUpload(payload.value.object),
+      publicationControl: options.publicationControl,
       state: options.state,
     });
 

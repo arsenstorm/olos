@@ -76,6 +76,16 @@ export {
   createObjectPublication,
 } from "./state/publication";
 export {
+  assertPublicationAllowed,
+  createPublicationKillSwitch,
+  PUBLICATION_CONTROL_OPERATIONS,
+  type PublicationControlOperation,
+  type PublicationControlPolicy,
+  type PublicationControlResolution,
+  type ResolvePublicationControlOptions,
+  resolvePublicationControl,
+} from "./state/publication-control";
+export {
   type RetiredCommittedObject,
   type SelectExpiredUploadSlotsOptions,
   type SelectRetiredCommittedObjectsOptions,

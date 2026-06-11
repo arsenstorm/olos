@@ -11,6 +11,11 @@ import {
 import { createCommittedWindow } from "../state/committed-window";
 import { createCursor, resolveCursorUpdate } from "../state/cursor";
 import {
+  assertPublicationAllowed,
+  type PublicationControlPolicy,
+  resolvePublicationControl,
+} from "../state/publication-control";
+import {
   type RetiredCommittedObject,
   selectExpiredUploadSlots,
   selectRetiredCommittedObjects,
@@ -98,6 +103,7 @@ export type CoordinatorPipelineMutation =
 
 export interface IssueCoordinatorSlotOptions
   extends Omit<CreateIssuedUploadSlotOptions, "session"> {
+  publicationControl?: PublicationControlPolicy;
   state: CoordinatorPipelineState;
 }
 
@@ -113,6 +119,7 @@ export interface CommitCoordinatorUploadOptions {
   maxSegments?: number;
   object: ObservedUpload;
   programDateTime?: string;
+  publicationControl?: PublicationControlPolicy;
   slotId: OlosId;
   state: CoordinatorPipelineState;
 }
@@ -324,6 +331,11 @@ export async function mutateCoordinatorPipeline(
 export function issueCoordinatorSlot(
   options: IssueCoordinatorSlotOptions
 ): CoordinatorSlotIssue {
+  assertPublicationAllowed({
+    operation: "issue_slot",
+    policy: options.publicationControl,
+  });
+
   if (findSlot(options.state, options.slotId) !== undefined) {
     throw new Error("slotId must be unique");
   }
@@ -345,6 +357,19 @@ export function issueCoordinatorSlot(
 export function commitCoordinatorUpload(
   options: CommitCoordinatorUploadOptions
 ): CoordinatorUploadCommit {
+  const publication = resolvePublicationControl({
+    operation: "commit_upload",
+    policy: options.publicationControl,
+  });
+
+  if (publication.status === "blocked") {
+    return {
+      error: publication.error,
+      state: options.state,
+      status: "rejected",
+    };
+  }
+
   const slot = findSlot(options.state, options.slotId);
   const existingCommit = findCommit(options.state, options.slotId);
 
@@ -414,6 +439,21 @@ export function commitCoordinatorUpload(
     slot: resolved.slot,
     state: options.state,
   });
+
+  if (state.cursor !== options.state.cursor) {
+    const cursorAdvancement = resolvePublicationControl({
+      operation: "advance_cursor",
+      policy: options.publicationControl,
+    });
+
+    if (cursorAdvancement.status === "blocked") {
+      return {
+        error: cursorAdvancement.error,
+        state: options.state,
+        status: "rejected",
+      };
+    }
+  }
 
   return {
     commit: resolved.commit,

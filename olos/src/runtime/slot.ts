@@ -3,6 +3,7 @@ import {
   issueCoordinatorSlot,
 } from "../protocol";
 import type { CoordinatorPipelineState } from "../protocol/coordinator";
+import type { PublicationControlPolicy } from "../state/publication-control";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode, UploadSlot } from "../types/upload-slot";
 
@@ -12,6 +13,7 @@ export interface RuntimeSlotIssuePayload
   extends Omit<IssueCoordinatorSlotOptions, "state"> {}
 
 export interface IssueCoordinatorSlotFromRequestOptions {
+  publicationControl?: PublicationControlPolicy;
   request: RuntimeSlotIssueRequest;
   state: CoordinatorPipelineState;
 }
@@ -41,6 +43,7 @@ export async function issueCoordinatorSlotFromRequest(
   try {
     const issued = issueCoordinatorSlot({
       ...payload.value,
+      publicationControl: options.publicationControl,
       state: options.state,
     });
 

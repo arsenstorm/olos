@@ -2,6 +2,7 @@ import type {
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineStore,
 } from "../protocol";
+import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosId } from "../types/ids";
 import {
   commitCoordinatorUploadFromRequest,
@@ -22,6 +23,7 @@ import {
 
 export interface IssueStoredCoordinatorSlotFromRequestOptions {
   maxAttempts?: number;
+  publicationControl?: PublicationControlPolicy;
   request: RuntimeSlotIssueRequest;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
@@ -29,6 +31,7 @@ export interface IssueStoredCoordinatorSlotFromRequestOptions {
 
 export interface CommitStoredCoordinatorUploadFromRequestOptions {
   maxAttempts?: number;
+  publicationControl?: PublicationControlPolicy;
   request: RuntimeCommitRequest;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
@@ -123,6 +126,7 @@ export async function issueStoredCoordinatorSlotFromRequest(
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const issued = await issueCoordinatorSlotFromRequest({
+      publicationControl: options.publicationControl,
       request: requestForAttempt(options.request),
       state: snapshot.state,
     });
@@ -167,6 +171,7 @@ export async function commitStoredCoordinatorUploadFromRequest(
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const committed = await commitCoordinatorUploadFromRequest({
+      publicationControl: options.publicationControl,
       request: requestForAttempt(options.request),
       state: snapshot.state,
     });
