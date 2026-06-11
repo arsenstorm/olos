@@ -1,0 +1,73 @@
+import { describe, expect, test } from "bun:test";
+
+import type { Commit } from "../types/commit";
+import { assertCommit, isCommit } from "./commit";
+
+const validCommit: Commit = {
+  commitId: "commit_01JZ",
+  committedAt: "2026-06-08T12:00:01.820Z",
+  deliveryUrl:
+    "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p3.m4s",
+  duration: 0.5,
+  epoch: 1,
+  etag: '"9b2cf535f27731c974343645a3985328"',
+  independent: false,
+  mediaSequenceNumber: 3812,
+  objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
+  partNumber: 3,
+  programDateTime: "2026-06-08T12:00:05.500Z",
+  providerId: "r2-primary",
+  publicationMode: "direct-public",
+  renditionId: "v1080",
+  sessionId: "sess_01JZLIVE",
+  size: 312_500,
+  slotId: "slot_01JZ",
+};
+
+describe("commit validation", () => {
+  test("accepts a valid commit", () => {
+    expect(isCommit(validCommit)).toBe(true);
+    expect(() => assertCommit(validCommit)).not.toThrow();
+  });
+
+  test("rejects non-object values", () => {
+    expect(isCommit(null)).toBe(false);
+    expect(() => assertCommit(null)).toThrow("commit must be an object");
+  });
+
+  test("rejects unsafe identifiers", () => {
+    expect(() =>
+      assertCommit({ ...validCommit, commitId: "../secret" })
+    ).toThrow("commit.commitId must be a non-empty URL-safe identifier");
+  });
+
+  test("rejects invalid sequence numbers", () => {
+    expect(() =>
+      assertCommit({ ...validCommit, mediaSequenceNumber: -1 })
+    ).toThrow("commit.mediaSequenceNumber must be a non-negative integer");
+  });
+
+  test("rejects invalid size and duration", () => {
+    expect(() => assertCommit({ ...validCommit, size: 0 })).toThrow(
+      "commit.size must be a positive number"
+    );
+    expect(() => assertCommit({ ...validCommit, duration: 0 })).toThrow(
+      "commit.duration must be a positive number"
+    );
+  });
+
+  test("rejects invalid optional fields", () => {
+    expect(() =>
+      assertCommit({ ...validCommit, independent: "false" })
+    ).toThrow("commit.independent must be a boolean");
+    expect(() => assertCommit({ ...validCommit, etag: 123 })).toThrow(
+      "commit.etag must be a string"
+    );
+  });
+
+  test("rejects unknown publication modes", () => {
+    expect(() =>
+      assertCommit({ ...validCommit, publicationMode: "unknown" })
+    ).toThrow("commit.publicationMode must be one of:");
+  });
+});

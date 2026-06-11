@@ -1,5 +1,6 @@
 // biome-ignore-all lint/performance/noBarrelFile: public validation facade for the olos/validation export
 
+export { assertCommit, isCommit } from "./validation/commit";
 export {
   assertNonNegativeInteger,
   assertUrlSafeIdentifier,
