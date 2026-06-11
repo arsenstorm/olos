@@ -74,7 +74,7 @@ export const OLOS_CONFORMANCE_COVERAGE = [
   {
     id: "CORE-SLOT-001",
     level: "core",
-    status: "partial",
+    status: "covered",
     testFile: "src/state/upload-slot.test.ts",
   },
   {

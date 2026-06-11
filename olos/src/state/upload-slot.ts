@@ -1,13 +1,84 @@
 import { UPLOAD_SLOT_TRANSITIONS } from "../config/upload-slot";
+import type { MediaObjectKind } from "../types/media-object";
+import type { Session } from "../types/session";
 import type { UploadSlot, UploadSlotState } from "../types/upload-slot";
 import {
   assertObservedUploadMatchesSlot,
   type ObservedUpload,
 } from "../validation/observed-upload";
+import { assertSession } from "../validation/session";
+import { assertUploadSlot } from "../validation/upload-slot";
+
+export interface CreateIssuedUploadSlotOptions {
+  contentType: string;
+  deliveryUrl: string;
+  duration: number;
+  expiresAt: string;
+  kind: MediaObjectKind;
+  maxBytes: number;
+  mediaSequenceNumber: number;
+  minBytes?: number;
+  objectKey: string;
+  partNumber?: number;
+  publicationMode: UploadSlot["publicationMode"];
+  publisherInstanceId: string;
+  renditionId: string;
+  session: Session;
+  slotId: string;
+}
 
 export interface ObserveUploadOptions {
   object: ObservedUpload;
   slot: UploadSlot;
+}
+
+export function createIssuedUploadSlot(
+  options: CreateIssuedUploadSlotOptions
+): UploadSlot {
+  assertSession(options.session);
+
+  if (options.session.state !== "live") {
+    throw new Error("session.state must be live");
+  }
+
+  if (
+    !options.session.renditions.some(
+      (rendition) => rendition.renditionId === options.renditionId
+    )
+  ) {
+    throw new Error("uploadSlot.renditionId must belong to session.renditions");
+  }
+
+  const slot: UploadSlot = {
+    contentType: options.contentType,
+    deliveryUrl: options.deliveryUrl,
+    duration: options.duration,
+    epoch: options.session.epoch,
+    expiresAt: options.expiresAt,
+    kind: options.kind,
+    maxBytes: options.maxBytes,
+    mediaSequenceNumber: options.mediaSequenceNumber,
+    objectKey: options.objectKey,
+    publicationMode: options.publicationMode,
+    publisherInstanceId: options.publisherInstanceId,
+    renditionId: options.renditionId,
+    sessionId: options.session.sessionId,
+    slotId: options.slotId,
+    state: "issued",
+    tenantId: options.session.tenantId,
+  };
+
+  if (options.minBytes !== undefined) {
+    slot.minBytes = options.minBytes;
+  }
+
+  if (options.partNumber !== undefined) {
+    slot.partNumber = options.partNumber;
+  }
+
+  assertUploadSlot(slot);
+
+  return slot;
 }
 
 export function observeUpload(options: ObserveUploadOptions): UploadSlot {

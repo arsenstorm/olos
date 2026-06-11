@@ -48,7 +48,9 @@ export {
 } from "./state/upload-grant";
 export {
   assertUploadSlotTransition,
+  type CreateIssuedUploadSlotOptions,
   canTransitionUploadSlot,
+  createIssuedUploadSlot,
   type ObserveUploadOptions,
   observeUpload,
 } from "./state/upload-slot";
