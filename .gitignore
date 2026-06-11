@@ -38,3 +38,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Specification (for now)
 specs/
+
+# Ignore work in examples (for now)
+examples/*
