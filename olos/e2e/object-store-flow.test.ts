@@ -12,6 +12,7 @@ import {
   commitStoredS3CoordinatorUpload,
   completeStoredS3CoordinatorUploadByObjectKey,
   issueStoredS3CoordinatorUploadGrant,
+  routeStoredS3CoordinatorUploadEvent,
   type S3HeadObjectClient,
 } from "olos/s3";
 import { normalizeUploadEvent } from "olos/state";
@@ -211,6 +212,99 @@ describe("object-store flow", () => {
       },
     ]);
   });
+
+  test("publishes low-latency S3 parts before the full segment is committed", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = await createStoredPipeline();
+    const issued = await issueLowLatencySlots(store);
+
+    expect(issued.init.status).toBe("saved");
+    expect(issued.segment.status).toBe("saved");
+    expect(issued.part0.status).toBe("saved");
+    expect(issued.part1.status).toBe("saved");
+
+    await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: headObjectClient(headObjectInputs, 1024),
+      commitId: "commit_init",
+      committedAt: "2026-01-01T00:00:01.000Z",
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotId: "slot_init",
+      store,
+    });
+    await routeUploadEvent({
+      headObjectInputs,
+      independent: true,
+      objectKey: "media/v1080/3810.m4s",
+      size: 98_304,
+      store,
+    });
+    await routeUploadEvent({
+      eventId: "evt_3811_0",
+      headObjectInputs,
+      independent: true,
+      objectKey: "media/v1080/3811.p0.m4s",
+      size: 24_000,
+      store,
+    });
+    await routeUploadEvent({
+      eventId: "evt_3811_1",
+      eventTime: "2026-01-01T00:00:02.500Z",
+      headObjectInputs,
+      objectKey: "media/v1080/3811.p1.m4s",
+      size: 24_000,
+      store,
+    });
+
+    const stored = await store.load(session.sessionId);
+    const cursor = stored?.state.cursor;
+
+    if (cursor === undefined) {
+      throw new Error("expected stored cursor");
+    }
+
+    assertCursor(cursor);
+
+    const playlist = renderMediaPlaylist(cursor.committedWindow, {
+      allowedMediaOrigins: ["https://media.example.com"],
+      partTarget: session.partTarget,
+      renditionId: "v1080",
+      segmentTarget: session.segmentTarget,
+      targetLatency: 3,
+    });
+
+    expect(cursor.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3811,
+      lastPartNumber: 1,
+    });
+    expect(playlist).toContain("#EXT-X-PART-INF:PART-TARGET=0.500");
+    expect(playlist).toContain(
+      '#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="https://media.example.com/media/v1080/3811.p0.m4s"'
+    );
+    expect(playlist).toContain(
+      '#EXT-X-PART:DURATION=0.500,URI="https://media.example.com/media/v1080/3811.p1.m4s"'
+    );
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/v1080/init.mp4",
+      },
+      {
+        Bucket: "media",
+        Key: "media/v1080/3810.m4s",
+      },
+      {
+        Bucket: "media",
+        Key: "media/v1080/3811.p0.m4s",
+      },
+      {
+        Bucket: "media",
+        Key: "media/v1080/3811.p1.m4s",
+      },
+    ]);
+  });
 });
 
 async function createStoredPipeline() {
@@ -268,6 +362,94 @@ async function issueInitAndSegment(
   });
 
   return { init, segment };
+}
+
+async function issueLowLatencySlots(
+  store: ReturnType<typeof createMemoryCoordinatorStore>
+) {
+  const issued = await issueInitAndSegment(store);
+  const part0 = await issueStoredS3CoordinatorUploadGrant({
+    bucket: "media",
+    client: createS3Client(),
+    contentType: "video/mp4",
+    deliveryUrl: "https://media.example.com/media/v1080/3811.p0.m4s",
+    duration: 0.5,
+    expiresAt: "2026-01-01T00:00:05.000Z",
+    expiresInSeconds: 3,
+    kind: "segment",
+    maxBytes: 25_000,
+    mediaSequenceNumber: 3811,
+    now: "2026-01-01T00:00:00.000Z",
+    objectKey: "media/v1080/3811.p0.m4s",
+    partNumber: 0,
+    publicationMode: "direct-public",
+    publisherInstanceId: "pub_1",
+    renditionId: "v1080",
+    sessionId: session.sessionId,
+    slotId: "slot_3811_0",
+    store,
+  });
+  const part1 = await issueStoredS3CoordinatorUploadGrant({
+    bucket: "media",
+    client: createS3Client(),
+    contentType: "video/mp4",
+    deliveryUrl: "https://media.example.com/media/v1080/3811.p1.m4s",
+    duration: 0.5,
+    expiresAt: "2026-01-01T00:00:05.000Z",
+    expiresInSeconds: 3,
+    kind: "segment",
+    maxBytes: 25_000,
+    mediaSequenceNumber: 3811,
+    now: "2026-01-01T00:00:00.000Z",
+    objectKey: "media/v1080/3811.p1.m4s",
+    partNumber: 1,
+    publicationMode: "direct-public",
+    publisherInstanceId: "pub_1",
+    renditionId: "v1080",
+    sessionId: session.sessionId,
+    slotId: "slot_3811_1",
+    store,
+  });
+
+  return { ...issued, part0, part1 };
+}
+
+async function routeUploadEvent(options: {
+  eventId?: string;
+  eventTime?: string;
+  headObjectInputs: unknown[];
+  independent?: boolean;
+  objectKey: string;
+  size: number;
+  store: ReturnType<typeof createMemoryCoordinatorStore>;
+}) {
+  const event = normalizeUploadEvent({
+    event: {
+      contentType: "video/mp4",
+      etag: `"${options.objectKey}"`,
+      eventId: options.eventId ?? "evt_3810",
+      eventTime: options.eventTime ?? "2026-01-01T00:00:02.000Z",
+      eventType: "object.created",
+      objectKey: options.objectKey,
+      providerId: "s3_primary",
+      size: options.size,
+    },
+  });
+  const result = await routeStoredS3CoordinatorUploadEvent({
+    bucket: "media",
+    client: headObjectClient(options.headObjectInputs, options.size),
+    event,
+    independent: options.independent,
+    providerId: "s3_primary",
+    sessionId: session.sessionId,
+    store: options.store,
+  });
+
+  if (result.status !== "committed") {
+    throw new Error("expected routed upload event to commit");
+  }
+
+  return result;
 }
 
 function createS3Client(): S3Client {
