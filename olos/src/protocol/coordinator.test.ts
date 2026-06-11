@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { renderMediaPlaylist } from "../hls/media-playlist";
 import { createObservedUpload } from "../state/observed-upload";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
+  type CoordinatorPipelineState,
   commitCoordinatorUpload,
   createCoordinatorPipeline,
   createMemoryCoordinatorStore,
@@ -364,6 +366,87 @@ describe("coordinator pipeline", () => {
     expect(duplicateCommit.state.commits).toHaveLength(1);
   });
 
+  test("publishes low-latency parts before the full segment is committed", () => {
+    let state = createCoordinatorPipeline({ pathways, session });
+
+    state = commitSlot(state, {
+      commitId: "commit_init",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/init.mp4",
+      duration: 1,
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/init.mp4",
+      slotId: "slot_init",
+      size: 1024,
+    });
+    state = commitSlot(state, {
+      commitId: "commit_3810",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      independent: true,
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      slotId: "slot_3810",
+      size: 98_304,
+    });
+    state = commitSlot(state, {
+      commitId: "commit_3811_0",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3811.p0.m4s",
+      duration: 0.5,
+      independent: true,
+      maxBytes: 25_000,
+      mediaSequenceNumber: 3811,
+      objectKey: "media/s3811.p0.m4s",
+      partNumber: 0,
+      slotId: "slot_3811_0",
+      size: 24_000,
+    });
+    state = commitSlot(state, {
+      commitId: "commit_3811_1",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3811.p1.m4s",
+      duration: 0.5,
+      maxBytes: 25_000,
+      mediaSequenceNumber: 3811,
+      objectKey: "media/s3811.p1.m4s",
+      partNumber: 1,
+      slotId: "slot_3811_1",
+      size: 24_000,
+    });
+
+    const cursor = state.cursor;
+
+    if (cursor === undefined) {
+      throw new Error("expected low-latency cursor");
+    }
+
+    expect(cursor.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3811,
+      lastPartNumber: 1,
+    });
+
+    const playlist = renderMediaPlaylist(cursor.committedWindow, {
+      allowedMediaOrigins: ["https://media.example.com"],
+      partTarget: session.partTarget,
+      renditionId: "v1080",
+      segmentTarget: session.segmentTarget,
+      targetLatency: 3,
+    });
+
+    expect(playlist).toContain("#EXT-X-PART-INF:PART-TARGET=0.500");
+    expect(playlist).toContain(
+      '#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="https://media.example.com/s3811.p0.m4s"'
+    );
+    expect(playlist).toContain(
+      '#EXT-X-PART:DURATION=0.500,URI="https://media.example.com/s3811.p1.m4s"'
+    );
+  });
+
   test("rejects uploads for unknown slots", () => {
     const state = createCoordinatorPipeline({ pathways, session });
     const result = commitCoordinatorUpload({
@@ -388,3 +471,59 @@ describe("coordinator pipeline", () => {
     expect(result.error.error.code).toBe("olos.unknown_slot");
   });
 });
+
+interface CommitSlotOptions {
+  commitId: string;
+  contentType: string;
+  deliveryUrl: string;
+  duration: number;
+  independent?: boolean;
+  maxBytes: number;
+  mediaSequenceNumber: number;
+  objectKey: string;
+  partNumber?: number;
+  size: number;
+  slotId: string;
+}
+
+function commitSlot(
+  state: CoordinatorPipelineState,
+  options: CommitSlotOptions
+): CoordinatorPipelineState {
+  const issued = issueCoordinatorSlot({
+    contentType: options.contentType,
+    deliveryUrl: options.deliveryUrl,
+    duration: options.duration,
+    expiresAt: "2026-01-01T00:00:05.000Z",
+    kind: options.slotId === "slot_init" ? "init" : "segment",
+    maxBytes: options.maxBytes,
+    mediaSequenceNumber: options.mediaSequenceNumber,
+    objectKey: options.objectKey,
+    partNumber: options.partNumber,
+    publicationMode: "direct-public",
+    publisherInstanceId: "pub_1",
+    renditionId: "v1080",
+    slotId: options.slotId,
+    state,
+  });
+  const committed = commitCoordinatorUpload({
+    commitId: options.commitId,
+    committedAt: "2026-01-01T00:00:02.000Z",
+    independent: options.independent,
+    object: createObservedUpload({
+      contentType: options.contentType,
+      objectKey: options.objectKey,
+      observedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "s3_primary",
+      size: options.size,
+    }),
+    slotId: options.slotId,
+    state: issued.state,
+  });
+
+  if (committed.status !== "committed") {
+    throw new Error("expected committed slot");
+  }
+
+  return committed.state;
+}
