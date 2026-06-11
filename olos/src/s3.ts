@@ -25,6 +25,12 @@ export {
   type StoredS3CoordinatorUploadGrantIssue,
 } from "./s3/coordinator";
 export {
+  type NormalizeS3ObjectCreatedEventRecordOptions,
+  type NormalizeS3ObjectCreatedEventsOptions,
+  normalizeS3ObjectCreatedEventRecord,
+  normalizeS3ObjectCreatedEvents,
+} from "./s3/event";
+export {
   type CreateObservedUploadFromS3HeadObjectOptions,
   createObservedUploadFromS3HeadObject,
   type ObserveS3ObjectOptions,
