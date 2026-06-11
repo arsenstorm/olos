@@ -6,3 +6,7 @@ export {
   createS3ProviderCapability,
   S3_UPLOAD_GRANT_REQUIRED_HEADERS,
 } from "./s3/capability";
+export {
+  type CreateS3UploadGrantOptions,
+  createS3UploadGrant,
+} from "./s3/upload-grant";
