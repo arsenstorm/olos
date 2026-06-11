@@ -9,6 +9,93 @@ import { OLOS_PROTOCOL_NAME } from "olos";
 import type { Session } from "olos/types";
 ```
 
+## Stored Runtime Pipeline
+
+`olos/runtime` provides provider-neutral helpers for HTTP services that keep
+coordinator state in an application-owned store.
+
+```ts
+import {
+  commitStoredCoordinatorUploadFromRequest,
+  createStoredCoordinatorSession,
+  issueStoredCoordinatorSlotFromRequest,
+  planStoredCoordinatorRetention,
+  serveStoredBlockingCoordinatorManifest,
+  serveStoredCoordinatorManifest,
+  transitionStoredCoordinatorSession,
+} from "olos/runtime";
+
+await createStoredCoordinatorSession({
+  pathways,
+  session,
+  store,
+});
+
+// Request values may be Fetch Request instances or typed payload objects.
+await issueStoredCoordinatorSlotFromRequest({
+  request: initSlotRequest,
+  sessionId: session.sessionId,
+  store,
+});
+await issueStoredCoordinatorSlotFromRequest({
+  request: segmentSlotRequest,
+  sessionId: session.sessionId,
+  store,
+});
+
+await commitStoredCoordinatorUploadFromRequest({
+  request: initCommitRequest,
+  sessionId: session.sessionId,
+  store,
+});
+await commitStoredCoordinatorUploadFromRequest({
+  request: segmentCommitRequest,
+  sessionId: session.sessionId,
+  store,
+});
+
+const media = await serveStoredCoordinatorManifest({
+  allowedMediaOrigins: ["https://media.example.com"],
+  partTarget: session.partTarget,
+  request: "https://edge.example.com/v1/live/session_1/v1080/media.m3u8",
+  segmentTarget: session.segmentTarget,
+  sessionId: session.sessionId,
+  store,
+  targetLatency: 3,
+});
+
+const blockingMedia = await serveStoredBlockingCoordinatorManifest({
+  allowedMediaOrigins: ["https://media.example.com"],
+  partTarget: session.partTarget,
+  request:
+    "https://edge.example.com/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3811",
+  segmentTarget: session.segmentTarget,
+  sessionId: session.sessionId,
+  store,
+  targetLatency: 3,
+  timeoutMs: 3000,
+  waitForCursor: ({ signal }) =>
+    cursorStore.waitForNext(session.sessionId, { signal }),
+});
+
+await transitionStoredCoordinatorSession({
+  sessionId: session.sessionId,
+  state: "ending",
+  store,
+});
+
+const retention = await planStoredCoordinatorRetention({
+  now: new Date().toISOString(),
+  sessionId: session.sessionId,
+  store,
+});
+```
+
+The application owns authentication, request routing, persistence, cursor
+wake-ups, object deletion, and retries. OLOS owns session transitions, slot
+rules, commit idempotency, cursor updates, HLS responses, and retention
+planning.
+
 ## Stored S3 Serving Flow
 
 `olos/s3` can bind S3 object uploads to coordinator state and return HLS
