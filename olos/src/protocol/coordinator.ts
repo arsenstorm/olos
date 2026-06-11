@@ -29,10 +29,37 @@ export interface CoordinatorPipelineState {
   slots: readonly UploadSlot[];
 }
 
+export interface CoordinatorPipelineSnapshot {
+  etag: string;
+  state: CoordinatorPipelineState;
+}
+
 export interface CreateCoordinatorPipelineOptions {
   pathways: readonly Pathway[];
   session: Session;
 }
+
+export interface CoordinatorPipelineStore {
+  load(sessionId: OlosId): Promise<CoordinatorPipelineSnapshot | undefined>;
+  save(options: SaveCoordinatorPipelineOptions): Promise<CoordinatorStoreSave>;
+}
+
+export interface SaveCoordinatorPipelineOptions {
+  expectedEtag?: string;
+  sessionId: OlosId;
+  state: CoordinatorPipelineState;
+}
+
+export type CoordinatorStoreSave =
+  | {
+      etag: string;
+      state: CoordinatorPipelineState;
+      status: "saved";
+    }
+  | {
+      current?: CoordinatorPipelineSnapshot;
+      status: "conflict";
+    };
 
 export interface IssueCoordinatorSlotOptions
   extends Omit<CreateIssuedUploadSlotOptions, "session"> {
@@ -83,6 +110,46 @@ export function createCoordinatorPipeline(
     pathways: [...options.pathways],
     session: options.session,
     slots: [],
+  };
+}
+
+export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
+  const entries = new Map<string, CoordinatorPipelineSnapshot>();
+
+  return {
+    load(sessionId) {
+      const snapshot = entries.get(sessionId);
+
+      return Promise.resolve(
+        snapshot === undefined ? undefined : cloneSnapshot(snapshot)
+      );
+    },
+    save(options) {
+      const current = entries.get(options.sessionId);
+
+      if (
+        current !== undefined &&
+        options.expectedEtag !== undefined &&
+        current.etag !== options.expectedEtag
+      ) {
+        return Promise.resolve({
+          current: cloneSnapshot(current),
+          status: "conflict" as const,
+        });
+      }
+
+      const snapshot = {
+        etag: nextEtag(current),
+        state: cloneState(options.state),
+      };
+      entries.set(options.sessionId, snapshot);
+
+      return Promise.resolve({
+        etag: snapshot.etag,
+        state: cloneState(snapshot.state),
+        status: "saved" as const,
+      });
+    },
   };
 }
 
@@ -288,4 +355,47 @@ function lastPartNumber(commits: readonly Commit[]): number | undefined {
   }
 
   return Math.max(...partNumbers);
+}
+
+function nextEtag(current: CoordinatorPipelineSnapshot | undefined): string {
+  if (current === undefined) {
+    return "1";
+  }
+
+  return String(Number(current.etag) + 1);
+}
+
+function cloneSnapshot(
+  snapshot: CoordinatorPipelineSnapshot
+): CoordinatorPipelineSnapshot {
+  return {
+    etag: snapshot.etag,
+    state: cloneState(snapshot.state),
+  };
+}
+
+function cloneState(state: CoordinatorPipelineState): CoordinatorPipelineState {
+  return {
+    ...state,
+    commits: state.commits.map((commit) => ({ ...commit })),
+    initCommits: state.initCommits.map((commit) => ({ ...commit })),
+    pathways: state.pathways.map((pathway) => ({ ...pathway })),
+    slots: state.slots.map((slot) => ({ ...slot })),
+    ...(state.cursor === undefined
+      ? {}
+      : { cursor: cloneCursor(state.cursor) }),
+    session: {
+      ...state.session,
+      renditions: state.session.renditions.map((rendition) => ({
+        ...rendition,
+      })),
+    },
+  };
+}
+
+function cloneCursor(cursor: Cursor): Cursor {
+  return {
+    ...cursor,
+    pathways: cursor.pathways.map((pathway) => ({ ...pathway })),
+  };
 }

@@ -5,6 +5,7 @@ import type { Session } from "../types/session";
 import {
   commitCoordinatorUpload,
   createCoordinatorPipeline,
+  createMemoryCoordinatorStore,
   issueCoordinatorSlot,
 } from "./coordinator";
 
@@ -42,6 +43,101 @@ const pathways: Pathway[] = [
 ];
 
 describe("coordinator pipeline", () => {
+  test("saves and loads coordinator state snapshots", async () => {
+    const store = createMemoryCoordinatorStore();
+    const state = createCoordinatorPipeline({ pathways, session });
+    const saved = await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    expect(saved.status).toBe("saved");
+    if (saved.status !== "saved") {
+      throw new Error("expected saved state");
+    }
+
+    const loaded = await store.load(session.sessionId);
+
+    expect(saved.etag).toBe("1");
+    expect(loaded).toEqual({
+      etag: saved.etag,
+      state: saved.state,
+    });
+  });
+
+  test("rejects stale coordinator state writes", async () => {
+    const store = createMemoryCoordinatorStore();
+    const state = createCoordinatorPipeline({ pathways, session });
+    const first = await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    if (first.status !== "saved") {
+      throw new Error("expected first save");
+    }
+
+    const next = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/init.mp4",
+      duration: 1,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/init.mp4",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_init",
+      state,
+    });
+    const second = await store.save({
+      expectedEtag: first.etag,
+      sessionId: session.sessionId,
+      state: next.state,
+    });
+
+    if (second.status !== "saved") {
+      throw new Error("expected second save");
+    }
+
+    const stale = await store.save({
+      expectedEtag: first.etag,
+      sessionId: session.sessionId,
+      state,
+    });
+
+    expect(second.etag).toBe("2");
+    expect(stale.status).toBe("conflict");
+    if (stale.status !== "conflict") {
+      throw new Error("expected stale write conflict");
+    }
+
+    expect(stale.current?.etag).toBe("2");
+    expect(stale.current?.state.slots).toHaveLength(1);
+  });
+
+  test("returns independent coordinator state snapshots", async () => {
+    const store = createMemoryCoordinatorStore();
+    const state = createCoordinatorPipeline({ pathways, session });
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const first = await store.load(session.sessionId);
+    const second = await store.load(session.sessionId);
+
+    if (first === undefined || second === undefined) {
+      throw new Error("expected stored state");
+    }
+
+    expect(first.state).not.toBe(second.state);
+    expect(first.state.session).not.toBe(second.state.session);
+    expect(first.state.pathways).not.toBe(second.state.pathways);
+  });
+
   test("issues slots, commits verified uploads, and advances trusted state", () => {
     let state = createCoordinatorPipeline({ pathways, session });
 
