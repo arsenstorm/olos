@@ -6,6 +6,7 @@ import type { Session } from "../types/session";
 import {
   createHlsManifestArtifactResponse,
   createHlsManifestArtifacts,
+  createHlsManifestErrorWebResponse,
   createHlsManifestWebResponse,
   resolveBlockingHlsManifestArtifactResponse,
   resolveHlsManifestArtifactResponse,
@@ -233,6 +234,29 @@ describe("HLS manifest artifacts", () => {
       "application/vnd.apple.mpegurl"
     );
     expect(await response.text()).toBe(metadata.body);
+  });
+
+  test("creates web responses for manifest gateway errors", async () => {
+    const invalid = createHlsManifestErrorWebResponse({
+      message: "_HLS_msn must be a non-negative integer",
+      status: "invalid",
+    });
+    const notFound = createHlsManifestErrorWebResponse({
+      status: "not_found",
+    });
+
+    expect(invalid.status).toBe(400);
+    expect(invalid.headers.get("content-type")).toBe(
+      "text/plain; charset=utf-8"
+    );
+    expect(await invalid.text()).toBe(
+      "_HLS_msn must be a non-negative integer"
+    );
+    expect(notFound.status).toBe(404);
+    expect(notFound.headers.get("content-type")).toBe(
+      "text/plain; charset=utf-8"
+    );
+    expect(await notFound.text()).toBe("manifest not found");
   });
 
   test("keeps manifest response freshness within target latency", () => {

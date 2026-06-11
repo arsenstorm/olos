@@ -71,6 +71,11 @@ export type BlockingHlsManifestArtifactResponseResolution =
       status: "invalid";
     };
 
+export type HlsManifestErrorResolution = Extract<
+  BlockingHlsManifestArtifactResponseResolution,
+  { status: "invalid" | "not_found" }
+>;
+
 export function createHlsManifestArtifacts(
   session: Session,
   committedWindow: CommittedWindow,
@@ -136,6 +141,22 @@ export function createHlsManifestWebResponse(
   return new Response(response.body, {
     headers: response.headers,
     status: response.status,
+  });
+}
+
+export function createHlsManifestErrorWebResponse(
+  resolution: HlsManifestErrorResolution
+): Response {
+  if (resolution.status === "invalid") {
+    return new Response(resolution.message, {
+      headers: { "content-type": "text/plain; charset=utf-8" },
+      status: 400,
+    });
+  }
+
+  return new Response("manifest not found", {
+    headers: { "content-type": "text/plain; charset=utf-8" },
+    status: 404,
   });
 }
 
