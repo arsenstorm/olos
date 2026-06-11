@@ -36,7 +36,8 @@ export type RuntimePublisherUploadStep =
       status: "committed" | "idempotent";
     }
   | {
-      issue: RuntimePublisherIssueResult;
+      error?: string;
+      issue?: RuntimePublisherIssueResult;
       status: "issue_failed";
     }
   | {
@@ -45,7 +46,8 @@ export type RuntimePublisherUploadStep =
       status: "upload_failed";
     }
   | {
-      commit: RuntimePublisherCommitResult;
+      commit?: RuntimePublisherCommitResult;
+      error?: string;
       observed: RuntimeObservedUploadPayload;
       slot: UploadSlot;
       status: "commit_failed";
@@ -54,7 +56,16 @@ export type RuntimePublisherUploadStep =
 export async function runRuntimePublisherUploadStep(
   options: RunRuntimePublisherUploadStepOptions
 ): Promise<RuntimePublisherUploadStep> {
-  const issued = await options.issueSlot(options.slot);
+  let issued: RuntimePublisherIssueResult;
+
+  try {
+    issued = await options.issueSlot(options.slot);
+  } catch (error) {
+    return {
+      error: errorMessage(error),
+      status: "issue_failed",
+    };
+  }
 
   if (issued.status !== "issued" || issued.slot === undefined) {
     return {
@@ -75,15 +86,26 @@ export async function runRuntimePublisherUploadStep(
     };
   }
 
-  const committed = await options.commit({
-    commitId: options.commitId,
-    committedAt: options.committedAt,
-    object: observed,
-    slotId: issued.slot.slotId,
-    ...optionalBoolean("independent", options.independent),
-    ...optionalNumber("maxSegments", options.maxSegments),
-    ...optionalString("programDateTime", options.programDateTime),
-  });
+  let committed: RuntimePublisherCommitResult;
+
+  try {
+    committed = await options.commit({
+      commitId: options.commitId,
+      committedAt: options.committedAt,
+      object: observed,
+      slotId: issued.slot.slotId,
+      ...optionalBoolean("independent", options.independent),
+      ...optionalNumber("maxSegments", options.maxSegments),
+      ...optionalString("programDateTime", options.programDateTime),
+    });
+  } catch (error) {
+    return {
+      error: errorMessage(error),
+      observed,
+      slot: issued.slot,
+      status: "commit_failed",
+    };
+  }
 
   if (committed.status === "committed" || committed.status === "idempotent") {
     return {
