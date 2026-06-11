@@ -186,6 +186,25 @@ describe("provider upload grant policy", () => {
     ).toThrow("providerCapability.publication.createIfAbsent must be true");
   });
 
+  test("rejects providers that cannot issue OLOS-required upload grants", () => {
+    expect(
+      canProviderIssueUploadGrant({
+        capability: {
+          ...capability,
+          publication: {
+            ...capability.publication,
+            createIfAbsent: false,
+          },
+          uploadGrants: {
+            ...capability.uploadGrants,
+            requiredHeadersCanBeSigned: false,
+          },
+        },
+        slot,
+      })
+    ).toBe(false);
+  });
+
   test("rejects grants above the provider recommended TTL", () => {
     expect(() =>
       assertProviderCanIssueUploadGrant({
