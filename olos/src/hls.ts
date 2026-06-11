@@ -1,6 +1,12 @@
 // biome-ignore-all lint/performance/noBarrelFile: public HLS facade for the olos/hls export
 
 export {
+  type HlsBlockingReloadRequest,
+  type HlsBlockingReloadResolution,
+  parseHlsBlockingReloadRequest,
+  resolveHlsBlockingReload,
+} from "./hls/blocking-reload";
+export {
   type CreateHlsManifestArtifactResponseOptions,
   type CreateHlsManifestArtifactsOptions,
   createHlsManifestArtifactResponse,

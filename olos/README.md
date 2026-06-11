@@ -110,6 +110,30 @@ The application owns the coordinator store, HTTP routing, and S3 client
 configuration. OLOS owns the upload-slot rules, S3 object observation, cursor
 update, manifest rendering, and response metadata.
 
+## HLS Blocking Reload
+
+`olos/hls` can decide whether an LL-HLS media playlist request should return
+the current playlist immediately or block until the trusted cursor advances.
+
+```ts
+import {
+  parseHlsBlockingReloadRequest,
+  resolveHlsBlockingReload,
+} from "olos/hls";
+
+const request = parseHlsBlockingReloadRequest(
+  "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3812&_HLS_part=2"
+);
+const reload = resolveHlsBlockingReload(cursor, request);
+
+if (reload.status === "block") {
+  // Wait on the application-owned cursor store, then render again.
+}
+```
+
+OLOS only makes the blocking decision. The application owns the wait, timeout,
+and retry mechanics.
+
 ## Upload Event Identity
 
 `olos/s3` accepts normalized upload events through
