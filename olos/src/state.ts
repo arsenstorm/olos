@@ -19,4 +19,6 @@ export {
 export {
   assertUploadSlotTransition,
   canTransitionUploadSlot,
+  type ObserveUploadOptions,
+  observeUpload,
 } from "./state/upload-slot";
