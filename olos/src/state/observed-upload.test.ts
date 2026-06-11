@@ -4,8 +4,10 @@ import {
   createObservedUpload,
   createObservedUploadFromHeadObject,
   createObservedUploadFromObjectCreatedEvent,
+  createUploadCompletionHint,
   resolveObjectCreatedEventObservation,
   resolveObjectCreatedEventSlot,
+  resolveUploadEvidence,
 } from "./observed-upload";
 
 describe("observed upload builder", () => {
@@ -191,6 +193,14 @@ describe("object created event normalization", () => {
     size: 98_304,
   });
 
+  const uploadCompletionHint = createUploadCompletionHint({
+    eventId: "hint_1",
+    eventTime: "2026-01-01T00:00:00.900Z",
+    eventType: "upload.completed",
+    objectKey: "media/session/v1080/3810.m4s",
+    slotId: "slot_1",
+  });
+
   test("creates an observed upload from an object-created event", () => {
     expect(objectCreatedEvent).toEqual({
       eventId: "evt_1",
@@ -286,6 +296,64 @@ describe("object created event normalization", () => {
     });
   });
 
+  test("waits for object proof when client hints arrive first", () => {
+    expect(resolveUploadEvidence({ hint: uploadCompletionHint })).toEqual({
+      hint: uploadCompletionHint,
+      status: "awaiting_object",
+    });
+  });
+
+  test("accepts object proof before client hints arrive", () => {
+    expect(
+      resolveUploadEvidence({ object: objectCreatedEvent.object })
+    ).toEqual({
+      object: objectCreatedEvent.object,
+      status: "object_observed",
+    });
+  });
+
+  test("accepts object proof after matching client hints", () => {
+    expect(
+      resolveUploadEvidence({
+        hint: uploadCompletionHint,
+        object: objectCreatedEvent.object,
+      })
+    ).toEqual({
+      object: objectCreatedEvent.object,
+      status: "object_observed",
+    });
+  });
+
+  test("rejects conflicting client hints and object proof", () => {
+    expect(
+      resolveUploadEvidence({
+        hint: uploadCompletionHint,
+        object: {
+          ...objectCreatedEvent.object,
+          objectKey: "media/session/v1080/9999.m4s",
+        },
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.key_mismatch",
+          details: {
+            hintEventId: "hint_1",
+            hintObjectKey: "media/session/v1080/3810.m4s",
+            objectKey: "media/session/v1080/9999.m4s",
+            slotId: "slot_1",
+          },
+          message: "upload hint does not match observed object",
+        },
+      },
+      status: "conflict",
+    });
+  });
+
+  test("idles without upload evidence", () => {
+    expect(resolveUploadEvidence({})).toEqual({ status: "idle" });
+  });
+
   test("observes object-created events once", () => {
     expect(
       resolveObjectCreatedEventObservation({
@@ -352,5 +420,17 @@ describe("object created event normalization", () => {
         size: 98_304,
       })
     ).toThrow("mediaObject.observedAt must be a valid timestamp");
+  });
+
+  test("rejects invalid client hints", () => {
+    expect(() =>
+      createUploadCompletionHint({
+        eventId: "hint_1",
+        eventTime: "not-a-date",
+        eventType: "upload.completed",
+        objectKey: "media/session/v1080/3810.m4s",
+        slotId: "slot_1",
+      })
+    ).toThrow("uploadCompletionHint.eventTime must be a valid timestamp");
   });
 });

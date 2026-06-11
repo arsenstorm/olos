@@ -7,6 +7,7 @@ import {
 } from "../validation/observed-upload";
 
 export const OBJECT_CREATED_EVENT_TYPE = "object.created";
+export const UPLOAD_COMPLETED_HINT_TYPE = "upload.completed";
 
 export interface CreateObservedUploadOptions {
   contentType: string;
@@ -40,10 +41,26 @@ export interface CreateObservedUploadFromHeadObjectOptions {
   providerId: string;
 }
 
+export interface CreateUploadCompletionHintOptions {
+  eventId: string;
+  eventTime: string;
+  eventType: typeof UPLOAD_COMPLETED_HINT_TYPE;
+  objectKey: string;
+  slotId: string;
+}
+
 export interface ObservedUploadObjectCreatedEvent {
   eventId: string;
   eventType: typeof OBJECT_CREATED_EVENT_TYPE;
   object: ObservedUpload;
+}
+
+export interface UploadCompletionHint {
+  eventId: string;
+  eventTime: string;
+  eventType: typeof UPLOAD_COMPLETED_HINT_TYPE;
+  objectKey: string;
+  slotId: string;
 }
 
 export interface ResolveObjectCreatedEventObservationOptions {
@@ -54,6 +71,11 @@ export interface ResolveObjectCreatedEventObservationOptions {
 export interface ResolveObjectCreatedEventSlotOptions {
   event: ObservedUploadObjectCreatedEvent;
   slot?: UploadSlot;
+}
+
+export interface ResolveUploadEvidenceOptions {
+  hint?: UploadCompletionHint;
+  object?: ObservedUpload;
 }
 
 export type ObjectCreatedEventObservationResolution =
@@ -74,6 +96,23 @@ export type ObjectCreatedEventSlotResolution =
   | {
       error: OlosError;
       status: "unknown_object_key";
+    };
+
+export type UploadEvidenceResolution =
+  | {
+      object: ObservedUpload;
+      status: "object_observed";
+    }
+  | {
+      hint: UploadCompletionHint;
+      status: "awaiting_object";
+    }
+  | {
+      error: OlosError;
+      status: "conflict";
+    }
+  | {
+      status: "idle";
     };
 
 export function createObservedUpload(
@@ -127,6 +166,20 @@ export function createObservedUploadFromHeadObject(
   });
 }
 
+export function createUploadCompletionHint(
+  options: CreateUploadCompletionHintOptions
+): UploadCompletionHint {
+  assertUploadCompletionHint(options);
+
+  return {
+    eventId: options.eventId,
+    eventTime: options.eventTime,
+    eventType: options.eventType,
+    objectKey: options.objectKey,
+    slotId: options.slotId,
+  };
+}
+
 export function resolveObjectCreatedEventObservation(
   options: ResolveObjectCreatedEventObservationOptions
 ): ObjectCreatedEventObservationResolution {
@@ -141,6 +194,51 @@ export function resolveObjectCreatedEventObservation(
     event: options.event,
     status: "observed",
   };
+}
+
+export function resolveUploadEvidence(
+  options: ResolveUploadEvidenceOptions
+): UploadEvidenceResolution {
+  if (options.object !== undefined && options.hint !== undefined) {
+    if (options.object.objectKey !== options.hint.objectKey) {
+      return {
+        error: {
+          error: {
+            code: "olos.key_mismatch",
+            details: {
+              hintEventId: options.hint.eventId,
+              hintObjectKey: options.hint.objectKey,
+              objectKey: options.object.objectKey,
+              slotId: options.hint.slotId,
+            },
+            message: "upload hint does not match observed object",
+          },
+        },
+        status: "conflict",
+      };
+    }
+
+    return {
+      object: options.object,
+      status: "object_observed",
+    };
+  }
+
+  if (options.object !== undefined) {
+    return {
+      object: options.object,
+      status: "object_observed",
+    };
+  }
+
+  if (options.hint !== undefined) {
+    return {
+      hint: options.hint,
+      status: "awaiting_object",
+    };
+  }
+
+  return { status: "idle" };
 }
 
 export function resolveObjectCreatedEventSlot(
@@ -185,6 +283,25 @@ function assertObjectCreatedEvent(
 
   if (options.eventType !== OBJECT_CREATED_EVENT_TYPE) {
     throw new Error("objectCreatedEvent.eventType must be object.created");
+  }
+}
+
+function assertUploadCompletionHint(
+  options: CreateUploadCompletionHintOptions
+): void {
+  assertUrlSafeIdentifier(options.eventId, "uploadCompletionHint.eventId");
+  assertUrlSafeIdentifier(options.slotId, "uploadCompletionHint.slotId");
+
+  if (options.eventType !== UPLOAD_COMPLETED_HINT_TYPE) {
+    throw new Error("uploadCompletionHint.eventType must be upload.completed");
+  }
+
+  if (Number.isNaN(Date.parse(options.eventTime))) {
+    throw new Error("uploadCompletionHint.eventTime must be a valid timestamp");
+  }
+
+  if (options.objectKey.trim() === "") {
+    throw new Error("uploadCompletionHint.objectKey must be non-empty");
   }
 }
 
