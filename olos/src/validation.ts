@@ -5,6 +5,7 @@ export {
   assertCommittedWindow,
   isCommittedWindow,
 } from "./validation/committed-window";
+export { assertCursor, isCursor } from "./validation/cursor";
 export {
   assertNonNegativeInteger,
   assertUrlSafeIdentifier,
