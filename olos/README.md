@@ -163,6 +163,38 @@ if (
 }
 ```
 
+For applications that want a Fetch-compatible route handler, `olos/s3` exposes
+the same flow over HTTP without choosing a web framework:
+
+```ts
+import { createStoredS3CoordinatorRuntimeHandler } from "olos/s3";
+
+const handleOlos = createStoredS3CoordinatorRuntimeHandler({
+  allowedMediaOrigins: ["https://media.example.com"],
+  bucket: "media",
+  client: s3,
+  expiresInSeconds: 3,
+  store,
+});
+
+export default {
+  fetch(request: Request) {
+    return handleOlos(request);
+  },
+};
+```
+
+The S3 runtime handler delegates the stored runtime routes and adds:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/sessions/:id/s3/slots` | Issue a stored upload slot and return an S3 upload grant. |
+| `POST` | `/sessions/:id/s3/commits` | Observe the uploaded S3 object, commit it, and return commit/cursor data. |
+
+The generic runtime routes remain available through the same handler, including
+`POST /sessions`, `POST /sessions/:id/transition`, `GET /sessions/:id/retention`,
+and `GET /v1/live/:id/...`.
+
 S3 `ObjectCreated:*` event payloads can also be routed through the same stored
 coordinator flow:
 
@@ -193,9 +225,9 @@ await routeStoredS3CoordinatorUploadEvent({
 });
 ```
 
-The application owns the coordinator store, HTTP routing, and S3 client
-configuration. OLOS owns the upload-slot rules, S3 object observation, cursor
-update, manifest rendering, and response metadata.
+The application owns authentication, handler mounting, the coordinator store,
+and S3 client configuration. OLOS owns the upload-slot rules, S3 object
+observation, cursor update, manifest rendering, and response metadata.
 
 ## Retention Planning
 
