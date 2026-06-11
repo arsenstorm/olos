@@ -28,6 +28,7 @@ export interface UploadCommitResolution {
 
 export interface ResolveCommitAttemptOptions
   extends Omit<CreateCommitOptions, "slot"> {
+  objectVerified?: true;
   session?: Session;
   slot?: UploadSlot;
   slotId: OlosId;
@@ -45,6 +46,7 @@ export type CommitAttemptResolution =
         | "invalid_state"
         | "key_mismatch"
         | "object_too_large"
+        | "unverified_object"
         | "unknown_slot";
     };
 
@@ -168,6 +170,20 @@ export function resolveCommitAttempt(
         state: options.session.state,
       }),
       status: "invalid_state",
+    };
+  }
+
+  if (options.objectVerified !== true) {
+    return {
+      error: commitError(
+        "olos.invalid_state",
+        "object existence is unverified",
+        {
+          objectKey: options.mediaObject.objectKey,
+          slotId: options.slot.slotId,
+        }
+      ),
+      status: "unverified_object",
     };
   }
 

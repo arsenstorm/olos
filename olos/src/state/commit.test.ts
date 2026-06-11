@@ -243,6 +243,7 @@ describe("commit attempt resolution", () => {
         commitId: "commit_1",
         committedAt: "2026-01-01T00:00:02.000Z",
         mediaObject,
+        objectVerified: true,
         session,
         slot,
         slotId: "slot_1",
@@ -276,12 +277,38 @@ describe("commit attempt resolution", () => {
     });
   });
 
+  test("keeps the slot uncommitted without object proof", () => {
+    expect(
+      resolveCommitAttempt({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        mediaObject,
+        session,
+        slot,
+        slotId: "slot_1",
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          details: {
+            objectKey: "tenant/session/v1080/3810.m4s",
+            slotId: "slot_1",
+          },
+          message: "object existence is unverified",
+        },
+      },
+      status: "unverified_object",
+    });
+  });
+
   test("returns a key mismatch error for a different object key", () => {
     expect(
       resolveCommitAttempt({
         commitId: "commit_1",
         committedAt: "2026-01-01T00:00:02.000Z",
         mediaObject: { ...mediaObject, objectKey: "other.m4s" },
+        objectVerified: true,
         slot,
         slotId: "slot_1",
       })
@@ -307,6 +334,7 @@ describe("commit attempt resolution", () => {
         commitId: "commit_1",
         committedAt: "2026-01-01T00:00:02.000Z",
         mediaObject: { ...mediaObject, size: 100_001 },
+        objectVerified: true,
         slot,
         slotId: "slot_1",
       })

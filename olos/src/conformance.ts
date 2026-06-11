@@ -144,6 +144,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     testFile: "src/state/commit.test.ts",
   },
   {
+    id: "CORE-COMMIT-006",
+    level: "core",
+    status: "covered",
+    testFile: "src/state/commit.test.ts",
+  },
+  {
     id: "CORE-COMMIT-007",
     level: "core",
     status: "covered",
