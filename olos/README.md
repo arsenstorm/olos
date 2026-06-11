@@ -96,6 +96,27 @@ wake-ups, object deletion, and retries. OLOS owns session transitions, slot
 rules, commit idempotency, cursor updates, HLS responses, and retention
 planning.
 
+### Publication Control
+
+Use `publicationControl` to stop new publication during an incident or budget
+limit without tearing down the session:
+
+```ts
+import { createStoredCoordinatorRuntimeHandler } from "olos/runtime";
+import { createPublicationKillSwitch } from "olos/state";
+
+const handleOlos = createStoredCoordinatorRuntimeHandler({
+  allowedMediaOrigins: ["https://media.example.com"],
+  publicationControl: createPublicationKillSwitch("incident"),
+  store,
+});
+```
+
+The kill switch blocks slot issuance, upload commits, provider-event handling,
+and cursor advancement. Existing manifests continue to render from the last
+trusted cursor. The application still owns viewer access revocation, media
+prefix blocks, and cache purge.
+
 ### Store Adapter Helpers
 
 The coordinator store is intentionally small: load a session snapshot and save a
