@@ -31,6 +31,11 @@ export {
   normalizeS3ObjectCreatedEvents,
 } from "./s3/event";
 export {
+  type CreateStoredS3CoordinatorRuntimeHandlerOptions,
+  createStoredS3CoordinatorRuntimeHandler,
+  type StoredS3CoordinatorRuntimeHandler,
+} from "./s3/http";
+export {
   type CreateObservedUploadFromS3HeadObjectOptions,
   createObservedUploadFromS3HeadObject,
   type ObserveS3ObjectOptions,
