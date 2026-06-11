@@ -2,6 +2,10 @@
 
 export { assertCommit, isCommit } from "./validation/commit";
 export {
+  assertCommittedWindow,
+  isCommittedWindow,
+} from "./validation/committed-window";
+export {
   assertNonNegativeInteger,
   assertUrlSafeIdentifier,
   isNonNegativeInteger,
