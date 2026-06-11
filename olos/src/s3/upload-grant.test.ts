@@ -77,6 +77,20 @@ describe("s3 upload grants", () => {
     );
   });
 
+  test("rejects SDK-presigned grants that outlive the slot", async () => {
+    await expect(
+      createPresignedS3UploadGrant({
+        bucket: "media",
+        client: createClient(),
+        expiresInSeconds: 6,
+        now: "2026-01-01T00:00:00.000Z",
+        slot,
+      })
+    ).rejects.toThrow(
+      "uploadGrant.expiresAt must be before or equal to uploadSlot.expiresAt"
+    );
+  });
+
   test("creates an upload grant from an S3 presigned PUT URL", () => {
     expect(
       createS3UploadGrant({

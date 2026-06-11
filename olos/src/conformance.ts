@@ -258,6 +258,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     testFile: "src/s3/upload-grant.test.ts",
   },
   {
+    id: "OBJ-GRANT-003",
+    level: "object",
+    status: "covered",
+    testFile: "src/s3/upload-grant.test.ts",
+  },
+  {
     id: "OBJ-HEAD-001",
     level: "object",
     status: "covered",
