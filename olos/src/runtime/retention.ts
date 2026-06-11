@@ -5,10 +5,31 @@ import {
 } from "../protocol";
 import type { OlosId } from "../types/ids";
 
+export interface DeleteRetiredCoordinatorObjectsOptions {
+  deleteObject(object: RetiredCoordinatorObjectDeletion): Promise<void> | void;
+  objects: readonly RetiredCoordinatorObjectDeletion[];
+}
+
 export interface PlanStoredCoordinatorRetentionOptions {
   now: string;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
+}
+
+export interface RetiredCoordinatorObjectDeletion {
+  commitId: string;
+  objectKey: string;
+  slotId: string;
+}
+
+export interface RetiredCoordinatorObjectDeletionFailure {
+  error: string;
+  object: RetiredCoordinatorObjectDeletion;
+}
+
+export interface RetiredCoordinatorObjectDeletionResult {
+  deletedObjects: readonly RetiredCoordinatorObjectDeletion[];
+  failedObjects: readonly RetiredCoordinatorObjectDeletionFailure[];
 }
 
 export type StoredRuntimeRetentionPlan =
@@ -21,6 +42,30 @@ export type StoredRuntimeRetentionPlan =
       response: Response;
       status: "not_found";
     };
+
+export async function deleteRetiredCoordinatorObjects(
+  options: DeleteRetiredCoordinatorObjectsOptions
+): Promise<RetiredCoordinatorObjectDeletionResult> {
+  const deletedObjects: RetiredCoordinatorObjectDeletion[] = [];
+  const failedObjects: RetiredCoordinatorObjectDeletionFailure[] = [];
+
+  for (const object of options.objects) {
+    try {
+      await options.deleteObject(object);
+      deletedObjects.push(object);
+    } catch (error) {
+      failedObjects.push({
+        error: errorMessage(error),
+        object,
+      });
+    }
+  }
+
+  return {
+    deletedObjects,
+    failedObjects,
+  };
+}
 
 export async function planStoredCoordinatorRetention(
   options: PlanStoredCoordinatorRetentionOptions
@@ -54,4 +99,8 @@ function jsonResponse(body: unknown, status: number): Response {
     headers: { "content-type": "application/json; charset=utf-8" },
     status,
   });
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "retention deletion failed";
 }

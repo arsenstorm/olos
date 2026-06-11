@@ -338,7 +338,19 @@ const retiredObjects = selectRetiredCommittedObjects({
 const plan = planCoordinatorRetention({ now, state });
 ```
 
-The application owns object deletion, slot persistence, and retry policy.
+`olos/runtime` can execute retired-object deletion through an app-owned callback:
+
+```ts
+import { deleteRetiredCoordinatorObjects } from "olos/runtime";
+
+const result = await deleteRetiredCoordinatorObjects({
+  deleteObject: (object) => objectStore.delete(object.objectKey),
+  objects: plan.retiredObjects,
+});
+```
+
+The application still owns object storage credentials, slot persistence, and
+retry policy.
 
 ## HLS Blocking Reload
 

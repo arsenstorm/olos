@@ -25,8 +25,13 @@ export {
   serveCoordinatorManifest,
 } from "./runtime/manifest";
 export {
+  type DeleteRetiredCoordinatorObjectsOptions,
+  deleteRetiredCoordinatorObjects,
   type PlanStoredCoordinatorRetentionOptions,
   planStoredCoordinatorRetention,
+  type RetiredCoordinatorObjectDeletion,
+  type RetiredCoordinatorObjectDeletionFailure,
+  type RetiredCoordinatorObjectDeletionResult,
   type StoredRuntimeRetentionPlan,
 } from "./runtime/retention";
 export {

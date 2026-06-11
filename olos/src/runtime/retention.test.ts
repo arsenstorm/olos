@@ -10,7 +10,10 @@ import type { CoordinatorPipelineState } from "../protocol/coordinator";
 import { createObservedUpload } from "../state/observed-upload";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
-import { planStoredCoordinatorRetention } from "./retention";
+import {
+  deleteRetiredCoordinatorObjects,
+  planStoredCoordinatorRetention,
+} from "./retention";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -92,6 +95,74 @@ describe("stored runtime retention", () => {
 
     expect(result.status).toBe("not_found");
     expect(result.response.status).toBe(404);
+  });
+
+  test("deletes retired coordinator objects through an app-owned callback", async () => {
+    const deleted: string[] = [];
+    const result = await deleteRetiredCoordinatorObjects({
+      deleteObject: (object) => {
+        deleted.push(object.objectKey);
+      },
+      objects: [
+        {
+          commitId: "commit_3810",
+          objectKey: "media/s3810.m4s",
+          slotId: "slot_3810",
+        },
+      ],
+    });
+
+    expect(deleted).toEqual(["media/s3810.m4s"]);
+    expect(result).toEqual({
+      deletedObjects: [
+        {
+          commitId: "commit_3810",
+          objectKey: "media/s3810.m4s",
+          slotId: "slot_3810",
+        },
+      ],
+      failedObjects: [],
+    });
+  });
+
+  test("keeps deleting retired coordinator objects after a failure", async () => {
+    const result = await deleteRetiredCoordinatorObjects({
+      deleteObject: (object) => {
+        if (object.objectKey === "media/fail.m4s") {
+          throw new Error("delete failed");
+        }
+      },
+      objects: [
+        {
+          commitId: "commit_fail",
+          objectKey: "media/fail.m4s",
+          slotId: "slot_fail",
+        },
+        {
+          commitId: "commit_ok",
+          objectKey: "media/ok.m4s",
+          slotId: "slot_ok",
+        },
+      ],
+    });
+
+    expect(result.deletedObjects).toEqual([
+      {
+        commitId: "commit_ok",
+        objectKey: "media/ok.m4s",
+        slotId: "slot_ok",
+      },
+    ]);
+    expect(result.failedObjects).toEqual([
+      {
+        error: "delete failed",
+        object: {
+          commitId: "commit_fail",
+          objectKey: "media/fail.m4s",
+          slotId: "slot_fail",
+        },
+      },
+    ]);
   });
 });
 
