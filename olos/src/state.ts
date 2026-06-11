@@ -13,6 +13,10 @@ export {
 } from "./state/committed-window";
 export { type CreateCursorOptions, createCursor } from "./state/cursor";
 export {
+  type CreateObservedUploadOptions,
+  createObservedUpload,
+} from "./state/observed-upload";
+export {
   assertProviderCanIssueUploadGrant,
   canProviderIssueUploadGrant,
   type ProviderUploadGrantPolicyOptions,

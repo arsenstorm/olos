@@ -14,7 +14,9 @@ export {
 } from "./validation/ids";
 export { assertMediaObject, isMediaObject } from "./validation/media-object";
 export {
+  assertObservedUpload,
   assertObservedUploadMatchesSlot,
+  isObservedUpload,
   type ObservedUpload,
   type ObservedUploadMatchOptions,
   observedUploadMatchesSlot,

@@ -4,6 +4,7 @@ import {
   createCommit,
   createCommittedWindow,
   createCursor,
+  createObservedUpload,
 } from "olos/state";
 import type { MediaObject, UploadSlot } from "olos/types";
 import { assertCommittedWindow, assertCursor } from "olos/validation";
@@ -28,13 +29,13 @@ const slot: UploadSlot = {
   tenantId: "tenant_1",
 };
 
-const mediaObject: MediaObject = {
+const mediaObject: MediaObject = createObservedUpload({
   contentType: "video/mp4",
   objectKey: "media/v1080/3810.m4s",
   observedAt: "2026-01-01T00:00:01.000Z",
   providerId: "r2_primary",
   size: 98_304,
-};
+});
 
 describe("protocol flow", () => {
   test("publishes an observed upload through cursor and HLS output", () => {

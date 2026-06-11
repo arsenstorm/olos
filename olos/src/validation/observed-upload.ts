@@ -12,6 +12,15 @@ export interface ObservedUploadMatchOptions {
   slot: UploadSlot;
 }
 
+export function isObservedUpload(value: unknown): value is ObservedUpload {
+  try {
+    assertObservedUpload(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function observedUploadMatchesSlot(
   options: ObservedUploadMatchOptions
 ): boolean {
@@ -32,7 +41,9 @@ export function assertObservedUploadMatchesSlot(
   assertObjectMatchesSlot(options);
 }
 
-function assertObservedUpload(value: unknown): asserts value is ObservedUpload {
+export function assertObservedUpload(
+  value: unknown
+): asserts value is ObservedUpload {
   assertMediaObject(value);
 
   const observed = value as MediaObject & { metadata?: unknown };
