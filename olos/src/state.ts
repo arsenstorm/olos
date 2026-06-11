@@ -14,7 +14,13 @@ export {
   type CreateCommittedWindowOptions,
   createCommittedWindow,
 } from "./state/committed-window";
-export { type CreateCursorOptions, createCursor } from "./state/cursor";
+export {
+  type CreateCursorOptions,
+  type CursorUpdateResolution,
+  createCursor,
+  type ResolveCursorUpdateOptions,
+  resolveCursorUpdate,
+} from "./state/cursor";
 export {
   type CreateObservedUploadFromHeadObjectOptions,
   type CreateObservedUploadFromObjectCreatedEventOptions,

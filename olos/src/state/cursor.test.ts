@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { CommittedWindow } from "../types/committed-window";
-import { createCursor } from "./cursor";
+import { createCursor, resolveCursorUpdate } from "./cursor";
 
 const committedWindow: CommittedWindow = {
   discontinuitySequence: 0,
@@ -66,6 +66,18 @@ const options = {
   updatedAt: "2026-06-08T12:00:01.820Z",
 } as const;
 
+const v1080 = committedWindow.renditions.v1080;
+
+if (v1080 === undefined) {
+  throw new Error("missing v1080 fixture");
+}
+
+const firstSegment = v1080.segments[0];
+
+if (firstSegment === undefined) {
+  throw new Error("missing first segment fixture");
+}
+
 describe("cursor builder", () => {
   test("derives a valid cursor from a committed window", () => {
     expect(createCursor(options)).toEqual({
@@ -99,5 +111,111 @@ describe("cursor builder", () => {
     expect(() => createCursor({ ...options, sessionId: "../secret" })).toThrow(
       "cursor.sessionId must be a non-empty URL-safe identifier"
     );
+  });
+});
+
+describe("cursor update resolution", () => {
+  const currentCursor = createCursor(options);
+
+  test("accepts candidates ahead of the current cursor", () => {
+    const candidateCursor = createCursor({
+      ...options,
+      committedWindow: {
+        ...committedWindow,
+        lastMediaSequenceNumber: 3812,
+        renditions: {
+          v1080: {
+            ...v1080,
+            segments: [
+              ...v1080.segments,
+              {
+                duration: 1,
+                mediaSequenceNumber: 3812,
+                segment: {
+                  commitId: "commit_3812",
+                  deliveryUrl: "/media/3812.m4s",
+                  objectKey: "tenant/session/v1080/3812.m4s",
+                  slotId: "slot_3812",
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(
+      resolveCursorUpdate({
+        candidateCursor,
+        currentCursor,
+      })
+    ).toEqual({
+      cursor: candidateCursor,
+      status: "advanced",
+    });
+  });
+
+  test("keeps the current cursor for idempotent updates", () => {
+    expect(
+      resolveCursorUpdate({
+        candidateCursor: {
+          ...currentCursor,
+          updatedAt: "2026-06-08T12:00:02.820Z",
+        },
+        currentCursor,
+      })
+    ).toEqual({
+      cursor: currentCursor,
+      status: "idempotent",
+    });
+  });
+
+  test("rejects candidates behind the current media sequence", () => {
+    const candidateCursor = createCursor({
+      ...options,
+      committedWindow: {
+        ...committedWindow,
+        firstMediaSequenceNumber: 3810,
+        lastMediaSequenceNumber: 3810,
+        renditions: {
+          v1080: {
+            ...v1080,
+            segments: [firstSegment],
+          },
+        },
+      },
+    });
+
+    expect(
+      resolveCursorUpdate({
+        candidateCursor,
+        currentCursor,
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.cursor_regression",
+          details: {
+            candidateLastMediaSequenceNumber: 3810,
+            currentLastMediaSequenceNumber: 3811,
+            sessionId: "session_1",
+          },
+          message: "candidate cursor is behind the current cursor",
+        },
+      },
+      status: "regression",
+    });
+  });
+
+  test("rejects candidates behind the current part number", () => {
+    const currentPartCursor = createCursor({ ...options, lastPartNumber: 1 });
+    const candidateCursor = createCursor({ ...options, lastPartNumber: 0 });
+
+    expect(
+      resolveCursorUpdate({
+        candidateCursor,
+        currentCursor: currentPartCursor,
+      }).status
+    ).toBe("regression");
   });
 });
