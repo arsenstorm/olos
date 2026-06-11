@@ -550,6 +550,7 @@ describe("s3 coordinator uploads", () => {
     }
 
     expect(result.commit.commitId).toBe("evt_3810");
+    expect(result.commit.committedAt).toBe("2026-01-01T00:00:02.000Z");
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
@@ -604,6 +605,7 @@ describe("s3 coordinator uploads", () => {
     }
 
     expect(result.commit.commitId).toBe("hint_3810");
+    expect(result.commit.committedAt).toBe("2026-01-01T00:00:02.000Z");
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
