@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { assertProviderCanIssueUploadGrant } from "../state/provider-upload-grant-policy";
 import type { UploadSlot } from "../types/upload-slot";
 import {
-  createR2ProviderCapability,
   createS3ProviderCapability,
   S3_UPLOAD_GRANT_REQUIRED_HEADERS,
 } from "./capability";
@@ -38,19 +37,10 @@ describe("s3 provider capabilities", () => {
     expect(capability.publication.directObjectPublication).toBe(true);
   });
 
-  test("creates an R2 S3 API capability document", () => {
-    const capability = createR2ProviderCapability({
-      providerId: "r2_primary",
-      publicBaseUrl: "https://media.example.com",
-    });
-
-    expect(capability.api?.family).toBe("cloudflare-r2-s3");
-  });
-
   test("satisfies the direct-public upload grant policy", () => {
-    const capability = createR2ProviderCapability({
+    const capability = createS3ProviderCapability({
       maxRecommendedTtlSeconds: 30,
-      providerId: "r2_primary",
+      providerId: "s3_primary",
       publicBaseUrl: "https://media.example.com",
     });
 

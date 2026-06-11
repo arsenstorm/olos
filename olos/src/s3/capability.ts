@@ -25,28 +25,10 @@ export interface CreateS3ProviderCapabilityOptions {
 export function createS3ProviderCapability(
   options: CreateS3ProviderCapabilityOptions
 ): ProviderCapabilityDocument {
-  return createCapability({
-    apiFamily: "s3-compatible",
-    ...options,
-  });
-}
-
-export function createR2ProviderCapability(
-  options: CreateS3ProviderCapabilityOptions
-): ProviderCapabilityDocument {
-  return createCapability({
-    apiFamily: "cloudflare-r2-s3",
-    ...options,
-  });
-}
-
-function createCapability(
-  options: CreateS3ProviderCapabilityOptions & { apiFamily: string }
-): ProviderCapabilityDocument {
   const objectCreatedEvents = options.objectCreatedEvents ?? true;
   const capability: ProviderCapabilityDocument = {
     api: {
-      family: options.apiFamily,
+      family: "s3-compatible",
     },
     consistency: {
       headAfterCreate: "strong",

@@ -2,7 +2,6 @@
 
 export {
   type CreateS3ProviderCapabilityOptions,
-  createR2ProviderCapability,
   createS3ProviderCapability,
   S3_UPLOAD_GRANT_REQUIRED_HEADERS,
 } from "./s3/capability";
