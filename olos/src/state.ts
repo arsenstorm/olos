@@ -1,6 +1,12 @@
 // biome-ignore-all lint/performance/noBarrelFile: public state facade for the olos/state export
 
-export { type CreateCommitOptions, createCommit } from "./state/commit";
+export {
+  type CommitObservedUploadOptions,
+  type CommitObservedUploadResult,
+  type CreateCommitOptions,
+  commitObservedUpload,
+  createCommit,
+} from "./state/commit";
 export {
   type CreateCommittedWindowOptions,
   createCommittedWindow,

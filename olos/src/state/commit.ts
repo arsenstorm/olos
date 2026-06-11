@@ -4,7 +4,9 @@ import type { MediaObject } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertCommit } from "../validation/commit";
 import { assertMediaObject } from "../validation/media-object";
+import type { ObservedUpload } from "../validation/observed-upload";
 import { assertUploadSlot } from "../validation/upload-slot";
+import { observeUpload } from "./upload-slot";
 
 export interface CreateCommitOptions {
   commitId: OlosId;
@@ -12,6 +14,20 @@ export interface CreateCommitOptions {
   independent?: boolean;
   mediaObject: MediaObject;
   programDateTime?: string;
+  slot: UploadSlot;
+}
+
+export interface CommitObservedUploadOptions {
+  commitId: OlosId;
+  committedAt: string;
+  independent?: boolean;
+  object: ObservedUpload;
+  programDateTime?: string;
+  slot: UploadSlot;
+}
+
+export interface CommitObservedUploadResult {
+  commit: Commit;
   slot: UploadSlot;
 }
 
@@ -50,6 +66,27 @@ export function createCommit(options: CreateCommitOptions): Commit {
 
   assertCommit(commit);
   return commit;
+}
+
+export function commitObservedUpload(
+  options: CommitObservedUploadOptions
+): CommitObservedUploadResult {
+  const slot = observeUpload({
+    object: options.object,
+    slot: options.slot,
+  });
+
+  return {
+    commit: createCommit({
+      commitId: options.commitId,
+      committedAt: options.committedAt,
+      independent: options.independent,
+      mediaObject: options.object,
+      programDateTime: options.programDateTime,
+      slot,
+    }),
+    slot,
+  };
 }
 
 function assertCommitPreconditions(options: CreateCommitOptions): void {

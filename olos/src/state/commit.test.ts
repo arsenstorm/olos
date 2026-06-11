@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { MediaObject } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
-import { createCommit } from "./commit";
+import type { ObservedUpload } from "../validation/observed-upload";
+import { commitObservedUpload, createCommit } from "./commit";
 
 const slot: UploadSlot = {
   contentType: "video/mp4",
@@ -30,6 +31,13 @@ const mediaObject: MediaObject = {
   observedAt: "2026-01-01T00:00:01.000Z",
   providerId: "r2_primary",
   size: 98_304,
+};
+
+const observedUpload: ObservedUpload = {
+  ...mediaObject,
+  metadata: {
+    "x-olos-slot-id": "slot_1",
+  },
 };
 
 describe("commit builder", () => {
@@ -141,5 +149,62 @@ describe("commit builder", () => {
         slot,
       })
     ).toThrow("commit.committedAt must be before uploadSlot.expiresAt");
+  });
+});
+
+describe("observed upload commit builder", () => {
+  test("observes an issued slot and creates a commit", () => {
+    expect(
+      commitObservedUpload({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        independent: true,
+        object: observedUpload,
+        programDateTime: "2026-01-01T00:00:00.000Z",
+        slot: { ...slot, state: "issued" },
+      })
+    ).toEqual({
+      commit: {
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        deliveryUrl: "/objects/tenant/session/v1080/3810.m4s",
+        duration: 2,
+        epoch: 0,
+        etag: '"abc123"',
+        independent: true,
+        mediaSequenceNumber: 3810,
+        objectKey: "tenant/session/v1080/3810.m4s",
+        programDateTime: "2026-01-01T00:00:00.000Z",
+        providerId: "r2_primary",
+        publicationMode: "direct-public",
+        renditionId: "v1080",
+        sessionId: "session_1",
+        size: 98_304,
+        slotId: "slot_1",
+      },
+      slot,
+    });
+  });
+
+  test("keeps already observed slots idempotent", () => {
+    expect(
+      commitObservedUpload({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        object: observedUpload,
+        slot,
+      }).slot
+    ).toEqual(slot);
+  });
+
+  test("rejects invalid observations", () => {
+    expect(() =>
+      commitObservedUpload({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        object: { ...observedUpload, objectKey: "other.m4s" },
+        slot: { ...slot, state: "issued" },
+      })
+    ).toThrow("observedUpload.objectKey must match uploadSlot.objectKey");
   });
 });

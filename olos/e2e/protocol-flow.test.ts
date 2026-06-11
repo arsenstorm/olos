@@ -1,5 +1,10 @@
 import { renderMediaPlaylist } from "olos/hls";
-import { createCommit, createCommittedWindow, createCursor } from "olos/state";
+import {
+  commitObservedUpload,
+  createCommit,
+  createCommittedWindow,
+  createCursor,
+} from "olos/state";
 import type { MediaObject, UploadSlot } from "olos/types";
 import { assertCommittedWindow, assertCursor } from "olos/validation";
 import { describe, expect, test } from "vitest";
@@ -53,13 +58,13 @@ describe("protocol flow", () => {
       },
     });
 
-    const mediaCommit = createCommit({
+    const { commit: mediaCommit } = commitObservedUpload({
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
       independent: true,
-      mediaObject,
+      object: mediaObject,
       programDateTime: "2026-01-01T00:00:00.000Z",
-      slot,
+      slot: { ...slot, state: "issued" },
     });
 
     const committedWindow = createCommittedWindow({
