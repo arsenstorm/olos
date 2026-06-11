@@ -12,6 +12,7 @@ export {
   isNonNegativeInteger,
   isUrlSafeIdentifier,
 } from "./validation/ids";
+export { assertMediaObject, isMediaObject } from "./validation/media-object";
 export { assertPathway, isPathway } from "./validation/pathway";
 export { assertSession, isSession } from "./validation/session";
 export {
