@@ -31,6 +31,11 @@
       "import": "./dist/config.js",
       "default": "./dist/config.js"
     },
+    "./hls": {
+      "types": "./dist/hls.d.ts",
+      "import": "./dist/hls.js",
+      "default": "./dist/hls.js"
+    },
     "./protocol": {
       "types": "./dist/protocol.d.ts",
       "import": "./dist/protocol.js",

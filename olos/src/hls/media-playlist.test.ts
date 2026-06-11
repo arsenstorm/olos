@@ -1,0 +1,132 @@
+import { describe, expect, test } from "bun:test";
+
+import type { CommittedWindow } from "../types/committed-window";
+import { renderMediaPlaylist } from "./media-playlist";
+
+const committedWindow: CommittedWindow = {
+  discontinuitySequence: 0,
+  epoch: 1,
+  firstMediaSequenceNumber: 3810,
+  lastMediaSequenceNumber: 3812,
+  renditions: {
+    v1080: {
+      init: {
+        commitId: "commit_init",
+        deliveryUrl:
+          "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/init-slot_init_v1080.mp4",
+        objectKey:
+          "media/tenant_acme/sess_01JZLIVE/e1/v1080/init-slot_init_v1080.mp4",
+        slotId: "slot_init_v1080",
+      },
+      renditionId: "v1080",
+      segments: [
+        {
+          duration: 2,
+          mediaSequenceNumber: 3810,
+          programDateTime: "2026-06-08T12:00:00.000Z",
+          segment: {
+            commitId: "commit_3810",
+            deliveryUrl:
+              "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810/segment-slot_s3810.m4s",
+            objectKey:
+              "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810/segment-slot_s3810.m4s",
+            slotId: "slot_s3810",
+          },
+        },
+        {
+          duration: 2,
+          mediaSequenceNumber: 3811,
+          programDateTime: "2026-06-08T12:00:02.000Z",
+          segment: {
+            commitId: "commit_3811",
+            deliveryUrl:
+              "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment-slot_s3811.m4s",
+            objectKey:
+              "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment-slot_s3811.m4s",
+            slotId: "slot_s3811",
+          },
+        },
+        {
+          duration: 2,
+          mediaSequenceNumber: 3812,
+          programDateTime: "2026-06-08T12:00:04.000Z",
+          parts: [
+            {
+              commitId: "commit_3812_0",
+              deliveryUrl:
+                "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p0-slot_3812_0.m4s",
+              duration: 0.5,
+              independent: true,
+              objectKey:
+                "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p0-slot_3812_0.m4s",
+              partNumber: 0,
+              slotId: "slot_3812_0",
+            },
+            {
+              commitId: "commit_3812_1",
+              deliveryUrl:
+                "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p1-slot_3812_1.m4s",
+              duration: 0.5,
+              objectKey:
+                "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p1-slot_3812_1.m4s",
+              partNumber: 1,
+              slotId: "slot_3812_1",
+            },
+          ],
+        },
+      ],
+    },
+  },
+};
+
+describe("media playlist rendering", () => {
+  test("renders deterministic LL-HLS from a committed window", () => {
+    expect(
+      renderMediaPlaylist(committedWindow, {
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+      })
+    ).toBe(`#EXTM3U
+#EXT-X-VERSION:10
+#EXT-X-TARGETDURATION:2
+#EXT-X-PART-INF:PART-TARGET=0.500
+#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=3.000,HOLD-BACK=3.000
+#EXT-X-MEDIA-SEQUENCE:3810
+#EXT-X-DISCONTINUITY-SEQUENCE:0
+#EXT-X-MAP:URI="https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/init-slot_init_v1080.mp4"
+
+#EXT-X-PROGRAM-DATE-TIME:2026-06-08T12:00:00.000Z
+#EXTINF:2.000,
+https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810/segment-slot_s3810.m4s
+#EXT-X-PROGRAM-DATE-TIME:2026-06-08T12:00:02.000Z
+#EXTINF:2.000,
+https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment-slot_s3811.m4s
+#EXT-X-PROGRAM-DATE-TIME:2026-06-08T12:00:04.000Z
+#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p0-slot_3812_0.m4s"
+#EXT-X-PART:DURATION=0.500,URI="https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p1-slot_3812_1.m4s"
+`);
+  });
+
+  test("throws for unknown renditions", () => {
+    expect(() =>
+      renderMediaPlaylist(committedWindow, {
+        partTarget: 0.5,
+        renditionId: "missing",
+        segmentTarget: 2,
+      })
+    ).toThrow("rendition not found: missing");
+  });
+
+  test("supports explicit hold-back values", () => {
+    expect(
+      renderMediaPlaylist(committedWindow, {
+        partHoldBack: 2,
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+        targetLatency: 4,
+      })
+    ).toContain("PART-HOLD-BACK=2.000,HOLD-BACK=4.000");
+  });
+});

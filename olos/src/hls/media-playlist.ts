@@ -1,0 +1,95 @@
+import type {
+  CommittedSegment,
+  CommittedWindow,
+} from "../types/committed-window";
+import { assertCommittedWindow } from "../validation/committed-window";
+
+export interface RenderMediaPlaylistOptions {
+  partHoldBack?: number;
+  partTarget: number;
+  renditionId: string;
+  segmentTarget: number;
+  targetLatency?: number;
+}
+
+export function renderMediaPlaylist(
+  committedWindow: CommittedWindow,
+  options: RenderMediaPlaylistOptions
+): string {
+  assertCommittedWindow(committedWindow);
+  assertPositiveNumber(options.partTarget, "options.partTarget");
+  assertPositiveNumber(options.segmentTarget, "options.segmentTarget");
+
+  const rendition = committedWindow.renditions[options.renditionId];
+
+  if (!rendition) {
+    throw new Error(`rendition not found: ${options.renditionId}`);
+  }
+
+  const targetLatency = options.targetLatency ?? 3;
+  const partHoldBack =
+    options.partHoldBack ?? Math.max(3 * options.partTarget, targetLatency);
+  const lines = [
+    "#EXTM3U",
+    "#EXT-X-VERSION:10",
+    `#EXT-X-TARGETDURATION:${Math.ceil(options.segmentTarget)}`,
+    `#EXT-X-PART-INF:PART-TARGET=${formatSeconds(options.partTarget)}`,
+    `#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=${formatSeconds(partHoldBack)},HOLD-BACK=${formatSeconds(targetLatency)}`,
+    `#EXT-X-MEDIA-SEQUENCE:${committedWindow.firstMediaSequenceNumber}`,
+    `#EXT-X-DISCONTINUITY-SEQUENCE:${committedWindow.discontinuitySequence}`,
+    `#EXT-X-MAP:URI="${escapePlaylistValue(rendition.init.deliveryUrl)}"`,
+    "",
+  ];
+
+  for (const segment of rendition.segments) {
+    lines.push(...renderSegment(segment));
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function renderSegment(segment: CommittedSegment): string[] {
+  const lines: string[] = [];
+
+  if (segment.discontinuityBefore) {
+    lines.push("#EXT-X-DISCONTINUITY");
+  }
+
+  if (segment.programDateTime) {
+    lines.push(`#EXT-X-PROGRAM-DATE-TIME:${segment.programDateTime}`);
+  }
+
+  if (segment.segment) {
+    lines.push(
+      `#EXTINF:${formatSeconds(segment.duration)},`,
+      escapePlaylistValue(segment.segment.deliveryUrl)
+    );
+    return lines;
+  }
+
+  for (const part of segment.parts ?? []) {
+    const attributes = [
+      `DURATION=${formatSeconds(part.duration)}`,
+      part.independent ? "INDEPENDENT=YES" : undefined,
+      `URI="${escapePlaylistValue(part.deliveryUrl)}"`,
+    ].filter((attribute) => attribute !== undefined);
+
+    lines.push(`#EXT-X-PART:${attributes.join(",")}`);
+  }
+
+  return lines;
+}
+
+function formatSeconds(value: number): string {
+  return value.toFixed(3);
+}
+
+function escapePlaylistValue(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+}
+
+function assertPositiveNumber(value: unknown, name: string): void {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`${name} must be a positive number`);
+  }
+}
