@@ -6,7 +6,11 @@ import {
 } from "../runtime";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
-import { issueStoredS3CoordinatorUploadGrant } from "./coordinator";
+import {
+  completeStoredS3CoordinatorUpload,
+  issueStoredS3CoordinatorUploadGrant,
+} from "./coordinator";
+import type { S3HeadObjectClient } from "./object-observation";
 
 const DEFAULT_SESSION_PATH = "/sessions";
 
@@ -17,6 +21,7 @@ export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
   client: S3Client;
   expiresInSeconds: number;
   grantNow?: () => Date | string;
+  objectClient?: S3HeadObjectClient;
 }
 
 export type StoredS3CoordinatorRuntimeHandler = (
@@ -29,7 +34,7 @@ export function createStoredS3CoordinatorRuntimeHandler(
   const baseHandler = createStoredCoordinatorRuntimeHandler(options);
 
   return async (request) => {
-    const route = s3SlotGrantRoute(request, options);
+    const route = s3Route(request, options);
 
     if (route.status === "not_s3") {
       return await baseHandler(request);
@@ -39,51 +44,98 @@ export function createStoredS3CoordinatorRuntimeHandler(
       return methodNotAllowed();
     }
 
-    const parsed = await parseS3SlotGrantRequest(request);
-
-    if (parsed.status === "invalid") {
-      return badRequest(parsed.message);
+    if (route.action === "slots") {
+      return await handleS3SlotGrant(request, route.sessionId, options);
     }
 
-    const result = await issueStoredS3CoordinatorUploadGrant({
-      ...parsed.payload,
-      additionalHeaders: options.additionalHeaders,
-      bucket: options.bucket,
-      client: options.client,
-      expiresInSeconds: options.expiresInSeconds,
-      maxAttempts: options.maxAttempts,
-      now: options.grantNow?.(),
-      sessionId: route.sessionId,
-      store: options.store,
-    });
-
-    if (result.status === "saved") {
-      return jsonResponse({ grant: result.grant, slot: result.slot }, 201);
-    }
-
-    if (result.status === "not_found") {
-      return jsonResponse(
-        { error: { message: "coordinator session was not found" } },
-        404
-      );
-    }
-
-    return jsonResponse(
-      { error: { message: "coordinator session changed during mutation" } },
-      409
-    );
+    return await handleS3Commit(request, route.sessionId, options);
   };
 }
 
-type S3SlotGrantRoute =
-  | { sessionId: string; status: "matched" }
+async function handleS3SlotGrant(
+  request: Request,
+  sessionId: string,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  const parsed = await parseS3SlotGrantRequest(request);
+
+  if (parsed.status === "invalid") {
+    return badRequest(parsed.message);
+  }
+
+  const result = await issueStoredS3CoordinatorUploadGrant({
+    ...parsed.payload,
+    additionalHeaders: options.additionalHeaders,
+    bucket: options.bucket,
+    client: options.client,
+    expiresInSeconds: options.expiresInSeconds,
+    maxAttempts: options.maxAttempts,
+    now: options.grantNow?.(),
+    sessionId,
+    store: options.store,
+  });
+
+  if (result.status === "saved") {
+    return jsonResponse({ grant: result.grant, slot: result.slot }, 201);
+  }
+
+  if (result.status === "not_found") {
+    return notFound();
+  }
+
+  return conflict();
+}
+
+async function handleS3Commit(
+  request: Request,
+  sessionId: string,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  const parsed = await parseS3CommitRequest(request);
+
+  if (parsed.status === "invalid") {
+    return badRequest(parsed.message);
+  }
+
+  const result = await completeStoredS3CoordinatorUpload({
+    ...parsed.payload,
+    bucket: options.bucket,
+    client: options.objectClient ?? options.client,
+    maxAttempts: options.maxAttempts,
+    sessionId,
+    store: options.store,
+  });
+
+  if (result.status === "committed" || result.status === "idempotent") {
+    return jsonResponse(
+      {
+        commit: result.commit,
+        ...(result.cursor === undefined ? {} : { cursor: result.cursor }),
+      },
+      result.status === "committed" ? 201 : 200
+    );
+  }
+
+  if (result.status === "rejected") {
+    return jsonResponse(result.error, rejectionStatus(result.error.error.code));
+  }
+
+  if (result.status === "not_found") {
+    return notFound();
+  }
+
+  return conflict();
+}
+
+type S3Route =
+  | { action: "commits" | "slots"; sessionId: string; status: "matched" }
   | { status: "method_not_allowed" }
   | { status: "not_s3" };
 
-function s3SlotGrantRoute(
+function s3Route(
   request: Request,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
-): S3SlotGrantRoute {
+): S3Route {
   const url = new URL(request.url);
   const parts = routeParts(
     url.pathname,
@@ -99,7 +151,7 @@ function s3SlotGrantRoute(
   if (
     sessionId === undefined ||
     provider !== "s3" ||
-    action !== "slots" ||
+    (action !== "slots" && action !== "commits") ||
     parts.length !== 3
   ) {
     return { status: "not_s3" };
@@ -109,7 +161,7 @@ function s3SlotGrantRoute(
     return { status: "method_not_allowed" };
   }
 
-  return { sessionId, status: "matched" };
+  return { action, sessionId, status: "matched" };
 }
 
 async function parseS3SlotGrantRequest(
@@ -153,6 +205,54 @@ function parsePayload(value: Record<string, unknown>): RuntimeSlotIssuePayload {
   };
 }
 
+interface S3CommitPayload {
+  commitId: string;
+  committedAt: string;
+  independent?: boolean;
+  maxSegments?: number;
+  objectKey?: string;
+  programDateTime?: string;
+  providerId: string;
+  slotId: string;
+  versionId?: string;
+}
+
+async function parseS3CommitRequest(
+  request: Request
+): Promise<
+  | { payload: S3CommitPayload; status: "valid" }
+  | { message: string; status: "invalid" }
+> {
+  try {
+    const payload = await request.json();
+
+    if (!isRecord(payload)) {
+      return invalid("S3 commit request must be a JSON object");
+    }
+
+    return {
+      payload: parseCommitPayload(payload),
+      status: "valid",
+    };
+  } catch (error) {
+    return invalid(errorMessage(error));
+  }
+}
+
+function parseCommitPayload(value: Record<string, unknown>): S3CommitPayload {
+  return {
+    commitId: stringField(value, "commitId"),
+    committedAt: stringField(value, "committedAt"),
+    providerId: stringField(value, "providerId"),
+    slotId: stringField(value, "slotId"),
+    ...optionalBooleanField(value, "independent"),
+    ...optionalNumberField(value, "maxSegments"),
+    ...optionalStringField(value, "objectKey"),
+    ...optionalStringField(value, "programDateTime"),
+    ...optionalStringField(value, "versionId"),
+  };
+}
+
 function routeParts(
   pathname: string,
   routePath: string
@@ -190,6 +290,24 @@ function methodNotAllowed(): Response {
   return jsonResponse({ error: { message: "method not allowed" } }, 405);
 }
 
+function notFound(): Response {
+  return jsonResponse(
+    { error: { message: "coordinator session was not found" } },
+    404
+  );
+}
+
+function conflict(): Response {
+  return jsonResponse(
+    { error: { message: "coordinator session changed during mutation" } },
+    409
+  );
+}
+
+function rejectionStatus(code: string): number {
+  return code === "olos.unknown_slot" ? 404 : 409;
+}
+
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     headers: { "content-type": "application/json; charset=utf-8" },
@@ -219,13 +337,46 @@ function numberField(value: Record<string, unknown>, field: string): number {
 
 function optionalNumberField(
   value: Record<string, unknown>,
-  field: "minBytes" | "partNumber"
-): Partial<Pick<RuntimeSlotIssuePayload, "minBytes" | "partNumber">> {
+  field: "maxSegments" | "minBytes" | "partNumber"
+): Partial<
+  Pick<RuntimeSlotIssuePayload, "minBytes" | "partNumber"> &
+    Pick<S3CommitPayload, "maxSegments">
+> {
   if (value[field] === undefined) {
     return {};
   }
 
   return { [field]: numberField(value, field) };
+}
+
+function optionalBooleanField(
+  value: Record<string, unknown>,
+  field: "independent"
+): Partial<Pick<S3CommitPayload, "independent">> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  if (typeof value[field] !== "boolean") {
+    throw new Error(`${field} must be a boolean`);
+  }
+
+  return { [field]: value[field] };
+}
+
+function optionalStringField<
+  Field extends "objectKey" | "programDateTime" | "versionId",
+>(
+  value: Record<string, unknown>,
+  field: Field
+): Partial<Record<Field, string>> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  return { [field]: stringField(value, field) } as Partial<
+    Record<Field, string>
+  >;
 }
 
 function errorMessage(error: unknown): string {

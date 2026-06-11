@@ -1,10 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { S3Client } from "@aws-sdk/client-s3";
+import {
+  type HeadObjectCommand,
+  type HeadObjectCommandOutput,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 import { createMemoryCoordinatorStore } from "../protocol";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import { createStoredS3CoordinatorRuntimeHandler } from "./http";
+import type { S3HeadObjectClient } from "./object-observation";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -41,6 +46,7 @@ const pathways: Pathway[] = [
 
 describe("stored S3 coordinator runtime handler", () => {
   test("delegates runtime routes and issues S3 upload grants", async () => {
+    const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
@@ -48,6 +54,13 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createClient(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+          "live/session/v1080/init.mp4": 1024,
+        },
+        headObjectInputs
+      ),
       store,
     });
 
@@ -60,7 +73,29 @@ describe("stored S3 coordinator runtime handler", () => {
     const grant = await handle(
       jsonRequest(
         "https://edge.example.com/sessions/session_1/s3/slots",
-        slotPayload()
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
+          duration: 1,
+          kind: "init",
+          maxBytes: 2048,
+          mediaSequenceNumber: 0,
+          objectKey: "live/session/v1080/init.mp4",
+          slotId: "slot_init",
+        })
+      )
+    );
+    const segmentGrant = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
       )
     );
     const body = (await grant.json()) as {
@@ -81,9 +116,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
     expect(created.status).toBe(201);
     expect(grant.status).toBe(201);
+    expect(segmentGrant.status).toBe(201);
     expect(body.slot).toMatchObject({
-      objectKey: "live/session/v1080/3810.m4s",
-      slotId: "slot_3810",
+      objectKey: "live/session/v1080/init.mp4",
+      slotId: "slot_init",
       state: "issued",
     });
     expect(body.grant).toMatchObject({
@@ -92,14 +128,59 @@ describe("stored S3 coordinator runtime handler", () => {
       requiredHeaders: {
         "Content-Type": "video/mp4",
         "If-None-Match": "*",
-        "x-olos-slot-id": "slot_3810",
+        "x-olos-slot-id": "slot_init",
       },
-      slotId: "slot_3810",
+      slotId: "slot_init",
     });
     expect(new URL(body.grant.url).pathname).toBe(
-      "/media/live/session/v1080/3810.m4s"
+      "/media/live/session/v1080/init.mp4"
     );
-    expect(stored?.state.slots).toHaveLength(1);
+    expect(stored?.state.slots).toHaveLength(2);
+
+    const initCommit = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_init",
+        committedAt: "2026-01-01T00:00:01.000Z",
+        objectKey: "live/session/v1080/init.mp4",
+        providerId: "s3_primary",
+        slotId: "slot_init",
+      })
+    );
+    const segmentCommit = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        independent: true,
+        objectKey: "live/session/v1080/3810.m4s",
+        providerId: "s3_primary",
+        slotId: "slot_3810",
+      })
+    );
+    const committed = (await segmentCommit.json()) as {
+      commit: { objectKey: string; slotId: string };
+      cursor: { window: Record<string, number> };
+    };
+
+    expect(initCommit.status).toBe(201);
+    expect(segmentCommit.status).toBe(201);
+    expect(committed.commit).toMatchObject({
+      objectKey: "live/session/v1080/3810.m4s",
+      slotId: "slot_3810",
+    });
+    expect(committed.cursor.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/init.mp4",
+      },
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
   });
 
   test("returns S3 route errors without swallowing base routes", async () => {
@@ -120,7 +201,16 @@ describe("stored S3 coordinator runtime handler", () => {
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/missing/s3/slots",
-          slotPayload()
+          slotPayload({
+            deliveryUrl:
+              "https://media.example.com/live/session/v1080/3810.m4s",
+            duration: 2,
+            kind: "segment",
+            maxBytes: 100_000,
+            mediaSequenceNumber: 3810,
+            objectKey: "live/session/v1080/3810.m4s",
+            slotId: "slot_3810",
+          })
         )
       )
     ).toHaveProperty("status", 404);
@@ -130,20 +220,30 @@ describe("stored S3 coordinator runtime handler", () => {
   });
 });
 
-function slotPayload() {
+interface SlotPayloadOptions {
+  deliveryUrl: string;
+  duration: number;
+  kind: "init" | "segment";
+  maxBytes: number;
+  mediaSequenceNumber: number;
+  objectKey: string;
+  slotId: string;
+}
+
+function slotPayload(options: SlotPayloadOptions) {
   return {
     contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
-    duration: 2,
+    deliveryUrl: options.deliveryUrl,
+    duration: options.duration,
     expiresAt: "2026-01-01T00:00:05.000Z",
-    kind: "segment",
-    maxBytes: 100_000,
-    mediaSequenceNumber: 3810,
-    objectKey: "live/session/v1080/3810.m4s",
+    kind: options.kind,
+    maxBytes: options.maxBytes,
+    mediaSequenceNumber: options.mediaSequenceNumber,
+    objectKey: options.objectKey,
     publicationMode: "direct-public" as const,
     publisherInstanceId: "pub_1",
     renditionId: "v1080",
-    slotId: "slot_3810",
+    slotId: options.slotId,
   };
 }
 
@@ -165,4 +265,30 @@ function createClient(): S3Client {
     forcePathStyle: true,
     region: "us-east-1",
   });
+}
+
+function objectClientFor(
+  sizes: Record<string, number>,
+  inputs: unknown[]
+): S3HeadObjectClient {
+  return {
+    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
+      inputs.push(command.input);
+
+      const objectKey = String(command.input.Key);
+      const size = sizes[objectKey];
+
+      if (size === undefined) {
+        throw new Error(`unexpected object key: ${objectKey}`);
+      }
+
+      return Promise.resolve({
+        $metadata: {},
+        ContentLength: size,
+        ContentType: "video/mp4",
+        ETag: `"${objectKey}"`,
+        LastModified: new Date("2026-01-01T00:00:01.000Z"),
+      });
+    },
+  };
 }
