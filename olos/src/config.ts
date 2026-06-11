@@ -8,6 +8,7 @@ export {
   LATENCY_PROFILES,
   RENDITION_KINDS,
   SESSION_STATES,
+  SESSION_TRANSITIONS,
 } from "./config/session";
 export {
   UPLOAD_SLOT_STATES,
