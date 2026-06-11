@@ -1,6 +1,11 @@
 // biome-ignore-all lint/performance/noBarrelFile: public HLS facade for the olos/hls export
 
 export {
+  type CreateHlsManifestArtifactsOptions,
+  createHlsManifestArtifacts,
+  type HlsManifestArtifact,
+} from "./hls/manifest-artifacts";
+export {
   type RenderMasterPlaylistOptions,
   renderMasterPlaylist,
 } from "./hls/master-playlist";
