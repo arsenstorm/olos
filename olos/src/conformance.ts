@@ -41,6 +41,7 @@ export const OLOS_CONFORMANCE_ASSERTION_IDS = [
   "CORE-RUNTIME-001",
   "CORE-RUNTIME-002",
   "CORE-RUNTIME-003",
+  "CORE-RUNTIME-004",
   "OBJ-GRANT-001",
   "OBJ-GRANT-002",
   "OBJ-GRANT-003",
@@ -53,6 +54,7 @@ export const OLOS_CONFORMANCE_ASSERTION_IDS = [
   "OBJ-FLOW-003",
   "OBJ-RUNTIME-001",
   "OBJ-RUNTIME-002",
+  "OBJ-RUNTIME-003",
   "OBJ-CACHE-001",
   "OBJ-CACHE-002",
   "OBJ-CACHE-003",
@@ -300,6 +302,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     testFile: "e2e/runtime-pipeline.test.ts",
   },
   {
+    id: "CORE-RUNTIME-004",
+    level: "core",
+    status: "covered",
+    testFile: "src/runtime/http.test.ts",
+  },
+  {
     id: "OBJ-GRANT-001",
     level: "object",
     status: "covered",
@@ -367,6 +375,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
   },
   {
     id: "OBJ-RUNTIME-002",
+    level: "object",
+    status: "covered",
+    testFile: "src/s3/http.test.ts",
+  },
+  {
+    id: "OBJ-RUNTIME-003",
     level: "object",
     status: "covered",
     testFile: "src/s3/http.test.ts",
