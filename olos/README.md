@@ -294,6 +294,22 @@ The application owns authentication, handler mounting, the coordinator store,
 and S3 client configuration. OLOS owns the upload-slot rules, S3 object
 observation, cursor update, manifest rendering, and response metadata.
 
+### Direct-Public Security
+
+`direct-public` means uploaded media objects may be readable from storage before
+they appear in a trusted manifest. Use it only when object keys are unguessable
+or short-lived exposure is acceptable.
+
+OLOS can validate provider capability documents, issue exact-key upload grants,
+commit only observed objects that match issued slots, keep manifests gated by
+the trusted cursor, and derive cache policies for manifests, media objects, and
+negative object responses.
+
+The application and storage layer still own bucket policy, CDN rules, viewer
+authorization, object-key secrecy, cache purge, and emergency prefix blocks. If
+media must never be public before commit, use a read-gated or private-upload
+promotion flow instead of direct-public publication.
+
 ## Retention Planning
 
 `olos/state` can select cleanup candidates without deleting app-owned data:
