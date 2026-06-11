@@ -1,4 +1,5 @@
 import type { Commit } from "../types/commit";
+import type { OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { MediaObject } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
@@ -30,6 +31,21 @@ export interface CommitObservedUploadResult {
   commit: Commit;
   slot: UploadSlot;
 }
+
+export interface ResolveDuplicateCommitOptions {
+  candidateCommit: Commit;
+  existingCommit: Commit;
+}
+
+export type DuplicateCommitResolution =
+  | {
+      commit: Commit;
+      status: "idempotent";
+    }
+  | {
+      error: OlosError;
+      status: "conflict";
+    };
 
 export function createCommit(options: CreateCommitOptions): Commit {
   assertUploadSlot(options.slot);
@@ -89,6 +105,35 @@ export function commitObservedUpload(
   };
 }
 
+export function resolveDuplicateCommit(
+  options: ResolveDuplicateCommitOptions
+): DuplicateCommitResolution {
+  assertCommit(options.existingCommit);
+  assertCommit(options.candidateCommit);
+
+  if (commitsAreIdempotent(options.existingCommit, options.candidateCommit)) {
+    return {
+      commit: options.existingCommit,
+      status: "idempotent",
+    };
+  }
+
+  return {
+    error: {
+      error: {
+        code: "olos.duplicate_commit_conflict",
+        details: {
+          candidateCommitId: options.candidateCommit.commitId,
+          existingCommitId: options.existingCommit.commitId,
+          slotId: options.existingCommit.slotId,
+        },
+        message: "duplicate commit conflicts with the existing commit",
+      },
+    },
+    status: "conflict",
+  };
+}
+
 function assertCommitPreconditions(options: CreateCommitOptions): void {
   const { mediaObject, slot } = options;
 
@@ -133,3 +178,27 @@ function timestampMs(value: string, name: string): number {
 
   return timestamp;
 }
+
+function commitsAreIdempotent(first: Commit, second: Commit): boolean {
+  return COMMIT_IDEMPOTENCY_FIELDS.every(
+    (field) => first[field] === second[field]
+  );
+}
+
+const COMMIT_IDEMPOTENCY_FIELDS = [
+  "deliveryUrl",
+  "duration",
+  "epoch",
+  "etag",
+  "independent",
+  "mediaSequenceNumber",
+  "objectKey",
+  "partNumber",
+  "programDateTime",
+  "providerId",
+  "publicationMode",
+  "renditionId",
+  "sessionId",
+  "size",
+  "slotId",
+] as const satisfies readonly (keyof Commit)[];

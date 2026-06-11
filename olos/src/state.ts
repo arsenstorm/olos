@@ -6,6 +6,9 @@ export {
   type CreateCommitOptions,
   commitObservedUpload,
   createCommit,
+  type DuplicateCommitResolution,
+  type ResolveDuplicateCommitOptions,
+  resolveDuplicateCommit,
 } from "./state/commit";
 export {
   type CreateCommittedWindowOptions,

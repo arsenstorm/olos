@@ -2,7 +2,11 @@ import { describe, expect, test } from "bun:test";
 import type { MediaObject } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
-import { commitObservedUpload, createCommit } from "./commit";
+import {
+  commitObservedUpload,
+  createCommit,
+  resolveDuplicateCommit,
+} from "./commit";
 
 const slot: UploadSlot = {
   contentType: "video/mp4",
@@ -206,5 +210,58 @@ describe("observed upload commit builder", () => {
         slot: { ...slot, state: "issued" },
       })
     ).toThrow("observedUpload.objectKey must match uploadSlot.objectKey");
+  });
+});
+
+describe("duplicate commit resolution", () => {
+  const existingCommit = createCommit({
+    commitId: "commit_1",
+    committedAt: "2026-01-01T00:00:02.000Z",
+    mediaObject,
+    slot,
+  });
+
+  test("keeps the existing commit for idempotent duplicates", () => {
+    const candidateCommit = {
+      ...existingCommit,
+      commitId: "commit_retry",
+      committedAt: "2026-01-01T00:00:03.000Z",
+    };
+
+    expect(
+      resolveDuplicateCommit({
+        candidateCommit,
+        existingCommit,
+      })
+    ).toEqual({
+      commit: existingCommit,
+      status: "idempotent",
+    });
+  });
+
+  test("returns a duplicate commit conflict for different object evidence", () => {
+    expect(
+      resolveDuplicateCommit({
+        candidateCommit: {
+          ...existingCommit,
+          commitId: "commit_retry",
+          etag: '"different"',
+        },
+        existingCommit,
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.duplicate_commit_conflict",
+          details: {
+            candidateCommitId: "commit_retry",
+            existingCommitId: "commit_1",
+            slotId: "slot_1",
+          },
+          message: "duplicate commit conflicts with the existing commit",
+        },
+      },
+      status: "conflict",
+    });
   });
 });
