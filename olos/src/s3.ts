@@ -2,12 +2,15 @@
 
 export {
   type CommitS3CoordinatorUploadOptions,
+  type CommitStoredS3CoordinatorUploadOptions,
   commitS3CoordinatorUpload,
+  commitStoredS3CoordinatorUpload,
   type IssueS3CoordinatorUploadGrantOptions,
   type IssueStoredS3CoordinatorUploadGrantOptions,
   issueS3CoordinatorUploadGrant,
   issueStoredS3CoordinatorUploadGrant,
   type S3CoordinatorUploadGrantIssue,
+  type StoredS3CoordinatorUploadCommit,
   type StoredS3CoordinatorUploadGrantIssue,
 } from "./s3/coordinator";
 export {

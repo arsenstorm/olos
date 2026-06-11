@@ -13,6 +13,7 @@ import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
   commitS3CoordinatorUpload,
+  commitStoredS3CoordinatorUpload,
   issueS3CoordinatorUploadGrant,
   issueStoredS3CoordinatorUploadGrant,
 } from "./coordinator";
@@ -243,6 +244,113 @@ describe("s3 coordinator uploads", () => {
       firstMediaSequenceNumber: 3810,
       lastMediaSequenceNumber: 3810,
     });
+  });
+
+  test("observes and persists S3 coordinator upload commits", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    let state = createCoordinatorPipeline({ pathways, session });
+    state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/init.mp4",
+      duration: 1,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/init.mp4",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_init",
+      state,
+    }).state;
+    state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state,
+    }).state;
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const initCommit = await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: clientFor("media/init.mp4", 1024, headObjectInputs),
+      commitId: "commit_init",
+      committedAt: "2026-01-01T00:00:01.000Z",
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotId: "slot_init",
+      store,
+    });
+    const segmentCommit = await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotId: "slot_3810",
+      store,
+    });
+
+    expect(initCommit.status).toBe("committed");
+    expect(segmentCommit.status).toBe("committed");
+    if (segmentCommit.status !== "committed") {
+      throw new Error("expected persisted segment commit");
+    }
+
+    const stored = await store.load(session.sessionId);
+
+    expect(segmentCommit.etag).toBe("3");
+    expect(stored?.etag).toBe("3");
+    expect(stored?.state.commits).toEqual([segmentCommit.commit]);
+    expect(stored?.state.cursor?.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/init.mp4",
+      },
+      {
+        Bucket: "media",
+        Key: "media/s3810.m4s",
+      },
+    ]);
+  });
+
+  test("does not query S3 for missing stored coordinator sessions", async () => {
+    const result = await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: {
+        send(): Promise<HeadObjectCommandOutput> {
+          throw new Error("unexpected s3 call");
+        },
+      },
+      commitId: "commit_missing",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotId: "slot_3810",
+      store: createMemoryCoordinatorStore(),
+    });
+
+    expect(result).toEqual({ status: "not_found" });
   });
 
   test("does not query S3 for unknown slots", async () => {

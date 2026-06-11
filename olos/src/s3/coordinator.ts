@@ -32,6 +32,29 @@ export interface CommitS3CoordinatorUploadOptions {
   versionId?: string;
 }
 
+export interface CommitStoredS3CoordinatorUploadOptions
+  extends Omit<CommitS3CoordinatorUploadOptions, "state"> {
+  maxAttempts?: number;
+  sessionId: OlosId;
+  store: CoordinatorPipelineStore;
+}
+
+export type StoredS3CoordinatorUploadCommit =
+  | (Extract<
+      CoordinatorUploadCommit,
+      { status: "committed" | "idempotent" }
+    > & {
+      etag: string;
+    })
+  | Extract<CoordinatorUploadCommit, { status: "rejected" }>
+  | {
+      current?: CoordinatorPipelineSnapshot;
+      status: "conflict";
+    }
+  | {
+      status: "not_found";
+    };
+
 export interface IssueS3CoordinatorUploadGrantOptions
   extends IssueCoordinatorSlotOptions {
   additionalHeaders?: Record<string, string>;
@@ -181,6 +204,64 @@ export async function commitS3CoordinatorUpload(
     slotId: options.slotId,
     state: options.state,
   });
+}
+
+export async function commitStoredS3CoordinatorUpload(
+  options: CommitStoredS3CoordinatorUploadOptions
+): Promise<StoredS3CoordinatorUploadCommit> {
+  const { maxAttempts, sessionId, store, ...commitOptions } = options;
+  const attempts = maxAttempts ?? 2;
+  let snapshot = await store.load(sessionId);
+
+  if (snapshot === undefined) {
+    return { status: "not_found" };
+  }
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const commit = await commitS3CoordinatorUpload({
+      ...commitOptions,
+      state: snapshot.state,
+    });
+
+    if (commit.status === "rejected") {
+      return commit;
+    }
+
+    if (commit.status === "idempotent") {
+      return {
+        ...commit,
+        etag: snapshot.etag,
+      };
+    }
+
+    const saved = await store.save({
+      expectedEtag: snapshot.etag,
+      sessionId,
+      state: commit.state,
+    });
+
+    if (saved.status === "saved") {
+      return {
+        ...commit,
+        etag: saved.etag,
+        ...(saved.state.cursor === undefined
+          ? {}
+          : { cursor: saved.state.cursor }),
+        state: saved.state,
+      };
+    }
+
+    if (saved.current === undefined) {
+      return saved;
+    }
+
+    snapshot = saved.current;
+  }
+
+  return {
+    current: snapshot,
+    status: "conflict",
+  };
 }
 
 function coordinatorError(
