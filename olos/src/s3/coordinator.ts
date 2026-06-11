@@ -242,6 +242,19 @@ export async function issueStoredS3CoordinatorUploadGrant(
 export async function commitS3CoordinatorUpload(
   options: CommitS3CoordinatorUploadOptions
 ): Promise<CoordinatorUploadCommit> {
+  const publication = resolvePublicationControl({
+    operation: "commit_upload",
+    policy: options.publicationControl,
+  });
+
+  if (publication.status === "blocked") {
+    return {
+      error: publication.error,
+      state: options.state,
+      status: "rejected",
+    };
+  }
+
   const slot = options.state.slots.find(
     (entry) => entry.slotId === options.slotId
   );

@@ -10,6 +10,7 @@ import {
   issueCoordinatorSlot,
 } from "../protocol/coordinator";
 import { normalizeUploadEvent } from "../state/observed-upload";
+import { createPublicationKillSwitch } from "../state/publication-control";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
@@ -708,6 +709,120 @@ describe("s3 coordinator uploads", () => {
         Key: "media/s3810.m4s",
       },
     ]);
+  });
+
+  test("rejects upload-completed hints while the kill switch is active", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state: createCoordinatorPipeline({ pathways, session }),
+    }).state;
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const result = await routeStoredS3CoordinatorUploadEvent({
+      bucket: "media",
+      client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+      event: normalizeUploadEvent({
+        event: {
+          eventId: "hint_3810",
+          eventTime: "2026-01-01T00:00:02.000Z",
+          eventType: "upload.completed",
+          objectKey: "media/s3810.m4s",
+          slotId: "slot_3810",
+        },
+      }),
+      providerId: "s3_primary",
+      publicationControl: createPublicationKillSwitch("incident"),
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected upload-completed hint");
+    }
+
+    expect(result.error.error).toMatchObject({
+      code: "olos.security_policy_violation",
+      details: {
+        operation: "commit_upload",
+        reason: "incident",
+      },
+    });
+    expect(headObjectInputs).toEqual([]);
+  });
+
+  test("ignores object-created events while the kill switch is active", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state: createCoordinatorPipeline({ pathways, session }),
+    }).state;
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const result = await routeStoredS3CoordinatorUploadEvent({
+      bucket: "media",
+      client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+      event: normalizeUploadEvent({
+        event: {
+          contentType: "video/mp4",
+          eventId: "evt_3810",
+          eventTime: "2026-01-01T00:00:02.000Z",
+          eventType: "object.created",
+          objectKey: "media/s3810.m4s",
+          providerId: "s3_primary",
+          size: 98_304,
+        },
+      }),
+      providerId: "s3_primary",
+      publicationControl: createPublicationKillSwitch("incident"),
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected ignored object-created event");
+    }
+
+    expect(result.error.error).toMatchObject({
+      code: "olos.security_policy_violation",
+      details: {
+        operation: "process_provider_event",
+        reason: "incident",
+      },
+    });
+    expect(headObjectInputs).toEqual([]);
   });
 
   test("returns invalid upload events without querying S3", async () => {
