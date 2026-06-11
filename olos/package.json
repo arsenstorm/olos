@@ -31,6 +31,11 @@
       "import": "./dist/config.js",
       "default": "./dist/config.js"
     },
+    "./conformance": {
+      "types": "./dist/conformance.d.ts",
+      "import": "./dist/conformance.js",
+      "default": "./dist/conformance.js"
+    },
     "./hls": {
       "types": "./dist/hls.d.ts",
       "import": "./dist/hls.js",
