@@ -4,9 +4,15 @@ import {
   createCommit,
   createCommittedWindow,
   createCursor,
+  createDirectPublicSecurityPolicy,
+  createObjectPublication,
   createObservedUpload,
 } from "olos/state";
-import type { MediaObject, UploadSlot } from "olos/types";
+import type {
+  MediaObject,
+  ProviderCapabilityDocument,
+  UploadSlot,
+} from "olos/types";
 import { assertCommittedWindow, assertCursor } from "olos/validation";
 import { describe, expect, test } from "vitest";
 
@@ -36,6 +42,31 @@ const mediaObject: MediaObject = createObservedUpload({
   providerId: "r2_primary",
   size: 98_304,
 });
+
+const directPublicCapability: ProviderCapabilityDocument = {
+  consistency: {
+    headAfterCreate: "strong",
+    readAfterCreate: "strong",
+  },
+  delivery: {
+    documentNavigationCanBeBlocked: true,
+    immutableCaching: true,
+    negativeCachingPolicyDeclared: true,
+    publicBaseUrl: "https://media.example.com",
+  },
+  kind: "object-store",
+  olos: "1.0",
+  providerId: "r2_primary",
+  publication: {
+    createIfAbsent: true,
+    directObjectPublication: true,
+    manifestGatedPublication: true,
+    overwritesAllowed: false,
+  },
+  uploadGrants: {
+    presignedPut: true,
+  },
+};
 
 describe("protocol flow", () => {
   test("publishes an observed upload through cursor and HLS output", () => {
@@ -114,5 +145,83 @@ describe("protocol flow", () => {
     expect(playlist).toContain('#EXT-X-MAP:URI="/media/v1080/init.mp4"');
     expect(playlist).toContain("#EXTINF:2.000,");
     expect(playlist).toContain("/media/v1080/3810.m4s");
+  });
+
+  test("publishes direct-public objects through security policy and HLS output", () => {
+    const directPublicSlot = {
+      ...slot,
+      deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+    };
+    const initSlot = {
+      ...directPublicSlot,
+      deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+      duration: 1,
+      kind: "init" as const,
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/v1080/init.mp4",
+      slotId: "slot_init",
+    };
+
+    const initCommit = createCommit({
+      commitId: "commit_init",
+      committedAt: "2026-01-01T00:00:01.000Z",
+      mediaObject: {
+        ...mediaObject,
+        objectKey: "media/v1080/init.mp4",
+        size: 1024,
+      },
+      slot: initSlot,
+    });
+
+    const { commit: mediaCommit } = commitObservedUpload({
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      object: mediaObject,
+      slot: { ...directPublicSlot, state: "issued" },
+    });
+
+    const initPublication = createObjectPublication({
+      capability: directPublicCapability,
+      commit: initCommit,
+    });
+    const mediaPublication = createObjectPublication({
+      capability: directPublicCapability,
+      commit: mediaCommit,
+    });
+    const securityPolicy = createDirectPublicSecurityPolicy({
+      capability: directPublicCapability,
+      manifestMaxAgeSeconds: 2,
+      targetLatencySeconds: 3,
+    });
+
+    const committedWindow = createCommittedWindow({
+      commits: [mediaCommit],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    const playlist = renderMediaPlaylist(committedWindow, {
+      allowedMediaOrigins: securityPolicy.allowedMediaOrigins,
+      partTarget: 0.5,
+      renditionId: "v1080",
+      segmentTarget: 2,
+      targetLatency: 3,
+    });
+
+    expect(initPublication.deliveryUrl).toBe(initCommit.deliveryUrl);
+    expect(mediaPublication.deliveryUrl).toBe(mediaCommit.deliveryUrl);
+    expect(securityPolicy.manifestCachePolicy.maxAgeSeconds).toBe(2);
+    expect(securityPolicy.mediaObjectCachePolicy.cacheControl).toContain(
+      "immutable"
+    );
+    expect(playlist).toContain(
+      '#EXT-X-MAP:URI="https://media.example.com/media/v1080/init.mp4"'
+    );
+    expect(playlist).toContain(
+      "https://media.example.com/media/v1080/3810.m4s"
+    );
   });
 });
