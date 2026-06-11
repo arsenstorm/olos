@@ -9,6 +9,11 @@ export {
   type RuntimeObservedUploadPayload,
 } from "./runtime/commit";
 export {
+  type CreateStoredCoordinatorRuntimeHandlerOptions,
+  createStoredCoordinatorRuntimeHandler,
+  type StoredCoordinatorRuntimeHandler,
+} from "./runtime/http";
+export {
   type RuntimeManifestRequest,
   type ServeBlockingCoordinatorManifestOptions,
   type ServeCoordinatorManifestOptions,
