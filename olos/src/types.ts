@@ -17,6 +17,18 @@ export type {
 export type { MediaObject, MediaObjectKind } from "./types/media-object";
 export type { Pathway, PathwayState } from "./types/pathway";
 export type {
+  ProviderApiCapabilities,
+  ProviderCapabilityDocument,
+  ProviderConsistencyCapabilities,
+  ProviderConsistencyLevel,
+  ProviderDeliveryCapabilities,
+  ProviderEventCapabilities,
+  ProviderEventDeliveryMode,
+  ProviderKind,
+  ProviderPublicationCapabilities,
+  ProviderUploadGrantCapabilities,
+} from "./types/provider-capability";
+export type {
   LatencyProfile,
   Rendition,
   RenditionKind,
