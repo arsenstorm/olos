@@ -8,8 +8,10 @@ import {
   assertUploadSlotTransition,
   canTransitionUploadSlot,
   createIssuedUploadSlot,
+  expireUpload,
   observeUpload,
   rejectUpload,
+  resolveUploadExpiry,
   resolveUploadObservation,
   resolveUploadRejection,
 } from "./upload-slot";
@@ -261,6 +263,67 @@ describe("observe upload", () => {
         slot: { ...slot, state: "committed" },
       })
     ).toThrow("uploadSlot.state must be issued or upload_observed");
+  });
+});
+
+describe("expire upload", () => {
+  test("marks an expired issued slot as expired", () => {
+    expect(
+      expireUpload({
+        now: "2026-01-01T00:00:05.000Z",
+        slot,
+      })
+    ).toEqual({
+      ...slot,
+      state: "expired",
+    });
+  });
+
+  test("returns an expiry result", () => {
+    expect(
+      resolveUploadExpiry({
+        now: "2026-01-01T00:00:06.000Z",
+        slot,
+      })
+    ).toEqual({
+      slot: {
+        ...slot,
+        state: "expired",
+      },
+      status: "expired",
+    });
+  });
+
+  test("keeps expired slots idempotent", () => {
+    const expiredSlot: UploadSlot = { ...slot, state: "expired" };
+
+    expect(
+      resolveUploadExpiry({
+        now: "2026-01-01T00:00:06.000Z",
+        slot: expiredSlot,
+      })
+    ).toEqual({
+      slot: expiredSlot,
+      status: "already_expired",
+    });
+  });
+
+  test("rejects premature expiry", () => {
+    expect(() =>
+      expireUpload({
+        now: "2026-01-01T00:00:04.999Z",
+        slot,
+      })
+    ).toThrow("now must be after or equal to uploadSlot.expiresAt");
+  });
+
+  test("rejects non-expirable slots", () => {
+    expect(() =>
+      expireUpload({
+        now: "2026-01-01T00:00:06.000Z",
+        slot: { ...slot, state: "upload_observed" },
+      })
+    ).toThrow("Invalid upload slot transition: upload_observed -> expired");
   });
 });
 

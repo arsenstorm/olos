@@ -41,6 +41,16 @@ export interface UploadObservationResult {
   status: "already_observed" | "observed";
 }
 
+export interface ResolveUploadExpiryOptions {
+  now: string;
+  slot: UploadSlot;
+}
+
+export interface UploadExpiryResult {
+  slot: UploadSlot;
+  status: "already_expired" | "expired";
+}
+
 export interface ResolveUploadRejectionOptions {
   slot: UploadSlot;
 }
@@ -131,6 +141,40 @@ export function resolveUploadObservation(
   return result;
 }
 
+export function expireUpload(options: ResolveUploadExpiryOptions): UploadSlot {
+  return resolveUploadExpiry(options).slot;
+}
+
+export function resolveUploadExpiry(
+  options: ResolveUploadExpiryOptions
+): UploadExpiryResult {
+  assertUploadSlot(options.slot);
+
+  if (options.slot.state === "expired") {
+    return {
+      slot: options.slot,
+      status: "already_expired",
+    };
+  }
+
+  assertUploadSlotTransition(options.slot.state, "expired");
+
+  if (
+    timestampMs(options.now, "now") <
+    timestampMs(options.slot.expiresAt, "uploadSlot.expiresAt")
+  ) {
+    throw new Error("now must be after or equal to uploadSlot.expiresAt");
+  }
+
+  return {
+    slot: {
+      ...options.slot,
+      state: "expired",
+    },
+    status: "expired",
+  };
+}
+
 export function rejectUpload(
   options: ResolveUploadRejectionOptions
 ): UploadSlot {
@@ -186,4 +230,14 @@ function allowedUploadSlotTransitions(
   > = UPLOAD_SLOT_TRANSITIONS;
 
   return transitions[from] ?? [];
+}
+
+function timestampMs(value: string, name: string): number {
+  const timestamp = Date.parse(value);
+
+  if (Number.isNaN(timestamp)) {
+    throw new Error(`${name} must be a valid timestamp`);
+  }
+
+  return timestamp;
 }
