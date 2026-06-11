@@ -25,6 +25,13 @@ export {
   serveCoordinatorManifest,
 } from "./runtime/manifest";
 export {
+  type RunRuntimePublisherUploadStepOptions,
+  type RuntimePublisherCommitResult,
+  type RuntimePublisherIssueResult,
+  type RuntimePublisherUploadStep,
+  runRuntimePublisherUploadStep,
+} from "./runtime/publisher";
+export {
   type DeleteRetiredCoordinatorObjectsOptions,
   deleteRetiredCoordinatorObjects,
   type PlanStoredCoordinatorRetentionOptions,
