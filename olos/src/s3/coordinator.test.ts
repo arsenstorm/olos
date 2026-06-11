@@ -15,6 +15,7 @@ import {
   commitS3CoordinatorUpload,
   commitStoredS3CoordinatorUpload,
   completeStoredS3CoordinatorUpload,
+  completeStoredS3CoordinatorUploadByObjectKey,
   issueS3CoordinatorUploadGrant,
   issueStoredS3CoordinatorUploadGrant,
 } from "./coordinator";
@@ -424,6 +425,79 @@ describe("s3 coordinator uploads", () => {
     }
 
     expect(result.error.error.code).toBe("olos.key_mismatch");
+  });
+
+  test("completes stored S3 uploads by object key", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state: createCoordinatorPipeline({ pathways, session }),
+    }).state;
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const result = await completeStoredS3CoordinatorUploadByObjectKey({
+      bucket: "media",
+      client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      objectKey: "media/s3810.m4s",
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("committed");
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/s3810.m4s",
+      },
+    ]);
+  });
+
+  test("rejects unknown object-key completions before querying S3", async () => {
+    const store = createMemoryCoordinatorStore();
+    await store.save({
+      sessionId: session.sessionId,
+      state: createCoordinatorPipeline({ pathways, session }),
+    });
+
+    const result = await completeStoredS3CoordinatorUploadByObjectKey({
+      bucket: "media",
+      client: {
+        send(): Promise<HeadObjectCommandOutput> {
+          throw new Error("unexpected s3 call");
+        },
+      },
+      commitId: "commit_unknown",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      objectKey: "media/unknown.m4s",
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected completion");
+    }
+
+    expect(result.error.error.code).toBe("olos.unknown_slot");
   });
 
   test("does not query S3 for missing stored coordinator sessions", async () => {

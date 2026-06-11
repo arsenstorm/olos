@@ -3,10 +3,12 @@
 export {
   type CommitS3CoordinatorUploadOptions,
   type CommitStoredS3CoordinatorUploadOptions,
+  type CompleteStoredS3CoordinatorUploadByObjectKeyOptions,
   type CompleteStoredS3CoordinatorUploadOptions,
   commitS3CoordinatorUpload,
   commitStoredS3CoordinatorUpload,
   completeStoredS3CoordinatorUpload,
+  completeStoredS3CoordinatorUploadByObjectKey,
   type IssueS3CoordinatorUploadGrantOptions,
   type IssueStoredS3CoordinatorUploadGrantOptions,
   issueS3CoordinatorUploadGrant,

@@ -44,6 +44,14 @@ export interface CompleteStoredS3CoordinatorUploadOptions
   objectKey?: string;
 }
 
+export interface CompleteStoredS3CoordinatorUploadByObjectKeyOptions
+  extends Omit<
+    CompleteStoredS3CoordinatorUploadOptions,
+    "objectKey" | "slotId"
+  > {
+  objectKey: string;
+}
+
 export type StoredS3CoordinatorUploadCommit =
   | (Extract<
       CoordinatorUploadCommit,
@@ -317,6 +325,35 @@ export async function completeStoredS3CoordinatorUpload(
   }
 
   return commitStoredS3CoordinatorUpload(commitOptions);
+}
+
+export async function completeStoredS3CoordinatorUploadByObjectKey(
+  options: CompleteStoredS3CoordinatorUploadByObjectKeyOptions
+): Promise<StoredS3CoordinatorUploadCompletion> {
+  const snapshot = await options.store.load(options.sessionId);
+
+  if (snapshot === undefined) {
+    return { status: "not_found" };
+  }
+
+  const slot = snapshot.state.slots.find(
+    (entry) => entry.objectKey === options.objectKey
+  );
+
+  if (slot === undefined) {
+    return {
+      error: coordinatorError("olos.unknown_slot", "upload slot is unknown", {
+        objectKey: options.objectKey,
+      }),
+      state: snapshot.state,
+      status: "rejected",
+    };
+  }
+
+  return completeStoredS3CoordinatorUpload({
+    ...options,
+    slotId: slot.slotId,
+  });
 }
 
 function coordinatorError(
