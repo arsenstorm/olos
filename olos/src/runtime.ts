@@ -16,6 +16,11 @@ export {
   serveCoordinatorManifest,
 } from "./runtime/manifest";
 export {
+  type PlanStoredCoordinatorRetentionOptions,
+  planStoredCoordinatorRetention,
+  type StoredRuntimeRetentionPlan,
+} from "./runtime/retention";
+export {
   type CreateStoredCoordinatorSessionOptions,
   createStoredCoordinatorSession,
   type StoredRuntimeSessionCreate,
