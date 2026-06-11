@@ -13,8 +13,8 @@ import {
 } from "olos/protocol";
 import {
   commitStoredS3CoordinatorUpload,
-  completeStoredS3CoordinatorUploadByObjectKey,
   issueStoredS3CoordinatorUploadGrant,
+  normalizeS3ObjectCreatedEvents,
   routeStoredS3CoordinatorUploadEvent,
   type S3HeadObjectClient,
 } from "olos/s3";
@@ -195,31 +195,47 @@ describe("object-store flow", () => {
       store,
     });
 
-    const event = normalizeUploadEvent({
-      event: {
-        contentType: "video/mp4",
-        etag: '"media/v1080/3810.m4s"',
-        eventId: "evt_3810",
-        eventTime: "2026-01-01T00:00:02.000Z",
-        eventType: "object.created",
-        objectKey: "media/v1080/3810.m4s",
-        providerId: "s3_primary",
-        size: 98_304,
+    const [event] = normalizeS3ObjectCreatedEvents({
+      contentType: "video/mp4",
+      payload: {
+        Records: [
+          {
+            eventName: "ObjectCreated:Put",
+            eventTime: "2026-01-01T00:00:02.000Z",
+            responseElements: {
+              "x-amz-request-id": "evt_3810",
+            },
+            s3: {
+              object: {
+                eTag: '"media/v1080/3810.m4s"',
+                key: "media/v1080/3810.m4s",
+                sequencer: "0065A4",
+                size: 98_304,
+              },
+            },
+          },
+        ],
       },
+      providerId: "s3_primary",
     });
 
+    expect(event).toBeDefined();
     expect(event.status).toBe("object_created");
-    if (event.status !== "object_created") {
+    if (event?.status !== "object_created") {
       throw new Error("expected object-created event");
     }
 
-    const segmentCommit = await completeStoredS3CoordinatorUploadByObjectKey({
+    const segmentCommit = await routeStoredS3CoordinatorUploadEvent({
       bucket: "media",
       client: headObjectClient(headObjectInputs, event.event.object.size),
-      commitId: event.event.eventId,
-      committedAt: event.event.object.observedAt,
+      event,
       independent: true,
-      objectKey: event.event.object.objectKey,
+      manifest: {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+        targetLatency: 3,
+      },
       providerId: event.event.object.providerId,
       sessionId: session.sessionId,
       store,
@@ -248,7 +264,18 @@ describe("object-store flow", () => {
       firstMediaSequenceNumber: 3810,
       lastMediaSequenceNumber: 3810,
     });
+    const response =
+      segmentCommit.status === "committed" && segmentCommit.manifest
+        ? resolveHlsManifestArtifactResponse(
+            segmentCommit.manifest.artifacts,
+            "/v1/live/session_1/v1080/media.m3u8"
+          )
+        : undefined;
+
     expect(playlist).toContain(
+      "https://media.example.com/media/v1080/3810.m4s"
+    );
+    expect(response?.body).toContain(
       "https://media.example.com/media/v1080/3810.m4s"
     );
     expect(headObjectInputs).toEqual([
