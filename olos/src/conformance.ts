@@ -162,6 +162,18 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     testFile: "src/state/committed-window.test.ts",
   },
   {
+    id: "CORE-LATE-001",
+    level: "core",
+    status: "covered",
+    testFile: "src/state/commit.test.ts",
+  },
+  {
+    id: "CORE-LATE-002",
+    level: "core",
+    status: "covered",
+    testFile: "src/state/commit.test.ts",
+  },
+  {
     id: "CORE-EVENT-001",
     level: "core",
     status: "covered",

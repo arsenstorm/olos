@@ -1,4 +1,5 @@
 import type { Commit } from "../types/commit";
+import type { Cursor } from "../types/cursor";
 import type { OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { MediaObject } from "../types/media-object";
@@ -28,6 +29,7 @@ export interface UploadCommitResolution {
 
 export interface ResolveCommitAttemptOptions
   extends Omit<CreateCommitOptions, "slot"> {
+  cursor?: Cursor;
   objectVerified?: true;
   session?: Session;
   slot?: UploadSlot;
@@ -45,6 +47,7 @@ export type CommitAttemptResolution =
       status:
         | "invalid_state"
         | "key_mismatch"
+        | "late_object"
         | "object_too_large"
         | "unverified_object"
         | "unknown_slot";
@@ -187,6 +190,27 @@ export function resolveCommitAttempt(
     };
   }
 
+  if (
+    options.cursor !== undefined &&
+    isLateSlot(options.slot, options.cursor)
+  ) {
+    return {
+      error: commitError(
+        "olos.invalid_state",
+        "object is behind the current cursor",
+        {
+          cursorLastMediaSequenceNumber:
+            options.cursor.window.lastMediaSequenceNumber,
+          cursorLastPartNumber: options.cursor.window.lastPartNumber,
+          mediaSequenceNumber: options.slot.mediaSequenceNumber,
+          partNumber: options.slot.partNumber,
+          slotId: options.slot.slotId,
+        }
+      ),
+      status: "late_object",
+    };
+  }
+
   if (options.mediaObject.objectKey !== options.slot.objectKey) {
     return {
       error: commitError(
@@ -315,6 +339,22 @@ function timestampMs(value: string, name: string): number {
   }
 
   return timestamp;
+}
+
+function isLateSlot(slot: UploadSlot, cursor: Cursor): boolean {
+  if (slot.mediaSequenceNumber < cursor.window.lastMediaSequenceNumber) {
+    return true;
+  }
+
+  if (
+    slot.mediaSequenceNumber !== cursor.window.lastMediaSequenceNumber ||
+    slot.partNumber === undefined ||
+    cursor.window.lastPartNumber === undefined
+  ) {
+    return false;
+  }
+
+  return slot.partNumber <= cursor.window.lastPartNumber;
 }
 
 function commitsAreIdempotent(first: Commit, second: Commit): boolean {

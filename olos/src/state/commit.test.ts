@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { Cursor } from "../types/cursor";
 import type { MediaObject } from "../types/media-object";
 import type { Session } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
@@ -66,6 +67,65 @@ const session: Session = {
   sessionId: "session_1",
   state: "live",
   tenantId: "tenant_1",
+};
+
+const cursor: Cursor = {
+  committedWindow: {
+    discontinuitySequence: 0,
+    epoch: 0,
+    firstMediaSequenceNumber: 3810,
+    lastMediaSequenceNumber: 3811,
+    renditions: {
+      v1080: {
+        init: {
+          commitId: "commit_init",
+          deliveryUrl: "/objects/tenant/session/v1080/init.mp4",
+          objectKey: "tenant/session/v1080/init.mp4",
+          slotId: "slot_init",
+        },
+        renditionId: "v1080",
+        segments: [
+          {
+            duration: 2,
+            mediaSequenceNumber: 3811,
+            parts: [
+              {
+                commitId: "commit_3811_0",
+                deliveryUrl: "/objects/tenant/session/v1080/3811.0.m4s",
+                duration: 0.5,
+                objectKey: "tenant/session/v1080/3811.0.m4s",
+                partNumber: 0,
+                slotId: "slot_3811_0",
+              },
+            ],
+          },
+        ],
+      },
+    },
+  },
+  epoch: 0,
+  latencyProfile: "object-ll",
+  olos: "1.0",
+  partTarget: 0.5,
+  pathways: [
+    {
+      baseUrl: "https://media.example.com",
+      pathwayId: "primary",
+      priority: 0,
+      providerId: "r2_primary",
+      state: "active",
+    },
+  ],
+  segmentTarget: 2,
+  sessionId: "session_1",
+  state: "live",
+  tenantId: "tenant_1",
+  updatedAt: "2026-01-01T00:00:03.000Z",
+  window: {
+    firstMediaSequenceNumber: 3810,
+    lastMediaSequenceNumber: 3811,
+    lastPartNumber: 0,
+  },
 };
 
 describe("commit builder", () => {
@@ -353,6 +413,62 @@ describe("commit attempt resolution", () => {
       },
       status: "object_too_large",
     });
+  });
+
+  test("rejects objects behind the current cursor", () => {
+    expect(
+      resolveCommitAttempt({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        cursor,
+        mediaObject,
+        objectVerified: true,
+        slot,
+        slotId: "slot_1",
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          details: {
+            cursorLastMediaSequenceNumber: 3811,
+            cursorLastPartNumber: 0,
+            mediaSequenceNumber: 3810,
+            partNumber: undefined,
+            slotId: "slot_1",
+          },
+          message: "object is behind the current cursor",
+        },
+      },
+      status: "late_object",
+    });
+  });
+
+  test("rejects parts already published by the current cursor", () => {
+    const partSlot = {
+      ...slot,
+      deliveryUrl: "/objects/tenant/session/v1080/3811.0.m4s",
+      duration: 0.5,
+      mediaSequenceNumber: 3811,
+      objectKey: "tenant/session/v1080/3811.0.m4s",
+      partNumber: 0,
+      slotId: "slot_3811_0",
+    };
+
+    expect(
+      resolveCommitAttempt({
+        commitId: "commit_3811_0",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        cursor,
+        mediaObject: {
+          ...mediaObject,
+          objectKey: "tenant/session/v1080/3811.0.m4s",
+        },
+        objectVerified: true,
+        slot: partSlot,
+        slotId: "slot_3811_0",
+      }).status
+    ).toBe("late_object");
   });
 });
 
