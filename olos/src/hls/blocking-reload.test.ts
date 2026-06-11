@@ -4,6 +4,7 @@ import type { Cursor } from "../types/cursor";
 import {
   parseHlsBlockingReloadRequest,
   resolveHlsBlockingReload,
+  waitForHlsBlockingReload,
 } from "./blocking-reload";
 
 const cursor: Cursor = {
@@ -70,6 +71,52 @@ const cursor: Cursor = {
     firstMediaSequenceNumber: 3810,
     lastMediaSequenceNumber: 3812,
     lastPartNumber: 1,
+  },
+};
+
+function validRendition() {
+  const rendition = cursor.committedWindow.renditions.v1080;
+
+  if (!rendition) {
+    throw new Error("missing v1080 test fixture");
+  }
+
+  return rendition;
+}
+
+const advancedCursor: Cursor = {
+  ...cursor,
+  committedWindow: {
+    ...cursor.committedWindow,
+    lastMediaSequenceNumber: 3813,
+    renditions: {
+      v1080: {
+        ...validRendition(),
+        segments: [
+          ...validRendition().segments,
+          {
+            duration: 0.5,
+            mediaSequenceNumber: 3813,
+            parts: [
+              {
+                commitId: "commit_3813_0",
+                deliveryUrl: "/media/3813.0.m4s",
+                duration: 0.5,
+                objectKey: "media/3813.0.m4s",
+                partNumber: 0,
+                slotId: "slot_3813_0",
+              },
+            ],
+          },
+        ],
+      },
+    },
+  },
+  updatedAt: "2026-01-01T00:00:02.500Z",
+  window: {
+    ...cursor.window,
+    lastMediaSequenceNumber: 3813,
+    lastPartNumber: 0,
   },
 };
 
@@ -146,5 +193,80 @@ describe("HLS blocking reload", () => {
         "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=-1"
       )
     ).toThrow("_HLS_msn must be a non-negative integer");
+  });
+
+  test("waits for a cursor that satisfies a blocking request", async () => {
+    const result = await waitForHlsBlockingReload({
+      cursor,
+      request: {
+        mediaSequenceNumber: 3813,
+        partNumber: 0,
+      },
+      timeoutMs: 100,
+      waitForCursor: (context) => {
+        expect(context.cursor).toBe(cursor);
+        expect(context.signal.aborted).toBe(false);
+        return Promise.resolve(advancedCursor);
+      },
+    });
+
+    expect(result).toEqual({
+      cursor: advancedCursor,
+      request: {
+        mediaSequenceNumber: 3813,
+        partNumber: 0,
+      },
+      status: "ready",
+    });
+  });
+
+  test("does not wait when the request is already ready", async () => {
+    const result = await waitForHlsBlockingReload({
+      cursor,
+      request: {
+        mediaSequenceNumber: 3812,
+        partNumber: 1,
+      },
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result.status).toBe("ready");
+  });
+
+  test("returns invalid without waiting", async () => {
+    const result = await waitForHlsBlockingReload({
+      cursor,
+      request: { partNumber: 0 },
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result).toEqual({
+      message: "_HLS_part requires _HLS_msn",
+      status: "invalid",
+    });
+  });
+
+  test("times out when no newer cursor arrives", async () => {
+    const result = await waitForHlsBlockingReload({
+      cursor,
+      request: {
+        mediaSequenceNumber: 3813,
+      },
+      timeoutMs: 0,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result).toEqual({
+      cursor,
+      request: {
+        mediaSequenceNumber: 3813,
+      },
+      status: "timeout",
+    });
   });
 });

@@ -119,6 +119,7 @@ the current playlist immediately or block until the trusted cursor advances.
 import {
   parseHlsBlockingReloadRequest,
   resolveHlsBlockingReload,
+  waitForHlsBlockingReload,
 } from "olos/hls";
 
 const request = parseHlsBlockingReloadRequest(
@@ -131,8 +132,20 @@ if (reload.status === "block") {
 }
 ```
 
-OLOS only makes the blocking decision. The application owns the wait, timeout,
-and retry mechanics.
+For the common gateway case, pass the application-owned cursor watcher into
+`waitForHlsBlockingReload`:
+
+```ts
+const result = await waitForHlsBlockingReload({
+  cursor,
+  request,
+  timeoutMs: 3000,
+  waitForCursor: ({ signal }) => cursorStore.waitForNext(sessionId, { signal }),
+});
+```
+
+OLOS owns the blocking decision and timeout boundary. The application owns the
+cursor store and wake-up mechanism.
 
 ## Upload Event Identity
 

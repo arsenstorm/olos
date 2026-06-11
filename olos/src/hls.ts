@@ -3,8 +3,12 @@
 export {
   type HlsBlockingReloadRequest,
   type HlsBlockingReloadResolution,
+  type HlsCursorWaitContext,
   parseHlsBlockingReloadRequest,
   resolveHlsBlockingReload,
+  type WaitForHlsBlockingReloadOptions,
+  type WaitForHlsBlockingReloadResult,
+  waitForHlsBlockingReload,
 } from "./hls/blocking-reload";
 export {
   type CreateHlsManifestArtifactResponseOptions,

@@ -20,6 +20,30 @@ export type HlsBlockingReloadResolution =
       status: "invalid";
     };
 
+export interface HlsCursorWaitContext {
+  cursor: Cursor;
+  request: HlsBlockingReloadRequest;
+  signal: AbortSignal;
+}
+
+export interface WaitForHlsBlockingReloadOptions {
+  cursor: Cursor;
+  request: HlsBlockingReloadRequest;
+  timeoutMs: number;
+  waitForCursor: (context: HlsCursorWaitContext) => Promise<Cursor | undefined>;
+}
+
+export type WaitForHlsBlockingReloadResult =
+  | {
+      cursor: Cursor;
+      request: HlsBlockingReloadRequest;
+      status: "ready" | "timeout";
+    }
+  | {
+      message: string;
+      status: "invalid";
+    };
+
 export function parseHlsBlockingReloadRequest(
   requestUrl: string
 ): HlsBlockingReloadRequest {
@@ -31,6 +55,54 @@ export function parseHlsBlockingReloadRequest(
     ...parseOptionalInteger(url.searchParams.get(HLS_MSN), HLS_MSN),
     ...parseOptionalInteger(url.searchParams.get(HLS_PART), HLS_PART),
   };
+}
+
+export async function waitForHlsBlockingReload(
+  options: WaitForHlsBlockingReloadOptions
+): Promise<WaitForHlsBlockingReloadResult> {
+  assertCursor(options.cursor);
+  assertTimeout(options.timeoutMs);
+
+  const deadline = Date.now() + options.timeoutMs;
+  let cursor = options.cursor;
+
+  for (;;) {
+    const resolution = resolveHlsBlockingReload(cursor, options.request);
+
+    if (resolution.status === "invalid") {
+      return resolution;
+    }
+
+    if (resolution.status === "ready") {
+      return {
+        cursor,
+        request: options.request,
+        status: "ready",
+      };
+    }
+
+    const remainingMs = deadline - Date.now();
+
+    if (remainingMs <= 0) {
+      return {
+        cursor,
+        request: options.request,
+        status: "timeout",
+      };
+    }
+
+    const nextCursor = await waitForNextCursor(options, cursor, remainingMs);
+
+    if (!nextCursor) {
+      return {
+        cursor,
+        request: options.request,
+        status: "timeout",
+      };
+    }
+
+    cursor = nextCursor;
+  }
 }
 
 export function resolveHlsBlockingReload(
@@ -89,4 +161,41 @@ function parseOptionalInteger(
   return name === HLS_MSN
     ? { mediaSequenceNumber: number }
     : { partNumber: number };
+}
+
+async function waitForNextCursor(
+  options: WaitForHlsBlockingReloadOptions,
+  cursor: Cursor,
+  timeoutMs: number
+): Promise<Cursor | undefined> {
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      options.waitForCursor({
+        cursor,
+        request: options.request,
+        signal: controller.signal,
+      }),
+      new Promise<undefined>((resolve) => {
+        timeout = setTimeout(() => {
+          controller.abort();
+          resolve(undefined);
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
+
+    controller.abort();
+  }
+}
+
+function assertTimeout(value: number): void {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error("options.timeoutMs must be a non-negative number");
+  }
 }
