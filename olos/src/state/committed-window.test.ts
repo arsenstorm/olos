@@ -141,6 +141,30 @@ describe("committed window builder", () => {
     expect(window.renditions.v1080?.segments).toHaveLength(1);
   });
 
+  test("does not advance the window through a missing part", () => {
+    const window = createCommittedWindow({
+      commits: [segmentCommit, partCommit(1)],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    expect(window.lastMediaSequenceNumber).toBe(3810);
+    expect(window.renditions.v1080?.segments).toEqual([
+      {
+        duration: 2,
+        mediaSequenceNumber: 3810,
+        segment: {
+          commitId: "commit_3810",
+          deliveryUrl: "/media/v1080/3810.m4s",
+          duration: 2,
+          objectKey: "media/v1080/3810.m4s",
+          slotId: "slot_3810",
+        },
+      },
+    ]);
+  });
+
   test("rejects empty init commits", () => {
     expect(() =>
       createCommittedWindow({
@@ -205,5 +229,16 @@ describe("committed window builder", () => {
         sessionId: "session_1",
       })
     ).toThrow("commits must not contain duplicate segment positions");
+  });
+
+  test("rejects duplicate part commits", () => {
+    expect(() =>
+      createCommittedWindow({
+        commits: [partCommit(0), partCommit(0)],
+        epoch: 1,
+        initCommits: [initCommit],
+        sessionId: "session_1",
+      })
+    ).toThrow("commits must not contain duplicate part positions");
   });
 });

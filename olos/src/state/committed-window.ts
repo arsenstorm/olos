@@ -147,9 +147,12 @@ function createSegments(
     segment.parts = parts;
   }
 
-  const segments = [...segmentsBySequence.values()].sort(
-    (left, right) => left.mediaSequenceNumber - right.mediaSequenceNumber
-  );
+  const segments = [...segmentsBySequence.values()]
+    .map(commitContiguousParts)
+    .filter(hasCommittedMedia)
+    .sort(
+      (left, right) => left.mediaSequenceNumber - right.mediaSequenceNumber
+    );
 
   if (maxSegments !== undefined) {
     assertPositiveInteger(maxSegments, "maxSegments");
@@ -157,6 +160,44 @@ function createSegments(
   }
 
   return segments;
+}
+
+function commitContiguousParts(segment: CommittedSegment): CommittedSegment {
+  if (segment.parts === undefined) {
+    return segment;
+  }
+
+  assertUniqueParts(segment.parts);
+
+  const parts: CommittedPart[] = [];
+
+  for (const part of segment.parts) {
+    if (part.partNumber !== parts.length) {
+      break;
+    }
+
+    parts.push(part);
+  }
+
+  return parts.length === 0
+    ? { ...segment, parts: undefined }
+    : { ...segment, parts };
+}
+
+function hasCommittedMedia(segment: CommittedSegment): boolean {
+  return segment.segment !== undefined || segment.parts !== undefined;
+}
+
+function assertUniqueParts(parts: readonly CommittedPart[]): void {
+  const seen = new Set<number>();
+
+  for (const part of parts) {
+    if (seen.has(part.partNumber)) {
+      throw new Error("commits must not contain duplicate part positions");
+    }
+
+    seen.add(part.partNumber);
+  }
 }
 
 function segmentForCommit(
