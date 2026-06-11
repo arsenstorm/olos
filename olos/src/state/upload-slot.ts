@@ -60,6 +60,15 @@ export interface UploadRejectionResult {
   status: "already_rejected" | "rejected";
 }
 
+export interface ResolveUploadRevocationOptions {
+  slot: UploadSlot;
+}
+
+export interface UploadRevocationResult {
+  slot: UploadSlot;
+  status: "already_revoked" | "revoked";
+}
+
 export function createIssuedUploadSlot(
   options: CreateIssuedUploadSlotOptions
 ): UploadSlot {
@@ -201,6 +210,35 @@ export function resolveUploadRejection(
       state: "rejected",
     },
     status: "rejected",
+  };
+}
+
+export function revokeUpload(
+  options: ResolveUploadRevocationOptions
+): UploadSlot {
+  return resolveUploadRevocation(options).slot;
+}
+
+export function resolveUploadRevocation(
+  options: ResolveUploadRevocationOptions
+): UploadRevocationResult {
+  assertUploadSlot(options.slot);
+
+  if (options.slot.state === "revoked") {
+    return {
+      slot: options.slot,
+      status: "already_revoked",
+    };
+  }
+
+  assertUploadSlotTransition(options.slot.state, "revoked");
+
+  return {
+    slot: {
+      ...options.slot,
+      state: "revoked",
+    },
+    status: "revoked",
   };
 }
 

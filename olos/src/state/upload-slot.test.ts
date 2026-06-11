@@ -14,6 +14,8 @@ import {
   resolveUploadExpiry,
   resolveUploadObservation,
   resolveUploadRejection,
+  resolveUploadRevocation,
+  revokeUpload,
 } from "./upload-slot";
 
 const session: Session = {
@@ -360,5 +362,41 @@ describe("reject upload", () => {
     expect(() => rejectUpload({ slot })).toThrow(
       "Invalid upload slot transition: issued -> rejected"
     );
+  });
+});
+
+describe("revoke upload", () => {
+  test("revokes issued, observed, and committed slots", () => {
+    for (const state of ["issued", "upload_observed", "committed"] as const) {
+      expect(revokeUpload({ slot: { ...slot, state } })).toEqual({
+        ...slot,
+        state: "revoked",
+      });
+    }
+  });
+
+  test("returns a revocation result", () => {
+    expect(resolveUploadRevocation({ slot })).toEqual({
+      slot: {
+        ...slot,
+        state: "revoked",
+      },
+      status: "revoked",
+    });
+  });
+
+  test("keeps revoked slots idempotent", () => {
+    const revokedSlot: UploadSlot = { ...slot, state: "revoked" };
+
+    expect(resolveUploadRevocation({ slot: revokedSlot })).toEqual({
+      slot: revokedSlot,
+      status: "already_revoked",
+    });
+  });
+
+  test("rejects non-revokable slots", () => {
+    expect(() =>
+      revokeUpload({ slot: { ...slot, state: "announced" } })
+    ).toThrow("Invalid upload slot transition: announced -> revoked");
   });
 });
