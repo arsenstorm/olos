@@ -8,6 +8,10 @@ export {
 export { type CreateCursorOptions, createCursor } from "./state/cursor";
 export { assertSessionTransition, canTransitionSession } from "./state/session";
 export {
+  type CreateUploadGrantOptions,
+  createUploadGrant,
+} from "./state/upload-grant";
+export {
   assertUploadSlotTransition,
   canTransitionUploadSlot,
 } from "./state/upload-slot";
