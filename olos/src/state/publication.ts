@@ -1,0 +1,94 @@
+import type { Commit } from "../types/commit";
+import type { ProviderCapabilityDocument } from "../types/provider-capability";
+import type { ObjectPublication } from "../types/publication";
+import { assertCommit } from "../validation/commit";
+import { assertProviderCapabilityDocument } from "../validation/provider-capability";
+
+export interface CreateObjectPublicationOptions {
+  capability: ProviderCapabilityDocument;
+  commit: Commit;
+}
+
+export function createObjectPublication(
+  options: CreateObjectPublicationOptions
+): ObjectPublication {
+  assertCommit(options.commit);
+  assertProviderCapabilityDocument(options.capability);
+  assertProviderOwnsCommit(options);
+
+  return {
+    commitId: options.commit.commitId,
+    deliveryUrl: deliveryUrlForPublication(options),
+    objectKey: options.commit.objectKey,
+    providerId: options.commit.providerId,
+    publicationMode: options.commit.publicationMode,
+    slotId: options.commit.slotId,
+  };
+}
+
+function deliveryUrlForPublication(
+  options: CreateObjectPublicationOptions
+): string {
+  const { capability, commit } = options;
+
+  if (commit.publicationMode === "direct-public") {
+    if (capability.publication.directObjectPublication !== true) {
+      throw new Error(
+        "providerCapability.publication.directObjectPublication must be true for direct-public commits"
+      );
+    }
+
+    if (capability.publication.manifestGatedPublication !== true) {
+      throw new Error(
+        "providerCapability.publication.manifestGatedPublication must be true for direct-public commits"
+      );
+    }
+
+    return publicObjectUrl(capability.delivery.publicBaseUrl, commit.objectKey);
+  }
+
+  if (
+    commit.publicationMode === "read-gated" &&
+    capability.publication.readGateAvailable !== true
+  ) {
+    throw new Error(
+      "providerCapability.publication.readGateAvailable must be true for read-gated commits"
+    );
+  }
+
+  if (
+    commit.publicationMode === "private-upload-public-promotion" &&
+    capability.publication.privateUploadPublicPromotion !== true
+  ) {
+    throw new Error(
+      "providerCapability.publication.privateUploadPublicPromotion must be true for private-upload-public-promotion commits"
+    );
+  }
+
+  return commit.deliveryUrl;
+}
+
+function assertProviderOwnsCommit(
+  options: CreateObjectPublicationOptions
+): void {
+  if (options.commit.providerId !== options.capability.providerId) {
+    throw new Error(
+      "commit.providerId must match providerCapability.providerId"
+    );
+  }
+}
+
+function publicObjectUrl(publicBaseUrl: string, objectKey: string): string {
+  const url = new URL(publicBaseUrl);
+  const basePath = url.pathname.endsWith("/")
+    ? url.pathname.slice(0, -1)
+    : url.pathname;
+  const keyPath = objectKey
+    .split("/")
+    .filter((segment) => segment.length > 0)
+    .map(encodeURIComponent)
+    .join("/");
+
+  url.pathname = `${basePath}/${keyPath}`;
+  return url.toString();
+}

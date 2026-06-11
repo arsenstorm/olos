@@ -276,6 +276,18 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     testFile: "src/state/observed-upload.test.ts",
   },
   {
+    id: "OBJ-PUB-001",
+    level: "object",
+    status: "covered",
+    testFile: "src/state/publication.test.ts",
+  },
+  {
+    id: "OBJ-PUB-002",
+    level: "object",
+    status: "covered",
+    testFile: "src/state/publication.test.ts",
+  },
+  {
     id: "HLS-GOLDEN-001",
     level: "hls",
     status: "covered",

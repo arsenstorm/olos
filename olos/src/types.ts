@@ -28,6 +28,7 @@ export type {
   ProviderPublicationCapabilities,
   ProviderUploadGrantCapabilities,
 } from "./types/provider-capability";
+export type { ObjectPublication } from "./types/publication";
 export type {
   LatencyProfile,
   Rendition,

@@ -63,6 +63,10 @@ export {
   canProviderIssueUploadGrant,
   type ProviderUploadGrantPolicyOptions,
 } from "./state/provider-upload-grant-policy";
+export {
+  type CreateObjectPublicationOptions,
+  createObjectPublication,
+} from "./state/publication";
 export { assertSessionTransition, canTransitionSession } from "./state/session";
 export {
   type CreateUploadGrantOptions,
