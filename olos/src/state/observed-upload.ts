@@ -1,3 +1,5 @@
+import type { OlosError } from "../types/errors";
+import type { UploadSlot } from "../types/upload-slot";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import {
   assertObservedUpload,
@@ -49,6 +51,11 @@ export interface ResolveObjectCreatedEventObservationOptions {
   observedEventIds: ReadonlySet<string> | readonly string[];
 }
 
+export interface ResolveObjectCreatedEventSlotOptions {
+  event: ObservedUploadObjectCreatedEvent;
+  slot?: UploadSlot;
+}
+
 export type ObjectCreatedEventObservationResolution =
   | {
       event: ObservedUploadObjectCreatedEvent;
@@ -57,6 +64,16 @@ export type ObjectCreatedEventObservationResolution =
   | {
       eventId: string;
       status: "duplicate";
+    };
+
+export type ObjectCreatedEventSlotResolution =
+  | {
+      slot: UploadSlot;
+      status: "matched";
+    }
+  | {
+      error: OlosError;
+      status: "unknown_object_key";
     };
 
 export function createObservedUpload(
@@ -123,6 +140,41 @@ export function resolveObjectCreatedEventObservation(
   return {
     event: options.event,
     status: "observed",
+  };
+}
+
+export function resolveObjectCreatedEventSlot(
+  options: ResolveObjectCreatedEventSlotOptions
+): ObjectCreatedEventSlotResolution {
+  if (
+    options.slot !== undefined &&
+    options.slot.objectKey === options.event.object.objectKey
+  ) {
+    return {
+      slot: options.slot,
+      status: "matched",
+    };
+  }
+
+  return {
+    error: {
+      error: {
+        code: "olos.unknown_slot",
+        details: {
+          eventId: options.event.eventId,
+          objectKey: options.event.object.objectKey,
+          providerId: options.event.object.providerId,
+          ...(options.slot === undefined
+            ? {}
+            : {
+                slotId: options.slot.slotId,
+                slotObjectKey: options.slot.objectKey,
+              }),
+        },
+        message: "object-created event does not match a known slot",
+      },
+    },
+    status: "unknown_object_key",
   };
 }
 

@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import type { UploadSlot } from "../types/upload-slot";
 import {
   createObservedUpload,
   createObservedUploadFromHeadObject,
   createObservedUploadFromObjectCreatedEvent,
   resolveObjectCreatedEventObservation,
+  resolveObjectCreatedEventSlot,
 } from "./observed-upload";
 
 describe("observed upload builder", () => {
@@ -156,6 +158,25 @@ describe("head object normalization", () => {
 });
 
 describe("object created event normalization", () => {
+  const slot: UploadSlot = {
+    contentType: "video/mp4",
+    deliveryUrl: "/objects/media/session/v1080/3810.m4s",
+    duration: 2,
+    epoch: 0,
+    expiresAt: "2026-01-01T00:00:05.000Z",
+    kind: "segment",
+    maxBytes: 100_000,
+    mediaSequenceNumber: 3810,
+    objectKey: "media/session/v1080/3810.m4s",
+    publicationMode: "direct-public",
+    publisherInstanceId: "pub_1",
+    renditionId: "v1080",
+    sessionId: "session_1",
+    slotId: "slot_1",
+    state: "issued",
+    tenantId: "tenant_1",
+  };
+
   const objectCreatedEvent = createObservedUploadFromObjectCreatedEvent({
     contentType: "video/mp4",
     etag: '"abc123"',
@@ -185,6 +206,83 @@ describe("object created event normalization", () => {
         providerId: "s3_primary",
         size: 98_304,
       },
+    });
+  });
+
+  test("matches object-created events to known object keys", () => {
+    expect(
+      resolveObjectCreatedEventSlot({
+        event: objectCreatedEvent,
+        slot,
+      })
+    ).toEqual({
+      slot,
+      status: "matched",
+    });
+  });
+
+  test("rejects object-created events for unknown object keys", () => {
+    const event = createObservedUploadFromObjectCreatedEvent({
+      contentType: "video/mp4",
+      eventId: "evt_unknown",
+      eventTime: "2026-01-01T00:00:01.000Z",
+      eventType: "object.created",
+      objectKey: "media/session/v1080/9999.m4s",
+      providerId: "s3_primary",
+      size: 98_304,
+    });
+
+    expect(
+      resolveObjectCreatedEventSlot({
+        event,
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.unknown_slot",
+          details: {
+            eventId: "evt_unknown",
+            objectKey: "media/session/v1080/9999.m4s",
+            providerId: "s3_primary",
+          },
+          message: "object-created event does not match a known slot",
+        },
+      },
+      status: "unknown_object_key",
+    });
+  });
+
+  test("rejects object-created events with mismatched slot lookups", () => {
+    const event = createObservedUploadFromObjectCreatedEvent({
+      contentType: "video/mp4",
+      eventId: "evt_mismatch",
+      eventTime: "2026-01-01T00:00:01.000Z",
+      eventType: "object.created",
+      objectKey: "media/session/v1080/9999.m4s",
+      providerId: "s3_primary",
+      size: 98_304,
+    });
+
+    expect(
+      resolveObjectCreatedEventSlot({
+        event,
+        slot,
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.unknown_slot",
+          details: {
+            eventId: "evt_mismatch",
+            objectKey: "media/session/v1080/9999.m4s",
+            providerId: "s3_primary",
+            slotId: "slot_1",
+            slotObjectKey: "media/session/v1080/3810.m4s",
+          },
+          message: "object-created event does not match a known slot",
+        },
+      },
+      status: "unknown_object_key",
     });
   });
 

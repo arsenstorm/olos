@@ -36,9 +36,12 @@ export {
   createObservedUploadFromObjectCreatedEvent,
   OBJECT_CREATED_EVENT_TYPE,
   type ObjectCreatedEventObservationResolution,
+  type ObjectCreatedEventSlotResolution,
   type ObservedUploadObjectCreatedEvent,
   type ResolveObjectCreatedEventObservationOptions,
+  type ResolveObjectCreatedEventSlotOptions,
   resolveObjectCreatedEventObservation,
+  resolveObjectCreatedEventSlot,
 } from "./state/observed-upload";
 export {
   type PathwayFailoverResolution,
