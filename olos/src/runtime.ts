@@ -27,7 +27,11 @@ export {
   commitStoredCoordinatorUploadFromRequest,
   type IssueStoredCoordinatorSlotFromRequestOptions,
   issueStoredCoordinatorSlotFromRequest,
+  type ServeStoredBlockingCoordinatorManifestOptions,
+  type ServeStoredCoordinatorManifestOptions,
   type StoredRuntimeMutation,
   type StoredRuntimeSlotIssue,
   type StoredRuntimeUploadCommit,
+  serveStoredBlockingCoordinatorManifest,
+  serveStoredCoordinatorManifest,
 } from "./runtime/stored";

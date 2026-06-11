@@ -9,6 +9,12 @@ import {
   type RuntimeCoordinatorUploadCommit,
 } from "./commit";
 import {
+  type ServeBlockingCoordinatorManifestOptions,
+  type ServeCoordinatorManifestOptions,
+  serveBlockingCoordinatorManifest,
+  serveCoordinatorManifest,
+} from "./manifest";
+import {
   issueCoordinatorSlotFromRequest,
   type RuntimeCoordinatorSlotIssue,
   type RuntimeSlotIssueRequest,
@@ -24,6 +30,18 @@ export interface IssueStoredCoordinatorSlotFromRequestOptions {
 export interface CommitStoredCoordinatorUploadFromRequestOptions {
   maxAttempts?: number;
   request: RuntimeCommitRequest;
+  sessionId: OlosId;
+  store: CoordinatorPipelineStore;
+}
+
+export interface ServeStoredCoordinatorManifestOptions
+  extends Omit<ServeCoordinatorManifestOptions, "state"> {
+  sessionId: OlosId;
+  store: CoordinatorPipelineStore;
+}
+
+export interface ServeStoredBlockingCoordinatorManifestOptions
+  extends Omit<ServeBlockingCoordinatorManifestOptions, "state"> {
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
 }
@@ -58,6 +76,40 @@ export type StoredRuntimeUploadCommit =
       { status: "committed" | "idempotent" }
     >
   | StoredRuntimeMutation;
+
+export async function serveStoredCoordinatorManifest(
+  options: ServeStoredCoordinatorManifestOptions
+): Promise<Response> {
+  const snapshot = await options.store.load(options.sessionId);
+
+  if (snapshot === undefined) {
+    return manifestNotFound();
+  }
+
+  const { sessionId, store, ...manifest } = options;
+
+  return serveCoordinatorManifest({
+    ...manifest,
+    state: snapshot.state,
+  });
+}
+
+export async function serveStoredBlockingCoordinatorManifest(
+  options: ServeStoredBlockingCoordinatorManifestOptions
+): Promise<Response> {
+  const snapshot = await options.store.load(options.sessionId);
+
+  if (snapshot === undefined) {
+    return manifestNotFound();
+  }
+
+  const { sessionId, store, ...manifest } = options;
+
+  return await serveBlockingCoordinatorManifest({
+    ...manifest,
+    state: snapshot.state,
+  });
+}
 
 export async function issueStoredCoordinatorSlotFromRequest(
   options: IssueStoredCoordinatorSlotFromRequestOptions
@@ -176,6 +228,13 @@ function notFound(): StoredRuntimeMutation {
     ),
     status: "not_found",
   };
+}
+
+function manifestNotFound(): Response {
+  return new Response("manifest not found", {
+    headers: { "content-type": "text/plain; charset=utf-8" },
+    status: 404,
+  });
 }
 
 function conflict(

@@ -16,6 +16,8 @@ import type { Session } from "../types/session";
 import {
   commitStoredCoordinatorUploadFromRequest,
   issueStoredCoordinatorSlotFromRequest,
+  serveStoredBlockingCoordinatorManifest,
+  serveStoredCoordinatorManifest,
 } from "./stored";
 
 const session: Session = {
@@ -162,6 +164,78 @@ describe("stored runtime mutations", () => {
     expect(await result.response.json()).toEqual({
       error: { message: "coordinator session changed during mutation" },
     });
+  });
+
+  test("serves manifests from stored coordinator state", async () => {
+    const store = await createReadyStore();
+
+    const result = await commitStoredCoordinatorUploadFromRequest({
+      request: commitPayload(),
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("committed");
+
+    const response = await serveStoredCoordinatorManifest({
+      allowedMediaOrigins: ["https://media.example.com"],
+      partTarget: session.partTarget,
+      request: "https://edge.example.com/v1/live/session_1/v1080/media.m3u8",
+      segmentTarget: session.segmentTarget,
+      sessionId: session.sessionId,
+      store,
+      targetLatency: 3,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe(
+      "application/vnd.apple.mpegurl"
+    );
+    expect(await response.text()).toContain(
+      "https://media.example.com/s3810.m4s"
+    );
+  });
+
+  test("returns manifest not found responses for missing stored manifests", async () => {
+    const response = await serveStoredCoordinatorManifest({
+      allowedMediaOrigins: ["https://media.example.com"],
+      partTarget: session.partTarget,
+      request: "https://edge.example.com/v1/live/missing/v1080/media.m3u8",
+      segmentTarget: session.segmentTarget,
+      sessionId: "missing",
+      store: createMemoryCoordinatorStore(),
+      targetLatency: 3,
+    });
+
+    expect(response.status).toBe(404);
+    expect(await response.text()).toBe("manifest not found");
+  });
+
+  test("serves blocking manifests from stored coordinator state", async () => {
+    const store = await createReadyStore();
+
+    await commitStoredCoordinatorUploadFromRequest({
+      request: commitPayload(),
+      sessionId: session.sessionId,
+      store,
+    });
+
+    const response = await serveStoredBlockingCoordinatorManifest({
+      allowedMediaOrigins: ["https://media.example.com"],
+      partTarget: session.partTarget,
+      request:
+        "https://edge.example.com/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810",
+      segmentTarget: session.segmentTarget,
+      sessionId: session.sessionId,
+      store,
+      targetLatency: 3,
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
   });
 });
 
