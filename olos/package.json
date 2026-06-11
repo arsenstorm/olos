@@ -46,6 +46,11 @@
       "import": "./dist/protocol.js",
       "default": "./dist/protocol.js"
     },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js",
+      "default": "./dist/runtime.js"
+    },
     "./s3": {
       "types": "./dist/s3.d.ts",
       "import": "./dist/s3.js",
