@@ -24,6 +24,23 @@ Release checklist:
 
 The workflow requires an `NPM_TOKEN` repository secret with publish access.
 
+## 0.1.0 Commands
+
+```bash
+bun install --frozen-lockfile
+bun run publish:check
+bun --filter olos release:verify-tag olos-v0.1.0
+git tag olos-v0.1.0
+git push origin olos-v0.1.0
+```
+
+After the workflow finishes, verify the published package from a fresh checkout
+or local working tree:
+
+```bash
+bun --filter olos release:verify-published 0.1.0
+```
+
 ## Release Notes
 
 Every release should include notes that cover:
