@@ -697,6 +697,144 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
   });
 
+  test("reports S3 event commit policy rejections", async () => {
+    const headObjectInputs: unknown[] = [];
+    const notifiedCursors: Cursor[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      commitPolicy: ({ slot }) =>
+        slot.kind === "init"
+          ? { status: "allowed" }
+          : {
+              error: {
+                error: {
+                  code: "olos.quota_exceeded",
+                  details: {
+                    publisherInstanceId: slot.publisherInstanceId,
+                  },
+                  message: "tenant quota exceeded",
+                },
+              },
+              status: "rejected",
+            },
+      cursorNotifier: {
+        notify: (cursor) => notifiedCursors.push(cursor),
+        waitForCursor: () =>
+          Promise.reject(new Error("waiter should not be called")),
+      },
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+          "live/session/v1080/init.mp4": 1024,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
+          duration: 1,
+          kind: "init",
+          maxBytes: 2048,
+          mediaSequenceNumber: 0,
+          objectKey: "live/session/v1080/init.mp4",
+          slotId: "slot_init",
+        })
+      )
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+    await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_init",
+        committedAt: "2026-01-01T00:00:01.000Z",
+        objectKey: "live/session/v1080/init.mp4",
+        providerId: "s3_primary",
+        slotId: "slot_init",
+      })
+    );
+
+    const response = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/events",
+        s3Event("live/session/v1080/3810.m4s")
+      )
+    );
+    const body = (await response.json()) as {
+      results: {
+        error?: {
+          code: string;
+          details?: Record<string, unknown>;
+          message: string;
+        };
+        status: string;
+      }[];
+    };
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(202);
+    expect(body.results).toMatchObject([
+      {
+        error: {
+          code: "olos.quota_exceeded",
+          details: {
+            publisherInstanceId: "pub_1",
+          },
+          message: "tenant quota exceeded",
+        },
+        status: "rejected",
+      },
+    ]);
+    expect(stored?.state.initCommits).toHaveLength(1);
+    expect(stored?.state.commits).toEqual([]);
+    expect(stored?.state.cursor).toBeUndefined();
+    expect(
+      stored?.state.slots.find((slot) => slot.slotId === "slot_3810")
+    ).toMatchObject({
+      slotId: "slot_3810",
+      state: "issued",
+    });
+    expect(notifiedCursors).toEqual([]);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/init.mp4",
+      },
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
+  });
+
   test("routes duplicate and irrelevant S3 object-created events", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
