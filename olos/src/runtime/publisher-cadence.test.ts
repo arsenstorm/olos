@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  createRuntimePublisherNextObjectPlan,
   createRuntimePublisherObjectPlanInput,
   resolveRuntimePublisherNextObjectPosition,
 } from "./publisher-cadence";
@@ -132,6 +133,92 @@ describe("runtime publisher cadence", () => {
       mediaSequenceNumber: 3811,
       minBytes: 1,
       partNumber: 1,
+    });
+  });
+
+  test("creates the next object plan from cursor cadence", () => {
+    expect(
+      createRuntimePublisherNextObjectPlan({
+        baseUrl: "https://media.example.com",
+        cursorWindow: {
+          firstMediaSequenceNumber: 3810,
+          lastMediaSequenceNumber: 3811,
+        },
+        defaults: objectDefaults,
+        now: "2026-01-01T00:00:00.000Z",
+        objectKeyPrefix: "media/session_1",
+        publicationMode: "direct-public",
+        publisherInstanceId: "publisher_1",
+        renditionId: "v1080",
+        targetLatency: 3,
+      })
+    ).toEqual({
+      expiry: {
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        ttlSeconds: 5,
+      },
+      plan: {
+        commitId: "commit_v1080_s3812",
+        slot: {
+          contentType: "video/mp4",
+          deliveryUrl:
+            "https://media.example.com/media/session_1/v1080/s3812.m4s",
+          duration: 2,
+          expiresAt: "2026-01-01T00:00:05.000Z",
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3812,
+          objectKey: "media/session_1/v1080/s3812.m4s",
+          publicationMode: "direct-public",
+          publisherInstanceId: "publisher_1",
+          renditionId: "v1080",
+          slotId: "slot_v1080_s3812",
+        },
+      },
+      position: {
+        kind: "segment",
+        mediaSequenceNumber: 3812,
+      },
+    });
+  });
+
+  test("creates the next low-latency part plan", () => {
+    expect(
+      createRuntimePublisherNextObjectPlan({
+        baseUrl: "https://media.example.com",
+        cursorWindow: {
+          firstMediaSequenceNumber: 3810,
+          lastMediaSequenceNumber: 3811,
+          lastPartNumber: 0,
+        },
+        defaults: objectDefaults,
+        mode: "part",
+        now: "2026-01-01T00:00:00.000Z",
+        objectKeyPrefix: "media/session_1",
+        partsPerSegment: 4,
+        publicationMode: "direct-public",
+        publisherInstanceId: "publisher_1",
+        renditionId: "v1080",
+        targetLatency: 3,
+      })
+    ).toMatchObject({
+      expiry: {
+        expiresAt: "2026-01-01T00:00:04.000Z",
+        ttlSeconds: 4,
+      },
+      plan: {
+        commitId: "commit_v1080_s3811_p1",
+        slot: {
+          kind: "part",
+          objectKey: "media/session_1/v1080/s3811/p1.m4s",
+          partNumber: 1,
+        },
+      },
+      position: {
+        kind: "part",
+        mediaSequenceNumber: 3811,
+        partNumber: 1,
+      },
     });
   });
 });

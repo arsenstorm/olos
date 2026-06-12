@@ -1,10 +1,17 @@
 import type { CursorWindow } from "../types/cursor";
 import type { PublicationMode } from "../types/upload-slot";
 import { isNonNegativeInteger } from "../validation/ids";
+import {
+  type ResolveRuntimePublisherObjectExpiryOptions,
+  type RuntimePublisherObjectExpiry,
+  resolveRuntimePublisherObjectExpiry,
+} from "./publisher-expiry";
 import type {
   CreateRuntimePublisherObjectPlanOptions,
+  RuntimePublisherObjectPlan,
   RuntimePublisherPlannedObjectKind,
 } from "./publisher-plan";
+import { createRuntimePublisherObjectPlan } from "./publisher-plan";
 
 export type RuntimePublisherCadenceMode = "part" | "segment";
 
@@ -45,10 +52,21 @@ export interface CreateRuntimePublisherObjectPlanInputOptions {
   renditionId: string;
 }
 
+export interface CreateRuntimePublisherNextObjectPlanOptions
+  extends Omit<CreateRuntimePublisherObjectPlanInputOptions, "position">,
+    Omit<ResolveRuntimePublisherObjectExpiryOptions, "duration">,
+    ResolveRuntimePublisherNextObjectPositionOptions {}
+
 export type RuntimePublisherObjectPlanInput = Omit<
   CreateRuntimePublisherObjectPlanOptions,
   "expiresAt"
 >;
+
+export interface RuntimePublisherNextObjectPlan {
+  expiry: RuntimePublisherObjectExpiry;
+  plan: RuntimePublisherObjectPlan;
+  position: RuntimePublisherObjectPosition;
+}
 
 export function resolveRuntimePublisherNextObjectPosition(
   options: ResolveRuntimePublisherNextObjectPositionOptions = {}
@@ -106,6 +124,31 @@ export function createRuntimePublisherObjectPlanInput(
     renditionId: options.renditionId,
     ...optionalNumber("minBytes", defaults.minBytes),
     ...optionalNumber("partNumber", options.position.partNumber),
+  };
+}
+
+export function createRuntimePublisherNextObjectPlan(
+  options: CreateRuntimePublisherNextObjectPlanOptions
+): RuntimePublisherNextObjectPlan {
+  const position = resolveRuntimePublisherNextObjectPosition(options);
+  const input = createRuntimePublisherObjectPlanInput({
+    ...options,
+    position,
+  });
+  const expiry = resolveRuntimePublisherObjectExpiry({
+    duration: input.duration,
+    minTtlSeconds: options.minTtlSeconds,
+    now: options.now,
+    targetLatency: options.targetLatency,
+  });
+
+  return {
+    expiry,
+    plan: createRuntimePublisherObjectPlan({
+      ...input,
+      expiresAt: expiry.expiresAt,
+    }),
+    position,
   };
 }
 

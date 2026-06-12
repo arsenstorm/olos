@@ -123,6 +123,9 @@ per-kind object defaults before a concrete plan is created.
 `ttlSeconds` from object duration plus target latency. Use it for planned slot
 expiry and provider upload grant TTLs when you want OLOS to keep that policy
 consistent without taking over scheduling.
+`createRuntimePublisherNextObjectPlan` combines cursor cadence, object defaults,
+and expiry policy into the next planned object. The application still owns the
+publisher loop, encoder timing, upload retries, and commit timing.
 
 `resolveRuntimeLiveHealth` combines cursor freshness and optional publisher
 lease status into `active`, `starting`, or `stale`. Use it for dashboards and
