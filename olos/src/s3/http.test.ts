@@ -9,6 +9,7 @@ import {
 
 import {
   type CoordinatorPipelineState,
+  type CoordinatorPipelineStore,
   commitCoordinatorUpload,
   createCoordinatorPipeline,
   createMemoryCoordinatorStore,
@@ -964,6 +965,125 @@ describe("stored S3 coordinator runtime handler", () => {
       {
         Bucket: "media",
         Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
+  });
+
+  test("retries S3 object-created events after store conflicts", async () => {
+    const headObjectInputs: unknown[] = [];
+    const innerStore = createMemoryCoordinatorStore();
+    let failNextSave = false;
+    let saves = 0;
+    const store: CoordinatorPipelineStore = {
+      load: (sessionId) => innerStore.load(sessionId),
+      save: async (options) => {
+        saves += 1;
+
+        if (failNextSave) {
+          failNextSave = false;
+          return {
+            current: await innerStore.load(options.sessionId),
+            status: "conflict",
+          };
+        }
+
+        return await innerStore.save(options);
+      },
+    };
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      maxAttempts: 2,
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+          "live/session/v1080/init.mp4": 1024,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
+          duration: 1,
+          kind: "init",
+          maxBytes: 2048,
+          mediaSequenceNumber: 0,
+          objectKey: "live/session/v1080/init.mp4",
+          slotId: "slot_init",
+        })
+      )
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+    await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_init",
+        committedAt: "2026-01-01T00:00:01.000Z",
+        objectKey: "live/session/v1080/init.mp4",
+        providerId: "s3_primary",
+        slotId: "slot_init",
+      })
+    );
+
+    failNextSave = true;
+    const savesBeforeEvent = saves;
+    const response = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/events",
+        s3Event("live/session/v1080/3810.m4s")
+      )
+    );
+    const body = (await response.json()) as {
+      results: {
+        commit?: { objectKey: string; slotId: string };
+        status: string;
+      }[];
+    };
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(202);
+    expect(body.results).toMatchObject([
+      {
+        commit: {
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        },
+        status: "committed",
+      },
+    ]);
+    expect(saves - savesBeforeEvent).toBe(2);
+    expect(stored?.state.commits).toMatchObject([
+      {
+        commitId: "event_3810",
+        objectKey: "live/session/v1080/3810.m4s",
+        slotId: "slot_3810",
       },
     ]);
   });

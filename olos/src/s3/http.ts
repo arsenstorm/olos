@@ -213,6 +213,7 @@ async function handleS3Events(
       client: options.objectClient ?? options.client,
       commitPolicy: options.commitPolicy,
       event,
+      maxAttempts: options.maxAttempts,
       providerId: options.providerId,
       publicationControl: options.publicationControl,
       sessionId,
