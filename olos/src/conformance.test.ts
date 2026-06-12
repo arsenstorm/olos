@@ -41,6 +41,16 @@ describe("conformance manifest", () => {
     ).toBe(OLOS_CONFORMANCE_COVERAGE.length);
   });
 
+  test("matches the documented coverage snapshot", () => {
+    expect(countCoverageByLevel()).toEqual({
+      core: 52,
+      hls: 10,
+      object: 29,
+      security: 7,
+      total: 98,
+    });
+  });
+
   test("finds coverage by assertion identifier", () => {
     expect(getOlosConformanceCoverage("OBJ-GRANT-001")).toEqual({
       id: "OBJ-GRANT-001",
@@ -61,4 +71,19 @@ describe("conformance manifest", () => {
 
 function isCoveredTestFile(value: string): boolean {
   return value.startsWith("src/") || value.startsWith("e2e/");
+}
+
+function countCoverageByLevel() {
+  return {
+    core: countCoverage("core"),
+    hls: countCoverage("hls"),
+    object: countCoverage("object"),
+    security: countCoverage("security"),
+    total: OLOS_CONFORMANCE_COVERAGE.length,
+  };
+}
+
+function countCoverage(level: string): number {
+  return OLOS_CONFORMANCE_COVERAGE.filter((entry) => entry.level === level)
+    .length;
 }
