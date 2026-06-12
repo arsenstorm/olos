@@ -12,7 +12,10 @@ import type { CoordinatorPipelineState } from "../protocol/coordinator";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import type { S3HeadObjectClient } from "./object-observation";
-import { reconcileStoredS3CoordinatorUploads } from "./reconciliation";
+import {
+  planStoredS3CoordinatorReconciliation,
+  reconcileStoredS3CoordinatorUploads,
+} from "./reconciliation";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -48,6 +51,30 @@ const pathways: Pathway[] = [
 ];
 
 describe("stored S3 upload reconciliation", () => {
+  test("plans in-flight S3 slots for app-owned recovery jobs", async () => {
+    const store = createMemoryCoordinatorStore();
+
+    await store.save({
+      sessionId: session.sessionId,
+      state: stateWithSlots(),
+    });
+
+    const plan = await planStoredS3CoordinatorReconciliation({
+      sessionId: session.sessionId,
+      slotIds: ["slot_3810"],
+      store,
+    });
+
+    expect(plan.status).toBe("planned");
+    if (plan.status !== "planned") {
+      throw new Error("expected reconciliation plan");
+    }
+
+    expect(plan.slotIds).toEqual(["slot_3810"]);
+    expect(plan.slots).toHaveLength(1);
+    expect(plan.slots[0]?.objectKey).toBe("media/v1080/3810.m4s");
+  });
+
   test("commits existing S3 objects for issued slots", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();

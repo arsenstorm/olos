@@ -54,8 +54,11 @@ export {
   type StoredS3PublisherUploadStep,
 } from "./s3/publisher";
 export {
+  type PlanStoredS3CoordinatorReconciliationOptions,
+  planStoredS3CoordinatorReconciliation,
   type ReconcileStoredS3CoordinatorUploadsOptions,
   reconcileStoredS3CoordinatorUploads,
+  type StoredS3CoordinatorReconciliationPlan,
   type StoredS3CoordinatorUploadReconciliation,
   type StoredS3CoordinatorUploadReconciliationResult,
 } from "./s3/reconciliation";

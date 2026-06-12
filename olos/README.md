@@ -365,10 +365,10 @@ Publisher loops should refresh their app-owned lease after a successful
 `continue` decision, then wait on their own encoder/cadence signal before asking
 OLOS for the next object.
 
-Recovery jobs can use `reconcileStoredS3CoordinatorUploads` to retry commits for
-issued slots after missed provider events or process restarts. The helper reads
-coordinator state and attempts S3-backed commits; the application decides when
-to run it and which slots to target.
+Recovery jobs can use `planStoredS3CoordinatorReconciliation` to list in-flight
+S3 slots, then pass selected IDs into `reconcileStoredS3CoordinatorUploads` to
+retry commits after missed provider events or process restarts. The application
+decides when to run recovery and how many slots to target.
 
 The S3 runtime handler exposes the same recovery path at
 `POST /sessions/:id/s3/reconcile`. The body requires `committedAt`; `providerId`

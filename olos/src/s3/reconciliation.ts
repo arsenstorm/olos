@@ -31,6 +31,22 @@ export interface ReconcileStoredS3CoordinatorUploadsOptions {
   versionId?: string;
 }
 
+export interface PlanStoredS3CoordinatorReconciliationOptions {
+  sessionId: OlosId;
+  slotIds?: readonly OlosId[];
+  store: CoordinatorPipelineStore;
+}
+
+export type StoredS3CoordinatorReconciliationPlan =
+  | {
+      slotIds: readonly OlosId[];
+      slots: readonly UploadSlot[];
+      status: "planned";
+    }
+  | {
+      status: "not_found";
+    };
+
 export type StoredS3CoordinatorUploadReconciliation =
   | {
       results: readonly StoredS3CoordinatorUploadReconciliationResult[];
@@ -81,6 +97,24 @@ export async function reconcileStoredS3CoordinatorUploads(
   };
 }
 
+export async function planStoredS3CoordinatorReconciliation(
+  options: PlanStoredS3CoordinatorReconciliationOptions
+): Promise<StoredS3CoordinatorReconciliationPlan> {
+  const snapshot = await options.store.load(options.sessionId);
+
+  if (snapshot === undefined) {
+    return { status: "not_found" };
+  }
+
+  const slots = reconciliationSlots(snapshot.state.slots, options);
+
+  return {
+    slotIds: slots.map((slot) => slot.slotId),
+    slots,
+    status: "planned",
+  };
+}
+
 async function reconcileSlot(
   slot: UploadSlot,
   options: ReconcileStoredS3CoordinatorUploadsOptions
@@ -128,7 +162,9 @@ async function reconcileSlot(
 
 function reconciliationSlots(
   slots: readonly UploadSlot[],
-  options: ReconcileStoredS3CoordinatorUploadsOptions
+  options: {
+    slotIds?: readonly OlosId[];
+  }
 ): UploadSlot[] {
   const allowedIds =
     options.slotIds === undefined ? undefined : new Set(options.slotIds);
