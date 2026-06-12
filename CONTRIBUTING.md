@@ -32,6 +32,7 @@ bun run build
 ## Repository
 
 - [Pull request descriptions](./contributing/repository/pull-request-descriptions.md)
+- [Releases](./contributing/repository/releases.md)
 - [Testing](./contributing/core/testing.md)
 
 ## Templates
