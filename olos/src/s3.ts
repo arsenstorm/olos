@@ -19,6 +19,7 @@ export {
   type StoredS3CoordinatorManifest,
   type StoredS3CoordinatorManifestArtifact,
   type StoredS3CoordinatorManifestOptions,
+  type StoredS3CoordinatorUploadAuditEvent,
   type StoredS3CoordinatorUploadCommit,
   type StoredS3CoordinatorUploadCompletion,
   type StoredS3CoordinatorUploadEventRoute,

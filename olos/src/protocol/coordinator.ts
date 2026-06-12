@@ -381,6 +381,15 @@ export function commitCoordinatorUpload(
 
   const slot = findSlot(options.state, options.slotId);
   const existingCommit = findCommit(options.state, options.slotId);
+  const oversized = rejectOversizedObservedUpload({
+    object: options.object,
+    slot,
+    state: options.state,
+  });
+
+  if (oversized !== undefined) {
+    return oversized;
+  }
 
   if (slot !== undefined && existingCommit !== undefined) {
     const candidateCommit = createCommit({
@@ -469,6 +478,33 @@ export function commitCoordinatorUpload(
     cursor: state.cursor,
     state,
     status: "committed",
+  };
+}
+
+function rejectOversizedObservedUpload(options: {
+  object: ObservedUpload;
+  slot?: UploadSlot;
+  state: CoordinatorPipelineState;
+}): Extract<CoordinatorUploadCommit, { status: "rejected" }> | undefined {
+  const { object, slot } = options;
+
+  if (slot === undefined || object.size <= slot.maxBytes) {
+    return;
+  }
+
+  return {
+    error: coordinatorError(
+      "olos.object_too_large",
+      "object exceeds slot limit",
+      {
+        maxBytes: slot.maxBytes,
+        objectKey: object.objectKey,
+        size: object.size,
+        slotId: slot.slotId,
+      }
+    ),
+    state: options.state,
+    status: "rejected",
   };
 }
 

@@ -99,6 +99,24 @@ export interface StoredS3CoordinatorManifest {
   cursor?: CoordinatorManifestArtifacts["cursor"];
 }
 
+export interface StoredS3CoordinatorUploadAuditEvent {
+  error: OlosError;
+  eventType: "upload.rejected";
+  maxBytes: number;
+  objectKey: string;
+  observedBytes: number;
+  occurredAt: string;
+  reason: "object_too_large";
+  slotId: OlosId;
+}
+
+type StoredS3CoordinatorUploadRejection = Extract<
+  CoordinatorUploadCommit,
+  { status: "rejected" }
+> & {
+  auditEvent?: StoredS3CoordinatorUploadAuditEvent;
+};
+
 export type StoredS3CoordinatorUploadCommit =
   | (Extract<
       CoordinatorUploadCommit,
@@ -107,7 +125,7 @@ export type StoredS3CoordinatorUploadCommit =
       etag: string;
       manifest?: StoredS3CoordinatorManifest;
     })
-  | Extract<CoordinatorUploadCommit, { status: "rejected" }>
+  | StoredS3CoordinatorUploadRejection
   | {
       current?: CoordinatorPipelineSnapshot;
       status: "conflict";
@@ -333,7 +351,7 @@ export async function commitStoredS3CoordinatorUpload(
     });
 
     if (commit.status === "rejected") {
-      return commit;
+      return withAuditEvent(commit, commitOptions.committedAt);
     }
 
     if (commit.status === "idempotent") {
@@ -453,6 +471,56 @@ export async function completeStoredS3CoordinatorUploadByObjectKey(
     ...options,
     slotId: slot.slotId,
   });
+}
+
+function withAuditEvent(
+  commit: Extract<CoordinatorUploadCommit, { status: "rejected" }>,
+  occurredAt: string
+): StoredS3CoordinatorUploadRejection {
+  const details = commit.error.error.details;
+
+  if (
+    commit.error.error.code !== "olos.object_too_large" ||
+    details === undefined
+  ) {
+    return commit;
+  }
+
+  const maxBytes = numberDetail(details.maxBytes);
+  const observedBytes = numberDetail(details.size);
+  const objectKey = stringDetail(details.objectKey);
+  const slotId = stringDetail(details.slotId);
+
+  if (
+    maxBytes === undefined ||
+    observedBytes === undefined ||
+    objectKey === undefined ||
+    slotId === undefined
+  ) {
+    return commit;
+  }
+
+  return {
+    ...commit,
+    auditEvent: {
+      error: commit.error,
+      eventType: "upload.rejected",
+      maxBytes,
+      objectKey,
+      observedBytes,
+      occurredAt,
+      reason: "object_too_large",
+      slotId,
+    },
+  };
+}
+
+function numberDetail(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+function stringDetail(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }
 
 export async function routeStoredS3CoordinatorUploadEvent(

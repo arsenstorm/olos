@@ -448,6 +448,78 @@ describe("s3 coordinator uploads", () => {
     ]);
   });
 
+  test("rejects oversized stored S3 uploads without committing them", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state: createCoordinatorPipeline({ pathways, session }),
+    }).state;
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const result = await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: clientFor("media/s3810.m4s", 100_001, headObjectInputs),
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotId: "slot_3810",
+      store,
+    });
+    const stored = await store.load(session.sessionId);
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected oversized upload rejection");
+    }
+
+    expect(result.error.error).toEqual({
+      code: "olos.object_too_large",
+      details: {
+        maxBytes: 100_000,
+        objectKey: "media/s3810.m4s",
+        size: 100_001,
+        slotId: "slot_3810",
+      },
+      message: "object exceeds slot limit",
+    });
+    expect(result.auditEvent).toEqual({
+      error: result.error,
+      eventType: "upload.rejected",
+      maxBytes: 100_000,
+      objectKey: "media/s3810.m4s",
+      observedBytes: 100_001,
+      occurredAt: "2026-01-01T00:00:02.000Z",
+      reason: "object_too_large",
+      slotId: "slot_3810",
+    });
+    expect(stored?.etag).toBe("1");
+    expect(stored?.state.commits).toEqual([]);
+    expect(stored?.state.cursor).toBeUndefined();
+    expect(stored?.state.slots).toEqual(state.slots);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/s3810.m4s",
+      },
+    ]);
+  });
+
   test("derives manifests from stored S3 coordinator commits", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
