@@ -1,3 +1,8 @@
+import type {
+  CreateHlsManifestArtifactResponseOptions,
+  CreateHlsManifestArtifactsOptions,
+} from "../hls/manifest-artifacts";
+
 export interface RuntimeObjectLowLatencyProfile {
   blockingReloadTimeoutMs: number;
   cursorMaxAgeMs: number;
@@ -8,6 +13,15 @@ export interface RuntimeObjectLowLatencyProfile {
   publisherLeaseTtlMs: number;
   segmentTarget: number;
   targetLatency: number;
+}
+
+export interface RuntimeObjectLowLatencyManifestOptions {
+  blockingReloadTimeoutMs: number;
+  manifest: Pick<
+    CreateHlsManifestArtifactsOptions,
+    "partTarget" | "segmentTarget" | "targetLatency"
+  >;
+  response: CreateHlsManifestArtifactResponseOptions;
 }
 
 export function createRuntimeObjectLowLatencyProfile(): RuntimeObjectLowLatencyProfile {
@@ -21,5 +35,22 @@ export function createRuntimeObjectLowLatencyProfile(): RuntimeObjectLowLatencyP
     publisherLeaseTtlMs: 3000,
     segmentTarget: 2,
     targetLatency: 3,
+  };
+}
+
+export function createRuntimeObjectLowLatencyManifestOptions(
+  profile: RuntimeObjectLowLatencyProfile = createRuntimeObjectLowLatencyProfile()
+): RuntimeObjectLowLatencyManifestOptions {
+  return {
+    blockingReloadTimeoutMs: profile.blockingReloadTimeoutMs,
+    manifest: {
+      partTarget: profile.partTarget,
+      segmentTarget: profile.segmentTarget,
+      targetLatency: profile.targetLatency,
+    },
+    response: {
+      maxAgeSeconds: profile.manifestMaxAgeSeconds,
+      targetLatencySeconds: profile.targetLatency,
+    },
   };
 }

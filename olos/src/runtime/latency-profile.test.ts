@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
+import {
+  createRuntimeObjectLowLatencyManifestOptions,
+  createRuntimeObjectLowLatencyProfile,
+} from "./latency-profile";
 
 describe("runtime latency profile", () => {
   test("creates object low-latency runtime defaults", () => {
@@ -13,6 +16,21 @@ describe("runtime latency profile", () => {
       publisherLeaseTtlMs: 3000,
       segmentTarget: 2,
       targetLatency: 3,
+    });
+  });
+
+  test("creates manifest options from object low-latency defaults", () => {
+    expect(createRuntimeObjectLowLatencyManifestOptions()).toEqual({
+      blockingReloadTimeoutMs: 3000,
+      manifest: {
+        partTarget: 0.5,
+        segmentTarget: 2,
+        targetLatency: 3,
+      },
+      response: {
+        maxAgeSeconds: 1,
+        targetLatencySeconds: 3,
+      },
     });
   });
 });

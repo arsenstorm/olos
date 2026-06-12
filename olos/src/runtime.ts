@@ -25,7 +25,9 @@ export {
   type StoredCoordinatorRuntimeHandler,
 } from "./runtime/http";
 export {
+  createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
+  type RuntimeObjectLowLatencyManifestOptions,
   type RuntimeObjectLowLatencyProfile,
 } from "./runtime/latency-profile";
 export {
