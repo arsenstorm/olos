@@ -18,6 +18,7 @@
   "types": "./dist/protocol.d.ts",
   "files": [
     "dist",
+    "LICENSE",
     "README.md"
   ],
   "exports": {
