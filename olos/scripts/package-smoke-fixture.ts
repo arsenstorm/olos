@@ -3,18 +3,49 @@ import { join } from "node:path";
 
 export const expectedRuntimeExports = {
   olos: ["OLOS_PROTOCOL_NAME"],
-  "olos/config": ["OLOS_ERROR_CODES"],
-  "olos/conformance": ["OLOS_CONFORMANCE_COVERAGE"],
-  "olos/hls": ["renderMediaPlaylist"],
-  "olos/protocol": ["createCoordinatorPipeline"],
-  "olos/runtime": [
-    "createRuntimePublisherObjectKeyNonce",
-    "createStoredCoordinatorRuntimeHandler",
+  "olos/config": ["OLOS_ERROR_CODES", "SESSION_STATES", "UPLOAD_SLOT_STATES"],
+  "olos/conformance": [
+    "OLOS_CONFORMANCE_ASSERTION_IDS",
+    "OLOS_CONFORMANCE_COVERAGE",
   ],
-  "olos/s3": ["createS3UploadGrant"],
-  "olos/state": ["createCursor"],
+  "olos/hls": [
+    "renderMediaPlaylist",
+    "resolveBlockingHlsManifestArtifactResponse",
+    "resolveHlsManifestArtifactResponse",
+  ],
+  "olos/protocol": [
+    "assertSerializedCoordinatorStoreBackendConformance",
+    "createCoordinatorPipeline",
+    "createMemoryCoordinatorStore",
+    "createSerializedCoordinatorStore",
+  ],
+  "olos/runtime": [
+    "createRuntimeObjectLowLatencyProfile",
+    "createRuntimePublisherObjectKeyNonce",
+    "createStoredCoordinatorSession",
+    "createStoredCoordinatorRuntimeHandler",
+    "getRuntimeSessionHealth",
+    "planStoredCoordinatorRetention",
+    "resolveRuntimeLiveHealth",
+    "runRuntimePublisherUploadStep",
+    "sendRuntimePublisherHeartbeat",
+  ],
+  "olos/s3": [
+    "createS3UploadGrant",
+    "createStoredS3CoordinatorRuntimeHandler",
+    "deleteRetiredS3CoordinatorObjects",
+    "issueStoredS3CoordinatorUploadGrant",
+    "planStoredS3CoordinatorReconciliation",
+    "reconcileStoredS3CoordinatorUploads",
+    "runNextStoredS3PublisherUploadStep",
+  ],
+  "olos/state": [
+    "createCursor",
+    "createPublicationKillSwitch",
+    "resolvePublicationControl",
+  ],
   "olos/types": [],
-  "olos/validation": ["isSession"],
+  "olos/validation": ["assertSession", "isSession", "isUploadSlot"],
 } as const;
 
 export async function writePackageSmokeFile(root: string): Promise<void> {
