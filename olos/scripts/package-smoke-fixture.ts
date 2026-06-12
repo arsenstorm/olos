@@ -7,7 +7,10 @@ export const expectedRuntimeExports = {
   "olos/conformance": ["OLOS_CONFORMANCE_COVERAGE"],
   "olos/hls": ["renderMediaPlaylist"],
   "olos/protocol": ["createCoordinatorPipeline"],
-  "olos/runtime": ["createStoredCoordinatorRuntimeHandler"],
+  "olos/runtime": [
+    "createRuntimePublisherObjectKeyNonce",
+    "createStoredCoordinatorRuntimeHandler",
+  ],
   "olos/s3": ["createS3UploadGrant"],
   "olos/state": ["createCursor"],
   "olos/types": [],

@@ -118,9 +118,20 @@ publisher process metadata; OLOS only computes expiry and stale status.
 
 `createRuntimePublisherObjectPlan` creates slot payloads and commit IDs for
 init, segment, and part objects. Pass an app-generated `objectKeyNonce` for
-direct-public deployments that need non-obvious future object URLs. It is a
-naming helper, not a scheduler; the application still controls encoder timing
-and retry policy.
+direct-public deployments that need non-obvious future object URLs.
+`createRuntimePublisherObjectKeyNonce` can format app-supplied entropy bytes
+for that field:
+
+```ts
+import { createRuntimePublisherObjectKeyNonce } from "olos/runtime";
+
+const objectKeyNonce = createRuntimePublisherObjectKeyNonce({
+  bytes: crypto.getRandomValues(new Uint8Array(16)),
+});
+```
+
+The planner is a naming helper, not a scheduler; the application still controls
+encoder timing and retry policy.
 
 `resolveRuntimePublisherNextObjectPosition` derives the next init, segment, or
 part position from the current trusted cursor. It does not sleep, poll, upload,
