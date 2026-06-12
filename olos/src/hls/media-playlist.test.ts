@@ -208,7 +208,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
         }
       )
     ).toThrow(
-      "rendition.init.deliveryUrl must be a safe relative path or allowed absolute URL"
+      "committedWindow.renditions.v1080.init.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
     );
   });
 
@@ -234,7 +234,9 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
           segmentTarget: 2,
         }
       )
-    ).toThrow("rendition.init.deliveryUrl must be a safe relative path");
+    ).toThrow(
+      "committedWindow.renditions.v1080.init.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
+    );
   });
 
   test("rejects relative media URLs with query strings or fragments", () => {
@@ -259,7 +261,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
         }
       )
     ).toThrow(
-      "rendition.init.deliveryUrl must not contain query strings or fragments"
+      "committedWindow.renditions.v1080.init.deliveryUrl must not contain query strings or fragments"
     );
   });
 
@@ -284,6 +286,8 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
           segmentTarget: 2,
         }
       )
-    ).toThrow("rendition.init.deliveryUrl must not contain control characters");
+    ).toThrow(
+      "committedWindow.renditions.v1080.init.deliveryUrl must not contain control characters"
+    );
   });
 });

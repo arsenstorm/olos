@@ -5,6 +5,7 @@ import type {
   CommittedWindow,
   RenditionWindow,
 } from "../types/committed-window";
+import { assertSafeDeliveryUrl } from "./delivery-url";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
 
 export function isCommittedWindow(value: unknown): value is CommittedWindow {
@@ -222,7 +223,7 @@ function assertCommittedObject(
   assertUrlSafeField(value, "commitId", name);
   assertUrlSafeField(value, "slotId", name);
   assertNonEmptyStringField(value, "objectKey", name);
-  assertNonEmptyStringField(value, "deliveryUrl", name);
+  assertSafeDeliveryUrl(value.deliveryUrl, `${name}.deliveryUrl`);
 
   if (value.contentType !== undefined) {
     assertStringField(value, "contentType", name);

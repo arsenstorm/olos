@@ -138,6 +138,76 @@ describe("committed window validation", () => {
     );
   });
 
+  test("rejects unsafe delivery URLs", () => {
+    const firstSegment = validSegment(0);
+    const liveSegment = validSegment(2);
+    const firstPart = validPart(0);
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            init: {
+              ...validRendition().init,
+              deliveryUrl: "media/init.mp4",
+            },
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.init.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
+    );
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [
+              {
+                ...firstSegment,
+                segment: {
+                  ...firstSegment.segment,
+                  deliveryUrl:
+                    "https://media.example.com/media/v1080/s3810.m4s?token=abc",
+                },
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.segments[].segment.deliveryUrl must not contain query strings or fragments"
+    );
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [
+              {
+                ...liveSegment,
+                parts: [
+                  {
+                    ...firstPart,
+                    deliveryUrl: "/media/v1080/p0.m4s\n#EXT-X-ENDLIST",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.segments[].parts[].deliveryUrl must not contain control characters"
+    );
+  });
+
   test("rejects non-monotonic media sequences", () => {
     const firstSegment = validSegment(0);
     const secondSegment = validSegment(1);
