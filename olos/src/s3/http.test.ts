@@ -332,6 +332,84 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
   });
 
+  test("returns S3 content type mismatch commit rejections", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+        },
+        headObjectInputs,
+        {
+          "live/session/v1080/3810.m4s": "application/octet-stream",
+        }
+      ),
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        slotId: "slot_3810",
+      })
+    );
+    const body = (await response.json()) as {
+      error: {
+        code: string;
+        details: Record<string, unknown>;
+      };
+    };
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(409);
+    expect(body.error).toMatchObject({
+      code: "olos.content_type_mismatch",
+      details: {
+        contentType: "application/octet-stream",
+        objectKey: "live/session/v1080/3810.m4s",
+        slotContentType: "video/mp4",
+        slotId: "slot_3810",
+      },
+    });
+    expect(stored?.state.commits).toEqual([]);
+    expect(stored?.state.cursor).toBeUndefined();
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
+  });
+
   test("applies publication control to S3 grant issuance", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
@@ -897,7 +975,8 @@ function createClient(): S3Client {
 
 function objectClientFor(
   sizes: Record<string, number>,
-  inputs: unknown[]
+  inputs: unknown[],
+  contentTypes: Record<string, string> = {}
 ): S3HeadObjectClient {
   return {
     send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
@@ -913,7 +992,7 @@ function objectClientFor(
       return Promise.resolve({
         $metadata: {},
         ContentLength: size,
-        ContentType: "video/mp4",
+        ContentType: contentTypes[objectKey] ?? "video/mp4",
         ETag: `"${objectKey}"`,
         LastModified: new Date("2026-01-01T00:00:01.000Z"),
       });
