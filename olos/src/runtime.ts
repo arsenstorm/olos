@@ -43,6 +43,12 @@ export {
   resolveRuntimePublisherLeaseStatus,
 } from "./runtime/publisher-lease";
 export {
+  type CreateRuntimePublisherObjectPlanOptions,
+  createRuntimePublisherObjectPlan,
+  type RuntimePublisherObjectPlan,
+  type RuntimePublisherPlannedObjectKind,
+} from "./runtime/publisher-plan";
+export {
   type DeleteRetiredCoordinatorObjectsOptions,
   deleteRetiredCoordinatorObjects,
   type PlanStoredCoordinatorRetentionOptions,

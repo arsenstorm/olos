@@ -1,0 +1,197 @@
+import type { MediaObjectKind } from "../types/media-object";
+import type { PublicationMode } from "../types/upload-slot";
+import { isNonNegativeInteger, isUrlSafeIdentifier } from "../validation/ids";
+import type { RuntimeSlotIssuePayload } from "./slot";
+
+const LEADING_DOTS_PATTERN = /^\.+/;
+
+export interface CreateRuntimePublisherObjectPlanOptions {
+  baseUrl: string;
+  commitIdPrefix?: string;
+  contentType: string;
+  duration: number;
+  expiresAt: string;
+  extension: string;
+  kind: RuntimePublisherPlannedObjectKind;
+  maxBytes: number;
+  mediaSequenceNumber: number;
+  minBytes?: number;
+  objectKeyPrefix: string;
+  partNumber?: number;
+  publicationMode: PublicationMode;
+  publisherInstanceId: string;
+  renditionId: string;
+  slotIdPrefix?: string;
+}
+
+export type RuntimePublisherPlannedObjectKind = Extract<
+  MediaObjectKind,
+  "init" | "part" | "segment"
+>;
+
+export interface RuntimePublisherObjectPlan {
+  commitId: string;
+  slot: RuntimeSlotIssuePayload;
+}
+
+export function createRuntimePublisherObjectPlan(
+  options: CreateRuntimePublisherObjectPlanOptions
+): RuntimePublisherObjectPlan {
+  assertPlanOptions(options);
+
+  const objectKey = createObjectKey(options);
+  const slotId = createObjectId(options, options.slotIdPrefix ?? "slot");
+
+  return {
+    commitId: createObjectId(options, options.commitIdPrefix ?? "commit"),
+    slot: {
+      contentType: options.contentType,
+      deliveryUrl: createDeliveryUrl(options.baseUrl, objectKey),
+      duration: options.duration,
+      expiresAt: options.expiresAt,
+      kind: options.kind,
+      maxBytes: options.maxBytes,
+      mediaSequenceNumber: options.mediaSequenceNumber,
+      objectKey,
+      publicationMode: options.publicationMode,
+      publisherInstanceId: options.publisherInstanceId,
+      renditionId: options.renditionId,
+      slotId,
+      ...optionalNumber("minBytes", options.minBytes),
+      ...optionalNumber("partNumber", options.partNumber),
+    },
+  };
+}
+
+function assertPlanOptions(
+  options: CreateRuntimePublisherObjectPlanOptions
+): void {
+  assertUrlSafeIdentifier(options.renditionId, "renditionId");
+  assertUrlSafeIdentifier(options.publisherInstanceId, "publisherInstanceId");
+  assertUrlSafeIdentifier(options.slotIdPrefix ?? "slot", "slotIdPrefix");
+  assertUrlSafeIdentifier(options.commitIdPrefix ?? "commit", "commitIdPrefix");
+  assertSafePath(options.objectKeyPrefix, "objectKeyPrefix");
+  assertSafePathSegment(options.extension, "extension");
+
+  if (options.kind === "part") {
+    if (!isNonNegativeInteger(options.partNumber)) {
+      throw new Error("partNumber must be a non-negative integer for parts");
+    }
+  } else if (options.partNumber !== undefined) {
+    throw new Error("partNumber is only valid for parts");
+  }
+
+  if (!isNonNegativeInteger(options.mediaSequenceNumber)) {
+    throw new Error("mediaSequenceNumber must be a non-negative integer");
+  }
+
+  if (!Number.isFinite(options.duration) || options.duration <= 0) {
+    throw new Error("duration must be a positive number");
+  }
+
+  if (!Number.isFinite(options.maxBytes) || options.maxBytes <= 0) {
+    throw new Error("maxBytes must be a positive number");
+  }
+
+  if (
+    options.minBytes !== undefined &&
+    (!isNonNegativeInteger(options.minBytes) ||
+      options.minBytes > options.maxBytes)
+  ) {
+    throw new Error("minBytes must be a non-negative integer up to maxBytes");
+  }
+
+  createDeliveryUrl(options.baseUrl, "probe");
+}
+
+function createObjectKey(
+  options: CreateRuntimePublisherObjectPlanOptions
+): string {
+  const prefix = trimSlashes(options.objectKeyPrefix);
+  const extension = options.extension.replace(LEADING_DOTS_PATTERN, "");
+
+  if (options.kind === "init") {
+    return `${prefix}/${options.renditionId}/init.${extension}`;
+  }
+
+  if (options.kind === "segment") {
+    return `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}.${extension}`;
+  }
+
+  return `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}/p${options.partNumber}.${extension}`;
+}
+
+function createObjectId(
+  options: CreateRuntimePublisherObjectPlanOptions,
+  prefix: string
+): string {
+  if (options.kind === "init") {
+    return `${prefix}_init_${options.renditionId}`;
+  }
+
+  if (options.kind === "segment") {
+    return `${prefix}_${options.renditionId}_s${options.mediaSequenceNumber}`;
+  }
+
+  return `${prefix}_${options.renditionId}_s${options.mediaSequenceNumber}_p${options.partNumber}`;
+}
+
+function createDeliveryUrl(baseUrl: string, objectKey: string): string {
+  const url = new URL(baseUrl);
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("baseUrl must be an absolute HTTP(S) URL");
+  }
+
+  url.pathname = `${trimTrailingSlash(url.pathname)}/${objectKey}`;
+  url.search = "";
+  url.hash = "";
+
+  return url.toString();
+}
+
+function assertUrlSafeIdentifier(value: string, name: string): void {
+  if (!isUrlSafeIdentifier(value)) {
+    throw new Error(`${name} must be a non-empty URL-safe identifier`);
+  }
+}
+
+function assertSafePath(value: string, name: string): void {
+  if (
+    value.length === 0 ||
+    value.startsWith("/") ||
+    value.endsWith("/") ||
+    value
+      .split("/")
+      .some((part) => part === "" || part === "." || part === "..")
+  ) {
+    throw new Error(`${name} must be a safe relative path`);
+  }
+}
+
+function assertSafePathSegment(value: string, name: string): void {
+  if (
+    value.length === 0 ||
+    value.includes("/") ||
+    value.includes(".") ||
+    value === "." ||
+    value === ".."
+  ) {
+    throw new Error(`${name} must be a safe path segment without dots`);
+  }
+}
+
+function optionalNumber<Key extends "minBytes" | "partNumber">(
+  key: Key,
+  value: number | undefined
+): Partial<Record<Key, number>> {
+  return value === undefined ? {} : ({ [key]: value } as Record<Key, number>);
+}
+
+function trimSlashes(value: string): string {
+  return value.replace(/^\/+|\/+$/g, "");
+}
+
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/g, "");
+}

@@ -109,6 +109,10 @@ The application still owns encoder timing, bytes, retries, and credentials.
 app-owned publisher liveness. Store the lease wherever your runtime keeps
 publisher process metadata; OLOS only computes expiry and stale status.
 
+`createRuntimePublisherObjectPlan` creates deterministic slot payloads and
+commit IDs for init, segment, and part objects. It is a naming helper, not a
+scheduler; the application still controls encoder timing and retry policy.
+
 ### Publication Control
 
 Use `publicationControl` to stop new publication during an incident or budget
