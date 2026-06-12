@@ -45,9 +45,9 @@ describe("conformance manifest", () => {
     expect(countCoverageByLevel()).toEqual({
       core: 52,
       hls: 10,
-      object: 29,
+      object: 30,
       security: 7,
-      total: 98,
+      total: 99,
     });
   });
 
