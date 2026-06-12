@@ -10,6 +10,7 @@
     "typescript": "^5"
   },
   "scripts": {
+    "audit": "bun audit",
     "build": "bun --filter olos build",
     "check": "ultracite check",
     "check-types": "bun --filter olos check-types",
