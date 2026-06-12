@@ -7,8 +7,14 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 
-import { createMemoryCoordinatorStore } from "../protocol";
-import { createPublicationKillSwitch } from "../state";
+import {
+  type CoordinatorPipelineState,
+  commitCoordinatorUpload,
+  createCoordinatorPipeline,
+  createMemoryCoordinatorStore,
+  issueCoordinatorSlot,
+} from "../protocol";
+import { createObservedUpload, createPublicationKillSwitch } from "../state";
 import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
@@ -819,6 +825,101 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
   });
 
+  test("reports idempotent S3 reconciliation through the runtime route", async () => {
+    const headObjectInputs: unknown[] = [];
+    const notifiedCursors: Cursor[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+        },
+        headObjectInputs
+      ),
+      cursorNotifier: {
+        notify: (cursor) => notifiedCursors.push(cursor),
+        waitForCursor: () =>
+          Promise.reject(new Error("waiter should not be called")),
+      },
+      providerId: "s3_primary",
+      store,
+    });
+
+    await store.save({
+      sessionId: session.sessionId,
+      state: inconsistentReconciliationState(),
+    });
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/reconcile", {
+        committedAt: "2026-01-01T00:00:02.000Z",
+        independent: true,
+      })
+    );
+    const body = (await response.json()) as {
+      results: {
+        commit?: { commitId: string; slotId: string };
+        cursor?: { window: Record<string, number> };
+        slotId: string;
+        status: string;
+      }[];
+      summary: {
+        committed: number;
+        failed: number;
+        idempotent: number;
+        ok: boolean;
+        planned: number;
+        slotIds: string[];
+      };
+    };
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(202);
+    expect(body.results).toMatchObject([
+      {
+        commit: {
+          commitId: "reconcile_slot_3810",
+          slotId: "slot_3810",
+        },
+        cursor: {
+          window: {
+            firstMediaSequenceNumber: 3810,
+            lastMediaSequenceNumber: 3810,
+          },
+        },
+        slotId: "slot_3810",
+        status: "idempotent",
+      },
+    ]);
+    expect(body.summary).toMatchObject({
+      committed: 0,
+      failed: 0,
+      idempotent: 1,
+      ok: true,
+      planned: 1,
+      slotIds: ["slot_3810"],
+    });
+    expect(stored?.state.commits).toHaveLength(1);
+    expect(stored?.state.commits[0]?.commitId).toBe("reconcile_slot_3810");
+    expect(notifiedCursors.map((cursor) => cursor.window)).toEqual([
+      {
+        firstMediaSequenceNumber: 3810,
+        lastMediaSequenceNumber: 3810,
+      },
+    ]);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
+  });
+
   test("reports failed S3 reconciliation slots through the runtime route", async () => {
     const headObjectInputs: unknown[] = [];
     const notifiedCursors: Cursor[] = [];
@@ -1324,6 +1425,80 @@ function slotPayload(options: SlotPayloadOptions) {
     publisherInstanceId: "pub_1",
     renditionId: "v1080",
     slotId: options.slotId,
+  };
+}
+
+function inconsistentReconciliationState(): CoordinatorPipelineState {
+  const initIssued = issueCoordinatorSlot({
+    ...slotPayload({
+      deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
+      duration: 1,
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "live/session/v1080/init.mp4",
+      slotId: "slot_init",
+    }),
+    state: createCoordinatorPipeline({ pathways, session }),
+  });
+  const initCommitted = commitCoordinatorUpload({
+    commitId: "reconcile_slot_init",
+    committedAt: "2026-01-01T00:00:01.000Z",
+    object: createObservedUpload({
+      contentType: "video/mp4",
+      etag: '"live/session/v1080/init.mp4"',
+      objectKey: "live/session/v1080/init.mp4",
+      observedAt: "2026-01-01T00:00:01.000Z",
+      providerId: "s3_primary",
+      size: 1024,
+    }),
+    slotId: "slot_init",
+    state: initIssued.state,
+  });
+
+  if (initCommitted.status !== "committed") {
+    throw new Error("expected committed init reconciliation fixture");
+  }
+
+  const issued = issueCoordinatorSlot({
+    ...slotPayload({
+      deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+      duration: 2,
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "live/session/v1080/3810.m4s",
+      slotId: "slot_3810",
+    }),
+    state: initCommitted.state,
+  });
+  const committed = commitCoordinatorUpload({
+    commitId: "reconcile_slot_3810",
+    committedAt: "2026-01-01T00:00:02.000Z",
+    independent: true,
+    object: createObservedUpload({
+      contentType: "video/mp4",
+      etag: '"live/session/v1080/3810.m4s"',
+      objectKey: "live/session/v1080/3810.m4s",
+      observedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "s3_primary",
+      size: 98_304,
+    }),
+    slotId: "slot_3810",
+    state: issued.state,
+  });
+
+  if (committed.status !== "committed") {
+    throw new Error("expected committed reconciliation fixture");
+  }
+
+  return {
+    ...committed.state,
+    slots: committed.state.slots.map((slot) =>
+      slot.slotId === "slot_3810"
+        ? { ...slot, state: "upload_observed" as const }
+        : slot
+    ),
   };
 }
 
