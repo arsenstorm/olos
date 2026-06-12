@@ -113,6 +113,10 @@ publisher process metadata; OLOS only computes expiry and stale status.
 commit IDs for init, segment, and part objects. It is a naming helper, not a
 scheduler; the application still controls encoder timing and retry policy.
 
+`resolveRuntimePublisherNextObjectPosition` derives the next init, segment, or
+part position from the current trusted cursor. It does not sleep, poll, upload,
+or decide byte limits.
+
 `resolveRuntimePublisherObjectExpiry` derives a short-lived `expiresAt` and
 `ttlSeconds` from object duration plus target latency. Use it for planned slot
 expiry and provider upload grant TTLs when you want OLOS to keep that policy

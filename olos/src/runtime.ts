@@ -47,6 +47,12 @@ export {
   runRuntimePublisherUploadStep,
 } from "./runtime/publisher";
 export {
+  type ResolveRuntimePublisherNextObjectPositionOptions,
+  type RuntimePublisherCadenceMode,
+  type RuntimePublisherObjectPosition,
+  resolveRuntimePublisherNextObjectPosition,
+} from "./runtime/publisher-cadence";
+export {
   type ResolveRuntimePublisherObjectExpiryOptions,
   type RuntimePublisherObjectExpiry,
   resolveRuntimePublisherObjectExpiry,
