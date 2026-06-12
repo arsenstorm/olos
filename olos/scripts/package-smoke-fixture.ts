@@ -2,7 +2,12 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export const expectedRuntimeExports = {
-  olos: ["OLOS_PROTOCOL_NAME"],
+  olos: [
+    "OLOS_PROTOCOL_NAME",
+    "OLOS_PROTOCOL_SHORT_NAME",
+    "OLOS_SPEC_STATUS",
+    "OLOS_WIRE_VERSION",
+  ],
   "olos/config": ["OLOS_ERROR_CODES", "SESSION_STATES", "UPLOAD_SLOT_STATES"],
   "olos/conformance": [
     "OLOS_CONFORMANCE_ASSERTION_IDS",
@@ -48,6 +53,11 @@ export const expectedRuntimeExports = {
   "olos/validation": ["assertSession", "isSession", "isUploadSlot"],
 } as const;
 
+const exactRuntimeExports = {
+  olos: expectedRuntimeExports.olos,
+  "olos/types": [],
+} as const;
+
 export async function writePackageSmokeFile(root: string): Promise<void> {
   await writeFile(join(root, "smoke.mjs"), packageSmokeSource());
 }
@@ -57,6 +67,7 @@ function packageSmokeSource(): string {
 import { readFile } from "node:fs/promises";
 
 const expectedRuntimeExports = ${JSON.stringify(expectedRuntimeExports)};
+const exactRuntimeExports = ${JSON.stringify(exactRuntimeExports)};
 const packageJson = JSON.parse(
   await readFile(new URL("./node_modules/olos/package.json", import.meta.url))
 );
@@ -74,6 +85,14 @@ for (const [specifier, names] of Object.entries(expectedRuntimeExports)) {
     if (!(name in module)) {
       throw new Error(\`\${specifier} is missing \${name}\`);
     }
+  }
+
+  if (specifier in exactRuntimeExports) {
+    assertList(
+      \`\${specifier} runtime exports\`,
+      Object.keys(module),
+      exactRuntimeExports[specifier]
+    );
   }
 }
 

@@ -1,4 +1,4 @@
-import { OLOS_WIRE_VERSION } from "../protocol";
+import { OLOS_WIRE_VERSION } from "../index";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
 import type { OlosError } from "../types/errors";

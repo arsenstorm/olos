@@ -14,8 +14,8 @@
     "url": "https://github.com/arsenstorm/olos/issues"
   },
   "homepage": "https://github.com/arsenstorm/olos#readme",
-  "main": "./dist/protocol.js",
-  "types": "./dist/protocol.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist",
     "LICENSE",
@@ -23,9 +23,9 @@
   ],
   "exports": {
     ".": {
-      "types": "./dist/protocol.d.ts",
-      "import": "./dist/protocol.js",
-      "default": "./dist/protocol.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./config": {
       "types": "./dist/config.d.ts",

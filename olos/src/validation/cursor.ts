@@ -1,5 +1,5 @@
 import { LATENCY_PROFILES, SESSION_STATES } from "../config/session";
-import { OLOS_WIRE_VERSION } from "../protocol";
+import { OLOS_WIRE_VERSION } from "../index";
 import type { Cursor, CursorWindow } from "../types/cursor";
 import { assertCommittedWindow } from "./committed-window";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";

@@ -3,7 +3,7 @@ import {
   PROVIDER_EVENT_DELIVERY_MODES,
   PROVIDER_KINDS,
 } from "../config/provider-capability";
-import { OLOS_WIRE_VERSION } from "../protocol";
+import { OLOS_WIRE_VERSION } from "../index";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
 import { isUrlSafeIdentifier } from "./ids";
 
