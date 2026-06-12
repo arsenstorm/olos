@@ -36,10 +36,13 @@ export const expectedRuntimeExports = {
     "sendRuntimePublisherHeartbeat",
   ],
   "olos/s3": [
+    "createPresignedS3UploadGrant",
     "createS3UploadGrant",
+    "createObservedUploadFromS3HeadObject",
     "createStoredS3CoordinatorRuntimeHandler",
     "deleteRetiredS3CoordinatorObjects",
     "issueStoredS3CoordinatorUploadGrant",
+    "observeS3Object",
     "planStoredS3CoordinatorReconciliation",
     "reconcileStoredS3CoordinatorUploads",
     "runNextStoredS3PublisherUploadStep",
