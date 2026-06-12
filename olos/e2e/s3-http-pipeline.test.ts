@@ -141,6 +141,11 @@ describe("S3 HTTP pipeline", () => {
     const media = await handle(
       new Request("https://edge.example.com/v1/live/session_1/v1080/media.m3u8")
     );
+    const initGrantBody = (await initGrant.json()) as {
+      grant: {
+        requiredHeaders: Record<string, string>;
+      };
+    };
     const mediaBody = await media.text();
 
     expect(created.status).toBe(201);
@@ -156,6 +161,10 @@ describe("S3 HTTP pipeline", () => {
     expect(media.headers.get("cache-control")).toBe(
       "public, max-age=1, must-revalidate"
     );
+    expect(initGrantBody.grant.requiredHeaders).toMatchObject({
+      "x-amz-meta-olos-slot-id": "slot_init",
+      "x-olos-slot-id": "slot_init",
+    });
     expect(mediaBody).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
     expect(mediaBody).toContain("#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES");
     expect(mediaBody).toContain(

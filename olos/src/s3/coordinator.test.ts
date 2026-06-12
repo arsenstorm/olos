@@ -106,6 +106,10 @@ describe("s3 coordinator uploads", () => {
 
     expect(issue.etag).toBe("2");
     expect(issue.grant.slotId).toBe("slot_3810");
+    expect(issue.grant.requiredHeaders).toMatchObject({
+      "x-amz-meta-olos-slot-id": "slot_3810",
+      "x-olos-slot-id": "slot_3810",
+    });
     expect(issue.slot.objectKey).toBe("live/session/v1080/3810.m4s");
     expect(stored?.etag).toBe("2");
     expect(stored?.state.slots).toEqual([issue.slot]);

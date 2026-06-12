@@ -146,6 +146,7 @@ describe("stored S3 coordinator runtime handler", () => {
       requiredHeaders: {
         "Content-Type": "video/mp4",
         "If-None-Match": "*",
+        "x-amz-meta-olos-slot-id": "slot_init",
         "x-olos-slot-id": "slot_init",
       },
       slotId: "slot_init",
