@@ -21,6 +21,27 @@ describe("runtime latency profile", () => {
     });
   });
 
+  test("keeps object low-latency defaults inside the realtime budget", () => {
+    const profile = createRuntimeObjectLowLatencyProfile();
+    const manifest = createRuntimeObjectLowLatencyManifestOptions(profile);
+    const publisher = createRuntimeObjectLowLatencyPublisherOptions(profile);
+
+    expect(profile.targetLatency).toBeGreaterThanOrEqual(2);
+    expect(profile.targetLatency).toBeLessThanOrEqual(4);
+    expect(profile.partTarget).toBeLessThanOrEqual(0.5);
+    expect(profile.segmentTarget).toBeLessThanOrEqual(profile.targetLatency);
+    expect(profile.manifestMaxAgeSeconds).toBeLessThanOrEqual(1);
+    expect(manifest.response.maxAgeSeconds).toBeLessThanOrEqual(
+      profile.targetLatency
+    );
+    expect(manifest.blockingReloadTimeoutMs).toBe(profile.targetLatency * 1000);
+    expect(publisher.expiry.targetLatency).toBe(profile.targetLatency);
+    expect(publisher.publisherLeaseTtlMs).toBe(profile.targetLatency * 1000);
+    expect(profile.cursorMaxAgeMs).toBe(
+      (profile.targetLatency + profile.segmentTarget) * 1000
+    );
+  });
+
   test("creates manifest options from object low-latency defaults", () => {
     expect(createRuntimeObjectLowLatencyManifestOptions()).toEqual({
       blockingReloadTimeoutMs: 3000,
