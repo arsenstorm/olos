@@ -5,6 +5,7 @@ import {
   createStoredCoordinatorSession,
   issueStoredCoordinatorSlotFromRequest,
   planStoredCoordinatorRetention,
+  resolveRuntimePublisherObjectExpiry,
   serveStoredCoordinatorManifest,
   transitionStoredCoordinatorSession,
 } from "olos/runtime";
@@ -45,6 +46,9 @@ const pathways = [
   },
 ] satisfies Pathway[];
 
+const publishNow = "2026-01-01T00:00:00.000Z";
+const targetLatency = 3;
+
 describe("runtime pipeline", () => {
   test("runs stored coordinator lifecycle through public runtime exports", async () => {
     const store = createMemoryCoordinatorStore();
@@ -61,7 +65,7 @@ describe("runtime pipeline", () => {
       baseUrl: "https://media.example.com",
       contentType: "video/mp4",
       duration: 1,
-      expiresAt: "2026-01-01T00:00:05.000Z",
+      expiresAt: plannedExpiry(1).expiresAt,
       extension: "mp4",
       kind: "init",
       maxBytes: 2048,
@@ -75,7 +79,7 @@ describe("runtime pipeline", () => {
       baseUrl: "https://media.example.com",
       contentType: "video/mp4",
       duration: 2,
-      expiresAt: "2026-01-01T00:00:05.000Z",
+      expiresAt: plannedExpiry(2).expiresAt,
       extension: "m4s",
       kind: "segment",
       maxBytes: 100_000,
@@ -89,7 +93,7 @@ describe("runtime pipeline", () => {
       baseUrl: "https://media.example.com",
       contentType: "video/mp4",
       duration: 2,
-      expiresAt: "2026-01-01T00:00:05.000Z",
+      expiresAt: plannedExpiry(2).expiresAt,
       extension: "m4s",
       kind: "segment",
       maxBytes: 100_000,
@@ -219,6 +223,14 @@ describe("runtime pipeline", () => {
     expect(retention.plan.retiredObjects).toEqual([]);
   });
 });
+
+function plannedExpiry(duration: number) {
+  return resolveRuntimePublisherObjectExpiry({
+    duration,
+    now: publishNow,
+    targetLatency,
+  });
+}
 
 interface CommitPayloadOptions {
   commitId: string;

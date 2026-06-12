@@ -16,6 +16,7 @@ import {
   createRuntimePublisherObjectPlan,
   type RuntimePublisherObjectPlan,
   type RuntimePublisherPlannedObjectKind,
+  resolveRuntimePublisherObjectExpiry,
 } from "olos/runtime";
 import {
   commitStoredS3CoordinatorUpload,
@@ -77,6 +78,9 @@ const pathways = [
     state: "active",
   },
 ] satisfies Pathway[];
+
+const publishNow = "2026-01-01T00:00:00.000Z";
+const targetLatency = 3;
 
 describe("object-store flow", () => {
   test("publishes S3 uploads from stored coordinator state to HLS", async () => {
@@ -756,11 +760,18 @@ function createUploadPlan(options: {
   partNumber?: number;
   renditionId?: string;
 }): RuntimePublisherObjectPlan {
+  const duration = plannedDuration(options.kind);
+  const expiry = resolveRuntimePublisherObjectExpiry({
+    duration,
+    now: publishNow,
+    targetLatency,
+  });
+
   return createRuntimePublisherObjectPlan({
     baseUrl: "https://media.example.com",
     contentType: "video/mp4",
-    duration: plannedDuration(options.kind),
-    expiresAt: "2026-01-01T00:00:05.000Z",
+    duration,
+    expiresAt: expiry.expiresAt,
     extension: options.kind === "init" ? "mp4" : "m4s",
     kind: options.kind,
     maxBytes: options.maxBytes,
@@ -786,11 +797,17 @@ function issuePlannedUploadGrant(options: {
   sessionId?: string;
   store: ReturnType<typeof createMemoryCoordinatorStore>;
 }) {
+  const expiry = resolveRuntimePublisherObjectExpiry({
+    duration: options.plan.slot.duration,
+    now: publishNow,
+    targetLatency,
+  });
+
   return issueStoredS3CoordinatorUploadGrant({
     bucket: "media",
     client: createS3Client(),
-    expiresInSeconds: 3,
-    now: "2026-01-01T00:00:00.000Z",
+    expiresInSeconds: expiry.ttlSeconds,
+    now: publishNow,
     sessionId: options.sessionId ?? session.sessionId,
     ...options.plan.slot,
     store: options.store,

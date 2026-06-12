@@ -9,6 +9,7 @@ import {
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
 } from "../protocol/coordinator";
+import { resolveRuntimePublisherObjectExpiry } from "../runtime/publisher-expiry";
 import { createRuntimePublisherObjectPlan } from "../runtime/publisher-plan";
 import { normalizeUploadEvent } from "../state/observed-upload";
 import { createPublicationKillSwitch } from "../state/publication-control";
@@ -57,6 +58,9 @@ const pathways: Pathway[] = [
     state: "active",
   },
 ];
+
+const publishNow = "2026-01-01T00:00:00.000Z";
+const targetLatency = 3;
 
 describe("s3 coordinator uploads", () => {
   test("issues and persists an S3 coordinator upload grant", async () => {
@@ -110,11 +114,16 @@ describe("s3 coordinator uploads", () => {
       state,
     });
 
+    const expiry = resolveRuntimePublisherObjectExpiry({
+      duration: 0.5,
+      now: publishNow,
+      targetLatency,
+    });
     const plan = createRuntimePublisherObjectPlan({
       baseUrl: "https://media.example.com",
       contentType: "video/iso.segment",
       duration: 0.5,
-      expiresAt: "2026-01-01T00:00:05.000Z",
+      expiresAt: expiry.expiresAt,
       extension: "m4s",
       kind: "part",
       maxBytes: 25_000,
@@ -128,8 +137,8 @@ describe("s3 coordinator uploads", () => {
     const issue = await issueStoredS3CoordinatorUploadGrant({
       bucket: "media",
       client: createClient(),
-      expiresInSeconds: 3,
-      now: "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: expiry.ttlSeconds,
+      now: publishNow,
       sessionId: session.sessionId,
       ...plan.slot,
       store,
