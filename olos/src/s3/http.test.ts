@@ -937,6 +937,101 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
   });
 
+  test("reports S3 reconciliation commit rejections through the runtime route", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 50_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/reconcile", {
+        committedAt: "2026-01-01T00:00:02.000Z",
+      })
+    );
+    const body = (await response.json()) as {
+      results: {
+        error?: {
+          code: string;
+          details?: Record<string, unknown>;
+          message: string;
+        };
+        slotId: string;
+        status: string;
+      }[];
+      summary: {
+        failed: number;
+        failedSlotIds: string[];
+        ok: boolean;
+      };
+    };
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(202);
+    expect(body.results).toEqual([
+      {
+        error: {
+          code: "olos.object_too_large",
+          details: {
+            maxBytes: 50_000,
+            objectKey: "live/session/v1080/3810.m4s",
+            size: 98_304,
+            slotId: "slot_3810",
+          },
+          message: "object exceeds slot limit",
+        },
+        slotId: "slot_3810",
+        status: "failed",
+      },
+    ]);
+    expect(body.summary).toMatchObject({
+      failed: 1,
+      failedSlotIds: ["slot_3810"],
+      ok: false,
+    });
+    expect(stored?.state.commits).toEqual([]);
+    expect(stored?.state.cursor).toBeUndefined();
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
+  });
+
   test("plans S3 reconciliation candidates through the runtime route", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
