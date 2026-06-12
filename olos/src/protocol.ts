@@ -40,7 +40,9 @@ export {
 export {
   type AssertSerializedCoordinatorStoreBackendConformanceOptions,
   assertSerializedCoordinatorStoreBackendConformance,
+  createMemorySerializedCoordinatorStoreBackend,
   createSerializedCoordinatorStore,
+  type MemorySerializedCoordinatorStoreBackend,
   type SaveSerializedCoordinatorStoreOptions,
   type SerializedCoordinatorStoreBackend,
   type SerializedCoordinatorStoreRecord,

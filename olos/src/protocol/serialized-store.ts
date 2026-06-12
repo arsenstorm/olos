@@ -41,6 +41,11 @@ export interface AssertSerializedCoordinatorStoreBackendConformanceOptions {
     | Promise<SerializedCoordinatorStoreBackend>;
 }
 
+export interface MemorySerializedCoordinatorStoreBackend
+  extends SerializedCoordinatorStoreBackend {
+  records: Map<OlosId, SerializedCoordinatorStoreRecord>;
+}
+
 export function createSerializedCoordinatorStore(
   backend: SerializedCoordinatorStoreBackend
 ): CoordinatorPipelineStore {
@@ -75,6 +80,41 @@ export function createSerializedCoordinatorStore(
         state: cloneCoordinatorPipelineState(options.state),
         status: "saved",
       };
+    },
+  };
+}
+
+export function createMemorySerializedCoordinatorStoreBackend(): MemorySerializedCoordinatorStoreBackend {
+  const records = new Map<OlosId, SerializedCoordinatorStoreRecord>();
+
+  return {
+    load(sessionId) {
+      return Promise.resolve(records.get(sessionId));
+    },
+    records,
+    save(options) {
+      const current = records.get(options.sessionId);
+
+      if (current === undefined && options.expectedEtag !== undefined) {
+        return Promise.resolve({ status: "conflict" });
+      }
+
+      if (current !== undefined && options.expectedEtag === undefined) {
+        return Promise.resolve({
+          current,
+          status: "conflict",
+        });
+      }
+
+      if (current !== undefined && current.etag !== options.expectedEtag) {
+        return Promise.resolve({
+          current,
+          status: "conflict",
+        });
+      }
+
+      records.set(options.sessionId, options.record);
+      return Promise.resolve({ status: "saved" });
     },
   };
 }

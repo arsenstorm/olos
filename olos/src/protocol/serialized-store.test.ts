@@ -5,6 +5,7 @@ import type { Session } from "../types/session";
 import { createCoordinatorPipeline, issueCoordinatorSlot } from "./coordinator";
 import {
   assertSerializedCoordinatorStoreBackendConformance,
+  createMemorySerializedCoordinatorStoreBackend,
   createSerializedCoordinatorStore,
   type SerializedCoordinatorStoreBackend,
   type SerializedCoordinatorStoreRecord,
@@ -56,6 +57,27 @@ describe("serialized coordinator store", () => {
         createBackend,
       })
     ).resolves.toBeUndefined();
+  });
+
+  test("creates a memory serialized backend with conditional writes", async () => {
+    const backend = createMemorySerializedCoordinatorStoreBackend();
+    const first = record("1");
+    const second = record("2");
+
+    await expect(
+      backend.save({ record: first, sessionId: session.sessionId })
+    ).resolves.toEqual({ status: "saved" });
+    await expect(
+      backend.save({ record: first, sessionId: session.sessionId })
+    ).resolves.toEqual({ current: first, status: "conflict" });
+    await expect(
+      backend.save({
+        expectedEtag: first.etag,
+        record: second,
+        sessionId: session.sessionId,
+      })
+    ).resolves.toEqual({ status: "saved" });
+    await expect(backend.load(session.sessionId)).resolves.toEqual(second);
   });
 
   test("stores JSON snapshots with monotonic etags", async () => {
@@ -156,38 +178,12 @@ describe("serialized coordinator store", () => {
 function createBackend(): SerializedCoordinatorStoreBackend & {
   records: Map<string, SerializedCoordinatorStoreRecord>;
 } {
-  const records = new Map<string, SerializedCoordinatorStoreRecord>();
+  return createMemorySerializedCoordinatorStoreBackend();
+}
 
+function record(etag: string): SerializedCoordinatorStoreRecord {
   return {
-    load(sessionId) {
-      return Promise.resolve(records.get(sessionId));
-    },
-    records,
-    save(options) {
-      const current = records.get(options.sessionId);
-
-      if (current === undefined && options.expectedEtag !== undefined) {
-        return Promise.resolve({
-          status: "conflict",
-        });
-      }
-
-      if (current !== undefined && options.expectedEtag === undefined) {
-        return Promise.resolve({
-          current,
-          status: "conflict",
-        });
-      }
-
-      if (current !== undefined && current.etag !== options.expectedEtag) {
-        return Promise.resolve({
-          current,
-          status: "conflict",
-        });
-      }
-
-      records.set(options.sessionId, options.record);
-      return Promise.resolve({ status: "saved" });
-    },
+    etag,
+    snapshot: `{"etag":"${etag}"}`,
   };
 }
