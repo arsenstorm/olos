@@ -63,6 +63,8 @@ const exactRuntimeExports = {
 
 export async function writePackageSmokeFile(root: string): Promise<void> {
   await writeFile(join(root, "smoke.mjs"), packageSmokeSource());
+  await writeFile(join(root, "smoke.ts"), packageTypeSmokeSource());
+  await writeFile(join(root, "tsconfig.json"), packageTypeSmokeConfig());
 }
 
 function packageSmokeSource(): string {
@@ -110,4 +112,90 @@ function assertList(name, actual, expected) {
   }
 }
 `.trimStart();
+}
+
+function packageTypeSmokeSource(): string {
+  return `
+import { OLOS_WIRE_VERSION } from "olos";
+import { createRuntimeObjectLowLatencyProfile } from "olos/runtime";
+import { createS3UploadGrant } from "olos/s3";
+import type { Session, UploadGrant, UploadSlot } from "olos/types";
+import { assertSession } from "olos/validation";
+
+const profile = createRuntimeObjectLowLatencyProfile();
+
+const session: Session = {
+  createdAt: "2026-01-01T00:00:00.000Z",
+  epoch: 1,
+  latencyProfile: profile.latencyProfile,
+  olos: OLOS_WIRE_VERSION,
+  partTarget: profile.partTarget,
+  renditions: [
+    {
+      bitrate: 5_000_000,
+      codec: "avc1.640028",
+      frameRate: 30,
+      height: 1080,
+      kind: "video",
+      renditionId: "v1080",
+      width: 1920,
+    },
+  ],
+  segmentTarget: profile.segmentTarget,
+  sessionId: "session_1",
+  state: "live",
+  tenantId: "tenant_1",
+};
+
+assertSession(session);
+
+const slot: UploadSlot = {
+  contentType: "video/mp4",
+  deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+  duration: 2,
+  epoch: session.epoch,
+  expiresAt: "2026-01-01T00:00:05.000Z",
+  kind: "segment",
+  maxBytes: 100_000,
+  mediaSequenceNumber: 3810,
+  objectKey: "live/session/v1080/3810.m4s",
+  publicationMode: "direct-public",
+  publisherInstanceId: "publisher_1",
+  renditionId: "v1080",
+  sessionId: session.sessionId,
+  slotId: "slot_3810",
+  state: "issued",
+  tenantId: session.tenantId,
+};
+
+const grant: UploadGrant = createS3UploadGrant({
+  presignedUrl:
+    "https://media.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+  slot,
+});
+
+if (!grant.requiredHeaders) {
+  throw new Error("expected S3 grant headers");
+}
+
+grant.requiredHeaders["x-amz-meta-olos-slot-id"] satisfies string;
+`.trimStart();
+}
+
+function packageTypeSmokeConfig(): string {
+  return `${JSON.stringify(
+    {
+      compilerOptions: {
+        module: "NodeNext",
+        moduleResolution: "NodeNext",
+        noEmit: true,
+        strict: true,
+        target: "ES2022",
+        types: ["node"],
+      },
+      include: ["smoke.ts"],
+    },
+    null,
+    2
+  )}\n`;
 }

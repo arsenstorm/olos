@@ -12,6 +12,7 @@ const consumerRoot = join(workRoot, "consumer");
 const consumerNodeModules = join(consumerRoot, "node_modules");
 const packageInstallRoot = join(consumerNodeModules, "olos");
 const tempRoot = join(workRoot, "tmp");
+const tsc = join(packageRoot, "node_modules", ".bin", "tsc");
 
 await rm(workRoot, { force: true, recursive: true });
 await mkdir(tempRoot, { recursive: true });
@@ -42,6 +43,7 @@ await writeFile(
 await writePackageSmokeFile(consumerRoot);
 
 await run("bun", ["smoke.mjs"], { cwd: consumerRoot });
+await run(tsc, ["--project", "tsconfig.json"], { cwd: consumerRoot });
 
 async function linkPackageDependencies() {
   const packageNodeModules = join(packageRoot, "node_modules");

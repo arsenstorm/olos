@@ -75,7 +75,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc --project tsconfig.build.json",
+    "build": "rm -rf dist && tsc --project tsconfig.build.json && bun scripts/fix-declaration-imports.ts",
     "check-types": "tsc --project tsconfig.json --noEmit",
     "conformance:report": "bun scripts/write-conformance-report.ts",
     "pack:dry": "bun pm pack --dry-run",
