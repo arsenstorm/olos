@@ -26,6 +26,11 @@ documented subpaths and keeps root `olos` limited to protocol metadata
 constants, with runtime functionality exposed through explicit subpaths such as
 `olos/runtime`, `olos/protocol`, and `olos/s3`.
 
+`publish:check` is deterministic and does not require live cloud credentials.
+It proves the package build, public exports, protocol behavior, and local E2E
+flows. Provider compatibility still needs `bun run test:live-s3` with real
+S3-compatible credentials before relying on a specific storage deployment.
+
 ## Merge Rules
 
 - Require pull requests before merging to `main`.

@@ -14,17 +14,23 @@ Vitest E2E tests, build, dry pack, and a packed-package import smoke test.
 The validation workflow also uploads the generated package tarball as a CI
 artifact for inspection.
 
+`publish:check` is the deterministic release gate. It does not contact a live
+S3-compatible provider. Run `bun run test:live-s3` separately when a release
+changes S3 upload grants, object observation, provider events, reconciliation,
+or retention behavior that should be proven against a real provider.
+
 Release checklist:
 
 1. Update `olos/package.json` to the intended version.
 2. Move relevant `CHANGELOG.md` entries from `Unreleased` into the new version.
 3. Run `bun run publish:check` from the repository root.
-4. Run `bun --filter olos release:verify-tag olos-vX.Y.Z`.
-5. Push a tag named `olos-vX.Y.Z` to run the publish workflow.
-6. Confirm the workflow published from `olos/` with npm provenance enabled.
-7. Confirm the workflow verified the published package subpaths.
-8. Confirm the workflow created a GitHub Release from the changelog notes.
-9. Verify npm registry signatures and provenance attestations from a fresh npm
+4. Run `bun run test:live-s3` when the release needs live provider validation.
+5. Run `bun --filter olos release:verify-tag olos-vX.Y.Z`.
+6. Push a tag named `olos-vX.Y.Z` to run the publish workflow.
+7. Confirm the workflow published from `olos/` with npm provenance enabled.
+8. Confirm the workflow verified the published package subpaths.
+9. Confirm the workflow created a GitHub Release from the changelog notes.
+10. Verify npm registry signatures and provenance attestations from a fresh npm
    install.
 
 The workflow requires an `NPM_TOKEN` repository secret with publish access.
