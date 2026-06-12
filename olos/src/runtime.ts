@@ -1,6 +1,16 @@
 // biome-ignore-all lint/performance/noBarrelFile: public runtime facade for the olos/runtime export
 
 export {
+  getRuntimeSessionHealth,
+  type RuntimeFetch,
+  type RuntimeHttpClientOptions,
+  type RuntimePublisherHeartbeatOptions,
+  type RuntimePublisherHeartbeatResponse,
+  type RuntimeSessionHealthOptions,
+  type RuntimeSessionHealthResponse,
+  sendRuntimePublisherHeartbeat,
+} from "./runtime/client";
+export {
   type CommitCoordinatorUploadFromRequestOptions,
   commitCoordinatorUploadFromRequest,
   type RuntimeCommitPayload,
