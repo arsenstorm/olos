@@ -14,10 +14,15 @@ export interface RuntimePublisherCommitResult {
   status: string;
 }
 
+export interface RuntimePublisherHeartbeatResult {
+  status: string;
+}
+
 export interface RunRuntimePublisherUploadStepOptions {
   commit(payload: RuntimeCommitPayload): Promise<RuntimePublisherCommitResult>;
   commitId: string;
   committedAt: string;
+  heartbeat?(): Promise<RuntimePublisherHeartbeatResult>;
   independent?: boolean;
   issueSlot(
     payload: RuntimeSlotIssuePayload
@@ -57,23 +62,32 @@ export type RuntimePublisherLoopDecision =
 export type RuntimePublisherUploadStep =
   | {
       commit: RuntimePublisherCommitResult;
+      heartbeat?: RuntimePublisherHeartbeatResult;
       observed: RuntimeObservedUploadPayload;
       slot: UploadSlot;
       status: "committed" | "idempotent";
     }
   | {
       error?: string;
+      heartbeat?: RuntimePublisherHeartbeatResult;
+      status: "heartbeat_failed";
+    }
+  | {
+      error?: string;
+      heartbeat?: RuntimePublisherHeartbeatResult;
       issue?: RuntimePublisherIssueResult;
       status: "issue_failed";
     }
   | {
       error: string;
+      heartbeat?: RuntimePublisherHeartbeatResult;
       slot: UploadSlot;
       status: "upload_failed";
     }
   | {
       commit?: RuntimePublisherCommitResult;
       error?: string;
+      heartbeat?: RuntimePublisherHeartbeatResult;
       observed: RuntimeObservedUploadPayload;
       slot: UploadSlot;
       status: "commit_failed";
@@ -82,6 +96,12 @@ export type RuntimePublisherUploadStep =
 export async function runRuntimePublisherUploadStep(
   options: RunRuntimePublisherUploadStepOptions
 ): Promise<RuntimePublisherUploadStep> {
+  const heartbeat = await runPublisherHeartbeat(options.heartbeat);
+
+  if (heartbeat.status === "failed") {
+    return heartbeat.step;
+  }
+
   let issued: RuntimePublisherIssueResult;
 
   try {
@@ -89,12 +109,14 @@ export async function runRuntimePublisherUploadStep(
   } catch (error) {
     return {
       error: errorMessage(error),
+      ...heartbeatResult(heartbeat.result),
       status: "issue_failed",
     };
   }
 
   if (issued.status !== "issued" || issued.slot === undefined) {
     return {
+      ...heartbeatResult(heartbeat.result),
       issue: issued,
       status: "issue_failed",
     };
@@ -107,6 +129,7 @@ export async function runRuntimePublisherUploadStep(
   } catch (error) {
     return {
       error: errorMessage(error),
+      ...heartbeatResult(heartbeat.result),
       slot: issued.slot,
       status: "upload_failed",
     };
@@ -127,6 +150,7 @@ export async function runRuntimePublisherUploadStep(
   } catch (error) {
     return {
       error: errorMessage(error),
+      ...heartbeatResult(heartbeat.result),
       observed,
       slot: issued.slot,
       status: "commit_failed",
@@ -136,6 +160,7 @@ export async function runRuntimePublisherUploadStep(
   if (committed.status === "committed" || committed.status === "idempotent") {
     return {
       commit: committed,
+      ...heartbeatResult(heartbeat.result),
       observed,
       slot: issued.slot,
       status: committed.status,
@@ -145,9 +170,57 @@ export async function runRuntimePublisherUploadStep(
   return {
     commit: committed,
     observed,
+    ...heartbeatResult(heartbeat.result),
     slot: issued.slot,
     status: "commit_failed",
   };
+}
+
+async function runPublisherHeartbeat(
+  heartbeat: RunRuntimePublisherUploadStepOptions["heartbeat"]
+): Promise<
+  | {
+      result?: RuntimePublisherHeartbeatResult;
+      status: "ready";
+    }
+  | {
+      status: "failed";
+      step: Extract<RuntimePublisherUploadStep, { status: "heartbeat_failed" }>;
+    }
+> {
+  if (heartbeat === undefined) {
+    return { status: "ready" };
+  }
+
+  try {
+    const result = await heartbeat();
+
+    if (result.status === "refreshed") {
+      return { result, status: "ready" };
+    }
+
+    return {
+      status: "failed",
+      step: {
+        heartbeat: result,
+        status: "heartbeat_failed",
+      },
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      step: {
+        error: errorMessage(error),
+        status: "heartbeat_failed",
+      },
+    };
+  }
+}
+
+function heartbeatResult(
+  heartbeat: RuntimePublisherHeartbeatResult | undefined
+): { heartbeat?: RuntimePublisherHeartbeatResult } {
+  return heartbeat === undefined ? {} : { heartbeat };
 }
 
 export function resolveRuntimePublisherLoopDecision(

@@ -143,6 +143,84 @@ describe("runtime publisher upload step", () => {
     });
   });
 
+  test("sends a publisher heartbeat before upload work", async () => {
+    const store = createMemoryCoordinatorStore();
+    await seedSession(store);
+    let heartbeats = 0;
+
+    const step = await runRuntimePublisherUploadStep({
+      commit: () => Promise.resolve({ status: "committed" }),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      commitId: "commit_3810",
+      heartbeat: () => {
+        heartbeats += 1;
+
+        return Promise.resolve({ status: "refreshed" });
+      },
+      issueSlot: (request) =>
+        issueStoredCoordinatorSlotFromRequest({
+          request,
+          sessionId: session.sessionId,
+          store,
+        }),
+      slot: slotPayload({
+        deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+        duration: 2,
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKey: "media/v1080/3810.m4s",
+        slotId: "slot_3810",
+      }),
+      upload: (slot) =>
+        Promise.resolve({
+          contentType: slot.contentType,
+          objectKey: slot.objectKey,
+          observedAt: "2026-01-01T00:00:02.000Z",
+          providerId: "s3_primary",
+          size: 98_304,
+        }),
+    });
+
+    expect(heartbeats).toBe(1);
+    expect(step).toMatchObject({
+      heartbeat: { status: "refreshed" },
+      status: "committed",
+    });
+  });
+
+  test("stops before slot issuance when publisher heartbeat fails", async () => {
+    let issued = false;
+
+    const step = await runRuntimePublisherUploadStep({
+      commit: () => Promise.resolve({ status: "should_not_commit" }),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      commitId: "commit_3810",
+      heartbeat: () => Promise.resolve({ status: "stale" }),
+      issueSlot: () => {
+        issued = true;
+
+        return Promise.resolve({ status: "issued" });
+      },
+      slot: slotPayload({
+        deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+        duration: 2,
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKey: "media/v1080/3810.m4s",
+        slotId: "slot_3810",
+      }),
+      upload: () => Promise.reject(new Error("should not upload")),
+    });
+
+    expect(issued).toBe(false);
+    expect(step).toEqual({
+      heartbeat: { status: "stale" },
+      status: "heartbeat_failed",
+    });
+  });
+
   test("stops before commit when publisher upload fails", async () => {
     const store = createMemoryCoordinatorStore();
     await seedSession(store);

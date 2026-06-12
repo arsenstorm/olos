@@ -64,6 +64,7 @@ export {
   type ResolveRuntimePublisherLoopDecisionOptions,
   type RunRuntimePublisherUploadStepOptions,
   type RuntimePublisherCommitResult,
+  type RuntimePublisherHeartbeatResult,
   type RuntimePublisherIssueResult,
   type RuntimePublisherLoopDecision,
   type RuntimePublisherStepStatus,
