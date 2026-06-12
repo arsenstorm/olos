@@ -489,7 +489,14 @@ describe("object-store flow", () => {
       lastMediaSequenceNumber: 3811,
       lastPartNumber: 1,
     });
+    expect(latency.targetLatency).toBeLessThanOrEqual(4);
+    expect(manifestOptions.response.maxAgeSeconds).toBeLessThanOrEqual(
+      latency.targetLatency
+    );
     expect(playlist).toContain("#EXT-X-PART-INF:PART-TARGET=0.500");
+    expect(playlist).toContain(
+      "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=3.000,HOLD-BACK=3.000"
+    );
     expect(playlist).toContain(
       `#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="${issued.part0Plan.slot.deliveryUrl}"`
     );
