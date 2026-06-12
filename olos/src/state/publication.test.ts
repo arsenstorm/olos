@@ -89,6 +89,29 @@ describe("object publication", () => {
     );
   });
 
+  test("rejects unsafe direct-public object keys", () => {
+    const unsafeKeys = [
+      "/tenant/session/v1080/3810.m4s",
+      "tenant//session/v1080/3810.m4s",
+      "tenant/../session/v1080/3810.m4s",
+      "tenant/session/v1080/3810.m4s\n",
+    ];
+
+    for (const objectKey of unsafeKeys) {
+      expect(() =>
+        createObjectPublication({
+          capability,
+          commit: {
+            ...commit,
+            objectKey,
+          },
+        })
+      ).toThrow(
+        "commit.objectKey must be a safe relative object key for direct-public commits"
+      );
+    }
+  });
+
   test("keeps committed read-gated delivery URLs behind providers with read gates", () => {
     expect(
       createObjectPublication({

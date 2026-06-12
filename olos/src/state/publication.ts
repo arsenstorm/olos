@@ -79,6 +79,8 @@ function assertProviderOwnsCommit(
 }
 
 function publicObjectUrl(publicBaseUrl: string, objectKey: string): string {
+  assertSafeObjectKey(objectKey);
+
   const url = new URL(publicBaseUrl);
   const basePath = url.pathname.endsWith("/")
     ? url.pathname.slice(0, -1)
@@ -91,4 +93,32 @@ function publicObjectUrl(publicBaseUrl: string, objectKey: string): string {
 
   url.pathname = `${basePath}/${keyPath}`;
   return url.toString();
+}
+
+function assertSafeObjectKey(objectKey: string): void {
+  if (
+    objectKey.length === 0 ||
+    objectKey.startsWith("/") ||
+    objectKey.endsWith("/") ||
+    hasControlCharacter(objectKey) ||
+    objectKey
+      .split("/")
+      .some((segment) => segment === "" || segment === "." || segment === "..")
+  ) {
+    throw new Error(
+      "commit.objectKey must be a safe relative object key for direct-public commits"
+    );
+  }
+}
+
+function hasControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+
+  return false;
 }
