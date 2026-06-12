@@ -565,6 +565,139 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
   });
 
+  test("routes duplicate and irrelevant S3 object-created events", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+          "live/session/v1080/init.mp4": 1024,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
+          duration: 1,
+          kind: "init",
+          maxBytes: 2048,
+          mediaSequenceNumber: 0,
+          objectKey: "live/session/v1080/init.mp4",
+          slotId: "slot_init",
+        })
+      )
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+    await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_init",
+        committedAt: "2026-01-01T00:00:01.000Z",
+        objectKey: "live/session/v1080/init.mp4",
+        providerId: "s3_primary",
+        slotId: "slot_init",
+      })
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/events", {
+        Records: [
+          s3EventRecord("live/session/v1080/3810.m4s", "event_3810"),
+          s3EventRecord("live/session/v1080/3810.m4s", "event_3810"),
+          s3EventRecord("live/session/v1080/unused.m4s", "event_unused"),
+        ],
+      })
+    );
+    const body = (await response.json()) as {
+      results: {
+        commit?: { objectKey: string; slotId: string };
+        error?: { code: string };
+        status: string;
+      }[];
+    };
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(202);
+    expect(body.results).toMatchObject([
+      {
+        commit: {
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        },
+        status: "committed",
+      },
+      {
+        commit: {
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        },
+        status: "idempotent",
+      },
+      {
+        error: {
+          code: "olos.unknown_slot",
+        },
+        status: "rejected",
+      },
+    ]);
+    expect(stored?.state.initCommits).toHaveLength(1);
+    expect(stored?.state.commits).toMatchObject([
+      {
+        commitId: "event_3810",
+        objectKey: "live/session/v1080/3810.m4s",
+        slotId: "slot_3810",
+      },
+    ]);
+    expect(stored?.state.cursor?.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/init.mp4",
+      },
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
+  });
+
   test("reconciles missed S3 commits through the runtime route", async () => {
     const headObjectInputs: unknown[] = [];
     const notifiedCursors: Cursor[] = [];
@@ -942,22 +1075,24 @@ function jsonRequest(url: string, body: unknown): Request {
 
 function s3Event(objectKey: string) {
   return {
-    Records: [
-      {
-        eventName: "ObjectCreated:Put",
-        eventTime: "2026-01-01T00:00:02.000Z",
-        responseElements: {
-          "x-amz-request-id": "event_3810",
-        },
-        s3: {
-          object: {
-            eTag: "etag_3810",
-            key: encodeURIComponent(objectKey),
-            size: 98_304,
-          },
-        },
+    Records: [s3EventRecord(objectKey, "event_3810")],
+  };
+}
+
+function s3EventRecord(objectKey: string, eventId: string) {
+  return {
+    eventName: "ObjectCreated:Put",
+    eventTime: "2026-01-01T00:00:02.000Z",
+    responseElements: {
+      "x-amz-request-id": eventId,
+    },
+    s3: {
+      object: {
+        eTag: eventId,
+        key: encodeURIComponent(objectKey),
+        size: 98_304,
       },
-    ],
+    },
   };
 }
 
