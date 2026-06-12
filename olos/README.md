@@ -100,6 +100,11 @@ For single-process runtimes, `createMemoryRuntimeCursorNotifier` can connect
 commit routes to blocking reload waits. Distributed deployments should provide a
 notifier backed by their own queue, pub/sub, or durable runtime.
 
+Use `createSerializedCoordinatorStore` to adapt a persistent JSON snapshot
+backend into the coordinator store contract. Backend adapters should implement
+conditional inserts and expected-etag updates; `assertSerializedCoordinatorStoreBackendConformance`
+can verify that behavior.
+
 `runRuntimePublisherUploadStep` models the publisher loop for one object: issue
 a slot, let the app upload to its provider, then commit the observed upload.
 The application still owns encoder timing, bytes, retries, and credentials.

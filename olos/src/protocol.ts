@@ -38,6 +38,8 @@ export {
   serializeCoordinatorPipelineSnapshot,
 } from "./protocol/coordinator";
 export {
+  type AssertSerializedCoordinatorStoreBackendConformanceOptions,
+  assertSerializedCoordinatorStoreBackendConformance,
   createSerializedCoordinatorStore,
   type SaveSerializedCoordinatorStoreOptions,
   type SerializedCoordinatorStoreBackend,

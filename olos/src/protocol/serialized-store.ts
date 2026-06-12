@@ -35,6 +35,12 @@ export type SerializedCoordinatorStoreSave =
       status: "conflict";
     };
 
+export interface AssertSerializedCoordinatorStoreBackendConformanceOptions {
+  createBackend():
+    | SerializedCoordinatorStoreBackend
+    | Promise<SerializedCoordinatorStoreBackend>;
+}
+
 export function createSerializedCoordinatorStore(
   backend: SerializedCoordinatorStoreBackend
 ): CoordinatorPipelineStore {
@@ -73,6 +79,78 @@ export function createSerializedCoordinatorStore(
   };
 }
 
+export async function assertSerializedCoordinatorStoreBackendConformance(
+  options: AssertSerializedCoordinatorStoreBackendConformanceOptions
+): Promise<void> {
+  const backend = await options.createBackend();
+  const sessionId = "serialized_store_conformance";
+  const first = record("1");
+  const second = record("2");
+
+  expectSerializedBackendValue(
+    await backend.load(sessionId),
+    undefined,
+    "new serialized backend must not load missing sessions"
+  );
+
+  assertSerializedBackendSaved(
+    await backend.save({ record: first, sessionId }),
+    "insert without expected etag must save"
+  );
+
+  const duplicateInsert = await backend.save({ record: first, sessionId });
+  assertSerializedBackendStatus(
+    duplicateInsert.status,
+    "conflict",
+    "duplicate insert must conflict"
+  );
+
+  if (duplicateInsert.status === "conflict") {
+    expectSerializedBackendValue(
+      duplicateInsert.current?.etag,
+      first.etag,
+      "duplicate insert conflict should expose current etag when available"
+    );
+  }
+
+  const staleUpdate = await backend.save({
+    expectedEtag: "stale",
+    record: second,
+    sessionId,
+  });
+  assertSerializedBackendStatus(
+    staleUpdate.status,
+    "conflict",
+    "stale update must conflict"
+  );
+
+  assertSerializedBackendSaved(
+    await backend.save({
+      expectedEtag: first.etag,
+      record: second,
+      sessionId,
+    }),
+    "matching expected etag update must save"
+  );
+
+  expectSerializedBackendValue(
+    (await backend.load(sessionId))?.etag,
+    second.etag,
+    "matching expected etag update must publish the new record"
+  );
+
+  const missingUpdate = await backend.save({
+    expectedEtag: "1",
+    record: first,
+    sessionId: "missing_serialized_store_conformance",
+  });
+  assertSerializedBackendStatus(
+    missingUpdate.status,
+    "conflict",
+    "missing update must conflict"
+  );
+}
+
 function createRecord(
   etag: string,
   state: CoordinatorPipelineState
@@ -91,4 +169,43 @@ function parseRecord(record: SerializedCoordinatorStoreRecord) {
   }
 
   return snapshot;
+}
+
+function record(etag: string): SerializedCoordinatorStoreRecord {
+  return {
+    etag,
+    snapshot: `{"etag":"${etag}"}`,
+  };
+}
+
+function assertSerializedBackendSaved(
+  result: SerializedCoordinatorStoreSave,
+  message: string
+): asserts result is Extract<
+  SerializedCoordinatorStoreSave,
+  { status: "saved" }
+> {
+  assertSerializedBackendStatus(result.status, "saved", message);
+}
+
+function assertSerializedBackendStatus(
+  actual: string,
+  expected: string,
+  message: string
+): void {
+  if (actual !== expected) {
+    throw new Error(`${message}: expected ${expected}, received ${actual}`);
+  }
+}
+
+function expectSerializedBackendValue<T>(
+  actual: T,
+  expected: T,
+  message: string
+): void {
+  if (actual !== expected) {
+    throw new Error(
+      `${message}: expected ${String(expected)}, received ${String(actual)}`
+    );
+  }
 }

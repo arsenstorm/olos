@@ -4,6 +4,7 @@ import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import { createCoordinatorPipeline, issueCoordinatorSlot } from "./coordinator";
 import {
+  assertSerializedCoordinatorStoreBackendConformance,
   createSerializedCoordinatorStore,
   type SerializedCoordinatorStoreBackend,
   type SerializedCoordinatorStoreRecord,
@@ -47,6 +48,14 @@ describe("serialized coordinator store", () => {
     await assertCoordinatorPipelineStoreConformance({
       createStore: () => createSerializedCoordinatorStore(createBackend()),
     });
+  });
+
+  test("asserts serialized backend conditional-write conformance", async () => {
+    await expect(
+      assertSerializedCoordinatorStoreBackendConformance({
+        createBackend,
+      })
+    ).resolves.toBeUndefined();
   });
 
   test("stores JSON snapshots with monotonic etags", async () => {
