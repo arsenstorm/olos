@@ -23,6 +23,7 @@ import {
   issueStoredS3CoordinatorUploadGrant,
   normalizeS3ObjectCreatedEvents,
   routeStoredS3CoordinatorUploadEvent,
+  runPlannedStoredS3PublisherUploadStep,
   type S3HeadObjectClient,
 } from "olos/s3";
 import { normalizeUploadEvent } from "olos/state";
@@ -196,6 +197,109 @@ describe("object-store flow", () => {
       {
         Bucket: "media",
         Key: issued.segmentPlan.slot.objectKey,
+      },
+    ]);
+  });
+
+  test("publishes a planned S3 publisher step into stored HLS state", async () => {
+    const headObjectInputs: unknown[] = [];
+    const uploadedUrls: string[] = [];
+    const store = await createStoredPipeline();
+    const initPlan = createUploadPlan({
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+    });
+    const init = await issuePlannedUploadGrant({ plan: initPlan, store });
+
+    expect(init.status).toBe("saved");
+
+    await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: headObjectClient(headObjectInputs, 1024),
+      commitId: initPlan.commitId,
+      committedAt: "2026-01-01T00:00:01.000Z",
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotId: initPlan.slot.slotId,
+      store,
+    });
+
+    const step = await runPlannedStoredS3PublisherUploadStep({
+      bucket: "media",
+      client: createS3Client(),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      headObjectClient: headObjectClient(headObjectInputs, 98_304),
+      independent: true,
+      manifest: {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+        targetLatency,
+      },
+      now: publishNow,
+      plan: {
+        baseUrl: "https://media.example.com",
+        contentType: "video/mp4",
+        duration: 2,
+        extension: "m4s",
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKeyPrefix: "media",
+        publicationMode: "direct-public",
+        publisherInstanceId: "pub_1",
+        renditionId: "v1080",
+      },
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store,
+      targetLatency,
+      upload: (grant, plan) => {
+        uploadedUrls.push(grant.url);
+        expect(grant.slotId).toBe(plan.slot.slotId);
+
+        return Promise.resolve();
+      },
+    });
+
+    expect(step.status).toBe("committed");
+    expect(step.expiry).toEqual({
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      ttlSeconds: 5,
+    });
+
+    if (step.status !== "committed") {
+      throw new Error("expected planned publisher step to commit");
+    }
+
+    const stored = await store.load(session.sessionId);
+    const cursor = stored?.state.cursor;
+    const media = resolveHlsManifestArtifactResponse(
+      step.commit.manifest?.artifacts ?? [],
+      "/v1/live/session_1/v1080/media.m3u8"
+    );
+
+    if (cursor === undefined) {
+      throw new Error("expected stored cursor");
+    }
+
+    assertCursor(cursor);
+
+    expect(cursor.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+    expect(media?.body).toContain(step.plan.slot.deliveryUrl);
+    expect(uploadedUrls).toHaveLength(1);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: initPlan.slot.objectKey,
+      },
+      {
+        Bucket: "media",
+        Key: step.plan.slot.objectKey,
       },
     ]);
   });
