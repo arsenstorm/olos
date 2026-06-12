@@ -139,6 +139,20 @@ describe("runtime publisher object plan", () => {
     expect(() =>
       createRuntimePublisherObjectPlan({
         ...validSegmentPlan(),
+        objectKeyPrefix: "media/session_1?token=abc",
+      })
+    ).toThrow("objectKeyPrefix must not contain query strings or fragments");
+
+    expect(() =>
+      createRuntimePublisherObjectPlan({
+        ...validSegmentPlan(),
+        objectKeyPrefix: "media/session_1#live",
+      })
+    ).toThrow("objectKeyPrefix must not contain query strings or fragments");
+
+    expect(() =>
+      createRuntimePublisherObjectPlan({
+        ...validSegmentPlan(),
         baseUrl: "ftp://media.example.com",
       })
     ).toThrow("baseUrl must be an absolute HTTP(S) URL");

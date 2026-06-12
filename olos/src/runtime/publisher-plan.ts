@@ -186,6 +186,10 @@ function assertOptionalUrlSafeIdentifier(
 }
 
 function assertSafePath(value: string, name: string): void {
+  if (value.includes("?") || value.includes("#")) {
+    throw new Error(`${name} must not contain query strings or fragments`);
+  }
+
   if (
     value.length === 0 ||
     value.startsWith("/") ||
