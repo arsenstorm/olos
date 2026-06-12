@@ -122,6 +122,10 @@ consistent without taking over scheduling.
 lease status into `active`, `starting`, or `stale`. Use it for dashboards and
 watchdogs; the application still owns polling, alerts, and restart policy.
 
+`createRuntimeObjectLowLatencyProfile` returns the current object low-latency
+runtime defaults: 0.5s parts, 2s segments, 3s target latency, 3s blocking reload
+waits, 1s manifest caching, and a 5s cursor staleness threshold.
+
 ### Publication Control
 
 Use `publicationControl` to stop new publication during an incident or budget
