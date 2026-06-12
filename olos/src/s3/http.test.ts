@@ -416,6 +416,132 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
   });
 
+  test("uses the configured S3 provider for commit routes", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        slotId: "slot_3810",
+      })
+    );
+    const body = (await response.json()) as {
+      commit: {
+        providerId: string;
+        slotId: string;
+      };
+    };
+
+    expect(response.status).toBe(201);
+    expect(body.commit).toMatchObject({
+      providerId: "s3_primary",
+      slotId: "slot_3810",
+    });
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
+  });
+
+  test("rejects S3 commit routes without a provider", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+        },
+        headObjectInputs
+      ),
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        slotId: "slot_3810",
+      })
+    );
+    const body = (await response.json()) as {
+      error: {
+        message: string;
+      };
+    };
+
+    expect(response.status).toBe(400);
+    expect(body.error.message).toBe(
+      "providerId must be configured or provided"
+    );
+    expect(headObjectInputs).toEqual([]);
+  });
+
   test("applies publication control to S3 grant issuance", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
