@@ -21,6 +21,11 @@ That workflow verifies:
 `publish:check` includes changelog verification, type checking, Bun unit tests,
 Vitest E2E tests, build, dry pack, and packed-package smoke testing.
 
+The packed-package smoke test is also the public export guard. It verifies the
+documented subpaths and keeps root `olos` limited to protocol metadata
+constants, with runtime functionality exposed through explicit subpaths such as
+`olos/runtime`, `olos/protocol`, and `olos/s3`.
+
 ## Merge Rules
 
 - Require pull requests before merging to `main`.

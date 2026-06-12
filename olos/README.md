@@ -33,6 +33,11 @@ package:
 | `olos/config` | Shared protocol constants and default policy values. |
 | `olos/conformance` | Conformance assertion metadata and store checks. |
 
+Root `olos` exports only protocol metadata constants. Do not add runtime,
+provider, validation, or state helpers to the root entry point; put them behind
+the narrowest relevant subpath. The packed-package smoke test enforces the root
+runtime export list.
+
 ## First Object-Store Flow
 
 For an S3-compatible live pipeline, wire the pieces in this order:
