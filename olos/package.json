@@ -76,6 +76,7 @@
   "scripts": {
     "build": "rm -rf dist && tsc --project tsconfig.build.json",
     "check-types": "tsc --project tsconfig.json --noEmit",
+    "conformance:report": "bun scripts/write-conformance-report.ts",
     "pack:dry": "bun pm pack --dry-run",
     "pack:artifact": "bun run build && bun scripts/create-package-artifact.ts",
     "pack:smoke": "bun run build && bun scripts/package-smoke.ts",

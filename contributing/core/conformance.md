@@ -18,6 +18,14 @@ Coverage means an assertion ID is mapped to a deterministic test file in
 applications still need their own authentication, storage policy, monitoring,
 and provider-specific integration tests.
 
+Generate the current CI-friendly report with:
+
+```bash
+bun --filter olos conformance:report
+```
+
+The validation workflow uploads this report as `olos-conformance`.
+
 When adding or changing behavior:
 
 1. Add or update the relevant assertion ID in `OLOS_CONFORMANCE_ASSERTION_IDS`.
