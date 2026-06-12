@@ -819,6 +819,124 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
   });
 
+  test("reports failed S3 reconciliation slots through the runtime route", async () => {
+    const headObjectInputs: unknown[] = [];
+    const notifiedCursors: Cursor[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/init.mp4": 1024,
+        },
+        headObjectInputs
+      ),
+      cursorNotifier: {
+        notify: (cursor) => notifiedCursors.push(cursor),
+        waitForCursor: () =>
+          Promise.reject(new Error("waiter should not be called")),
+      },
+      providerId: "s3_primary",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
+          duration: 1,
+          kind: "init",
+          maxBytes: 2048,
+          mediaSequenceNumber: 0,
+          objectKey: "live/session/v1080/init.mp4",
+          slotId: "slot_init",
+        })
+      )
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/reconcile", {
+        committedAt: "2026-01-01T00:00:02.000Z",
+      })
+    );
+    const body = (await response.json()) as {
+      results: {
+        error?: { message: string };
+        slotId: string;
+        status: string;
+      }[];
+      summary: {
+        committed: number;
+        failed: number;
+        failedSlotIds: string[];
+        ok: boolean;
+        planned: number;
+        slotIds: string[];
+      };
+    };
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(202);
+    expect(body.results).toMatchObject([
+      {
+        slotId: "slot_init",
+        status: "committed",
+      },
+      {
+        error: {
+          message: "unexpected object key: live/session/v1080/3810.m4s",
+        },
+        slotId: "slot_3810",
+        status: "failed",
+      },
+    ]);
+    expect(body.summary).toMatchObject({
+      committed: 1,
+      failed: 1,
+      failedSlotIds: ["slot_3810"],
+      ok: false,
+      planned: 2,
+      slotIds: ["slot_init", "slot_3810"],
+    });
+    expect(stored?.state.cursor).toBeUndefined();
+    expect(notifiedCursors).toEqual([]);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/init.mp4",
+      },
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
+  });
+
   test("plans S3 reconciliation candidates through the runtime route", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
