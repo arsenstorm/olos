@@ -7,6 +7,7 @@ import type { CoordinatorPipelineState } from "../protocol/coordinator";
 import { createObservedUpload } from "../state/observed-upload";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
+import { assertSafeObjectKey } from "../validation/object-key";
 import type { ObservedUpload } from "../validation/observed-upload";
 
 export type RuntimeCommitRequest = Request | RuntimeCommitPayload;
@@ -132,9 +133,13 @@ function parseObjectPayload(value: unknown): RuntimeObservedUploadPayload {
     throw new Error("object must be a JSON object");
   }
 
+  const objectKey = stringField(value, "objectKey");
+
+  assertSafeObjectKey(objectKey, "object.objectKey");
+
   return {
     contentType: stringField(value, "contentType"),
-    objectKey: stringField(value, "objectKey"),
+    objectKey,
     observedAt: stringField(value, "observedAt"),
     providerId: stringField(value, "providerId"),
     size: numberField(value, "size"),
