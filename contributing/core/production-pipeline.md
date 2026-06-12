@@ -41,13 +41,15 @@ evidence that a different profile is stable.
 Run one object step at a time:
 
 ```text
-load cursor -> plan next object -> issue grant -> upload -> commit -> refresh lease
+load cursor -> plan next object -> heartbeat -> issue grant -> upload -> commit -> refresh lease
 ```
 
 The application still owns encoder cadence, upload retry timing, credentials,
 and backoff. Use `resolveRuntimePublisherLoopDecision` to decide whether the
-next iteration should continue, retry, or stop. Refresh the publisher lease only
-after a successful committed or idempotent step.
+next iteration should continue, retry, or stop. The pre-grant heartbeat is a
+liveness gate: if the app cannot refresh its publisher lease, do not issue a new
+upload grant. Refresh the lease again only after a successful committed or
+idempotent step so health checks reflect the last completed publication.
 
 ## Provider Events
 

@@ -114,7 +114,11 @@ The application still owns encoder timing, bytes, retries, and credentials.
 `createRuntimePublisherLease`, `refreshRuntimePublisherLease`, and
 `resolveRuntimePublisherLeaseStatus` provide a small heartbeat model for
 app-owned publisher liveness. Store the lease wherever your runtime keeps
-publisher process metadata; OLOS only computes expiry and stale status.
+publisher process metadata; OLOS only computes expiry and stale status. Pass a
+heartbeat callback into publisher upload steps when a publisher must prove it is
+still live before OLOS issues a new slot or grant. After a committed or
+idempotent step, refresh the lease again so health checks reflect completed
+publication work.
 
 `createRuntimePublisherObjectPlan` creates slot payloads and commit IDs for
 init, segment, and part objects. Pass an app-generated `objectKeyNonce` for
@@ -408,8 +412,9 @@ and S3 client configuration. OLOS owns the upload-slot rules, S3 object
 observation, cursor update, manifest rendering, and response metadata.
 
 Publisher processes can use `runStoredS3PublisherUploadStep` to compose one
-object publication step: issue a grant, let the app PUT to the granted URL, then
-commit the slot through S3 object observation.
+object publication step: optionally refresh publisher heartbeat, issue a grant,
+let the app PUT to the granted URL, then commit the slot through S3 object
+observation.
 
 For planned init, segment, and part objects,
 `runPlannedStoredS3PublisherUploadStep` also derives the object key, slot ID,
@@ -422,7 +427,8 @@ app-owned retry loops; retrying a failed PUT after a grant is issued should stay
 inside the application's upload callback.
 Publisher loops should refresh their app-owned lease after a successful
 `continue` decision, then wait on their own encoder/cadence signal before asking
-OLOS for the next object.
+OLOS for the next object. This post-success refresh is separate from the
+optional pre-grant heartbeat gate on the upload step.
 Use `summarizeStoredS3PublisherUploadStep` for stable log fields from each
 publisher step without coupling application telemetry to OLOS internals.
 
