@@ -16,6 +16,7 @@ import {
 } from "./coordinator";
 import type { S3HeadObjectClient } from "./object-observation";
 import {
+  runNextStoredS3PublisherUploadStep,
   runPlannedStoredS3PublisherUploadStep,
   runStoredS3PublisherUploadStep,
 } from "./publisher";
@@ -110,6 +111,65 @@ describe("stored S3 publisher upload step", () => {
       objectKey: "media/v1080/s3810.m4s",
       slotId: "slot_v1080_s3810",
     });
+    expect(uploadedUrls).toHaveLength(1);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/v1080/s3810.m4s",
+      },
+    ]);
+  });
+
+  test("derives the next S3 object from publisher cadence", async () => {
+    const headObjectInputs: unknown[] = [];
+    const uploadedUrls: string[] = [];
+    const store = createMemoryCoordinatorStore();
+
+    await store.save({
+      sessionId: session.sessionId,
+      state: createCoordinatorPipeline({ pathways, session }),
+    });
+
+    const step = await runNextStoredS3PublisherUploadStep({
+      baseUrl: "https://media.example.com",
+      bucket: "media",
+      client: createClient(),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      defaults: objectDefaults,
+      headObjectClient: clientFor(
+        "media/v1080/s3810.m4s",
+        98_304,
+        headObjectInputs
+      ),
+      independent: true,
+      now: "2026-01-01T00:00:00.000Z",
+      objectKeyPrefix: "media",
+      providerId: "s3_primary",
+      publicationMode: "direct-public",
+      publisherInstanceId: "publisher_1",
+      renditionId: "v1080",
+      sessionId: session.sessionId,
+      startMediaSequenceNumber: 3810,
+      store,
+      targetLatency: 3,
+      upload: (grant, plan) => {
+        uploadedUrls.push(grant.url);
+        expect(plan.commitId).toBe("commit_v1080_s3810");
+
+        return Promise.resolve();
+      },
+    });
+
+    expect(step.status).toBe("committed");
+    expect(step.position).toEqual({
+      kind: "segment",
+      mediaSequenceNumber: 3810,
+    });
+    expect(step.expiry).toEqual({
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      ttlSeconds: 5,
+    });
+    expect(step.plan.slot.objectKey).toBe("media/v1080/s3810.m4s");
     expect(uploadedUrls).toHaveLength(1);
     expect(headObjectInputs).toEqual([
       {
@@ -268,6 +328,27 @@ describe("stored S3 publisher upload step", () => {
     });
   });
 });
+
+const objectDefaults = {
+  init: {
+    contentType: "video/mp4",
+    duration: 1,
+    extension: "mp4",
+    maxBytes: 2048,
+  },
+  part: {
+    contentType: "video/mp4",
+    duration: 0.5,
+    extension: "m4s",
+    maxBytes: 25_000,
+  },
+  segment: {
+    contentType: "video/mp4",
+    duration: 2,
+    extension: "m4s",
+    maxBytes: 100_000,
+  },
+} as const;
 
 function clientFor(
   objectKey: string,

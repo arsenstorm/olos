@@ -68,6 +68,7 @@ export const OLOS_CONFORMANCE_ASSERTION_IDS = [
   "OBJ-FLOW-003",
   "OBJ-FLOW-004",
   "OBJ-FLOW-005",
+  "OBJ-FLOW-006",
   "OBJ-RUNTIME-001",
   "OBJ-RUNTIME-002",
   "OBJ-RUNTIME-003",
@@ -473,6 +474,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     level: "object",
     status: "covered",
     testFile: "src/s3/reconciliation.test.ts",
+  },
+  {
+    id: "OBJ-FLOW-006",
+    level: "object",
+    status: "covered",
+    testFile: "src/s3/publisher.test.ts",
   },
   {
     id: "OBJ-RUNTIME-001",

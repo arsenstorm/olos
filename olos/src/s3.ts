@@ -43,9 +43,12 @@ export {
   type S3HeadObjectClient,
 } from "./s3/object-observation";
 export {
+  type NextStoredS3PublisherUploadStep,
   type PlannedStoredS3PublisherUploadStep,
+  type RunNextStoredS3PublisherUploadStepOptions,
   type RunPlannedStoredS3PublisherUploadStepOptions,
   type RunStoredS3PublisherUploadStepOptions,
+  runNextStoredS3PublisherUploadStep,
   runPlannedStoredS3PublisherUploadStep,
   runStoredS3PublisherUploadStep,
   type StoredS3PublisherUploadStep,

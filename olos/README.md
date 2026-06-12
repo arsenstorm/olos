@@ -354,6 +354,8 @@ For planned init, segment, and part objects,
 `runPlannedStoredS3PublisherUploadStep` also derives the object key, slot ID,
 commit ID, slot expiry, and grant TTL before running that same step. It handles
 one object at a time; the application still owns encoder timing and retries.
+`runNextStoredS3PublisherUploadStep` can derive that plan from the current
+cursor window plus publisher defaults.
 
 Recovery jobs can use `reconcileStoredS3CoordinatorUploads` to retry commits for
 issued slots after missed provider events or process restarts. The helper reads

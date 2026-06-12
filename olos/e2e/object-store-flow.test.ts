@@ -18,10 +18,8 @@ import {
   createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
   createRuntimePublisherObjectPlan,
-  createRuntimePublisherObjectPlanInput,
   type RuntimePublisherObjectPlan,
   type RuntimePublisherPlannedObjectKind,
-  resolveRuntimePublisherNextObjectPosition,
   resolveRuntimePublisherObjectExpiry,
 } from "olos/runtime";
 import {
@@ -29,7 +27,7 @@ import {
   issueStoredS3CoordinatorUploadGrant,
   normalizeS3ObjectCreatedEvents,
   routeStoredS3CoordinatorUploadEvent,
-  runPlannedStoredS3PublisherUploadStep,
+  runNextStoredS3PublisherUploadStep,
   type S3HeadObjectClient,
 } from "olos/s3";
 import { normalizeUploadEvent } from "olos/state";
@@ -243,15 +241,14 @@ describe("object-store flow", () => {
     });
 
     const storedBeforeStep = await store.load(session.sessionId);
-    const nextPosition = resolveRuntimePublisherNextObjectPosition({
-      cursorWindow: storedBeforeStep?.state.cursor?.window,
-      startMediaSequenceNumber: 3810,
-    });
 
-    const step = await runPlannedStoredS3PublisherUploadStep({
+    const step = await runNextStoredS3PublisherUploadStep({
+      baseUrl: "https://media.example.com",
       bucket: "media",
       client: createS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
+      cursorWindow: storedBeforeStep?.state.cursor?.window,
+      defaults: publisherDefaults,
       headObjectClient: headObjectClient(headObjectInputs, 98_304),
       independent: true,
       manifest: {
@@ -259,17 +256,13 @@ describe("object-store flow", () => {
         ...manifestOptions.manifest,
       },
       now: publishNow,
-      plan: createRuntimePublisherObjectPlanInput({
-        baseUrl: "https://media.example.com",
-        defaults: publisherDefaults,
-        objectKeyPrefix: "media",
-        position: nextPosition,
-        publicationMode: "direct-public",
-        publisherInstanceId: "pub_1",
-        renditionId: "v1080",
-      }),
+      objectKeyPrefix: "media",
       providerId: "s3_primary",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
       sessionId: session.sessionId,
+      startMediaSequenceNumber: 3810,
       store,
       minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
       targetLatency: publisherOptions.expiry.targetLatency,
@@ -281,7 +274,7 @@ describe("object-store flow", () => {
       },
     });
 
-    expect(nextPosition).toEqual({
+    expect(step.position).toEqual({
       kind: "segment",
       mediaSequenceNumber: 3810,
     });
