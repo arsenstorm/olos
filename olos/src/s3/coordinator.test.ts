@@ -5,13 +5,18 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import {
+  type CoordinatorPipelineStore,
+  commitCoordinatorUpload,
   createCoordinatorPipeline,
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
 } from "../protocol/coordinator";
 import { resolveRuntimePublisherObjectExpiry } from "../runtime/publisher-expiry";
 import { createRuntimePublisherObjectPlan } from "../runtime/publisher-plan";
-import { normalizeUploadEvent } from "../state/observed-upload";
+import {
+  createObservedUpload,
+  normalizeUploadEvent,
+} from "../state/observed-upload";
 import { createPublicationKillSwitch } from "../state/publication-control";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
@@ -440,6 +445,54 @@ describe("s3 coordinator uploads", () => {
       {
         Bucket: "media",
         Key: "media/init.mp4",
+      },
+      {
+        Bucket: "media",
+        Key: "media/s3810.m4s",
+      },
+    ]);
+  });
+
+  test("retries stored S3 commits after save conflicts with current state", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = await createCommitConflictingStore();
+
+    const result = await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotId: "slot_3810",
+      store,
+    });
+
+    expect(result.status).toBe("committed");
+    if (result.status !== "committed") {
+      throw new Error("expected committed S3 upload after conflict retry");
+    }
+
+    expect(result.state.slots.map((slot) => slot.slotId)).toEqual([
+      "slot_init",
+      "slot_3810",
+      "slot_3811",
+    ]);
+    expect(result.state.commits).toHaveLength(1);
+    expect(result.state.commits[0]).toMatchObject({
+      commitId: "commit_3810",
+      objectKey: "media/s3810.m4s",
+      slotId: "slot_3810",
+    });
+    expect(result.cursor?.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/s3810.m4s",
       },
       {
         Bucket: "media",
@@ -1138,6 +1191,117 @@ describe("s3 coordinator uploads", () => {
     expect(result.error.error.code).toBe("olos.unknown_slot");
   });
 });
+
+async function createCommitConflictingStore(): Promise<CoordinatorPipelineStore> {
+  const store = createMemoryCoordinatorStore();
+  const originalSave = store.save;
+  const ready = createReadyState();
+  let conflicted = false;
+
+  await store.save({
+    sessionId: session.sessionId,
+    state: ready,
+  });
+
+  return {
+    load: store.load,
+    save: async (options) => {
+      if (!conflicted) {
+        conflicted = true;
+        const current = await store.load(session.sessionId);
+
+        if (current === undefined) {
+          throw new Error("expected ready coordinator snapshot");
+        }
+
+        const next = issueCoordinatorSlot({
+          ...segmentSlot(),
+          deliveryUrl: "https://media.example.com/s3811.m4s",
+          mediaSequenceNumber: 3811,
+          objectKey: "media/s3811.m4s",
+          slotId: "slot_3811",
+          state: current.state,
+        });
+        const saved = await originalSave({
+          expectedEtag: current.etag,
+          sessionId: session.sessionId,
+          state: next.state,
+        });
+
+        if (saved.status !== "saved") {
+          throw new Error("expected external coordinator save");
+        }
+
+        return {
+          current: {
+            etag: saved.etag,
+            state: saved.state,
+          },
+          status: "conflict",
+        };
+      }
+
+      return await originalSave(options);
+    },
+  };
+}
+
+function createReadyState() {
+  const init = issueCoordinatorSlot({
+    contentType: "video/mp4",
+    deliveryUrl: "https://media.example.com/init.mp4",
+    duration: 1,
+    expiresAt: "2026-01-01T00:00:05.000Z",
+    kind: "init",
+    maxBytes: 2048,
+    mediaSequenceNumber: 0,
+    objectKey: "media/init.mp4",
+    publicationMode: "direct-public",
+    publisherInstanceId: "pub_1",
+    renditionId: "v1080",
+    slotId: "slot_init",
+    state: createCoordinatorPipeline({ pathways, session }),
+  });
+  const initCommit = commitCoordinatorUpload({
+    commitId: "commit_init",
+    committedAt: "2026-01-01T00:00:01.000Z",
+    object: createObservedUpload({
+      contentType: "video/mp4",
+      objectKey: "media/init.mp4",
+      observedAt: "2026-01-01T00:00:01.000Z",
+      providerId: "s3_primary",
+      size: 1024,
+    }),
+    slotId: "slot_init",
+    state: init.state,
+  });
+
+  if (initCommit.status !== "committed") {
+    throw new Error("expected committed init upload");
+  }
+
+  return issueCoordinatorSlot({
+    ...segmentSlot(),
+    state: initCommit.state,
+  }).state;
+}
+
+function segmentSlot() {
+  return {
+    contentType: "video/mp4",
+    deliveryUrl: "https://media.example.com/s3810.m4s",
+    duration: 2,
+    expiresAt: "2026-01-01T00:00:05.000Z",
+    kind: "segment" as const,
+    maxBytes: 100_000,
+    mediaSequenceNumber: 3810,
+    objectKey: "media/s3810.m4s",
+    publicationMode: "direct-public" as const,
+    publisherInstanceId: "pub_1",
+    renditionId: "v1080",
+    slotId: "slot_3810",
+  };
+}
 
 function clientFor(
   objectKey: string,
