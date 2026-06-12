@@ -121,7 +121,6 @@ describe("S3 HTTP pipeline", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
         commitId: "commit_init",
         committedAt: "2026-01-01T00:00:01.000Z",
-        providerId: "s3_primary",
         slotId: "slot_init",
       })
     );
@@ -130,7 +129,6 @@ describe("S3 HTTP pipeline", () => {
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
         independent: true,
-        providerId: "s3_primary",
         slotId: "slot_3810",
       })
     );
@@ -188,7 +186,6 @@ describe("S3 HTTP pipeline", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
         commitId: "commit_3811",
         committedAt: "2026-01-01T00:00:03.000Z",
-        providerId: "s3_primary",
         slotId: "slot_3811",
       })
     );

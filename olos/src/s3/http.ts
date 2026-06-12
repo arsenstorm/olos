@@ -132,7 +132,7 @@ async function handleS3Commit(
   sessionId: string,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
-  const parsed = await parseS3CommitRequest(request);
+  const parsed = await parseS3CommitRequest(request, options);
 
   if (parsed.status === "invalid") {
     return badRequest(parsed.message);
@@ -457,7 +457,8 @@ interface S3RetentionPayload {
 }
 
 async function parseS3CommitRequest(
-  request: Request
+  request: Request,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): Promise<
   | { payload: S3CommitPayload; status: "valid" }
   | { message: string; status: "invalid" }
@@ -470,7 +471,7 @@ async function parseS3CommitRequest(
     }
 
     return {
-      payload: parseCommitPayload(payload),
+      payload: parseCommitPayload(payload, options),
       status: "valid",
     };
   } catch (error) {
@@ -478,11 +479,16 @@ async function parseS3CommitRequest(
   }
 }
 
-function parseCommitPayload(value: Record<string, unknown>): S3CommitPayload {
+function parseCommitPayload(
+  value: Record<string, unknown>,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): S3CommitPayload {
+  const providerId = providerIdField(value, options);
+
   return {
     commitId: stringField(value, "commitId"),
     committedAt: stringField(value, "committedAt"),
-    providerId: stringField(value, "providerId"),
+    providerId,
     slotId: stringField(value, "slotId"),
     ...optionalBooleanField(value, "independent"),
     ...optionalNumberField(value, "maxSegments"),
