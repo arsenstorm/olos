@@ -208,6 +208,75 @@ describe("committed window validation", () => {
     );
   });
 
+  test("rejects unsafe object keys", () => {
+    const firstSegment = validSegment(0);
+    const liveSegment = validSegment(2);
+    const firstPart = validPart(0);
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            init: {
+              ...validRendition().init,
+              objectKey: "/media/init.mp4",
+            },
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.init.objectKey must be a safe relative object key"
+    );
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [
+              {
+                ...firstSegment,
+                segment: {
+                  ...firstSegment.segment,
+                  objectKey: "media/../secret.m4s",
+                },
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.segments[].segment.objectKey must be a safe relative object key"
+    );
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [
+              {
+                ...liveSegment,
+                parts: [
+                  {
+                    ...firstPart,
+                    objectKey: "media/v1080/p0.m4s?token=abc",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.segments[].parts[].objectKey must not contain query strings or fragments"
+    );
+  });
+
   test("rejects non-monotonic media sequences", () => {
     const firstSegment = validSegment(0);
     const secondSegment = validSegment(1);

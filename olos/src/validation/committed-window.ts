@@ -7,6 +7,7 @@ import type {
 } from "../types/committed-window";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
+import { assertSafeObjectKey } from "./object-key";
 
 export function isCommittedWindow(value: unknown): value is CommittedWindow {
   try {
@@ -222,7 +223,7 @@ function assertCommittedObject(
 
   assertUrlSafeField(value, "commitId", name);
   assertUrlSafeField(value, "slotId", name);
-  assertNonEmptyStringField(value, "objectKey", name);
+  assertSafeObjectKey(value.objectKey, `${name}.objectKey`);
   assertSafeDeliveryUrl(value.deliveryUrl, `${name}.deliveryUrl`);
 
   if (value.contentType !== undefined) {
@@ -273,16 +274,6 @@ function assertPositiveNumberField(
     value[field] <= 0
   ) {
     throw new Error(`${name}.${field} must be a positive number`);
-  }
-}
-
-function assertNonEmptyStringField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (typeof value[field] !== "string" || value[field].length === 0) {
-    throw new Error(`${name}.${field} must be a non-empty string`);
   }
 }
 
