@@ -76,6 +76,31 @@ Document stores should keep `sessionId` as the key and `etag` as the conditional
 version. The JSON snapshot should be treated as opaque application data except
 for migrations.
 
+## Production Checklist
+
+Before using an adapter for a live deployment, verify these properties against
+the real backing service:
+
+- Session creation is insert-only. Two concurrent creates for the same
+  `sessionId` must produce one saved row and one conflict.
+- Every mutation reads the current row, computes the next snapshot, and writes
+  it with the previous ETag as the condition.
+- Slot issuance, upload commits, provider events, reconciliation, retention,
+  session transitions, and publisher heartbeats all share the same conditional
+  write path.
+- Conflict reads return the current row when possible. This lets OLOS retry
+  conflict-safe mutations instead of surfacing avoidable errors to the
+  application.
+- The adapter never splits a cursor advance across multiple independently
+  committed writes.
+- Tests run against the same consistency mode as production. Local emulators are
+  useful, but they should not be the only proof for databases with weaker
+  consistency or optional transactions.
+
+If the backing store cannot provide conditional writes, place a single-writer
+service in front of it and expose that service as the coordinator store. Do not
+hide a best-effort last-write-wins backend behind the adapter contract.
+
 ## Conformance
 
 Every production backend should run:
