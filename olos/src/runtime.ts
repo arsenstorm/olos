@@ -111,6 +111,9 @@ export {
 export {
   type CreateStoredCoordinatorSessionOptions,
   createStoredCoordinatorSession,
+  type HeartbeatStoredCoordinatorPublisherOptions,
+  heartbeatStoredCoordinatorPublisher,
+  type StoredRuntimePublisherHeartbeat,
   type StoredRuntimeSessionCreate,
   type StoredRuntimeSessionMutation,
   type StoredRuntimeSessionTransition,

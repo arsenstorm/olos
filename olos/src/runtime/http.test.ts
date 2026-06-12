@@ -237,6 +237,43 @@ describe("stored coordinator runtime handler", () => {
     expect(stored?.state.slots).toEqual([]);
   });
 
+  test("stores publisher heartbeats through the session route", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      now: () => "2026-01-01T00:00:02.000Z",
+      publisherLeaseTtlMs: 3000,
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/heartbeat", {
+        publisherInstanceId: "pub_1",
+      })
+    );
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      lease: {
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        issuedAt: "2026-01-01T00:00:02.000Z",
+        lastSeenAt: "2026-01-01T00:00:02.000Z",
+        publisherInstanceId: "pub_1",
+        sessionId: session.sessionId,
+        tenantId: session.tenantId,
+      },
+    });
+    expect(stored?.state.publisherLeases).toHaveLength(1);
+  });
+
   test("waits for blocking media playlist reloads", async () => {
     const store = createMemoryCoordinatorStore();
     const advancedStore = createMemoryCoordinatorStore();

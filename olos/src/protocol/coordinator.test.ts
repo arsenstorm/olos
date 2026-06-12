@@ -212,6 +212,22 @@ describe("coordinator pipeline", () => {
     expect(parsed.state).not.toBe(snapshot.state);
   });
 
+  test("parses coordinator snapshots without publisher leases", () => {
+    const state = createCoordinatorPipeline({ pathways, session });
+    const parsed = parseCoordinatorPipelineSnapshot({
+      etag: "1",
+      state: {
+        commits: state.commits,
+        initCommits: state.initCommits,
+        pathways: state.pathways,
+        session: state.session,
+        slots: state.slots,
+      },
+    });
+
+    expect(parsed.state.publisherLeases).toEqual([]);
+  });
+
   test("rejects malformed stored coordinator snapshots", () => {
     expect(() =>
       parseCoordinatorPipelineSnapshot({

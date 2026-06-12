@@ -37,11 +37,21 @@ import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { assertSession } from "../validation/session";
 
+export interface CoordinatorPublisherLease {
+  expiresAt: string;
+  issuedAt: string;
+  lastSeenAt: string;
+  publisherInstanceId: OlosId;
+  sessionId: OlosId;
+  tenantId: OlosId;
+}
+
 export interface CoordinatorPipelineState {
   commits: readonly Commit[];
   cursor?: Cursor;
   initCommits: readonly Commit[];
   pathways: readonly Pathway[];
+  publisherLeases: readonly CoordinatorPublisherLease[];
   session: Session;
   slots: readonly UploadSlot[];
 }
@@ -188,6 +198,7 @@ export function createCoordinatorPipeline(
     commits: [],
     initCommits: [],
     pathways: [...options.pathways],
+    publisherLeases: [],
     session: options.session,
     slots: [],
   };
@@ -259,6 +270,9 @@ export function cloneCoordinatorPipelineState(
     commits: state.commits.map((commit) => ({ ...commit })),
     initCommits: state.initCommits.map((commit) => ({ ...commit })),
     pathways: state.pathways.map((pathway) => ({ ...pathway })),
+    publisherLeases: (state.publisherLeases ?? []).map((lease) => ({
+      ...lease,
+    })),
     slots: state.slots.map((slot) => ({ ...slot })),
     ...(state.cursor === undefined
       ? {}
@@ -835,6 +849,12 @@ function assertCoordinatorPipelineState(
   assertArray(value.slots, "coordinator pipeline state slots");
   assertArray(value.initCommits, "coordinator pipeline state initCommits");
   assertArray(value.commits, "coordinator pipeline state commits");
+  if (value.publisherLeases !== undefined) {
+    assertArray(
+      value.publisherLeases,
+      "coordinator pipeline state publisherLeases"
+    );
+  }
 
   if (value.cursor !== undefined && !isRecord(value.cursor)) {
     throw new Error("coordinator pipeline state cursor must be an object");

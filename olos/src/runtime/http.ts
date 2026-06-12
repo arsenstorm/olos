@@ -11,6 +11,7 @@ import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { planStoredCoordinatorRetention } from "./retention";
 import {
   createStoredCoordinatorSession,
+  heartbeatStoredCoordinatorPublisher,
   transitionStoredCoordinatorSession,
 } from "./session";
 import {
@@ -21,6 +22,7 @@ import {
 } from "./stored";
 
 const DEFAULT_LIVE_PATH = "/v1/live";
+const DEFAULT_PUBLISHER_LEASE_TTL_MS = 3000;
 const DEFAULT_SESSION_PATH = "/sessions";
 const DEFAULT_TARGET_LATENCY = 3;
 
@@ -37,6 +39,7 @@ export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   maxAttempts?: number;
   now?: () => string;
   publicationControl?: PublicationControlPolicy;
+  publisherLeaseTtlMs?: number;
   response?: CreateHlsManifestArtifactResponseOptions;
   sessionPath?: string;
   store: CoordinatorPipelineStore;
@@ -106,6 +109,15 @@ async function handleSessionRoute(
     return notFound();
   }
 
+  return await handleSessionActionRoute(request, sessionId, action, options);
+}
+
+async function handleSessionActionRoute(
+  request: Request,
+  sessionId: string,
+  action: string,
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
+): Promise<Response> {
   if (request.method === "POST" && action === "slots") {
     return (
       await issueStoredCoordinatorSlotFromRequest({
@@ -148,6 +160,25 @@ async function handleSessionRoute(
         sessionId,
         state: parsed.state,
         store: options.store,
+      })
+    ).response;
+  }
+
+  if (request.method === "POST" && action === "heartbeat") {
+    const parsed = await parseHeartbeatRequest(request);
+
+    if (parsed.status === "invalid") {
+      return badRequest(parsed.message);
+    }
+
+    return (
+      await heartbeatStoredCoordinatorPublisher({
+        maxAttempts: options.maxAttempts,
+        now: currentNow(options),
+        publisherInstanceId: parsed.publisherInstanceId,
+        sessionId,
+        store: options.store,
+        ttlMs: options.publisherLeaseTtlMs ?? DEFAULT_PUBLISHER_LEASE_TTL_MS,
       })
     ).response;
   }
@@ -280,6 +311,29 @@ async function parseTransitionRequest(request: Request): Promise<
   }
 }
 
+async function parseHeartbeatRequest(request: Request): Promise<
+  | {
+      publisherInstanceId: string;
+      status: "valid";
+    }
+  | { message: string; status: "invalid" }
+> {
+  try {
+    const payload = await request.json();
+
+    if (!isRecord(payload)) {
+      return invalid("publisher heartbeat request must be a JSON object");
+    }
+
+    return {
+      publisherInstanceId: stringField(payload, "publisherInstanceId"),
+      status: "valid",
+    };
+  } catch (error) {
+    return invalid(errorMessage(error, "invalid publisher heartbeat request"));
+  }
+}
+
 function routeParts(
   pathname: string,
   routePath: string
@@ -311,9 +365,11 @@ function retentionNow(
 ): string {
   const url = new URL(request.url);
 
-  return (
-    url.searchParams.get("now") ?? options.now?.() ?? new Date().toISOString()
-  );
+  return url.searchParams.get("now") ?? currentNow(options);
+}
+
+function currentNow(options: CreateStoredCoordinatorRuntimeHandlerOptions) {
+  return options.now?.() ?? new Date().toISOString();
 }
 
 function invalid(message: string): { message: string; status: "invalid" } {
@@ -341,6 +397,14 @@ function jsonResponse(body: unknown, status: number): Response {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringField(value: Record<string, unknown>, field: string): string {
+  if (typeof value[field] !== "string") {
+    throw new Error(`${field} must be a string`);
+  }
+
+  return value[field];
 }
 
 function errorMessage(error: unknown, fallback: string): string {

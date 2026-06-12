@@ -10,6 +10,7 @@ import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
   createStoredCoordinatorSession,
+  heartbeatStoredCoordinatorPublisher,
   transitionStoredCoordinatorSession,
 } from "./session";
 
@@ -134,6 +135,68 @@ describe("stored session runtime", () => {
 
     expect(result.state.session.state).toBe("ending");
     expect(result.state.cursor?.state).toBe("ending");
+  });
+
+  test("stores and refreshes publisher heartbeats", async () => {
+    const store = createMemoryCoordinatorStore();
+    await seedStore(store, createCoordinatorPipeline({ pathways, session }));
+
+    const first = await heartbeatStoredCoordinatorPublisher({
+      now: "2026-01-01T00:00:01.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 3000,
+    });
+    const second = await heartbeatStoredCoordinatorPublisher({
+      now: "2026-01-01T00:00:02.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 3000,
+    });
+
+    expect(first.status).toBe("refreshed");
+    expect(second.status).toBe("refreshed");
+
+    if (second.status !== "refreshed") {
+      throw new Error("expected refreshed heartbeat");
+    }
+
+    const snapshot = await store.load(session.sessionId);
+
+    expect(second.response.status).toBe(200);
+    expect(second.lease).toEqual({
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      issuedAt: "2026-01-01T00:00:01.000Z",
+      lastSeenAt: "2026-01-01T00:00:02.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      tenantId: session.tenantId,
+    });
+    expect(snapshot?.state.publisherLeases).toEqual([second.lease]);
+  });
+
+  test("rejects publisher heartbeats for terminal sessions", async () => {
+    const store = createMemoryCoordinatorStore();
+    await seedStore(
+      store,
+      createCoordinatorPipeline({
+        pathways,
+        session: { ...session, state: "ended" },
+      })
+    );
+
+    const result = await heartbeatStoredCoordinatorPublisher({
+      now: "2026-01-01T00:00:01.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 3000,
+    });
+
+    expect(result.status).toBe("rejected");
+    expect(result.response.status).toBe(409);
   });
 
   test("rejects invalid stored session transitions", async () => {

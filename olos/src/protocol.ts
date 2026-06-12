@@ -11,6 +11,7 @@ export {
   type CoordinatorPipelineSnapshot,
   type CoordinatorPipelineState,
   type CoordinatorPipelineStore,
+  type CoordinatorPublisherLease,
   type CoordinatorRetentionPlan,
   type CoordinatorSlotIssue,
   type CoordinatorStoreSave,

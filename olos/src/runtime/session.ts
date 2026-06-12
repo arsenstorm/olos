@@ -2,6 +2,7 @@ import {
   type CoordinatorPipelineSnapshot,
   type CoordinatorPipelineState,
   type CoordinatorPipelineStore,
+  type CoordinatorPublisherLease,
   createCoordinatorPipeline,
   mutateCoordinatorPipeline,
 } from "../protocol";
@@ -9,6 +10,10 @@ import { assertSessionTransition } from "../state/session";
 import type { OlosId } from "../types/ids";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
+import {
+  createRuntimePublisherLease,
+  refreshRuntimePublisherHeartbeat,
+} from "./publisher-lease";
 
 export interface CreateStoredCoordinatorSessionOptions {
   pathways: readonly Pathway[];
@@ -21,6 +26,15 @@ export interface TransitionStoredCoordinatorSessionOptions {
   sessionId: OlosId;
   state: SessionState;
   store: CoordinatorPipelineStore;
+}
+
+export interface HeartbeatStoredCoordinatorPublisherOptions {
+  maxAttempts?: number;
+  now: string;
+  publisherInstanceId: OlosId;
+  sessionId: OlosId;
+  store: CoordinatorPipelineStore;
+  ttlMs: number;
 }
 
 export type StoredRuntimeSessionCreate =
@@ -38,6 +52,20 @@ export type StoredRuntimeSessionTransition =
       response: Response;
       state: CoordinatorPipelineState;
       status: "transitioned";
+    }
+  | {
+      response: Response;
+      status: "rejected";
+    }
+  | StoredRuntimeSessionMutation;
+
+export type StoredRuntimePublisherHeartbeat =
+  | {
+      etag: string;
+      lease: CoordinatorPublisherLease;
+      response: Response;
+      state: CoordinatorPipelineState;
+      status: "refreshed";
     }
   | {
       response: Response;
@@ -122,6 +150,47 @@ export async function transitionStoredCoordinatorSession(
   }
 }
 
+export async function heartbeatStoredCoordinatorPublisher(
+  options: HeartbeatStoredCoordinatorPublisherOptions
+): Promise<StoredRuntimePublisherHeartbeat> {
+  try {
+    let lease: CoordinatorPublisherLease | undefined;
+    const result = await mutateCoordinatorPipeline({
+      maxAttempts: options.maxAttempts,
+      mutate: (state) => {
+        const next = heartbeatState(state, options);
+        lease = next.lease;
+
+        return next.state;
+      },
+      sessionId: options.sessionId,
+      store: options.store,
+    });
+
+    if (result.status === "not_found") {
+      return notFound();
+    }
+
+    if (result.status === "conflict") {
+      return conflict(result.current);
+    }
+
+    if (lease === undefined) {
+      throw new Error("publisher heartbeat did not create a lease");
+    }
+
+    return {
+      etag: result.etag,
+      lease,
+      response: jsonResponse({ lease }, 200),
+      state: result.state,
+      status: "refreshed",
+    };
+  } catch (error) {
+    return rejectedHeartbeat(error);
+  }
+}
+
 function transitionState(
   state: CoordinatorPipelineState,
   nextState: SessionState
@@ -138,6 +207,53 @@ function transitionState(
       state: nextState,
     },
   };
+}
+
+function heartbeatState(
+  state: CoordinatorPipelineState,
+  options: HeartbeatStoredCoordinatorPublisherOptions
+): { lease: CoordinatorPublisherLease; state: CoordinatorPipelineState } {
+  assertHeartbeatSessionState(state.session.state);
+
+  const current = state.publisherLeases.find(
+    (lease) => lease.publisherInstanceId === options.publisherInstanceId
+  );
+  const lease =
+    current === undefined
+      ? createRuntimePublisherLease({
+          now: options.now,
+          publisherInstanceId: options.publisherInstanceId,
+          sessionId: options.sessionId,
+          tenantId: state.session.tenantId,
+          ttlMs: options.ttlMs,
+        })
+      : refreshRuntimePublisherHeartbeat({
+          lease: current,
+          now: options.now,
+          publisherInstanceId: options.publisherInstanceId,
+          sessionId: options.sessionId,
+          tenantId: state.session.tenantId,
+          ttlMs: options.ttlMs,
+        });
+
+  return {
+    lease,
+    state: {
+      ...state,
+      publisherLeases: [
+        ...state.publisherLeases.filter(
+          (entry) => entry.publisherInstanceId !== options.publisherInstanceId
+        ),
+        lease,
+      ],
+    },
+  };
+}
+
+function assertHeartbeatSessionState(state: SessionState): void {
+  if (state === "aborted" || state === "ended" || state === "expired") {
+    throw new Error("publisher heartbeat is not allowed for terminal sessions");
+  }
 }
 
 function notFound(): StoredRuntimeSessionMutation {
@@ -172,6 +288,23 @@ function rejected(error: unknown): StoredRuntimeSessionTransition {
             error instanceof Error
               ? error.message
               : "coordinator session transition was rejected",
+        },
+      },
+      409
+    ),
+    status: "rejected",
+  };
+}
+
+function rejectedHeartbeat(error: unknown): StoredRuntimePublisherHeartbeat {
+  return {
+    response: jsonResponse(
+      {
+        error: {
+          message:
+            error instanceof Error
+              ? error.message
+              : "publisher heartbeat was rejected",
         },
       },
       409
