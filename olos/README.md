@@ -430,6 +430,9 @@ per-slot `results` and a `summary` for log or metric sinks.
 Use `POST /sessions/:id/s3/reconcile-plan` with optional `slotIds` to inspect
 candidate slots before running recovery.
 
+For a concise production wiring guide, see the repository
+[production object pipeline](https://github.com/arsenstorm/olos/blob/main/contributing/core/production-pipeline.md).
+
 ### Direct-Public Security
 
 `direct-public` means uploaded media objects may be readable from storage before
