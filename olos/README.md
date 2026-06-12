@@ -237,6 +237,45 @@ and cursor advancement. Existing manifests continue to render from the last
 trusted cursor. The application still owns viewer access revocation, media
 prefix blocks, and cache purge.
 
+Use `commitPolicy` when publication depends on app-owned publisher
+authorisation or quota state:
+
+```ts
+import { createStoredCoordinatorRuntimeHandler } from "olos/runtime";
+
+const handleOlos = createStoredCoordinatorRuntimeHandler({
+  allowedMediaOrigins: ["https://media.example.com"],
+  commitPolicy: ({ slot }) => {
+    if (!publisherAccess.canCommit(slot.publisherInstanceId, slot.sessionId)) {
+      return {
+        error: {
+          code: "olos.security_policy_violation",
+          message: "publisher is not authorised",
+        },
+        status: "rejected",
+      };
+    }
+
+    if (!tenantQuota.canPublish(slot.tenantId, slot.maxBytes)) {
+      return {
+        error: {
+          code: "olos.quota_exceeded",
+          message: "tenant quota exceeded",
+        },
+        status: "rejected",
+      };
+    }
+
+    return { status: "allowed" };
+  },
+  store,
+});
+```
+
+The hook runs before a new commit is written and is shared by runtime and S3
+commit paths. OLOS does not store accounts, roles, billing limits, or quota
+counters; the application provides those decisions.
+
 ### Store Adapter Helpers
 
 The coordinator store is intentionally small: load a session snapshot and save a

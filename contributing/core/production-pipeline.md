@@ -51,6 +51,14 @@ liveness gate: if the app cannot refresh its publisher lease, do not issue a new
 upload grant. Refresh the lease again only after a successful committed or
 idempotent step so health checks reflect the last completed publication.
 
+Use a `commitPolicy` hook when commit eligibility depends on application state:
+publisher authorisation, account status, quota counters, moderation state, or
+tenant limits. The hook should return `allowed` or an OLOS error such as
+`olos.security_policy_violation` or `olos.quota_exceeded`; it must not mutate
+the coordinator state itself. Apply the same hook to normal commit routes,
+provider-event commit paths, reconciliation, and publisher helpers so recovery
+cannot publish objects that the live path would reject.
+
 ## Provider Events
 
 Provider events are useful for recovery and low-latency commit paths, but they
