@@ -45,6 +45,7 @@ export type CommitAttemptResolution =
   | {
       error: OlosError;
       status:
+        | "content_type_mismatch"
         | "invalid_state"
         | "key_mismatch"
         | "late_object"
@@ -223,6 +224,22 @@ export function resolveCommitAttempt(
         }
       ),
       status: "key_mismatch",
+    };
+  }
+
+  if (options.mediaObject.contentType !== options.slot.contentType) {
+    return {
+      error: commitError(
+        "olos.content_type_mismatch",
+        "object content type does not match slot",
+        {
+          contentType: options.mediaObject.contentType,
+          objectKey: options.mediaObject.objectKey,
+          slotContentType: options.slot.contentType,
+          slotId: options.slot.slotId,
+        }
+      ),
+      status: "content_type_mismatch",
     };
   }
 

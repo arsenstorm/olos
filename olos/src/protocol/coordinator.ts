@@ -381,14 +381,14 @@ export function commitCoordinatorUpload(
 
   const slot = findSlot(options.state, options.slotId);
   const existingCommit = findCommit(options.state, options.slotId);
-  const oversized = rejectOversizedObservedUpload({
+  const rejectedObservation = rejectInvalidObservedUpload({
     object: options.object,
     slot,
     state: options.state,
   });
 
-  if (oversized !== undefined) {
-    return oversized;
+  if (rejectedObservation !== undefined) {
+    return rejectedObservation;
   }
 
   if (slot !== undefined && existingCommit !== undefined) {
@@ -481,14 +481,35 @@ export function commitCoordinatorUpload(
   };
 }
 
-function rejectOversizedObservedUpload(options: {
+function rejectInvalidObservedUpload(options: {
   object: ObservedUpload;
   slot?: UploadSlot;
   state: CoordinatorPipelineState;
 }): Extract<CoordinatorUploadCommit, { status: "rejected" }> | undefined {
   const { object, slot } = options;
 
-  if (slot === undefined || object.size <= slot.maxBytes) {
+  if (slot === undefined) {
+    return;
+  }
+
+  if (object.contentType !== slot.contentType) {
+    return {
+      error: coordinatorError(
+        "olos.content_type_mismatch",
+        "object content type does not match slot",
+        {
+          contentType: object.contentType,
+          objectKey: object.objectKey,
+          slotContentType: slot.contentType,
+          slotId: slot.slotId,
+        }
+      ),
+      state: options.state,
+      status: "rejected",
+    };
+  }
+
+  if (object.size <= slot.maxBytes) {
     return;
   }
 

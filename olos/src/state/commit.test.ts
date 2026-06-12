@@ -388,6 +388,36 @@ describe("commit attempt resolution", () => {
     });
   });
 
+  test("returns a content type mismatch error", () => {
+    expect(
+      resolveCommitAttempt({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        mediaObject: {
+          ...mediaObject,
+          contentType: "application/octet-stream",
+        },
+        objectVerified: true,
+        slot,
+        slotId: "slot_1",
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.content_type_mismatch",
+          details: {
+            contentType: "application/octet-stream",
+            objectKey: "tenant/session/v1080/3810.m4s",
+            slotContentType: "video/mp4",
+            slotId: "slot_1",
+          },
+          message: "object content type does not match slot",
+        },
+      },
+      status: "content_type_mismatch",
+    });
+  });
+
   test("returns an object too large error for oversized objects", () => {
     expect(
       resolveCommitAttempt({

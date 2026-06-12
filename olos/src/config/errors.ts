@@ -4,6 +4,7 @@ export const OLOS_ERROR_CODES = [
   "olos.unknown_slot",
   "olos.slot_expired",
   "olos.key_mismatch",
+  "olos.content_type_mismatch",
   "olos.object_too_large",
   "olos.duplicate_commit_conflict",
   "olos.cursor_regression",
