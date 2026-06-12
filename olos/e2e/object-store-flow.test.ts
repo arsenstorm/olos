@@ -19,6 +19,7 @@ import {
   createRuntimePublisherObjectPlan,
   type RuntimePublisherObjectPlan,
   type RuntimePublisherPlannedObjectKind,
+  resolveRuntimePublisherNextObjectPosition,
   resolveRuntimePublisherObjectExpiry,
 } from "olos/runtime";
 import {
@@ -226,6 +227,12 @@ describe("object-store flow", () => {
       store,
     });
 
+    const storedBeforeStep = await store.load(session.sessionId);
+    const nextPosition = resolveRuntimePublisherNextObjectPosition({
+      cursorWindow: storedBeforeStep?.state.cursor?.window,
+      startMediaSequenceNumber: 3810,
+    });
+
     const step = await runPlannedStoredS3PublisherUploadStep({
       bucket: "media",
       client: createS3Client(),
@@ -240,12 +247,13 @@ describe("object-store flow", () => {
       plan: {
         baseUrl: "https://media.example.com",
         contentType: "video/mp4",
-        duration: 2,
-        extension: "m4s",
-        kind: "segment",
+        duration: plannedDuration(nextPosition.kind),
+        extension: nextPosition.kind === "init" ? "mp4" : "m4s",
+        kind: nextPosition.kind,
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
+        mediaSequenceNumber: nextPosition.mediaSequenceNumber,
         objectKeyPrefix: "media",
+        partNumber: nextPosition.partNumber,
         publicationMode: "direct-public",
         publisherInstanceId: "pub_1",
         renditionId: "v1080",
@@ -263,6 +271,10 @@ describe("object-store flow", () => {
       },
     });
 
+    expect(nextPosition).toEqual({
+      kind: "segment",
+      mediaSequenceNumber: 3810,
+    });
     expect(step.status).toBe("committed");
     expect(step.expiry).toEqual({
       expiresAt: "2026-01-01T00:00:05.000Z",
