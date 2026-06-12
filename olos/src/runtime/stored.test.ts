@@ -174,6 +174,35 @@ describe("stored runtime mutations", () => {
     ]);
   });
 
+  test("retries commit mutations after save conflicts with current state", async () => {
+    const store = await createCommitConflictingStore();
+
+    const result = await commitStoredCoordinatorUploadFromRequest({
+      request: commitPayload(),
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("committed");
+
+    if (result.status !== "committed") {
+      throw new Error("expected committed upload after conflict retry");
+    }
+
+    expect(result.response.status).toBe(201);
+    expect(result.state.slots.map((slot) => slot.slotId)).toEqual([
+      "slot_init",
+      "slot_3810",
+      "slot_3811",
+    ]);
+    expect(result.state.commits).toHaveLength(1);
+    expect(result.state.commits[0]).toMatchObject({
+      commitId: "commit_3810",
+      objectKey: "media/s3810.m4s",
+      slotId: "slot_3810",
+    });
+  });
+
   test("returns conflict responses when save conflicts cannot be retried", async () => {
     const store = await createConflictOnlyStore();
 
@@ -309,6 +338,54 @@ async function createConflictingStore(): Promise<CoordinatorPipelineStore> {
           expectedEtag: current.etag,
           sessionId: session.sessionId,
           state: currentState,
+        });
+
+        if (saved.status !== "saved") {
+          throw new Error("expected external coordinator save");
+        }
+
+        return {
+          current: {
+            etag: saved.etag,
+            state: saved.state,
+          },
+          status: "conflict",
+        };
+      }
+
+      return await originalSave(options);
+    },
+  };
+}
+
+async function createCommitConflictingStore(): Promise<CoordinatorPipelineStore> {
+  const store = await createReadyStore();
+  const originalSave = store.save;
+  let conflicted = false;
+
+  return {
+    load: store.load,
+    save: async (options) => {
+      if (!conflicted) {
+        conflicted = true;
+        const current = await store.load(session.sessionId);
+
+        if (current === undefined) {
+          throw new Error("expected ready coordinator snapshot");
+        }
+
+        const next = issueCoordinatorSlot({
+          ...slotPayload(),
+          deliveryUrl: "https://media.example.com/s3811.m4s",
+          mediaSequenceNumber: 3811,
+          objectKey: "media/s3811.m4s",
+          slotId: "slot_3811",
+          state: current.state,
+        });
+        const saved = await originalSave({
+          expectedEtag: current.etag,
+          sessionId: session.sessionId,
+          state: next.state,
         });
 
         if (saved.status !== "saved") {
