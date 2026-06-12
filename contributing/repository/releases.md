@@ -23,6 +23,7 @@ Release checklist:
 5. Push a tag named `olos-vX.Y.Z` to run the publish workflow.
 6. Confirm the workflow published from `olos/` with npm provenance enabled.
 7. Confirm the workflow verified the published package subpaths.
+8. Confirm the workflow created a GitHub Release from the changelog notes.
 
 The workflow requires an `NPM_TOKEN` repository secret with publish access.
 See [repository checks](./checks.md) for the expected branch and release tag
