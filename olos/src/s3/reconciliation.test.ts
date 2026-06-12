@@ -137,6 +137,69 @@ describe("stored S3 upload reconciliation", () => {
     ]);
   });
 
+  test("honors commit policy during recovery commits", async () => {
+    const store = createMemoryCoordinatorStore();
+
+    await store.save({
+      sessionId: session.sessionId,
+      state: stateWithSlots(),
+    });
+
+    const result = await reconcileStoredS3CoordinatorUploads({
+      bucket: "media",
+      client: clientFor(
+        new Map([
+          ["media/v1080/init.mp4", 1024],
+          ["media/v1080/3810.m4s", 98_304],
+        ]),
+        []
+      ),
+      commitPolicy: ({ slot }) =>
+        slot.kind === "init"
+          ? { status: "allowed" }
+          : {
+              error: {
+                error: {
+                  code: "olos.quota_exceeded",
+                  message: "tenant quota exceeded",
+                },
+              },
+              status: "rejected",
+            },
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: (slot) => slot.kind === "segment",
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store,
+    });
+    const snapshot = await store.load(session.sessionId);
+
+    expect(result.status).toBe("reconciled");
+    if (result.status !== "reconciled") {
+      throw new Error("expected reconciliation result");
+    }
+
+    expect(result.results.map((entry) => entry.status)).toEqual([
+      "committed",
+      "failed",
+    ]);
+    expect(result.results[1]).toMatchObject({
+      result: {
+        error: {
+          error: {
+            code: "olos.quota_exceeded",
+            message: "tenant quota exceeded",
+          },
+        },
+        status: "rejected",
+      },
+      status: "failed",
+    });
+    expect(snapshot?.state.commits).toHaveLength(0);
+    expect(snapshot?.state.initCommits).toHaveLength(1);
+    expect(snapshot?.state.cursor).toBeUndefined();
+  });
+
   test("reports failed slots without stopping reconciliation", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
