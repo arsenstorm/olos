@@ -461,6 +461,13 @@ describe("stored S3 coordinator runtime handler", () => {
         slotId: string;
         status: string;
       }[];
+      summary: {
+        committed: number;
+        failed: number;
+        ok: boolean;
+        planned: number;
+        slotIds: string[];
+      };
     };
     const stored = await store.load(session.sessionId);
 
@@ -483,6 +490,13 @@ describe("stored S3 coordinator runtime handler", () => {
         status: "committed",
       },
     ]);
+    expect(body.summary).toMatchObject({
+      committed: 2,
+      failed: 0,
+      ok: true,
+      planned: 2,
+      slotIds: ["slot_init", "slot_3810"],
+    });
     expect(stored?.state.cursor?.window).toEqual({
       firstMediaSequenceNumber: 3810,
       lastMediaSequenceNumber: 3810,

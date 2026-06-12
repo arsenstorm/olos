@@ -381,7 +381,8 @@ idempotent, and failed recovery results.
 
 The S3 runtime handler exposes the same recovery path at
 `POST /sessions/:id/s3/reconcile`. The body requires `committedAt`; `providerId`
-can be supplied in the body or configured on the handler.
+can be supplied in the body or configured on the handler. The response includes
+per-slot `results` and a `summary` for log or metric sinks.
 
 ### Direct-Public Security
 

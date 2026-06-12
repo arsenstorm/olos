@@ -17,6 +17,7 @@ import type { S3HeadObjectClient } from "./object-observation";
 import {
   reconcileStoredS3CoordinatorUploads,
   type StoredS3CoordinatorUploadReconciliationResult,
+  summarizeStoredS3CoordinatorUploadReconciliation,
 } from "./reconciliation";
 
 const DEFAULT_SESSION_PATH = "/sessions";
@@ -232,7 +233,10 @@ async function handleS3Reconciliation(
   }
 
   return jsonResponse(
-    { results: result.results.map(reconciliationResult) },
+    {
+      results: result.results.map(reconciliationResult),
+      summary: summarizeStoredS3CoordinatorUploadReconciliation(result),
+    },
     202
   );
 }
