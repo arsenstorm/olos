@@ -361,6 +361,9 @@ cursor window plus publisher defaults.
 Use `resolveRuntimePublisherLoopDecision` around these step results for
 app-owned retry loops; retrying a failed PUT after a grant is issued should stay
 inside the application's upload callback.
+Publisher loops should refresh their app-owned lease after a successful
+`continue` decision, then wait on their own encoder/cadence signal before asking
+OLOS for the next object.
 
 Recovery jobs can use `reconcileStoredS3CoordinatorUploads` to retry commits for
 issued slots after missed provider events or process restarts. The helper reads

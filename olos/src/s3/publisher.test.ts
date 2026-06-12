@@ -8,7 +8,12 @@ import {
   createCoordinatorPipeline,
   createMemoryCoordinatorStore,
 } from "../protocol";
-import { resolveRuntimePublisherLoopDecision } from "../runtime";
+import {
+  createRuntimePublisherLease,
+  refreshRuntimePublisherLease,
+  resolveRuntimePublisherLeaseStatus,
+  resolveRuntimePublisherLoopDecision,
+} from "../runtime";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
@@ -235,6 +240,60 @@ describe("stored S3 publisher upload step", () => {
         Key: "media/v1080/s3810.m4s",
       },
     ]);
+  });
+
+  test("composes the next S3 step with app-owned publisher liveness", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    let lease = createRuntimePublisherLease({
+      now: "2026-01-01T00:00:00.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      tenantId: session.tenantId,
+      ttlMs: 3000,
+    });
+
+    await store.save({
+      sessionId: session.sessionId,
+      state: createCoordinatorPipeline({ pathways, session }),
+    });
+
+    const step = await runNextStoredS3PublisherUploadStep({
+      ...nextStepOptions({
+        headObjectInputs,
+        store,
+      }),
+      upload: () => Promise.resolve(),
+    });
+    const decision = resolveRuntimePublisherLoopDecision({
+      attempt: 0,
+      maxAttempts: 2,
+      step,
+    });
+
+    if (decision.action === "continue") {
+      lease = refreshRuntimePublisherLease({
+        lease,
+        now: "2026-01-01T00:00:02.000Z",
+        ttlMs: 3000,
+      });
+    }
+
+    expect(decision).toEqual({ action: "continue" });
+    expect(lease).toMatchObject({
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      lastSeenAt: "2026-01-01T00:00:02.000Z",
+    });
+    expect(
+      resolveRuntimePublisherLeaseStatus({
+        lease,
+        now: "2026-01-01T00:00:04.999Z",
+      })
+    ).toBe("active");
+    expect(step.position).toEqual({
+      kind: "segment",
+      mediaSequenceNumber: 3810,
+    });
   });
 
   test("keeps planned context when upload fails", async () => {
