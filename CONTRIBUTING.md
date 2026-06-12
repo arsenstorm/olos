@@ -34,6 +34,7 @@ bun run build
 - [Pull request descriptions](./contributing/repository/pull-request-descriptions.md)
 - [Releases](./contributing/repository/releases.md)
 - [Testing](./contributing/core/testing.md)
+- [Store adapters](./contributing/core/store-adapters.md)
 - [Production object pipeline](./contributing/core/production-pipeline.md)
 
 ## Templates

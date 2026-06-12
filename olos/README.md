@@ -250,6 +250,9 @@ create table olos_coordinator_snapshots (
 The adapter uses conditional inserts and `update ... where etag = ?`, so the
 database must report changed row counts from `run()`.
 
+For production adapter guidance, see the repository
+[store adapters guide](https://github.com/arsenstorm/olos/blob/main/contributing/core/store-adapters.md).
+
 ## Stored S3 Serving Flow
 
 `olos/s3` can bind S3 object uploads to coordinator state and return HLS
