@@ -10,6 +10,7 @@ import {
 } from "../protocol";
 import {
   createRuntimePublisherLease,
+  heartbeatStoredCoordinatorPublisher,
   refreshRuntimePublisherLease,
   resolveRuntimePublisherLeaseStatus,
   resolveRuntimePublisherLoopDecision,
@@ -303,6 +304,74 @@ describe("stored S3 publisher upload step", () => {
       kind: "segment",
       mediaSequenceNumber: 3810,
     });
+  });
+
+  test("keeps the full S3 publisher loop app-owned", async () => {
+    const events: string[] = [];
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+
+    await store.save({
+      sessionId: session.sessionId,
+      state: createCoordinatorPipeline({ pathways, session }),
+    });
+
+    const step = await runNextStoredS3PublisherUploadStep({
+      ...nextStepOptions({
+        headObjectInputs,
+        store,
+      }),
+      heartbeat: async () => {
+        events.push("pre-heartbeat");
+
+        return await heartbeatStoredCoordinatorPublisher({
+          now: "2026-01-01T00:00:00.000Z",
+          publisherInstanceId: "publisher_1",
+          sessionId: session.sessionId,
+          store,
+          ttlMs: 3000,
+        });
+      },
+      upload: () => {
+        events.push("upload");
+
+        return Promise.resolve();
+      },
+    });
+    const decision = resolveRuntimePublisherLoopDecision({
+      attempt: 0,
+      maxAttempts: 2,
+      step,
+    });
+
+    if (decision.action === "continue") {
+      events.push("post-heartbeat");
+      await heartbeatStoredCoordinatorPublisher({
+        now: "2026-01-01T00:00:02.000Z",
+        publisherInstanceId: "publisher_1",
+        sessionId: session.sessionId,
+        store,
+        ttlMs: 3000,
+      });
+    }
+
+    const snapshot = await store.load(session.sessionId);
+    const lease = snapshot?.state.publisherLeases.find(
+      (entry) => entry.publisherInstanceId === "publisher_1"
+    );
+
+    expect(decision).toEqual({ action: "continue" });
+    expect(events).toEqual(["pre-heartbeat", "upload", "post-heartbeat"]);
+    expect(lease).toMatchObject({
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      lastSeenAt: "2026-01-01T00:00:02.000Z",
+    });
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/v1080/s3810.m4s",
+      },
+    ]);
   });
 
   test("keeps planned context when upload fails", async () => {
