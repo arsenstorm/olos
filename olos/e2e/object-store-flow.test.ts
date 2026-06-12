@@ -15,6 +15,7 @@ import {
 import {
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
+  createRuntimeObjectLowLatencyPublisherOptions,
   createRuntimePublisherObjectPlan,
   type RuntimePublisherObjectPlan,
   type RuntimePublisherPlannedObjectKind,
@@ -35,6 +36,7 @@ import { describe, expect, test } from "vitest";
 
 const latency = createRuntimeObjectLowLatencyProfile();
 const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(latency);
+const publisherOptions = createRuntimeObjectLowLatencyPublisherOptions(latency);
 
 const session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -251,7 +253,8 @@ describe("object-store flow", () => {
       providerId: "s3_primary",
       sessionId: session.sessionId,
       store,
-      targetLatency: latency.targetLatency,
+      minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
+      targetLatency: publisherOptions.expiry.targetLatency,
       upload: (grant, plan) => {
         uploadedUrls.push(grant.url);
         expect(grant.slotId).toBe(plan.slot.slotId);
@@ -854,8 +857,9 @@ function createUploadPlan(options: {
   const duration = plannedDuration(options.kind);
   const expiry = resolveRuntimePublisherObjectExpiry({
     duration,
+    minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
     now: publishNow,
-    targetLatency: latency.targetLatency,
+    targetLatency: publisherOptions.expiry.targetLatency,
   });
 
   return createRuntimePublisherObjectPlan({
@@ -890,8 +894,9 @@ function issuePlannedUploadGrant(options: {
 }) {
   const expiry = resolveRuntimePublisherObjectExpiry({
     duration: options.plan.slot.duration,
+    minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
     now: publishNow,
-    targetLatency: latency.targetLatency,
+    targetLatency: publisherOptions.expiry.targetLatency,
   });
 
   return issueStoredS3CoordinatorUploadGrant({

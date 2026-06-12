@@ -3,6 +3,7 @@ import {
   commitStoredCoordinatorUploadFromRequest,
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
+  createRuntimeObjectLowLatencyPublisherOptions,
   createRuntimePublisherObjectPlan,
   createStoredCoordinatorSession,
   issueStoredCoordinatorSlotFromRequest,
@@ -17,6 +18,7 @@ import { describe, expect, test } from "vitest";
 
 const latency = createRuntimeObjectLowLatencyProfile();
 const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(latency);
+const publisherOptions = createRuntimeObjectLowLatencyPublisherOptions(latency);
 
 const session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -227,8 +229,9 @@ describe("runtime pipeline", () => {
 function plannedExpiry(duration: number) {
   return resolveRuntimePublisherObjectExpiry({
     duration,
+    minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
     now: publishNow,
-    targetLatency: latency.targetLatency,
+    targetLatency: publisherOptions.expiry.targetLatency,
   });
 }
 
