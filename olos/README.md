@@ -452,6 +452,9 @@ authorization, object-key secrecy, cache purge, and emergency prefix blocks. If
 media must never be public before commit, use a read-gated or private-upload
 promotion flow instead of direct-public publication.
 
+For deployment controls, see the repository
+[direct-public checklist](https://github.com/arsenstorm/olos/blob/main/contributing/core/direct-public-deployment.md).
+
 ## Retention Planning
 
 `olos/state` can select cleanup candidates without deleting app-owned data:

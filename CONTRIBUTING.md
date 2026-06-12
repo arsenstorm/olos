@@ -36,6 +36,7 @@ bun run build
 - [Testing](./contributing/core/testing.md)
 - [Store adapters](./contributing/core/store-adapters.md)
 - [Production object pipeline](./contributing/core/production-pipeline.md)
+- [Direct-public deployment](./contributing/core/direct-public-deployment.md)
 
 ## Templates
 
