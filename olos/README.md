@@ -236,6 +236,20 @@ publishers.
 Use `createMemorySerializedCoordinatorStoreBackend` as a small reference
 implementation for tests or adapter development.
 
+For SQLite-compatible databases, `createSqliteSerializedCoordinatorStoreBackend`
+expects a table with these columns:
+
+```sql
+create table olos_coordinator_snapshots (
+  session_id text primary key,
+  etag text not null,
+  snapshot text not null
+);
+```
+
+The adapter uses conditional inserts and `update ... where etag = ?`, so the
+database must report changed row counts from `run()`.
+
 ## Stored S3 Serving Flow
 
 `olos/s3` can bind S3 object uploads to coordinator state and return HLS

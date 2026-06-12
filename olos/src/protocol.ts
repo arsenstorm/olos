@@ -48,3 +48,11 @@ export {
   type SerializedCoordinatorStoreRecord,
   type SerializedCoordinatorStoreSave,
 } from "./protocol/serialized-store";
+export {
+  type CreateSqliteSerializedCoordinatorStoreBackendOptions,
+  createSqliteSerializedCoordinatorStoreBackend,
+  type SqliteSerializedCoordinatorStoreBoundStatement,
+  type SqliteSerializedCoordinatorStoreDatabase,
+  type SqliteSerializedCoordinatorStoreRunResult,
+  type SqliteSerializedCoordinatorStoreStatement,
+} from "./protocol/sqlite-store";
