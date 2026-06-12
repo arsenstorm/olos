@@ -358,6 +358,9 @@ commit ID, slot expiry, and grant TTL before running that same step. It handles
 one object at a time; the application still owns encoder timing and retries.
 `runNextStoredS3PublisherUploadStep` can derive that plan from the current
 cursor window plus publisher defaults.
+Use `resolveRuntimePublisherLoopDecision` around these step results for
+app-owned retry loops; retrying a failed PUT after a grant is issued should stay
+inside the application's upload callback.
 
 Recovery jobs can use `reconcileStoredS3CoordinatorUploads` to retry commits for
 issued slots after missed provider events or process restarts. The helper reads

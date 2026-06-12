@@ -8,6 +8,7 @@ import {
   createCoordinatorPipeline,
   createMemoryCoordinatorStore,
 } from "../protocol";
+import { resolveRuntimePublisherLoopDecision } from "../runtime";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
@@ -171,6 +172,63 @@ describe("stored S3 publisher upload step", () => {
     });
     expect(step.plan.slot.objectKey).toBe("media/v1080/s3810.m4s");
     expect(uploadedUrls).toHaveLength(1);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/v1080/s3810.m4s",
+      },
+    ]);
+  });
+
+  test("feeds cadence publisher steps into an app-owned retry loop", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    let attempt = 0;
+
+    let step = await runNextStoredS3PublisherUploadStep({
+      ...nextStepOptions({
+        headObjectInputs,
+        store,
+      }),
+      upload: () => Promise.reject(new Error("should not upload")),
+    });
+    let decision = resolveRuntimePublisherLoopDecision({
+      attempt,
+      maxAttempts: 2,
+      step,
+    });
+
+    expect(step.status).toBe("issue_failed");
+    expect(decision).toEqual({
+      action: "retry",
+      nextAttempt: 1,
+    });
+
+    if (decision.action !== "retry") {
+      throw new Error("expected retry decision");
+    }
+
+    await store.save({
+      sessionId: session.sessionId,
+      state: createCoordinatorPipeline({ pathways, session }),
+    });
+
+    attempt = decision.nextAttempt;
+    step = await runNextStoredS3PublisherUploadStep({
+      ...nextStepOptions({
+        headObjectInputs,
+        store,
+      }),
+      upload: () => Promise.resolve(),
+    });
+    decision = resolveRuntimePublisherLoopDecision({
+      attempt,
+      maxAttempts: 2,
+      step,
+    });
+
+    expect(step.status).toBe("committed");
+    expect(decision).toEqual({ action: "continue" });
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
@@ -349,6 +407,35 @@ const objectDefaults = {
     maxBytes: 100_000,
   },
 } as const;
+
+function nextStepOptions(options: {
+  headObjectInputs: unknown[];
+  store: ReturnType<typeof createMemoryCoordinatorStore>;
+}) {
+  return {
+    baseUrl: "https://media.example.com",
+    bucket: "media",
+    client: createClient(),
+    committedAt: "2026-01-01T00:00:02.000Z",
+    defaults: objectDefaults,
+    headObjectClient: clientFor(
+      "media/v1080/s3810.m4s",
+      98_304,
+      options.headObjectInputs
+    ),
+    independent: true,
+    now: "2026-01-01T00:00:00.000Z",
+    objectKeyPrefix: "media",
+    providerId: "s3_primary",
+    publicationMode: "direct-public" as const,
+    publisherInstanceId: "publisher_1",
+    renditionId: "v1080",
+    sessionId: session.sessionId,
+    startMediaSequenceNumber: 3810,
+    store: options.store,
+    targetLatency: 3,
+  };
+}
 
 function clientFor(
   objectKey: string,
