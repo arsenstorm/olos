@@ -30,12 +30,14 @@ export interface RuntimePublisherObjectKindDefaults {
   minBytes?: number;
 }
 
+export type RuntimePublisherPlannedObjectDefaults = Record<
+  RuntimePublisherPlannedObjectKind,
+  RuntimePublisherObjectKindDefaults
+>;
+
 export interface CreateRuntimePublisherObjectPlanInputOptions {
   baseUrl: string;
-  defaults: Record<
-    RuntimePublisherPlannedObjectKind,
-    RuntimePublisherObjectKindDefaults
-  >;
+  defaults: RuntimePublisherPlannedObjectDefaults;
   objectKeyPrefix: string;
   position: RuntimePublisherObjectPosition;
   publicationMode: PublicationMode;

@@ -2,6 +2,10 @@ import type {
   CreateHlsManifestArtifactResponseOptions,
   CreateHlsManifestArtifactsOptions,
 } from "../hls/manifest-artifacts";
+import type {
+  RuntimePublisherObjectKindDefaults,
+  RuntimePublisherPlannedObjectDefaults,
+} from "./publisher-cadence";
 
 export interface RuntimeObjectLowLatencyProfile {
   blockingReloadTimeoutMs: number;
@@ -30,6 +34,25 @@ export interface RuntimeObjectLowLatencyPublisherOptions {
     targetLatency: number;
   };
   publisherLeaseTtlMs: number;
+}
+
+export interface CreateRuntimeObjectLowLatencyPublisherDefaultsOptions {
+  contentType: string;
+  init: RuntimeObjectLowLatencyPublisherInitOptions;
+  part: RuntimeObjectLowLatencyPublisherObjectOptions;
+  profile?: RuntimeObjectLowLatencyProfile;
+  segment: RuntimeObjectLowLatencyPublisherObjectOptions;
+}
+
+export interface RuntimeObjectLowLatencyPublisherInitOptions
+  extends RuntimeObjectLowLatencyPublisherObjectOptions {
+  duration: number;
+}
+
+export interface RuntimeObjectLowLatencyPublisherObjectOptions {
+  extension?: string;
+  maxBytes: number;
+  minBytes?: number;
 }
 
 export function createRuntimeObjectLowLatencyProfile(): RuntimeObjectLowLatencyProfile {
@@ -73,4 +96,53 @@ export function createRuntimeObjectLowLatencyPublisherOptions(
     },
     publisherLeaseTtlMs: profile.publisherLeaseTtlMs,
   };
+}
+
+export function createRuntimeObjectLowLatencyPublisherDefaults(
+  options: CreateRuntimeObjectLowLatencyPublisherDefaultsOptions
+): RuntimePublisherPlannedObjectDefaults {
+  const profile = options.profile ?? createRuntimeObjectLowLatencyProfile();
+
+  return {
+    init: publisherObjectDefaults({
+      contentType: options.contentType,
+      duration: options.init.duration,
+      extension: options.init.extension ?? "mp4",
+      object: options.init,
+    }),
+    part: publisherObjectDefaults({
+      contentType: options.contentType,
+      duration: profile.partTarget,
+      extension: options.part.extension ?? "m4s",
+      object: options.part,
+    }),
+    segment: publisherObjectDefaults({
+      contentType: options.contentType,
+      duration: profile.segmentTarget,
+      extension: options.segment.extension ?? "m4s",
+      object: options.segment,
+    }),
+  };
+}
+
+function publisherObjectDefaults(options: {
+  contentType: string;
+  duration: number;
+  extension: string;
+  object: RuntimeObjectLowLatencyPublisherObjectOptions;
+}): RuntimePublisherObjectKindDefaults {
+  return {
+    contentType: options.contentType,
+    duration: options.duration,
+    extension: options.extension,
+    maxBytes: options.object.maxBytes,
+    ...optionalNumber("minBytes", options.object.minBytes),
+  };
+}
+
+function optionalNumber<Key extends "minBytes">(
+  key: Key,
+  value: number | undefined
+): Partial<Record<Key, number>> {
+  return value === undefined ? {} : ({ [key]: value } as Record<Key, number>);
 }

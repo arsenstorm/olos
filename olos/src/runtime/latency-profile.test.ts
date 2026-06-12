@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
+  createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
 } from "./latency-profile";
 
@@ -42,6 +43,45 @@ describe("runtime latency profile", () => {
         targetLatency: 3,
       },
       publisherLeaseTtlMs: 3000,
+    });
+  });
+
+  test("creates publisher object defaults from object low-latency settings", () => {
+    expect(
+      createRuntimeObjectLowLatencyPublisherDefaults({
+        contentType: "video/mp4",
+        init: {
+          duration: 1,
+          maxBytes: 2048,
+        },
+        part: {
+          maxBytes: 25_000,
+          minBytes: 1,
+        },
+        segment: {
+          maxBytes: 100_000,
+        },
+      })
+    ).toEqual({
+      init: {
+        contentType: "video/mp4",
+        duration: 1,
+        extension: "mp4",
+        maxBytes: 2048,
+      },
+      part: {
+        contentType: "video/mp4",
+        duration: 0.5,
+        extension: "m4s",
+        maxBytes: 25_000,
+        minBytes: 1,
+      },
+      segment: {
+        contentType: "video/mp4",
+        duration: 2,
+        extension: "m4s",
+        maxBytes: 100_000,
+      },
     });
   });
 });

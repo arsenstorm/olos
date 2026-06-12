@@ -135,6 +135,9 @@ waits, 1s manifest caching, and a 5s cursor staleness threshold.
 rendering, response cache, and blocking reload options.
 `createRuntimeObjectLowLatencyPublisherOptions` maps it into upload expiry and
 publisher lease options.
+`createRuntimeObjectLowLatencyPublisherDefaults` maps profile timing into
+publisher object defaults while the application supplies content type and byte
+limits.
 
 ### Publication Control
 

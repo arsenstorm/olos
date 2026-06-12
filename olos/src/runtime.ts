@@ -25,11 +25,15 @@ export {
   type StoredCoordinatorRuntimeHandler,
 } from "./runtime/http";
 export {
+  type CreateRuntimeObjectLowLatencyPublisherDefaultsOptions,
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
+  createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
   type RuntimeObjectLowLatencyManifestOptions,
   type RuntimeObjectLowLatencyProfile,
+  type RuntimeObjectLowLatencyPublisherInitOptions,
+  type RuntimeObjectLowLatencyPublisherObjectOptions,
   type RuntimeObjectLowLatencyPublisherOptions,
 } from "./runtime/latency-profile";
 export {
@@ -54,6 +58,7 @@ export {
   type RuntimePublisherObjectKindDefaults,
   type RuntimePublisherObjectPlanInput,
   type RuntimePublisherObjectPosition,
+  type RuntimePublisherPlannedObjectDefaults,
   resolveRuntimePublisherNextObjectPosition,
 } from "./runtime/publisher-cadence";
 export {

@@ -15,6 +15,7 @@ import {
 import {
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
+  createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
   createRuntimePublisherObjectPlan,
   createRuntimePublisherObjectPlanInput,
@@ -39,6 +40,20 @@ import { describe, expect, test } from "vitest";
 const latency = createRuntimeObjectLowLatencyProfile();
 const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(latency);
 const publisherOptions = createRuntimeObjectLowLatencyPublisherOptions(latency);
+const publisherDefaults = createRuntimeObjectLowLatencyPublisherDefaults({
+  contentType: "video/mp4",
+  init: {
+    duration: 1,
+    maxBytes: 2048,
+  },
+  part: {
+    maxBytes: 25_000,
+  },
+  profile: latency,
+  segment: {
+    maxBytes: 100_000,
+  },
+});
 
 const session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -90,27 +105,6 @@ const pathways = [
 ] satisfies Pathway[];
 
 const publishNow = "2026-01-01T00:00:00.000Z";
-const objectDefaults = {
-  init: {
-    contentType: "video/mp4",
-    duration: 1,
-    extension: "mp4",
-    maxBytes: 2048,
-  },
-  part: {
-    contentType: "video/mp4",
-    duration: latency.partTarget,
-    extension: "m4s",
-    maxBytes: 25_000,
-  },
-  segment: {
-    contentType: "video/mp4",
-    duration: latency.segmentTarget,
-    extension: "m4s",
-    maxBytes: 100_000,
-  },
-} as const;
-
 describe("object-store flow", () => {
   test("publishes S3 uploads from stored coordinator state to HLS", async () => {
     const headObjectInputs: unknown[] = [];
@@ -267,7 +261,7 @@ describe("object-store flow", () => {
       now: publishNow,
       plan: createRuntimePublisherObjectPlanInput({
         baseUrl: "https://media.example.com",
-        defaults: objectDefaults,
+        defaults: publisherDefaults,
         objectKeyPrefix: "media",
         position: nextPosition,
         publicationMode: "direct-public",
