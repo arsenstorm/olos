@@ -151,6 +151,60 @@ describe("serialized coordinator store", () => {
     expect(raced.current?.state.session.sessionId).toBe(session.sessionId);
   });
 
+  test("returns the current snapshot when an expected-etag update is stale", async () => {
+    const backend = createBackend();
+    const store = createSerializedCoordinatorStore(backend);
+    const state = createCoordinatorPipeline({ pathways, session });
+    const first = await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    if (first.status !== "saved") {
+      throw new Error("expected first save");
+    }
+
+    const issued = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/init.mp4",
+      duration: 1,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/init.mp4",
+      publicationMode: "direct-public",
+      publisherInstanceId: "publisher_1",
+      renditionId: "v1080",
+      slotId: "slot_init",
+      state,
+    });
+    const second = await store.save({
+      expectedEtag: first.etag,
+      sessionId: session.sessionId,
+      state: issued.state,
+    });
+
+    if (second.status !== "saved") {
+      throw new Error("expected second save");
+    }
+
+    const stale = await store.save({
+      expectedEtag: first.etag,
+      sessionId: session.sessionId,
+      state,
+    });
+
+    expect(stale.status).toBe("conflict");
+    if (stale.status !== "conflict") {
+      throw new Error("expected stale update conflict");
+    }
+
+    expect(stale.current?.etag).toBe(second.etag);
+    expect(stale.current?.state.slots).toHaveLength(1);
+    expect(stale.current?.state.slots[0]?.slotId).toBe("slot_init");
+  });
+
   test("rejects serialized records with mismatched etags", async () => {
     const backend = createBackend();
     const store = createSerializedCoordinatorStore(backend);
