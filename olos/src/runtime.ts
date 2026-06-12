@@ -13,6 +13,13 @@ export {
   type RuntimeCursorNotifier,
 } from "./runtime/cursor-notifier";
 export {
+  type ResolveRuntimeLiveHealthOptions,
+  type RuntimeCursorFreshness,
+  type RuntimeLiveHealth,
+  type RuntimeLiveHealthStatus,
+  resolveRuntimeLiveHealth,
+} from "./runtime/health";
+export {
   type CreateStoredCoordinatorRuntimeHandlerOptions,
   createStoredCoordinatorRuntimeHandler,
   type StoredCoordinatorRuntimeHandler,

@@ -118,6 +118,10 @@ scheduler; the application still controls encoder timing and retry policy.
 expiry and provider upload grant TTLs when you want OLOS to keep that policy
 consistent without taking over scheduling.
 
+`resolveRuntimeLiveHealth` combines cursor freshness and optional publisher
+lease status into `active`, `starting`, or `stale`. Use it for dashboards and
+watchdogs; the application still owns polling, alerts, and restart policy.
+
 ### Publication Control
 
 Use `publicationControl` to stop new publication during an incident or budget
