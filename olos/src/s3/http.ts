@@ -1,8 +1,9 @@
 import type { S3Client } from "@aws-sdk/client-s3";
-import type { RuntimeSlotIssuePayload } from "../runtime";
 import {
   type CreateStoredCoordinatorRuntimeHandlerOptions,
   createStoredCoordinatorRuntimeHandler,
+  planStoredCoordinatorRetention,
+  type RuntimeSlotIssuePayload,
 } from "../runtime";
 import type { Cursor } from "../types/cursor";
 import type { MediaObjectKind } from "../types/media-object";
@@ -20,6 +21,10 @@ import {
   type StoredS3CoordinatorUploadReconciliationResult,
   summarizeStoredS3CoordinatorUploadReconciliation,
 } from "./reconciliation";
+import {
+  deleteRetiredS3CoordinatorObjects,
+  type S3DeleteObjectClient,
+} from "./retention";
 
 const DEFAULT_SESSION_PATH = "/sessions";
 
@@ -32,6 +37,7 @@ export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
   grantNow?: () => Date | string;
   objectClient?: S3HeadObjectClient;
   providerId?: string;
+  retentionClient?: S3DeleteObjectClient;
 }
 
 export type StoredS3CoordinatorRuntimeHandler = (
@@ -72,6 +78,10 @@ export function createStoredS3CoordinatorRuntimeHandler(
         route.sessionId,
         options
       );
+    }
+
+    if (route.action === "retention") {
+      return await handleS3Retention(request, route.sessionId, options);
     }
 
     return await handleS3Reconciliation(request, route.sessionId, options);
@@ -274,9 +284,45 @@ async function handleS3Reconciliation(
   );
 }
 
+async function handleS3Retention(
+  request: Request,
+  sessionId: string,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  const parsed = await parseS3RetentionRequest(request);
+
+  if (parsed.status === "invalid") {
+    return badRequest(parsed.message);
+  }
+
+  const planned = await planStoredCoordinatorRetention({
+    now: parsed.payload.now,
+    sessionId,
+    store: options.store,
+  });
+
+  if (planned.status === "not_found") {
+    return notFound();
+  }
+
+  const result = await deleteRetiredS3CoordinatorObjects({
+    bucket: options.bucket,
+    client: options.retentionClient ?? options.client,
+    objects: planned.plan.retiredObjects,
+  });
+
+  return jsonResponse({ plan: planned.plan, result }, 202);
+}
+
 type S3Route =
   | {
-      action: "commits" | "events" | "reconcile" | "reconcile-plan" | "slots";
+      action:
+        | "commits"
+        | "events"
+        | "reconcile"
+        | "reconcile-plan"
+        | "retention"
+        | "slots";
       sessionId: string;
       status: "matched";
     }
@@ -306,6 +352,7 @@ function s3Route(
       action !== "commits" &&
       action !== "events" &&
       action !== "reconcile-plan" &&
+      action !== "retention" &&
       action !== "reconcile") ||
     parts.length !== 3
   ) {
@@ -402,6 +449,10 @@ interface S3ReconciliationPlanPayload {
   slotIds?: readonly string[];
 }
 
+interface S3RetentionPayload {
+  now: string;
+}
+
 async function parseS3CommitRequest(
   request: Request
 ): Promise<
@@ -484,6 +535,30 @@ async function parseS3ReconciliationRequest(
     };
   } catch (error) {
     return invalid(errorMessage(error, "invalid S3 reconciliation request"));
+  }
+}
+
+async function parseS3RetentionRequest(
+  request: Request
+): Promise<
+  | { payload: S3RetentionPayload; status: "valid" }
+  | { message: string; status: "invalid" }
+> {
+  try {
+    const payload = await request.json();
+
+    if (!isRecord(payload)) {
+      return invalid("S3 retention request must be a JSON object");
+    }
+
+    return {
+      payload: {
+        now: stringField(payload, "now"),
+      },
+      status: "valid",
+    };
+  } catch (error) {
+    return invalid(errorMessage(error, "invalid S3 retention request"));
   }
 }
 

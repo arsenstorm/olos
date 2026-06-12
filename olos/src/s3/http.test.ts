@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  type DeleteObjectCommand,
+  type DeleteObjectCommandOutput,
   type HeadObjectCommand,
   type HeadObjectCommandOutput,
   S3Client,
@@ -12,6 +14,7 @@ import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import { createStoredS3CoordinatorRuntimeHandler } from "./http";
 import type { S3HeadObjectClient } from "./object-observation";
+import type { S3DeleteObjectClient } from "./retention";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -598,13 +601,109 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
     expect(stored?.state.cursor).toBeUndefined();
   });
+
+  test("executes S3 retention through the runtime route", async () => {
+    const deleteInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/init.mp4": 1024,
+          "live/session/v1080/3810.m4s": 98_304,
+          "live/session/v1080/3811.m4s": 98_304,
+          "live/session/v1080/3812.m4s": 98_304,
+        },
+        []
+      ),
+      retentionClient: deleteClientFor(deleteInputs),
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+
+    for (const object of retentionObjects()) {
+      await handle(
+        jsonRequest(
+          "https://edge.example.com/sessions/session_1/s3/slots",
+          slotPayload(object)
+        )
+      );
+      await handle(
+        jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+          commitId: object.commitId,
+          committedAt: "2026-01-01T00:00:02.000Z",
+          independent: object.kind === "segment",
+          objectKey: object.objectKey,
+          providerId: "s3_primary",
+          slotId: object.slotId,
+          ...(object.maxSegments === undefined
+            ? {}
+            : { maxSegments: object.maxSegments }),
+        })
+      );
+    }
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/retention", {
+        now: "2026-01-01T00:00:06.000Z",
+      })
+    );
+    const body = (await response.json()) as {
+      plan: {
+        retiredObjects: {
+          commitId: string;
+          objectKey: string;
+          slotId: string;
+        }[];
+      };
+      result: {
+        deletedObjects: {
+          commitId: string;
+          objectKey: string;
+          slotId: string;
+        }[];
+        failedObjects: unknown[];
+      };
+    };
+
+    expect(response.status).toBe(202);
+    expect(deleteInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
+    expect(body.plan.retiredObjects).toEqual([
+      {
+        commitId: "commit_3810",
+        objectKey: "live/session/v1080/3810.m4s",
+        slotId: "slot_3810",
+      },
+    ]);
+    expect(body.result).toEqual({
+      deletedObjects: body.plan.retiredObjects,
+      failedObjects: [],
+    });
+  });
 });
 
 interface SlotPayloadOptions {
+  commitId?: string;
   deliveryUrl: string;
   duration: number;
   kind: "init" | "segment";
   maxBytes: number;
+  maxSegments?: number;
   mediaSequenceNumber: number;
   objectKey: string;
   slotId: string;
@@ -625,6 +724,52 @@ function slotPayload(options: SlotPayloadOptions) {
     renditionId: "v1080",
     slotId: options.slotId,
   };
+}
+
+function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
+  return [
+    {
+      commitId: "commit_init",
+      deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
+      duration: 1,
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "live/session/v1080/init.mp4",
+      slotId: "slot_init",
+    },
+    {
+      commitId: "commit_3810",
+      deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+      duration: 2,
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "live/session/v1080/3810.m4s",
+      slotId: "slot_3810",
+    },
+    {
+      commitId: "commit_3811",
+      deliveryUrl: "https://media.example.com/live/session/v1080/3811.m4s",
+      duration: 2,
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3811,
+      objectKey: "live/session/v1080/3811.m4s",
+      slotId: "slot_3811",
+    },
+    {
+      commitId: "commit_3812",
+      deliveryUrl: "https://media.example.com/live/session/v1080/3812.m4s",
+      duration: 2,
+      kind: "segment",
+      maxBytes: 100_000,
+      maxSegments: 2,
+      mediaSequenceNumber: 3812,
+      objectKey: "live/session/v1080/3812.m4s",
+      slotId: "slot_3812",
+    },
+  ];
 }
 
 function jsonRequest(url: string, body: unknown): Request {
@@ -690,6 +835,16 @@ function objectClientFor(
         ETag: `"${objectKey}"`,
         LastModified: new Date("2026-01-01T00:00:01.000Z"),
       });
+    },
+  };
+}
+
+function deleteClientFor(inputs: unknown[]): S3DeleteObjectClient {
+  return {
+    send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput> {
+      inputs.push(command.input);
+
+      return Promise.resolve({ $metadata: {} });
     },
   };
 }

@@ -315,6 +315,7 @@ The S3 runtime handler delegates the stored runtime routes and adds:
 | `POST` | `/sessions/:id/s3/events` | Normalize S3 object-created records and route them through coordinator commits. |
 | `POST` | `/sessions/:id/s3/reconcile-plan` | List in-flight S3 slots that can be passed to recovery. |
 | `POST` | `/sessions/:id/s3/reconcile` | Retry S3-backed commits for issued slots after missed events or process restarts. |
+| `POST` | `/sessions/:id/s3/retention` | Plan retention and delete retired media objects through S3. |
 
 The generic runtime routes remain available through the same handler, including
 `POST /sessions`, `POST /sessions/:id/transition`, `GET /sessions/:id/retention`,
@@ -385,6 +386,9 @@ idempotent, and failed recovery results.
 
 Retention jobs can pass retired objects from `planStoredCoordinatorRetention`
 to `deleteRetiredS3CoordinatorObjects` to delete old media objects through S3.
+The S3 runtime handler exposes the same deletion path at
+`POST /sessions/:id/s3/retention`. The body requires `now` so the retention
+cutoff is explicit.
 
 The S3 runtime handler exposes the same recovery path at
 `POST /sessions/:id/s3/reconcile`. The body requires `committedAt`; `providerId`
