@@ -1,5 +1,6 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import type { CoordinatorPipelineStore } from "../protocol";
+import type { RuntimePublisherHeartbeatResult } from "../runtime/publisher";
 import {
   type CreateRuntimePublisherNextObjectPlanOptions,
   createRuntimePublisherNextObjectPlan,
@@ -31,6 +32,7 @@ import type { S3HeadObjectClient } from "./object-observation";
 
 export interface RunStoredS3PublisherUploadStepOptions {
   commit(slot: UploadSlot): Promise<StoredS3CoordinatorUploadCommit>;
+  heartbeat?(): Promise<RuntimePublisherHeartbeatResult>;
   issueGrant(): Promise<StoredS3CoordinatorUploadGrantIssue>;
   upload(grant: UploadGrant): Promise<void>;
 }
@@ -41,6 +43,7 @@ export interface RunPlannedStoredS3PublisherUploadStepOptions {
   client: S3Client;
   committedAt: string;
   headObjectClient?: S3HeadObjectClient;
+  heartbeat?(): Promise<RuntimePublisherHeartbeatResult>;
   independent?: boolean;
   manifest?: StoredS3CoordinatorManifestOptions;
   maxAttempts?: number;
@@ -69,17 +72,25 @@ export type StoredS3PublisherUploadStep =
   | {
       commit: StoredS3CoordinatorUploadCommit;
       grant: UploadGrant;
+      heartbeat?: RuntimePublisherHeartbeatResult;
       slot: UploadSlot;
       status: "committed" | "idempotent";
     }
   | {
       error?: string;
+      heartbeat?: RuntimePublisherHeartbeatResult;
+      status: "heartbeat_failed";
+    }
+  | {
+      error?: string;
+      heartbeat?: RuntimePublisherHeartbeatResult;
       issue?: Exclude<StoredS3CoordinatorUploadGrantIssue, { status: "saved" }>;
       status: "issue_failed";
     }
   | {
       error: string;
       grant: UploadGrant;
+      heartbeat?: RuntimePublisherHeartbeatResult;
       slot: UploadSlot;
       status: "upload_failed";
     }
@@ -87,6 +98,7 @@ export type StoredS3PublisherUploadStep =
       commit?: StoredS3CoordinatorUploadCommit;
       error?: string;
       grant: UploadGrant;
+      heartbeat?: RuntimePublisherHeartbeatResult;
       slot: UploadSlot;
       status: "commit_failed";
     };
@@ -155,6 +167,12 @@ export async function runNextStoredS3PublisherUploadStep(
 export async function runStoredS3PublisherUploadStep(
   options: RunStoredS3PublisherUploadStepOptions
 ): Promise<StoredS3PublisherUploadStep> {
+  const heartbeat = await runPublisherHeartbeat(options.heartbeat);
+
+  if (heartbeat.status === "failed") {
+    return heartbeat.step;
+  }
+
   let issued: StoredS3CoordinatorUploadGrantIssue;
 
   try {
@@ -162,12 +180,14 @@ export async function runStoredS3PublisherUploadStep(
   } catch (error) {
     return {
       error: errorMessage(error),
+      ...heartbeatResult(heartbeat.result),
       status: "issue_failed",
     };
   }
 
   if (issued.status !== "saved") {
     return {
+      ...heartbeatResult(heartbeat.result),
       issue: issued,
       status: "issue_failed",
     };
@@ -179,6 +199,7 @@ export async function runStoredS3PublisherUploadStep(
     return {
       error: errorMessage(error),
       grant: issued.grant,
+      ...heartbeatResult(heartbeat.result),
       slot: issued.slot,
       status: "upload_failed",
     };
@@ -192,6 +213,7 @@ export async function runStoredS3PublisherUploadStep(
     return {
       error: errorMessage(error),
       grant: issued.grant,
+      ...heartbeatResult(heartbeat.result),
       slot: issued.slot,
       status: "commit_failed",
     };
@@ -201,6 +223,7 @@ export async function runStoredS3PublisherUploadStep(
     return {
       commit: committed,
       grant: issued.grant,
+      ...heartbeatResult(heartbeat.result),
       slot: issued.slot,
       status: committed.status,
     };
@@ -209,6 +232,7 @@ export async function runStoredS3PublisherUploadStep(
   return {
     commit: committed,
     grant: issued.grant,
+    ...heartbeatResult(heartbeat.result),
     slot: issued.slot,
     status: "commit_failed",
   };
@@ -278,6 +302,7 @@ async function runStoredS3PublisherObjectPlanStep(
         store: options.store,
         ...options.plan.slot,
       }),
+    heartbeat: options.heartbeat,
     upload: (grant) => options.upload(grant, options.plan),
   });
 
@@ -286,6 +311,56 @@ async function runStoredS3PublisherObjectPlanStep(
     expiry: options.expiry,
     plan: options.plan,
   };
+}
+
+async function runPublisherHeartbeat(
+  heartbeat: RunStoredS3PublisherUploadStepOptions["heartbeat"]
+): Promise<
+  | {
+      result?: RuntimePublisherHeartbeatResult;
+      status: "ready";
+    }
+  | {
+      status: "failed";
+      step: Extract<
+        StoredS3PublisherUploadStep,
+        { status: "heartbeat_failed" }
+      >;
+    }
+> {
+  if (heartbeat === undefined) {
+    return { status: "ready" };
+  }
+
+  try {
+    const result = await heartbeat();
+
+    if (result.status === "refreshed") {
+      return { result, status: "ready" };
+    }
+
+    return {
+      status: "failed",
+      step: {
+        heartbeat: result,
+        status: "heartbeat_failed",
+      },
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      step: {
+        error: errorMessage(error),
+        status: "heartbeat_failed",
+      },
+    };
+  }
+}
+
+function heartbeatResult(
+  heartbeat: RuntimePublisherHeartbeatResult | undefined
+): { heartbeat?: RuntimePublisherHeartbeatResult } {
+  return heartbeat === undefined ? {} : { heartbeat };
 }
 
 function errorMessage(error: unknown): string {

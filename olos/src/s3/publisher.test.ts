@@ -421,6 +421,67 @@ describe("stored S3 publisher upload step", () => {
     ]);
   });
 
+  test("refreshes heartbeat before issuing an S3 grant", async () => {
+    const headObjectInputs: unknown[] = [];
+    const events: string[] = [];
+    const store = createMemoryCoordinatorStore();
+
+    await store.save({
+      sessionId: session.sessionId,
+      state: createCoordinatorPipeline({ pathways, session }),
+    });
+
+    const step = await runNextStoredS3PublisherUploadStep({
+      ...nextStepOptions({
+        headObjectInputs,
+        store,
+      }),
+      heartbeat: () => {
+        events.push("heartbeat");
+
+        return Promise.resolve({ status: "refreshed" });
+      },
+      upload: () => {
+        events.push("upload");
+
+        return Promise.resolve();
+      },
+    });
+
+    expect(step).toMatchObject({
+      heartbeat: { status: "refreshed" },
+      status: "committed",
+    });
+    expect(events).toEqual(["heartbeat", "upload"]);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/v1080/s3810.m4s",
+      },
+    ]);
+  });
+
+  test("stops before S3 grant issuance when heartbeat fails", async () => {
+    let grantIssued = false;
+
+    const step = await runStoredS3PublisherUploadStep({
+      commit: () => Promise.resolve({ status: "not_found" }),
+      heartbeat: () => Promise.resolve({ status: "stale" }),
+      issueGrant: () => {
+        grantIssued = true;
+
+        return Promise.resolve({ status: "not_found" });
+      },
+      upload: () => Promise.reject(new Error("should not upload")),
+    });
+
+    expect(step).toEqual({
+      heartbeat: { status: "stale" },
+      status: "heartbeat_failed",
+    });
+    expect(grantIssued).toBe(false);
+  });
+
   test("stops before commit when app upload fails", async () => {
     const store = createMemoryCoordinatorStore();
 
