@@ -13,6 +13,7 @@ import {
   createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
   createRuntimePublisherNextObjectPlan,
+  createRuntimePublisherObjectKeyNonce,
   createRuntimePublisherObjectPlan,
   createStoredCoordinatorSession,
   issueStoredCoordinatorSlotFromRequest,
@@ -99,12 +100,19 @@ describe("runtime pipeline", () => {
         maxBytes: 100_000,
       },
     });
+    const initNonce = createRuntimePublisherObjectKeyNonce({
+      bytes: nonceBytes(1),
+    });
+    const segmentNonce = createRuntimePublisherObjectKeyNonce({
+      bytes: nonceBytes(2),
+    });
     const init = createRuntimePublisherNextObjectPlan({
       baseUrl: "https://media.example.com",
       defaults,
       initPublished: false,
       minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
       now: publishNow,
+      objectKeyNonce: initNonce,
       objectKeyPrefix: "media",
       publicationMode: "direct-public",
       publisherInstanceId: "pub_1",
@@ -117,6 +125,7 @@ describe("runtime pipeline", () => {
       initPublished: true,
       minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
       now: publishNow,
+      objectKeyNonce: segmentNonce,
       objectKeyPrefix: "media",
       publicationMode: "direct-public",
       publisherInstanceId: "pub_1",
@@ -178,10 +187,16 @@ describe("runtime pipeline", () => {
       kind: "init",
       mediaSequenceNumber: 0,
     });
+    expect(init.plan.slot.objectKey).toBe(
+      "media/v1080/init-slot_01010101010101010101010101010101.mp4"
+    );
     expect(next.position).toEqual({
       kind: "segment",
       mediaSequenceNumber: 3810,
     });
+    expect(next.plan.slot.objectKey).toBe(
+      "media/v1080/s3810/segment-slot_02020202020202020202020202020202.m4s"
+    );
     expect(next.expiry).toEqual({
       expiresAt: "2026-01-01T00:00:05.000Z",
       ttlSeconds: 5,
@@ -413,6 +428,10 @@ function plannedExpiry(duration: number) {
     now: publishNow,
     targetLatency: publisherOptions.expiry.targetLatency,
   });
+}
+
+function nonceBytes(value: number): Uint8Array {
+  return new Uint8Array(16).fill(value);
 }
 
 interface CommitPayloadOptions {
