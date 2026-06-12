@@ -52,6 +52,8 @@ export {
   runPlannedStoredS3PublisherUploadStep,
   runStoredS3PublisherUploadStep,
   type StoredS3PublisherUploadStep,
+  type StoredS3PublisherUploadStepSummary,
+  summarizeStoredS3PublisherUploadStep,
 } from "./s3/publisher";
 export {
   type PlanStoredS3CoordinatorReconciliationOptions,
@@ -61,6 +63,8 @@ export {
   type StoredS3CoordinatorReconciliationPlan,
   type StoredS3CoordinatorUploadReconciliation,
   type StoredS3CoordinatorUploadReconciliationResult,
+  type StoredS3CoordinatorUploadReconciliationSummary,
+  summarizeStoredS3CoordinatorUploadReconciliation,
 } from "./s3/reconciliation";
 export {
   type CreatePresignedS3UploadGrantOptions,

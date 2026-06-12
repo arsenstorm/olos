@@ -101,6 +101,20 @@ export type NextStoredS3PublisherUploadStep =
     position: RuntimePublisherObjectPosition;
   };
 
+export interface StoredS3PublisherUploadStepSummary {
+  commitId?: OlosId;
+  commitStatus?: StoredS3CoordinatorUploadCommit["status"];
+  error?: string;
+  issueStatus?: Exclude<
+    StoredS3CoordinatorUploadGrantIssue,
+    { status: "saved" }
+  >["status"];
+  objectKey?: string;
+  ok: boolean;
+  slotId?: OlosId;
+  status: StoredS3PublisherUploadStep["status"];
+}
+
 export async function runPlannedStoredS3PublisherUploadStep(
   options: RunPlannedStoredS3PublisherUploadStepOptions
 ): Promise<PlannedStoredS3PublisherUploadStep> {
@@ -197,6 +211,32 @@ export async function runStoredS3PublisherUploadStep(
     grant: issued.grant,
     slot: issued.slot,
     status: "commit_failed",
+  };
+}
+
+export function summarizeStoredS3PublisherUploadStep(
+  step: StoredS3PublisherUploadStep
+): StoredS3PublisherUploadStepSummary {
+  const slot = "slot" in step ? step.slot : undefined;
+  const commit = "commit" in step ? step.commit : undefined;
+  const issue = "issue" in step ? step.issue : undefined;
+  const error = "error" in step ? step.error : undefined;
+
+  return {
+    ...(commit !== undefined && "commit" in commit
+      ? { commitId: commit.commit.commitId }
+      : {}),
+    ...(commit === undefined ? {} : { commitStatus: commit.status }),
+    ...(error === undefined ? {} : { error }),
+    ...(issue === undefined ? {} : { issueStatus: issue.status }),
+    ...(slot === undefined
+      ? {}
+      : {
+          objectKey: slot.objectKey,
+          slotId: slot.slotId,
+        }),
+    ok: step.status === "committed" || step.status === "idempotent",
+    status: step.status,
   };
 }
 

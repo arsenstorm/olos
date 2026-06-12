@@ -15,6 +15,7 @@ import type { S3HeadObjectClient } from "./object-observation";
 import {
   planStoredS3CoordinatorReconciliation,
   reconcileStoredS3CoordinatorUploads,
+  summarizeStoredS3CoordinatorUploadReconciliation,
 } from "./reconciliation";
 
 const session: Session = {
@@ -110,6 +111,16 @@ describe("stored S3 upload reconciliation", () => {
       "committed",
       "committed",
     ]);
+    expect(summarizeStoredS3CoordinatorUploadReconciliation(result)).toEqual({
+      committed: 2,
+      failed: 0,
+      failedSlotIds: [],
+      idempotent: 0,
+      ok: true,
+      planned: 2,
+      slotIds: ["slot_init", "slot_3810"],
+      status: "reconciled",
+    });
     expect(snapshot?.state.cursor?.window).toEqual({
       firstMediaSequenceNumber: 3810,
       lastMediaSequenceNumber: 3810,
@@ -159,6 +170,16 @@ describe("stored S3 upload reconciliation", () => {
     expect(result.results[1]).toMatchObject({
       error: "missing object: media/v1080/3810.m4s",
       status: "failed",
+    });
+    expect(summarizeStoredS3CoordinatorUploadReconciliation(result)).toEqual({
+      committed: 1,
+      failed: 1,
+      failedSlotIds: ["slot_3810"],
+      idempotent: 0,
+      ok: false,
+      planned: 2,
+      slotIds: ["slot_init", "slot_3810"],
+      status: "reconciled",
     });
   });
 });

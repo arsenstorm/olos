@@ -76,6 +76,17 @@ export type StoredS3CoordinatorUploadReconciliationCommit =
     status: "committed" | "idempotent";
   };
 
+export interface StoredS3CoordinatorUploadReconciliationSummary {
+  committed: number;
+  failed: number;
+  failedSlotIds: readonly OlosId[];
+  idempotent: number;
+  ok: boolean;
+  planned: number;
+  slotIds: readonly OlosId[];
+  status: StoredS3CoordinatorUploadReconciliation["status"];
+}
+
 export async function reconcileStoredS3CoordinatorUploads(
   options: ReconcileStoredS3CoordinatorUploadsOptions
 ): Promise<StoredS3CoordinatorUploadReconciliation> {
@@ -93,6 +104,55 @@ export async function reconcileStoredS3CoordinatorUploads(
 
   return {
     results,
+    status: "reconciled",
+  };
+}
+
+export function summarizeStoredS3CoordinatorUploadReconciliation(
+  result: StoredS3CoordinatorUploadReconciliation
+): StoredS3CoordinatorUploadReconciliationSummary {
+  if (result.status === "not_found") {
+    return {
+      committed: 0,
+      failed: 0,
+      failedSlotIds: [],
+      idempotent: 0,
+      ok: false,
+      planned: 0,
+      slotIds: [],
+      status: "not_found",
+    };
+  }
+
+  const summary = {
+    committed: 0,
+    failed: 0,
+    failedSlotIds: [] as OlosId[],
+    idempotent: 0,
+    slotIds: [] as OlosId[],
+  };
+
+  for (const entry of result.results) {
+    summary.slotIds.push(entry.slot.slotId);
+
+    if (entry.status === "committed") {
+      summary.committed += 1;
+      continue;
+    }
+
+    if (entry.status === "idempotent") {
+      summary.idempotent += 1;
+      continue;
+    }
+
+    summary.failed += 1;
+    summary.failedSlotIds.push(entry.slot.slotId);
+  }
+
+  return {
+    ...summary,
+    ok: summary.failed === 0,
+    planned: result.results.length,
     status: "reconciled",
   };
 }

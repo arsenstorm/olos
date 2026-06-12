@@ -25,6 +25,7 @@ import {
   runNextStoredS3PublisherUploadStep,
   runPlannedStoredS3PublisherUploadStep,
   runStoredS3PublisherUploadStep,
+  summarizeStoredS3PublisherUploadStep,
 } from "./publisher";
 
 const session: Session = {
@@ -107,6 +108,14 @@ describe("stored S3 publisher upload step", () => {
     });
 
     expect(step.status).toBe("committed");
+    expect(summarizeStoredS3PublisherUploadStep(step)).toEqual({
+      commitId: "commit_v1080_s3810",
+      commitStatus: "committed",
+      objectKey: "media/v1080/s3810.m4s",
+      ok: true,
+      slotId: "slot_v1080_s3810",
+      status: "committed",
+    });
     expect(step.expiry).toEqual({
       expiresAt: "2026-01-01T00:00:05.000Z",
       ttlSeconds: 5,
@@ -336,6 +345,13 @@ describe("stored S3 publisher upload step", () => {
         expiresAt: "2026-01-01T00:00:04.000Z",
         ttlSeconds: 4,
       },
+      status: "upload_failed",
+    });
+    expect(summarizeStoredS3PublisherUploadStep(step)).toEqual({
+      error: "put failed",
+      objectKey: "media/v1080/s3810/p1.m4s",
+      ok: false,
+      slotId: "slot_v1080_s3810_p1",
       status: "upload_failed",
     });
     expect(step.plan.slot).toMatchObject({

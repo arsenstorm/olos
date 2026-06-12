@@ -364,11 +364,15 @@ inside the application's upload callback.
 Publisher loops should refresh their app-owned lease after a successful
 `continue` decision, then wait on their own encoder/cadence signal before asking
 OLOS for the next object.
+Use `summarizeStoredS3PublisherUploadStep` for stable log fields from each
+publisher step without coupling application telemetry to OLOS internals.
 
 Recovery jobs can use `planStoredS3CoordinatorReconciliation` to list in-flight
 S3 slots, then pass selected IDs into `reconcileStoredS3CoordinatorUploads` to
 retry commits after missed provider events or process restarts. The application
 decides when to run recovery and how many slots to target.
+Use `summarizeStoredS3CoordinatorUploadReconciliation` to count committed,
+idempotent, and failed recovery results.
 
 The S3 runtime handler exposes the same recovery path at
 `POST /sessions/:id/s3/reconcile`. The body requires `committedAt`; `providerId`
