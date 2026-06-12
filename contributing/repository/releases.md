@@ -17,9 +17,11 @@ Release checklist:
 1. Update `olos/package.json` to the intended version.
 2. Confirm the changelog or release notes match the diff.
 3. Run `bun run publish:check` from the repository root.
-4. Publish from `olos/` with npm provenance enabled.
-5. Tag the commit as `olos-vX.Y.Z` after the publish succeeds.
+4. Push a tag named `olos-vX.Y.Z` to run the publish workflow.
+5. Confirm the workflow published from `olos/` with npm provenance enabled.
 6. Verify the published package resolves `olos`, `olos/runtime`, and `olos/s3`.
+
+The workflow requires an `NPM_TOKEN` repository secret with publish access.
 
 Do not publish from the repository root. It is a private workspace wrapper, not
 the package.
