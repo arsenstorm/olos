@@ -9,8 +9,8 @@ bun install --frozen-lockfile
 bun run publish:check
 ```
 
-`publish:check` runs type checking, Bun unit tests, Vitest E2E tests, build,
-dry pack, and a packed-package import smoke test.
+`publish:check` verifies the changelog, runs type checking, Bun unit tests,
+Vitest E2E tests, build, dry pack, and a packed-package import smoke test.
 
 Release checklist:
 
