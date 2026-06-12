@@ -116,9 +116,11 @@ The application still owns encoder timing, bytes, retries, and credentials.
 app-owned publisher liveness. Store the lease wherever your runtime keeps
 publisher process metadata; OLOS only computes expiry and stale status.
 
-`createRuntimePublisherObjectPlan` creates deterministic slot payloads and
-commit IDs for init, segment, and part objects. It is a naming helper, not a
-scheduler; the application still controls encoder timing and retry policy.
+`createRuntimePublisherObjectPlan` creates slot payloads and commit IDs for
+init, segment, and part objects. Pass an app-generated `objectKeyNonce` for
+direct-public deployments that need non-obvious future object URLs. It is a
+naming helper, not a scheduler; the application still controls encoder timing
+and retry policy.
 
 `resolveRuntimePublisherNextObjectPosition` derives the next init, segment, or
 part position from the current trusted cursor. It does not sleep, poll, upload,

@@ -136,6 +136,26 @@ describe("runtime publisher cadence", () => {
     });
   });
 
+  test("passes an object key nonce into the next object plan", () => {
+    expect(
+      createRuntimePublisherNextObjectPlan({
+        baseUrl: "https://media.example.com",
+        cursorWindow: {
+          firstMediaSequenceNumber: 3810,
+          lastMediaSequenceNumber: 3811,
+        },
+        defaults: objectDefaults,
+        now: "2026-01-01T00:00:00.000Z",
+        objectKeyNonce: "slot_01JZ",
+        objectKeyPrefix: "media/session_1",
+        publicationMode: "direct-public",
+        publisherInstanceId: "publisher_1",
+        renditionId: "v1080",
+        targetLatency: 3,
+      }).plan.slot.objectKey
+    ).toBe("media/session_1/v1080/s3812/segment-slot_01JZ.m4s");
+  });
+
   test("creates the next object plan from cursor cadence", () => {
     expect(
       createRuntimePublisherNextObjectPlan({

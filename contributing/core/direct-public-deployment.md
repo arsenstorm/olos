@@ -14,6 +14,7 @@ OLOS No-Scan Mode does not prove uploaded media bytes are safe or decodable.
 
 - Generate object keys in the coordinator; reject publisher-supplied keys.
 - Include enough per-slot entropy that future object URLs are not guessable.
+  Pass the app-generated nonce into OLOS publisher planning helpers.
 - Issue short-lived, exact-key, method-bound upload grants.
 - Bind content type and create-if-absent headers where the provider supports
   signed headers.

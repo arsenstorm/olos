@@ -45,6 +45,7 @@ export type RuntimePublisherPlannedObjectDefaults = Record<
 export interface CreateRuntimePublisherObjectPlanInputOptions {
   baseUrl: string;
   defaults: RuntimePublisherPlannedObjectDefaults;
+  objectKeyNonce?: string;
   objectKeyPrefix: string;
   position: RuntimePublisherObjectPosition;
   publicationMode: PublicationMode;
@@ -123,6 +124,7 @@ export function createRuntimePublisherObjectPlanInput(
     publisherInstanceId: options.publisherInstanceId,
     renditionId: options.renditionId,
     ...optionalNumber("minBytes", defaults.minBytes),
+    ...optionalString("objectKeyNonce", options.objectKeyNonce),
     ...optionalNumber("partNumber", options.position.partNumber),
   };
 }
@@ -199,6 +201,13 @@ function optionalNumber<Key extends "minBytes" | "partNumber">(
   value: number | undefined
 ): Partial<Record<Key, number>> {
   return value === undefined ? {} : ({ [key]: value } as Record<Key, number>);
+}
+
+function optionalString<Key extends "objectKeyNonce">(
+  key: Key,
+  value: string | undefined
+): Partial<Record<Key, string>> {
+  return value === undefined ? {} : ({ [key]: value } as Record<Key, string>);
 }
 
 function nonNegativeInteger(value: number, name: string): number {

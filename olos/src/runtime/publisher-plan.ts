@@ -16,6 +16,7 @@ export interface CreateRuntimePublisherObjectPlanOptions {
   maxBytes: number;
   mediaSequenceNumber: number;
   minBytes?: number;
+  objectKeyNonce?: string;
   objectKeyPrefix: string;
   partNumber?: number;
   publicationMode: PublicationMode;
@@ -70,6 +71,7 @@ function assertPlanOptions(
   assertUrlSafeIdentifier(options.publisherInstanceId, "publisherInstanceId");
   assertUrlSafeIdentifier(options.slotIdPrefix ?? "slot", "slotIdPrefix");
   assertUrlSafeIdentifier(options.commitIdPrefix ?? "commit", "commitIdPrefix");
+  assertOptionalUrlSafeIdentifier(options.objectKeyNonce, "objectKeyNonce");
   assertSafePath(options.objectKeyPrefix, "objectKeyPrefix");
   assertSafePathSegment(options.extension, "extension");
 
@@ -109,16 +111,32 @@ function createObjectKey(
 ): string {
   const prefix = trimSlashes(options.objectKeyPrefix);
   const extension = options.extension.replace(LEADING_DOTS_PATTERN, "");
+  const nonce = options.objectKeyNonce;
 
   if (options.kind === "init") {
-    return `${prefix}/${options.renditionId}/init.${extension}`;
+    const fileName =
+      nonce === undefined ? `init.${extension}` : `init-${nonce}.${extension}`;
+
+    return `${prefix}/${options.renditionId}/${fileName}`;
   }
 
   if (options.kind === "segment") {
-    return `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}.${extension}`;
+    const fileName =
+      nonce === undefined
+        ? `s${options.mediaSequenceNumber}.${extension}`
+        : `segment-${nonce}.${extension}`;
+
+    return nonce === undefined
+      ? `${prefix}/${options.renditionId}/${fileName}`
+      : `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}/${fileName}`;
   }
 
-  return `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}/p${options.partNumber}.${extension}`;
+  const fileName =
+    nonce === undefined
+      ? `p${options.partNumber}.${extension}`
+      : `p${options.partNumber}-${nonce}.${extension}`;
+
+  return `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}/${fileName}`;
 }
 
 function createObjectId(
@@ -153,6 +171,15 @@ function createDeliveryUrl(baseUrl: string, objectKey: string): string {
 function assertUrlSafeIdentifier(value: string, name: string): void {
   if (!isUrlSafeIdentifier(value)) {
     throw new Error(`${name} must be a non-empty URL-safe identifier`);
+  }
+}
+
+function assertOptionalUrlSafeIdentifier(
+  value: string | undefined,
+  name: string
+): void {
+  if (value !== undefined) {
+    assertUrlSafeIdentifier(value, name);
   }
 }
 

@@ -67,6 +67,39 @@ describe("runtime publisher object plan", () => {
     });
   });
 
+  test("creates nonce-bearing object keys for direct-public publication", () => {
+    const init = createRuntimePublisherObjectPlan({
+      ...validSegmentPlan(),
+      extension: "mp4",
+      kind: "init",
+      mediaSequenceNumber: 0,
+      objectKeyNonce: "slot_01JZ",
+    });
+    const segment = createRuntimePublisherObjectPlan({
+      ...validSegmentPlan(),
+      objectKeyNonce: "slot_01K0",
+    });
+    const part = createRuntimePublisherObjectPlan({
+      ...validSegmentPlan(),
+      kind: "part",
+      objectKeyNonce: "slot_01K1",
+      partNumber: 2,
+    });
+
+    expect(init.slot.objectKey).toBe(
+      "media/session_1/v1080/init-slot_01JZ.mp4"
+    );
+    expect(init.slot.deliveryUrl).toBe(
+      "https://media.example.com/media/session_1/v1080/init-slot_01JZ.mp4"
+    );
+    expect(segment.slot.objectKey).toBe(
+      "media/session_1/v1080/s3810/segment-slot_01K0.m4s"
+    );
+    expect(part.slot.objectKey).toBe(
+      "media/session_1/v1080/s3810/p2-slot_01K1.m4s"
+    );
+  });
+
   test("creates an init slot payload", () => {
     const plan = createRuntimePublisherObjectPlan({
       baseUrl: "https://media.example.com",
@@ -109,6 +142,13 @@ describe("runtime publisher object plan", () => {
         baseUrl: "ftp://media.example.com",
       })
     ).toThrow("baseUrl must be an absolute HTTP(S) URL");
+
+    expect(() =>
+      createRuntimePublisherObjectPlan({
+        ...validSegmentPlan(),
+        objectKeyNonce: "../slot",
+      })
+    ).toThrow("objectKeyNonce must be a non-empty URL-safe identifier");
   });
 });
 
