@@ -1,4 +1,6 @@
 import {
+  type DeleteObjectCommand,
+  type DeleteObjectCommandOutput,
   type HeadObjectCommand,
   type HeadObjectCommandOutput,
   S3Client,
@@ -18,18 +20,24 @@ import {
   createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
   createRuntimePublisherObjectPlan,
+  planStoredCoordinatorRetention,
   type RuntimePublisherObjectPlan,
   type RuntimePublisherPlannedObjectKind,
   resolveRuntimePublisherObjectExpiry,
 } from "olos/runtime";
 import {
   commitStoredS3CoordinatorUpload,
+  deleteRetiredS3CoordinatorObjects,
   issueStoredS3CoordinatorUploadGrant,
   normalizeS3ObjectCreatedEvents,
+  planStoredS3CoordinatorReconciliation,
+  reconcileStoredS3CoordinatorUploads,
   routeStoredS3CoordinatorUploadEvent,
   runNextStoredS3PublisherUploadStep,
+  type S3DeleteObjectClient,
   type S3HeadObjectClient,
   type StoredS3PublisherUploadStepSummary,
+  summarizeStoredS3CoordinatorUploadReconciliation,
   summarizeStoredS3PublisherUploadStep,
 } from "olos/s3";
 import { normalizeUploadEvent } from "olos/state";
@@ -447,6 +455,156 @@ describe("object-store flow", () => {
       {
         Bucket: "media",
         Key: "media/v1080/s3811.m4s",
+      },
+    ]);
+  });
+
+  test("runs recovery and retention as app-owned jobs", async () => {
+    const deletedObjects: unknown[] = [];
+    const headObjectInputs: unknown[] = [];
+    const store = await createStoredPipeline();
+    const issued = await issueBlockingReloadSlots(store);
+    const thirdSegmentPlan = createUploadPlan({
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3812,
+    });
+    const thirdSegment = await issuePlannedUploadGrant({
+      plan: thirdSegmentPlan,
+      store,
+    });
+
+    for (const issue of [
+      issued.init,
+      issued.segment,
+      issued.nextSegment,
+      thirdSegment,
+    ]) {
+      expect(issue.status).toBe("saved");
+    }
+
+    const plan = await planStoredS3CoordinatorReconciliation({
+      sessionId: session.sessionId,
+      store,
+    });
+    const commitIds = new Map([
+      [issued.initPlan.slot.slotId, issued.initPlan.commitId],
+      [issued.segmentPlan.slot.slotId, issued.segmentPlan.commitId],
+      [issued.nextSegmentPlan.slot.slotId, issued.nextSegmentPlan.commitId],
+      [thirdSegmentPlan.slot.slotId, thirdSegmentPlan.commitId],
+    ]);
+
+    expect(plan.status).toBe("planned");
+    if (plan.status !== "planned") {
+      throw new Error("expected reconciliation plan");
+    }
+
+    const recovered = await reconcileStoredS3CoordinatorUploads({
+      bucket: "media",
+      client: headObjectClientFor(
+        new Map([
+          [issued.initPlan.slot.objectKey, 1024],
+          [issued.segmentPlan.slot.objectKey, 98_304],
+          [issued.nextSegmentPlan.slot.objectKey, 99_000],
+          [thirdSegmentPlan.slot.objectKey, 99_500],
+        ]),
+        headObjectInputs
+      ),
+      commitId: (slot) => {
+        const commitId = commitIds.get(slot.slotId);
+
+        if (commitId === undefined) {
+          throw new Error(`missing commit id for ${slot.slotId}`);
+        }
+
+        return commitId;
+      },
+      committedAt: (slot) =>
+        slot.kind === "init"
+          ? "2026-01-01T00:00:01.000Z"
+          : `2026-01-01T00:00:0${slot.mediaSequenceNumber - 3808}.000Z`,
+      independent: (slot) => slot.kind === "segment",
+      maxSegments: 2,
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store,
+    });
+    const recoveredSummary =
+      summarizeStoredS3CoordinatorUploadReconciliation(recovered);
+    const snapshot = await store.load(session.sessionId);
+    const cursor = snapshot?.state.cursor;
+
+    if (cursor === undefined) {
+      throw new Error("expected recovered cursor");
+    }
+
+    assertCursor(cursor);
+
+    expect(plan.slotIds).toEqual([
+      issued.initPlan.slot.slotId,
+      issued.segmentPlan.slot.slotId,
+      issued.nextSegmentPlan.slot.slotId,
+      thirdSegmentPlan.slot.slotId,
+    ]);
+    expect(recoveredSummary).toMatchObject({
+      committed: 4,
+      failed: 0,
+      ok: true,
+      planned: 4,
+    });
+    expect(cursor.window).toEqual({
+      firstMediaSequenceNumber: 3811,
+      lastMediaSequenceNumber: 3812,
+    });
+
+    const retention = await planStoredCoordinatorRetention({
+      now: "2026-01-01T00:00:08.000Z",
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(retention.status).toBe("planned");
+    if (retention.status !== "planned") {
+      throw new Error("expected retention plan");
+    }
+
+    const deleted = await deleteRetiredS3CoordinatorObjects({
+      bucket: "media",
+      client: deleteObjectClient(deletedObjects),
+      objects: retention.plan.retiredObjects,
+    });
+
+    expect(retention.plan.retiredObjects).toEqual([
+      {
+        commitId: issued.segmentPlan.commitId,
+        objectKey: issued.segmentPlan.slot.objectKey,
+        slotId: issued.segmentPlan.slot.slotId,
+      },
+    ]);
+    expect(deleted.failedObjects).toEqual([]);
+    expect(deleted.deletedObjects).toEqual(retention.plan.retiredObjects);
+    expect(deletedObjects).toEqual([
+      {
+        Bucket: "media",
+        Key: issued.segmentPlan.slot.objectKey,
+      },
+    ]);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: issued.initPlan.slot.objectKey,
+      },
+      {
+        Bucket: "media",
+        Key: issued.segmentPlan.slot.objectKey,
+      },
+      {
+        Bucket: "media",
+        Key: issued.nextSegmentPlan.slot.objectKey,
+      },
+      {
+        Bucket: "media",
+        Key: thirdSegmentPlan.slot.objectKey,
       },
     ]);
   });
@@ -1136,6 +1294,42 @@ async function routeUploadEvent(options: {
   }
 
   return result;
+}
+
+function headObjectClientFor(
+  sizes: ReadonlyMap<string, number>,
+  inputs: unknown[]
+): S3HeadObjectClient {
+  return {
+    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
+      inputs.push(command.input);
+
+      const objectKey = String(command.input.Key);
+      const size = sizes.get(objectKey);
+
+      if (size === undefined) {
+        return Promise.reject(new Error(`missing object: ${objectKey}`));
+      }
+
+      return Promise.resolve({
+        $metadata: {},
+        ContentLength: size,
+        ContentType: "video/mp4",
+        ETag: `"${objectKey}"`,
+        LastModified: new Date("2026-01-01T00:00:01.000Z"),
+      });
+    },
+  };
+}
+
+function deleteObjectClient(inputs: unknown[]): S3DeleteObjectClient {
+  return {
+    send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput> {
+      inputs.push(command.input);
+
+      return Promise.resolve({ $metadata: {} });
+    },
+  };
 }
 
 function createS3Client(): S3Client {
