@@ -1,14 +1,56 @@
+import type { S3Client } from "@aws-sdk/client-s3";
+import type { CoordinatorPipelineStore } from "../protocol";
+import {
+  type RuntimePublisherObjectExpiry,
+  resolveRuntimePublisherObjectExpiry,
+} from "../runtime/publisher-expiry";
+import {
+  type CreateRuntimePublisherObjectPlanOptions,
+  createRuntimePublisherObjectPlan,
+  type RuntimePublisherObjectPlan,
+} from "../runtime/publisher-plan";
+import type { PublicationControlPolicy } from "../state/publication-control";
+import type { OlosId } from "../types/ids";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
 import type {
+  StoredS3CoordinatorManifestOptions,
   StoredS3CoordinatorUploadCommit,
   StoredS3CoordinatorUploadGrantIssue,
 } from "./coordinator";
+import {
+  commitStoredS3CoordinatorUpload,
+  issueStoredS3CoordinatorUploadGrant,
+} from "./coordinator";
+import type { S3HeadObjectClient } from "./object-observation";
 
 export interface RunStoredS3PublisherUploadStepOptions {
   commit(slot: UploadSlot): Promise<StoredS3CoordinatorUploadCommit>;
   issueGrant(): Promise<StoredS3CoordinatorUploadGrantIssue>;
   upload(grant: UploadGrant): Promise<void>;
+}
+
+export interface RunPlannedStoredS3PublisherUploadStepOptions {
+  additionalHeaders?: Record<string, string>;
+  bucket: string;
+  client: S3Client;
+  committedAt: string;
+  headObjectClient?: S3HeadObjectClient;
+  independent?: boolean;
+  manifest?: StoredS3CoordinatorManifestOptions;
+  maxAttempts?: number;
+  maxSegments?: number;
+  minTtlSeconds?: number;
+  now: Date | string;
+  plan: Omit<CreateRuntimePublisherObjectPlanOptions, "expiresAt">;
+  programDateTime?: string;
+  providerId: string;
+  publicationControl?: PublicationControlPolicy;
+  sessionId: OlosId;
+  store: CoordinatorPipelineStore;
+  targetLatency: number;
+  upload(grant: UploadGrant, plan: RuntimePublisherObjectPlan): Promise<void>;
+  versionId?: string;
 }
 
 export type StoredS3PublisherUploadStep =
@@ -36,6 +78,66 @@ export type StoredS3PublisherUploadStep =
       slot: UploadSlot;
       status: "commit_failed";
     };
+
+export type PlannedStoredS3PublisherUploadStep = StoredS3PublisherUploadStep & {
+  expiry: RuntimePublisherObjectExpiry;
+  plan: RuntimePublisherObjectPlan;
+};
+
+export async function runPlannedStoredS3PublisherUploadStep(
+  options: RunPlannedStoredS3PublisherUploadStepOptions
+): Promise<PlannedStoredS3PublisherUploadStep> {
+  const expiry = resolveRuntimePublisherObjectExpiry({
+    duration: options.plan.duration,
+    minTtlSeconds: options.minTtlSeconds,
+    now: options.now,
+    targetLatency: options.targetLatency,
+  });
+  const plan = createRuntimePublisherObjectPlan({
+    ...options.plan,
+    expiresAt: expiry.expiresAt,
+  });
+  const step = await runStoredS3PublisherUploadStep({
+    commit: (slot) =>
+      commitStoredS3CoordinatorUpload({
+        bucket: options.bucket,
+        client: options.headObjectClient ?? options.client,
+        commitId: plan.commitId,
+        committedAt: options.committedAt,
+        independent: options.independent,
+        manifest: options.manifest,
+        maxAttempts: options.maxAttempts,
+        maxSegments: options.maxSegments,
+        programDateTime: options.programDateTime,
+        providerId: options.providerId,
+        publicationControl: options.publicationControl,
+        sessionId: options.sessionId,
+        slotId: slot.slotId,
+        store: options.store,
+        versionId: options.versionId,
+      }),
+    issueGrant: () =>
+      issueStoredS3CoordinatorUploadGrant({
+        additionalHeaders: options.additionalHeaders,
+        bucket: options.bucket,
+        client: options.client,
+        expiresInSeconds: expiry.ttlSeconds,
+        maxAttempts: options.maxAttempts,
+        now: options.now,
+        publicationControl: options.publicationControl,
+        sessionId: options.sessionId,
+        store: options.store,
+        ...plan.slot,
+      }),
+    upload: (grant) => options.upload(grant, plan),
+  });
+
+  return {
+    ...step,
+    expiry,
+    plan,
+  };
+}
 
 export async function runStoredS3PublisherUploadStep(
   options: RunStoredS3PublisherUploadStepOptions

@@ -15,7 +15,10 @@ import {
   issueStoredS3CoordinatorUploadGrant,
 } from "./coordinator";
 import type { S3HeadObjectClient } from "./object-observation";
-import { runStoredS3PublisherUploadStep } from "./publisher";
+import {
+  runPlannedStoredS3PublisherUploadStep,
+  runStoredS3PublisherUploadStep,
+} from "./publisher";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -51,6 +54,119 @@ const pathways: Pathway[] = [
 ];
 
 describe("stored S3 publisher upload step", () => {
+  test("plans, grants, uploads, and commits one S3 object", async () => {
+    const headObjectInputs: unknown[] = [];
+    const uploadedUrls: string[] = [];
+    const store = createMemoryCoordinatorStore();
+
+    await store.save({
+      sessionId: session.sessionId,
+      state: createCoordinatorPipeline({ pathways, session }),
+    });
+
+    const step = await runPlannedStoredS3PublisherUploadStep({
+      bucket: "media",
+      client: createClient(),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      headObjectClient: clientFor(
+        "media/v1080/s3810.m4s",
+        98_304,
+        headObjectInputs
+      ),
+      independent: true,
+      now: "2026-01-01T00:00:00.000Z",
+      plan: {
+        baseUrl: "https://media.example.com",
+        contentType: "video/mp4",
+        duration: 2,
+        extension: "m4s",
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKeyPrefix: "media",
+        publicationMode: "direct-public",
+        publisherInstanceId: "publisher_1",
+        renditionId: "v1080",
+      },
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store,
+      targetLatency: 3,
+      upload: (grant) => {
+        uploadedUrls.push(grant.url);
+
+        return Promise.resolve();
+      },
+    });
+
+    expect(step.status).toBe("committed");
+    expect(step.expiry).toEqual({
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      ttlSeconds: 5,
+    });
+    expect(step.plan.commitId).toBe("commit_v1080_s3810");
+    expect(step.plan.slot).toMatchObject({
+      expiresAt: step.expiry.expiresAt,
+      objectKey: "media/v1080/s3810.m4s",
+      slotId: "slot_v1080_s3810",
+    });
+    expect(uploadedUrls).toHaveLength(1);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/v1080/s3810.m4s",
+      },
+    ]);
+  });
+
+  test("keeps planned context when upload fails", async () => {
+    const store = createMemoryCoordinatorStore();
+
+    await store.save({
+      sessionId: session.sessionId,
+      state: createCoordinatorPipeline({ pathways, session }),
+    });
+
+    const step = await runPlannedStoredS3PublisherUploadStep({
+      bucket: "media",
+      client: createClient(),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      now: "2026-01-01T00:00:00.000Z",
+      plan: {
+        baseUrl: "https://media.example.com",
+        contentType: "video/mp4",
+        duration: 0.5,
+        extension: "m4s",
+        kind: "part",
+        maxBytes: 25_000,
+        mediaSequenceNumber: 3810,
+        objectKeyPrefix: "media",
+        partNumber: 1,
+        publicationMode: "direct-public",
+        publisherInstanceId: "publisher_1",
+        renditionId: "v1080",
+      },
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store,
+      targetLatency: 3,
+      upload: () => Promise.reject(new Error("put failed")),
+    });
+
+    expect(step).toMatchObject({
+      error: "put failed",
+      expiry: {
+        expiresAt: "2026-01-01T00:00:04.000Z",
+        ttlSeconds: 4,
+      },
+      status: "upload_failed",
+    });
+    expect(step.plan.slot).toMatchObject({
+      objectKey: "media/v1080/s3810/p1.m4s",
+      partNumber: 1,
+    });
+  });
+
   test("issues a grant, uploads with the app callback, and commits", async () => {
     const headObjectInputs: unknown[] = [];
     const uploadedUrls: string[] = [];
