@@ -2,12 +2,52 @@
 
 Open Live Object Streaming protocol primitives.
 
+## Install
+
+```bash
+bun add olos
+```
+
+For npm or pnpm projects, install the same `olos` package with your package
+manager.
+
 ## Imports
 
 ```ts
 import { OLOS_PROTOCOL_NAME } from "olos";
 import type { Session } from "olos/types";
 ```
+
+`olos` keeps the root export small. Use subpath imports for the rest of the
+package:
+
+| Import | Use for |
+| --- | --- |
+| `olos/runtime` | Session routes, publisher loops, health, retention, and HLS serving. |
+| `olos/s3` | S3-compatible upload grants, object observation, events, recovery, and retention deletion. |
+| `olos/hls` | Direct HLS rendering and manifest response helpers. |
+| `olos/protocol` | Coordinator state, memory stores, serialized stores, and adapter conformance. |
+| `olos/state` | Lower-level state transitions and publication policies. |
+| `olos/types` | Public protocol data types. |
+| `olos/validation` | Runtime validators for protocol payloads. |
+| `olos/config` | Shared protocol constants and default policy values. |
+| `olos/conformance` | Conformance assertion metadata and store checks. |
+
+## First Object-Store Flow
+
+For an S3-compatible live pipeline, wire the pieces in this order:
+
+1. Create a coordinator store with conditional writes.
+2. Create a session and pathways through `olos/runtime`.
+3. Use `olos/s3` to issue exact-key upload grants.
+4. Upload encoder bytes in your application.
+5. Commit by observing the exact object with S3 `HeadObject` or a normalized
+   object-created event.
+6. Serve HLS manifests from coordinator state.
+7. Run recovery and retention as application-owned jobs.
+
+The package does not authenticate publishers or viewers, provision buckets,
+schedule encoders, poll jobs, or choose a database.
 
 ## Stored Runtime Pipeline
 
