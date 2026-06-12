@@ -67,6 +67,11 @@ export {
   summarizeStoredS3CoordinatorUploadReconciliation,
 } from "./s3/reconciliation";
 export {
+  type DeleteRetiredS3CoordinatorObjectsOptions,
+  deleteRetiredS3CoordinatorObjects,
+  type S3DeleteObjectClient,
+} from "./s3/retention";
+export {
   type CreatePresignedS3UploadGrantOptions,
   type CreateS3UploadGrantOptions,
   createPresignedS3UploadGrant,

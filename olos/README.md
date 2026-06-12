@@ -383,6 +383,9 @@ decides when to run recovery and how many slots to target.
 Use `summarizeStoredS3CoordinatorUploadReconciliation` to count committed,
 idempotent, and failed recovery results.
 
+Retention jobs can pass retired objects from `planStoredCoordinatorRetention`
+to `deleteRetiredS3CoordinatorObjects` to delete old media objects through S3.
+
 The S3 runtime handler exposes the same recovery path at
 `POST /sessions/:id/s3/reconcile`. The body requires `committedAt`; `providerId`
 can be supplied in the body or configured on the handler. The response includes
