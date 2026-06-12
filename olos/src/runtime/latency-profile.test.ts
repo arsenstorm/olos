@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
+  createRuntimeObjectLowLatencyPublisherOptions,
 } from "./latency-profile";
 
 describe("runtime latency profile", () => {
@@ -31,6 +32,16 @@ describe("runtime latency profile", () => {
         maxAgeSeconds: 1,
         targetLatencySeconds: 3,
       },
+    });
+  });
+
+  test("creates publisher options from object low-latency defaults", () => {
+    expect(createRuntimeObjectLowLatencyPublisherOptions()).toEqual({
+      expiry: {
+        minTtlSeconds: 1,
+        targetLatency: 3,
+      },
+      publisherLeaseTtlMs: 3000,
     });
   });
 });

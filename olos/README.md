@@ -127,6 +127,8 @@ runtime defaults: 0.5s parts, 2s segments, 3s target latency, 3s blocking reload
 waits, 1s manifest caching, and a 5s cursor staleness threshold.
 `createRuntimeObjectLowLatencyManifestOptions` maps that profile into manifest
 rendering, response cache, and blocking reload options.
+`createRuntimeObjectLowLatencyPublisherOptions` maps it into upload expiry and
+publisher lease options.
 
 ### Publication Control
 

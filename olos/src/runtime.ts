@@ -27,8 +27,10 @@ export {
 export {
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
+  createRuntimeObjectLowLatencyPublisherOptions,
   type RuntimeObjectLowLatencyManifestOptions,
   type RuntimeObjectLowLatencyProfile,
+  type RuntimeObjectLowLatencyPublisherOptions,
 } from "./runtime/latency-profile";
 export {
   type RuntimeManifestRequest,

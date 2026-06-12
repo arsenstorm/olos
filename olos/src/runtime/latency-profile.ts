@@ -24,6 +24,14 @@ export interface RuntimeObjectLowLatencyManifestOptions {
   response: CreateHlsManifestArtifactResponseOptions;
 }
 
+export interface RuntimeObjectLowLatencyPublisherOptions {
+  expiry: {
+    minTtlSeconds: number;
+    targetLatency: number;
+  };
+  publisherLeaseTtlMs: number;
+}
+
 export function createRuntimeObjectLowLatencyProfile(): RuntimeObjectLowLatencyProfile {
   return {
     blockingReloadTimeoutMs: 3000,
@@ -52,5 +60,17 @@ export function createRuntimeObjectLowLatencyManifestOptions(
       maxAgeSeconds: profile.manifestMaxAgeSeconds,
       targetLatencySeconds: profile.targetLatency,
     },
+  };
+}
+
+export function createRuntimeObjectLowLatencyPublisherOptions(
+  profile: RuntimeObjectLowLatencyProfile = createRuntimeObjectLowLatencyProfile()
+): RuntimeObjectLowLatencyPublisherOptions {
+  return {
+    expiry: {
+      minTtlSeconds: profile.minUploadTtlSeconds,
+      targetLatency: profile.targetLatency,
+    },
+    publisherLeaseTtlMs: profile.publisherLeaseTtlMs,
   };
 }
