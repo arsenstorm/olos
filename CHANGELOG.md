@@ -18,5 +18,6 @@ This project follows semantic versioning for the published `olos` package.
 - Added HLS and LL-HLS manifest generation with blocking reload support.
 - Added S3-compatible upload grants, object observation, event routing,
   reconciliation, and retention helpers.
+- Added S3-native slot metadata binding and observation normalization.
 - Added in-memory and SQLite-backed serialized coordinator store adapters.
 - Added conformance coverage metadata and package publication checks.

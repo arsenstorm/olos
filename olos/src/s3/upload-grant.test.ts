@@ -42,6 +42,7 @@ describe("s3 upload grants", () => {
       requiredHeaders: {
         "Content-Type": "video/mp4",
         "If-None-Match": "*",
+        "x-amz-meta-olos-slot-id": "slot_1",
         "x-olos-slot-id": "slot_1",
       },
       slotId: "slot_1",
@@ -49,7 +50,7 @@ describe("s3 upload grants", () => {
     expect(url.hostname).toBe("s3.example.com");
     expect(url.pathname).toBe("/media/live/session/v1080/3810.m4s");
     expect(url.searchParams.get("X-Amz-SignedHeaders")).toBe(
-      "content-type;host;if-none-match;x-olos-slot-id"
+      "content-type;host;if-none-match;x-amz-meta-olos-slot-id;x-olos-slot-id"
     );
   });
 
@@ -70,10 +71,11 @@ describe("s3 upload grants", () => {
       "Content-Type": "video/mp4",
       "If-None-Match": "*",
       "x-amz-checksum-sha256": "abc123",
+      "x-amz-meta-olos-slot-id": "slot_1",
       "x-olos-slot-id": "slot_1",
     });
     expect(url.searchParams.get("X-Amz-SignedHeaders")).toBe(
-      "content-type;host;if-none-match;x-amz-checksum-sha256;x-olos-slot-id"
+      "content-type;host;if-none-match;x-amz-checksum-sha256;x-amz-meta-olos-slot-id;x-olos-slot-id"
     );
   });
 
@@ -104,6 +106,7 @@ describe("s3 upload grants", () => {
       requiredHeaders: {
         "Content-Type": "video/mp4",
         "If-None-Match": "*",
+        "x-amz-meta-olos-slot-id": "slot_1",
         "x-olos-slot-id": "slot_1",
       },
       slotId: "slot_1",
@@ -161,6 +164,7 @@ describe("s3 upload grants", () => {
         "Content-Type": "video/mp4",
         "If-None-Match": "*",
         "x-amz-checksum-sha256": "abc123",
+        "x-amz-meta-olos-slot-id": "slot_1",
         "x-olos-slot-id": "slot_1",
       },
     });
@@ -187,6 +191,19 @@ describe("s3 upload grants", () => {
         slot,
       })
     ).toThrow("additionalHeaders must not override if-none-match");
+  });
+
+  test("rejects additional headers that override S3 slot metadata", () => {
+    expect(() =>
+      createS3UploadGrant({
+        additionalHeaders: {
+          "x-amz-meta-olos-slot-id": "other_slot",
+        },
+        presignedUrl:
+          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+        slot,
+      })
+    ).toThrow("additionalHeaders must not override x-amz-meta-olos-slot-id");
   });
 });
 

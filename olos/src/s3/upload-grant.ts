@@ -4,6 +4,8 @@ import { createUploadGrant } from "../state/upload-grant";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
 
+const S3_SLOT_ID_METADATA_HEADER = "x-amz-meta-olos-slot-id";
+
 export interface CreateS3UploadGrantOptions {
   additionalHeaders?: Record<string, string>;
   bucket?: string;
@@ -27,7 +29,7 @@ export function createS3UploadGrant(
   assertPresignedUrlMatchesSlot(options);
 
   return createUploadGrant({
-    additionalHeaders: options.additionalHeaders,
+    additionalHeaders: createS3AdditionalHeaders(options),
     expiresAt: options.expiresAt,
     slot: options.slot,
     url: options.presignedUrl,
@@ -110,8 +112,34 @@ function createRequiredHeaders(
     "Content-Type": options.slot.contentType,
     "If-None-Match": "*",
     "x-olos-slot-id": options.slot.slotId,
+    ...createS3AdditionalHeaders(options),
+  };
+}
+
+function createS3AdditionalHeaders(options: {
+  additionalHeaders?: Record<string, string>;
+  slot: UploadSlot;
+}): Record<string, string> {
+  assertDoesNotOverrideS3Metadata(options.additionalHeaders);
+
+  return {
+    [S3_SLOT_ID_METADATA_HEADER]: options.slot.slotId,
     ...options.additionalHeaders,
   };
+}
+
+function assertDoesNotOverrideS3Metadata(
+  headers: Record<string, string> | undefined
+): void {
+  if (headers === undefined) {
+    return;
+  }
+
+  for (const header of Object.keys(headers)) {
+    if (header.toLowerCase() === S3_SLOT_ID_METADATA_HEADER) {
+      throw new Error(`additionalHeaders must not override ${header}`);
+    }
+  }
 }
 
 function expiresAt(options: CreatePresignedS3UploadGrantOptions): string {

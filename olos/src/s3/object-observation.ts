@@ -60,12 +60,34 @@ export function createObservedUploadFromS3HeadObject(
   return createObservedUpload({
     contentType: options.output.ContentType,
     etag: options.output.ETag,
-    metadata: options.output.Metadata,
+    metadata: normalizeS3Metadata(options.output.Metadata),
     objectKey: options.objectKey,
     observedAt: observedAt(options),
     providerId: options.providerId,
     size: options.output.ContentLength,
   });
+}
+
+function normalizeS3Metadata(
+  metadata: Record<string, string> | undefined
+): Record<string, string> | undefined {
+  if (metadata === undefined) {
+    return;
+  }
+
+  const slotId =
+    metadata["x-olos-slot-id"] ??
+    metadata["olos-slot-id"] ??
+    metadata["x-amz-meta-olos-slot-id"];
+
+  if (slotId === undefined || metadata["x-olos-slot-id"] !== undefined) {
+    return metadata;
+  }
+
+  return {
+    ...metadata,
+    "x-olos-slot-id": slotId,
+  };
 }
 
 function observedAt(

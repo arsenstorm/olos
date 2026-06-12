@@ -39,6 +39,27 @@ describe("s3 object observation", () => {
     });
   });
 
+  test("normalizes S3 slot metadata to OLOS metadata", () => {
+    expect(
+      createObservedUploadFromS3HeadObject({
+        objectKey: "live/session/v1080/3810.m4s",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        output: {
+          $metadata: {},
+          ContentLength: 98_304,
+          ContentType: "video/mp4",
+          Metadata: {
+            "olos-slot-id": "slot_3810",
+          },
+        },
+        providerId: "s3_primary",
+      }).metadata
+    ).toEqual({
+      "olos-slot-id": "slot_3810",
+      "x-olos-slot-id": "slot_3810",
+    });
+  });
+
   test("uses LastModified when no observation time is provided", () => {
     expect(
       createObservedUploadFromS3HeadObject({

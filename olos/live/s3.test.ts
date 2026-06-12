@@ -54,6 +54,9 @@ test("uploads and observes an object through a live S3-compatible provider", asy
 
     expect(observed).toMatchObject({
       contentType,
+      metadata: {
+        "x-olos-slot-id": slot.slotId,
+      },
       objectKey,
       providerId: "live_s3",
       size: payload.byteLength,
