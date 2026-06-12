@@ -18,7 +18,8 @@
     "prepare": "husky",
     "publish:check": "bun --filter olos publish:check",
     "test": "bun --filter olos test",
-    "test:e2e": "bun --filter olos test:e2e"
+    "test:e2e": "bun --filter olos test:e2e",
+    "test:live-s3": "bun --filter olos test:live-s3"
   },
   "type": "module",
   "workspaces": [

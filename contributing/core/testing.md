@@ -14,6 +14,37 @@ Run the package test suite directly:
 bun --filter olos test
 ```
 
+Run deterministic E2E tests:
+
+```bash
+bun run test:e2e
+```
+
+Run the optional live S3-compatible provider check:
+
+```bash
+bun run test:live-s3
+```
+
+Without `OLOS_LIVE_S3=1`, the live S3 test only verifies that the optional
+surface is wired. To run against a provider, set:
+
+```bash
+OLOS_LIVE_S3=1
+OLOS_LIVE_S3_BUCKET=...
+OLOS_LIVE_S3_REGION=...
+OLOS_LIVE_S3_ACCESS_KEY_ID=...
+OLOS_LIVE_S3_SECRET_ACCESS_KEY=...
+```
+
+Optional settings:
+
+```bash
+OLOS_LIVE_S3_ENDPOINT=...
+OLOS_LIVE_S3_FORCE_PATH_STYLE=true
+OLOS_LIVE_S3_PREFIX=olos-live-s3
+```
+
 Typecheck and build the publishable package:
 
 ```bash
