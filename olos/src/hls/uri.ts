@@ -12,6 +12,10 @@ export function assertSafeRelativePath(value: string, name: string): void {
   ) {
     throw new Error(`${name} must be a safe relative path`);
   }
+
+  if (value.includes("?") || value.includes("#")) {
+    throw new Error(`${name} must not contain query strings or fragments`);
+  }
 }
 
 export function assertSafeMediaUri(

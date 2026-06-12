@@ -72,6 +72,16 @@ describe("master playlist rendering", () => {
     ).toThrow("media playlist path must be a safe relative path");
   });
 
+  test("rejects media playlist paths with query strings or fragments", () => {
+    expect(() =>
+      renderMasterPlaylist(session, {
+        mediaPlaylistPath: () => "/live/v1080.m3u8?token=abc",
+      })
+    ).toThrow(
+      "media playlist path must not contain query strings or fragments"
+    );
+  });
+
   test("rejects sessions without video renditions", () => {
     expect(() =>
       renderMasterPlaylist({

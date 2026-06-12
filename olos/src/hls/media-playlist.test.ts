@@ -237,6 +237,32 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
     ).toThrow("rendition.init.deliveryUrl must be a safe relative path");
   });
 
+  test("rejects relative media URLs with query strings or fragments", () => {
+    expect(() =>
+      renderMediaPlaylist(
+        {
+          ...committedWindow,
+          renditions: {
+            v1080: {
+              ...validRendition(),
+              init: {
+                ...validRendition().init,
+                deliveryUrl: "/media/init.mp4?token=abc",
+              },
+            },
+          },
+        },
+        {
+          partTarget: 0.5,
+          renditionId: "v1080",
+          segmentTarget: 2,
+        }
+      )
+    ).toThrow(
+      "rendition.init.deliveryUrl must not contain query strings or fragments"
+    );
+  });
+
   test("rejects media URLs with control characters", () => {
     expect(() =>
       renderMediaPlaylist(
