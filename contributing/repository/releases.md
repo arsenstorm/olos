@@ -24,6 +24,8 @@ Release checklist:
 6. Confirm the workflow published from `olos/` with npm provenance enabled.
 7. Confirm the workflow verified the published package subpaths.
 8. Confirm the workflow created a GitHub Release from the changelog notes.
+9. Verify npm registry signatures and provenance attestations from a fresh npm
+   install.
 
 The workflow requires an `NPM_TOKEN` repository secret with publish access.
 See [repository checks](./checks.md) for the expected branch and release tag
@@ -45,6 +47,21 @@ or local working tree:
 ```bash
 bun --filter olos release:verify-published 0.1.0
 ```
+
+Then verify npm signatures and provenance attestations from a temporary npm
+consumer project:
+
+```bash
+mkdir /tmp/olos-npm-verify
+cd /tmp/olos-npm-verify
+npm init -y
+npm install olos@0.1.0
+npm audit signatures
+```
+
+`npm audit signatures` should report verified registry signatures. For
+provenance-enabled releases, it should also report at least one verified
+attestation.
 
 ## Release Notes
 
