@@ -667,5 +667,8 @@ For `upload.completed` hints, the hint ID becomes the commit ID, the hint time
 becomes `committedAt`, and both the slot ID and object key must match before the
 upload can be committed.
 
+Provider-event commits still run through `commitPolicy`; storage events are not
+publication authority by themselves.
+
 This keeps retries idempotent: replaying the same provider event reaches the
 same commit identity instead of creating a new media commit.
