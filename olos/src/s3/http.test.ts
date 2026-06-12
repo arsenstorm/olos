@@ -387,6 +387,113 @@ describe("stored S3 coordinator runtime handler", () => {
       },
     ]);
   });
+
+  test("reconciles missed S3 commits through the runtime route", async () => {
+    const headObjectInputs: unknown[] = [];
+    const notifiedCursors: Cursor[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+          "live/session/v1080/init.mp4": 1024,
+        },
+        headObjectInputs
+      ),
+      cursorNotifier: {
+        notify: (cursor) => notifiedCursors.push(cursor),
+        waitForCursor: () =>
+          Promise.reject(new Error("waiter should not be called")),
+      },
+      providerId: "s3_primary",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
+          duration: 1,
+          kind: "init",
+          maxBytes: 2048,
+          mediaSequenceNumber: 0,
+          objectKey: "live/session/v1080/init.mp4",
+          slotId: "slot_init",
+        })
+      )
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/reconcile", {
+        committedAt: "2026-01-01T00:00:02.000Z",
+      })
+    );
+    const body = (await response.json()) as {
+      results: {
+        commit?: { slotId: string };
+        cursor?: { window: Record<string, number> };
+        slotId: string;
+        status: string;
+      }[];
+    };
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(202);
+    expect(body.results).toMatchObject([
+      {
+        commit: { slotId: "slot_init" },
+        slotId: "slot_init",
+        status: "committed",
+      },
+      {
+        commit: { slotId: "slot_3810" },
+        cursor: {
+          window: {
+            firstMediaSequenceNumber: 3810,
+            lastMediaSequenceNumber: 3810,
+          },
+        },
+        slotId: "slot_3810",
+        status: "committed",
+      },
+    ]);
+    expect(stored?.state.cursor?.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+    expect(notifiedCursors.map((cursor) => cursor.window)).toEqual([
+      {
+        firstMediaSequenceNumber: 3810,
+        lastMediaSequenceNumber: 3810,
+      },
+    ]);
+  });
 });
 
 interface SlotPayloadOptions {

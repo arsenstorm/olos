@@ -1,5 +1,7 @@
 import type { CoordinatorPipelineStore } from "../protocol";
 import type { PublicationControlPolicy } from "../state/publication-control";
+import type { Commit } from "../types/commit";
+import type { Cursor } from "../types/cursor";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
 import {
@@ -40,7 +42,7 @@ export type StoredS3CoordinatorUploadReconciliation =
 
 export type StoredS3CoordinatorUploadReconciliationResult =
   | {
-      commit: StoredS3CoordinatorUploadCommit;
+      commit: StoredS3CoordinatorUploadReconciliationCommit;
       slot: UploadSlot;
       status: "committed" | "idempotent";
     }
@@ -50,6 +52,13 @@ export type StoredS3CoordinatorUploadReconciliationResult =
       slot: UploadSlot;
       status: "failed";
     };
+
+export type StoredS3CoordinatorUploadReconciliationCommit =
+  StoredS3CoordinatorUploadCommit & {
+    commit: Commit;
+    cursor?: Cursor;
+    status: "committed" | "idempotent";
+  };
 
 export async function reconcileStoredS3CoordinatorUploads(
   options: ReconcileStoredS3CoordinatorUploadsOptions

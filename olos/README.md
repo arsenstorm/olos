@@ -268,6 +268,7 @@ The S3 runtime handler delegates the stored runtime routes and adds:
 | `POST` | `/sessions/:id/s3/slots` | Issue a stored upload slot and return an S3 upload grant. |
 | `POST` | `/sessions/:id/s3/commits` | Observe the uploaded S3 object, commit it, and return commit/cursor data. |
 | `POST` | `/sessions/:id/s3/events` | Normalize S3 object-created records and route them through coordinator commits. |
+| `POST` | `/sessions/:id/s3/reconcile` | Retry S3-backed commits for issued slots after missed events or process restarts. |
 
 The generic runtime routes remain available through the same handler, including
 `POST /sessions`, `POST /sessions/:id/transition`, `GET /sessions/:id/retention`,
@@ -315,6 +316,10 @@ Recovery jobs can use `reconcileStoredS3CoordinatorUploads` to retry commits for
 issued slots after missed provider events or process restarts. The helper reads
 coordinator state and attempts S3-backed commits; the application decides when
 to run it and which slots to target.
+
+The S3 runtime handler exposes the same recovery path at
+`POST /sessions/:id/s3/reconcile`. The body requires `committedAt`; `providerId`
+can be supplied in the body or configured on the handler.
 
 ### Direct-Public Security
 

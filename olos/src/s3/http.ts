@@ -14,6 +14,10 @@ import {
 } from "./coordinator";
 import { normalizeS3ObjectCreatedEvents } from "./event";
 import type { S3HeadObjectClient } from "./object-observation";
+import {
+  reconcileStoredS3CoordinatorUploads,
+  type StoredS3CoordinatorUploadReconciliationResult,
+} from "./reconciliation";
 
 const DEFAULT_SESSION_PATH = "/sessions";
 
@@ -56,7 +60,11 @@ export function createStoredS3CoordinatorRuntimeHandler(
       return await handleS3Commit(request, route.sessionId, options);
     }
 
-    return await handleS3Events(request, route.sessionId, options);
+    if (route.action === "events") {
+      return await handleS3Events(request, route.sessionId, options);
+    }
+
+    return await handleS3Reconciliation(request, route.sessionId, options);
   };
 }
 
@@ -192,9 +200,46 @@ async function handleS3Events(
   return jsonResponse({ results }, 202);
 }
 
+async function handleS3Reconciliation(
+  request: Request,
+  sessionId: string,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  const parsed = await parseS3ReconciliationRequest(request, options);
+
+  if (parsed.status === "invalid") {
+    return badRequest(parsed.message);
+  }
+
+  const result = await reconcileStoredS3CoordinatorUploads({
+    ...parsed.payload,
+    bucket: options.bucket,
+    client: options.objectClient ?? options.client,
+    maxAttempts: options.maxAttempts,
+    publicationControl: options.publicationControl,
+    sessionId,
+    store: options.store,
+  });
+
+  if (result.status === "not_found") {
+    return notFound();
+  }
+
+  for (const entry of result.results) {
+    if (entry.status === "committed" || entry.status === "idempotent") {
+      notifyCursor(options.cursorNotifier, entry.commit.cursor);
+    }
+  }
+
+  return jsonResponse(
+    { results: result.results.map(reconciliationResult) },
+    202
+  );
+}
+
 type S3Route =
   | {
-      action: "commits" | "events" | "slots";
+      action: "commits" | "events" | "reconcile" | "slots";
       sessionId: string;
       status: "matched";
     }
@@ -220,7 +265,10 @@ function s3Route(
   if (
     sessionId === undefined ||
     provider !== "s3" ||
-    (action !== "slots" && action !== "commits" && action !== "events") ||
+    (action !== "slots" &&
+      action !== "commits" &&
+      action !== "events" &&
+      action !== "reconcile") ||
     parts.length !== 3
   ) {
     return { status: "not_s3" };
@@ -302,6 +350,16 @@ interface S3CommitPayload {
   versionId?: string;
 }
 
+interface S3ReconciliationPayload {
+  committedAt: string;
+  independent?: boolean;
+  maxSegments?: number;
+  programDateTime?: string;
+  providerId: string;
+  slotIds?: readonly string[];
+  versionId?: string;
+}
+
 async function parseS3CommitRequest(
   request: Request
 ): Promise<
@@ -335,6 +393,46 @@ function parseCommitPayload(value: Record<string, unknown>): S3CommitPayload {
     ...optionalStringField(value, "objectKey"),
     ...optionalStringField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
+  };
+}
+
+async function parseS3ReconciliationRequest(
+  request: Request,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): Promise<
+  | { payload: S3ReconciliationPayload; status: "valid" }
+  | { message: string; status: "invalid" }
+> {
+  try {
+    const payload = await request.json();
+
+    if (!isRecord(payload)) {
+      return invalid("S3 reconciliation request must be a JSON object");
+    }
+
+    return {
+      payload: parseReconciliationPayload(payload, options),
+      status: "valid",
+    };
+  } catch (error) {
+    return invalid(errorMessage(error, "invalid S3 reconciliation request"));
+  }
+}
+
+function parseReconciliationPayload(
+  value: Record<string, unknown>,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): S3ReconciliationPayload {
+  const providerId = providerIdField(value, options);
+
+  return {
+    committedAt: stringField(value, "committedAt"),
+    providerId,
+    ...optionalBooleanField(value, "independent"),
+    ...optionalNumberField(value, "maxSegments"),
+    ...optionalStringField(value, "programDateTime"),
+    ...optionalStringField(value, "versionId"),
+    ...optionalStringArrayField(value, "slotIds"),
   };
 }
 
@@ -420,6 +518,47 @@ function eventRouteResult(
   return { status: result.status };
 }
 
+function reconciliationResult(
+  result: StoredS3CoordinatorUploadReconciliationResult
+): Record<string, unknown> {
+  if (result.status === "committed" || result.status === "idempotent") {
+    return {
+      commit: result.commit.commit,
+      ...(result.commit.cursor === undefined
+        ? {}
+        : { cursor: result.commit.cursor }),
+      slotId: result.slot.slotId,
+      status: result.status,
+    };
+  }
+
+  if (result.status === "failed") {
+    if (result.result?.status === "rejected") {
+      return {
+        error: result.result.error.error,
+        slotId: result.slot.slotId,
+        status: result.status,
+      };
+    }
+
+    return {
+      ...(result.error === undefined
+        ? {}
+        : { error: { message: result.error } }),
+      ...(result.result === undefined
+        ? {}
+        : { resultStatus: result.result.status }),
+      slotId: result.slot.slotId,
+      status: result.status,
+    };
+  }
+
+  return {
+    slotId: result.slot.slotId,
+    status: result.status,
+  };
+}
+
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     headers: { "content-type": "application/json; charset=utf-8" },
@@ -489,6 +628,41 @@ function optionalStringField<
   return { [field]: stringField(value, field) } as Partial<
     Record<Field, string>
   >;
+}
+
+function optionalStringArrayField(
+  value: Record<string, unknown>,
+  field: "slotIds"
+): Partial<Pick<S3ReconciliationPayload, "slotIds">> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  if (
+    !(
+      Array.isArray(value[field]) &&
+      value[field].every((entry) => typeof entry === "string")
+    )
+  ) {
+    throw new Error(`${field} must be a string array`);
+  }
+
+  return { [field]: value[field] };
+}
+
+function providerIdField(
+  value: Record<string, unknown>,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): string {
+  if (value.providerId !== undefined) {
+    return stringField(value, "providerId");
+  }
+
+  if (options.providerId !== undefined) {
+    return options.providerId;
+  }
+
+  throw new Error("providerId must be configured or provided");
 }
 
 function errorMessage(
