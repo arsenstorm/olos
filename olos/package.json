@@ -77,6 +77,7 @@
     "build": "rm -rf dist && tsc --project tsconfig.build.json",
     "check-types": "tsc --project tsconfig.json --noEmit",
     "pack:dry": "bun pm pack --dry-run",
+    "pack:artifact": "bun run build && bun scripts/create-package-artifact.ts",
     "pack:smoke": "bun run build && bun scripts/package-smoke.ts",
     "publish:check": "bun run release:verify-changelog && bun run check-types && bun run test && bun run test:e2e && bun run build && bun run pack:dry && bun run pack:smoke",
     "release:verify-changelog": "bun scripts/verify-release-changelog.ts",

@@ -33,3 +33,13 @@ jobs:
 
       - name: Publish check
         run: bun run publish:check
+
+      - name: Create package artifact
+        run: bun --filter olos pack:artifact
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: olos-package
+          path: out/package-artifacts/*.tgz
+          if-no-files-found: error
