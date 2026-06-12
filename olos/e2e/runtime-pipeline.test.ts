@@ -1,6 +1,7 @@
 import { createMemoryCoordinatorStore } from "olos/protocol";
 import {
   commitStoredCoordinatorUploadFromRequest,
+  createRuntimeObjectLowLatencyProfile,
   createRuntimePublisherObjectPlan,
   createStoredCoordinatorSession,
   issueStoredCoordinatorSlotFromRequest,
@@ -13,12 +14,14 @@ import type { Pathway, Session } from "olos/types";
 import { assertCursor } from "olos/validation";
 import { describe, expect, test } from "vitest";
 
+const latency = createRuntimeObjectLowLatencyProfile();
+
 const session = {
   createdAt: "2026-01-01T00:00:00.000Z",
   epoch: 1,
-  latencyProfile: "object-ll",
+  latencyProfile: latency.latencyProfile,
   olos: "1.0",
-  partTarget: 0.5,
+  partTarget: latency.partTarget,
   renditions: [
     {
       bitrate: 5_000_000,
@@ -30,7 +33,7 @@ const session = {
       width: 1920,
     },
   ],
-  segmentTarget: 2,
+  segmentTarget: latency.segmentTarget,
   sessionId: "session_1",
   state: "live",
   tenantId: "tenant_1",
@@ -47,7 +50,6 @@ const pathways = [
 ] satisfies Pathway[];
 
 const publishNow = "2026-01-01T00:00:00.000Z";
-const targetLatency = 3;
 
 describe("runtime pipeline", () => {
   test("runs stored coordinator lifecycle through public runtime exports", async () => {
@@ -167,7 +169,7 @@ describe("runtime pipeline", () => {
       segmentTarget: session.segmentTarget,
       sessionId: session.sessionId,
       store,
-      targetLatency: 3,
+      targetLatency: latency.targetLatency,
     });
     const media = await serveStoredCoordinatorManifest({
       allowedMediaOrigins: ["https://media.example.com"],
@@ -176,7 +178,7 @@ describe("runtime pipeline", () => {
       segmentTarget: session.segmentTarget,
       sessionId: session.sessionId,
       store,
-      targetLatency: 3,
+      targetLatency: latency.targetLatency,
     });
 
     expect(cursor.window).toEqual({
@@ -228,7 +230,7 @@ function plannedExpiry(duration: number) {
   return resolveRuntimePublisherObjectExpiry({
     duration,
     now: publishNow,
-    targetLatency,
+    targetLatency: latency.targetLatency,
   });
 }
 

@@ -1,4 +1,5 @@
 import { renderMediaPlaylist } from "olos/hls";
+import { createRuntimeObjectLowLatencyProfile } from "olos/runtime";
 import {
   commitObservedUpload,
   createCommit,
@@ -15,6 +16,8 @@ import type {
 } from "olos/types";
 import { assertCommittedWindow, assertCursor } from "olos/validation";
 import { describe, expect, test } from "vitest";
+
+const latency = createRuntimeObjectLowLatencyProfile();
 
 const slot: UploadSlot = {
   contentType: "video/mp4",
@@ -110,8 +113,8 @@ describe("protocol flow", () => {
 
     const cursor = createCursor({
       committedWindow,
-      latencyProfile: "object-ll",
-      partTarget: 0.5,
+      latencyProfile: latency.latencyProfile,
+      partTarget: latency.partTarget,
       pathways: [
         {
           baseUrl: "https://media.example.com",
@@ -121,7 +124,7 @@ describe("protocol flow", () => {
           state: "active",
         },
       ],
-      segmentTarget: 2,
+      segmentTarget: latency.segmentTarget,
       sessionId: "session_1",
       state: "live",
       tenantId: "tenant_1",
@@ -131,10 +134,10 @@ describe("protocol flow", () => {
     assertCursor(cursor);
 
     const playlist = renderMediaPlaylist(committedWindow, {
-      partTarget: 0.5,
+      partTarget: latency.partTarget,
       renditionId: "v1080",
-      segmentTarget: 2,
-      targetLatency: 3,
+      segmentTarget: latency.segmentTarget,
+      targetLatency: latency.targetLatency,
     });
 
     expect(cursor.window).toEqual({
@@ -193,7 +196,7 @@ describe("protocol flow", () => {
     const securityPolicy = createDirectPublicSecurityPolicy({
       capability: directPublicCapability,
       manifestMaxAgeSeconds: 2,
-      targetLatencySeconds: 3,
+      targetLatencySeconds: latency.targetLatency,
     });
 
     const committedWindow = createCommittedWindow({
@@ -205,10 +208,10 @@ describe("protocol flow", () => {
 
     const playlist = renderMediaPlaylist(committedWindow, {
       allowedMediaOrigins: securityPolicy.allowedMediaOrigins,
-      partTarget: 0.5,
+      partTarget: latency.partTarget,
       renditionId: "v1080",
-      segmentTarget: 2,
-      targetLatency: 3,
+      segmentTarget: latency.segmentTarget,
+      targetLatency: latency.targetLatency,
     });
 
     expect(initPublication.deliveryUrl).toBe(initCommit.deliveryUrl);

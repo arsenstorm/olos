@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { renderMasterPlaylist, renderMediaPlaylist } from "olos/hls";
+import { createRuntimeObjectLowLatencyProfile } from "olos/runtime";
 import { assertCommittedWindow } from "olos/validation";
 import { describe, expect, test } from "vitest";
 
@@ -10,6 +11,7 @@ import {
 
 const goldenMediaPlaylist = readFixture("media-playlist.m3u8");
 const goldenMasterPlaylist = readFixture("master-playlist.m3u8");
+const latency = createRuntimeObjectLowLatencyProfile();
 
 describe("conformance", () => {
   test("CORE-WINDOW-002 renders EXT-X-MAP from committed init object", () => {
@@ -60,9 +62,9 @@ describe("conformance", () => {
 function mediaPlaylistOptions() {
   return {
     allowedMediaOrigins: ["https://media.example.com"],
-    partTarget: 0.5,
+    partTarget: latency.partTarget,
     renditionId: "v1080",
-    segmentTarget: 2,
+    segmentTarget: latency.segmentTarget,
   };
 }
 

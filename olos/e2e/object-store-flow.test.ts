@@ -13,6 +13,7 @@ import {
   createMemoryCoordinatorStore,
 } from "olos/protocol";
 import {
+  createRuntimeObjectLowLatencyProfile,
   createRuntimePublisherObjectPlan,
   type RuntimePublisherObjectPlan,
   type RuntimePublisherPlannedObjectKind,
@@ -31,12 +32,14 @@ import type { Pathway, Session } from "olos/types";
 import { assertCursor } from "olos/validation";
 import { describe, expect, test } from "vitest";
 
+const latency = createRuntimeObjectLowLatencyProfile();
+
 const session = {
   createdAt: "2026-01-01T00:00:00.000Z",
   epoch: 1,
-  latencyProfile: "object-ll",
+  latencyProfile: latency.latencyProfile,
   olos: "1.0",
-  partTarget: 0.5,
+  partTarget: latency.partTarget,
   renditions: [
     {
       bitrate: 5_000_000,
@@ -48,7 +51,7 @@ const session = {
       width: 1920,
     },
   ],
-  segmentTarget: 2,
+  segmentTarget: latency.segmentTarget,
   sessionId: "session_1",
   state: "live",
   tenantId: "tenant_1",
@@ -81,7 +84,6 @@ const pathways = [
 ] satisfies Pathway[];
 
 const publishNow = "2026-01-01T00:00:00.000Z";
-const targetLatency = 3;
 
 describe("object-store flow", () => {
   test("publishes S3 uploads from stored coordinator state to HLS", async () => {
@@ -112,11 +114,11 @@ describe("object-store flow", () => {
         allowedMediaOrigins: ["https://media.example.com"],
         partTarget: session.partTarget,
         response: {
-          maxAgeSeconds: 1,
-          targetLatencySeconds: 3,
+          maxAgeSeconds: latency.manifestMaxAgeSeconds,
+          targetLatencySeconds: latency.targetLatency,
         },
         segmentTarget: session.segmentTarget,
-        targetLatency: 3,
+        targetLatency: latency.targetLatency,
       },
       providerId: "s3_primary",
       sessionId: session.sessionId,
@@ -235,7 +237,7 @@ describe("object-store flow", () => {
         allowedMediaOrigins: ["https://media.example.com"],
         partTarget: session.partTarget,
         segmentTarget: session.segmentTarget,
-        targetLatency,
+        targetLatency: latency.targetLatency,
       },
       now: publishNow,
       plan: {
@@ -254,7 +256,7 @@ describe("object-store flow", () => {
       providerId: "s3_primary",
       sessionId: session.sessionId,
       store,
-      targetLatency,
+      targetLatency: latency.targetLatency,
       upload: (grant, plan) => {
         uploadedUrls.push(grant.url);
         expect(grant.slotId).toBe(plan.slot.slotId);
@@ -362,7 +364,7 @@ describe("object-store flow", () => {
         allowedMediaOrigins: ["https://media.example.com"],
         partTarget: session.partTarget,
         segmentTarget: session.segmentTarget,
-        targetLatency: 3,
+        targetLatency: latency.targetLatency,
       },
       providerId: event.event.object.providerId,
       sessionId: session.sessionId,
@@ -385,7 +387,7 @@ describe("object-store flow", () => {
       partTarget: session.partTarget,
       renditionId: "v1080",
       segmentTarget: session.segmentTarget,
-      targetLatency: 3,
+      targetLatency: latency.targetLatency,
     });
 
     expect(cursor.window).toEqual({
@@ -472,7 +474,7 @@ describe("object-store flow", () => {
       partTarget: session.partTarget,
       renditionId: "v1080",
       segmentTarget: session.segmentTarget,
-      targetLatency: 3,
+      targetLatency: latency.targetLatency,
     });
 
     expect(cursor.window).toEqual({
@@ -553,7 +555,7 @@ describe("object-store flow", () => {
         allowedMediaOrigins: ["https://media.example.com"],
         partTarget: session.partTarget,
         segmentTarget: session.segmentTarget,
-        targetLatency: 3,
+        targetLatency: latency.targetLatency,
       },
       requestUrl: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3811",
       session,
@@ -664,7 +666,7 @@ describe("object-store flow", () => {
         allowedMediaOrigins: ["https://media.example.com"],
         partTarget: multiRenditionSession.partTarget,
         segmentTarget: multiRenditionSession.segmentTarget,
-        targetLatency: 3,
+        targetLatency: latency.targetLatency,
       },
       providerId: "s3_primary",
       sessionId: multiRenditionSession.sessionId,
@@ -868,7 +870,7 @@ function createUploadPlan(options: {
   const expiry = resolveRuntimePublisherObjectExpiry({
     duration,
     now: publishNow,
-    targetLatency,
+    targetLatency: latency.targetLatency,
   });
 
   return createRuntimePublisherObjectPlan({
@@ -904,7 +906,7 @@ function issuePlannedUploadGrant(options: {
   const expiry = resolveRuntimePublisherObjectExpiry({
     duration: options.plan.slot.duration,
     now: publishNow,
-    targetLatency,
+    targetLatency: latency.targetLatency,
   });
 
   return issueStoredS3CoordinatorUploadGrant({

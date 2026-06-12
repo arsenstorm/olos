@@ -1,11 +1,14 @@
+import { createRuntimeObjectLowLatencyProfile } from "olos/runtime";
 import type { CommittedWindow, Session } from "olos/types";
+
+const latency = createRuntimeObjectLowLatencyProfile();
 
 export const conformanceSession = {
   createdAt: "2026-06-08T12:00:00Z",
   epoch: 1,
-  latencyProfile: "object-ll",
+  latencyProfile: latency.latencyProfile,
   olos: "1.0",
-  partTarget: 0.5,
+  partTarget: latency.partTarget,
   renditions: [
     {
       bitrate: 5_000_000,
@@ -34,7 +37,7 @@ export const conformanceSession = {
       sampleRate: 48_000,
     },
   ],
-  segmentTarget: 2,
+  segmentTarget: latency.segmentTarget,
   sessionId: "sess_01JZLIVE",
   state: "live",
   tenantId: "tenant_acme",
