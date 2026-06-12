@@ -31,3 +31,7 @@ bun run build
   rendering behaviour.
 - Include negative tests for hostile-publisher and malformed-state cases when a
   change touches security-sensitive publication paths.
+
+## Conformance
+
+- [Conformance progress](./conformance.md)
