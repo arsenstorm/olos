@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderMediaPlaylist } from "../hls/media-playlist";
 import { createObservedUpload } from "../state/observed-upload";
 import { createPublicationKillSwitch } from "../state/publication-control";
+import type { MediaObjectKind } from "../types/media-object";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
@@ -602,6 +603,7 @@ describe("coordinator pipeline", () => {
       deliveryUrl: "https://media.example.com/s3811.p0.m4s",
       duration: 0.5,
       independent: true,
+      kind: "part",
       maxBytes: 25_000,
       mediaSequenceNumber: 3811,
       objectKey: "media/s3811.p0.m4s",
@@ -614,6 +616,7 @@ describe("coordinator pipeline", () => {
       contentType: "video/mp4",
       deliveryUrl: "https://media.example.com/s3811.p1.m4s",
       duration: 0.5,
+      kind: "part",
       maxBytes: 25_000,
       mediaSequenceNumber: 3811,
       objectKey: "media/s3811.p1.m4s",
@@ -649,6 +652,11 @@ describe("coordinator pipeline", () => {
     expect(playlist).toContain(
       '#EXT-X-PART:DURATION=0.500,URI="https://media.example.com/s3811.p1.m4s"'
     );
+    expect(
+      state.slots
+        .filter((slot) => slot.mediaSequenceNumber === 3811)
+        .map((slot) => slot.kind)
+    ).toEqual(["part", "part"]);
   });
 
   test("derives manifest artifacts from the current cursor", () => {
@@ -894,6 +902,7 @@ interface CommitSlotOptions {
   deliveryUrl: string;
   duration: number;
   independent?: boolean;
+  kind?: MediaObjectKind;
   maxBytes: number;
   maxSegments?: number;
   mediaSequenceNumber: number;
@@ -912,7 +921,7 @@ function commitSlot(
     deliveryUrl: options.deliveryUrl,
     duration: options.duration,
     expiresAt: "2026-01-01T00:00:05.000Z",
-    kind: options.slotId === "slot_init" ? "init" : "segment",
+    kind: options.kind ?? (options.slotId === "slot_init" ? "init" : "segment"),
     maxBytes: options.maxBytes,
     mediaSequenceNumber: options.mediaSequenceNumber,
     objectKey: options.objectKey,
