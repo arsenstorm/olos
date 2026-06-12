@@ -161,7 +161,10 @@ async function handleS3Commit(
   }
 
   if (result.status === "rejected") {
-    return jsonResponse(result.error, rejectionStatus(result.error.error.code));
+    return jsonResponse(
+      rejectionBody(result),
+      rejectionStatus(result.error.error.code)
+    );
   }
 
   if (result.status === "not_found") {
@@ -653,12 +656,26 @@ function eventRouteResult(
 
   if (result.status === "rejected") {
     return {
+      ...rejectionBody(result),
       error: result.error.error,
       status: result.status,
     };
   }
 
   return { status: result.status };
+}
+
+function rejectionBody(
+  result: { error: { error: Record<string, unknown> } } & {
+    auditEvent?: unknown;
+  }
+): Record<string, unknown> {
+  return {
+    ...result.error,
+    ...(result.auditEvent === undefined
+      ? {}
+      : { auditEvent: result.auditEvent }),
+  };
 }
 
 function reconciliationResult(
