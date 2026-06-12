@@ -61,6 +61,10 @@ function safeObjectKeyError(value: unknown): string | undefined {
     return "must not contain control characters";
   }
 
+  if (value.includes("?") || value.includes("#")) {
+    return "must not contain query strings or fragments";
+  }
+
   if (
     value
       .split("/")
