@@ -40,3 +40,6 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
         working-directory: olos
+
+      - name: Verify published package
+        run: bun --filter olos release:verify-published

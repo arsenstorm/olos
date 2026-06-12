@@ -20,7 +20,7 @@ Release checklist:
 4. Run `bun --filter olos release:verify-tag olos-vX.Y.Z`.
 5. Push a tag named `olos-vX.Y.Z` to run the publish workflow.
 6. Confirm the workflow published from `olos/` with npm provenance enabled.
-7. Verify the published package resolves `olos`, `olos/runtime`, and `olos/s3`.
+7. Confirm the workflow verified the published package subpaths.
 
 The workflow requires an `NPM_TOKEN` repository secret with publish access.
 
