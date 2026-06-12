@@ -1,6 +1,7 @@
 import { createMemoryCoordinatorStore } from "olos/protocol";
 import {
   commitStoredCoordinatorUploadFromRequest,
+  createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
   createRuntimePublisherObjectPlan,
   createStoredCoordinatorSession,
@@ -15,6 +16,7 @@ import { assertCursor } from "olos/validation";
 import { describe, expect, test } from "vitest";
 
 const latency = createRuntimeObjectLowLatencyProfile();
+const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(latency);
 
 const session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -164,21 +166,17 @@ describe("runtime pipeline", () => {
 
     const master = await serveStoredCoordinatorManifest({
       allowedMediaOrigins: ["https://media.example.com"],
-      partTarget: session.partTarget,
+      ...manifestOptions.manifest,
       request: "https://edge.example.com/v1/live/session_1/master.m3u8",
-      segmentTarget: session.segmentTarget,
       sessionId: session.sessionId,
       store,
-      targetLatency: latency.targetLatency,
     });
     const media = await serveStoredCoordinatorManifest({
       allowedMediaOrigins: ["https://media.example.com"],
-      partTarget: session.partTarget,
+      ...manifestOptions.manifest,
       request: "https://edge.example.com/v1/live/session_1/v1080/media.m3u8",
-      segmentTarget: session.segmentTarget,
       sessionId: session.sessionId,
       store,
-      targetLatency: latency.targetLatency,
     });
 
     expect(cursor.window).toEqual({

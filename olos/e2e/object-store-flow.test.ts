@@ -13,6 +13,7 @@ import {
   createMemoryCoordinatorStore,
 } from "olos/protocol";
 import {
+  createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
   createRuntimePublisherObjectPlan,
   type RuntimePublisherObjectPlan,
@@ -33,6 +34,7 @@ import { assertCursor } from "olos/validation";
 import { describe, expect, test } from "vitest";
 
 const latency = createRuntimeObjectLowLatencyProfile();
+const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(latency);
 
 const session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -112,13 +114,8 @@ describe("object-store flow", () => {
       independent: true,
       manifest: {
         allowedMediaOrigins: ["https://media.example.com"],
-        partTarget: session.partTarget,
-        response: {
-          maxAgeSeconds: latency.manifestMaxAgeSeconds,
-          targetLatencySeconds: latency.targetLatency,
-        },
-        segmentTarget: session.segmentTarget,
-        targetLatency: latency.targetLatency,
+        ...manifestOptions.manifest,
+        response: manifestOptions.response,
       },
       providerId: "s3_primary",
       sessionId: session.sessionId,
@@ -235,9 +232,7 @@ describe("object-store flow", () => {
       independent: true,
       manifest: {
         allowedMediaOrigins: ["https://media.example.com"],
-        partTarget: session.partTarget,
-        segmentTarget: session.segmentTarget,
-        targetLatency: latency.targetLatency,
+        ...manifestOptions.manifest,
       },
       now: publishNow,
       plan: {
@@ -362,9 +357,7 @@ describe("object-store flow", () => {
       independent: true,
       manifest: {
         allowedMediaOrigins: ["https://media.example.com"],
-        partTarget: session.partTarget,
-        segmentTarget: session.segmentTarget,
-        targetLatency: latency.targetLatency,
+        ...manifestOptions.manifest,
       },
       providerId: event.event.object.providerId,
       sessionId: session.sessionId,
@@ -384,10 +377,8 @@ describe("object-store flow", () => {
 
     const playlist = renderMediaPlaylist(cursor.committedWindow, {
       allowedMediaOrigins: ["https://media.example.com"],
-      partTarget: session.partTarget,
+      ...manifestOptions.manifest,
       renditionId: "v1080",
-      segmentTarget: session.segmentTarget,
-      targetLatency: latency.targetLatency,
     });
 
     expect(cursor.window).toEqual({
@@ -471,10 +462,8 @@ describe("object-store flow", () => {
 
     const playlist = renderMediaPlaylist(cursor.committedWindow, {
       allowedMediaOrigins: ["https://media.example.com"],
-      partTarget: session.partTarget,
+      ...manifestOptions.manifest,
       renditionId: "v1080",
-      segmentTarget: session.segmentTarget,
-      targetLatency: latency.targetLatency,
     });
 
     expect(cursor.window).toEqual({
@@ -553,13 +542,11 @@ describe("object-store flow", () => {
       cursor,
       manifest: {
         allowedMediaOrigins: ["https://media.example.com"],
-        partTarget: session.partTarget,
-        segmentTarget: session.segmentTarget,
-        targetLatency: latency.targetLatency,
+        ...manifestOptions.manifest,
       },
       requestUrl: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3811",
       session,
-      timeoutMs: 1000,
+      timeoutMs: manifestOptions.blockingReloadTimeoutMs,
       waitForCursor: async () => {
         await routeUploadEvent({
           eventId: "evt_3811",
@@ -664,9 +651,7 @@ describe("object-store flow", () => {
       independent: true,
       manifest: {
         allowedMediaOrigins: ["https://media.example.com"],
-        partTarget: multiRenditionSession.partTarget,
-        segmentTarget: multiRenditionSession.segmentTarget,
-        targetLatency: latency.targetLatency,
+        ...manifestOptions.manifest,
       },
       providerId: "s3_primary",
       sessionId: multiRenditionSession.sessionId,
