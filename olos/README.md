@@ -116,6 +116,8 @@ scheduler; the application still controls encoder timing and retry policy.
 `resolveRuntimePublisherNextObjectPosition` derives the next init, segment, or
 part position from the current trusted cursor. It does not sleep, poll, upload,
 or decide byte limits.
+`createRuntimePublisherObjectPlanInput` combines that position with app-owned
+per-kind object defaults before a concrete plan is created.
 
 `resolveRuntimePublisherObjectExpiry` derives a short-lived `expiresAt` and
 `ttlSeconds` from object duration plus target latency. Use it for planned slot

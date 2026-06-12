@@ -17,6 +17,7 @@ import {
   createRuntimeObjectLowLatencyProfile,
   createRuntimeObjectLowLatencyPublisherOptions,
   createRuntimePublisherObjectPlan,
+  createRuntimePublisherObjectPlanInput,
   type RuntimePublisherObjectPlan,
   type RuntimePublisherPlannedObjectKind,
   resolveRuntimePublisherNextObjectPosition,
@@ -89,6 +90,26 @@ const pathways = [
 ] satisfies Pathway[];
 
 const publishNow = "2026-01-01T00:00:00.000Z";
+const objectDefaults = {
+  init: {
+    contentType: "video/mp4",
+    duration: 1,
+    extension: "mp4",
+    maxBytes: 2048,
+  },
+  part: {
+    contentType: "video/mp4",
+    duration: latency.partTarget,
+    extension: "m4s",
+    maxBytes: 25_000,
+  },
+  segment: {
+    contentType: "video/mp4",
+    duration: latency.segmentTarget,
+    extension: "m4s",
+    maxBytes: 100_000,
+  },
+} as const;
 
 describe("object-store flow", () => {
   test("publishes S3 uploads from stored coordinator state to HLS", async () => {
@@ -244,20 +265,15 @@ describe("object-store flow", () => {
         ...manifestOptions.manifest,
       },
       now: publishNow,
-      plan: {
+      plan: createRuntimePublisherObjectPlanInput({
         baseUrl: "https://media.example.com",
-        contentType: "video/mp4",
-        duration: plannedDuration(nextPosition.kind),
-        extension: nextPosition.kind === "init" ? "mp4" : "m4s",
-        kind: nextPosition.kind,
-        maxBytes: 100_000,
-        mediaSequenceNumber: nextPosition.mediaSequenceNumber,
+        defaults: objectDefaults,
         objectKeyPrefix: "media",
-        partNumber: nextPosition.partNumber,
+        position: nextPosition,
         publicationMode: "direct-public",
         publisherInstanceId: "pub_1",
         renditionId: "v1080",
-      },
+      }),
       providerId: "s3_primary",
       sessionId: session.sessionId,
       store,

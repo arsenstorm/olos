@@ -1,6 +1,10 @@
 import type { CursorWindow } from "../types/cursor";
+import type { PublicationMode } from "../types/upload-slot";
 import { isNonNegativeInteger } from "../validation/ids";
-import type { RuntimePublisherPlannedObjectKind } from "./publisher-plan";
+import type {
+  CreateRuntimePublisherObjectPlanOptions,
+  RuntimePublisherPlannedObjectKind,
+} from "./publisher-plan";
 
 export type RuntimePublisherCadenceMode = "part" | "segment";
 
@@ -17,6 +21,32 @@ export interface RuntimePublisherObjectPosition {
   mediaSequenceNumber: number;
   partNumber?: number;
 }
+
+export interface RuntimePublisherObjectKindDefaults {
+  contentType: string;
+  duration: number;
+  extension: string;
+  maxBytes: number;
+  minBytes?: number;
+}
+
+export interface CreateRuntimePublisherObjectPlanInputOptions {
+  baseUrl: string;
+  defaults: Record<
+    RuntimePublisherPlannedObjectKind,
+    RuntimePublisherObjectKindDefaults
+  >;
+  objectKeyPrefix: string;
+  position: RuntimePublisherObjectPosition;
+  publicationMode: PublicationMode;
+  publisherInstanceId: string;
+  renditionId: string;
+}
+
+export type RuntimePublisherObjectPlanInput = Omit<
+  CreateRuntimePublisherObjectPlanOptions,
+  "expiresAt"
+>;
 
 export function resolveRuntimePublisherNextObjectPosition(
   options: ResolveRuntimePublisherNextObjectPositionOptions = {}
@@ -52,6 +82,28 @@ export function resolveRuntimePublisherNextObjectPosition(
       options.cursorWindow === undefined
         ? startMediaSequenceNumber
         : options.cursorWindow.lastMediaSequenceNumber + 1,
+  };
+}
+
+export function createRuntimePublisherObjectPlanInput(
+  options: CreateRuntimePublisherObjectPlanInputOptions
+): RuntimePublisherObjectPlanInput {
+  const defaults = options.defaults[options.position.kind];
+
+  return {
+    baseUrl: options.baseUrl,
+    contentType: defaults.contentType,
+    duration: defaults.duration,
+    extension: defaults.extension,
+    kind: options.position.kind,
+    maxBytes: defaults.maxBytes,
+    mediaSequenceNumber: options.position.mediaSequenceNumber,
+    objectKeyPrefix: options.objectKeyPrefix,
+    publicationMode: options.publicationMode,
+    publisherInstanceId: options.publisherInstanceId,
+    renditionId: options.renditionId,
+    ...optionalNumber("minBytes", defaults.minBytes),
+    ...optionalNumber("partNumber", options.position.partNumber),
   };
 }
 
@@ -95,6 +147,13 @@ function positiveInteger(value: number | undefined, name: string): number {
   }
 
   return value;
+}
+
+function optionalNumber<Key extends "minBytes" | "partNumber">(
+  key: Key,
+  value: number | undefined
+): Partial<Record<Key, number>> {
+  return value === undefined ? {} : ({ [key]: value } as Record<Key, number>);
 }
 
 function nonNegativeInteger(value: number, name: string): number {
