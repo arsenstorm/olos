@@ -77,7 +77,8 @@
     "build": "rm -rf dist && tsc --project tsconfig.build.json",
     "check-types": "tsc --project tsconfig.json --noEmit",
     "pack:dry": "bun pm pack --dry-run",
-    "publish:check": "bun run check-types && bun run test && bun run test:e2e && bun run build && bun run pack:dry",
+    "pack:smoke": "bun run build && bun scripts/package-smoke.ts",
+    "publish:check": "bun run check-types && bun run test && bun run test:e2e && bun run build && bun run pack:dry && bun run pack:smoke",
     "test": "bun test src --pass-with-no-tests --path-ignore-patterns 'e2e/**' --path-ignore-patterns '**/*.e2e.test.ts'",
     "test:e2e": "bun run build && vitest run --config vitest.e2e.config.ts",
     "prepublishOnly": "bun run publish:check"
