@@ -2,6 +2,7 @@ import {
   type CoordinatorPipelineStore,
   type CoordinatorStoreSave,
   createCoordinatorPipeline,
+  issueCoordinatorSlot,
 } from "./protocol/coordinator";
 import type { Pathway } from "./types/pathway";
 import type { Session } from "./types/session";
@@ -11,6 +12,7 @@ export const OLOS_CONFORMANCE_ASSERTION_IDS = [
   "CORE-STORE-002",
   "CORE-STORE-003",
   "CORE-STORE-004",
+  "CORE-STORE-005",
   "CORE-SLOT-001",
   "CORE-SLOT-002",
   "CORE-SLOT-003",
@@ -131,6 +133,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
   },
   {
     id: "CORE-STORE-004",
+    level: "core",
+    status: "covered",
+    testFile: "src/conformance.test.ts",
+  },
+  {
+    id: "CORE-STORE-005",
     level: "core",
     status: "covered",
     testFile: "src/conformance.test.ts",
@@ -651,6 +659,11 @@ export async function assertCoordinatorPipelineStoreConformance(
     state: initial,
   });
   assertSavedStoreResult(first, "first save must succeed");
+  expectStoreDifferent(
+    first.state,
+    initial,
+    "saved state must not reuse the caller state object"
+  );
 
   const loaded = await store.load(conformanceSession.sessionId);
   if (loaded === undefined) {
@@ -702,14 +715,51 @@ export async function assertCoordinatorPipelineStoreConformance(
       first.etag,
       "duplicate insert conflict should expose current etag when available"
     );
+    expectStoreDifferent(
+      duplicateInsert.current?.state,
+      initial,
+      "duplicate insert conflict must not reuse the caller state object"
+    );
   }
 
+  const updated = issueCoordinatorSlot({
+    contentType: "video/mp4",
+    deliveryUrl: "https://media.example.com/v1080/init.mp4",
+    duration: 1,
+    expiresAt: "2026-01-01T00:00:05.000Z",
+    kind: "init",
+    maxBytes: 2048,
+    mediaSequenceNumber: 0,
+    objectKey: "media/v1080/init.mp4",
+    publicationMode: "direct-public",
+    publisherInstanceId: "pub_1",
+    renditionId: "v1080",
+    slotId: "slot_init",
+    state: loaded.state,
+  });
   const second = await store.save({
     expectedEtag: first.etag,
     sessionId: conformanceSession.sessionId,
-    state: initial,
+    state: updated.state,
   });
   assertSavedStoreResult(second, "matching etag save must succeed");
+  expectStoreValue(
+    second.state.slots.length,
+    1,
+    "matching etag save must return updated state"
+  );
+  expectStoreDifferent(
+    second.state,
+    updated.state,
+    "matching etag save must not reuse the caller state object"
+  );
+
+  const reloaded = await store.load(conformanceSession.sessionId);
+  expectStoreValue(
+    reloaded?.state.slots.length,
+    1,
+    "matching etag save must publish updated state"
+  );
 
   const missingUpdate = await store.save({
     expectedEtag: "1",
