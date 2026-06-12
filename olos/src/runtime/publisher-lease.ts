@@ -23,6 +23,13 @@ export interface RefreshRuntimePublisherLeaseOptions {
   ttlMs: number;
 }
 
+export interface RefreshRuntimePublisherHeartbeatOptions
+  extends RefreshRuntimePublisherLeaseOptions {
+  publisherInstanceId: string;
+  sessionId: string;
+  tenantId: string;
+}
+
 export interface ResolveRuntimePublisherLeaseStatusOptions {
   lease: RuntimePublisherLease;
   now: string;
@@ -71,6 +78,23 @@ export function refreshRuntimePublisherLease(
   };
 }
 
+export function refreshRuntimePublisherHeartbeat(
+  options: RefreshRuntimePublisherHeartbeatOptions
+): RuntimePublisherLease {
+  assertLeaseIdentity({
+    publisherInstanceId: options.publisherInstanceId,
+    sessionId: options.sessionId,
+    tenantId: options.tenantId,
+  });
+  assertLeaseOwner(options.lease, {
+    publisherInstanceId: options.publisherInstanceId,
+    sessionId: options.sessionId,
+    tenantId: options.tenantId,
+  });
+
+  return refreshRuntimePublisherLease(options);
+}
+
 export function resolveRuntimePublisherLeaseStatus(
   options: ResolveRuntimePublisherLeaseStatusOptions
 ): RuntimePublisherLeaseStatus {
@@ -99,6 +123,27 @@ export function assertRuntimePublisherLease(
 
   if (lastSeenAtMs < issuedAtMs) {
     throw new Error("publisherLease.lastSeenAt must not be before issuedAt");
+  }
+}
+
+function assertLeaseOwner(
+  lease: RuntimePublisherLease,
+  owner: {
+    publisherInstanceId: string;
+    sessionId: string;
+    tenantId: string;
+  }
+): void {
+  assertRuntimePublisherLease(lease);
+
+  for (const field of [
+    "tenantId",
+    "sessionId",
+    "publisherInstanceId",
+  ] as const) {
+    if (lease[field] !== owner[field]) {
+      throw new Error(`publisherLease.${field} does not match heartbeat`);
+    }
   }
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   assertRuntimePublisherLease,
   createRuntimePublisherLease,
+  refreshRuntimePublisherHeartbeat,
   refreshRuntimePublisherLease,
   resolveRuntimePublisherLeaseStatus,
 } from "./publisher-lease";
@@ -46,6 +47,52 @@ describe("runtime publisher lease", () => {
       expiresAt: "2026-01-01T00:00:05.000Z",
       lastSeenAt: "2026-01-01T00:00:02.000Z",
     });
+  });
+
+  test("refreshes a matching publisher heartbeat", () => {
+    const lease = createRuntimePublisherLease({
+      now: "2026-01-01T00:00:00.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: "session_1",
+      tenantId: "tenant_1",
+      ttlMs: 3000,
+    });
+
+    expect(
+      refreshRuntimePublisherHeartbeat({
+        lease,
+        now: "2026-01-01T00:00:02.000Z",
+        publisherInstanceId: "publisher_1",
+        sessionId: "session_1",
+        tenantId: "tenant_1",
+        ttlMs: 3000,
+      })
+    ).toEqual({
+      ...lease,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      lastSeenAt: "2026-01-01T00:00:02.000Z",
+    });
+  });
+
+  test("rejects a heartbeat for a different publisher", () => {
+    const lease = createRuntimePublisherLease({
+      now: "2026-01-01T00:00:00.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: "session_1",
+      tenantId: "tenant_1",
+      ttlMs: 3000,
+    });
+
+    expect(() =>
+      refreshRuntimePublisherHeartbeat({
+        lease,
+        now: "2026-01-01T00:00:02.000Z",
+        publisherInstanceId: "publisher_2",
+        sessionId: "session_1",
+        tenantId: "tenant_1",
+        ttlMs: 3000,
+      })
+    ).toThrow("publisherLease.publisherInstanceId does not match heartbeat");
   });
 
   test("detects stale publisher leases", () => {

@@ -83,10 +83,12 @@ export {
   assertRuntimePublisherLease,
   type CreateRuntimePublisherLeaseOptions,
   createRuntimePublisherLease,
+  type RefreshRuntimePublisherHeartbeatOptions,
   type RefreshRuntimePublisherLeaseOptions,
   type ResolveRuntimePublisherLeaseStatusOptions,
   type RuntimePublisherLease,
   type RuntimePublisherLeaseStatus,
+  refreshRuntimePublisherHeartbeat,
   refreshRuntimePublisherLease,
   resolveRuntimePublisherLeaseStatus,
 } from "./runtime/publisher-lease";
