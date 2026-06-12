@@ -73,6 +73,46 @@ describe("runtime slot adapter", () => {
     expect(result.response.status).toBe(400);
   });
 
+  test("returns invalid responses for unsafe JSON slot paths", async () => {
+    const objectKeyResult = await issueCoordinatorSlotFromRequest({
+      request: new Request("https://edge.example.com/v1/live/session_1/slots", {
+        body: JSON.stringify({
+          ...slotPayload(),
+          objectKey: "media/../secret.m4s",
+        }),
+        method: "POST",
+      }),
+      state: createCoordinatorPipeline({ pathways, session }),
+    });
+    const deliveryUrlResult = await issueCoordinatorSlotFromRequest({
+      request: new Request("https://edge.example.com/v1/live/session_1/slots", {
+        body: JSON.stringify({
+          ...slotPayload(),
+          deliveryUrl: "https://media.example.com/s3810.m4s?token=abc",
+        }),
+        method: "POST",
+      }),
+      state: createCoordinatorPipeline({ pathways, session }),
+    });
+
+    expect(objectKeyResult.status).toBe("invalid");
+    expect(deliveryUrlResult.status).toBe("invalid");
+
+    if (
+      objectKeyResult.status !== "invalid" ||
+      deliveryUrlResult.status !== "invalid"
+    ) {
+      throw new Error("expected invalid slot requests");
+    }
+
+    expect(objectKeyResult.message).toBe(
+      "objectKey must be a safe relative object key"
+    );
+    expect(deliveryUrlResult.message).toBe(
+      "deliveryUrl must not contain query strings or fragments"
+    );
+  });
+
   test("returns invalid responses for rejected slot requests", async () => {
     const result = await issueCoordinatorSlotFromRequest({
       request: {

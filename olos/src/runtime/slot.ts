@@ -10,6 +10,8 @@ import {
 import type { OlosError } from "../types/errors";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode, UploadSlot } from "../types/upload-slot";
+import { assertSafeDeliveryUrl } from "../validation/delivery-url";
+import { assertSafeMediaObjectKey } from "../validation/object-key";
 
 export type RuntimeSlotIssueRequest = Request | RuntimeSlotIssuePayload;
 
@@ -99,15 +101,22 @@ function parsePayload(value: unknown): RuntimeSlotIssuePayload {
     throw new Error("slot issue request must be a JSON object");
   }
 
+  const kind = stringField(value, "kind") as MediaObjectKind;
+  const deliveryUrl = stringField(value, "deliveryUrl");
+  const objectKey = stringField(value, "objectKey");
+
+  assertSafeDeliveryUrl(deliveryUrl, "deliveryUrl");
+  assertSafeMediaObjectKey(objectKey, kind, "objectKey");
+
   return {
     contentType: stringField(value, "contentType"),
-    deliveryUrl: stringField(value, "deliveryUrl"),
+    deliveryUrl,
     duration: numberField(value, "duration"),
     expiresAt: stringField(value, "expiresAt"),
-    kind: stringField(value, "kind") as MediaObjectKind,
+    kind,
     maxBytes: numberField(value, "maxBytes"),
     mediaSequenceNumber: numberField(value, "mediaSequenceNumber"),
-    objectKey: stringField(value, "objectKey"),
+    objectKey,
     publicationMode: stringField(value, "publicationMode") as PublicationMode,
     publisherInstanceId: stringField(value, "publisherInstanceId"),
     renditionId: stringField(value, "renditionId"),
