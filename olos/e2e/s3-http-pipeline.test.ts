@@ -361,6 +361,217 @@ describe("S3 HTTP pipeline", () => {
       { Bucket: "media", Key: "media/v1080/3811.m4s" },
     ]);
   });
+
+  test("recovers missed S3 commits through reconciliation routes", async () => {
+    const headObjectInputs: unknown[] = [];
+    const notifier = createMemoryRuntimeCursorNotifier();
+    const store = createMemoryCoordinatorStore();
+    let waits = 0;
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      blockingReload: {
+        timeoutMs: 1000,
+        waitForCursor: (context) => {
+          waits += 1;
+          return notifier.waitForCursor(context);
+        },
+      },
+      bucket: "media",
+      client: createS3Client(),
+      cursorNotifier: notifier,
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "media/v1080/3810.m4s": 98_304,
+          "media/v1080/3811.m4s": 98_304,
+          "media/v1080/init.mp4": 1024,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      response: manifestOptions.response,
+      store,
+      ...manifestOptions.manifest,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+          duration: 1,
+          kind: "init",
+          maxBytes: 2048,
+          mediaSequenceNumber: 0,
+          objectKey: "media/v1080/init.mp4",
+          slotId: "slot_init",
+        })
+      )
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "media/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const plan = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/reconcile-plan",
+        {}
+      )
+    );
+    const planBody = (await plan.json()) as {
+      slotIds: string[];
+      status: string;
+    };
+    const recovered = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/reconcile", {
+        committedAt: "2026-01-01T00:00:02.000Z",
+      })
+    );
+    const recoveredBody = (await recovered.json()) as {
+      results: {
+        commit?: { slotId: string };
+        cursor?: { window: Record<string, number> };
+        slotId: string;
+        status: string;
+      }[];
+      summary: {
+        committed: number;
+        failed: number;
+        ok: boolean;
+        planned: number;
+        slotIds: string[];
+      };
+    };
+    const media = await handle(
+      new Request("https://edge.example.com/v1/live/session_1/v1080/media.m3u8")
+    );
+    const mediaBody = await media.text();
+
+    expect(plan.status).toBe(200);
+    expect(planBody).toEqual({
+      slotIds: ["slot_init", "slot_3810"],
+      slots: expect.any(Array),
+      status: "planned",
+    });
+    expect(recovered.status).toBe(202);
+    expect(recoveredBody.results).toMatchObject([
+      {
+        commit: { slotId: "slot_init" },
+        slotId: "slot_init",
+        status: "committed",
+      },
+      {
+        commit: { slotId: "slot_3810" },
+        cursor: {
+          window: {
+            firstMediaSequenceNumber: 3810,
+            lastMediaSequenceNumber: 3810,
+          },
+        },
+        slotId: "slot_3810",
+        status: "committed",
+      },
+    ]);
+    expect(recoveredBody.summary).toEqual({
+      committed: 2,
+      failed: 0,
+      failedSlotIds: [],
+      idempotent: 0,
+      ok: true,
+      planned: 2,
+      slotIds: ["slot_init", "slot_3810"],
+      status: "reconciled",
+    });
+    expect(media.status).toBe(200);
+    expect(mediaBody).toContain(
+      "https://media.example.com/media/v1080/3810.m4s"
+    );
+
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/3811.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3811,
+          objectKey: "media/v1080/3811.m4s",
+          slotId: "slot_3811",
+        })
+      )
+    );
+
+    const nextPlan = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/reconcile-plan",
+        {
+          slotIds: ["slot_3811"],
+        }
+      )
+    );
+    const pendingReload = handle(
+      new Request(
+        "https://edge.example.com/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3811"
+      )
+    );
+
+    await waitFor(() => waits === 1);
+
+    const nextRecovered = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/reconcile", {
+        committedAt: "2026-01-01T00:00:03.000Z",
+        slotIds: ["slot_3811"],
+      })
+    );
+    const nextRecoveredBody = (await nextRecovered.json()) as {
+      summary: {
+        committed: number;
+        ok: boolean;
+        planned: number;
+        slotIds: string[];
+      };
+    };
+    const reloaded = await pendingReload;
+    const reloadedBody = await reloaded.text();
+
+    expect(nextPlan.status).toBe(200);
+    expect(await nextPlan.json()).toMatchObject({
+      slotIds: ["slot_3811"],
+      status: "planned",
+    });
+    expect(nextRecovered.status).toBe(202);
+    expect(nextRecoveredBody.summary).toMatchObject({
+      committed: 1,
+      ok: true,
+      planned: 1,
+      slotIds: ["slot_3811"],
+    });
+    expect(reloaded.status).toBe(200);
+    expect(reloadedBody).toContain(
+      "https://media.example.com/media/v1080/3811.m4s"
+    );
+    expect(headObjectInputs).toEqual([
+      { Bucket: "media", Key: "media/v1080/init.mp4" },
+      { Bucket: "media", Key: "media/v1080/3810.m4s" },
+      { Bucket: "media", Key: "media/v1080/3811.m4s" },
+    ]);
+  });
 });
 
 interface SlotPayloadOptions {
