@@ -8,6 +8,9 @@ export {
 } from "./index";
 export {
   type CommitCoordinatorUploadOptions,
+  type CoordinatorCommitPolicy,
+  type CoordinatorCommitPolicyContext,
+  type CoordinatorCommitPolicyDecision,
   type CoordinatorManifestArtifacts,
   type CoordinatorPipelineMutation,
   type CoordinatorPipelineSnapshot,

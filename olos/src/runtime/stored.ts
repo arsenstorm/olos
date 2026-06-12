@@ -1,4 +1,5 @@
 import type {
+  CoordinatorCommitPolicy,
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineStore,
 } from "../protocol";
@@ -30,6 +31,7 @@ export interface IssueStoredCoordinatorSlotFromRequestOptions {
 }
 
 export interface CommitStoredCoordinatorUploadFromRequestOptions {
+  commitPolicy?: CoordinatorCommitPolicy;
   maxAttempts?: number;
   publicationControl?: PublicationControlPolicy;
   request: RuntimeCommitRequest;
@@ -171,6 +173,7 @@ export async function commitStoredCoordinatorUploadFromRequest(
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const committed = await commitCoordinatorUploadFromRequest({
+      commitPolicy: options.commitPolicy,
       publicationControl: options.publicationControl,
       request: requestForAttempt(options.request),
       state: snapshot.state,

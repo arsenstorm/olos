@@ -142,6 +142,7 @@ async function handleS3Commit(
     ...parsed.payload,
     bucket: options.bucket,
     client: options.objectClient ?? options.client,
+    commitPolicy: options.commitPolicy,
     maxAttempts: options.maxAttempts,
     publicationControl: options.publicationControl,
     sessionId,
@@ -210,6 +211,7 @@ async function handleS3Events(
     const result = await routeStoredS3CoordinatorUploadEvent({
       bucket: options.bucket,
       client: options.objectClient ?? options.client,
+      commitPolicy: options.commitPolicy,
       event,
       providerId: options.providerId,
       publicationControl: options.publicationControl,

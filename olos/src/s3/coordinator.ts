@@ -6,6 +6,7 @@ import {
   type HlsManifestArtifactResponse,
 } from "../hls/manifest-artifacts";
 import {
+  type CoordinatorCommitPolicy,
   type CoordinatorManifestArtifacts,
   type CoordinatorPipelineSnapshot,
   type CoordinatorPipelineStore,
@@ -36,6 +37,7 @@ export interface CommitS3CoordinatorUploadOptions {
   bucket: string;
   client: S3HeadObjectClient;
   commitId: OlosId;
+  commitPolicy?: CoordinatorCommitPolicy;
   committedAt: string;
   independent?: boolean;
   maxSegments?: number;
@@ -71,6 +73,7 @@ export interface CompleteStoredS3CoordinatorUploadByObjectKeyOptions
 export interface RouteStoredS3CoordinatorUploadEventOptions {
   bucket: string;
   client: S3HeadObjectClient;
+  commitPolicy?: CoordinatorCommitPolicy;
   event: UploadEventNormalization;
   independent?: boolean;
   manifest?: StoredS3CoordinatorManifestOptions;
@@ -323,6 +326,7 @@ export async function commitS3CoordinatorUpload(
   return commitCoordinatorUpload({
     commitId: options.commitId,
     committedAt: options.committedAt,
+    commitPolicy: options.commitPolicy,
     independent: options.independent,
     maxSegments: options.maxSegments,
     object,
@@ -542,6 +546,7 @@ export async function routeStoredS3CoordinatorUploadEvent(
       client: options.client,
       commitId: options.event.event.eventId,
       committedAt: options.event.event.object.observedAt,
+      commitPolicy: options.commitPolicy,
       independent: options.independent,
       manifest: options.manifest,
       maxAttempts: options.maxAttempts,
@@ -561,6 +566,7 @@ export async function routeStoredS3CoordinatorUploadEvent(
     client: options.client,
     commitId: options.event.hint.eventId,
     committedAt: options.event.hint.eventTime,
+    commitPolicy: options.commitPolicy,
     independent: options.independent,
     manifest: options.manifest,
     maxAttempts: options.maxAttempts,

@@ -1,5 +1,8 @@
 import type { S3Client } from "@aws-sdk/client-s3";
-import type { CoordinatorPipelineStore } from "../protocol";
+import type {
+  CoordinatorCommitPolicy,
+  CoordinatorPipelineStore,
+} from "../protocol";
 import type { RuntimePublisherHeartbeatResult } from "../runtime/publisher";
 import {
   type CreateRuntimePublisherNextObjectPlanOptions,
@@ -41,6 +44,7 @@ export interface RunPlannedStoredS3PublisherUploadStepOptions {
   additionalHeaders?: Record<string, string>;
   bucket: string;
   client: S3Client;
+  commitPolicy?: CoordinatorCommitPolicy;
   committedAt: string;
   headObjectClient?: S3HeadObjectClient;
   heartbeat?(): Promise<RuntimePublisherHeartbeatResult>;
@@ -277,6 +281,7 @@ async function runStoredS3PublisherObjectPlanStep(
         client: options.headObjectClient ?? options.client,
         commitId: options.plan.commitId,
         committedAt: options.committedAt,
+        commitPolicy: options.commitPolicy,
         independent: options.independent,
         manifest: options.manifest,
         maxAttempts: options.maxAttempts,

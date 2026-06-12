@@ -843,6 +843,59 @@ describe("coordinator pipeline", () => {
     expect(result.error.error.code).toBe("olos.unknown_slot");
   });
 
+  test("applies app-owned commit policy before new commits", () => {
+    const state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state: createCoordinatorPipeline({ pathways, session }),
+    }).state;
+    const result = commitCoordinatorUpload({
+      commitId: "commit_3810",
+      commitPolicy: ({ slot }) => ({
+        error: {
+          error: {
+            code: "olos.quota_exceeded",
+            details: { publisherInstanceId: slot.publisherInstanceId },
+            message: "publisher quota exceeded",
+          },
+        },
+        status: "rejected",
+      }),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "media/s3810.m4s",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected commit");
+    }
+
+    expect(result.error.error).toEqual({
+      code: "olos.quota_exceeded",
+      details: { publisherInstanceId: "pub_1" },
+      message: "publisher quota exceeded",
+    });
+    expect(result.state.commits).toHaveLength(0);
+  });
+
   test("blocks publication while the kill switch is active", () => {
     const policy = createPublicationKillSwitch("incident");
     const state = createCoordinatorPipeline({ pathways, session });

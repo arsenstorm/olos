@@ -140,6 +140,42 @@ describe("stored runtime mutations", () => {
     });
   });
 
+  test("returns app-owned commit policy rejections without saving", async () => {
+    const store = await createReadyStore();
+    const result = await commitStoredCoordinatorUploadFromRequest({
+      commitPolicy: ({ slot }) => ({
+        error: {
+          error: {
+            code: "olos.security_policy_violation",
+            details: { publisherInstanceId: slot.publisherInstanceId },
+            message: "publisher is not authorised",
+          },
+        },
+        status: "rejected",
+      }),
+      request: commitPayload(),
+      sessionId: session.sessionId,
+      store,
+    });
+    const snapshot = await store.load(session.sessionId);
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected commit");
+    }
+
+    expect(result.response.status).toBe(409);
+    expect(await result.response.json()).toEqual({
+      error: {
+        code: "olos.security_policy_violation",
+        details: { publisherInstanceId: "pub_1" },
+        message: "publisher is not authorised",
+      },
+    });
+    expect(snapshot?.state.commits).toHaveLength(0);
+    expect(snapshot?.state.slots.at(-1)?.state).toBe("issued");
+  });
+
   test("returns not found responses for missing coordinator sessions", async () => {
     const result = await issueStoredCoordinatorSlotFromRequest({
       request: slotPayload(),

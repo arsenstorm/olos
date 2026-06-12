@@ -1,5 +1,6 @@
 import {
   type CommitCoordinatorUploadOptions,
+  type CoordinatorCommitPolicy,
   commitCoordinatorUpload,
 } from "../protocol";
 import type { CoordinatorPipelineState } from "../protocol/coordinator";
@@ -21,6 +22,7 @@ export interface RuntimeCommitPayload
 }
 
 export interface CommitCoordinatorUploadFromRequestOptions {
+  commitPolicy?: CoordinatorCommitPolicy;
   publicationControl?: PublicationControlPolicy;
   request: RuntimeCommitRequest;
   state: CoordinatorPipelineState;
@@ -56,6 +58,7 @@ export async function commitCoordinatorUploadFromRequest(
   try {
     const committed = commitCoordinatorUpload({
       ...payload.value,
+      commitPolicy: options.commitPolicy,
       object: createObservedUpload(payload.value.object),
       publicationControl: options.publicationControl,
       state: options.state,

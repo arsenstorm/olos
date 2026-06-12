@@ -1,4 +1,7 @@
-import type { CoordinatorPipelineStore } from "../protocol";
+import type {
+  CoordinatorCommitPolicy,
+  CoordinatorPipelineStore,
+} from "../protocol";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
@@ -17,6 +20,7 @@ export interface ReconcileStoredS3CoordinatorUploadsOptions {
   bucket: string;
   client: S3HeadObjectClient;
   commitId?: SlotValue<OlosId>;
+  commitPolicy?: CoordinatorCommitPolicy;
   committedAt: SlotValue<string>;
   independent?: SlotValue<boolean | undefined>;
   manifest?: StoredS3CoordinatorManifestOptions;
@@ -185,6 +189,7 @@ async function reconcileSlot(
       client: options.client,
       commitId: resolveSlotValue(options.commitId, slot) ?? commitId(slot),
       committedAt: resolveRequiredSlotValue(options.committedAt, slot),
+      commitPolicy: options.commitPolicy,
       providerId: options.providerId,
       sessionId: options.sessionId,
       slotId: slot.slotId,

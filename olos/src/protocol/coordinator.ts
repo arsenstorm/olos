@@ -124,6 +124,7 @@ export interface CoordinatorSlotIssue {
 
 export interface CommitCoordinatorUploadOptions {
   commitId: OlosId;
+  commitPolicy?: CoordinatorCommitPolicy;
   committedAt: string;
   independent?: boolean;
   maxSegments?: number;
@@ -133,6 +134,25 @@ export interface CommitCoordinatorUploadOptions {
   slotId: OlosId;
   state: CoordinatorPipelineState;
 }
+
+export interface CoordinatorCommitPolicyContext {
+  commitId: OlosId;
+  committedAt: string;
+  object: ObservedUpload;
+  slot: UploadSlot;
+  state: CoordinatorPipelineState;
+}
+
+export type CoordinatorCommitPolicyDecision =
+  | { status: "allowed" }
+  | {
+      error: OlosError;
+      status: "rejected";
+    };
+
+export type CoordinatorCommitPolicy = (
+  context: CoordinatorCommitPolicyContext
+) => CoordinatorCommitPolicyDecision;
 
 export interface RevokeCoordinatorUploadOptions {
   slotId: OlosId;
@@ -435,6 +455,24 @@ export function commitCoordinatorUpload(
         ? {}
         : { cursor: options.state.cursor }),
     };
+  }
+
+  if (slot !== undefined && options.commitPolicy !== undefined) {
+    const policy = options.commitPolicy({
+      commitId: options.commitId,
+      committedAt: options.committedAt,
+      object: options.object,
+      slot,
+      state: options.state,
+    });
+
+    if (policy.status === "rejected") {
+      return {
+        error: policy.error,
+        state: options.state,
+        status: "rejected",
+      };
+    }
   }
 
   const observedSlot =

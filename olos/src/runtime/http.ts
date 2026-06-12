@@ -2,7 +2,10 @@ import type {
   CreateHlsManifestArtifactResponseOptions,
   HlsCursorWaitContext,
 } from "../hls";
-import type { CoordinatorPipelineStore } from "../protocol";
+import type {
+  CoordinatorCommitPolicy,
+  CoordinatorPipelineStore,
+} from "../protocol";
 import type { PublicationControlPolicy } from "../state";
 import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
@@ -35,6 +38,7 @@ export interface CreateStoredCoordinatorRuntimeHandlerOptions {
       context: HlsCursorWaitContext
     ) => Promise<HlsCursorWaitContext["cursor"] | undefined>;
   };
+  commitPolicy?: CoordinatorCommitPolicy;
   cursorNotifier?: RuntimeCursorNotifier;
   livePath?: string;
   maxAttempts?: number;
@@ -161,6 +165,7 @@ async function handlePostSessionActionRoute(
 
   if (action === "commits") {
     const result = await commitStoredCoordinatorUploadFromRequest({
+      commitPolicy: options.commitPolicy,
       maxAttempts: options.maxAttempts,
       publicationControl: options.publicationControl,
       request,
