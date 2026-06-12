@@ -24,5 +24,17 @@ Release checklist:
 
 The workflow requires an `NPM_TOKEN` repository secret with publish access.
 
+## Release Notes
+
+Every release should include notes that cover:
+
+- new or removed public exports
+- protocol, runtime, HLS, S3, or storage behavior changes
+- migration steps for existing applications
+- known compatibility limits or deployment requirements
+
+Keep release notes focused on user-visible behavior. Internal refactors only
+need mention when they affect package users, conformance, or deployment.
+
 Do not publish from the repository root. It is a private workspace wrapper, not
 the package.
