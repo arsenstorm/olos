@@ -9,6 +9,10 @@ the change after the diff is merged.
 Summary / Why / Test plan / Notes structure. Do not delete the headings. If a
 section truly does not apply, write `n/a` and a one-line reason.
 
+Pull requests targeting `main` should pass the required
+`Validate / Validate` status check before merge. See
+[repository checks](./checks.md) for the full expected protection policy.
+
 ## Summary
 
 Describe what changed at a behavioural level. Prefer the protocol, package, or

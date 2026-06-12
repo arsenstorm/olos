@@ -25,6 +25,8 @@ Release checklist:
 7. Confirm the workflow verified the published package subpaths.
 
 The workflow requires an `NPM_TOKEN` repository secret with publish access.
+See [repository checks](./checks.md) for the expected branch and release tag
+protection rules.
 
 ## 0.1.0 Commands
 
