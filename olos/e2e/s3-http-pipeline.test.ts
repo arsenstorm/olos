@@ -1,0 +1,297 @@
+import {
+  type HeadObjectCommand,
+  type HeadObjectCommandOutput,
+  S3Client,
+} from "@aws-sdk/client-s3";
+import { createMemoryCoordinatorStore } from "olos/protocol";
+import {
+  createMemoryRuntimeCursorNotifier,
+  createRuntimeObjectLowLatencyManifestOptions,
+  createRuntimeObjectLowLatencyProfile,
+} from "olos/runtime";
+import {
+  createStoredS3CoordinatorRuntimeHandler,
+  type S3HeadObjectClient,
+} from "olos/s3";
+import type { Pathway, Session } from "olos/types";
+import { describe, expect, test } from "vitest";
+
+const latency = createRuntimeObjectLowLatencyProfile();
+const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(latency);
+
+const session = {
+  createdAt: "2026-01-01T00:00:00.000Z",
+  epoch: 1,
+  latencyProfile: latency.latencyProfile,
+  olos: "1.0",
+  partTarget: latency.partTarget,
+  renditions: [
+    {
+      bitrate: 5_000_000,
+      codec: "avc1.640028",
+      frameRate: 30,
+      height: 1080,
+      kind: "video",
+      renditionId: "v1080",
+      width: 1920,
+    },
+  ],
+  segmentTarget: latency.segmentTarget,
+  sessionId: "session_1",
+  state: "live",
+  tenantId: "tenant_1",
+} satisfies Session;
+
+const pathways = [
+  {
+    baseUrl: "https://media.example.com",
+    pathwayId: "primary",
+    priority: 0,
+    providerId: "s3_primary",
+    state: "active",
+  },
+] satisfies Pathway[];
+
+describe("S3 HTTP pipeline", () => {
+  test("publishes and serves a live HLS session through the Fetch handler", async () => {
+    const headObjectInputs: unknown[] = [];
+    const notifier = createMemoryRuntimeCursorNotifier();
+    const store = createMemoryCoordinatorStore();
+    let waits = 0;
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      blockingReload: {
+        timeoutMs: 1000,
+        waitForCursor: (context) => {
+          waits += 1;
+          return notifier.waitForCursor(context);
+        },
+      },
+      bucket: "media",
+      client: createS3Client(),
+      cursorNotifier: notifier,
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "media/v1080/3810.m4s": 98_304,
+          "media/v1080/3811.m4s": 98_304,
+          "media/v1080/init.mp4": 1024,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      response: manifestOptions.response,
+      store,
+      ...manifestOptions.manifest,
+    });
+
+    const created = await handle(
+      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+    );
+    const initGrant = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+          duration: 1,
+          kind: "init",
+          maxBytes: 2048,
+          mediaSequenceNumber: 0,
+          objectKey: "media/v1080/init.mp4",
+          slotId: "slot_init",
+        })
+      )
+    );
+    const segmentGrant = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "media/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+    const initCommit = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_init",
+        committedAt: "2026-01-01T00:00:01.000Z",
+        providerId: "s3_primary",
+        slotId: "slot_init",
+      })
+    );
+    const segmentCommit = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        independent: true,
+        providerId: "s3_primary",
+        slotId: "slot_3810",
+      })
+    );
+    const master = await handle(
+      new Request("https://edge.example.com/v1/live/session_1/master.m3u8")
+    );
+    const media = await handle(
+      new Request("https://edge.example.com/v1/live/session_1/v1080/media.m3u8")
+    );
+    const mediaBody = await media.text();
+
+    expect(created.status).toBe(201);
+    expect(initGrant.status).toBe(201);
+    expect(segmentGrant.status).toBe(201);
+    expect(initCommit.status).toBe(201);
+    expect(segmentCommit.status).toBe(201);
+    expect(master.status).toBe(200);
+    expect(await master.text()).toContain(
+      "/v1/live/session_1/v1080/media.m3u8"
+    );
+    expect(media.status).toBe(200);
+    expect(media.headers.get("cache-control")).toBe(
+      "public, max-age=1, must-revalidate"
+    );
+    expect(mediaBody).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
+    expect(mediaBody).toContain("#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES");
+    expect(mediaBody).toContain(
+      "https://media.example.com/media/v1080/3810.m4s"
+    );
+
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/3811.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3811,
+          objectKey: "media/v1080/3811.m4s",
+          slotId: "slot_3811",
+        })
+      )
+    );
+
+    const pendingReload = handle(
+      new Request(
+        "https://edge.example.com/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3811"
+      )
+    );
+
+    await waitFor(() => waits === 1);
+
+    const nextCommit = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_3811",
+        committedAt: "2026-01-01T00:00:03.000Z",
+        providerId: "s3_primary",
+        slotId: "slot_3811",
+      })
+    );
+    const reloaded = await pendingReload;
+    const reloadedBody = await reloaded.text();
+
+    expect(nextCommit.status).toBe(201);
+    expect(reloaded.status).toBe(200);
+    expect(reloadedBody).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
+    expect(reloadedBody).toContain(
+      "https://media.example.com/media/v1080/3811.m4s"
+    );
+    expect(headObjectInputs).toEqual([
+      { Bucket: "media", Key: "media/v1080/init.mp4" },
+      { Bucket: "media", Key: "media/v1080/3810.m4s" },
+      { Bucket: "media", Key: "media/v1080/3811.m4s" },
+    ]);
+  });
+});
+
+interface SlotPayloadOptions {
+  deliveryUrl: string;
+  duration: number;
+  kind: "init" | "segment";
+  maxBytes: number;
+  mediaSequenceNumber: number;
+  objectKey: string;
+  slotId: string;
+}
+
+function slotPayload(options: SlotPayloadOptions) {
+  return {
+    contentType: "video/mp4",
+    deliveryUrl: options.deliveryUrl,
+    duration: options.duration,
+    expiresAt: "2026-01-01T00:00:05.000Z",
+    kind: options.kind,
+    maxBytes: options.maxBytes,
+    mediaSequenceNumber: options.mediaSequenceNumber,
+    objectKey: options.objectKey,
+    publicationMode: "direct-public" as const,
+    publisherInstanceId: "publisher_1",
+    renditionId: "v1080",
+    slotId: options.slotId,
+  };
+}
+
+function jsonRequest(url: string, body: unknown): Request {
+  return new Request(url, {
+    body: JSON.stringify(body),
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
+  });
+}
+
+function objectClientFor(
+  sizes: Record<string, number>,
+  inputs: unknown[]
+): S3HeadObjectClient {
+  return {
+    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
+      inputs.push(command.input);
+
+      const objectKey = String(command.input.Key);
+      const size = sizes[objectKey];
+
+      if (size === undefined) {
+        throw new Error(`unexpected object key: ${objectKey}`);
+      }
+
+      return Promise.resolve({
+        $metadata: {},
+        ContentLength: size,
+        ContentType: "video/mp4",
+        ETag: `"${objectKey}"`,
+        LastModified: new Date("2026-01-01T00:00:01.000Z"),
+      });
+    },
+  };
+}
+
+function createS3Client(): S3Client {
+  return new S3Client({
+    credentials: {
+      accessKeyId: "test-access-key",
+      secretAccessKey: "test-secret-key",
+    },
+    endpoint: "https://s3.example.com",
+    forcePathStyle: true,
+    region: "us-east-1",
+  });
+}
+
+async function waitFor(predicate: () => boolean): Promise<void> {
+  const startedAt = Date.now();
+
+  while (!predicate()) {
+    if (Date.now() - startedAt > 1000) {
+      throw new Error("condition was not met before timeout");
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+}
