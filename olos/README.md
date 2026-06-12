@@ -392,6 +392,12 @@ if (issued.status !== "saved") {
   throw new Error("upload grant was not issued");
 }
 
+Upload clients must send every header returned in `issued.grant.requiredHeaders`.
+S3 grants include `x-amz-meta-olos-slot-id`, which lets later `HeadObject`
+observations normalize the stored metadata back to the protocol-level
+`x-olos-slot-id`. If an application supplies its own presigned URL, it must
+allow that metadata header.
+
 const committed = await commitStoredS3CoordinatorUpload({
   bucket: "media",
   client: s3,
