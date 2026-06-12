@@ -217,6 +217,10 @@ async function handleS3Events(
       store: options.store,
     });
 
+    if (result.status === "committed" || result.status === "idempotent") {
+      notifyCursor(options.cursorNotifier, result.cursor);
+    }
+
     results.push(eventRouteResult(result));
   }
 
