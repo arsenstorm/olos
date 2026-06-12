@@ -111,6 +111,35 @@ describe("stored runtime mutations", () => {
     });
   });
 
+  test("returns idempotent stored commits without duplicating state", async () => {
+    const store = await createReadyStore();
+    const first = await commitStoredCoordinatorUploadFromRequest({
+      request: commitPayload(),
+      sessionId: session.sessionId,
+      store,
+    });
+    const second = await commitStoredCoordinatorUploadFromRequest({
+      request: commitPayload(),
+      sessionId: session.sessionId,
+      store,
+    });
+    const snapshot = await store.load(session.sessionId);
+
+    expect(first.status).toBe("committed");
+    expect(second.status).toBe("idempotent");
+    expect(second.response.status).toBe(200);
+    expect(snapshot?.state.commits).toHaveLength(1);
+    expect(snapshot?.state.commits[0]).toMatchObject({
+      commitId: "commit_3810",
+      objectKey: "media/s3810.m4s",
+      slotId: "slot_3810",
+    });
+    expect(snapshot?.state.cursor?.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+  });
+
   test("returns not found responses for missing coordinator sessions", async () => {
     const result = await issueStoredCoordinatorSlotFromRequest({
       request: slotPayload(),
