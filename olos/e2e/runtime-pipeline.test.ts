@@ -1,4 +1,11 @@
-import { createMemoryCoordinatorStore } from "olos/protocol";
+import {
+  type CoordinatorPipelineStore,
+  createMemoryCoordinatorStore,
+  createSerializedCoordinatorStore,
+  createSqliteSerializedCoordinatorStoreBackend,
+  type SqliteSerializedCoordinatorStoreDatabase,
+  type SqliteSerializedCoordinatorStoreRunResult,
+} from "olos/protocol";
 import {
   commitStoredCoordinatorUploadFromRequest,
   createRuntimeObjectLowLatencyManifestOptions,
@@ -57,174 +64,216 @@ const publishNow = "2026-01-01T00:00:00.000Z";
 
 describe("runtime pipeline", () => {
   test("runs stored coordinator lifecycle through public runtime exports", async () => {
-    const store = createMemoryCoordinatorStore();
+    await expect(
+      expectStoredCoordinatorLifecycle(createMemoryCoordinatorStore())
+    ).resolves.toBeUndefined();
+  });
 
-    const created = await createStoredCoordinatorSession({
-      pathways,
-      session,
-      store,
-    });
-
-    expect(created.status).toBe("created");
-
-    const initPlan = createRuntimePublisherObjectPlan({
-      baseUrl: "https://media.example.com",
-      contentType: "video/mp4",
-      duration: 1,
-      expiresAt: plannedExpiry(1).expiresAt,
-      extension: "mp4",
-      kind: "init",
-      maxBytes: 2048,
-      mediaSequenceNumber: 0,
-      objectKeyPrefix: "media",
-      publicationMode: "direct-public",
-      publisherInstanceId: "pub_1",
-      renditionId: "v1080",
-    });
-    const segmentPlan = createRuntimePublisherObjectPlan({
-      baseUrl: "https://media.example.com",
-      contentType: "video/mp4",
-      duration: 2,
-      expiresAt: plannedExpiry(2).expiresAt,
-      extension: "m4s",
-      kind: "segment",
-      maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      objectKeyPrefix: "media",
-      publicationMode: "direct-public",
-      publisherInstanceId: "pub_1",
-      renditionId: "v1080",
-    });
-    const nextPlan = createRuntimePublisherObjectPlan({
-      baseUrl: "https://media.example.com",
-      contentType: "video/mp4",
-      duration: 2,
-      expiresAt: plannedExpiry(2).expiresAt,
-      extension: "m4s",
-      kind: "segment",
-      maxBytes: 100_000,
-      mediaSequenceNumber: 3811,
-      objectKeyPrefix: "media",
-      publicationMode: "direct-public",
-      publisherInstanceId: "pub_1",
-      renditionId: "v1080",
-    });
-
-    const initIssue = await issueStoredCoordinatorSlotFromRequest({
-      request: initPlan.slot,
-      sessionId: session.sessionId,
-      store,
-    });
-    const segmentIssue = await issueStoredCoordinatorSlotFromRequest({
-      request: segmentPlan.slot,
-      sessionId: session.sessionId,
-      store,
-    });
-    const nextIssue = await issueStoredCoordinatorSlotFromRequest({
-      request: nextPlan.slot,
-      sessionId: session.sessionId,
-      store,
-    });
-
-    expect(initIssue.status).toBe("issued");
-    expect(segmentIssue.status).toBe("issued");
-    expect(nextIssue.status).toBe("issued");
-
-    const initCommit = await commitStoredCoordinatorUploadFromRequest({
-      request: commitPayload({
-        commitId: initPlan.commitId,
-        objectKey: initPlan.slot.objectKey,
-        size: 1024,
-        slotId: initPlan.slot.slotId,
-      }),
-      sessionId: session.sessionId,
-      store,
-    });
-    const segmentCommit = await commitStoredCoordinatorUploadFromRequest({
-      request: {
-        ...commitPayload({
-          commitId: segmentPlan.commitId,
-          objectKey: segmentPlan.slot.objectKey,
-          size: 98_304,
-          slotId: segmentPlan.slot.slotId,
-        }),
-        independent: true,
-      },
-      sessionId: session.sessionId,
-      store,
-    });
-
-    expect(initCommit.status).toBe("committed");
-    expect(segmentCommit.status).toBe("committed");
-
-    const snapshot = await store.load(session.sessionId);
-    const cursor = snapshot?.state.cursor;
-
-    if (snapshot === undefined || cursor === undefined) {
-      throw new Error("expected stored cursor");
-    }
-
-    assertCursor(cursor);
-
-    const master = await serveStoredCoordinatorManifest({
-      allowedMediaOrigins: ["https://media.example.com"],
-      ...manifestOptions.manifest,
-      request: "https://edge.example.com/v1/live/session_1/master.m3u8",
-      sessionId: session.sessionId,
-      store,
-    });
-    const media = await serveStoredCoordinatorManifest({
-      allowedMediaOrigins: ["https://media.example.com"],
-      ...manifestOptions.manifest,
-      request: "https://edge.example.com/v1/live/session_1/v1080/media.m3u8",
-      sessionId: session.sessionId,
-      store,
-    });
-
-    expect(cursor.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
-    });
-    expect(master.status).toBe(200);
-    expect(await master.text()).toContain(
-      "/v1/live/session_1/v1080/media.m3u8"
+  test("runs stored coordinator lifecycle through a SQLite serialized store", async () => {
+    const store = createSerializedCoordinatorStore(
+      createSqliteSerializedCoordinatorStoreBackend({
+        database: createSqliteDatabase(),
+      })
     );
-    expect(media.status).toBe(200);
-    expect(await media.text()).toContain(segmentPlan.slot.deliveryUrl);
 
-    const transitioned = await transitionStoredCoordinatorSession({
-      sessionId: session.sessionId,
-      state: "ending",
-      store,
-    });
-
-    expect(transitioned.status).toBe("transitioned");
-
-    if (transitioned.status !== "transitioned") {
-      throw new Error("expected session transition");
-    }
-
-    expect(transitioned.state.session.state).toBe("ending");
-    expect(transitioned.state.cursor?.state).toBe("ending");
-
-    const retention = await planStoredCoordinatorRetention({
-      now: "2026-01-01T00:00:06.000Z",
-      sessionId: session.sessionId,
-      store,
-    });
-
-    expect(retention.status).toBe("planned");
-
-    if (retention.status !== "planned") {
-      throw new Error("expected retention plan");
-    }
-
-    expect(retention.plan.expiredSlots.map((slot) => slot.slotId)).toEqual([
-      nextPlan.slot.slotId,
-    ]);
-    expect(retention.plan.retiredObjects).toEqual([]);
+    await expect(
+      expectStoredCoordinatorLifecycle(store)
+    ).resolves.toBeUndefined();
   });
 });
+
+async function expectStoredCoordinatorLifecycle(
+  store: CoordinatorPipelineStore
+) {
+  const created = await createStoredCoordinatorSession({
+    pathways,
+    session,
+    store,
+  });
+
+  ensureEqual(created.status, "created", "session should be created");
+
+  const initPlan = createRuntimePublisherObjectPlan({
+    baseUrl: "https://media.example.com",
+    contentType: "video/mp4",
+    duration: 1,
+    expiresAt: plannedExpiry(1).expiresAt,
+    extension: "mp4",
+    kind: "init",
+    maxBytes: 2048,
+    mediaSequenceNumber: 0,
+    objectKeyPrefix: "media",
+    publicationMode: "direct-public",
+    publisherInstanceId: "pub_1",
+    renditionId: "v1080",
+  });
+  const segmentPlan = createRuntimePublisherObjectPlan({
+    baseUrl: "https://media.example.com",
+    contentType: "video/mp4",
+    duration: 2,
+    expiresAt: plannedExpiry(2).expiresAt,
+    extension: "m4s",
+    kind: "segment",
+    maxBytes: 100_000,
+    mediaSequenceNumber: 3810,
+    objectKeyPrefix: "media",
+    publicationMode: "direct-public",
+    publisherInstanceId: "pub_1",
+    renditionId: "v1080",
+  });
+  const nextPlan = createRuntimePublisherObjectPlan({
+    baseUrl: "https://media.example.com",
+    contentType: "video/mp4",
+    duration: 2,
+    expiresAt: plannedExpiry(2).expiresAt,
+    extension: "m4s",
+    kind: "segment",
+    maxBytes: 100_000,
+    mediaSequenceNumber: 3811,
+    objectKeyPrefix: "media",
+    publicationMode: "direct-public",
+    publisherInstanceId: "pub_1",
+    renditionId: "v1080",
+  });
+
+  const initIssue = await issueStoredCoordinatorSlotFromRequest({
+    request: initPlan.slot,
+    sessionId: session.sessionId,
+    store,
+  });
+  const segmentIssue = await issueStoredCoordinatorSlotFromRequest({
+    request: segmentPlan.slot,
+    sessionId: session.sessionId,
+    store,
+  });
+  const nextIssue = await issueStoredCoordinatorSlotFromRequest({
+    request: nextPlan.slot,
+    sessionId: session.sessionId,
+    store,
+  });
+
+  ensureEqual(initIssue.status, "issued", "init slot should be issued");
+  ensureEqual(segmentIssue.status, "issued", "segment slot should be issued");
+  ensureEqual(nextIssue.status, "issued", "next slot should be issued");
+
+  const initCommit = await commitStoredCoordinatorUploadFromRequest({
+    request: commitPayload({
+      commitId: initPlan.commitId,
+      objectKey: initPlan.slot.objectKey,
+      size: 1024,
+      slotId: initPlan.slot.slotId,
+    }),
+    sessionId: session.sessionId,
+    store,
+  });
+  const segmentCommit = await commitStoredCoordinatorUploadFromRequest({
+    request: {
+      ...commitPayload({
+        commitId: segmentPlan.commitId,
+        objectKey: segmentPlan.slot.objectKey,
+        size: 98_304,
+        slotId: segmentPlan.slot.slotId,
+      }),
+      independent: true,
+    },
+    sessionId: session.sessionId,
+    store,
+  });
+
+  ensureEqual(initCommit.status, "committed", "init should commit");
+  ensureEqual(segmentCommit.status, "committed", "segment should commit");
+
+  const snapshot = await store.load(session.sessionId);
+  const cursor = snapshot?.state.cursor;
+
+  if (snapshot === undefined || cursor === undefined) {
+    throw new Error("expected stored cursor");
+  }
+
+  assertCursor(cursor);
+
+  const master = await serveStoredCoordinatorManifest({
+    allowedMediaOrigins: ["https://media.example.com"],
+    ...manifestOptions.manifest,
+    request: "https://edge.example.com/v1/live/session_1/master.m3u8",
+    sessionId: session.sessionId,
+    store,
+  });
+  const media = await serveStoredCoordinatorManifest({
+    allowedMediaOrigins: ["https://media.example.com"],
+    ...manifestOptions.manifest,
+    request: "https://edge.example.com/v1/live/session_1/v1080/media.m3u8",
+    sessionId: session.sessionId,
+    store,
+  });
+
+  ensureEqual(
+    cursor.window,
+    {
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    },
+    "cursor should advance to committed segment"
+  );
+  ensureEqual(master.status, 200, "master manifest should be served");
+  ensureIncludes(
+    await master.text(),
+    "/v1/live/session_1/v1080/media.m3u8",
+    "master manifest should link media playlist"
+  );
+  ensureEqual(media.status, 200, "media manifest should be served");
+  ensureIncludes(
+    await media.text(),
+    segmentPlan.slot.deliveryUrl,
+    "media manifest should include segment"
+  );
+
+  const transitioned = await transitionStoredCoordinatorSession({
+    sessionId: session.sessionId,
+    state: "ending",
+    store,
+  });
+
+  ensureEqual(transitioned.status, "transitioned", "session should transition");
+
+  if (transitioned.status !== "transitioned") {
+    throw new Error("expected session transition");
+  }
+
+  ensureEqual(
+    transitioned.state.session.state,
+    "ending",
+    "session state should end"
+  );
+  ensureEqual(
+    transitioned.state.cursor?.state,
+    "ending",
+    "cursor state should end"
+  );
+
+  const retention = await planStoredCoordinatorRetention({
+    now: "2026-01-01T00:00:06.000Z",
+    sessionId: session.sessionId,
+    store,
+  });
+
+  ensureEqual(retention.status, "planned", "retention should plan");
+
+  if (retention.status !== "planned") {
+    throw new Error("expected retention plan");
+  }
+
+  ensureEqual(
+    retention.plan.expiredSlots.map((slot) => slot.slotId),
+    [nextPlan.slot.slotId],
+    "retention should expire uncommitted next slot"
+  );
+  ensureEqual(
+    retention.plan.retiredObjects,
+    [],
+    "retention should not retire committed window objects"
+  );
+}
 
 function plannedExpiry(duration: number) {
   return resolveRuntimePublisherObjectExpiry({
@@ -255,4 +304,89 @@ function commitPayload(options: CommitPayloadOptions) {
     },
     slotId: options.slotId,
   };
+}
+
+function createSqliteDatabase(): SqliteSerializedCoordinatorStoreDatabase {
+  const records = new Map<string, { etag: string; snapshot: string }>();
+
+  return {
+    prepare(sql) {
+      return {
+        bind(...values) {
+          return {
+            first<T>() {
+              return Promise.resolve(select<T>(records, sql, values));
+            },
+            run() {
+              return Promise.resolve(run(records, sql, values));
+            },
+          };
+        },
+      };
+    },
+  };
+}
+
+function select<T>(
+  records: Map<string, { etag: string; snapshot: string }>,
+  sql: string,
+  values: readonly unknown[]
+): T | undefined {
+  if (!sql.startsWith("select")) {
+    throw new Error(`unexpected select SQL: ${sql}`);
+  }
+
+  return records.get(String(values[0])) as T | undefined;
+}
+
+function run(
+  records: Map<string, { etag: string; snapshot: string }>,
+  sql: string,
+  values: readonly unknown[]
+): SqliteSerializedCoordinatorStoreRunResult {
+  if (sql.startsWith("insert")) {
+    const sessionId = String(values[0]);
+
+    if (records.has(sessionId)) {
+      return { meta: { changes: 0 } };
+    }
+
+    records.set(sessionId, {
+      etag: String(values[1]),
+      snapshot: String(values[2]),
+    });
+
+    return { meta: { changes: 1 } };
+  }
+
+  if (!sql.startsWith("update")) {
+    throw new Error(`unexpected update SQL: ${sql}`);
+  }
+
+  const sessionId = String(values[2]);
+  const expectedEtag = String(values[3]);
+  const current = records.get(sessionId);
+
+  if (current?.etag !== expectedEtag) {
+    return { meta: { changes: 0 } };
+  }
+
+  records.set(sessionId, {
+    etag: String(values[0]),
+    snapshot: String(values[1]),
+  });
+
+  return { meta: { changes: 1 } };
+}
+
+function ensureEqual(actual: unknown, expected: unknown, message: string) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${message}: expected ${JSON.stringify(expected)}`);
+  }
+}
+
+function ensureIncludes(value: string, expected: string, message: string) {
+  if (!value.includes(expected)) {
+    throw new Error(`${message}: expected ${expected}`);
+  }
 }
