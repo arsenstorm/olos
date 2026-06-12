@@ -15,6 +15,7 @@ import {
 import { normalizeS3ObjectCreatedEvents } from "./event";
 import type { S3HeadObjectClient } from "./object-observation";
 import {
+  planStoredS3CoordinatorReconciliation,
   reconcileStoredS3CoordinatorUploads,
   type StoredS3CoordinatorUploadReconciliationResult,
   summarizeStoredS3CoordinatorUploadReconciliation,
@@ -63,6 +64,14 @@ export function createStoredS3CoordinatorRuntimeHandler(
 
     if (route.action === "events") {
       return await handleS3Events(request, route.sessionId, options);
+    }
+
+    if (route.action === "reconcile-plan") {
+      return await handleS3ReconciliationPlan(
+        request,
+        route.sessionId,
+        options
+      );
     }
 
     return await handleS3Reconciliation(request, route.sessionId, options);
@@ -201,6 +210,30 @@ async function handleS3Events(
   return jsonResponse({ results }, 202);
 }
 
+async function handleS3ReconciliationPlan(
+  request: Request,
+  sessionId: string,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  const parsed = await parseS3ReconciliationPlanRequest(request);
+
+  if (parsed.status === "invalid") {
+    return badRequest(parsed.message);
+  }
+
+  const result = await planStoredS3CoordinatorReconciliation({
+    ...parsed.payload,
+    sessionId,
+    store: options.store,
+  });
+
+  if (result.status === "not_found") {
+    return notFound();
+  }
+
+  return jsonResponse(result, 200);
+}
+
 async function handleS3Reconciliation(
   request: Request,
   sessionId: string,
@@ -243,7 +276,7 @@ async function handleS3Reconciliation(
 
 type S3Route =
   | {
-      action: "commits" | "events" | "reconcile" | "slots";
+      action: "commits" | "events" | "reconcile" | "reconcile-plan" | "slots";
       sessionId: string;
       status: "matched";
     }
@@ -272,6 +305,7 @@ function s3Route(
     (action !== "slots" &&
       action !== "commits" &&
       action !== "events" &&
+      action !== "reconcile-plan" &&
       action !== "reconcile") ||
     parts.length !== 3
   ) {
@@ -364,6 +398,10 @@ interface S3ReconciliationPayload {
   versionId?: string;
 }
 
+interface S3ReconciliationPlanPayload {
+  slotIds?: readonly string[];
+}
+
 async function parseS3CommitRequest(
   request: Request
 ): Promise<
@@ -398,6 +436,32 @@ function parseCommitPayload(value: Record<string, unknown>): S3CommitPayload {
     ...optionalStringField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
   };
+}
+
+async function parseS3ReconciliationPlanRequest(
+  request: Request
+): Promise<
+  | { payload: S3ReconciliationPlanPayload; status: "valid" }
+  | { message: string; status: "invalid" }
+> {
+  try {
+    const payload = await request.json();
+
+    if (!isRecord(payload)) {
+      return invalid("S3 reconciliation plan request must be a JSON object");
+    }
+
+    return {
+      payload: {
+        ...optionalStringArrayField(payload, "slotIds"),
+      },
+      status: "valid",
+    };
+  } catch (error) {
+    return invalid(
+      errorMessage(error, "invalid S3 reconciliation plan request")
+    );
+  }
 }
 
 async function parseS3ReconciliationRequest(
