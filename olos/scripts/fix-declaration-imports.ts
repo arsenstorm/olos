@@ -6,16 +6,20 @@ const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 const distRoot = join(packageRoot, "dist");
 const relativeImportPattern = /(from\s+["'])(\.[^"']+)(["'])/g;
 
-await fixDeclarations(distRoot);
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
+  await fixDeclarationImports();
+}
 
-async function fixDeclarations(directory: string): Promise<void> {
+export async function fixDeclarationImports(
+  directory = distRoot
+): Promise<void> {
   const entries = await readdir(directory, { withFileTypes: true });
 
   for (const entry of entries) {
     const path = join(directory, entry.name);
 
     if (entry.isDirectory()) {
-      await fixDeclarations(path);
+      await fixDeclarationImports(path);
       continue;
     }
 
