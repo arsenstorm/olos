@@ -85,6 +85,25 @@ plan retention -> delete retired objects -> record failed deletes for retry
 Never reuse deleted live media keys. Retention cleans storage cost; it must not
 change the trusted cursor.
 
+## Operational Monitoring
+
+Poll live health from coordinator state and alert on stale cursors, stale
+publisher leases, repeated reconciliation failures, and retention delete
+failures. `resolveRuntimeLiveHealth` and the stored health route classify cursor
+freshness and publisher lease status; the application owns polling intervals,
+alert routing, and restart policy.
+
+For the `object-ll` profile, a cursor that has not advanced for more than the
+configured cursor staleness window should be treated as degraded. A stale
+publisher lease means the publisher has stopped refreshing liveness; do not
+issue new grants for that publisher until it refreshes successfully.
+
+During an incident, use publication control to stop new slots, commits,
+provider events, and cursor advancement for the affected session or tenant.
+Existing manifests may continue from the last trusted cursor. The application
+must separately revoke viewers, block media prefixes, purge caches, or restart
+publishers when those actions are required.
+
 ## Playback
 
 Serve manifests from coordinator state only. Blocking reload should wait on a
