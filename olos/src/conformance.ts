@@ -79,6 +79,7 @@ export const OLOS_CONFORMANCE_ASSERTION_IDS = [
   "OBJ-RUNTIME-003",
   "OBJ-RUNTIME-004",
   "OBJ-RUNTIME-005",
+  "OBJ-RUNTIME-006",
   "OBJ-CACHE-001",
   "OBJ-CACHE-002",
   "OBJ-CACHE-003",
@@ -543,6 +544,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
   },
   {
     id: "OBJ-RUNTIME-005",
+    level: "object",
+    status: "covered",
+    testFile: "src/s3/http.test.ts",
+  },
+  {
+    id: "OBJ-RUNTIME-006",
     level: "object",
     status: "covered",
     testFile: "src/s3/http.test.ts",

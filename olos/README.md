@@ -320,6 +320,9 @@ The generic runtime routes remain available through the same handler, including
 `POST /sessions`, `POST /sessions/:id/transition`, `GET /sessions/:id/retention`,
 and `GET /v1/live/:id/...`.
 
+After an S3-backed commit advances the trusted cursor, the same handler serves
+the corresponding HLS manifests from `GET /v1/live/:id/...`.
+
 S3 `ObjectCreated:*` event payloads can also be routed through the same stored
 coordinator flow:
 

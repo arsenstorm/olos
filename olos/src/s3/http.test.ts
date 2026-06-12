@@ -185,6 +185,20 @@ describe("stored S3 coordinator runtime handler", () => {
         lastMediaSequenceNumber: 3810,
       },
     ]);
+
+    const playlist = await handle(
+      new Request("https://edge.example.com/v1/live/session_1/v1080/media.m3u8")
+    );
+    const playlistBody = await playlist.text();
+
+    expect(playlist.status).toBe(200);
+    expect(playlist.headers.get("content-type")).toBe(
+      "application/vnd.apple.mpegurl"
+    );
+    expect(playlistBody).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
+    expect(playlistBody).toContain(
+      "https://media.example.com/live/session/v1080/3810.m4s"
+    );
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
