@@ -1,3 +1,7 @@
+import type {
+  CoordinatorPipelineState,
+  CoordinatorPublisherLease,
+} from "../protocol";
 import type { Cursor } from "../types/cursor";
 import { assertCursor } from "../validation/cursor";
 import {
@@ -13,6 +17,13 @@ export interface ResolveRuntimeLiveHealthOptions {
   now: string;
 }
 
+export interface ResolveRuntimeLiveHealthFromStateOptions {
+  maxCursorAgeMs: number;
+  now: string;
+  publisherInstanceId?: string;
+  state: CoordinatorPipelineState;
+}
+
 export type RuntimeCursorFreshness = "fresh" | "missing" | "stale";
 export type RuntimeLiveHealthStatus = "active" | "stale" | "starting";
 
@@ -20,6 +31,7 @@ export interface RuntimeLiveHealth {
   cursorAgeMs?: number;
   cursorFreshness: RuntimeCursorFreshness;
   leaseStatus?: RuntimePublisherLeaseStatus;
+  publisherInstanceId?: string;
   status: RuntimeLiveHealthStatus;
 }
 
@@ -67,6 +79,52 @@ export function resolveRuntimeLiveHealth(
         ? "active"
         : "stale",
   };
+}
+
+export function resolveRuntimeLiveHealthFromState(
+  options: ResolveRuntimeLiveHealthFromStateOptions
+): RuntimeLiveHealth {
+  const lease = selectPublisherLease(
+    options.state.publisherLeases,
+    options.publisherInstanceId
+  );
+  const health = resolveRuntimeLiveHealth({
+    cursor: options.state.cursor,
+    lease,
+    maxCursorAgeMs: options.maxCursorAgeMs,
+    now: options.now,
+  });
+
+  return {
+    ...health,
+    ...(options.publisherInstanceId !== undefined && lease === undefined
+      ? { status: "stale" }
+      : {}),
+    ...(lease === undefined
+      ? {}
+      : { publisherInstanceId: lease.publisherInstanceId }),
+  };
+}
+
+function selectPublisherLease(
+  leases: readonly CoordinatorPublisherLease[],
+  publisherInstanceId: string | undefined
+): CoordinatorPublisherLease | undefined {
+  if (publisherInstanceId !== undefined) {
+    return leases.find(
+      (lease) => lease.publisherInstanceId === publisherInstanceId
+    );
+  }
+
+  let latest: CoordinatorPublisherLease | undefined;
+
+  for (const lease of leases) {
+    if (latest === undefined || lease.lastSeenAt > latest.lastSeenAt) {
+      latest = lease;
+    }
+  }
+
+  return latest;
 }
 
 function positiveNumber(value: number, name: string): number {

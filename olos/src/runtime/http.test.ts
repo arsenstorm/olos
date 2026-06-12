@@ -258,6 +258,9 @@ describe("stored coordinator runtime handler", () => {
         publisherInstanceId: "pub_1",
       })
     );
+    const health = await handle(
+      new Request("https://edge.example.com/sessions/session_1/health")
+    );
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(200);
@@ -269,6 +272,15 @@ describe("stored coordinator runtime handler", () => {
         publisherInstanceId: "pub_1",
         sessionId: session.sessionId,
         tenantId: session.tenantId,
+      },
+    });
+    expect(health.status).toBe(200);
+    expect(await health.json()).toEqual({
+      health: {
+        cursorFreshness: "missing",
+        leaseStatus: "active",
+        publisherInstanceId: "pub_1",
+        status: "starting",
       },
     });
     expect(stored?.state.publisherLeases).toHaveLength(1);

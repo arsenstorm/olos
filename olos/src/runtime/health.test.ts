@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { createCoordinatorPipeline } from "../protocol";
 import type { Cursor } from "../types/cursor";
-import { resolveRuntimeLiveHealth } from "./health";
+import type { Pathway } from "../types/pathway";
+import type { Session } from "../types/session";
+import {
+  resolveRuntimeLiveHealth,
+  resolveRuntimeLiveHealthFromState,
+} from "./health";
 import type { RuntimePublisherLease } from "./publisher-lease";
 
 describe("runtime live health", () => {
@@ -64,6 +70,71 @@ describe("runtime live health", () => {
     });
   });
 
+  test("resolves health from the latest stored publisher lease", () => {
+    expect(
+      resolveRuntimeLiveHealthFromState({
+        maxCursorAgeMs: 3000,
+        now: "2026-01-01T00:00:02.000Z",
+        state: {
+          ...createCoordinatorPipeline({ pathways, session }),
+          cursor: cursor(),
+          publisherLeases: [
+            lease("publisher_1", "2026-01-01T00:00:00.000Z"),
+            lease("publisher_2", "2026-01-01T00:00:01.000Z"),
+          ],
+        },
+      })
+    ).toEqual({
+      cursorAgeMs: 2000,
+      cursorFreshness: "fresh",
+      leaseStatus: "active",
+      publisherInstanceId: "publisher_2",
+      status: "active",
+    });
+  });
+
+  test("resolves health for a requested stored publisher lease", () => {
+    expect(
+      resolveRuntimeLiveHealthFromState({
+        maxCursorAgeMs: 3000,
+        now: "2026-01-01T00:00:05.001Z",
+        publisherInstanceId: "publisher_1",
+        state: {
+          ...createCoordinatorPipeline({ pathways, session }),
+          cursor: cursor("2026-01-01T00:00:05.000Z"),
+          publisherLeases: [
+            lease("publisher_1", "2026-01-01T00:00:00.000Z"),
+            lease("publisher_2", "2026-01-01T00:00:05.000Z"),
+          ],
+        },
+      })
+    ).toMatchObject({
+      cursorFreshness: "fresh",
+      leaseStatus: "stale",
+      publisherInstanceId: "publisher_1",
+      status: "stale",
+    });
+  });
+
+  test("marks a missing requested publisher lease as stale", () => {
+    expect(
+      resolveRuntimeLiveHealthFromState({
+        maxCursorAgeMs: 3000,
+        now: "2026-01-01T00:00:02.000Z",
+        publisherInstanceId: "publisher_missing",
+        state: {
+          ...createCoordinatorPipeline({ pathways, session }),
+          cursor: cursor(),
+          publisherLeases: [lease()],
+        },
+      })
+    ).toEqual({
+      cursorAgeMs: 2000,
+      cursorFreshness: "fresh",
+      status: "stale",
+    });
+  });
+
   test("rejects invalid health inputs", () => {
     expect(() =>
       resolveRuntimeLiveHealth({
@@ -91,12 +162,48 @@ describe("runtime live health", () => {
   });
 });
 
-function lease(): RuntimePublisherLease {
+const session: Session = {
+  createdAt: "2026-01-01T00:00:00.000Z",
+  epoch: 1,
+  latencyProfile: "object-ll",
+  olos: "1.0",
+  partTarget: 0.5,
+  renditions: [
+    {
+      bitrate: 5_000_000,
+      codec: "avc1.640028",
+      frameRate: 30,
+      height: 1080,
+      kind: "video",
+      renditionId: "v1080",
+      width: 1920,
+    },
+  ],
+  segmentTarget: 2,
+  sessionId: "session_1",
+  state: "live",
+  tenantId: "tenant_1",
+};
+
+const pathways: Pathway[] = [
+  {
+    baseUrl: "https://media.example.com",
+    pathwayId: "primary",
+    priority: 0,
+    providerId: "s3_primary",
+    state: "active",
+  },
+];
+
+function lease(
+  publisherInstanceId = "publisher_1",
+  lastSeenAt = "2026-01-01T00:00:00.000Z"
+): RuntimePublisherLease {
   return {
     expiresAt: "2026-01-01T00:00:05.000Z",
     issuedAt: "2026-01-01T00:00:00.000Z",
-    lastSeenAt: "2026-01-01T00:00:00.000Z",
-    publisherInstanceId: "publisher_1",
+    lastSeenAt,
+    publisherInstanceId,
     sessionId: "session_1",
     tenantId: "tenant_1",
   };
@@ -138,15 +245,7 @@ function cursor(updatedAt = "2026-01-01T00:00:00.000Z"): Cursor {
     latencyProfile: "object-ll",
     olos: "1.0",
     partTarget: 0.5,
-    pathways: [
-      {
-        baseUrl: "https://media.example.com",
-        pathwayId: "primary",
-        priority: 0,
-        providerId: "s3_primary",
-        state: "active",
-      },
-    ],
+    pathways,
     segmentTarget: 2,
     sessionId: "session_1",
     state: "live",

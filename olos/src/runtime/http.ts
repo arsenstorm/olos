@@ -8,6 +8,7 @@ import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
+import { resolveRuntimeLiveHealthFromState } from "./health";
 import { planStoredCoordinatorRetention } from "./retention";
 import {
   createStoredCoordinatorSession,
@@ -37,6 +38,7 @@ export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   cursorNotifier?: RuntimeCursorNotifier;
   livePath?: string;
   maxAttempts?: number;
+  maxHealthCursorAgeMs?: number;
   now?: () => string;
   publicationControl?: PublicationControlPolicy;
   publisherLeaseTtlMs?: number;
@@ -118,7 +120,34 @@ async function handleSessionActionRoute(
   action: string,
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
-  if (request.method === "POST" && action === "slots") {
+  if (request.method === "POST") {
+    return await handlePostSessionActionRoute(
+      request,
+      sessionId,
+      action,
+      options
+    );
+  }
+
+  if (request.method === "GET") {
+    return await handleGetSessionActionRoute(
+      request,
+      sessionId,
+      action,
+      options
+    );
+  }
+
+  return methodNotAllowed();
+}
+
+async function handlePostSessionActionRoute(
+  request: Request,
+  sessionId: string,
+  action: string,
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  if (action === "slots") {
     return (
       await issueStoredCoordinatorSlotFromRequest({
         maxAttempts: options.maxAttempts,
@@ -130,7 +159,7 @@ async function handleSessionActionRoute(
     ).response;
   }
 
-  if (request.method === "POST" && action === "commits") {
+  if (action === "commits") {
     const result = await commitStoredCoordinatorUploadFromRequest({
       maxAttempts: options.maxAttempts,
       publicationControl: options.publicationControl,
@@ -147,7 +176,7 @@ async function handleSessionActionRoute(
     return result.response;
   }
 
-  if (request.method === "POST" && action === "transition") {
+  if (action === "transition") {
     const parsed = await parseTransitionRequest(request);
 
     if (parsed.status === "invalid") {
@@ -164,7 +193,7 @@ async function handleSessionActionRoute(
     ).response;
   }
 
-  if (request.method === "POST" && action === "heartbeat") {
+  if (action === "heartbeat") {
     const parsed = await parseHeartbeatRequest(request);
 
     if (parsed.status === "invalid") {
@@ -183,7 +212,16 @@ async function handleSessionActionRoute(
     ).response;
   }
 
-  if (request.method === "GET" && action === "retention") {
+  return methodNotAllowed();
+}
+
+async function handleGetSessionActionRoute(
+  request: Request,
+  sessionId: string,
+  action: string,
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  if (action === "retention") {
     return (
       await planStoredCoordinatorRetention({
         now: retentionNow(request, options),
@@ -191,6 +229,32 @@ async function handleSessionActionRoute(
         store: options.store,
       })
     ).response;
+  }
+
+  if (action === "health") {
+    const snapshot = await options.store.load(sessionId);
+
+    if (snapshot === undefined) {
+      return notFound();
+    }
+
+    const publisherInstanceId = new URL(request.url).searchParams.get(
+      "publisherInstanceId"
+    );
+
+    return jsonResponse(
+      {
+        health: resolveRuntimeLiveHealthFromState({
+          maxCursorAgeMs:
+            options.maxHealthCursorAgeMs ??
+            (options.targetLatency ?? DEFAULT_TARGET_LATENCY) * 1000,
+          now: currentNow(options),
+          ...(publisherInstanceId === null ? {} : { publisherInstanceId }),
+          state: snapshot.state,
+        }),
+      },
+      200
+    );
   }
 
   return methodNotAllowed();
