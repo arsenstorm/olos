@@ -5,7 +5,10 @@ import {
 } from "../protocol";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
-import { runRuntimePublisherUploadStep } from "./publisher";
+import {
+  resolveRuntimePublisherLoopDecision,
+  runRuntimePublisherUploadStep,
+} from "./publisher";
 import {
   commitStoredCoordinatorUploadFromRequest,
   issueStoredCoordinatorSlotFromRequest,
@@ -45,6 +48,53 @@ const pathways: Pathway[] = [
 ];
 
 describe("runtime publisher upload step", () => {
+  test("resolves publisher loop decisions from step status", () => {
+    expect(
+      resolveRuntimePublisherLoopDecision({
+        attempt: 0,
+        maxAttempts: 3,
+        step: { status: "committed" },
+      })
+    ).toEqual({ action: "continue" });
+    expect(
+      resolveRuntimePublisherLoopDecision({
+        attempt: 1,
+        maxAttempts: 3,
+        step: { status: "upload_failed" },
+      })
+    ).toEqual({
+      action: "retry",
+      nextAttempt: 2,
+    });
+    expect(
+      resolveRuntimePublisherLoopDecision({
+        attempt: 2,
+        maxAttempts: 3,
+        step: { status: "commit_failed" },
+      })
+    ).toEqual({
+      action: "stop",
+      reason: "attempts_exhausted",
+    });
+  });
+
+  test("rejects invalid publisher loop decision inputs", () => {
+    expect(() =>
+      resolveRuntimePublisherLoopDecision({
+        attempt: -1,
+        maxAttempts: 3,
+        step: { status: "issue_failed" },
+      })
+    ).toThrow("attempt must be a non-negative integer");
+    expect(() =>
+      resolveRuntimePublisherLoopDecision({
+        attempt: 0,
+        maxAttempts: 0,
+        step: { status: "issue_failed" },
+      })
+    ).toThrow("maxAttempts must be a positive integer");
+  });
+
   test("issues, uploads, and commits one publisher segment", async () => {
     const store = createMemoryCoordinatorStore();
     await seedSession(store);

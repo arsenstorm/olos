@@ -28,6 +28,32 @@ export interface RunRuntimePublisherUploadStepOptions {
   upload(slot: UploadSlot): Promise<RuntimeObservedUploadPayload>;
 }
 
+export interface ResolveRuntimePublisherLoopDecisionOptions {
+  attempt: number;
+  maxAttempts: number;
+  step: RuntimePublisherStepStatus;
+}
+
+export interface RuntimePublisherStepStatus {
+  status: RuntimePublisherUploadStepStatus;
+}
+
+export type RuntimePublisherUploadStepStatus =
+  RuntimePublisherUploadStep["status"];
+
+export type RuntimePublisherLoopDecision =
+  | {
+      action: "continue";
+    }
+  | {
+      action: "retry";
+      nextAttempt: number;
+    }
+  | {
+      action: "stop";
+      reason: "attempts_exhausted";
+    };
+
 export type RuntimePublisherUploadStep =
   | {
       commit: RuntimePublisherCommitResult;
@@ -124,6 +150,34 @@ export async function runRuntimePublisherUploadStep(
   };
 }
 
+export function resolveRuntimePublisherLoopDecision(
+  options: ResolveRuntimePublisherLoopDecisionOptions
+): RuntimePublisherLoopDecision {
+  const attempt = nonNegativeInteger(options.attempt, "attempt");
+  const maxAttempts = positiveInteger(options.maxAttempts, "maxAttempts");
+
+  if (
+    options.step.status === "committed" ||
+    options.step.status === "idempotent"
+  ) {
+    return { action: "continue" };
+  }
+
+  const nextAttempt = attempt + 1;
+
+  if (nextAttempt < maxAttempts) {
+    return {
+      action: "retry",
+      nextAttempt,
+    };
+  }
+
+  return {
+    action: "stop",
+    reason: "attempts_exhausted",
+  };
+}
+
 function optionalBoolean<Key extends string>(
   key: Key,
   value: boolean | undefined
@@ -147,4 +201,20 @@ function optionalString<Key extends string>(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "publisher upload failed";
+}
+
+function nonNegativeInteger(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative integer`);
+  }
+
+  return value;
+}
+
+function positiveInteger(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+
+  return value;
 }

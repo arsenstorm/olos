@@ -44,10 +44,15 @@ export {
   serveCoordinatorManifest,
 } from "./runtime/manifest";
 export {
+  type ResolveRuntimePublisherLoopDecisionOptions,
   type RunRuntimePublisherUploadStepOptions,
   type RuntimePublisherCommitResult,
   type RuntimePublisherIssueResult,
+  type RuntimePublisherLoopDecision,
+  type RuntimePublisherStepStatus,
   type RuntimePublisherUploadStep,
+  type RuntimePublisherUploadStepStatus,
+  resolveRuntimePublisherLoopDecision,
   runRuntimePublisherUploadStep,
 } from "./runtime/publisher";
 export {

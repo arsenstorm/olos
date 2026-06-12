@@ -103,6 +103,8 @@ notifier backed by their own queue, pub/sub, or durable runtime.
 `runRuntimePublisherUploadStep` models the publisher loop for one object: issue
 a slot, let the app upload to its provider, then commit the observed upload.
 The application still owns encoder timing, bytes, retries, and credentials.
+`resolveRuntimePublisherLoopDecision` maps a completed step into `continue`,
+`retry`, or `stop` so applications can keep retry policy explicit.
 
 `createRuntimePublisherLease`, `refreshRuntimePublisherLease`, and
 `resolveRuntimePublisherLeaseStatus` provide a small heartbeat model for
