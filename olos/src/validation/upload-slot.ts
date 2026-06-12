@@ -1,9 +1,10 @@
 import { MEDIA_OBJECT_KINDS } from "../config/media-object";
 import { PUBLICATION_MODES } from "../config/publication";
 import { UPLOAD_SLOT_STATES } from "../config/upload-slot";
+import type { MediaObjectKind } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
-import { assertSafeObjectKey } from "./object-key";
+import { assertSafeMediaObjectKey } from "./object-key";
 
 export function isUploadSlot(value: unknown): value is UploadSlot {
   try {
@@ -45,11 +46,15 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
     }
   }
 
-  assertSafeObjectKey(value.objectKey, "uploadSlot.objectKey");
+  assertAllowedValue(value.kind, MEDIA_OBJECT_KINDS, "uploadSlot.kind");
+  assertSafeMediaObjectKey(
+    value.objectKey,
+    value.kind as MediaObjectKind,
+    "uploadSlot.objectKey"
+  );
   assertNonEmptyStringField(value, "deliveryUrl");
   assertNonEmptyStringField(value, "contentType");
 
-  assertAllowedValue(value.kind, MEDIA_OBJECT_KINDS, "uploadSlot.kind");
   assertAllowedValue(
     value.publicationMode,
     PUBLICATION_MODES,

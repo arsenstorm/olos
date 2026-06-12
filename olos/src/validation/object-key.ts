@@ -1,3 +1,5 @@
+import type { MediaObjectKind } from "../types/media-object";
+
 export function isSafeObjectKey(value: unknown): value is string {
   return typeof value === "string" && safeObjectKeyError(value) === undefined;
 }
@@ -7,6 +9,42 @@ export function assertSafeObjectKey(value: unknown, name: string): void {
 
   if (error !== undefined) {
     throw new Error(`${name} ${error}`);
+  }
+}
+
+export function assertSafeMediaObjectKey(
+  value: unknown,
+  kind: MediaObjectKind,
+  name: string
+): void {
+  assertSafeObjectKey(value, name);
+
+  if (typeof value !== "string") {
+    return;
+  }
+
+  const allowedExtensions = MEDIA_OBJECT_EXTENSIONS[kind];
+
+  if (
+    allowedExtensions !== undefined &&
+    !allowedExtensions.some((extension) => value.endsWith(extension))
+  ) {
+    throw new Error(`${name} must use a supported media extension`);
+  }
+}
+
+export function assertSupportedMediaExtension(
+  extension: string,
+  kind: MediaObjectKind,
+  name: string
+): void {
+  const allowedExtensions = MEDIA_OBJECT_EXTENSIONS[kind];
+
+  if (
+    allowedExtensions !== undefined &&
+    !allowedExtensions.includes(`.${extension}`)
+  ) {
+    throw new Error(`${name} must use a supported media extension`);
   }
 }
 
@@ -43,3 +81,11 @@ function hasControlCharacter(value: string): boolean {
 
   return false;
 }
+
+const MEDIA_OBJECT_EXTENSIONS: Partial<
+  Record<MediaObjectKind, readonly string[]>
+> = {
+  init: [".mp4"],
+  part: [".m4s"],
+  segment: [".m4s"],
+};

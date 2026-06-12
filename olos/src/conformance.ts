@@ -737,7 +737,7 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     id: "SEC-DIRECT-002",
     level: "security",
     status: "covered",
-    testFile: "src/state/direct-public-security-policy.test.ts",
+    testFile: "src/validation/upload-slot.test.ts",
   },
   {
     id: "SEC-DIRECT-003",
@@ -749,7 +749,7 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     id: "SEC-DIRECT-005",
     level: "security",
     status: "covered",
-    testFile: "src/state/direct-public-security-policy.test.ts",
+    testFile: "src/validation/upload-slot.test.ts",
   },
   {
     id: "SEC-DIRECT-006",

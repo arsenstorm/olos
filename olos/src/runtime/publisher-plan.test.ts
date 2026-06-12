@@ -149,6 +149,13 @@ describe("runtime publisher object plan", () => {
         objectKeyNonce: "../slot",
       })
     ).toThrow("objectKeyNonce must be a non-empty URL-safe identifier");
+
+    expect(() =>
+      createRuntimePublisherObjectPlan({
+        ...validSegmentPlan(),
+        extension: "html",
+      })
+    ).toThrow("extension must use a supported media extension");
   });
 });
 

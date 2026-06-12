@@ -1,6 +1,7 @@
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "../validation/ids";
+import { assertSupportedMediaExtension } from "../validation/object-key";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
 const LEADING_DOTS_PATTERN = /^\.+/;
@@ -74,6 +75,7 @@ function assertPlanOptions(
   assertOptionalUrlSafeIdentifier(options.objectKeyNonce, "objectKeyNonce");
   assertSafePath(options.objectKeyPrefix, "objectKeyPrefix");
   assertSafePathSegment(options.extension, "extension");
+  assertSupportedMediaExtension(options.extension, options.kind, "extension");
 
   if (options.kind === "part") {
     if (!isNonNegativeInteger(options.partNumber)) {

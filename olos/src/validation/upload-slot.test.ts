@@ -59,6 +59,22 @@ describe("upload slot validation", () => {
     ).toThrow("uploadSlot.objectKey must not contain control characters");
   });
 
+  test("rejects unsupported media object extensions", () => {
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, objectKey: "media/key.html" })
+    ).toThrow("uploadSlot.objectKey must use a supported media extension");
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, objectKey: "media/playlist.m3u8" })
+    ).toThrow("uploadSlot.objectKey must use a supported media extension");
+    expect(() =>
+      assertUploadSlot({
+        ...validUploadSlot,
+        kind: "init",
+        objectKey: "media/init.m4s",
+      })
+    ).toThrow("uploadSlot.objectKey must use a supported media extension");
+  });
+
   test("rejects invalid byte limits", () => {
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, minBytes: 20, maxBytes: 10 })
