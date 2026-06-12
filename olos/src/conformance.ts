@@ -47,6 +47,7 @@ export const OLOS_CONFORMANCE_ASSERTION_IDS = [
   "CORE-RUNTIME-005",
   "CORE-RUNTIME-006",
   "CORE-RUNTIME-007",
+  "CORE-RUNTIME-008",
   "OBJ-GRANT-001",
   "OBJ-GRANT-002",
   "OBJ-GRANT-003",
@@ -344,6 +345,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     level: "core",
     status: "covered",
     testFile: "src/runtime/publisher.test.ts",
+  },
+  {
+    id: "CORE-RUNTIME-008",
+    level: "core",
+    status: "covered",
+    testFile: "src/runtime/publisher-lease.test.ts",
   },
   {
     id: "OBJ-GRANT-001",

@@ -32,6 +32,17 @@ export {
   runRuntimePublisherUploadStep,
 } from "./runtime/publisher";
 export {
+  assertRuntimePublisherLease,
+  type CreateRuntimePublisherLeaseOptions,
+  createRuntimePublisherLease,
+  type RefreshRuntimePublisherLeaseOptions,
+  type ResolveRuntimePublisherLeaseStatusOptions,
+  type RuntimePublisherLease,
+  type RuntimePublisherLeaseStatus,
+  refreshRuntimePublisherLease,
+  resolveRuntimePublisherLeaseStatus,
+} from "./runtime/publisher-lease";
+export {
   type DeleteRetiredCoordinatorObjectsOptions,
   deleteRetiredCoordinatorObjects,
   type PlanStoredCoordinatorRetentionOptions,

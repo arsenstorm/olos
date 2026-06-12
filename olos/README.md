@@ -104,6 +104,11 @@ notifier backed by their own queue, pub/sub, or durable runtime.
 a slot, let the app upload to its provider, then commit the observed upload.
 The application still owns encoder timing, bytes, retries, and credentials.
 
+`createRuntimePublisherLease`, `refreshRuntimePublisherLease`, and
+`resolveRuntimePublisherLeaseStatus` provide a small heartbeat model for
+app-owned publisher liveness. Store the lease wherever your runtime keeps
+publisher process metadata; OLOS only computes expiry and stale status.
+
 ### Publication Control
 
 Use `publicationControl` to stop new publication during an incident or budget
