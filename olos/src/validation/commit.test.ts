@@ -56,6 +56,34 @@ describe("commit validation", () => {
     ).toThrow("commit.objectKey must not contain control characters");
   });
 
+  test("rejects unsafe delivery URLs", () => {
+    expect(() =>
+      assertCommit({ ...validCommit, deliveryUrl: "media/key.m4s" })
+    ).toThrow(
+      "commit.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
+    );
+    expect(() =>
+      assertCommit({ ...validCommit, deliveryUrl: "javascript:alert(1)" })
+    ).toThrow(
+      "commit.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
+    );
+    expect(() =>
+      assertCommit({
+        ...validCommit,
+        deliveryUrl: "https://media.example.com/key.m4s?token=abc",
+      })
+    ).toThrow("commit.deliveryUrl must not contain query strings or fragments");
+    expect(() =>
+      assertCommit({ ...validCommit, deliveryUrl: "/media/key.m4s#x" })
+    ).toThrow("commit.deliveryUrl must not contain query strings or fragments");
+    expect(() =>
+      assertCommit({
+        ...validCommit,
+        deliveryUrl: "/media/key.m4s\n#EXT-X-ENDLIST",
+      })
+    ).toThrow("commit.deliveryUrl must not contain control characters");
+  });
+
   test("rejects invalid size and duration", () => {
     expect(() => assertCommit({ ...validCommit, size: 0 })).toThrow(
       "commit.size must be a positive number"
