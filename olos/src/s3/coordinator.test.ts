@@ -501,6 +501,62 @@ describe("s3 coordinator uploads", () => {
     ]);
   });
 
+  test("commits duplicate stored S3 uploads idempotently", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+
+    await store.save({
+      sessionId: session.sessionId,
+      state: createReadyState(),
+    });
+
+    const committed = await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotId: "slot_3810",
+      store,
+    });
+    const duplicate = await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+      commitId: "commit_3810_retry",
+      committedAt: "2026-01-01T00:00:03.000Z",
+      independent: true,
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotId: "slot_3810",
+      store,
+    });
+    const stored = await store.load(session.sessionId);
+
+    expect(committed.status).toBe("committed");
+    expect(duplicate.status).toBe("idempotent");
+    if (committed.status !== "committed" || duplicate.status !== "idempotent") {
+      throw new Error("expected idempotent duplicate S3 commit");
+    }
+
+    expect(duplicate.commit).toEqual(committed.commit);
+    expect(duplicate.etag).toBe(committed.etag);
+    expect(stored?.etag).toBe(committed.etag);
+    expect(stored?.state.commits).toEqual([committed.commit]);
+    expect(stored?.state.cursor).toEqual(committed.cursor);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/s3810.m4s",
+      },
+      {
+        Bucket: "media",
+        Key: "media/s3810.m4s",
+      },
+    ]);
+  });
+
   test("rejects oversized stored S3 uploads without committing them", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
