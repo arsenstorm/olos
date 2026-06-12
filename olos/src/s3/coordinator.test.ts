@@ -1013,6 +1013,83 @@ describe("s3 coordinator uploads", () => {
     ]);
   });
 
+  test("rejects object-created events blocked by commit policy", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state: createCoordinatorPipeline({ pathways, session }),
+    }).state;
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const result = await routeStoredS3CoordinatorUploadEvent({
+      bucket: "media",
+      client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+      commitPolicy: ({ slot }) => ({
+        error: {
+          error: {
+            code: "olos.quota_exceeded",
+            details: {
+              publisherInstanceId: slot.publisherInstanceId,
+            },
+            message: "tenant quota exceeded",
+          },
+        },
+        status: "rejected",
+      }),
+      event: normalizeUploadEvent({
+        event: {
+          contentType: "video/mp4",
+          eventId: "evt_3810",
+          eventTime: "2026-01-01T00:00:02.000Z",
+          eventType: "object.created",
+          objectKey: "media/s3810.m4s",
+          providerId: "s3_primary",
+          size: 98_304,
+        },
+      }),
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store,
+    });
+    const snapshot = await store.load(session.sessionId);
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected commit policy rejection");
+    }
+
+    expect(result.error.error).toEqual({
+      code: "olos.quota_exceeded",
+      details: {
+        publisherInstanceId: "pub_1",
+      },
+      message: "tenant quota exceeded",
+    });
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/s3810.m4s",
+      },
+    ]);
+    expect(snapshot?.state.commits).toHaveLength(0);
+    expect(snapshot?.state.slots[0]?.state).toBe("issued");
+  });
+
   test("routes upload-completed hints to keyed S3 completion", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
