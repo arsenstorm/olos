@@ -32,6 +32,11 @@ export {
   runRuntimePublisherUploadStep,
 } from "./runtime/publisher";
 export {
+  type ResolveRuntimePublisherObjectExpiryOptions,
+  type RuntimePublisherObjectExpiry,
+  resolveRuntimePublisherObjectExpiry,
+} from "./runtime/publisher-expiry";
+export {
   assertRuntimePublisherLease,
   type CreateRuntimePublisherLeaseOptions,
   createRuntimePublisherLease,

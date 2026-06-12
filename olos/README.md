@@ -113,6 +113,11 @@ publisher process metadata; OLOS only computes expiry and stale status.
 commit IDs for init, segment, and part objects. It is a naming helper, not a
 scheduler; the application still controls encoder timing and retry policy.
 
+`resolveRuntimePublisherObjectExpiry` derives a short-lived `expiresAt` and
+`ttlSeconds` from object duration plus target latency. Use it for planned slot
+expiry and provider upload grant TTLs when you want OLOS to keep that policy
+consistent without taking over scheduling.
+
 ### Publication Control
 
 Use `publicationControl` to stop new publication during an incident or budget
