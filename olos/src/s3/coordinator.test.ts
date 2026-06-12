@@ -9,6 +9,7 @@ import {
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
 } from "../protocol/coordinator";
+import { createRuntimePublisherObjectPlan } from "../runtime/publisher-plan";
 import { normalizeUploadEvent } from "../state/observed-upload";
 import { createPublicationKillSwitch } from "../state/publication-control";
 import type { Pathway } from "../types/pathway";
@@ -98,6 +99,58 @@ describe("s3 coordinator uploads", () => {
     expect(issue.grant.slotId).toBe("slot_3810");
     expect(issue.slot.objectKey).toBe("live/session/v1080/3810.m4s");
     expect(stored?.etag).toBe("2");
+    expect(stored?.state.slots).toEqual([issue.slot]);
+  });
+
+  test("issues planned part objects through stored S3 grants", async () => {
+    const store = createMemoryCoordinatorStore();
+    const state = createCoordinatorPipeline({ pathways, session });
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const plan = createRuntimePublisherObjectPlan({
+      baseUrl: "https://media.example.com",
+      contentType: "video/iso.segment",
+      duration: 0.5,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      extension: "m4s",
+      kind: "part",
+      maxBytes: 25_000,
+      mediaSequenceNumber: 3811,
+      objectKeyPrefix: "live/session",
+      partNumber: 0,
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+    });
+    const issue = await issueStoredS3CoordinatorUploadGrant({
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      now: "2026-01-01T00:00:00.000Z",
+      sessionId: session.sessionId,
+      ...plan.slot,
+      store,
+    });
+
+    expect(issue.status).toBe("saved");
+    if (issue.status !== "saved") {
+      throw new Error("expected planned part grant issue");
+    }
+
+    const url = new URL(issue.grant.url);
+    const stored = await store.load(session.sessionId);
+
+    expect(issue.slot).toMatchObject({
+      kind: "part",
+      objectKey: plan.slot.objectKey,
+      partNumber: 0,
+      slotId: plan.slot.slotId,
+    });
+    expect(issue.grant.slotId).toBe(plan.slot.slotId);
+    expect(url.pathname).toBe(`/media/${plan.slot.objectKey}`);
     expect(stored?.state.slots).toEqual([issue.slot]);
   });
 
