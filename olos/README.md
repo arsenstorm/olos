@@ -217,6 +217,22 @@ the row does not exist. When `expectedEtag` is present, it should update only if
 the current row has that ETag. On conflict, return the current row when the
 backend can read it in the same transaction.
 
+Backend adapters should map the serialized contract as:
+
+| Case | Required behavior |
+| --- | --- |
+| `load(sessionId)` misses | Return `undefined`. |
+| `save` without `expectedEtag` and no row exists | Insert `record` and return `saved`. |
+| `save` without `expectedEtag` and a row exists | Return `conflict` with the current row when available. |
+| `save` with `expectedEtag` and matching row | Replace the row with `record` and return `saved`. |
+| `save` with `expectedEtag` and no row or mismatch | Return `conflict` with the current row when available. |
+
+SQL adapters should enforce this with a primary key on `sessionId` and
+conditional `INSERT`/`UPDATE ... WHERE etag = ?` statements inside one
+transaction. KV-style adapters need an equivalent compare-and-set primitive; a
+plain read followed by an unconditional write is not enough for concurrent
+publishers.
+
 Use `createMemorySerializedCoordinatorStoreBackend` as a small reference
 implementation for tests or adapter development.
 
