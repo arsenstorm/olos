@@ -10,7 +10,9 @@ import {
   commitStoredCoordinatorUploadFromRequest,
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
+  createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
+  createRuntimePublisherNextObjectPlan,
   createRuntimePublisherObjectPlan,
   createStoredCoordinatorSession,
   issueStoredCoordinatorSlotFromRequest,
@@ -79,6 +81,135 @@ describe("runtime pipeline", () => {
     await expect(
       expectStoredCoordinatorLifecycle(store)
     ).resolves.toBeUndefined();
+  });
+
+  test("applies the object low-latency profile across publish and manifest flow", async () => {
+    const store = createMemoryCoordinatorStore();
+    const defaults = createRuntimeObjectLowLatencyPublisherDefaults({
+      contentType: "video/mp4",
+      init: {
+        duration: 1,
+        maxBytes: 2048,
+      },
+      part: {
+        maxBytes: 25_000,
+      },
+      profile: latency,
+      segment: {
+        maxBytes: 100_000,
+      },
+    });
+    const init = createRuntimePublisherNextObjectPlan({
+      baseUrl: "https://media.example.com",
+      defaults,
+      initPublished: false,
+      minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
+      now: publishNow,
+      objectKeyPrefix: "media",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      targetLatency: publisherOptions.expiry.targetLatency,
+    });
+    const next = createRuntimePublisherNextObjectPlan({
+      baseUrl: "https://media.example.com",
+      defaults,
+      initPublished: true,
+      minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
+      now: publishNow,
+      objectKeyPrefix: "media",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      startMediaSequenceNumber: 3810,
+      targetLatency: publisherOptions.expiry.targetLatency,
+    });
+
+    await createStoredCoordinatorSession({
+      pathways,
+      session,
+      store,
+    });
+
+    const initIssue = await issueStoredCoordinatorSlotFromRequest({
+      request: init.plan.slot,
+      sessionId: session.sessionId,
+      store,
+    });
+    const issued = await issueStoredCoordinatorSlotFromRequest({
+      request: next.plan.slot,
+      sessionId: session.sessionId,
+      store,
+    });
+    const initCommit = await commitStoredCoordinatorUploadFromRequest({
+      request: commitPayload({
+        commitId: init.plan.commitId,
+        objectKey: init.plan.slot.objectKey,
+        size: 1024,
+        slotId: init.plan.slot.slotId,
+      }),
+      sessionId: session.sessionId,
+      store,
+    });
+    const committed = await commitStoredCoordinatorUploadFromRequest({
+      request: {
+        ...commitPayload({
+          commitId: next.plan.commitId,
+          objectKey: next.plan.slot.objectKey,
+          size: 98_304,
+          slotId: next.plan.slot.slotId,
+        }),
+        independent: true,
+      },
+      sessionId: session.sessionId,
+      store,
+    });
+    const media = await serveStoredCoordinatorManifest({
+      allowedMediaOrigins: ["https://media.example.com"],
+      ...manifestOptions.manifest,
+      request: "https://edge.example.com/v1/live/session_1/v1080/media.m3u8",
+      response: manifestOptions.response,
+      sessionId: session.sessionId,
+      store,
+    });
+    const body = await media.text();
+
+    expect(init.position).toEqual({
+      kind: "init",
+      mediaSequenceNumber: 0,
+    });
+    expect(next.position).toEqual({
+      kind: "segment",
+      mediaSequenceNumber: 3810,
+    });
+    expect(next.expiry).toEqual({
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      ttlSeconds: 5,
+    });
+    expect(next.plan.slot).toMatchObject({
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      mediaSequenceNumber: 3810,
+    });
+    expect(initIssue.status).toBe("issued");
+    expect(issued.status).toBe("issued");
+    expect(initCommit.status).toBe("committed");
+    expect(committed.status).toBe("committed");
+    expect(
+      committed.status === "committed" ? committed.state.cursor?.window : {}
+    ).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+    expect(media.status).toBe(200);
+    expect(media.headers.get("cache-control")).toBe(
+      "public, max-age=1, must-revalidate"
+    );
+    expect(body).toContain("#EXT-X-TARGETDURATION:2");
+    expect(body).toContain("#EXT-X-PART-INF:PART-TARGET=0.5");
+    expect(body).toContain("#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES");
+    expect(body).toContain(next.plan.slot.deliveryUrl);
   });
 });
 
