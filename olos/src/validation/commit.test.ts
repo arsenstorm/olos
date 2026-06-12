@@ -47,6 +47,15 @@ describe("commit validation", () => {
     ).toThrow("commit.mediaSequenceNumber must be a non-negative integer");
   });
 
+  test("rejects unsafe object keys", () => {
+    expect(() =>
+      assertCommit({ ...validCommit, objectKey: "media/../secret.m4s" })
+    ).toThrow("commit.objectKey must be a safe relative object key");
+    expect(() =>
+      assertCommit({ ...validCommit, objectKey: "media/key.m4s\n" })
+    ).toThrow("commit.objectKey must not contain control characters");
+  });
+
   test("rejects invalid size and duration", () => {
     expect(() => assertCommit({ ...validCommit, size: 0 })).toThrow(
       "commit.size must be a positive number"

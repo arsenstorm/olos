@@ -3,6 +3,7 @@ import { PUBLICATION_MODES } from "../config/publication";
 import { UPLOAD_SLOT_STATES } from "../config/upload-slot";
 import type { UploadSlot } from "../types/upload-slot";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
+import { assertSafeObjectKey } from "./object-key";
 
 export function isUploadSlot(value: unknown): value is UploadSlot {
   try {
@@ -44,7 +45,7 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
     }
   }
 
-  assertNonEmptyStringField(value, "objectKey");
+  assertSafeObjectKey(value.objectKey, "uploadSlot.objectKey");
   assertNonEmptyStringField(value, "deliveryUrl");
   assertNonEmptyStringField(value, "contentType");
 

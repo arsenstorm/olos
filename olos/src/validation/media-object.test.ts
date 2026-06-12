@@ -43,6 +43,18 @@ describe("media object validation", () => {
     ).toThrow("mediaObject.objectKey must be a non-empty string");
   });
 
+  test("rejects unsafe object keys", () => {
+    expect(() =>
+      assertMediaObject({ ...validMediaObject, objectKey: "tenant//3810.m4s" })
+    ).toThrow("mediaObject.objectKey must be a safe relative object key");
+    expect(() =>
+      assertMediaObject({
+        ...validMediaObject,
+        objectKey: "tenant/3810.m4s\n",
+      })
+    ).toThrow("mediaObject.objectKey must not contain control characters");
+  });
+
   test("rejects missing content types", () => {
     expect(() =>
       assertMediaObject({ ...validMediaObject, contentType: "" })

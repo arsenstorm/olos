@@ -106,9 +106,7 @@ describe("object publication", () => {
             objectKey,
           },
         })
-      ).toThrow(
-        "commit.objectKey must be a safe relative object key for direct-public commits"
-      );
+      ).toThrow("commit.objectKey");
     }
   });
 

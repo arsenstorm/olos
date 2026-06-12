@@ -1,6 +1,7 @@
 import { PUBLICATION_MODES } from "../config/publication";
 import type { Commit } from "../types/commit";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
+import { assertSafeObjectKey } from "./object-key";
 
 export function isCommit(value: unknown): value is Commit {
   try {
@@ -32,7 +33,7 @@ export function assertCommit(value: unknown): asserts value is Commit {
   assertPositiveNumberField(value, "duration");
   assertPositiveNumberField(value, "size");
 
-  assertNonEmptyStringField(value, "objectKey");
+  assertSafeObjectKey(value.objectKey, "commit.objectKey");
   assertNonEmptyStringField(value, "deliveryUrl");
   assertNonEmptyStringField(value, "committedAt");
 

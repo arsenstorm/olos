@@ -50,6 +50,15 @@ describe("upload slot validation", () => {
     ).toThrow("uploadSlot.mediaSequenceNumber must be a non-negative integer");
   });
 
+  test("rejects unsafe object keys", () => {
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, objectKey: "/media/key.m4s" })
+    ).toThrow("uploadSlot.objectKey must be a safe relative object key");
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, objectKey: "media/key.m4s\n" })
+    ).toThrow("uploadSlot.objectKey must not contain control characters");
+  });
+
   test("rejects invalid byte limits", () => {
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, minBytes: 20, maxBytes: 10 })
