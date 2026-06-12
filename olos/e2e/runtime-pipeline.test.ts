@@ -1,6 +1,7 @@
 import { createMemoryCoordinatorStore } from "olos/protocol";
 import {
   commitStoredCoordinatorUploadFromRequest,
+  createRuntimePublisherObjectPlan,
   createStoredCoordinatorSession,
   issueStoredCoordinatorSlotFromRequest,
   planStoredCoordinatorRetention,
@@ -56,42 +57,61 @@ describe("runtime pipeline", () => {
 
     expect(created.status).toBe("created");
 
+    const initPlan = createRuntimePublisherObjectPlan({
+      baseUrl: "https://media.example.com",
+      contentType: "video/mp4",
+      duration: 1,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      extension: "mp4",
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKeyPrefix: "media",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+    });
+    const segmentPlan = createRuntimePublisherObjectPlan({
+      baseUrl: "https://media.example.com",
+      contentType: "video/mp4",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      extension: "m4s",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKeyPrefix: "media",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+    });
+    const nextPlan = createRuntimePublisherObjectPlan({
+      baseUrl: "https://media.example.com",
+      contentType: "video/mp4",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      extension: "m4s",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3811,
+      objectKeyPrefix: "media",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+    });
+
     const initIssue = await issueStoredCoordinatorSlotFromRequest({
-      request: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
-        duration: 1,
-        kind: "init",
-        maxBytes: 2048,
-        mediaSequenceNumber: 0,
-        objectKey: "media/v1080/init.mp4",
-        slotId: "slot_init",
-      }),
+      request: initPlan.slot,
       sessionId: session.sessionId,
       store,
     });
     const segmentIssue = await issueStoredCoordinatorSlotFromRequest({
-      request: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
-        duration: 2,
-        kind: "segment",
-        maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/3810.m4s",
-        slotId: "slot_3810",
-      }),
+      request: segmentPlan.slot,
       sessionId: session.sessionId,
       store,
     });
     const nextIssue = await issueStoredCoordinatorSlotFromRequest({
-      request: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/3811.m4s",
-        duration: 2,
-        kind: "segment",
-        maxBytes: 100_000,
-        mediaSequenceNumber: 3811,
-        objectKey: "media/v1080/3811.m4s",
-        slotId: "slot_3811",
-      }),
+      request: nextPlan.slot,
       sessionId: session.sessionId,
       store,
     });
@@ -102,10 +122,10 @@ describe("runtime pipeline", () => {
 
     const initCommit = await commitStoredCoordinatorUploadFromRequest({
       request: commitPayload({
-        commitId: "commit_init",
-        objectKey: "media/v1080/init.mp4",
+        commitId: initPlan.commitId,
+        objectKey: initPlan.slot.objectKey,
         size: 1024,
-        slotId: "slot_init",
+        slotId: initPlan.slot.slotId,
       }),
       sessionId: session.sessionId,
       store,
@@ -113,10 +133,10 @@ describe("runtime pipeline", () => {
     const segmentCommit = await commitStoredCoordinatorUploadFromRequest({
       request: {
         ...commitPayload({
-          commitId: "commit_3810",
-          objectKey: "media/v1080/3810.m4s",
+          commitId: segmentPlan.commitId,
+          objectKey: segmentPlan.slot.objectKey,
           size: 98_304,
-          slotId: "slot_3810",
+          slotId: segmentPlan.slot.slotId,
         }),
         independent: true,
       },
@@ -164,9 +184,7 @@ describe("runtime pipeline", () => {
       "/v1/live/session_1/v1080/media.m3u8"
     );
     expect(media.status).toBe(200);
-    expect(await media.text()).toContain(
-      "https://media.example.com/media/v1080/3810.m4s"
-    );
+    expect(await media.text()).toContain(segmentPlan.slot.deliveryUrl);
 
     const transitioned = await transitionStoredCoordinatorSession({
       sessionId: session.sessionId,
@@ -196,38 +214,11 @@ describe("runtime pipeline", () => {
     }
 
     expect(retention.plan.expiredSlots.map((slot) => slot.slotId)).toEqual([
-      "slot_3811",
+      nextPlan.slot.slotId,
     ]);
     expect(retention.plan.retiredObjects).toEqual([]);
   });
 });
-
-interface SlotPayloadOptions {
-  deliveryUrl: string;
-  duration: number;
-  kind: "init" | "segment";
-  maxBytes: number;
-  mediaSequenceNumber: number;
-  objectKey: string;
-  slotId: string;
-}
-
-function slotPayload(options: SlotPayloadOptions) {
-  return {
-    contentType: "video/mp4",
-    deliveryUrl: options.deliveryUrl,
-    duration: options.duration,
-    expiresAt: "2026-01-01T00:00:05.000Z",
-    kind: options.kind,
-    maxBytes: options.maxBytes,
-    mediaSequenceNumber: options.mediaSequenceNumber,
-    objectKey: options.objectKey,
-    publicationMode: "direct-public" as const,
-    publisherInstanceId: "pub_1",
-    renditionId: "v1080",
-    slotId: options.slotId,
-  };
-}
 
 interface CommitPayloadOptions {
   commitId: string;
