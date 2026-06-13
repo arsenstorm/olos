@@ -217,6 +217,20 @@ describe("provider upload grant policy", () => {
     );
   });
 
+  test.each([
+    0,
+    -1,
+    Number.POSITIVE_INFINITY,
+  ])("rejects invalid grant TTL %p", (grantTtlSeconds) => {
+    expect(() =>
+      assertProviderCanIssueUploadGrant({
+        capability,
+        grantTtlSeconds,
+        slot,
+      })
+    ).toThrow("grantTtlSeconds must be a positive finite number");
+  });
+
   test("rejects direct-public slots without direct publication support", () => {
     expect(() =>
       assertProviderCanIssueUploadGrant({

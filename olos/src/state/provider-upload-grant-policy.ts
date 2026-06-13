@@ -131,6 +131,13 @@ function assertUploadGrantCapabilities(
 
   if (
     options.grantTtlSeconds !== undefined &&
+    (!Number.isFinite(options.grantTtlSeconds) || options.grantTtlSeconds <= 0)
+  ) {
+    throw new Error("grantTtlSeconds must be a positive finite number");
+  }
+
+  if (
+    options.grantTtlSeconds !== undefined &&
     uploadGrants.maxRecommendedTtlSeconds !== undefined &&
     options.grantTtlSeconds > uploadGrants.maxRecommendedTtlSeconds
   ) {
