@@ -374,6 +374,64 @@ describe("stored S3 publisher upload step", () => {
     ]);
   });
 
+  test("summarizes rejected commit error codes", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+
+    await store.save({
+      sessionId: session.sessionId,
+      state: createCoordinatorPipeline({ pathways, session }),
+    });
+
+    const step = await runPlannedStoredS3PublisherUploadStep({
+      bucket: "media",
+      client: createClient(),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      commitPolicy: () => ({
+        error: {
+          error: {
+            code: "olos.quota_exceeded",
+            message: "publisher quota exceeded",
+          },
+        },
+        status: "rejected",
+      }),
+      headObjectClient: clientFor(
+        "media/v1080/s3810.m4s",
+        98_304,
+        headObjectInputs
+      ),
+      now: "2026-01-01T00:00:00.000Z",
+      plan: {
+        baseUrl: "https://media.example.com",
+        contentType: "video/mp4",
+        duration: 2,
+        extension: "m4s",
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKeyPrefix: "media",
+        publicationMode: "direct-public",
+        publisherInstanceId: "publisher_1",
+        renditionId: "v1080",
+      },
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store,
+      targetLatency: 3,
+      upload: () => Promise.resolve(),
+    });
+
+    expect(summarizeStoredS3PublisherUploadStep(step)).toMatchObject({
+      commitStatus: "rejected",
+      errorCode: "olos.quota_exceeded",
+      objectKey: "media/v1080/s3810.m4s",
+      ok: false,
+      slotId: "slot_v1080_s3810",
+      status: "commit_failed",
+    });
+  });
+
   test("keeps planned context when upload fails", async () => {
     const store = createMemoryCoordinatorStore();
 

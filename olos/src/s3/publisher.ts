@@ -19,6 +19,7 @@ import {
   type RuntimePublisherObjectPlan,
 } from "../runtime/publisher-plan";
 import type { PublicationControlPolicy } from "../state/publication-control";
+import type { OlosErrorCode } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
@@ -121,6 +122,7 @@ export interface StoredS3PublisherUploadStepSummary {
   commitId?: OlosId;
   commitStatus?: StoredS3CoordinatorUploadCommit["status"];
   error?: string;
+  errorCode?: OlosErrorCode;
   issueStatus?: Exclude<
     StoredS3CoordinatorUploadGrantIssue,
     { status: "saved" }
@@ -249,6 +251,7 @@ export function summarizeStoredS3PublisherUploadStep(
   const commit = "commit" in step ? step.commit : undefined;
   const issue = "issue" in step ? step.issue : undefined;
   const error = "error" in step ? step.error : undefined;
+  const errorCode = resultErrorCode(commit) ?? resultErrorCode(issue);
 
   return {
     ...(commit !== undefined && "commit" in commit
@@ -256,6 +259,7 @@ export function summarizeStoredS3PublisherUploadStep(
       : {}),
     ...(commit === undefined ? {} : { commitStatus: commit.status }),
     ...(error === undefined ? {} : { error }),
+    ...(errorCode === undefined ? {} : { errorCode }),
     ...(issue === undefined ? {} : { issueStatus: issue.status }),
     ...(slot === undefined
       ? {}
@@ -266,6 +270,14 @@ export function summarizeStoredS3PublisherUploadStep(
     ok: step.status === "committed" || step.status === "idempotent",
     status: step.status,
   };
+}
+
+function resultErrorCode(
+  result?:
+    | StoredS3CoordinatorUploadCommit
+    | Exclude<StoredS3CoordinatorUploadGrantIssue, { status: "saved" }>
+): OlosErrorCode | undefined {
+  return result?.status === "rejected" ? result.error.error.code : undefined;
 }
 
 async function runStoredS3PublisherObjectPlanStep(

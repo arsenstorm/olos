@@ -129,7 +129,9 @@ function documentedAssertionIds(): Set<string> {
   );
 
   return new Set(
-    [...spec.matchAll(DOCUMENTED_ASSERTION_ID_PATTERN)].map((match) => match[1])
+    [...spec.matchAll(DOCUMENTED_ASSERTION_ID_PATTERN)].flatMap((match) =>
+      match[1] === undefined ? [] : [match[1]]
+    )
   );
 }
 
