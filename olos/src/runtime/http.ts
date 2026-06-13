@@ -11,6 +11,7 @@ import type { PublicationControlPolicy } from "../state";
 import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
+import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
@@ -410,7 +411,10 @@ async function parseHeartbeatRequest(request: Request): Promise<
     }
 
     return {
-      publisherInstanceId: stringField(payload, "publisherInstanceId"),
+      publisherInstanceId: urlSafeIdentifierField(
+        payload,
+        "publisherInstanceId"
+      ),
       status: "valid",
     };
   } catch (error) {
@@ -494,6 +498,15 @@ function stringField(value: Record<string, unknown>, field: string): string {
   if (typeof value[field] !== "string") {
     throw new Error(`${field} must be a string`);
   }
+
+  return value[field];
+}
+
+function urlSafeIdentifierField(
+  value: Record<string, unknown>,
+  field: string
+): string {
+  assertUrlSafeIdentifier(value[field], field);
 
   return value[field];
 }

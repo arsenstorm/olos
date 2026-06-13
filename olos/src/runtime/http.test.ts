@@ -374,6 +374,33 @@ describe("stored coordinator runtime handler", () => {
     expect(stored?.state.publisherLeases).toHaveLength(1);
   });
 
+  test("rejects invalid heartbeat publisher identifiers", async () => {
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      store: createMemoryCoordinatorStore(),
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/heartbeat", {
+        publisherInstanceId: "../pub",
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: {
+        message: "publisherInstanceId must be a non-empty URL-safe identifier",
+      },
+    });
+  });
+
   test("waits for blocking media playlist reloads", async () => {
     const store = createMemoryCoordinatorStore();
     const advancedStore = createMemoryCoordinatorStore();
