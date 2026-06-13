@@ -79,6 +79,29 @@ describe("runtime publisher cadence", () => {
         startMediaSequenceNumber: -1,
       })
     ).toThrow("startMediaSequenceNumber must be a non-negative integer");
+
+    expect(() =>
+      resolveRuntimePublisherNextObjectPosition({
+        cursorWindow: {
+          firstMediaSequenceNumber: 3812,
+          lastMediaSequenceNumber: 3811,
+        },
+      })
+    ).toThrow(
+      "cursorWindow.firstMediaSequenceNumber must be less than or equal to lastMediaSequenceNumber"
+    );
+
+    expect(() =>
+      resolveRuntimePublisherNextObjectPosition({
+        cursorWindow: {
+          firstMediaSequenceNumber: 3810,
+          lastMediaSequenceNumber: 3811,
+          lastPartNumber: -1,
+        },
+        mode: "part",
+        partsPerSegment: 4,
+      })
+    ).toThrow("cursorWindow.lastPartNumber must be a non-negative integer");
   });
 
   test("creates plan input from a resolved segment position", () => {

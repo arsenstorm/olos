@@ -76,6 +76,7 @@ export function resolveRuntimePublisherNextObjectPosition(
     options.startMediaSequenceNumber ?? 0,
     "startMediaSequenceNumber"
   );
+  assertCursorWindow(options.cursorWindow);
 
   if (options.initPublished === false) {
     return {
@@ -104,6 +105,36 @@ export function resolveRuntimePublisherNextObjectPosition(
         ? startMediaSequenceNumber
         : options.cursorWindow.lastMediaSequenceNumber + 1,
   };
+}
+
+function assertCursorWindow(cursorWindow: CursorWindow | undefined): void {
+  if (cursorWindow === undefined) {
+    return;
+  }
+
+  nonNegativeInteger(
+    cursorWindow.firstMediaSequenceNumber,
+    "cursorWindow.firstMediaSequenceNumber"
+  );
+  nonNegativeInteger(
+    cursorWindow.lastMediaSequenceNumber,
+    "cursorWindow.lastMediaSequenceNumber"
+  );
+
+  if (
+    cursorWindow.firstMediaSequenceNumber > cursorWindow.lastMediaSequenceNumber
+  ) {
+    throw new Error(
+      "cursorWindow.firstMediaSequenceNumber must be less than or equal to lastMediaSequenceNumber"
+    );
+  }
+
+  if (cursorWindow.lastPartNumber !== undefined) {
+    nonNegativeInteger(
+      cursorWindow.lastPartNumber,
+      "cursorWindow.lastPartNumber"
+    );
+  }
 }
 
 export function createRuntimePublisherObjectPlanInput(
