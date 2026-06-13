@@ -167,6 +167,29 @@ describe("runtime slot adapter", () => {
     }
   });
 
+  test("returns invalid responses for invalid JSON publication modes", async () => {
+    const result = await issueCoordinatorSlotFromRequest({
+      request: new Request("https://edge.example.com/v1/live/session_1/slots", {
+        body: JSON.stringify({
+          ...slotPayload(),
+          publicationMode: "unknown",
+        }),
+        method: "POST",
+      }),
+      state: createCoordinatorPipeline({ pathways, session }),
+    });
+
+    expect(result.status).toBe("invalid");
+
+    if (result.status !== "invalid") {
+      throw new Error("expected invalid slot request");
+    }
+
+    expect(result.message).toBe(
+      "publicationMode must be one of: direct-public, read-gated, private-upload-public-promotion"
+    );
+  });
+
   test("returns invalid responses for rejected slot requests", async () => {
     const result = await issueCoordinatorSlotFromRequest({
       request: {

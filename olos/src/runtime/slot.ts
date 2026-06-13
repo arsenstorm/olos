@@ -1,3 +1,4 @@
+import { PUBLICATION_MODES } from "../config/publication";
 import {
   type IssueCoordinatorSlotOptions,
   issueCoordinatorSlot,
@@ -117,7 +118,7 @@ function parsePayload(value: unknown): RuntimeSlotIssuePayload {
     maxBytes: positiveNumberField(value, "maxBytes"),
     mediaSequenceNumber: nonNegativeIntegerField(value, "mediaSequenceNumber"),
     objectKey,
-    publicationMode: stringField(value, "publicationMode") as PublicationMode,
+    publicationMode: publicationModeField(value),
     publisherInstanceId: stringField(value, "publisherInstanceId"),
     renditionId: stringField(value, "renditionId"),
     slotId: stringField(value, "slotId"),
@@ -169,6 +170,18 @@ function stringField(value: Record<string, unknown>, field: string): string {
   }
 
   return value[field];
+}
+
+function publicationModeField(value: Record<string, unknown>): PublicationMode {
+  const publicationMode = stringField(value, "publicationMode");
+
+  if (!PUBLICATION_MODES.includes(publicationMode as PublicationMode)) {
+    throw new Error(
+      `publicationMode must be one of: ${PUBLICATION_MODES.join(", ")}`
+    );
+  }
+
+  return publicationMode as PublicationMode;
 }
 
 function numberField(value: Record<string, unknown>, field: string): number {

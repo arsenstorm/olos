@@ -385,6 +385,46 @@ describe("stored S3 coordinator runtime handler", () => {
     }
   });
 
+  test("rejects invalid S3 slot publication modes", async () => {
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      store: createMemoryCoordinatorStore(),
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", {
+        ...slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        }),
+        publicationMode: "unknown",
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: {
+        message:
+          "publicationMode must be one of: direct-public, read-gated, private-upload-public-promotion",
+      },
+    });
+  });
+
   test("returns audit metadata for oversized S3 commit rejections", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
