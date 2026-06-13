@@ -374,6 +374,65 @@ describe("S3 HTTP pipeline", () => {
     ]);
   });
 
+  test("rejects unsafe S3 slot paths through the Fetch handler", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createS3Client(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      providerId: "s3_primary",
+      response: manifestOptions.response,
+      store,
+      ...manifestOptions.manifest,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+    );
+
+    const unsafeKey = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "media/../secret.m4s",
+          slotId: "slot_unsafe_key",
+        })
+      )
+    );
+    const unsafeUrl = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s?token=1",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "media/v1080/3810.m4s",
+          slotId: "slot_unsafe_url",
+        })
+      )
+    );
+
+    expect(unsafeKey.status).toBe(400);
+    expect(await unsafeKey.json()).toEqual({
+      error: { message: "objectKey must be a safe relative object key" },
+    });
+    expect(unsafeUrl.status).toBe(400);
+    expect(await unsafeUrl.json()).toEqual({
+      error: {
+        message: "deliveryUrl must not contain query strings or fragments",
+      },
+    });
+  });
+
   test("recovers missed S3 commits through reconciliation routes", async () => {
     const headObjectInputs: unknown[] = [];
     const notifier = createMemoryRuntimeCursorNotifier();
