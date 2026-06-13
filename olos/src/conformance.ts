@@ -851,7 +851,7 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     id: "SEC-DIRECT-004",
     level: "security",
     status: "covered",
-    testFile: "src/hls/media-playlist.test.ts",
+    testFile: "src/runtime/commit.test.ts",
   },
   {
     id: "SEC-DIRECT-001",

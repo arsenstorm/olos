@@ -91,33 +91,38 @@ describe("runtime commit adapter", () => {
   });
 
   test("returns invalid responses for unsafe JSON object keys", async () => {
-    const result = await commitCoordinatorUploadFromRequest({
-      request: new Request(
-        "https://edge.example.com/v1/live/session_1/commit",
-        {
-          body: JSON.stringify({
-            ...commitPayload(),
-            object: {
-              ...commitPayload().object,
-              objectKey: "media/../secret.m4s",
-            },
-          }),
-          method: "POST",
-        }
-      ),
-      state: createReadyState(),
-    });
+    for (const objectKey of [
+      "media/../secret.m4s",
+      "https://publisher.example.net/injected.m4s",
+    ]) {
+      const result = await commitCoordinatorUploadFromRequest({
+        request: new Request(
+          "https://edge.example.com/v1/live/session_1/commit",
+          {
+            body: JSON.stringify({
+              ...commitPayload(),
+              object: {
+                ...commitPayload().object,
+                objectKey,
+              },
+            }),
+            method: "POST",
+          }
+        ),
+        state: createReadyState(),
+      });
 
-    expect(result.status).toBe("invalid");
+      expect(result.status).toBe("invalid");
 
-    if (result.status !== "invalid") {
-      throw new Error("expected invalid commit request");
+      if (result.status !== "invalid") {
+        throw new Error("expected invalid commit request");
+      }
+
+      expect(result.response.status).toBe(400);
+      expect(result.message).toBe(
+        "object.objectKey must be a safe relative object key"
+      );
     }
-
-    expect(result.response.status).toBe(400);
-    expect(result.message).toBe(
-      "object.objectKey must be a safe relative object key"
-    );
   });
 
   test("returns invalid responses for unsafe JSON identifiers", async () => {
