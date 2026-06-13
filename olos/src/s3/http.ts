@@ -11,7 +11,9 @@ import {
   type RuntimeSlotIssuePayload,
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
+import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
+import type { OlosErrorCode } from "../types/errors";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
@@ -60,6 +62,31 @@ export interface StoredS3CoordinatorRetentionResponse {
   plan: CoordinatorRetentionPlan;
   result: RetiredCoordinatorObjectDeletionResult;
   summary: RetiredCoordinatorObjectDeletionSummary;
+}
+
+export interface StoredS3CoordinatorReconciliationResponse {
+  results: readonly StoredS3CoordinatorReconciliationResponseResult[];
+  summary: ReturnType<typeof summarizeStoredS3CoordinatorUploadReconciliation>;
+}
+
+export type StoredS3CoordinatorReconciliationResponseResult =
+  | {
+      commit: Commit;
+      cursor?: Cursor;
+      slotId: string;
+      status: "committed" | "idempotent";
+    }
+  | {
+      error?: StoredS3CoordinatorRouteError;
+      resultStatus?: string;
+      slotId: string;
+      status: "failed";
+    };
+
+export interface StoredS3CoordinatorRouteError {
+  code?: OlosErrorCode;
+  details?: Record<string, unknown>;
+  message: string;
 }
 
 export function createStoredS3CoordinatorRuntimeHandler(
@@ -328,13 +355,12 @@ async function handleS3Reconciliation(
     }
   }
 
-  return jsonResponse(
-    {
-      results: result.results.map(reconciliationResult),
-      summary: summarizeStoredS3CoordinatorUploadReconciliation(result),
-    },
-    202
-  );
+  const body: StoredS3CoordinatorReconciliationResponse = {
+    results: result.results.map(reconciliationResult),
+    summary: summarizeStoredS3CoordinatorUploadReconciliation(result),
+  };
+
+  return jsonResponse(body, 202);
 }
 
 async function handleS3Retention(
@@ -776,7 +802,7 @@ function rejectionBody(
 
 function reconciliationResult(
   result: StoredS3CoordinatorUploadReconciliationResult
-): Record<string, unknown> {
+): StoredS3CoordinatorReconciliationResponseResult {
   if (result.status === "committed" || result.status === "idempotent") {
     return {
       commit: result.commit.commit,

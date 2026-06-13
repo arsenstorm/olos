@@ -21,6 +21,7 @@ import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
   createStoredS3CoordinatorRuntimeHandler,
+  type StoredS3CoordinatorReconciliationResponse,
   type StoredS3CoordinatorRetentionResponse,
 } from "./http";
 import type { S3HeadObjectClient } from "./object-observation";
@@ -1690,21 +1691,8 @@ describe("stored S3 coordinator runtime handler", () => {
         committedAt: "2026-01-01T00:00:02.000Z",
       })
     );
-    const body = (await response.json()) as {
-      results: {
-        commit?: { slotId: string };
-        cursor?: { window: Record<string, number> };
-        slotId: string;
-        status: string;
-      }[];
-      summary: {
-        committed: number;
-        failed: number;
-        ok: boolean;
-        planned: number;
-        slotIds: string[];
-      };
-    };
+    const body =
+      (await response.json()) as StoredS3CoordinatorReconciliationResponse;
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -1781,22 +1769,8 @@ describe("stored S3 coordinator runtime handler", () => {
         independent: true,
       })
     );
-    const body = (await response.json()) as {
-      results: {
-        commit?: { commitId: string; slotId: string };
-        cursor?: { window: Record<string, number> };
-        slotId: string;
-        status: string;
-      }[];
-      summary: {
-        committed: number;
-        failed: number;
-        idempotent: number;
-        ok: boolean;
-        planned: number;
-        slotIds: string[];
-      };
-    };
+    const body =
+      (await response.json()) as StoredS3CoordinatorReconciliationResponse;
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -1905,21 +1879,8 @@ describe("stored S3 coordinator runtime handler", () => {
         committedAt: "2026-01-01T00:00:02.000Z",
       })
     );
-    const body = (await response.json()) as {
-      results: {
-        error?: { message: string };
-        slotId: string;
-        status: string;
-      }[];
-      summary: {
-        committed: number;
-        failed: number;
-        failedSlotIds: string[];
-        ok: boolean;
-        planned: number;
-        slotIds: string[];
-      };
-    };
+    const body =
+      (await response.json()) as StoredS3CoordinatorReconciliationResponse;
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -2003,22 +1964,8 @@ describe("stored S3 coordinator runtime handler", () => {
         committedAt: "2026-01-01T00:00:02.000Z",
       })
     );
-    const body = (await response.json()) as {
-      results: {
-        error?: {
-          code: string;
-          details?: Record<string, unknown>;
-          message: string;
-        };
-        slotId: string;
-        status: string;
-      }[];
-      summary: {
-        failed: number;
-        failedSlotIds: string[];
-        ok: boolean;
-      };
-    };
+    const body =
+      (await response.json()) as StoredS3CoordinatorReconciliationResponse;
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);

@@ -34,7 +34,10 @@ export {
 export {
   type CreateStoredS3CoordinatorRuntimeHandlerOptions,
   createStoredS3CoordinatorRuntimeHandler,
+  type StoredS3CoordinatorReconciliationResponse,
+  type StoredS3CoordinatorReconciliationResponseResult,
   type StoredS3CoordinatorRetentionResponse,
+  type StoredS3CoordinatorRouteError,
   type StoredS3CoordinatorRuntimeHandler,
 } from "./s3/http";
 export {
