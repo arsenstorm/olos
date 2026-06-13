@@ -716,6 +716,7 @@ describe("S3 HTTP pipeline", () => {
     expect(recoveredBody.summary).toEqual({
       committed: 2,
       failed: 0,
+      failedErrorCodes: [],
       failedSlotIds: [],
       idempotent: 0,
       ok: true,
