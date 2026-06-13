@@ -76,6 +76,12 @@ describe("conformance manifest", () => {
       status: "covered",
       testFile: "src/protocol/coordinator.test.ts",
     });
+    expect(getOlosConformanceCoverage("CORE-SLOT-007")).toEqual({
+      id: "CORE-SLOT-007",
+      level: "core",
+      status: "covered",
+      testFile: "src/protocol/coordinator.test.ts",
+    });
   });
 
   test("asserts coordinator store conformance", async () => {
