@@ -1,6 +1,6 @@
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   OLOS_CONFORMANCE_ASSERTION_IDS,
   OLOS_CONFORMANCE_COVERAGE,
@@ -14,18 +14,21 @@ const reportRoot = join(repoRoot, "out", "conformance");
 const reportPath = join(reportRoot, "conformance.md");
 
 const levels = ["core", "object", "hls", "security"] as const;
-const report = buildReport();
 
-await mkdir(reportRoot, { recursive: true });
-await writeFile(reportPath, report);
+if (isCliEntry()) {
+  const report = buildConformanceReport();
 
-if (process.env.GITHUB_STEP_SUMMARY) {
-  await appendFile(process.env.GITHUB_STEP_SUMMARY, `\n${report}`);
+  await mkdir(reportRoot, { recursive: true });
+  await writeFile(reportPath, report);
+
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    await appendFile(process.env.GITHUB_STEP_SUMMARY, `\n${report}`);
+  }
+
+  console.log(report);
 }
 
-console.log(report);
-
-function buildReport(): string {
+export function buildConformanceReport(): string {
   const rows = levels.map((level) => countLevel(level));
   const total = rows.reduce(
     (sum, row) => ({
@@ -82,6 +85,11 @@ function buildReport(): string {
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+function isCliEntry(): boolean {
+  const entry = process.argv[1];
+  return entry !== undefined && import.meta.url === pathToFileURL(entry).href;
 }
 
 function countLevel(level: OlosConformanceLevel) {
