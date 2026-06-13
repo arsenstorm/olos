@@ -26,6 +26,7 @@ package:
 | `olos/runtime` | Session routes, publisher loops, health, retention, and HLS serving. |
 | `olos/s3` | S3-compatible upload grants, object observation, events, recovery, and retention deletion. |
 | `olos/hls` | Direct HLS rendering and manifest response helpers. |
+| `olos/schema` | JSON Schemas for public wire objects. |
 | `olos/protocol` | Coordinator state, memory stores, serialized stores, and adapter conformance. |
 | `olos/state` | Lower-level state transitions and publication policies. |
 | `olos/types` | Public protocol data types. |
@@ -37,6 +38,16 @@ Root `olos` exports only protocol metadata constants. Do not add runtime,
 provider, validation, or state helpers to the root entry point; put them behind
 the narrowest relevant subpath. The packed-package smoke test enforces the root
 runtime export list.
+
+Use `olos/schema` when a service needs JSON Schema documents for API gateways,
+typed clients, fixtures, or external conformance tooling:
+
+```ts
+import { OLOS_JSON_SCHEMAS, OLOS_SESSION_SCHEMA } from "olos/schema";
+```
+
+Runtime validation helpers remain in `olos/validation`; the schema export is a
+portable wire-contract surface.
 
 ## First Object-Store Flow
 
