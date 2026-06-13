@@ -138,6 +138,27 @@ describe("conformance manifest", () => {
     }
   });
 
+  test("maps cache conformance to delivery policy tests", () => {
+    expect(getOlosConformanceCoverage("OBJ-CACHE-002")).toEqual({
+      id: "OBJ-CACHE-002",
+      level: "object",
+      status: "covered",
+      testFile: "src/state/direct-public-security-policy.test.ts",
+    });
+    expect(getOlosConformanceCoverage("OBJ-CACHE-004")).toEqual({
+      id: "OBJ-CACHE-004",
+      level: "object",
+      status: "covered",
+      testFile: "src/state/direct-public-security-policy.test.ts",
+    });
+    expect(getOlosConformanceCoverage("OBJ-CACHE-005")).toEqual({
+      id: "OBJ-CACHE-005",
+      level: "object",
+      status: "covered",
+      testFile: "src/state/direct-public-security-policy.test.ts",
+    });
+  });
+
   test("asserts coordinator store conformance", async () => {
     await expect(
       assertCoordinatorPipelineStoreConformance({
