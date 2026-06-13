@@ -29,6 +29,7 @@ const objectKey = {
 } as const;
 
 const committedObjectSchema = {
+  additionalProperties: false,
   properties: {
     commitId: id,
     contentType: nonEmptyString,
@@ -43,6 +44,7 @@ const committedObjectSchema = {
 } as const;
 
 const committedPartSchema = {
+  additionalProperties: false,
   properties: {
     ...committedObjectSchema.properties,
     duration: positiveNumber,
@@ -55,6 +57,7 @@ const committedPartSchema = {
 } as const;
 
 const committedSegmentSchema = {
+  additionalProperties: false,
   properties: {
     discontinuityBefore: { type: "boolean" },
     duration: positiveNumber,
@@ -69,6 +72,7 @@ const committedSegmentSchema = {
 } as const;
 
 const renditionWindowSchema = {
+  additionalProperties: false,
   properties: {
     init: committedObjectSchema,
     renditionId: id,
@@ -80,6 +84,7 @@ const renditionWindowSchema = {
 
 export const OLOS_SESSION_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
+  additionalProperties: false,
   properties: {
     createdAt: timestamp,
     epoch: nonNegativeInteger,
@@ -88,6 +93,7 @@ export const OLOS_SESSION_SCHEMA = {
     partTarget: positiveNumber,
     renditions: {
       items: {
+        additionalProperties: false,
         properties: {
           bitrate: { exclusiveMinimum: 0, type: "integer" },
           channels: { exclusiveMinimum: 0, type: "integer" },
@@ -128,6 +134,7 @@ export const OLOS_SESSION_SCHEMA = {
 
 export const OLOS_UPLOAD_SLOT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
+  additionalProperties: false,
   properties: {
     contentType: nonEmptyString,
     deliveryUrl: nonEmptyString,
@@ -172,6 +179,7 @@ export const OLOS_UPLOAD_SLOT_SCHEMA = {
 
 export const OLOS_COMMIT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
+  additionalProperties: false,
   properties: {
     commitId: id,
     committedAt: timestamp,
@@ -212,6 +220,7 @@ export const OLOS_COMMIT_SCHEMA = {
 
 export const OLOS_PATHWAY_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
+  additionalProperties: false,
   properties: {
     baseUrl: nonEmptyString,
     pathwayId: id,
@@ -226,6 +235,7 @@ export const OLOS_PATHWAY_SCHEMA = {
 
 export const OLOS_COMMITTED_WINDOW_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
+  additionalProperties: false,
   properties: {
     discontinuitySequence: nonNegativeInteger,
     epoch: nonNegativeInteger,
@@ -249,6 +259,7 @@ export const OLOS_COMMITTED_WINDOW_SCHEMA = {
 
 export const OLOS_CURSOR_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
+  additionalProperties: false,
   properties: {
     committedWindow: OLOS_COMMITTED_WINDOW_SCHEMA,
     epoch: nonNegativeInteger,
@@ -262,6 +273,7 @@ export const OLOS_CURSOR_SCHEMA = {
     tenantId: id,
     updatedAt: timestamp,
     window: {
+      additionalProperties: false,
       properties: {
         firstMediaSequenceNumber: nonNegativeInteger,
         lastMediaSequenceNumber: nonNegativeInteger,

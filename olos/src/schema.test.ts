@@ -36,4 +36,13 @@ describe("OLOS JSON schemas", () => {
       PUBLICATION_MODES
     );
   });
+
+  test("closes fixed-shape core objects", () => {
+    expect(OLOS_SESSION_SCHEMA.additionalProperties).toBe(false);
+    expect(OLOS_SESSION_SCHEMA.properties.renditions.items).toMatchObject({
+      additionalProperties: false,
+    });
+    expect(OLOS_UPLOAD_SLOT_SCHEMA.additionalProperties).toBe(false);
+    expect(OLOS_COMMIT_SCHEMA.additionalProperties).toBe(false);
+  });
 });
