@@ -427,18 +427,18 @@ function parsePayload(value: Record<string, unknown>): RuntimeSlotIssuePayload {
   return {
     contentType: stringField(value, "contentType"),
     deliveryUrl,
-    duration: numberField(value, "duration"),
+    duration: positiveNumberField(value, "duration"),
     expiresAt: stringField(value, "expiresAt"),
     kind,
-    maxBytes: numberField(value, "maxBytes"),
-    mediaSequenceNumber: numberField(value, "mediaSequenceNumber"),
+    maxBytes: positiveNumberField(value, "maxBytes"),
+    mediaSequenceNumber: nonNegativeIntegerField(value, "mediaSequenceNumber"),
     objectKey,
     publicationMode: stringField(value, "publicationMode") as PublicationMode,
     publisherInstanceId: stringField(value, "publisherInstanceId"),
     renditionId: stringField(value, "renditionId"),
     slotId: stringField(value, "slotId"),
-    ...optionalNumberField(value, "minBytes"),
-    ...optionalNumberField(value, "partNumber"),
+    ...optionalNonNegativeIntegerField(value, "minBytes"),
+    ...optionalNonNegativeIntegerField(value, "partNumber"),
   };
 }
 
@@ -768,18 +768,52 @@ function numberField(value: Record<string, unknown>, field: string): number {
   return value[field];
 }
 
+function positiveNumberField(
+  value: Record<string, unknown>,
+  field: string
+): number {
+  const number = numberField(value, field);
+
+  if (number <= 0) {
+    throw new Error(`${field} must be a positive number`);
+  }
+
+  return number;
+}
+
+function nonNegativeIntegerField(
+  value: Record<string, unknown>,
+  field: string
+): number {
+  const number = numberField(value, field);
+
+  if (!Number.isInteger(number) || number < 0) {
+    throw new Error(`${field} must be a non-negative integer`);
+  }
+
+  return number;
+}
+
 function optionalNumberField(
   value: Record<string, unknown>,
-  field: "maxSegments" | "minBytes" | "partNumber"
-): Partial<
-  Pick<RuntimeSlotIssuePayload, "minBytes" | "partNumber"> &
-    Pick<S3CommitPayload, "maxSegments">
-> {
+  field: "maxSegments"
+): Partial<Pick<S3CommitPayload, "maxSegments">> {
   if (value[field] === undefined) {
     return {};
   }
 
   return { [field]: numberField(value, field) };
+}
+
+function optionalNonNegativeIntegerField(
+  value: Record<string, unknown>,
+  field: "minBytes" | "partNumber"
+): Partial<Pick<RuntimeSlotIssuePayload, "minBytes" | "partNumber">> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  return { [field]: nonNegativeIntegerField(value, field) };
 }
 
 function optionalBooleanField(

@@ -316,6 +316,75 @@ describe("stored S3 coordinator runtime handler", () => {
     });
   });
 
+  test("rejects invalid S3 slot payload numbers", async () => {
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      store: createMemoryCoordinatorStore(),
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+
+    const cases = [
+      {
+        expected: "duration must be a positive number",
+        field: "duration",
+        value: 0,
+      },
+      {
+        expected: "maxBytes must be a positive number",
+        field: "maxBytes",
+        value: 0,
+      },
+      {
+        expected: "mediaSequenceNumber must be a non-negative integer",
+        field: "mediaSequenceNumber",
+        value: 1.5,
+      },
+      {
+        expected: "minBytes must be a non-negative integer",
+        field: "minBytes",
+        value: -1,
+      },
+      {
+        expected: "partNumber must be a non-negative integer",
+        field: "partNumber",
+        value: -1,
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const response = await handle(
+        jsonRequest(
+          "https://edge.example.com/sessions/session_1/s3/slots",
+          slotPayload({
+            deliveryUrl:
+              "https://media.example.com/live/session/v1080/3810.m4s",
+            duration: 2,
+            kind: "segment",
+            maxBytes: 100_000,
+            mediaSequenceNumber: 3810,
+            objectKey: "live/session/v1080/3810.m4s",
+            slotId: "slot_3810",
+            [testCase.field]: testCase.value,
+          })
+        )
+      );
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: { message: testCase.expected },
+      });
+    }
+  });
+
   test("returns audit metadata for oversized S3 commit rejections", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
@@ -1850,7 +1919,9 @@ interface SlotPayloadOptions {
   maxBytes: number;
   maxSegments?: number;
   mediaSequenceNumber: number;
+  minBytes?: number;
   objectKey: string;
+  partNumber?: number;
   slotId: string;
 }
 
@@ -1863,7 +1934,11 @@ function slotPayload(options: SlotPayloadOptions) {
     kind: options.kind,
     maxBytes: options.maxBytes,
     mediaSequenceNumber: options.mediaSequenceNumber,
+    ...(options.minBytes === undefined ? {} : { minBytes: options.minBytes }),
     objectKey: options.objectKey,
+    ...(options.partNumber === undefined
+      ? {}
+      : { partNumber: options.partNumber }),
     publicationMode: "direct-public" as const,
     publisherInstanceId: "pub_1",
     renditionId: "v1080",
