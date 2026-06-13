@@ -104,6 +104,7 @@ export const OLOS_CONFORMANCE_ASSERTION_IDS = [
   "HLS-GOLDEN-006",
   "HLS-GOLDEN-007",
   "HLS-GOLDEN-008",
+  "HLS-HOLDBACK-001",
   "HLS-BLOCK-001",
   "HLS-BLOCK-002",
   "SEC-DIRECT-001",
@@ -705,6 +706,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
   },
   {
     id: "HLS-GOLDEN-008",
+    level: "hls",
+    status: "covered",
+    testFile: "src/hls/media-playlist.test.ts",
+  },
+  {
+    id: "HLS-HOLDBACK-001",
     level: "hls",
     status: "covered",
     testFile: "src/hls/media-playlist.test.ts",
