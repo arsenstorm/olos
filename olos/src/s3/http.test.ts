@@ -19,7 +19,10 @@ import { createObservedUpload, createPublicationKillSwitch } from "../state";
 import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
-import { createStoredS3CoordinatorRuntimeHandler } from "./http";
+import {
+  createStoredS3CoordinatorRuntimeHandler,
+  type StoredS3CoordinatorRetentionResponse,
+} from "./http";
 import type { S3HeadObjectClient } from "./object-observation";
 import type { S3DeleteObjectClient } from "./retention";
 
@@ -2182,31 +2185,8 @@ describe("stored S3 coordinator runtime handler", () => {
         now: "2026-01-01T00:00:06.000Z",
       })
     );
-    const body = (await response.json()) as {
-      plan: {
-        retiredObjects: {
-          commitId: string;
-          objectKey: string;
-          slotId: string;
-        }[];
-      };
-      result: {
-        deletedObjects: {
-          commitId: string;
-          objectKey: string;
-          slotId: string;
-        }[];
-        failedObjects: unknown[];
-      };
-      summary: {
-        deleted: number;
-        failed: number;
-        failedObjectKeys: string[];
-        failedSlotIds: string[];
-        ok: boolean;
-        planned: number;
-      };
-    };
+    const body =
+      (await response.json()) as StoredS3CoordinatorRetentionResponse;
 
     expect(response.status).toBe(202);
     expect(deleteInputs).toEqual([
@@ -2295,27 +2275,8 @@ describe("stored S3 coordinator runtime handler", () => {
         now: "2026-01-01T00:00:06.000Z",
       })
     );
-    const body = (await response.json()) as {
-      result: {
-        deletedObjects: unknown[];
-        failedObjects: {
-          error: string;
-          object: {
-            commitId: string;
-            objectKey: string;
-            slotId: string;
-          };
-        }[];
-      };
-      summary: {
-        deleted: number;
-        failed: number;
-        failedObjectKeys: string[];
-        failedSlotIds: string[];
-        ok: boolean;
-        planned: number;
-      };
-    };
+    const body =
+      (await response.json()) as StoredS3CoordinatorRetentionResponse;
 
     expect(response.status).toBe(202);
     expect(deleteInputs).toEqual([

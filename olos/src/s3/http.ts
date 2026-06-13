@@ -1,10 +1,13 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import { MEDIA_OBJECT_KINDS } from "../config/media-object";
 import { PUBLICATION_MODES } from "../config/publication";
+import type { CoordinatorRetentionPlan } from "../protocol";
 import {
   type CreateStoredCoordinatorRuntimeHandlerOptions,
   createStoredCoordinatorRuntimeHandler,
   planStoredCoordinatorRetention,
+  type RetiredCoordinatorObjectDeletionResult,
+  type RetiredCoordinatorObjectDeletionSummary,
   type RuntimeSlotIssuePayload,
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
@@ -52,6 +55,12 @@ export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
 export type StoredS3CoordinatorRuntimeHandler = (
   request: Request
 ) => Promise<Response>;
+
+export interface StoredS3CoordinatorRetentionResponse {
+  plan: CoordinatorRetentionPlan;
+  result: RetiredCoordinatorObjectDeletionResult;
+  summary: RetiredCoordinatorObjectDeletionSummary;
+}
 
 export function createStoredS3CoordinatorRuntimeHandler(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
@@ -355,14 +364,13 @@ async function handleS3Retention(
     objects: planned.plan.retiredObjects,
   });
 
-  return jsonResponse(
-    {
-      plan: planned.plan,
-      result,
-      summary: summarizeRetiredCoordinatorObjectDeletions(result),
-    },
-    202
-  );
+  const body: StoredS3CoordinatorRetentionResponse = {
+    plan: planned.plan,
+    result,
+    summary: summarizeRetiredCoordinatorObjectDeletions(result),
+  };
+
+  return jsonResponse(body, 202);
 }
 
 type S3Route =
