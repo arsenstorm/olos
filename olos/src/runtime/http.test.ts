@@ -213,6 +213,33 @@ describe("stored coordinator runtime handler", () => {
     });
   });
 
+  test("rejects unsafe route session identifiers", async () => {
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const health = await handle(
+      new Request("https://edge.example.com/sessions/bad%20id/health")
+    );
+    const manifest = await handle(
+      new Request("https://edge.example.com/v1/live/bad%20id/master.m3u8")
+    );
+
+    expect(health.status).toBe(400);
+    expect(manifest.status).toBe(400);
+    expect(await health.json()).toEqual({
+      error: {
+        message: "sessionId must be a non-empty URL-safe identifier",
+      },
+    });
+    expect(await manifest.json()).toEqual({
+      error: {
+        message: "sessionId must be a non-empty URL-safe identifier",
+      },
+    });
+  });
+
   test("returns invalid responses for invalid session creation payloads", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],

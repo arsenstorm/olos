@@ -65,6 +65,10 @@ export function createStoredS3CoordinatorRuntimeHandler(
       return methodNotAllowed();
     }
 
+    if (route.status === "invalid") {
+      return badRequest(route.message);
+    }
+
     if (route.action === "slots") {
       return await handleS3SlotGrant(request, route.sessionId, options);
     }
@@ -341,6 +345,7 @@ type S3Route =
       sessionId: string;
       status: "matched";
     }
+  | { message: string; status: "invalid" }
   | { status: "method_not_allowed" }
   | { status: "not_s3" };
 
@@ -376,6 +381,12 @@ function s3Route(
 
   if (request.method !== "POST") {
     return { status: "method_not_allowed" };
+  }
+
+  const sessionIdError = routeSessionIdError(sessionId);
+
+  if (sessionIdError !== undefined) {
+    return { message: sessionIdError, status: "invalid" };
   }
 
   return { action, sessionId, status: "matched" };
@@ -634,6 +645,14 @@ function normalizePath(path: string): string {
 
 function invalid(message: string): { message: string; status: "invalid" } {
   return { message, status: "invalid" };
+}
+
+function routeSessionIdError(sessionId: string): string | undefined {
+  try {
+    assertUrlSafeIdentifier(sessionId, "sessionId");
+  } catch (error) {
+    return errorMessage(error, "invalid route sessionId");
+  }
 }
 
 function badRequest(message: string): Response {

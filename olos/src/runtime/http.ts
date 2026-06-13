@@ -119,6 +119,12 @@ async function handleSessionRoute(
     return notFound();
   }
 
+  const sessionIdError = routeSessionIdError(sessionId);
+
+  if (sessionIdError !== undefined) {
+    return badRequest(sessionIdError);
+  }
+
   return await handleSessionActionRoute(request, sessionId, action, options);
 }
 
@@ -296,6 +302,12 @@ async function handleLiveRoute(
     return notFound();
   }
 
+  const sessionIdError = routeSessionIdError(sessionId);
+
+  if (sessionIdError !== undefined) {
+    return badRequest(sessionIdError);
+  }
+
   const snapshot = await options.store.load(sessionId);
 
   if (snapshot === undefined) {
@@ -458,6 +470,16 @@ function retentionNow(
 
 function currentNow(options: CreateStoredCoordinatorRuntimeHandlerOptions) {
   return options.now?.() ?? new Date().toISOString();
+}
+
+function routeSessionIdError(
+  sessionId: string | undefined
+): string | undefined {
+  try {
+    assertUrlSafeIdentifier(sessionId, "sessionId");
+  } catch (error) {
+    return errorMessage(error, "invalid route sessionId");
+  }
 }
 
 function invalid(message: string): { message: string; status: "invalid" } {
