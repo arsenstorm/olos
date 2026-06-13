@@ -105,6 +105,45 @@ describe("s3 object observation", () => {
     expect(object.size).toBe(98_304);
   });
 
+  test("rejects invalid S3 object observation options before HeadObject", async () => {
+    let sends = 0;
+    const client: S3HeadObjectClient = {
+      send() {
+        sends += 1;
+
+        return Promise.resolve({
+          $metadata: {},
+          ContentLength: 98_304,
+          ContentType: "video/mp4",
+        });
+      },
+    };
+    const options = {
+      bucket: "media",
+      client,
+      objectKey: "live/session/v1080/3810.m4s",
+      observedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "s3_primary",
+    };
+
+    await expect(observeS3Object({ ...options, bucket: "" })).rejects.toThrow(
+      "bucket must be a non-empty string"
+    );
+    await expect(
+      observeS3Object({
+        ...options,
+        objectKey: "live/session/../secret.m4s",
+      })
+    ).rejects.toThrow("objectKey must be a safe relative object key");
+    await expect(
+      observeS3Object({ ...options, providerId: "../provider" })
+    ).rejects.toThrow("providerId must be a non-empty URL-safe identifier");
+    await expect(
+      observeS3Object({ ...options, observedAt: "soon" })
+    ).rejects.toThrow("observedAt must be a valid timestamp");
+    expect(sends).toBe(0);
+  });
+
   test("rejects incomplete HeadObject output", () => {
     expect(() =>
       createObservedUploadFromS3HeadObject({
@@ -127,5 +166,20 @@ describe("s3 object observation", () => {
         providerId: "s3_primary",
       })
     ).toThrow("headObject.ContentType must be present");
+  });
+
+  test("rejects invalid HeadObject observation timestamps", () => {
+    expect(() =>
+      createObservedUploadFromS3HeadObject({
+        objectKey: "live/session/v1080/3810.m4s",
+        observedAt: "soon",
+        output: {
+          $metadata: {},
+          ContentLength: 98_304,
+          ContentType: "video/mp4",
+        },
+        providerId: "s3_primary",
+      })
+    ).toThrow("observedAt must be a valid timestamp");
   });
 });

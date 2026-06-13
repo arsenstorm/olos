@@ -3,6 +3,8 @@ import {
   type HeadObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import { createObservedUpload } from "../state/observed-upload";
+import { assertUrlSafeIdentifier } from "../validation/ids";
+import { assertSafeObjectKey } from "../validation/object-key";
 import type { ObservedUpload } from "../validation/observed-upload";
 
 export interface S3HeadObjectClient {
@@ -28,6 +30,8 @@ export interface CreateObservedUploadFromS3HeadObjectOptions {
 export async function observeS3Object(
   options: ObserveS3ObjectOptions
 ): Promise<ObservedUpload> {
+  assertObserveS3ObjectOptions(options);
+
   const output = await options.client.send(
     new HeadObjectCommand({
       Bucket: options.bucket,
@@ -44,6 +48,19 @@ export async function observeS3Object(
     output,
     providerId: options.providerId,
   });
+}
+
+function assertObserveS3ObjectOptions(options: ObserveS3ObjectOptions): void {
+  if (options.bucket.length === 0) {
+    throw new Error("bucket must be a non-empty string");
+  }
+
+  assertSafeObjectKey(options.objectKey, "objectKey");
+  assertUrlSafeIdentifier(options.providerId, "providerId");
+
+  if (options.observedAt !== undefined) {
+    timestampMs(options.observedAt, "observedAt");
+  }
 }
 
 export function createObservedUploadFromS3HeadObject(
@@ -94,7 +111,9 @@ function observedAt(
   options: CreateObservedUploadFromS3HeadObjectOptions
 ): string {
   if (options.observedAt !== undefined) {
-    return new Date(options.observedAt).toISOString();
+    return new Date(
+      timestampMs(options.observedAt, "observedAt")
+    ).toISOString();
   }
 
   if (options.output.LastModified !== undefined) {
@@ -102,4 +121,14 @@ function observedAt(
   }
 
   return new Date().toISOString();
+}
+
+function timestampMs(value: Date | string, name: string): number {
+  const timestamp = new Date(value).getTime();
+
+  if (Number.isNaN(timestamp)) {
+    throw new Error(`${name} must be a valid timestamp`);
+  }
+
+  return timestamp;
 }
