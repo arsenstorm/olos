@@ -1,5 +1,6 @@
 import type { UploadEventNormalization } from "../state/observed-upload";
 import { normalizeUploadEvent } from "../state/observed-upload";
+import { assertSafeObjectKey } from "../validation/object-key";
 
 const DEFAULT_S3_EVENT_CONTENT_TYPE = "application/octet-stream";
 
@@ -102,7 +103,10 @@ function objectKey(value: unknown): string | undefined {
   }
 
   try {
-    return decodeURIComponent(key.replaceAll("+", " "));
+    const decoded = decodeURIComponent(key.replaceAll("+", " "));
+    assertSafeObjectKey(decoded, "s3 object key");
+
+    return decoded;
   } catch {
     return;
   }

@@ -154,5 +154,29 @@ describe("s3 event normalization", () => {
       },
       status: "invalid_event",
     });
+
+    expect(
+      normalizeS3ObjectCreatedEventRecord({
+        providerId: "s3_primary",
+        record: {
+          ...record,
+          s3: {
+            object: {
+              key: "media/session/%2E%2E/secret.m4s",
+              sequencer: "0065A4",
+              size: 98_304,
+            },
+          },
+        },
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          message: "s3 object key is invalid",
+        },
+      },
+      status: "invalid_event",
+    });
   });
 });
