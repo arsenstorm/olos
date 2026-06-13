@@ -473,8 +473,10 @@ The S3 runtime handler delegates the stored runtime routes and adds:
 | `POST` | `/sessions/:id/s3/retention` | Plan retention and delete retired media objects through S3. |
 
 The generic runtime routes remain available through the same handler, including
-`POST /sessions`, `POST /sessions/:id/transition`, `GET /sessions/:id/retention`,
-and `GET /v1/live/:id/...`.
+`POST /sessions`, `POST /sessions/:id/slots`, `POST /sessions/:id/commits`,
+`POST /sessions/:id/transition`, `POST /sessions/:id/heartbeat`,
+`GET /sessions/:id/health`, `GET /sessions/:id/retention`, and
+`GET /v1/live/:id/...`.
 
 After an S3-backed commit advances the trusted cursor, the same handler serves
 the corresponding HLS manifests from `GET /v1/live/:id/...`.
