@@ -61,6 +61,26 @@ function buildReport(): string {
     }
   }
 
+  lines.push("", "## Mapped Assertions");
+
+  for (const level of levels) {
+    const entries = OLOS_CONFORMANCE_COVERAGE.filter(
+      (entry) => entry.level === level
+    );
+
+    lines.push(
+      "",
+      `### ${labelLevel(level)}`,
+      "",
+      "| ID | Status | Test file |",
+      "| --- | --- | --- |",
+      ...entries.map(
+        (entry) =>
+          `| \`${entry.id}\` | ${entry.status} | \`${entry.testFile}\` |`
+      )
+    );
+  }
+
   return `${lines.join("\n")}\n`;
 }
 
