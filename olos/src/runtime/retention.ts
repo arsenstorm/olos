@@ -33,6 +33,15 @@ export interface RetiredCoordinatorObjectDeletionResult {
   failedObjects: readonly RetiredCoordinatorObjectDeletionFailure[];
 }
 
+export interface RetiredCoordinatorObjectDeletionSummary {
+  deleted: number;
+  failed: number;
+  failedObjectKeys: readonly string[];
+  failedSlotIds: readonly string[];
+  ok: boolean;
+  planned: number;
+}
+
 export type StoredRuntimeRetentionPlan =
   | {
       plan: CoordinatorRetentionPlan;
@@ -65,6 +74,21 @@ export async function deleteRetiredCoordinatorObjects(
   return {
     deletedObjects,
     failedObjects,
+  };
+}
+
+export function summarizeRetiredCoordinatorObjectDeletions(
+  result: RetiredCoordinatorObjectDeletionResult
+): RetiredCoordinatorObjectDeletionSummary {
+  return {
+    deleted: result.deletedObjects.length,
+    failed: result.failedObjects.length,
+    failedObjectKeys: result.failedObjects.map(
+      (failure) => failure.object.objectKey
+    ),
+    failedSlotIds: result.failedObjects.map((failure) => failure.object.slotId),
+    ok: result.failedObjects.length === 0,
+    planned: result.deletedObjects.length + result.failedObjects.length,
   };
 }
 

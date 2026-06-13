@@ -14,6 +14,7 @@ import type { Session } from "../types/session";
 import {
   deleteRetiredCoordinatorObjects,
   planStoredCoordinatorRetention,
+  summarizeRetiredCoordinatorObjectDeletions,
 } from "./retention";
 
 const session: Session = {
@@ -153,6 +154,14 @@ describe("stored runtime retention", () => {
       ],
       failedObjects: [],
     });
+    expect(summarizeRetiredCoordinatorObjectDeletions(result)).toEqual({
+      deleted: 1,
+      failed: 0,
+      failedObjectKeys: [],
+      failedSlotIds: [],
+      ok: true,
+      planned: 1,
+    });
   });
 
   test("keeps deleting retired coordinator objects after a failure", async () => {
@@ -193,6 +202,14 @@ describe("stored runtime retention", () => {
         },
       },
     ]);
+    expect(summarizeRetiredCoordinatorObjectDeletions(result)).toEqual({
+      deleted: 1,
+      failed: 1,
+      failedObjectKeys: ["media/fail.m4s"],
+      failedSlotIds: ["slot_fail"],
+      ok: false,
+      planned: 2,
+    });
   });
 });
 

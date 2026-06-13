@@ -140,7 +140,9 @@ export {
   type RetiredCoordinatorObjectDeletion,
   type RetiredCoordinatorObjectDeletionFailure,
   type RetiredCoordinatorObjectDeletionResult,
+  type RetiredCoordinatorObjectDeletionSummary,
   type StoredRuntimeRetentionPlan,
+  summarizeRetiredCoordinatorObjectDeletions,
 } from "./runtime/retention";
 export {
   type CreateStoredCoordinatorSessionOptions,

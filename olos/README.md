@@ -619,12 +619,16 @@ const plan = planCoordinatorRetention({ now, state });
 `olos/runtime` can execute retired-object deletion through an app-owned callback:
 
 ```ts
-import { deleteRetiredCoordinatorObjects } from "olos/runtime";
+import {
+  deleteRetiredCoordinatorObjects,
+  summarizeRetiredCoordinatorObjectDeletions,
+} from "olos/runtime";
 
 const result = await deleteRetiredCoordinatorObjects({
   deleteObject: (object) => objectStore.delete(object.objectKey),
   objects: plan.retiredObjects,
 });
+const summary = summarizeRetiredCoordinatorObjectDeletions(result);
 ```
 
 The application still owns object storage credentials, slot persistence, and
