@@ -119,10 +119,14 @@ export function assertRuntimePublisherLease(
   assertLeaseIdentity(value);
   const issuedAtMs = timestampFieldMs(value, "issuedAt");
   const lastSeenAtMs = timestampFieldMs(value, "lastSeenAt");
-  timestampFieldMs(value, "expiresAt");
+  const expiresAtMs = timestampFieldMs(value, "expiresAt");
 
   if (lastSeenAtMs < issuedAtMs) {
     throw new Error("publisherLease.lastSeenAt must not be before issuedAt");
+  }
+
+  if (expiresAtMs < lastSeenAtMs) {
+    throw new Error("publisherLease.expiresAt must not be before lastSeenAt");
   }
 }
 

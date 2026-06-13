@@ -144,6 +144,20 @@ describe("runtime publisher lease", () => {
         ttlMs: 3000,
       })
     ).toThrow("publisherLease.lastSeenAt must not be before issuedAt");
+    expect(() =>
+      refreshRuntimePublisherLease({
+        lease: {
+          expiresAt: "2026-01-01T00:00:01.000Z",
+          issuedAt: "2026-01-01T00:00:00.000Z",
+          lastSeenAt: "2026-01-01T00:00:02.000Z",
+          publisherInstanceId: "publisher_1",
+          sessionId: "session_1",
+          tenantId: "tenant_1",
+        },
+        now: "2026-01-01T00:00:02.000Z",
+        ttlMs: 3000,
+      })
+    ).toThrow("publisherLease.expiresAt must not be before lastSeenAt");
     expect(() => assertRuntimePublisherLease(null)).toThrow(
       "publisherLease must be an object"
     );
