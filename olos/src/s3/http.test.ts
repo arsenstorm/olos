@@ -57,6 +57,32 @@ const pathways: Pathway[] = [
 ];
 
 describe("stored S3 coordinator runtime handler", () => {
+  test("rejects invalid S3 handler options", () => {
+    const options = {
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      store: createMemoryCoordinatorStore(),
+    };
+
+    expect(() =>
+      createStoredS3CoordinatorRuntimeHandler({ ...options, bucket: "" })
+    ).toThrow("bucket must be a non-empty string");
+    expect(() =>
+      createStoredS3CoordinatorRuntimeHandler({
+        ...options,
+        expiresInSeconds: 0,
+      })
+    ).toThrow("expiresInSeconds must be a positive number");
+    expect(() =>
+      createStoredS3CoordinatorRuntimeHandler({
+        ...options,
+        providerId: "../provider",
+      })
+    ).toThrow("providerId must be a non-empty URL-safe identifier");
+  });
+
   test("delegates runtime routes and issues S3 upload grants", async () => {
     const headObjectInputs: unknown[] = [];
     const notifiedCursors: Cursor[] = [];

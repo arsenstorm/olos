@@ -55,6 +55,8 @@ export type StoredS3CoordinatorRuntimeHandler = (
 export function createStoredS3CoordinatorRuntimeHandler(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): StoredS3CoordinatorRuntimeHandler {
+  assertS3HandlerOptions(options);
+
   const baseHandler = createStoredCoordinatorRuntimeHandler(options);
 
   return async (request) => {
@@ -98,6 +100,25 @@ export function createStoredS3CoordinatorRuntimeHandler(
 
     return await handleS3Reconciliation(request, route.sessionId, options);
   };
+}
+
+function assertS3HandlerOptions(
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): void {
+  if (options.bucket.length === 0) {
+    throw new Error("bucket must be a non-empty string");
+  }
+
+  if (
+    !Number.isFinite(options.expiresInSeconds) ||
+    options.expiresInSeconds <= 0
+  ) {
+    throw new Error("expiresInSeconds must be a positive number");
+  }
+
+  if (options.providerId !== undefined) {
+    assertUrlSafeIdentifier(options.providerId, "providerId");
+  }
 }
 
 async function handleS3SlotGrant(
