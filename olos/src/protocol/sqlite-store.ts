@@ -36,6 +36,10 @@ export interface CreateSqliteSerializedCoordinatorStoreBackendOptions {
   tableName?: string;
 }
 
+export interface CreateSqliteSerializedCoordinatorStoreSchemaOptions {
+  tableName?: string;
+}
+
 export function createSqliteSerializedCoordinatorStoreBackend(
   options: CreateSqliteSerializedCoordinatorStoreBackendOptions
 ): SerializedCoordinatorStoreBackend {
@@ -53,6 +57,21 @@ export function createSqliteSerializedCoordinatorStoreBackend(
       return await saveRecord(options.database, sql, saveOptions);
     },
   };
+}
+
+export function createSqliteSerializedCoordinatorStoreSchema(
+  options: CreateSqliteSerializedCoordinatorStoreSchemaOptions = {}
+): string {
+  const tableName = sqliteIdentifier(
+    options.tableName ?? DEFAULT_TABLE_NAME,
+    "tableName"
+  );
+
+  return `create table if not exists ${tableName} (
+  session_id text primary key,
+  etag text not null,
+  snapshot text not null
+)`;
 }
 
 function statements(tableName: string) {

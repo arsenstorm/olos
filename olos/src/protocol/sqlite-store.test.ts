@@ -3,11 +3,30 @@ import { describe, expect, test } from "bun:test";
 import { assertSerializedCoordinatorStoreBackendConformance } from "./serialized-store";
 import {
   createSqliteSerializedCoordinatorStoreBackend,
+  createSqliteSerializedCoordinatorStoreSchema,
   type SqliteSerializedCoordinatorStoreDatabase,
   type SqliteSerializedCoordinatorStoreRunResult,
 } from "./sqlite-store";
 
 describe("SQLite serialized coordinator store backend", () => {
+  test("creates the default coordinator snapshot table schema", () => {
+    expect(
+      createSqliteSerializedCoordinatorStoreSchema()
+    ).toBe(`create table if not exists olos_coordinator_snapshots (
+  session_id text primary key,
+  etag text not null,
+  snapshot text not null
+)`);
+  });
+
+  test("creates schema for a custom safe table name", () => {
+    expect(
+      createSqliteSerializedCoordinatorStoreSchema({
+        tableName: "custom_olos_snapshots",
+      })
+    ).toContain("create table if not exists custom_olos_snapshots");
+  });
+
   test("adapts SQLite-style conditional writes", async () => {
     await expect(
       assertSerializedCoordinatorStoreBackendConformance({
@@ -47,6 +66,11 @@ describe("SQLite serialized coordinator store backend", () => {
     expect(() =>
       createSqliteSerializedCoordinatorStoreBackend({
         database: createDatabase(),
+        tableName: "bad table",
+      })
+    ).toThrow("tableName must be a SQLite identifier");
+    expect(() =>
+      createSqliteSerializedCoordinatorStoreSchema({
         tableName: "bad table",
       })
     ).toThrow("tableName must be a SQLite identifier");

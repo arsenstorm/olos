@@ -56,7 +56,9 @@ export {
 } from "./protocol/serialized-store";
 export {
   type CreateSqliteSerializedCoordinatorStoreBackendOptions,
+  type CreateSqliteSerializedCoordinatorStoreSchemaOptions,
   createSqliteSerializedCoordinatorStoreBackend,
+  createSqliteSerializedCoordinatorStoreSchema,
   type SqliteSerializedCoordinatorStoreBoundStatement,
   type SqliteSerializedCoordinatorStoreDatabase,
   type SqliteSerializedCoordinatorStoreRunResult,

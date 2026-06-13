@@ -45,6 +45,14 @@ create table olos_coordinator_snapshots (
 );
 ```
 
+Generate the canonical SQLite-compatible table schema with:
+
+```ts
+import { createSqliteSerializedCoordinatorStoreSchema } from "olos/protocol";
+
+const sql = createSqliteSerializedCoordinatorStoreSchema();
+```
+
 The write path should be equivalent to:
 
 ```sql
