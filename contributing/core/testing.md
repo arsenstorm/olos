@@ -46,6 +46,10 @@ OLOS_LIVE_S3_FORCE_PATH_STYLE=true
 OLOS_LIVE_S3_PREFIX=olos-live-s3
 ```
 
+`OLOS_LIVE_S3_PREFIX` must be a safe relative object prefix. The test rejects
+empty prefixes, traversal segments, query strings, fragments, duplicate path
+separators, and control characters before contacting the provider.
+
 One-shot S3-compatible endpoint example:
 
 ```bash
