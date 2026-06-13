@@ -30,6 +30,7 @@ export const expectedRuntimeExports = {
     "createStoredCoordinatorSession",
     "createStoredCoordinatorRuntimeHandler",
     "getRuntimeSessionHealth",
+    "getRuntimeSessionRetentionPlan",
     "planStoredCoordinatorRetention",
     "resolveRuntimeLiveHealth",
     "runRuntimePublisherUploadStep",

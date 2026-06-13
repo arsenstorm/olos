@@ -2,12 +2,15 @@
 
 export {
   getRuntimeSessionHealth,
+  getRuntimeSessionRetentionPlan,
   type RuntimeFetch,
   type RuntimeHttpClientOptions,
   type RuntimePublisherHeartbeatOptions,
   type RuntimePublisherHeartbeatResponse,
   type RuntimeSessionHealthOptions,
   type RuntimeSessionHealthResponse,
+  type RuntimeSessionRetentionOptions,
+  type RuntimeSessionRetentionResponse,
   sendRuntimePublisherHeartbeat,
 } from "./runtime/client";
 export {
