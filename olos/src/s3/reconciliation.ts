@@ -7,6 +7,7 @@ import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
+import { assertUrlSafeIdentifier } from "../validation/ids";
 import {
   commitStoredS3CoordinatorUpload,
   type StoredS3CoordinatorManifestOptions,
@@ -94,6 +95,8 @@ export interface StoredS3CoordinatorUploadReconciliationSummary {
 export async function reconcileStoredS3CoordinatorUploads(
   options: ReconcileStoredS3CoordinatorUploadsOptions
 ): Promise<StoredS3CoordinatorUploadReconciliation> {
+  assertReconciliationOptions(options);
+
   const snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
@@ -110,6 +113,16 @@ export async function reconcileStoredS3CoordinatorUploads(
     results,
     status: "reconciled",
   };
+}
+
+function assertReconciliationOptions(
+  options: ReconcileStoredS3CoordinatorUploadsOptions
+): void {
+  if (options.bucket.length === 0) {
+    throw new Error("bucket must be a non-empty string");
+  }
+
+  assertUrlSafeIdentifier(options.providerId, "providerId");
 }
 
 export function summarizeStoredS3CoordinatorUploadReconciliation(

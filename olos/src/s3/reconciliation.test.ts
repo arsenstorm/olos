@@ -245,6 +245,36 @@ describe("stored S3 upload reconciliation", () => {
       status: "reconciled",
     });
   });
+
+  test("rejects invalid S3 reconciliation options before object observation", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+
+    await store.save({
+      sessionId: session.sessionId,
+      state: stateWithSlots(),
+    });
+
+    const options = {
+      bucket: "media",
+      client: clientFor(new Map(), headObjectInputs),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store,
+    };
+
+    await expect(
+      reconcileStoredS3CoordinatorUploads({ ...options, bucket: "" })
+    ).rejects.toThrow("bucket must be a non-empty string");
+    await expect(
+      reconcileStoredS3CoordinatorUploads({
+        ...options,
+        providerId: "../provider",
+      })
+    ).rejects.toThrow("providerId must be a non-empty URL-safe identifier");
+    expect(headObjectInputs).toEqual([]);
+  });
 });
 
 function stateWithSlots(): CoordinatorPipelineState {
