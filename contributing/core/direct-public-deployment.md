@@ -41,6 +41,10 @@ Access-Control-Allow-Credentials: false
 Set-Cookie: never
 ```
 
+Use `createDirectPublicMediaResponseHeaders` from `olos/state` to compose these
+headers from a direct-public security policy before serving committed media
+objects.
+
 Block:
 
 - bucket or prefix listing
