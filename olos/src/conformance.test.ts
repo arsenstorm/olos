@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   assertCoordinatorPipelineStoreConformance,
   getOlosConformanceCoverage,
@@ -9,6 +10,7 @@ import {
 import { createMemoryCoordinatorStore } from "./protocol";
 
 const ASSERTION_ID_PATTERN = /^(CORE|OBJ|HLS|SEC)-[A-Z]+-\d{3}$/;
+const DOCUMENTED_ASSERTION_ID_PATTERN = /`([A-Z]+(?:-[A-Z]+)*-\d{3})`/g;
 
 describe("conformance manifest", () => {
   test("uses stable assertion identifiers", () => {
@@ -33,6 +35,14 @@ describe("conformance manifest", () => {
       expect(assertionIds.has(entry.id)).toBe(true);
       expect(isCoveredTestFile(entry.testFile)).toBe(true);
     }
+  });
+
+  test("documents every executable assertion in the conformance spec", () => {
+    const documented = documentedAssertionIds();
+
+    expect(
+      OLOS_CONFORMANCE_ASSERTION_IDS.filter((id) => !documented.has(id))
+    ).toEqual([]);
   });
 
   test("does not duplicate coverage entries", () => {
@@ -110,6 +120,17 @@ describe("conformance manifest", () => {
 
 function isCoveredTestFile(value: string): boolean {
   return value.startsWith("src/") || value.startsWith("e2e/");
+}
+
+function documentedAssertionIds(): Set<string> {
+  const spec = readFileSync(
+    new URL("../../specs/08-conformance.md", import.meta.url),
+    "utf8"
+  );
+
+  return new Set(
+    [...spec.matchAll(DOCUMENTED_ASSERTION_ID_PATTERN)].map((match) => match[1])
+  );
 }
 
 function countCoverageByLevel() {
