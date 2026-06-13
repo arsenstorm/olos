@@ -64,6 +64,11 @@ export interface StoredS3CoordinatorSlotGrantResponse {
   slot: UploadSlot;
 }
 
+export interface StoredS3CoordinatorCommitResponse {
+  commit: Commit;
+  cursor?: Cursor;
+}
+
 export interface StoredS3CoordinatorRetentionResponse {
   plan: CoordinatorRetentionPlan;
   result: RetiredCoordinatorObjectDeletionResult;
@@ -233,13 +238,12 @@ async function handleS3Commit(
   if (result.status === "committed" || result.status === "idempotent") {
     notifyCursor(options.cursorNotifier, result.cursor);
 
-    return jsonResponse(
-      {
-        commit: result.commit,
-        ...(result.cursor === undefined ? {} : { cursor: result.cursor }),
-      },
-      result.status === "committed" ? 201 : 200
-    );
+    const body: StoredS3CoordinatorCommitResponse = {
+      commit: result.commit,
+      ...(result.cursor === undefined ? {} : { cursor: result.cursor }),
+    };
+
+    return jsonResponse(body, result.status === "committed" ? 201 : 200);
   }
 
   if (result.status === "rejected") {

@@ -21,6 +21,7 @@ import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
   createStoredS3CoordinatorRuntimeHandler,
+  type StoredS3CoordinatorCommitResponse,
   type StoredS3CoordinatorReconciliationResponse,
   type StoredS3CoordinatorRetentionResponse,
   type StoredS3CoordinatorSlotGrantResponse,
@@ -193,10 +194,8 @@ describe("stored S3 coordinator runtime handler", () => {
         slotId: "slot_3810",
       })
     );
-    const committed = (await segmentCommit.json()) as {
-      commit: { objectKey: string; slotId: string };
-      cursor: { window: Record<string, number> };
-    };
+    const committed =
+      (await segmentCommit.json()) as StoredS3CoordinatorCommitResponse;
 
     expect(initCommit.status).toBe(201);
     expect(segmentCommit.status).toBe(201);
@@ -204,6 +203,10 @@ describe("stored S3 coordinator runtime handler", () => {
       objectKey: "live/session/v1080/3810.m4s",
       slotId: "slot_3810",
     });
+    if (committed.cursor === undefined) {
+      throw new Error("expected committed cursor");
+    }
+
     expect(committed.cursor.window).toEqual({
       firstMediaSequenceNumber: 3810,
       lastMediaSequenceNumber: 3810,
@@ -804,12 +807,7 @@ describe("stored S3 coordinator runtime handler", () => {
         slotId: "slot_3810",
       })
     );
-    const body = (await response.json()) as {
-      commit: {
-        providerId: string;
-        slotId: string;
-      };
-    };
+    const body = (await response.json()) as StoredS3CoordinatorCommitResponse;
 
     expect(response.status).toBe(201);
     expect(body.commit).toMatchObject({
