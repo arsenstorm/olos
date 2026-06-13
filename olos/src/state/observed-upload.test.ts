@@ -529,5 +529,17 @@ describe("object created event normalization", () => {
         slotId: "slot_1",
       })
     ).toThrow("uploadCompletionHint.eventTime must be a valid timestamp");
+
+    expect(() =>
+      createUploadCompletionHint({
+        eventId: "hint_1",
+        eventTime: "2026-01-01T00:00:00.900Z",
+        eventType: "upload.completed",
+        objectKey: "media/session/../secret.m4s",
+        slotId: "slot_1",
+      })
+    ).toThrow(
+      "uploadCompletionHint.objectKey must be a safe relative object key"
+    );
   });
 });

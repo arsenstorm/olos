@@ -1,6 +1,7 @@
 import type { OlosError } from "../types/errors";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertUrlSafeIdentifier } from "../validation/ids";
+import { assertSafeObjectKey } from "../validation/object-key";
 import {
   assertObservedUpload,
   type ObservedUpload,
@@ -384,9 +385,7 @@ function assertUploadCompletionHint(
     throw new Error("uploadCompletionHint.eventTime must be a valid timestamp");
   }
 
-  if (options.objectKey.trim() === "") {
-    throw new Error("uploadCompletionHint.objectKey must be non-empty");
-  }
+  assertSafeObjectKey(options.objectKey, "uploadCompletionHint.objectKey");
 }
 
 function headObjectTimestamp(value: string | Date): string {
