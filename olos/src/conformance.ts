@@ -653,7 +653,7 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     id: "OBJ-FLOW-013",
     level: "object",
     status: "covered",
-    testFile: "e2e/object-store-flow.test.ts",
+    testFile: "e2e/s3-http-pipeline.test.ts",
   },
   {
     id: "OBJ-RUNTIME-001",

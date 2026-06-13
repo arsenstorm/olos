@@ -45,6 +45,22 @@ const session = {
   tenantId: "tenant_1",
 } satisfies Session;
 
+const multiRenditionSession = {
+  ...session,
+  renditions: [
+    session.renditions[0],
+    {
+      bitrate: 2_800_000,
+      codec: "avc1.64001f",
+      frameRate: 30,
+      height: 720,
+      kind: "video",
+      renditionId: "v720",
+      width: 1280,
+    },
+  ],
+} satisfies Session;
+
 const pathways = [
   {
     baseUrl: "https://media.example.com",
@@ -371,6 +387,95 @@ describe("S3 HTTP pipeline", () => {
       { Bucket: "media", Key: "media/v1080/init.mp4" },
       { Bucket: "media", Key: "media/v1080/3810.m4s" },
       { Bucket: "media", Key: "media/v1080/3811.m4s" },
+    ]);
+  });
+
+  test("publishes multiple S3 renditions through coherent HLS manifests", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createS3Client(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "media/v1080/3810.m4s": 98_304,
+          "media/v1080/init.mp4": 1024,
+          "media/v720/3810.m4s": 64_000,
+          "media/v720/init.mp4": 1024,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      response: manifestOptions.response,
+      store,
+      ...manifestOptions.manifest,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session: multiRenditionSession,
+      })
+    );
+
+    for (const object of [
+      renditionObject("v1080", "init"),
+      renditionObject("v720", "init"),
+      renditionObject("v1080", "segment"),
+      renditionObject("v720", "segment"),
+    ]) {
+      await handle(
+        jsonRequest(
+          "https://edge.example.com/sessions/session_1/s3/slots",
+          slotPayload(object)
+        )
+      );
+      await handle(
+        jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+          commitId: object.commitId,
+          committedAt: object.committedAt,
+          independent: object.kind === "segment",
+          slotId: object.slotId,
+        })
+      );
+    }
+
+    const master = await handle(
+      new Request("https://edge.example.com/v1/live/session_1/master.m3u8")
+    );
+    const v1080 = await handle(
+      new Request("https://edge.example.com/v1/live/session_1/v1080/media.m3u8")
+    );
+    const v720 = await handle(
+      new Request("https://edge.example.com/v1/live/session_1/v720/media.m3u8")
+    );
+    const masterBody = await master.text();
+    const v1080Body = await v1080.text();
+    const v720Body = await v720.text();
+
+    expect(master.status).toBe(200);
+    expect(masterBody).toContain("/v1/live/session_1/v1080/media.m3u8");
+    expect(masterBody).toContain("/v1/live/session_1/v720/media.m3u8");
+    expect(v1080.status).toBe(200);
+    expect(v1080Body).toContain(
+      '#EXT-X-MAP:URI="https://media.example.com/media/v1080/init.mp4"'
+    );
+    expect(v1080Body).toContain(
+      "https://media.example.com/media/v1080/3810.m4s"
+    );
+    expect(v720.status).toBe(200);
+    expect(v720Body).toContain(
+      '#EXT-X-MAP:URI="https://media.example.com/media/v720/init.mp4"'
+    );
+    expect(v720Body).toContain("https://media.example.com/media/v720/3810.m4s");
+    expect(headObjectInputs).toEqual([
+      { Bucket: "media", Key: "media/v1080/init.mp4" },
+      { Bucket: "media", Key: "media/v720/init.mp4" },
+      { Bucket: "media", Key: "media/v1080/3810.m4s" },
+      { Bucket: "media", Key: "media/v720/3810.m4s" },
     ]);
   });
 
@@ -970,7 +1075,31 @@ interface SlotPayloadOptions {
   maxSegments?: number;
   mediaSequenceNumber: number;
   objectKey: string;
+  renditionId?: string;
   slotId: string;
+}
+
+function renditionObject(
+  renditionId: "v1080" | "v720",
+  kind: "init" | "segment"
+): SlotPayloadOptions & { commitId: string; committedAt: string } {
+  const name = kind === "init" ? "init.mp4" : "3810.m4s";
+  const objectKey = `media/${renditionId}/${name}`;
+  const slotSuffix = kind === "init" ? "init" : "3810";
+
+  return {
+    commitId: `commit_${renditionId}_${slotSuffix}`,
+    committedAt:
+      kind === "init" ? "2026-01-01T00:00:01.000Z" : "2026-01-01T00:00:02.000Z",
+    deliveryUrl: `https://media.example.com/${objectKey}`,
+    duration: kind === "init" ? 1 : 2,
+    kind,
+    maxBytes: kind === "init" ? 2048 : 100_000,
+    mediaSequenceNumber: kind === "init" ? 0 : 3810,
+    objectKey,
+    renditionId,
+    slotId: `slot_${renditionId}_${slotSuffix}`,
+  };
 }
 
 function slotPayload(options: SlotPayloadOptions) {
@@ -985,7 +1114,7 @@ function slotPayload(options: SlotPayloadOptions) {
     objectKey: options.objectKey,
     publicationMode: "direct-public" as const,
     publisherInstanceId: "publisher_1",
-    renditionId: "v1080",
+    renditionId: options.renditionId ?? "v1080",
     slotId: options.slotId,
   };
 }
