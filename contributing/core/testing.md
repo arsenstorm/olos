@@ -27,7 +27,8 @@ bun run test:live-s3
 ```
 
 Without `OLOS_LIVE_S3=1`, the live S3 test only verifies that the optional
-surface is wired. To run against a provider, set:
+surface is wired and reports the provider test as skipped. To run against a
+provider, set:
 
 ```bash
 OLOS_LIVE_S3=1

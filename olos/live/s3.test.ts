@@ -6,70 +6,72 @@ import { expect, test } from "vitest";
 
 const contentType = "application/octet-stream";
 const payload = new TextEncoder().encode("olos live s3 integration\n");
+const liveS3Config = readLiveS3Config();
 
-test("uploads and observes an object through a live S3-compatible provider", async () => {
-  const config = readLiveS3Config();
-
-  if (config.status === "disabled") {
-    expect(config.status).toBe("disabled");
-    return;
-  }
-
-  const client = new S3Client({
-    credentials: {
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey,
-    },
-    ...(config.endpoint === undefined ? {} : { endpoint: config.endpoint }),
-    forcePathStyle: config.forcePathStyle,
-    region: config.region,
-  });
-  const objectKey = `${config.prefix}/${randomUUID()}.bin`;
-  const slot = createSlot(objectKey);
-
-  try {
-    const grant = await createPresignedS3UploadGrant({
-      bucket: config.bucket,
-      client,
-      expiresInSeconds: 60,
-      slot,
-    });
-    const uploaded = await fetch(grant.url, {
-      body: payload,
-      headers: grant.requiredHeaders,
-      method: grant.method,
-    });
-
-    if (!uploaded.ok) {
-      throw new Error(`live S3 upload failed with ${uploaded.status}`);
+test.skipIf(liveS3Config.status === "disabled")(
+  "uploads and observes an object through a live S3-compatible provider",
+  async () => {
+    if (liveS3Config.status === "disabled") {
+      throw new Error("live S3 test is disabled");
     }
 
-    const observed = await observeS3Object({
-      bucket: config.bucket,
-      client,
-      objectKey,
-      observedAt: "2026-01-01T00:00:01.000Z",
-      providerId: "live_s3",
-    });
-
-    expect(observed).toMatchObject({
-      contentType,
-      metadata: {
-        "x-olos-slot-id": slot.slotId,
+    const config = liveS3Config;
+    const client = new S3Client({
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
       },
-      objectKey,
-      providerId: "live_s3",
-      size: payload.byteLength,
+      ...(config.endpoint === undefined ? {} : { endpoint: config.endpoint }),
+      forcePathStyle: config.forcePathStyle,
+      region: config.region,
     });
-  } finally {
-    await client.send(
-      new DeleteObjectCommand({
-        Bucket: config.bucket,
-        Key: objectKey,
-      })
-    );
+    const objectKey = `${config.prefix}/${randomUUID()}.bin`;
+    const slot = createSlot(objectKey);
+
+    try {
+      const grant = await createPresignedS3UploadGrant({
+        bucket: config.bucket,
+        client,
+        expiresInSeconds: 60,
+        slot,
+      });
+      const uploaded = await fetch(grant.url, {
+        body: payload,
+        headers: grant.requiredHeaders,
+        method: grant.method,
+      });
+
+      if (!uploaded.ok) {
+        throw new Error(`live S3 upload failed with ${uploaded.status}`);
+      }
+
+      const observed = await observeS3Object({
+        bucket: config.bucket,
+        client,
+        objectKey,
+        observedAt: "2026-01-01T00:00:01.000Z",
+        providerId: "live_s3",
+      });
+
+      expect(observed).toMatchObject({
+        contentType,
+        metadata: {
+          "x-olos-slot-id": slot.slotId,
+        },
+        objectKey,
+        providerId: "live_s3",
+        size: payload.byteLength,
+      });
+    } finally {
+      await client.send(
+        new DeleteObjectCommand({
+          Bucket: config.bucket,
+          Key: objectKey,
+        })
+      );
+    }
   }
-});
+);
 
 type LiveS3Config =
   | { status: "disabled" }
