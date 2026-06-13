@@ -581,7 +581,11 @@ or short-lived exposure is acceptable.
 OLOS can validate provider capability documents, issue exact-key upload grants,
 commit only observed objects that match issued slots, keep manifests gated by
 the trusted cursor, and derive cache policies for manifests, media objects, and
-negative object responses.
+negative object responses. `createDirectPublicSecurityPolicy` also returns the
+media-only response headers, forbidden response headers, and supported media
+extensions that a CDN or media gateway should enforce. Use
+`resolveDirectPublicMediaRequestPolicy` to reject unknown extensions, document
+navigations, and HTML `Accept` requests before serving direct-public media.
 
 Object keys are treated as storage identity, not URLs. Validators and runtime
 request parsers reject traversal segments, absolute-style paths, control

@@ -34,6 +34,10 @@ export {
 export {
   type CreateDirectPublicSecurityPolicyOptions,
   createDirectPublicSecurityPolicy,
+  type DirectPublicMediaRequestBlockReason,
+  type DirectPublicMediaRequestPolicy,
+  type ResolveDirectPublicMediaRequestPolicyOptions,
+  resolveDirectPublicMediaRequestPolicy,
 } from "./state/direct-public-security-policy";
 export {
   type CreateObservedUploadFromHeadObjectOptions,

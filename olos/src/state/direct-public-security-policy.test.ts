@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
-import { createDirectPublicSecurityPolicy } from "./direct-public-security-policy";
+import {
+  createDirectPublicSecurityPolicy,
+  resolveDirectPublicMediaRequestPolicy,
+} from "./direct-public-security-policy";
 
 const capability: ProviderCapabilityDocument = {
   consistency: {
@@ -37,6 +40,8 @@ describe("direct-public security policy", () => {
       })
     ).toEqual({
       allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaExtensions: [".m4s", ".mp4"],
+      forbiddenResponseHeaders: ["set-cookie"],
       manifestCachePolicy: {
         cacheControl: "public, max-age=2, must-revalidate",
         maxAgeSeconds: 2,
@@ -46,6 +51,11 @@ describe("direct-public security policy", () => {
         cacheControl: "public, max-age=31536000, immutable",
         maxAgeSeconds: 31_536_000,
         target: "media-object",
+      },
+      mediaResponseHeaders: {
+        "access-control-allow-credentials": "false",
+        "cross-origin-resource-policy": "same-site",
+        "x-content-type-options": "nosniff",
       },
       negativeObjectCachePolicy: {
         cacheControl: "public, max-age=1, must-revalidate",
@@ -145,5 +155,52 @@ describe("direct-public security policy", () => {
     ).toThrow(
       "maxAgeSeconds must be less than or equal to targetLatencySeconds"
     );
+  });
+
+  test("allows supported media object requests", () => {
+    expect(
+      resolveDirectPublicMediaRequestPolicy({
+        accept: "video/*,*/*",
+        objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
+      })
+    ).toEqual({ allowed: true });
+  });
+
+  test("blocks unknown media object extensions", () => {
+    expect(
+      resolveDirectPublicMediaRequestPolicy({
+        objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.html",
+      })
+    ).toEqual({
+      allowed: false,
+      reason: "unsupported-extension",
+      status: 404,
+    });
+  });
+
+  test("blocks document navigation to media objects", () => {
+    expect(
+      resolveDirectPublicMediaRequestPolicy({
+        fetchDestination: "document",
+        objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
+      })
+    ).toEqual({
+      allowed: false,
+      reason: "document-navigation",
+      status: 403,
+    });
+  });
+
+  test("blocks HTML accept requests for media objects", () => {
+    expect(
+      resolveDirectPublicMediaRequestPolicy({
+        accept: "text/html,application/xhtml+xml",
+        objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.mp4",
+      })
+    ).toEqual({
+      allowed: false,
+      reason: "html-accept",
+      status: 403,
+    });
   });
 });

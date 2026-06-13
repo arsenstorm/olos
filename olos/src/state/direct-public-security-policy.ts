@@ -9,6 +9,28 @@ export interface CreateDirectPublicSecurityPolicyOptions {
   targetLatencySeconds?: number;
 }
 
+export type DirectPublicMediaRequestBlockReason =
+  | "document-navigation"
+  | "html-accept"
+  | "unsupported-extension";
+
+export type DirectPublicMediaRequestPolicy =
+  | {
+      allowed: true;
+    }
+  | {
+      allowed: false;
+      reason: DirectPublicMediaRequestBlockReason;
+      status: 403 | 404;
+    };
+
+export interface ResolveDirectPublicMediaRequestPolicyOptions {
+  accept?: string | null;
+  fetchDestination?: string | null;
+  fetchMode?: string | null;
+  objectKey: string;
+}
+
 export function createDirectPublicSecurityPolicy(
   options: CreateDirectPublicSecurityPolicyOptions
 ): DirectPublicSecurityPolicy {
@@ -20,6 +42,8 @@ export function createDirectPublicSecurityPolicy(
 
   return {
     allowedMediaOrigins: [origin],
+    allowedMediaExtensions: DIRECT_PUBLIC_MEDIA_EXTENSIONS,
+    forbiddenResponseHeaders: ["set-cookie"],
     manifestCachePolicy: createDeliveryCachePolicy({
       maxAgeSeconds: options.manifestMaxAgeSeconds,
       target: "manifest",
@@ -29,12 +53,51 @@ export function createDirectPublicSecurityPolicy(
       capability: options.capability,
       target: "media-object",
     }),
+    mediaResponseHeaders: DIRECT_PUBLIC_MEDIA_RESPONSE_HEADERS,
     negativeObjectCachePolicy: createDeliveryCachePolicy({
       capability: options.capability,
       target: "negative-object",
       targetLatencySeconds,
     }),
   };
+}
+
+export function resolveDirectPublicMediaRequestPolicy(
+  options: ResolveDirectPublicMediaRequestPolicyOptions
+): DirectPublicMediaRequestPolicy {
+  const lowerObjectKey = options.objectKey.toLowerCase();
+  const supportedExtension = DIRECT_PUBLIC_MEDIA_EXTENSIONS.some((extension) =>
+    lowerObjectKey.endsWith(extension)
+  );
+
+  if (!supportedExtension) {
+    return {
+      allowed: false,
+      reason: "unsupported-extension",
+      status: 404,
+    };
+  }
+
+  if (
+    options.fetchDestination === "document" ||
+    options.fetchMode === "navigate"
+  ) {
+    return {
+      allowed: false,
+      reason: "document-navigation",
+      status: 403,
+    };
+  }
+
+  if (options.accept?.toLowerCase().includes("text/html") === true) {
+    return {
+      allowed: false,
+      reason: "html-accept",
+      status: 403,
+    };
+  }
+
+  return { allowed: true };
 }
 
 function assertDirectPublicCapability(
@@ -70,3 +133,11 @@ function publicBaseOrigin(publicBaseUrl: string): string {
 
   return url.origin;
 }
+
+const DIRECT_PUBLIC_MEDIA_EXTENSIONS = [".m4s", ".mp4"] as const;
+
+const DIRECT_PUBLIC_MEDIA_RESPONSE_HEADERS = {
+  "access-control-allow-credentials": "false",
+  "cross-origin-resource-policy": "same-site",
+  "x-content-type-options": "nosniff",
+} as const;

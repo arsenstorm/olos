@@ -755,13 +755,13 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     id: "OBJ-CACHE-004",
     level: "object",
     status: "covered",
-    testFile: "src/state/cache-policy.test.ts",
+    testFile: "src/state/direct-public-security-policy.test.ts",
   },
   {
     id: "OBJ-CACHE-005",
     level: "object",
     status: "covered",
-    testFile: "src/state/cache-policy.test.ts",
+    testFile: "src/state/direct-public-security-policy.test.ts",
   },
   {
     id: "HLS-GOLDEN-001",
