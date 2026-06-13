@@ -801,30 +801,7 @@ describe("S3 HTTP pipeline", () => {
   });
 
   test("deletes retired S3 objects through the retention route", async () => {
-    const deleteInputs: unknown[] = [];
-    const headObjectInputs: unknown[] = [];
-    const store = createMemoryCoordinatorStore();
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
-      client: createS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: objectClientFor(
-        {
-          "media/v1080/3810.m4s": 98_304,
-          "media/v1080/3811.m4s": 98_304,
-          "media/v1080/3812.m4s": 98_304,
-          "media/v1080/init.mp4": 1024,
-        },
-        headObjectInputs
-      ),
-      providerId: "s3_primary",
-      response: manifestOptions.response,
-      retentionClient: deleteClientFor(deleteInputs),
-      store,
-      ...manifestOptions.manifest,
-    });
+    const { deleteInputs, handle } = createRetentionPipeline();
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", { pathways, session })
@@ -896,6 +873,92 @@ describe("S3 HTTP pipeline", () => {
     expect(mediaBody).not.toContain("media/v1080/3810.m4s");
     expect(mediaBody).toContain("media/v1080/3811.m4s");
     expect(mediaBody).toContain("media/v1080/3812.m4s");
+  });
+
+  test("reports failed S3 retention deletes without changing the cursor", async () => {
+    const { deleteInputs, handle, store } = createRetentionPipeline({
+      failingDeleteKey: "media/v1080/3810.m4s",
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+    );
+
+    for (const object of retentionObjects()) {
+      await handle(
+        jsonRequest(
+          "https://edge.example.com/sessions/session_1/s3/slots",
+          slotPayload(object)
+        )
+      );
+      await handle(
+        jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+          commitId: object.commitId,
+          committedAt: "2026-01-01T00:00:02.000Z",
+          independent: object.kind === "segment",
+          ...(object.maxSegments === undefined
+            ? {}
+            : { maxSegments: object.maxSegments }),
+          slotId: object.slotId,
+        })
+      );
+    }
+
+    const before = await store.load(session.sessionId);
+    const retention = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/retention", {
+        now: "2026-01-01T00:00:06.000Z",
+      })
+    );
+    const retentionBody = (await retention.json()) as {
+      result: {
+        deletedObjects: unknown[];
+        failedObjects: {
+          error: string;
+          object: {
+            commitId: string;
+            objectKey: string;
+            slotId: string;
+          };
+        }[];
+      };
+      summary: {
+        deleted: number;
+        failed: number;
+        failedObjectKeys: string[];
+        failedSlotIds: string[];
+        ok: boolean;
+        planned: number;
+      };
+    };
+    const after = await store.load(session.sessionId);
+
+    expect(retention.status).toBe(202);
+    expect(deleteInputs).toEqual([
+      { Bucket: "media", Key: "media/v1080/3810.m4s" },
+    ]);
+    expect(retentionBody.result).toEqual({
+      deletedObjects: [],
+      failedObjects: [
+        {
+          error: "delete failed",
+          object: {
+            commitId: "commit_3810",
+            objectKey: "media/v1080/3810.m4s",
+            slotId: "slot_3810",
+          },
+        },
+      ],
+    });
+    expect(retentionBody.summary).toEqual({
+      deleted: 0,
+      failed: 1,
+      failedObjectKeys: ["media/v1080/3810.m4s"],
+      failedSlotIds: ["slot_3810"],
+      ok: false,
+      planned: 1,
+    });
+    expect(after?.state.cursor).toEqual(before?.state.cursor);
   });
 });
 
@@ -1014,6 +1077,35 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
   ];
 }
 
+function createRetentionPipeline(options: { failingDeleteKey?: string } = {}) {
+  const deleteInputs: unknown[] = [];
+  const headObjectInputs: unknown[] = [];
+  const store = createMemoryCoordinatorStore();
+  const handle = createStoredS3CoordinatorRuntimeHandler({
+    allowedMediaOrigins: ["https://media.example.com"],
+    bucket: "media",
+    client: createS3Client(),
+    expiresInSeconds: 3,
+    grantNow: () => "2026-01-01T00:00:00.000Z",
+    objectClient: objectClientFor(
+      {
+        "media/v1080/3810.m4s": 98_304,
+        "media/v1080/3811.m4s": 98_304,
+        "media/v1080/3812.m4s": 98_304,
+        "media/v1080/init.mp4": 1024,
+      },
+      headObjectInputs
+    ),
+    providerId: "s3_primary",
+    response: manifestOptions.response,
+    retentionClient: deleteClientFor(deleteInputs, options.failingDeleteKey),
+    store,
+    ...manifestOptions.manifest,
+  });
+
+  return { deleteInputs, handle, store };
+}
+
 function objectClientFor(
   sizes: Record<string, number>,
   inputs: unknown[]
@@ -1040,10 +1132,17 @@ function objectClientFor(
   };
 }
 
-function deleteClientFor(inputs: unknown[]): S3DeleteObjectClient {
+function deleteClientFor(
+  inputs: unknown[],
+  failingKey?: string
+): S3DeleteObjectClient {
   return {
     send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput> {
       inputs.push(command.input);
+
+      if (command.input.Key === failingKey) {
+        throw new Error("delete failed");
+      }
 
       return Promise.resolve({ $metadata: {} });
     },
