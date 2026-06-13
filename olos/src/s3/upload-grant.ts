@@ -39,7 +39,9 @@ export function createS3UploadGrant(
 function assertPresignedUrlMatchesSlot(
   options: CreateS3UploadGrantOptions
 ): void {
-  const pathSegments = pathParts(new URL(options.presignedUrl).pathname);
+  const pathSegments = pathParts(
+    presignedHttpUrl(options.presignedUrl).pathname
+  );
   const keySegments = pathParts(options.slot.objectKey);
 
   if (
@@ -52,6 +54,22 @@ function assertPresignedUrlMatchesSlot(
   }
 
   throw new Error("presignedUrl path must match uploadSlot.objectKey");
+}
+
+function presignedHttpUrl(value: string): URL {
+  let url: URL;
+
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("presignedUrl must be an absolute HTTP(S) URL");
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("presignedUrl must be an absolute HTTP(S) URL");
+  }
+
+  return url;
 }
 
 function pathParts(value: string): string[] {

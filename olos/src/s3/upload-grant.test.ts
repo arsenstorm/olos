@@ -175,6 +175,23 @@ describe("s3 upload grants", () => {
     ).toThrow("presignedUrl path must match uploadSlot.objectKey");
   });
 
+  test("rejects invalid manual S3 presigned URLs", () => {
+    const urls = [
+      "not a url",
+      "/live/session/v1080/3810.m4s",
+      "s3://bucket/live/session/v1080/3810.m4s",
+    ];
+
+    for (const presignedUrl of urls) {
+      expect(() =>
+        createS3UploadGrant({
+          presignedUrl,
+          slot,
+        })
+      ).toThrow("presignedUrl must be an absolute HTTP(S) URL");
+    }
+  });
+
   test("supports provider-specific signed headers", () => {
     expect(
       createS3UploadGrant({
