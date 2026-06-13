@@ -437,9 +437,9 @@ function parsePayload(value: Record<string, unknown>): RuntimeSlotIssuePayload {
     mediaSequenceNumber: nonNegativeIntegerField(value, "mediaSequenceNumber"),
     objectKey,
     publicationMode: publicationModeField(value),
-    publisherInstanceId: stringField(value, "publisherInstanceId"),
-    renditionId: stringField(value, "renditionId"),
-    slotId: stringField(value, "slotId"),
+    publisherInstanceId: urlSafeIdentifierField(value, "publisherInstanceId"),
+    renditionId: urlSafeIdentifierField(value, "renditionId"),
+    slotId: urlSafeIdentifierField(value, "slotId"),
     ...optionalNonNegativeIntegerField(value, "minBytes"),
     ...optionalNonNegativeIntegerField(value, "partNumber"),
   };

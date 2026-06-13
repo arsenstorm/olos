@@ -316,6 +316,61 @@ describe("stored S3 coordinator runtime handler", () => {
     });
   });
 
+  test("rejects unsafe S3 slot payload identifiers", async () => {
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      store: createMemoryCoordinatorStore(),
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+
+    const cases = [
+      {
+        expected: "publisherInstanceId must be a non-empty URL-safe identifier",
+        field: "publisherInstanceId",
+      },
+      {
+        expected: "renditionId must be a non-empty URL-safe identifier",
+        field: "renditionId",
+      },
+      {
+        expected: "slotId must be a non-empty URL-safe identifier",
+        field: "slotId",
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const response = await handle(
+        jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", {
+          ...slotPayload({
+            deliveryUrl:
+              "https://media.example.com/live/session/v1080/3810.m4s",
+            duration: 2,
+            kind: "segment",
+            maxBytes: 100_000,
+            mediaSequenceNumber: 3810,
+            objectKey: "live/session/v1080/3810.m4s",
+            slotId: "slot_3810",
+          }),
+          [testCase.field]: "../unsafe",
+        })
+      );
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: { message: testCase.expected },
+      });
+    }
+  });
+
   test("rejects invalid S3 slot payload numbers", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],

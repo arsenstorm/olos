@@ -113,6 +113,47 @@ describe("runtime slot adapter", () => {
     );
   });
 
+  test("returns invalid responses for unsafe JSON slot identifiers", async () => {
+    const cases = [
+      {
+        expected: "publisherInstanceId must be a non-empty URL-safe identifier",
+        field: "publisherInstanceId",
+      },
+      {
+        expected: "renditionId must be a non-empty URL-safe identifier",
+        field: "renditionId",
+      },
+      {
+        expected: "slotId must be a non-empty URL-safe identifier",
+        field: "slotId",
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const result = await issueCoordinatorSlotFromRequest({
+        request: new Request(
+          "https://edge.example.com/v1/live/session_1/slots",
+          {
+            body: JSON.stringify({
+              ...slotPayload(),
+              [testCase.field]: "../unsafe",
+            }),
+            method: "POST",
+          }
+        ),
+        state: createCoordinatorPipeline({ pathways, session }),
+      });
+
+      expect(result.status).toBe("invalid");
+
+      if (result.status !== "invalid") {
+        throw new Error("expected invalid slot request");
+      }
+
+      expect(result.message).toBe(testCase.expected);
+    }
+  });
+
   test("returns invalid responses for invalid JSON slot numbers", async () => {
     const cases = [
       {

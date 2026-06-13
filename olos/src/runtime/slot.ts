@@ -13,6 +13,7 @@ import type { OlosError } from "../types/errors";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode, UploadSlot } from "../types/upload-slot";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
+import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeMediaObjectKey } from "../validation/object-key";
 
 export type RuntimeSlotIssueRequest = Request | RuntimeSlotIssuePayload;
@@ -120,9 +121,9 @@ function parsePayload(value: unknown): RuntimeSlotIssuePayload {
     mediaSequenceNumber: nonNegativeIntegerField(value, "mediaSequenceNumber"),
     objectKey,
     publicationMode: publicationModeField(value),
-    publisherInstanceId: stringField(value, "publisherInstanceId"),
-    renditionId: stringField(value, "renditionId"),
-    slotId: stringField(value, "slotId"),
+    publisherInstanceId: urlSafeIdentifierField(value, "publisherInstanceId"),
+    renditionId: urlSafeIdentifierField(value, "renditionId"),
+    slotId: urlSafeIdentifierField(value, "slotId"),
     ...optionalNonNegativeIntegerField(value, "minBytes"),
     ...optionalNonNegativeIntegerField(value, "partNumber"),
   };
@@ -169,6 +170,15 @@ function stringField(value: Record<string, unknown>, field: string): string {
   if (typeof value[field] !== "string") {
     throw new Error(`${field} must be a string`);
   }
+
+  return value[field];
+}
+
+function urlSafeIdentifierField(
+  value: Record<string, unknown>,
+  field: string
+): string {
+  assertUrlSafeIdentifier(value[field], field);
 
   return value[field];
 }
