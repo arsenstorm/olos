@@ -707,6 +707,66 @@ describe("stored S3 coordinator runtime handler", () => {
     });
   });
 
+  test("rejects invalid S3 timestamp inputs", async () => {
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      providerId: "s3_primary",
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const cases = [
+      {
+        expected: "committedAt must be a valid timestamp",
+        payload: {
+          commitId: "commit_3810",
+          committedAt: "soon",
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        },
+        url: "https://edge.example.com/sessions/session_1/s3/commits",
+      },
+      {
+        expected: "programDateTime must be a valid timestamp",
+        payload: {
+          commitId: "commit_3810",
+          committedAt: "2026-01-01T00:00:02.000Z",
+          objectKey: "live/session/v1080/3810.m4s",
+          programDateTime: "soon",
+          slotId: "slot_3810",
+        },
+        url: "https://edge.example.com/sessions/session_1/s3/commits",
+      },
+      {
+        expected: "committedAt must be a valid timestamp",
+        payload: {
+          committedAt: "soon",
+        },
+        url: "https://edge.example.com/sessions/session_1/s3/reconcile",
+      },
+      {
+        expected: "now must be a valid timestamp",
+        payload: {
+          now: "soon",
+        },
+        url: "https://edge.example.com/sessions/session_1/s3/retention",
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const response = await handle(
+        jsonRequest(testCase.url, testCase.payload)
+      );
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: { message: testCase.expected },
+      });
+    }
+  });
+
   test("applies publication control to S3 grant issuance", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({

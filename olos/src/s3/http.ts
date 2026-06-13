@@ -503,13 +503,13 @@ function parseCommitPayload(
 
   return {
     commitId: stringField(value, "commitId"),
-    committedAt: stringField(value, "committedAt"),
+    committedAt: timestampField(value, "committedAt"),
     providerId,
     slotId: stringField(value, "slotId"),
     ...optionalBooleanField(value, "independent"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
     ...optionalStringField(value, "objectKey"),
-    ...optionalStringField(value, "programDateTime"),
+    ...optionalTimestampField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
   };
 }
@@ -578,7 +578,7 @@ async function parseS3RetentionRequest(
 
     return {
       payload: {
-        now: stringField(payload, "now"),
+        now: timestampField(payload, "now"),
       },
       status: "valid",
     };
@@ -594,11 +594,11 @@ function parseReconciliationPayload(
   const providerId = providerIdField(value, options);
 
   return {
-    committedAt: stringField(value, "committedAt"),
+    committedAt: timestampField(value, "committedAt"),
     providerId,
     ...optionalBooleanField(value, "independent"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
-    ...optionalStringField(value, "programDateTime"),
+    ...optionalTimestampField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
     ...optionalStringArrayField(value, "slotIds"),
   };
@@ -760,6 +760,16 @@ function stringField(value: Record<string, unknown>, field: string): string {
   return value[field];
 }
 
+function timestampField(value: Record<string, unknown>, field: string): string {
+  const timestamp = stringField(value, field);
+
+  if (Number.isNaN(Date.parse(timestamp))) {
+    throw new Error(`${field} must be a valid timestamp`);
+  }
+
+  return timestamp;
+}
+
 function numberField(value: Record<string, unknown>, field: string): number {
   if (typeof value[field] !== "number" || !Number.isFinite(value[field])) {
     throw new Error(`${field} must be a finite number`);
@@ -844,9 +854,7 @@ function optionalBooleanField(
   return { [field]: value[field] };
 }
 
-function optionalStringField<
-  Field extends "objectKey" | "programDateTime" | "versionId",
->(
+function optionalStringField<Field extends "objectKey" | "versionId">(
   value: Record<string, unknown>,
   field: Field
 ): Partial<Record<Field, string>> {
@@ -855,6 +863,19 @@ function optionalStringField<
   }
 
   return { [field]: stringField(value, field) } as Partial<
+    Record<Field, string>
+  >;
+}
+
+function optionalTimestampField<Field extends "programDateTime">(
+  value: Record<string, unknown>,
+  field: Field
+): Partial<Record<Field, string>> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  return { [field]: timestampField(value, field) } as Partial<
     Record<Field, string>
   >;
 }
