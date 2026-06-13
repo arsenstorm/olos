@@ -190,6 +190,17 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
     ).not.toContain("#EXT-X-PRELOAD-HINT");
   });
 
+  test("does not emit content steering", () => {
+    expect(
+      renderMediaPlaylist(committedWindow, {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+      })
+    ).not.toContain("#EXT-X-CONTENT-STEERING");
+  });
+
   test("refuses non-monotonic committed windows", () => {
     expect(() =>
       renderMediaPlaylist(

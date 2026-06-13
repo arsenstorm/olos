@@ -64,6 +64,12 @@ describe("master playlist rendering", () => {
     ).toContain("/live/v1080.m3u8");
   });
 
+  test("does not emit content steering", () => {
+    expect(renderMasterPlaylist(session)).not.toContain(
+      "#EXT-X-CONTENT-STEERING"
+    );
+  });
+
   test("rejects absolute media playlist paths", () => {
     expect(() =>
       renderMasterPlaylist(session, {
