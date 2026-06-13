@@ -507,7 +507,7 @@ function parseCommitPayload(
     providerId,
     slotId: stringField(value, "slotId"),
     ...optionalBooleanField(value, "independent"),
-    ...optionalNumberField(value, "maxSegments"),
+    ...optionalPositiveIntegerField(value, "maxSegments"),
     ...optionalStringField(value, "objectKey"),
     ...optionalStringField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
@@ -597,7 +597,7 @@ function parseReconciliationPayload(
     committedAt: stringField(value, "committedAt"),
     providerId,
     ...optionalBooleanField(value, "independent"),
-    ...optionalNumberField(value, "maxSegments"),
+    ...optionalPositiveIntegerField(value, "maxSegments"),
     ...optionalStringField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
     ...optionalStringArrayField(value, "slotIds"),
@@ -794,7 +794,20 @@ function nonNegativeIntegerField(
   return number;
 }
 
-function optionalNumberField(
+function positiveIntegerField(
+  value: Record<string, unknown>,
+  field: string
+): number {
+  const number = numberField(value, field);
+
+  if (!Number.isInteger(number) || number <= 0) {
+    throw new Error(`${field} must be a positive integer`);
+  }
+
+  return number;
+}
+
+function optionalPositiveIntegerField(
   value: Record<string, unknown>,
   field: "maxSegments"
 ): Partial<Pick<S3CommitPayload, "maxSegments">> {
@@ -802,7 +815,7 @@ function optionalNumberField(
     return {};
   }
 
-  return { [field]: numberField(value, field) };
+  return { [field]: positiveIntegerField(value, field) };
 }
 
 function optionalNonNegativeIntegerField(

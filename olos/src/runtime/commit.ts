@@ -123,7 +123,7 @@ function parsePayload(value: unknown): RuntimeCommitPayload {
     object: parseObjectPayload(value.object),
     slotId: stringField(value, "slotId"),
     ...optionalBooleanField(value, "independent"),
-    ...optionalNumberField(value, "maxSegments"),
+    ...optionalPositiveIntegerField(value, "maxSegments"),
     ...optionalStringField(value, "programDateTime"),
   };
 }
@@ -202,6 +202,19 @@ function positiveNumberField(
   return number;
 }
 
+function positiveIntegerField(
+  value: Record<string, unknown>,
+  field: string
+): number {
+  const number = numberField(value, field);
+
+  if (!Number.isInteger(number) || number <= 0) {
+    throw new Error(`${field} must be a positive integer`);
+  }
+
+  return number;
+}
+
 function optionalBooleanField(
   value: Record<string, unknown>,
   field: "independent"
@@ -217,7 +230,7 @@ function optionalBooleanField(
   return { [field]: value[field] };
 }
 
-function optionalNumberField(
+function optionalPositiveIntegerField(
   value: Record<string, unknown>,
   field: "maxSegments"
 ): Partial<Pick<RuntimeCommitPayload, "maxSegments">> {
@@ -225,7 +238,7 @@ function optionalNumberField(
     return {};
   }
 
-  return { [field]: numberField(value, field) };
+  return { [field]: positiveIntegerField(value, field) };
 }
 
 function optionalStringField<Field extends "etag" | "programDateTime">(

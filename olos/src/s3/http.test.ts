@@ -671,6 +671,42 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(headObjectInputs).toEqual([]);
   });
 
+  test("rejects invalid S3 max segment limits", async () => {
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      providerId: "s3_primary",
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const commitResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        maxSegments: 0,
+        objectKey: "live/session/v1080/3810.m4s",
+        slotId: "slot_3810",
+      })
+    );
+    const reconciliationResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/reconcile", {
+        committedAt: "2026-01-01T00:00:02.000Z",
+        maxSegments: 1.5,
+      })
+    );
+
+    expect(commitResponse.status).toBe(400);
+    expect(reconciliationResponse.status).toBe(400);
+    expect(await commitResponse.json()).toEqual({
+      error: { message: "maxSegments must be a positive integer" },
+    });
+    expect(await reconciliationResponse.json()).toEqual({
+      error: { message: "maxSegments must be a positive integer" },
+    });
+  });
+
   test("applies publication control to S3 grant issuance", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
