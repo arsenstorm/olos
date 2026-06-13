@@ -184,6 +184,15 @@ describe("runtime publisher object plan", () => {
         expiresAt: "soon",
       })
     ).toThrow("expiresAt must be a valid timestamp");
+
+    expect(() =>
+      createRuntimePublisherObjectPlan({
+        ...validSegmentPlan(),
+        publicationMode: "unknown" as "direct-public",
+      })
+    ).toThrow(
+      "publicationMode must be one of: direct-public, read-gated, private-upload-public-promotion"
+    );
   });
 });
 

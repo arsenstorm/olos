@@ -1,3 +1,4 @@
+import { PUBLICATION_MODES } from "../config/publication";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "../validation/ids";
@@ -73,6 +74,7 @@ function assertPlanOptions(
   assertUrlSafeIdentifier(options.slotIdPrefix ?? "slot", "slotIdPrefix");
   assertUrlSafeIdentifier(options.commitIdPrefix ?? "commit", "commitIdPrefix");
   assertOptionalUrlSafeIdentifier(options.objectKeyNonce, "objectKeyNonce");
+  assertPublicationMode(options.publicationMode);
   assertSafePath(options.objectKeyPrefix, "objectKeyPrefix");
   assertSafePathSegment(options.extension, "extension");
   assertSupportedMediaExtension(options.extension, options.kind, "extension");
@@ -108,6 +110,14 @@ function assertPlanOptions(
   }
 
   createDeliveryUrl(options.baseUrl, "probe");
+}
+
+function assertPublicationMode(value: PublicationMode): void {
+  if (!PUBLICATION_MODES.includes(value)) {
+    throw new Error(
+      `publicationMode must be one of: ${PUBLICATION_MODES.join(", ")}`
+    );
+  }
 }
 
 function createObjectKey(
