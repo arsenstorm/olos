@@ -119,12 +119,12 @@ function parsePayload(value: unknown): RuntimeCommitPayload {
 
   return {
     commitId: stringField(value, "commitId"),
-    committedAt: stringField(value, "committedAt"),
+    committedAt: timestampField(value, "committedAt"),
     object: parseObjectPayload(value.object),
     slotId: stringField(value, "slotId"),
     ...optionalBooleanField(value, "independent"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
-    ...optionalStringField(value, "programDateTime"),
+    ...optionalTimestampField(value, "programDateTime"),
   };
 }
 
@@ -140,7 +140,7 @@ function parseObjectPayload(value: unknown): RuntimeObservedUploadPayload {
   return {
     contentType: stringField(value, "contentType"),
     objectKey,
-    observedAt: stringField(value, "observedAt"),
+    observedAt: timestampField(value, "observedAt"),
     providerId: stringField(value, "providerId"),
     size: positiveNumberField(value, "size"),
     ...optionalStringField(value, "etag"),
@@ -179,6 +179,16 @@ function stringField(value: Record<string, unknown>, field: string): string {
   }
 
   return value[field];
+}
+
+function timestampField(value: Record<string, unknown>, field: string): string {
+  const timestamp = stringField(value, field);
+
+  if (Number.isNaN(Date.parse(timestamp))) {
+    throw new Error(`${field} must be a valid timestamp`);
+  }
+
+  return timestamp;
 }
 
 function numberField(value: Record<string, unknown>, field: string): number {
@@ -250,6 +260,19 @@ function optionalStringField<Field extends "etag" | "programDateTime">(
   }
 
   return { [field]: stringField(value, field) } as Partial<
+    Record<Field, string>
+  >;
+}
+
+function optionalTimestampField<Field extends "programDateTime">(
+  value: Record<string, unknown>,
+  field: Field
+): Partial<Record<Field, string>> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  return { [field]: timestampField(value, field) } as Partial<
     Record<Field, string>
   >;
 }

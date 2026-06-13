@@ -173,6 +173,57 @@ describe("runtime commit adapter", () => {
     expect(result.message).toBe("maxSegments must be a positive integer");
   });
 
+  test("returns invalid responses for invalid JSON timestamps", async () => {
+    const cases = [
+      {
+        expected: "committedAt must be a valid timestamp",
+        payload: {
+          ...commitPayload(),
+          committedAt: "soon",
+        },
+      },
+      {
+        expected: "observedAt must be a valid timestamp",
+        payload: {
+          ...commitPayload(),
+          object: {
+            ...commitPayload().object,
+            observedAt: "soon",
+          },
+        },
+      },
+      {
+        expected: "programDateTime must be a valid timestamp",
+        payload: {
+          ...commitPayload(),
+          programDateTime: "soon",
+        },
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const result = await commitCoordinatorUploadFromRequest({
+        request: new Request(
+          "https://edge.example.com/v1/live/session_1/commit",
+          {
+            body: JSON.stringify(testCase.payload),
+            method: "POST",
+          }
+        ),
+        state: createReadyState(),
+      });
+
+      expect(result.status).toBe("invalid");
+
+      if (result.status !== "invalid") {
+        throw new Error("expected invalid commit request");
+      }
+
+      expect(result.response.status).toBe(400);
+      expect(result.message).toBe(testCase.expected);
+    }
+  });
+
   test("returns protocol rejection responses", async () => {
     const result = await commitCoordinatorUploadFromRequest({
       request: {
