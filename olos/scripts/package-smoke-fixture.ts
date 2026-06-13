@@ -46,8 +46,12 @@ export const expectedRuntimeExports = {
   "olos/schema": [
     "OLOS_COMMIT_SCHEMA",
     "OLOS_CURSOR_SCHEMA",
+    "OLOS_ERROR_SCHEMA",
     "OLOS_JSON_SCHEMAS",
+    "OLOS_MEDIA_OBJECT_SCHEMA",
+    "OLOS_PROVIDER_CAPABILITY_SCHEMA",
     "OLOS_SESSION_SCHEMA",
+    "OLOS_UPLOAD_GRANT_SCHEMA",
     "OLOS_UPLOAD_SLOT_SCHEMA",
   ],
   "olos/s3": [

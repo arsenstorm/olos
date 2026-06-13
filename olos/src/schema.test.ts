@@ -1,10 +1,17 @@
 import { describe, expect, test } from "bun:test";
+import { OLOS_ERROR_CODES } from "./config/errors";
+import { MEDIA_OBJECT_KINDS } from "./config/media-object";
+import { PROVIDER_KINDS } from "./config/provider-capability";
 import { PUBLICATION_MODES } from "./config/publication";
 import { LATENCY_PROFILES, SESSION_STATES } from "./config/session";
 import {
   OLOS_COMMIT_SCHEMA,
+  OLOS_ERROR_SCHEMA,
   OLOS_JSON_SCHEMAS,
+  OLOS_MEDIA_OBJECT_SCHEMA,
+  OLOS_PROVIDER_CAPABILITY_SCHEMA,
   OLOS_SESSION_SCHEMA,
+  OLOS_UPLOAD_GRANT_SCHEMA,
   OLOS_UPLOAD_SLOT_SCHEMA,
 } from "./schema";
 
@@ -14,8 +21,12 @@ describe("OLOS JSON schemas", () => {
       "commit",
       "committedWindow",
       "cursor",
+      "error",
+      "mediaObject",
       "pathway",
+      "providerCapability",
       "session",
+      "uploadGrant",
       "uploadSlot",
     ]);
   });
@@ -44,5 +55,30 @@ describe("OLOS JSON schemas", () => {
     });
     expect(OLOS_UPLOAD_SLOT_SCHEMA.additionalProperties).toBe(false);
     expect(OLOS_COMMIT_SCHEMA.additionalProperties).toBe(false);
+  });
+
+  test("describes remaining exported wire objects", () => {
+    expect(OLOS_UPLOAD_GRANT_SCHEMA.properties.method).toEqual({
+      const: "PUT",
+    });
+    expect(OLOS_MEDIA_OBJECT_SCHEMA.properties.providerId).toMatchObject({
+      pattern: "^[A-Za-z0-9_-]+$",
+    });
+    expect(Object.hasOwn(OLOS_MEDIA_OBJECT_SCHEMA.properties, "kind")).toBe(
+      false
+    );
+    expect(OLOS_PROVIDER_CAPABILITY_SCHEMA.properties.kind.enum).toEqual(
+      PROVIDER_KINDS
+    );
+    expect(
+      OLOS_PROVIDER_CAPABILITY_SCHEMA.properties.uploadGrants.properties
+        .presignedPut
+    ).toEqual({ type: "boolean" });
+    expect(OLOS_ERROR_SCHEMA.properties.error.properties.code.enum).toEqual(
+      OLOS_ERROR_CODES
+    );
+    expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.kind.enum).toEqual(
+      MEDIA_OBJECT_KINDS
+    );
   });
 });

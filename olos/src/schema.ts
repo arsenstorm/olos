@@ -1,5 +1,11 @@
+import { OLOS_ERROR_CODES } from "./config/errors";
 import { MEDIA_OBJECT_KINDS } from "./config/media-object";
 import { PATHWAY_STATES } from "./config/pathway";
+import {
+  PROVIDER_CONSISTENCY_LEVELS,
+  PROVIDER_EVENT_DELIVERY_MODES,
+  PROVIDER_KINDS,
+} from "./config/provider-capability";
 import { PUBLICATION_MODES } from "./config/publication";
 import {
   LATENCY_PROFILES,
@@ -22,10 +28,90 @@ const nonEmptyString = { minLength: 1, type: "string" } as const;
 const nonNegativeInteger = { minimum: 0, type: "integer" } as const;
 const positiveNumber = { exclusiveMinimum: 0, type: "number" } as const;
 const timestamp = { format: "date-time", type: "string" } as const;
+const absoluteHttpUrl = {
+  format: "uri",
+  minLength: 1,
+  type: "string",
+} as const;
+const stringMap = {
+  additionalProperties: { type: "string" },
+  type: "object",
+} as const;
 const objectKey = {
   minLength: 1,
   pattern: SAFE_OBJECT_KEY_PATTERN,
   type: "string",
+} as const;
+
+const providerApiSchema = {
+  additionalProperties: false,
+  properties: {
+    family: nonEmptyString,
+  },
+  required: ["family"],
+  type: "object",
+} as const;
+
+const providerConsistencySchema = {
+  additionalProperties: false,
+  properties: {
+    headAfterCreate: { enum: PROVIDER_CONSISTENCY_LEVELS, type: "string" },
+    listAfterCreate: { enum: PROVIDER_CONSISTENCY_LEVELS, type: "string" },
+    readAfterCreate: { enum: PROVIDER_CONSISTENCY_LEVELS, type: "string" },
+  },
+  required: ["headAfterCreate", "readAfterCreate"],
+  type: "object",
+} as const;
+
+const providerPublicationSchema = {
+  additionalProperties: false,
+  properties: {
+    createIfAbsent: { type: "boolean" },
+    directObjectPublication: { type: "boolean" },
+    manifestGatedPublication: { type: "boolean" },
+    overwritesAllowed: { type: "boolean" },
+    privateUploadPublicPromotion: { type: "boolean" },
+    readGateAvailable: { type: "boolean" },
+  },
+  required: ["createIfAbsent", "directObjectPublication"],
+  type: "object",
+} as const;
+
+const providerUploadGrantSchema = {
+  additionalProperties: false,
+  properties: {
+    contentTypeBound: { type: "boolean" },
+    exactKey: { type: "boolean" },
+    maxRecommendedTtlSeconds: { exclusiveMinimum: 0, type: "integer" },
+    methodBound: { type: "boolean" },
+    objectSizeCanBeObserved: { type: "boolean" },
+    presignedPut: { type: "boolean" },
+    requiredHeadersCanBeSigned: { type: "boolean" },
+    temporaryCredentials: { type: "boolean" },
+  },
+  type: "object",
+} as const;
+
+const providerDeliverySchema = {
+  additionalProperties: false,
+  properties: {
+    documentNavigationCanBeBlocked: { type: "boolean" },
+    immutableCaching: { type: "boolean" },
+    negativeCachingPolicyDeclared: { type: "boolean" },
+    publicBaseUrl: absoluteHttpUrl,
+    rangeRequests: { type: "boolean" },
+  },
+  required: ["negativeCachingPolicyDeclared", "publicBaseUrl"],
+  type: "object",
+} as const;
+
+const providerEventsSchema = {
+  additionalProperties: false,
+  properties: {
+    delivery: { enum: PROVIDER_EVENT_DELIVERY_MODES, type: "string" },
+    objectCreated: { type: "boolean" },
+  },
+  type: "object",
 } as const;
 
 const committedObjectSchema = {
@@ -218,6 +304,37 @@ export const OLOS_COMMIT_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+export const OLOS_UPLOAD_GRANT_SCHEMA = {
+  $schema: JSON_SCHEMA_DRAFT,
+  additionalProperties: false,
+  properties: {
+    expiresAt: timestamp,
+    method: { const: "PUT" },
+    requiredHeaders: stringMap,
+    slotId: id,
+    url: absoluteHttpUrl,
+  },
+  required: ["expiresAt", "method", "slotId", "url"],
+  title: "OLOS UploadGrant",
+  type: "object",
+} as const satisfies OlosJsonSchema;
+
+export const OLOS_MEDIA_OBJECT_SCHEMA = {
+  $schema: JSON_SCHEMA_DRAFT,
+  additionalProperties: false,
+  properties: {
+    contentType: nonEmptyString,
+    etag: nonEmptyString,
+    objectKey,
+    observedAt: timestamp,
+    providerId: id,
+    size: positiveNumber,
+  },
+  required: ["contentType", "objectKey", "observedAt", "providerId", "size"],
+  title: "OLOS MediaObject",
+  type: "object",
+} as const satisfies OlosJsonSchema;
+
 export const OLOS_PATHWAY_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -230,6 +347,53 @@ export const OLOS_PATHWAY_SCHEMA = {
   },
   required: ["baseUrl", "pathwayId", "priority", "providerId", "state"],
   title: "OLOS Pathway",
+  type: "object",
+} as const satisfies OlosJsonSchema;
+
+export const OLOS_PROVIDER_CAPABILITY_SCHEMA = {
+  $schema: JSON_SCHEMA_DRAFT,
+  additionalProperties: false,
+  properties: {
+    api: providerApiSchema,
+    consistency: providerConsistencySchema,
+    delivery: providerDeliverySchema,
+    events: providerEventsSchema,
+    kind: { enum: PROVIDER_KINDS, type: "string" },
+    olos: { const: "1.0" },
+    providerId: id,
+    publication: providerPublicationSchema,
+    uploadGrants: providerUploadGrantSchema,
+  },
+  required: [
+    "consistency",
+    "delivery",
+    "kind",
+    "olos",
+    "providerId",
+    "publication",
+    "uploadGrants",
+  ],
+  title: "OLOS ProviderCapabilityDocument",
+  type: "object",
+} as const satisfies OlosJsonSchema;
+
+export const OLOS_ERROR_SCHEMA = {
+  $schema: JSON_SCHEMA_DRAFT,
+  additionalProperties: false,
+  properties: {
+    error: {
+      additionalProperties: false,
+      properties: {
+        code: { enum: OLOS_ERROR_CODES, type: "string" },
+        details: { type: "object" },
+        message: nonEmptyString,
+      },
+      required: ["code", "message"],
+      type: "object",
+    },
+  },
+  required: ["error"],
+  title: "OLOS Error",
   type: "object",
 } as const satisfies OlosJsonSchema;
 
@@ -305,7 +469,11 @@ export const OLOS_JSON_SCHEMAS = {
   commit: OLOS_COMMIT_SCHEMA,
   committedWindow: OLOS_COMMITTED_WINDOW_SCHEMA,
   cursor: OLOS_CURSOR_SCHEMA,
+  error: OLOS_ERROR_SCHEMA,
+  mediaObject: OLOS_MEDIA_OBJECT_SCHEMA,
   pathway: OLOS_PATHWAY_SCHEMA,
+  providerCapability: OLOS_PROVIDER_CAPABILITY_SCHEMA,
   session: OLOS_SESSION_SCHEMA,
+  uploadGrant: OLOS_UPLOAD_GRANT_SCHEMA,
   uploadSlot: OLOS_UPLOAD_SLOT_SCHEMA,
 } as const;
