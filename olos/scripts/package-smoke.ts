@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertInstalledPackageContents } from "./package-contents";
 import { writePackageSmokeFile } from "./package-smoke-fixture";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -27,6 +28,7 @@ await run("tar", [
   "-C",
   packageInstallRoot,
 ]);
+await assertInstalledPackageContents(packageInstallRoot);
 await linkPackageDependencies();
 
 await writeFile(

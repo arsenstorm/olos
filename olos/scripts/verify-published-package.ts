@@ -3,6 +3,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import packageJson from "../package.json" with { type: "json" };
+import { assertInstalledPackageContents } from "./package-contents";
 import { writePackageSmokeFile } from "./package-smoke-fixture";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -36,6 +37,9 @@ await runWithRetries("bun", ["add", "--exact", `olos@${version}`], {
   cwd: consumerRoot,
   retries: 12,
 });
+await assertInstalledPackageContents(
+  join(consumerRoot, "node_modules", "olos")
+);
 await writePackageSmokeFile(consumerRoot);
 await run("bun", ["smoke.mjs"], { cwd: consumerRoot });
 await run(tsc, ["--project", "tsconfig.json"], { cwd: consumerRoot });
