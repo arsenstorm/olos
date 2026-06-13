@@ -27,6 +27,8 @@ test.skipIf(liveS3Config.status === "disabled")(
     });
     const objectKey = `${config.prefix}/${randomUUID()}.bin`;
     const slot = createSlot(objectKey);
+    let testError: unknown;
+    let cleanupError: unknown;
 
     try {
       const grant = await createPresignedS3UploadGrant({
@@ -62,13 +64,34 @@ test.skipIf(liveS3Config.status === "disabled")(
         providerId: "live_s3",
         size: payload.byteLength,
       });
+    } catch (error) {
+      testError = error;
     } finally {
-      await client.send(
-        new DeleteObjectCommand({
-          Bucket: config.bucket,
-          Key: objectKey,
-        })
+      try {
+        await client.send(
+          new DeleteObjectCommand({
+            Bucket: config.bucket,
+            Key: objectKey,
+          })
+        );
+      } catch (error) {
+        cleanupError = error;
+      }
+    }
+
+    if (testError !== undefined && cleanupError !== undefined) {
+      throw new AggregateError(
+        [testError, cleanupError],
+        "live S3 test failed and cleanup also failed"
       );
+    }
+
+    if (testError !== undefined) {
+      throw testError;
+    }
+
+    if (cleanupError !== undefined) {
+      throw cleanupError;
     }
   }
 );
@@ -106,11 +129,46 @@ function readLiveS3Config(): LiveS3Config {
       "OLOS_LIVE_S3_FORCE_PATH_STYLE",
       process.env.OLOS_LIVE_S3_ENDPOINT !== undefined
     ),
-    prefix: process.env.OLOS_LIVE_S3_PREFIX ?? "olos-live-s3",
+    prefix: readLiveS3Prefix(),
     region: required.OLOS_LIVE_S3_REGION,
     secretAccessKey: required.OLOS_LIVE_S3_SECRET_ACCESS_KEY,
     status: "enabled",
   };
+}
+
+function readLiveS3Prefix(): string {
+  const prefix = (process.env.OLOS_LIVE_S3_PREFIX ?? "olos-live-s3").replace(
+    /^\/+|\/+$/g,
+    ""
+  );
+
+  if (
+    prefix === "" ||
+    hasControlCharacter(prefix) ||
+    prefix.includes("?") ||
+    prefix.includes("#") ||
+    prefix
+      .split("/")
+      .some((segment) => segment === "" || segment === "." || segment === "..")
+  ) {
+    throw new Error(
+      "OLOS_LIVE_S3_PREFIX must be a safe relative object prefix"
+    );
+  }
+
+  return prefix;
+}
+
+function hasControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function readRequiredLiveS3Env<const Names extends readonly string[]>(
