@@ -341,7 +341,7 @@ export async function commitStoredS3CoordinatorUpload(
   options: CommitStoredS3CoordinatorUploadOptions
 ): Promise<StoredS3CoordinatorUploadCommit> {
   const { manifest, maxAttempts, sessionId, store, ...commitOptions } = options;
-  const attempts = maxAttempts ?? 2;
+  const attempts = positiveAttempts(maxAttempts);
   let snapshot = await store.load(sessionId);
 
   if (snapshot === undefined) {
@@ -399,6 +399,16 @@ export async function commitStoredS3CoordinatorUpload(
     current: snapshot,
     status: "conflict",
   };
+}
+
+function positiveAttempts(value: number | undefined): number {
+  const attempts = value ?? 2;
+
+  if (!Number.isInteger(attempts) || attempts < 1) {
+    throw new Error("maxAttempts must be a positive integer");
+  }
+
+  return attempts;
 }
 
 export async function completeStoredS3CoordinatorUpload(

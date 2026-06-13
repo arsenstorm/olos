@@ -505,6 +505,43 @@ describe("s3 coordinator uploads", () => {
     ]);
   });
 
+  test("rejects invalid stored S3 commit attempt limits", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    await store.save({
+      sessionId: session.sessionId,
+      state: createReadyState(),
+    });
+
+    await expect(
+      commitStoredS3CoordinatorUpload({
+        bucket: "media",
+        client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        maxAttempts: 0,
+        providerId: "s3_primary",
+        sessionId: session.sessionId,
+        slotId: "slot_3810",
+        store,
+      })
+    ).rejects.toThrow("maxAttempts must be a positive integer");
+    await expect(
+      commitStoredS3CoordinatorUpload({
+        bucket: "media",
+        client: clientFor("media/s3810.m4s", 98_304, headObjectInputs),
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        maxAttempts: 1.5,
+        providerId: "s3_primary",
+        sessionId: session.sessionId,
+        slotId: "slot_3810",
+        store,
+      })
+    ).rejects.toThrow("maxAttempts must be a positive integer");
+    expect(headObjectInputs).toEqual([]);
+  });
+
   test("commits duplicate stored S3 uploads idempotently", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
