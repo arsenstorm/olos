@@ -170,6 +170,13 @@ describe("runtime publisher object plan", () => {
         extension: "html",
       })
     ).toThrow("extension must use a supported media extension");
+
+    expect(() =>
+      createRuntimePublisherObjectPlan({
+        ...validSegmentPlan(),
+        expiresAt: "soon",
+      })
+    ).toThrow("expiresAt must be a valid timestamp");
   });
 });
 

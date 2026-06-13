@@ -93,6 +93,8 @@ function assertPlanOptions(
     throw new Error("duration must be a positive number");
   }
 
+  timestampMs(options.expiresAt, "expiresAt");
+
   if (!Number.isFinite(options.maxBytes) || options.maxBytes <= 0) {
     throw new Error("maxBytes must be a positive number");
   }
@@ -227,4 +229,14 @@ function trimSlashes(value: string): string {
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/g, "");
+}
+
+function timestampMs(value: string, name: string): number {
+  const timestamp = Date.parse(value);
+
+  if (Number.isNaN(timestamp)) {
+    throw new Error(`${name} must be a valid timestamp`);
+  }
+
+  return timestamp;
 }
