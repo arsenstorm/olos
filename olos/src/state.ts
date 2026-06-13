@@ -32,7 +32,9 @@ export {
   resolveCursorUpdate,
 } from "./state/cursor";
 export {
+  type CreateDirectPublicMediaResponseHeadersOptions,
   type CreateDirectPublicSecurityPolicyOptions,
+  createDirectPublicMediaResponseHeaders,
   createDirectPublicSecurityPolicy,
   type DirectPublicMediaRequestBlockReason,
   type DirectPublicMediaRequestPolicy,

@@ -31,6 +31,11 @@ export interface ResolveDirectPublicMediaRequestPolicyOptions {
   objectKey: string;
 }
 
+export interface CreateDirectPublicMediaResponseHeadersOptions {
+  objectKey: string;
+  policy: DirectPublicSecurityPolicy;
+}
+
 export function createDirectPublicSecurityPolicy(
   options: CreateDirectPublicSecurityPolicyOptions
 ): DirectPublicSecurityPolicy {
@@ -100,6 +105,16 @@ export function resolveDirectPublicMediaRequestPolicy(
   return { allowed: true };
 }
 
+export function createDirectPublicMediaResponseHeaders(
+  options: CreateDirectPublicMediaResponseHeadersOptions
+): Record<string, string> {
+  return {
+    ...options.policy.mediaResponseHeaders,
+    "cache-control": options.policy.mediaObjectCachePolicy.cacheControl,
+    "content-type": contentTypeForDirectPublicMediaObject(options.objectKey),
+  };
+}
+
 function assertDirectPublicCapability(
   capability: ProviderCapabilityDocument
 ): void {
@@ -132,6 +147,21 @@ function publicBaseOrigin(publicBaseUrl: string): string {
   }
 
   return url.origin;
+}
+
+function assertSupportedDirectPublicMediaObject(objectKey: string): void {
+  const policy = resolveDirectPublicMediaRequestPolicy({ objectKey });
+
+  if (!policy.allowed) {
+    throw new Error(
+      `objectKey is blocked by direct-public policy: ${policy.reason}`
+    );
+  }
+}
+
+function contentTypeForDirectPublicMediaObject(objectKey: string): string {
+  assertSupportedDirectPublicMediaObject(objectKey);
+  return "video/mp4";
 }
 
 const DIRECT_PUBLIC_MEDIA_EXTENSIONS = [".m4s", ".mp4"] as const;

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
 import {
+  createDirectPublicMediaResponseHeaders,
   createDirectPublicSecurityPolicy,
   resolveDirectPublicMediaRequestPolicy,
 } from "./direct-public-security-policy";
@@ -164,6 +165,36 @@ describe("direct-public security policy", () => {
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
       })
     ).toEqual({ allowed: true });
+  });
+
+  test("creates safe media response headers", () => {
+    const policy = createDirectPublicSecurityPolicy({ capability });
+
+    expect(
+      createDirectPublicMediaResponseHeaders({
+        objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
+        policy,
+      })
+    ).toEqual({
+      "access-control-allow-credentials": "false",
+      "cache-control": "public, max-age=31536000, immutable",
+      "content-type": "video/mp4",
+      "cross-origin-resource-policy": "same-site",
+      "x-content-type-options": "nosniff",
+    });
+  });
+
+  test("rejects response headers for unknown media extensions", () => {
+    const policy = createDirectPublicSecurityPolicy({ capability });
+
+    expect(() =>
+      createDirectPublicMediaResponseHeaders({
+        objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.html",
+        policy,
+      })
+    ).toThrow(
+      "objectKey is blocked by direct-public policy: unsupported-extension"
+    );
   });
 
   test("blocks unknown media object extensions", () => {
