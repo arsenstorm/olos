@@ -108,6 +108,7 @@ export const expectedRuntimeExports = {
   "olos/state": [
     "createCursor",
     "createDirectPublicMediaResponseHeaders",
+    "createDirectPublicNegativeObjectResponseHeaders",
     "createDirectPublicSecurityPolicy",
     "createPublicationKillSwitch",
     "resolveDirectPublicMediaRequestPolicy",
@@ -241,6 +242,7 @@ import type {
 import { OLOS_JSON_SCHEMAS } from "olos/schema";
 import {
   createDirectPublicMediaResponseHeaders,
+  createDirectPublicNegativeObjectResponseHeaders,
   createDirectPublicSecurityPolicy,
   resolveDirectPublicMediaRequestPolicy,
   selectExpiredUploadSlots,
@@ -325,6 +327,8 @@ const directPublicPolicyFactory: typeof createDirectPublicSecurityPolicy =
   createDirectPublicSecurityPolicy;
 const directPublicMediaHeaders: typeof createDirectPublicMediaResponseHeaders =
   createDirectPublicMediaResponseHeaders;
+const directPublicNegativeHeaders: typeof createDirectPublicNegativeObjectResponseHeaders =
+  createDirectPublicNegativeObjectResponseHeaders;
 const directPublicRequestPolicy: typeof resolveDirectPublicMediaRequestPolicy =
   resolveDirectPublicMediaRequestPolicy;
 const s3RuntimeHandler: typeof createStoredS3CoordinatorRuntimeHandler =
@@ -531,6 +535,7 @@ storedBlockingManifest satisfies typeof serveStoredBlockingCoordinatorManifest;
 deletionSummary satisfies typeof summarizeRetiredCoordinatorObjectDeletions;
 directPublicPolicyFactory satisfies typeof createDirectPublicSecurityPolicy;
 directPublicMediaHeaders satisfies typeof createDirectPublicMediaResponseHeaders;
+directPublicNegativeHeaders satisfies typeof createDirectPublicNegativeObjectResponseHeaders;
 directPublicRequestPolicy satisfies typeof resolveDirectPublicMediaRequestPolicy;
 s3RuntimeHandler satisfies typeof createStoredS3CoordinatorRuntimeHandler;
 normalizeS3Events satisfies typeof normalizeS3ObjectCreatedEvents;

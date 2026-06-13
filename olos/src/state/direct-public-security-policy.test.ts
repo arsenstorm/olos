@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
 import {
   createDirectPublicMediaResponseHeaders,
+  createDirectPublicNegativeObjectResponseHeaders,
   createDirectPublicSecurityPolicy,
   resolveDirectPublicMediaRequestPolicy,
 } from "./direct-public-security-policy";
@@ -190,6 +191,35 @@ describe("direct-public security policy", () => {
     expect(() =>
       createDirectPublicMediaResponseHeaders({
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.html",
+        policy,
+      })
+    ).toThrow(
+      "objectKey is blocked by direct-public policy: unsupported-extension"
+    );
+  });
+
+  test("creates short negative-object response headers", () => {
+    const policy = createDirectPublicSecurityPolicy({ capability });
+
+    expect(
+      createDirectPublicNegativeObjectResponseHeaders({
+        objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
+        policy,
+      })
+    ).toEqual({
+      "access-control-allow-credentials": "false",
+      "cache-control": "public, max-age=1, must-revalidate",
+      "cross-origin-resource-policy": "same-site",
+      "x-content-type-options": "nosniff",
+    });
+  });
+
+  test("rejects negative response headers for unknown media extensions", () => {
+    const policy = createDirectPublicSecurityPolicy({ capability });
+
+    expect(() =>
+      createDirectPublicNegativeObjectResponseHeaders({
+        objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.txt",
         policy,
       })
     ).toThrow(

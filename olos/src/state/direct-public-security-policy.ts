@@ -36,6 +36,11 @@ export interface CreateDirectPublicMediaResponseHeadersOptions {
   policy: DirectPublicSecurityPolicy;
 }
 
+export interface CreateDirectPublicNegativeObjectResponseHeadersOptions {
+  objectKey: string;
+  policy: DirectPublicSecurityPolicy;
+}
+
 export function createDirectPublicSecurityPolicy(
   options: CreateDirectPublicSecurityPolicyOptions
 ): DirectPublicSecurityPolicy {
@@ -112,6 +117,17 @@ export function createDirectPublicMediaResponseHeaders(
     ...options.policy.mediaResponseHeaders,
     "cache-control": options.policy.mediaObjectCachePolicy.cacheControl,
     "content-type": contentTypeForDirectPublicMediaObject(options.objectKey),
+  };
+}
+
+export function createDirectPublicNegativeObjectResponseHeaders(
+  options: CreateDirectPublicNegativeObjectResponseHeadersOptions
+): Record<string, string> {
+  assertSupportedDirectPublicMediaObject(options.objectKey);
+
+  return {
+    ...options.policy.mediaResponseHeaders,
+    "cache-control": options.policy.negativeObjectCachePolicy.cacheControl,
   };
 }
 

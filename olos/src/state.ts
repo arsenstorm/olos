@@ -33,8 +33,10 @@ export {
 } from "./state/cursor";
 export {
   type CreateDirectPublicMediaResponseHeadersOptions,
+  type CreateDirectPublicNegativeObjectResponseHeadersOptions,
   type CreateDirectPublicSecurityPolicyOptions,
   createDirectPublicMediaResponseHeaders,
+  createDirectPublicNegativeObjectResponseHeaders,
   createDirectPublicSecurityPolicy,
   type DirectPublicMediaRequestBlockReason,
   type DirectPublicMediaRequestPolicy,
