@@ -174,6 +174,15 @@ function assertCapabilityPreconditions(
 ): void {
   if (
     value.publication.directObjectPublication &&
+    value.publication.manifestGatedPublication !== true
+  ) {
+    throw new Error(
+      "providerCapability.publication.manifestGatedPublication must be true for direct object publication"
+    );
+  }
+
+  if (
+    value.publication.directObjectPublication &&
     value.consistency.headAfterCreate !== "strong"
   ) {
     throw new Error(

@@ -124,10 +124,14 @@ describe("OLOS JSON schemas", () => {
         },
         publication: {
           properties: {
+            manifestGatedPublication: {
+              const: true,
+            },
             overwritesAllowed: {
               not: { const: true },
             },
           },
+          required: ["manifestGatedPublication"],
         },
       },
     });

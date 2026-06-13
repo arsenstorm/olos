@@ -111,7 +111,7 @@ describe("direct-public security policy", () => {
         },
       })
     ).toThrow(
-      "providerCapability.publication.manifestGatedPublication must be true for direct-public security"
+      "providerCapability.publication.manifestGatedPublication must be true for direct object publication"
     );
   });
 

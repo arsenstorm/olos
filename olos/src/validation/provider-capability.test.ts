@@ -105,6 +105,20 @@ describe("provider capability validation", () => {
     );
   });
 
+  test("rejects direct publication without manifest-gated publication", () => {
+    expect(() =>
+      assertProviderCapabilityDocument({
+        ...capability,
+        publication: {
+          ...capability.publication,
+          manifestGatedPublication: false,
+        },
+      })
+    ).toThrow(
+      "providerCapability.publication.manifestGatedPublication must be true for direct object publication"
+    );
+  });
+
   test("rejects capabilities without an upload grant mechanism", () => {
     expect(() =>
       assertProviderCapabilityDocument({

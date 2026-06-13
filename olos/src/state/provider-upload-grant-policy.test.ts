@@ -279,7 +279,7 @@ describe("provider upload grant policy", () => {
         slot,
       })
     ).toThrow(
-      "providerCapability.publication.manifestGatedPublication must be true for direct-public slots"
+      "providerCapability.publication.manifestGatedPublication must be true for direct object publication"
     );
   });
 

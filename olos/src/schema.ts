@@ -390,8 +390,10 @@ export const OLOS_PROVIDER_CAPABILITY_SCHEMA = {
           },
           publication: {
             properties: {
+              manifestGatedPublication: { const: true },
               overwritesAllowed: { not: { const: true } },
             },
+            required: ["manifestGatedPublication"],
           },
         },
       },
