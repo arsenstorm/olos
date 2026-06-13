@@ -16,7 +16,7 @@ import {
 } from "./schema";
 
 describe("OLOS JSON schemas", () => {
-  test("exports stable core schema names", () => {
+  test("exports stable wire schema names", () => {
     expect(Object.keys(OLOS_JSON_SCHEMAS).sort()).toEqual([
       "commit",
       "committedWindow",

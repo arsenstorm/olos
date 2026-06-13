@@ -60,6 +60,15 @@ describe("conformance manifest", () => {
     });
   });
 
+  test("maps schema conformance to the schema export tests", () => {
+    expect(getOlosConformanceCoverage("CORE-SCHEMA-001")).toEqual({
+      id: "CORE-SCHEMA-001",
+      level: "core",
+      status: "covered",
+      testFile: "src/schema.test.ts",
+    });
+  });
+
   test("asserts coordinator store conformance", async () => {
     await expect(
       assertCoordinatorPipelineStoreConformance({
