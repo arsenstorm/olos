@@ -178,4 +178,71 @@ describe("runtime latency profile", () => {
       },
     });
   });
+
+  test("rejects invalid publisher object defaults", () => {
+    expect(() =>
+      createRuntimeObjectLowLatencyPublisherDefaults({
+        contentType: "",
+        init: {
+          duration: 1,
+          maxBytes: 2048,
+        },
+        part: {
+          maxBytes: 25_000,
+        },
+        segment: {
+          maxBytes: 100_000,
+        },
+      })
+    ).toThrow("contentType must be a non-empty string");
+
+    expect(() =>
+      createRuntimeObjectLowLatencyPublisherDefaults({
+        contentType: "video/mp4",
+        init: {
+          duration: 0,
+          maxBytes: 2048,
+        },
+        part: {
+          maxBytes: 25_000,
+        },
+        segment: {
+          maxBytes: 100_000,
+        },
+      })
+    ).toThrow("duration must be a positive number");
+
+    expect(() =>
+      createRuntimeObjectLowLatencyPublisherDefaults({
+        contentType: "video/mp4",
+        init: {
+          duration: 1,
+          maxBytes: 2048,
+        },
+        part: {
+          maxBytes: 0,
+        },
+        segment: {
+          maxBytes: 100_000,
+        },
+      })
+    ).toThrow("maxBytes must be a positive integer");
+
+    expect(() =>
+      createRuntimeObjectLowLatencyPublisherDefaults({
+        contentType: "video/mp4",
+        init: {
+          duration: 1,
+          maxBytes: 2048,
+        },
+        part: {
+          maxBytes: 25_000,
+          minBytes: 25_001,
+        },
+        segment: {
+          maxBytes: 100_000,
+        },
+      })
+    ).toThrow("minBytes must be a non-negative integer up to maxBytes");
+  });
 });

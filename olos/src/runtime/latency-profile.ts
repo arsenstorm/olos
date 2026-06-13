@@ -134,6 +134,30 @@ function publisherObjectDefaults(options: {
   extension: string;
   object: RuntimeObjectLowLatencyPublisherObjectOptions;
 }): RuntimePublisherObjectKindDefaults {
+  if (options.contentType.length === 0) {
+    throw new Error("contentType must be a non-empty string");
+  }
+
+  if (!Number.isFinite(options.duration) || options.duration <= 0) {
+    throw new Error("duration must be a positive number");
+  }
+
+  if (
+    !Number.isSafeInteger(options.object.maxBytes) ||
+    options.object.maxBytes <= 0
+  ) {
+    throw new Error("maxBytes must be a positive integer");
+  }
+
+  if (
+    options.object.minBytes !== undefined &&
+    (!Number.isSafeInteger(options.object.minBytes) ||
+      options.object.minBytes < 0 ||
+      options.object.minBytes > options.object.maxBytes)
+  ) {
+    throw new Error("minBytes must be a non-negative integer up to maxBytes");
+  }
+
   return {
     contentType: options.contentType,
     duration: options.duration,
