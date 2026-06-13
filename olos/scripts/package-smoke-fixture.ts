@@ -43,6 +43,13 @@ export const expectedRuntimeExports = {
     "sendRuntimePublisherHeartbeat",
     "transitionRuntimeSession",
   ],
+  "olos/schema": [
+    "OLOS_COMMIT_SCHEMA",
+    "OLOS_CURSOR_SCHEMA",
+    "OLOS_JSON_SCHEMAS",
+    "OLOS_SESSION_SCHEMA",
+    "OLOS_UPLOAD_SLOT_SCHEMA",
+  ],
   "olos/s3": [
     "createPresignedS3UploadGrant",
     "createS3UploadGrant",
@@ -127,6 +134,7 @@ function packageTypeSmokeSource(): string {
 import { OLOS_WIRE_VERSION } from "olos";
 import { createRuntimeObjectLowLatencyProfile } from "olos/runtime";
 import { createS3UploadGrant } from "olos/s3";
+import { OLOS_JSON_SCHEMAS } from "olos/schema";
 import type {
   ProviderCapabilityDocument,
   Session,
@@ -161,6 +169,7 @@ const session: Session = {
 };
 
 assertSession(session);
+OLOS_JSON_SCHEMAS.session.properties.olos.const satisfies "1.0";
 
 const capability = {
   consistency: {
