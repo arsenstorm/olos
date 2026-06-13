@@ -113,6 +113,60 @@ describe("runtime slot adapter", () => {
     );
   });
 
+  test("returns invalid responses for invalid JSON slot numbers", async () => {
+    const cases = [
+      {
+        expected: "duration must be a positive number",
+        field: "duration",
+        value: 0,
+      },
+      {
+        expected: "maxBytes must be a positive number",
+        field: "maxBytes",
+        value: 0,
+      },
+      {
+        expected: "mediaSequenceNumber must be a non-negative integer",
+        field: "mediaSequenceNumber",
+        value: 1.5,
+      },
+      {
+        expected: "minBytes must be a non-negative integer",
+        field: "minBytes",
+        value: -1,
+      },
+      {
+        expected: "partNumber must be a non-negative integer",
+        field: "partNumber",
+        value: -1,
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const result = await issueCoordinatorSlotFromRequest({
+        request: new Request(
+          "https://edge.example.com/v1/live/session_1/slots",
+          {
+            body: JSON.stringify({
+              ...slotPayload(),
+              [testCase.field]: testCase.value,
+            }),
+            method: "POST",
+          }
+        ),
+        state: createCoordinatorPipeline({ pathways, session }),
+      });
+
+      expect(result.status).toBe("invalid");
+
+      if (result.status !== "invalid") {
+        throw new Error("expected invalid slot request");
+      }
+
+      expect(result.message).toBe(testCase.expected);
+    }
+  });
+
   test("returns invalid responses for rejected slot requests", async () => {
     const result = await issueCoordinatorSlotFromRequest({
       request: {
