@@ -142,7 +142,7 @@ function parseObjectPayload(value: unknown): RuntimeObservedUploadPayload {
     objectKey,
     observedAt: stringField(value, "observedAt"),
     providerId: stringField(value, "providerId"),
-    size: numberField(value, "size"),
+    size: positiveNumberField(value, "size"),
     ...optionalStringField(value, "etag"),
     ...optionalMetadataField(value),
   };
@@ -187,6 +187,19 @@ function numberField(value: Record<string, unknown>, field: string): number {
   }
 
   return value[field];
+}
+
+function positiveNumberField(
+  value: Record<string, unknown>,
+  field: string
+): number {
+  const number = numberField(value, field);
+
+  if (number <= 0) {
+    throw new Error(`${field} must be a positive number`);
+  }
+
+  return number;
 }
 
 function optionalBooleanField(
