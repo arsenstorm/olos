@@ -71,6 +71,7 @@ export const expectedRuntimeExports = {
     "sendRuntimePublisherHeartbeat",
     "serveStoredBlockingCoordinatorManifest",
     "serveStoredCoordinatorManifest",
+    "summarizeRetiredCoordinatorObjectDeletions",
     "transitionStoredCoordinatorSession",
     "transitionRuntimeSession",
   ],
@@ -208,12 +209,20 @@ import {
   resolveRuntimePublisherObjectExpiry,
   serveStoredBlockingCoordinatorManifest,
   serveStoredCoordinatorManifest,
+  summarizeRetiredCoordinatorObjectDeletions,
 } from "olos/runtime";
 import {
   createS3UploadGrant,
   createStoredS3CoordinatorRuntimeHandler,
   normalizeS3ObjectCreatedEvents,
   routeStoredS3CoordinatorUploadEvent,
+} from "olos/s3";
+import type {
+  StoredS3CoordinatorCommitResponse,
+  StoredS3CoordinatorEventRouteResponse,
+  StoredS3CoordinatorReconciliationResponse,
+  StoredS3CoordinatorRetentionResponse,
+  StoredS3CoordinatorSlotGrantResponse,
 } from "olos/s3";
 import { OLOS_JSON_SCHEMAS } from "olos/schema";
 import {
@@ -291,6 +300,8 @@ const storedManifest: typeof serveStoredCoordinatorManifest =
   serveStoredCoordinatorManifest;
 const storedBlockingManifest: typeof serveStoredBlockingCoordinatorManifest =
   serveStoredBlockingCoordinatorManifest;
+const deletionSummary: typeof summarizeRetiredCoordinatorObjectDeletions =
+  summarizeRetiredCoordinatorObjectDeletions;
 const s3RuntimeHandler: typeof createStoredS3CoordinatorRuntimeHandler =
   createStoredS3CoordinatorRuntimeHandler;
 const normalizeS3Events: typeof normalizeS3ObjectCreatedEvents =
@@ -379,6 +390,69 @@ const grant: UploadGrant = createS3UploadGrant({
   slot,
 });
 
+const s3SlotGrantResponse: StoredS3CoordinatorSlotGrantResponse = {
+  grant,
+  slot,
+};
+const s3CommitResponse: StoredS3CoordinatorCommitResponse = {
+  commit: {
+    commitId: "commit_3810",
+    committedAt: "2026-01-01T00:00:02.000Z",
+    deliveryUrl: slot.deliveryUrl,
+    duration: slot.duration,
+    epoch: slot.epoch,
+    mediaSequenceNumber: slot.mediaSequenceNumber,
+    objectKey: slot.objectKey,
+    providerId: "s3_primary",
+    publicationMode: slot.publicationMode,
+    renditionId: slot.renditionId,
+    sessionId: slot.sessionId,
+    size: 98_304,
+    slotId: slot.slotId,
+  },
+};
+const s3EventResponse: StoredS3CoordinatorEventRouteResponse = {
+  results: [{ commit: s3CommitResponse.commit, status: "committed" }],
+};
+const s3ReconciliationResponse: StoredS3CoordinatorReconciliationResponse = {
+  results: [
+    {
+      commit: s3CommitResponse.commit,
+      slotId: slot.slotId,
+      status: "committed",
+    },
+  ],
+  summary: {
+    committed: 1,
+    failed: 0,
+    failedErrorCodes: [],
+    failedSlotIds: [],
+    idempotent: 0,
+    ok: true,
+    planned: 1,
+    slotIds: [slot.slotId],
+    status: "reconciled",
+  },
+};
+const s3RetentionResponse: StoredS3CoordinatorRetentionResponse = {
+  plan: {
+    expiredSlots: [],
+    retiredObjects: [],
+  },
+  result: {
+    deletedObjects: [],
+    failedObjects: [],
+  },
+  summary: {
+    deleted: 0,
+    failed: 0,
+    failedObjectKeys: [],
+    failedSlotIds: [],
+    ok: true,
+    planned: 0,
+  },
+};
+
 if (!grant.requiredHeaders) {
   throw new Error("expected S3 grant headers");
 }
@@ -415,9 +489,15 @@ objectPlanInput satisfies typeof createRuntimePublisherObjectPlanInput;
 objectExpiry satisfies typeof resolveRuntimePublisherObjectExpiry;
 storedManifest satisfies typeof serveStoredCoordinatorManifest;
 storedBlockingManifest satisfies typeof serveStoredBlockingCoordinatorManifest;
+deletionSummary satisfies typeof summarizeRetiredCoordinatorObjectDeletions;
 s3RuntimeHandler satisfies typeof createStoredS3CoordinatorRuntimeHandler;
 normalizeS3Events satisfies typeof normalizeS3ObjectCreatedEvents;
 routeS3Event satisfies typeof routeStoredS3CoordinatorUploadEvent;
+s3SlotGrantResponse satisfies StoredS3CoordinatorSlotGrantResponse;
+s3CommitResponse satisfies StoredS3CoordinatorCommitResponse;
+s3EventResponse satisfies StoredS3CoordinatorEventRouteResponse;
+s3ReconciliationResponse satisfies StoredS3CoordinatorReconciliationResponse;
+s3RetentionResponse satisfies StoredS3CoordinatorRetentionResponse;
 expiredSlots satisfies typeof selectExpiredUploadSlots;
 retiredObjects satisfies typeof selectRetiredCommittedObjects;
 `.trimStart();
