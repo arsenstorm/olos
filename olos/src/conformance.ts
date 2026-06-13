@@ -69,6 +69,7 @@ export const OLOS_CONFORMANCE_ASSERTION_IDS = [
   "OBJ-GRANT-002",
   "OBJ-GRANT-003",
   "OBJ-GRANT-004",
+  "OBJ-GRANT-005",
   "OBJ-HEAD-001",
   "OBJ-PUB-001",
   "OBJ-PUB-002",
@@ -500,6 +501,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
   },
   {
     id: "OBJ-GRANT-004",
+    level: "object",
+    status: "covered",
+    testFile: "src/state/provider-upload-grant-policy.test.ts",
+  },
+  {
+    id: "OBJ-GRANT-005",
     level: "object",
     status: "covered",
     testFile: "src/state/provider-upload-grant-policy.test.ts",

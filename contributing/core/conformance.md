@@ -8,10 +8,10 @@ Current manifest snapshot:
 | Level | Covered assertions |
 | --- | ---: |
 | Core | 56 |
-| Object | 35 |
+| Object | 36 |
 | HLS | 12 |
 | Security | 7 |
-| Total | 110 |
+| Total | 111 |
 
 Coverage means an assertion ID is mapped to a deterministic test file in
 `OLOS_CONFORMANCE_COVERAGE`. It does not mean a deployment is production-ready;
