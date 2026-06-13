@@ -159,7 +159,7 @@ function createObjectId(
 }
 
 function createDeliveryUrl(baseUrl: string, objectKey: string): string {
-  const url = new URL(baseUrl);
+  const url = baseHttpUrl(baseUrl);
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("baseUrl must be an absolute HTTP(S) URL");
@@ -170,6 +170,14 @@ function createDeliveryUrl(baseUrl: string, objectKey: string): string {
   url.hash = "";
 
   return url.toString();
+}
+
+function baseHttpUrl(value: string): URL {
+  try {
+    return new URL(value);
+  } catch {
+    throw new Error("baseUrl must be an absolute HTTP(S) URL");
+  }
 }
 
 function assertUrlSafeIdentifier(value: string, name: string): void {

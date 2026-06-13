@@ -160,6 +160,13 @@ describe("runtime publisher object plan", () => {
     expect(() =>
       createRuntimePublisherObjectPlan({
         ...validSegmentPlan(),
+        baseUrl: "not a url",
+      })
+    ).toThrow("baseUrl must be an absolute HTTP(S) URL");
+
+    expect(() =>
+      createRuntimePublisherObjectPlan({
+        ...validSegmentPlan(),
         objectKeyNonce: "../slot",
       })
     ).toThrow("objectKeyNonce must be a non-empty URL-safe identifier");
