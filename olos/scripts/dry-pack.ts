@@ -3,11 +3,25 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const output = await run("bun", ["pm", "pack", "--dry-run"]);
+const requiredDryPackFiles = [
+  "dist/index.js",
+  "dist/index.d.ts",
+  "dist/s3.js",
+] as const;
 
-for (const file of ["dist/index.js", "dist/index.d.ts", "dist/s3.js"]) {
-  if (!output.includes(file)) {
-    throw new Error(`dry package is missing ${file}; run bun run build first`);
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
+  assertDryPackIncludesRequiredFiles(
+    await run("bun", ["pm", "pack", "--dry-run"])
+  );
+}
+
+export function assertDryPackIncludesRequiredFiles(output: string): void {
+  for (const file of requiredDryPackFiles) {
+    if (!output.includes(file)) {
+      throw new Error(
+        `dry package is missing ${file}; run bun run build first`
+      );
+    }
   }
 }
 
