@@ -28,7 +28,13 @@ export const expectedRuntimeExports = {
     "assertSerializedCoordinatorStoreBackendConformance",
     "createCoordinatorPipeline",
     "createMemoryCoordinatorStore",
+    "createMemorySerializedCoordinatorStoreBackend",
+    "createNextCoordinatorPipelineEtag",
     "createSerializedCoordinatorStore",
+    "createSqliteSerializedCoordinatorStoreBackend",
+    "parseCoordinatorPipelineSnapshot",
+    "planCoordinatorRetention",
+    "serializeCoordinatorPipelineSnapshot",
   ],
   "olos/runtime": [
     "commitStoredCoordinatorUploadFromRequest",
@@ -173,6 +179,16 @@ import {
   waitForHlsBlockingReload,
 } from "olos/hls";
 import {
+  assertSerializedCoordinatorStoreBackendConformance,
+  createMemorySerializedCoordinatorStoreBackend,
+  createNextCoordinatorPipelineEtag,
+  createSerializedCoordinatorStore,
+  createSqliteSerializedCoordinatorStoreBackend,
+  parseCoordinatorPipelineSnapshot,
+  planCoordinatorRetention,
+  serializeCoordinatorPipelineSnapshot,
+} from "olos/protocol";
+import {
   createMemoryRuntimeCursorNotifier,
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
@@ -221,6 +237,22 @@ const blockingReload: typeof resolveHlsBlockingReload =
   resolveHlsBlockingReload;
 const blockingReloadWait: typeof waitForHlsBlockingReload =
   waitForHlsBlockingReload;
+const serializedStore: typeof createSerializedCoordinatorStore =
+  createSerializedCoordinatorStore;
+const memorySerializedBackend: typeof createMemorySerializedCoordinatorStoreBackend =
+  createMemorySerializedCoordinatorStoreBackend;
+const sqliteSerializedBackend: typeof createSqliteSerializedCoordinatorStoreBackend =
+  createSqliteSerializedCoordinatorStoreBackend;
+const serializedBackendConformance: typeof assertSerializedCoordinatorStoreBackendConformance =
+  assertSerializedCoordinatorStoreBackendConformance;
+const nextEtag: typeof createNextCoordinatorPipelineEtag =
+  createNextCoordinatorPipelineEtag;
+const parseSnapshot: typeof parseCoordinatorPipelineSnapshot =
+  parseCoordinatorPipelineSnapshot;
+const serializeSnapshot: typeof serializeCoordinatorPipelineSnapshot =
+  serializeCoordinatorPipelineSnapshot;
+const retentionPlan: typeof planCoordinatorRetention =
+  planCoordinatorRetention;
 const runtimeHandler: typeof createStoredCoordinatorRuntimeHandler =
   createStoredCoordinatorRuntimeHandler;
 const memoryNotifier: typeof createMemoryRuntimeCursorNotifier =
@@ -349,6 +381,14 @@ blockingReloadRequest satisfies typeof parseHlsBlockingReloadRequest;
 blockingManifestResponse satisfies typeof resolveBlockingHlsManifestArtifactResponse;
 blockingReload satisfies typeof resolveHlsBlockingReload;
 blockingReloadWait satisfies typeof waitForHlsBlockingReload;
+serializedStore satisfies typeof createSerializedCoordinatorStore;
+memorySerializedBackend satisfies typeof createMemorySerializedCoordinatorStoreBackend;
+sqliteSerializedBackend satisfies typeof createSqliteSerializedCoordinatorStoreBackend;
+serializedBackendConformance satisfies typeof assertSerializedCoordinatorStoreBackendConformance;
+nextEtag satisfies typeof createNextCoordinatorPipelineEtag;
+parseSnapshot satisfies typeof parseCoordinatorPipelineSnapshot;
+serializeSnapshot satisfies typeof serializeCoordinatorPipelineSnapshot;
+retentionPlan satisfies typeof planCoordinatorRetention;
 runtimeHandler satisfies typeof createStoredCoordinatorRuntimeHandler;
 memoryNotifier satisfies typeof createMemoryRuntimeCursorNotifier;
 manifestOptions satisfies typeof createRuntimeObjectLowLatencyManifestOptions;
