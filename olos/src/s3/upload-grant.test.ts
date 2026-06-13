@@ -25,6 +25,18 @@ const slot: UploadSlot = {
   tenantId: "tenant_1",
 };
 
+const signedOlosMetadataHeaders =
+  "content-type;host;if-none-match;x-amz-meta-olos-epoch;x-amz-meta-olos-kind;x-amz-meta-olos-media-sequence-number;x-amz-meta-olos-rendition-id;x-amz-meta-olos-session-id;x-amz-meta-olos-slot-id;x-olos-slot-id";
+
+const requiredOlosS3Headers = {
+  "x-amz-meta-olos-epoch": "0",
+  "x-amz-meta-olos-kind": "segment",
+  "x-amz-meta-olos-media-sequence-number": "3810",
+  "x-amz-meta-olos-rendition-id": "v1080",
+  "x-amz-meta-olos-session-id": "session_1",
+  "x-amz-meta-olos-slot-id": "slot_1",
+};
+
 describe("s3 upload grants", () => {
   test("creates an upload grant with an SDK-presigned PUT URL", async () => {
     const grant = await createPresignedS3UploadGrant({
@@ -42,7 +54,7 @@ describe("s3 upload grants", () => {
       requiredHeaders: {
         "Content-Type": "video/mp4",
         "If-None-Match": "*",
-        "x-amz-meta-olos-slot-id": "slot_1",
+        ...requiredOlosS3Headers,
         "x-olos-slot-id": "slot_1",
       },
       slotId: "slot_1",
@@ -50,7 +62,7 @@ describe("s3 upload grants", () => {
     expect(url.hostname).toBe("s3.example.com");
     expect(url.pathname).toBe("/media/live/session/v1080/3810.m4s");
     expect(url.searchParams.get("X-Amz-SignedHeaders")).toBe(
-      "content-type;host;if-none-match;x-amz-meta-olos-slot-id;x-olos-slot-id"
+      signedOlosMetadataHeaders
     );
   });
 
@@ -71,11 +83,11 @@ describe("s3 upload grants", () => {
       "Content-Type": "video/mp4",
       "If-None-Match": "*",
       "x-amz-checksum-sha256": "abc123",
-      "x-amz-meta-olos-slot-id": "slot_1",
+      ...requiredOlosS3Headers,
       "x-olos-slot-id": "slot_1",
     });
     expect(url.searchParams.get("X-Amz-SignedHeaders")).toBe(
-      "content-type;host;if-none-match;x-amz-checksum-sha256;x-amz-meta-olos-slot-id;x-olos-slot-id"
+      "content-type;host;if-none-match;x-amz-checksum-sha256;x-amz-meta-olos-epoch;x-amz-meta-olos-kind;x-amz-meta-olos-media-sequence-number;x-amz-meta-olos-rendition-id;x-amz-meta-olos-session-id;x-amz-meta-olos-slot-id;x-olos-slot-id"
     );
   });
 
@@ -145,7 +157,7 @@ describe("s3 upload grants", () => {
       requiredHeaders: {
         "Content-Type": "video/mp4",
         "If-None-Match": "*",
-        "x-amz-meta-olos-slot-id": "slot_1",
+        ...requiredOlosS3Headers,
         "x-olos-slot-id": "slot_1",
       },
       slotId: "slot_1",
@@ -220,9 +232,22 @@ describe("s3 upload grants", () => {
         "Content-Type": "video/mp4",
         "If-None-Match": "*",
         "x-amz-checksum-sha256": "abc123",
-        "x-amz-meta-olos-slot-id": "slot_1",
+        ...requiredOlosS3Headers,
         "x-olos-slot-id": "slot_1",
       },
+    });
+  });
+
+  test("adds part metadata for part upload slots", () => {
+    expect(
+      createS3UploadGrant({
+        presignedUrl:
+          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+        slot: { ...slot, kind: "part", partNumber: 3 },
+      }).requiredHeaders
+    ).toMatchObject({
+      "x-amz-meta-olos-kind": "part",
+      "x-amz-meta-olos-part-number": "3",
     });
   });
 
@@ -253,13 +278,13 @@ describe("s3 upload grants", () => {
     expect(() =>
       createS3UploadGrant({
         additionalHeaders: {
-          "x-amz-meta-olos-slot-id": "other_slot",
+          "x-amz-meta-olos-session-id": "other_session",
         },
         presignedUrl:
           "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
         slot,
       })
-    ).toThrow("additionalHeaders must not override x-amz-meta-olos-slot-id");
+    ).toThrow("additionalHeaders must not override x-amz-meta-olos-session-id");
   });
 
   test("rejects malformed S3 additional headers", () => {

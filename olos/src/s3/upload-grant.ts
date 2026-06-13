@@ -7,7 +7,7 @@ import {
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
 
-const S3_SLOT_ID_METADATA_HEADER = "x-amz-meta-olos-slot-id";
+const S3_METADATA_HEADER_PREFIX = "x-amz-meta-olos-";
 
 export interface CreateS3UploadGrantOptions {
   additionalHeaders?: Record<string, string>;
@@ -163,9 +163,26 @@ function createS3AdditionalHeaders(options: {
   assertDoesNotOverrideS3Metadata(options.additionalHeaders);
 
   return {
-    [S3_SLOT_ID_METADATA_HEADER]: options.slot.slotId,
+    ...createS3SlotMetadataHeaders(options.slot),
     ...options.additionalHeaders,
   };
+}
+
+function createS3SlotMetadataHeaders(slot: UploadSlot): Record<string, string> {
+  const headers: Record<string, string> = {
+    "x-amz-meta-olos-epoch": String(slot.epoch),
+    "x-amz-meta-olos-kind": slot.kind,
+    "x-amz-meta-olos-media-sequence-number": String(slot.mediaSequenceNumber),
+    "x-amz-meta-olos-rendition-id": slot.renditionId,
+    "x-amz-meta-olos-session-id": slot.sessionId,
+    "x-amz-meta-olos-slot-id": slot.slotId,
+  };
+
+  if (slot.partNumber !== undefined) {
+    headers["x-amz-meta-olos-part-number"] = String(slot.partNumber);
+  }
+
+  return headers;
 }
 
 function assertDoesNotOverrideS3Metadata(
@@ -178,7 +195,7 @@ function assertDoesNotOverrideS3Metadata(
   assertAdditionalUploadHeaders(headers);
 
   for (const header of Object.keys(headers)) {
-    if (header.toLowerCase() === S3_SLOT_ID_METADATA_HEADER) {
+    if (header.toLowerCase().startsWith(S3_METADATA_HEADER_PREFIX)) {
       throw new Error(`additionalHeaders must not override ${header}`);
     }
   }
