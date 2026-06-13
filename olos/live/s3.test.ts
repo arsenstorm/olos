@@ -3,10 +3,11 @@ import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createPresignedS3UploadGrant, observeS3Object } from "olos/s3";
 import type { UploadSlot } from "olos/types";
 import { expect, test } from "vitest";
+import { readLiveS3ConfigFromEnv } from "./s3-config";
 
 const contentType = "application/octet-stream";
 const payload = new TextEncoder().encode("olos live s3 integration\n");
-const liveS3Config = readLiveS3Config();
+const liveS3Config = readLiveS3ConfigFromEnv(process.env);
 
 test.skipIf(liveS3Config.status === "disabled")(
   "uploads and observes an object through a live S3-compatible provider",
@@ -95,117 +96,6 @@ test.skipIf(liveS3Config.status === "disabled")(
     }
   }
 );
-
-type LiveS3Config =
-  | { status: "disabled" }
-  | {
-      accessKeyId: string;
-      bucket: string;
-      endpoint?: string;
-      forcePathStyle: boolean;
-      prefix: string;
-      region: string;
-      secretAccessKey: string;
-      status: "enabled";
-    };
-
-function readLiveS3Config(): LiveS3Config {
-  if (process.env.OLOS_LIVE_S3 !== "1") {
-    return { status: "disabled" };
-  }
-
-  const required = readRequiredLiveS3Env([
-    "OLOS_LIVE_S3_ACCESS_KEY_ID",
-    "OLOS_LIVE_S3_BUCKET",
-    "OLOS_LIVE_S3_REGION",
-    "OLOS_LIVE_S3_SECRET_ACCESS_KEY",
-  ]);
-
-  return {
-    accessKeyId: required.OLOS_LIVE_S3_ACCESS_KEY_ID,
-    bucket: required.OLOS_LIVE_S3_BUCKET,
-    endpoint: process.env.OLOS_LIVE_S3_ENDPOINT,
-    forcePathStyle: boolEnv(
-      "OLOS_LIVE_S3_FORCE_PATH_STYLE",
-      process.env.OLOS_LIVE_S3_ENDPOINT !== undefined
-    ),
-    prefix: readLiveS3Prefix(),
-    region: required.OLOS_LIVE_S3_REGION,
-    secretAccessKey: required.OLOS_LIVE_S3_SECRET_ACCESS_KEY,
-    status: "enabled",
-  };
-}
-
-function readLiveS3Prefix(): string {
-  const prefix = (process.env.OLOS_LIVE_S3_PREFIX ?? "olos-live-s3").replace(
-    /^\/+|\/+$/g,
-    ""
-  );
-
-  if (
-    prefix === "" ||
-    hasControlCharacter(prefix) ||
-    prefix.includes("?") ||
-    prefix.includes("#") ||
-    prefix
-      .split("/")
-      .some((segment) => segment === "" || segment === "." || segment === "..")
-  ) {
-    throw new Error(
-      "OLOS_LIVE_S3_PREFIX must be a safe relative object prefix"
-    );
-  }
-
-  return prefix;
-}
-
-function hasControlCharacter(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-
-    if (code <= 0x1f || code === 0x7f) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function readRequiredLiveS3Env<const Names extends readonly string[]>(
-  names: Names
-): Record<Names[number], string> {
-  const missing = names.filter(
-    (name) => process.env[name] === undefined || process.env[name] === ""
-  );
-
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required live S3 env when OLOS_LIVE_S3=1: ${missing.join(", ")}`
-    );
-  }
-
-  return Object.fromEntries(
-    names.map((name) => [name, process.env[name]])
-  ) as Record<Names[number], string>;
-}
-
-function boolEnv(name: string, fallback: boolean): boolean {
-  const value = process.env[name];
-
-  if (value === undefined) {
-    return fallback;
-  }
-
-  if (value === "1" || value.toLowerCase() === "true") {
-    return true;
-  }
-
-  if (value === "0" || value.toLowerCase() === "false") {
-    return false;
-  }
-
-  throw new Error(`${name} must be true, false, 1, or 0`);
-}
 
 function createSlot(objectKey: string): UploadSlot {
   return {
