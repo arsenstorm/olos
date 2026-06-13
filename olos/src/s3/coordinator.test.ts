@@ -137,6 +137,7 @@ describe("s3 coordinator uploads", () => {
       kind: "part",
       maxBytes: 25_000,
       mediaSequenceNumber: 3811,
+      objectKeyNonce: "slot_part",
       objectKeyPrefix: "live/session",
       partNumber: 0,
       publicationMode: "direct-public",

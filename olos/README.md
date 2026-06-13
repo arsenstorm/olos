@@ -181,8 +181,8 @@ idempotent step, refresh the lease again so health checks reflect completed
 publication work.
 
 `createRuntimePublisherObjectPlan` creates slot payloads and commit IDs for
-init, segment, and part objects. Pass an app-generated `objectKeyNonce` for
-direct-public deployments that need non-obvious future object URLs.
+init, segment, and part objects. Direct-public object plans require an
+app-generated `objectKeyNonce` so future object URLs are not deterministic.
 `createRuntimePublisherObjectKeyNonce` can format app-supplied entropy bytes
 for that field:
 

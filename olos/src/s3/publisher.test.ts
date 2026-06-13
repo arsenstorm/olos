@@ -78,7 +78,7 @@ describe("stored S3 publisher upload step", () => {
       client: createClient(),
       committedAt: "2026-01-01T00:00:02.000Z",
       headObjectClient: clientFor(
-        "media/v1080/s3810.m4s",
+        "media/v1080/s3810/segment-slot_01JZ.m4s",
         98_304,
         headObjectInputs
       ),
@@ -92,6 +92,7 @@ describe("stored S3 publisher upload step", () => {
         kind: "segment",
         maxBytes: 100_000,
         mediaSequenceNumber: 3810,
+        objectKeyNonce: "slot_01JZ",
         objectKeyPrefix: "media",
         publicationMode: "direct-public",
         publisherInstanceId: "publisher_1",
@@ -112,7 +113,7 @@ describe("stored S3 publisher upload step", () => {
     expect(summarizeStoredS3PublisherUploadStep(step)).toEqual({
       commitId: "commit_v1080_s3810",
       commitStatus: "committed",
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "media/v1080/s3810/segment-slot_01JZ.m4s",
       ok: true,
       slotId: "slot_v1080_s3810",
       status: "committed",
@@ -124,14 +125,14 @@ describe("stored S3 publisher upload step", () => {
     expect(step.plan.commitId).toBe("commit_v1080_s3810");
     expect(step.plan.slot).toMatchObject({
       expiresAt: step.expiry.expiresAt,
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "media/v1080/s3810/segment-slot_01JZ.m4s",
       slotId: "slot_v1080_s3810",
     });
     expect(uploadedUrls).toHaveLength(1);
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "media/v1080/s3810/segment-slot_01JZ.m4s",
       },
     ]);
   });
@@ -153,12 +154,13 @@ describe("stored S3 publisher upload step", () => {
       committedAt: "2026-01-01T00:00:02.000Z",
       defaults: objectDefaults,
       headObjectClient: clientFor(
-        "media/v1080/s3810.m4s",
+        "media/v1080/s3810/segment-slot_01K0.m4s",
         98_304,
         headObjectInputs
       ),
       independent: true,
       now: "2026-01-01T00:00:00.000Z",
+      objectKeyNonce: "slot_01K0",
       objectKeyPrefix: "media",
       providerId: "s3_primary",
       publicationMode: "direct-public",
@@ -185,12 +187,14 @@ describe("stored S3 publisher upload step", () => {
       expiresAt: "2026-01-01T00:00:05.000Z",
       ttlSeconds: 5,
     });
-    expect(step.plan.slot.objectKey).toBe("media/v1080/s3810.m4s");
+    expect(step.plan.slot.objectKey).toBe(
+      "media/v1080/s3810/segment-slot_01K0.m4s"
+    );
     expect(uploadedUrls).toHaveLength(1);
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "media/v1080/s3810/segment-slot_01K0.m4s",
       },
     ]);
   });
@@ -247,7 +251,7 @@ describe("stored S3 publisher upload step", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "media/v1080/s3810/segment-slot_01L0.m4s",
       },
     ]);
   });
@@ -369,7 +373,7 @@ describe("stored S3 publisher upload step", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "media/v1080/s3810/segment-slot_01L0.m4s",
       },
     ]);
   });
@@ -397,7 +401,7 @@ describe("stored S3 publisher upload step", () => {
         status: "rejected",
       }),
       headObjectClient: clientFor(
-        "media/v1080/s3810.m4s",
+        "media/v1080/s3810/segment-slot_01K1.m4s",
         98_304,
         headObjectInputs
       ),
@@ -410,6 +414,7 @@ describe("stored S3 publisher upload step", () => {
         kind: "segment",
         maxBytes: 100_000,
         mediaSequenceNumber: 3810,
+        objectKeyNonce: "slot_01K1",
         objectKeyPrefix: "media",
         publicationMode: "direct-public",
         publisherInstanceId: "publisher_1",
@@ -425,7 +430,7 @@ describe("stored S3 publisher upload step", () => {
     expect(summarizeStoredS3PublisherUploadStep(step)).toMatchObject({
       commitStatus: "rejected",
       errorCode: "olos.quota_exceeded",
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "media/v1080/s3810/segment-slot_01K1.m4s",
       ok: false,
       slotId: "slot_v1080_s3810",
       status: "commit_failed",
@@ -453,6 +458,7 @@ describe("stored S3 publisher upload step", () => {
         kind: "part",
         maxBytes: 25_000,
         mediaSequenceNumber: 3810,
+        objectKeyNonce: "slot_01K2",
         objectKeyPrefix: "media",
         partNumber: 1,
         publicationMode: "direct-public",
@@ -476,13 +482,13 @@ describe("stored S3 publisher upload step", () => {
     });
     expect(summarizeStoredS3PublisherUploadStep(step)).toEqual({
       error: "put failed",
-      objectKey: "media/v1080/s3810/p1.m4s",
+      objectKey: "media/v1080/s3810/p1-slot_01K2.m4s",
       ok: false,
       slotId: "slot_v1080_s3810_p1",
       status: "upload_failed",
     });
     expect(step.plan.slot).toMatchObject({
-      objectKey: "media/v1080/s3810/p1.m4s",
+      objectKey: "media/v1080/s3810/p1-slot_01K2.m4s",
       partNumber: 1,
     });
   });
@@ -588,7 +594,7 @@ describe("stored S3 publisher upload step", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "media/v1080/s3810/segment-slot_01L0.m4s",
       },
     ]);
   });
@@ -692,12 +698,13 @@ function nextStepOptions(options: {
     committedAt: "2026-01-01T00:00:02.000Z",
     defaults: objectDefaults,
     headObjectClient: clientFor(
-      "media/v1080/s3810.m4s",
+      "media/v1080/s3810/segment-slot_01L0.m4s",
       98_304,
       options.headObjectInputs
     ),
     independent: true,
     now: "2026-01-01T00:00:00.000Z",
+    objectKeyNonce: "slot_01L0",
     objectKeyPrefix: "media",
     providerId: "s3_primary",
     publicationMode: "direct-public" as const,

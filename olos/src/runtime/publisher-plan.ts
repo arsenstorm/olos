@@ -75,6 +75,16 @@ function assertPlanOptions(
   assertUrlSafeIdentifier(options.commitIdPrefix ?? "commit", "commitIdPrefix");
   assertOptionalUrlSafeIdentifier(options.objectKeyNonce, "objectKeyNonce");
   assertPublicationMode(options.publicationMode);
+
+  if (
+    options.publicationMode === "direct-public" &&
+    options.objectKeyNonce === undefined
+  ) {
+    throw new Error(
+      "objectKeyNonce is required for direct-public object plans"
+    );
+  }
+
   assertSafePath(options.objectKeyPrefix, "objectKeyPrefix");
   assertSafePathSegment(options.extension, "extension");
   assertSupportedMediaExtension(options.extension, options.kind, "extension");

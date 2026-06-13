@@ -266,6 +266,7 @@ describe("object-store flow", () => {
         ...manifestOptions.manifest,
       },
       now: publishNow,
+      objectKeyNonce: "slot_next_s3811",
       objectKeyPrefix: "media",
       providerId: "s3_primary",
       publicationMode: "direct-public",
@@ -421,7 +422,7 @@ describe("object-store flow", () => {
       {
         commitId: "commit_init_v1080",
         commitStatus: "committed",
-        objectKey: "media/v1080/init.mp4",
+        objectKey: init.plan.slot.objectKey,
         ok: true,
         slotId: "slot_init_v1080",
         status: "committed",
@@ -429,7 +430,7 @@ describe("object-store flow", () => {
       {
         commitId: "commit_v1080_s3810",
         commitStatus: "committed",
-        objectKey: "media/v1080/s3810.m4s",
+        objectKey: firstSegment.plan.slot.objectKey,
         ok: true,
         slotId: "slot_v1080_s3810",
         status: "committed",
@@ -437,7 +438,7 @@ describe("object-store flow", () => {
       {
         commitId: "commit_v1080_s3811",
         commitStatus: "committed",
-        objectKey: "media/v1080/s3811.m4s",
+        objectKey: nextSegment.plan.slot.objectKey,
         ok: true,
         slotId: "slot_v1080_s3811",
         status: "committed",
@@ -446,15 +447,15 @@ describe("object-store flow", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/init.mp4",
+        Key: init.plan.slot.objectKey,
       },
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: firstSegment.plan.slot.objectKey,
       },
       {
         Bucket: "media",
-        Key: "media/v1080/s3811.m4s",
+        Key: nextSegment.plan.slot.objectKey,
       },
     ]);
   });
@@ -1183,12 +1184,32 @@ function createUploadPlan(options: {
     kind: options.kind,
     maxBytes: options.maxBytes,
     mediaSequenceNumber: options.mediaSequenceNumber,
+    objectKeyNonce: objectKeyNonceForPlan(options),
     objectKeyPrefix: "media",
     partNumber: options.partNumber,
     publicationMode: "direct-public",
     publisherInstanceId: "pub_1",
     renditionId: options.renditionId ?? "v1080",
   });
+}
+
+function objectKeyNonceForPlan(options: {
+  kind: RuntimePublisherPlannedObjectKind;
+  mediaSequenceNumber: number;
+  partNumber?: number;
+  renditionId?: string;
+}): string {
+  const renditionId = options.renditionId ?? "v1080";
+
+  if (options.kind === "init") {
+    return `slot_${renditionId}_init`;
+  }
+
+  if (options.kind === "segment") {
+    return `slot_${renditionId}_s${options.mediaSequenceNumber}`;
+  }
+
+  return `slot_${renditionId}_s${options.mediaSequenceNumber}_p${options.partNumber}`;
 }
 
 function plannedDuration(kind: RuntimePublisherPlannedObjectKind): number {
@@ -1241,6 +1262,7 @@ function publisherLoopOptions(options: {
     },
     minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
     now: publishNow,
+    objectKeyNonce: "slot_next_s3810",
     objectKeyPrefix: "media",
     providerId: "s3_primary",
     publicationMode: "direct-public" as const,
