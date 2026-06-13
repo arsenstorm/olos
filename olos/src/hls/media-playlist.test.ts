@@ -190,6 +190,30 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
     ).not.toContain("#EXT-X-PRELOAD-HINT");
   });
 
+  test("refuses non-monotonic committed windows", () => {
+    expect(() =>
+      renderMediaPlaylist(
+        {
+          ...committedWindow,
+          renditions: {
+            v1080: {
+              ...validRendition(),
+              segments: [...validRendition().segments].reverse(),
+            },
+          },
+        },
+        {
+          allowedMediaOrigins: ["https://media.example.com"],
+          partTarget: 0.5,
+          renditionId: "v1080",
+          segmentTarget: 2,
+        }
+      )
+    ).toThrow(
+      "committedWindow.renditions.v1080.segments must have monotonic media sequences"
+    );
+  });
+
   test("renders discontinuities before flagged segments", () => {
     const playlist = renderMediaPlaylist(
       {
