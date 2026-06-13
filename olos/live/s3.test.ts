@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { createPresignedS3UploadGrant, observeS3Object } from "olos/s3";
+import { S3Client } from "@aws-sdk/client-s3";
+import {
+  createPresignedS3UploadGrant,
+  deleteRetiredS3CoordinatorObjects,
+  observeS3Object,
+} from "olos/s3";
 import type { UploadSlot } from "olos/types";
 import { expect, test } from "vitest";
 import { readLiveS3ConfigFromEnv } from "./s3-config";
@@ -29,6 +33,9 @@ test.skipIf(liveS3Config.status === "disabled")(
     });
     const objectKey = `${config.prefix}/${randomUUID()}.bin`;
     const slot = createSlot(objectKey);
+    let cleanupResult: Awaited<
+      ReturnType<typeof deleteRetiredS3CoordinatorObjects>
+    >;
     let testError: unknown;
     let cleanupError: unknown;
 
@@ -78,12 +85,21 @@ test.skipIf(liveS3Config.status === "disabled")(
       testError = error;
     } finally {
       try {
-        await client.send(
-          new DeleteObjectCommand({
-            Bucket: config.bucket,
-            Key: objectKey,
-          })
-        );
+        cleanupResult = await deleteRetiredS3CoordinatorObjects({
+          bucket: config.bucket,
+          client,
+          objects: [
+            {
+              commitId: "live_commit",
+              objectKey,
+              slotId: slot.slotId,
+            },
+          ],
+        });
+
+        if (cleanupResult.failedObjects.length > 0) {
+          cleanupError = new Error("live S3 cleanup failed");
+        }
       } catch (error) {
         cleanupError = error;
       }
@@ -103,6 +119,17 @@ test.skipIf(liveS3Config.status === "disabled")(
     if (cleanupError !== undefined) {
       throw cleanupError;
     }
+
+    expect(cleanupResult).toEqual({
+      deletedObjects: [
+        {
+          commitId: "live_commit",
+          objectKey,
+          slotId: slot.slotId,
+        },
+      ],
+      failedObjects: [],
+    });
   }
 );
 
