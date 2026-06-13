@@ -28,18 +28,17 @@ if (isCliEntry()) {
   console.log(report);
 }
 
+export interface ConformanceReportSummary {
+  covered: number;
+  known: number;
+  mapped: number;
+  partial: number;
+  unmapped: number;
+}
+
 export function buildConformanceReport(): string {
   const rows = levels.map((level) => countLevel(level));
-  const total = rows.reduce(
-    (sum, row) => ({
-      covered: sum.covered + row.covered,
-      known: sum.known + row.known,
-      mapped: sum.mapped + row.mapped,
-      partial: sum.partial + row.partial,
-      unmapped: sum.unmapped + row.unmapped,
-    }),
-    { covered: 0, known: 0, mapped: 0, partial: 0, unmapped: 0 }
-  );
+  const total = summarizeRows(rows);
   const unmappedIds = OLOS_CONFORMANCE_ASSERTION_IDS.filter(
     (id) => !OLOS_CONFORMANCE_COVERAGE.some((entry) => entry.id === id)
   );
@@ -108,6 +107,25 @@ function countLevel(level: OlosConformanceLevel) {
     partial: coverage.filter((entry) => entry.status === "partial").length,
     unmapped: known - coverage.length,
   };
+}
+
+export function summarizeConformance(): ConformanceReportSummary {
+  return summarizeRows(levels.map((level) => countLevel(level)));
+}
+
+function summarizeRows(
+  rows: readonly ConformanceReportSummary[]
+): ConformanceReportSummary {
+  return rows.reduce(
+    (sum, row) => ({
+      covered: sum.covered + row.covered,
+      known: sum.known + row.known,
+      mapped: sum.mapped + row.mapped,
+      partial: sum.partial + row.partial,
+      unmapped: sum.unmapped + row.unmapped,
+    }),
+    { covered: 0, known: 0, mapped: 0, partial: 0, unmapped: 0 }
+  );
 }
 
 function labelLevel(level: OlosConformanceLevel): string {

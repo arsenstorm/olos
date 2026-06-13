@@ -82,11 +82,12 @@
   "scripts": {
     "build": "rm -rf dist && tsc --project tsconfig.build.json && bun scripts/fix-declaration-imports.ts",
     "check-types": "tsc --project tsconfig.json --noEmit",
+    "conformance:check": "bun scripts/check-conformance.ts",
     "conformance:report": "bun scripts/write-conformance-report.ts",
     "pack:dry": "bun scripts/dry-pack.ts",
     "pack:artifact": "bun run build && bun scripts/create-package-artifact.ts",
     "pack:smoke": "bun run build && bun scripts/package-smoke.ts",
-    "publish:check": "bun run release:verify-changelog && bun run release:notes && bun run check-types && bun run test && bun run test:e2e && bun run build && bun run pack:dry && bun run pack:smoke",
+    "publish:check": "bun run release:verify-changelog && bun run release:notes && bun run conformance:check && bun run check-types && bun run test && bun run test:e2e && bun run build && bun run pack:dry && bun run pack:smoke",
     "release:verify-changelog": "bun scripts/verify-release-changelog.ts",
     "release:verify-published": "bun scripts/verify-published-package.ts",
     "release:verify-tag": "bun scripts/verify-release-tag.ts",
