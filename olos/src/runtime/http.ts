@@ -11,6 +11,8 @@ import type { PublicationControlPolicy } from "../state";
 import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
+import { assertPathway } from "../validation/pathway";
+import { assertSession } from "../validation/session";
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { resolveRuntimeLiveHealthFromState } from "./health";
 import { planStoredCoordinatorRetention } from "./retention";
@@ -336,22 +338,28 @@ async function parseSessionCreateRequest(request: Request): Promise<
       return invalid("session create request must be a JSON object");
     }
 
-    if (!isRecord(payload.session)) {
-      return invalid("session must be a JSON object");
-    }
-
-    if (!Array.isArray(payload.pathways)) {
-      return invalid("pathways must be an array");
-    }
+    assertSession(payload.session);
 
     return {
-      pathways: payload.pathways as readonly Pathway[],
-      session: payload.session as unknown as Session,
+      pathways: parsePathways(payload.pathways),
+      session: payload.session,
       status: "valid",
     };
   } catch (error) {
     return invalid(errorMessage(error, "invalid session create request"));
   }
+}
+
+function parsePathways(value: unknown): readonly Pathway[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error("pathways must be a non-empty array");
+  }
+
+  for (const pathway of value) {
+    assertPathway(pathway);
+  }
+
+  return value;
 }
 
 async function parseTransitionRequest(request: Request): Promise<

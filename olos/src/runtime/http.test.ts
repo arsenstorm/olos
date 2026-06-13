@@ -213,6 +213,41 @@ describe("stored coordinator runtime handler", () => {
     });
   });
 
+  test("returns invalid responses for invalid session creation payloads", async () => {
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const sessionResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session: { ...session, state: "paused" },
+      })
+    );
+    const pathwayResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways: [{ ...pathways[0], state: "warming" }],
+        session,
+      })
+    );
+
+    expect(sessionResponse.status).toBe(400);
+    expect(pathwayResponse.status).toBe(400);
+    expect(await sessionResponse.json()).toEqual({
+      error: {
+        message:
+          "session.state must be one of: created, starting, live, ending, ended, aborted, expired",
+      },
+    });
+    expect(await pathwayResponse.json()).toEqual({
+      error: {
+        message:
+          "pathway.state must be one of: active, degraded, draining, disabled",
+      },
+    });
+  });
+
   test("returns invalid responses for invalid session transition states", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
