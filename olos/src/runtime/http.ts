@@ -77,6 +77,24 @@ function assertRuntimeHandlerOptions(
   ) {
     throw new Error("maxAttempts must be a positive integer");
   }
+
+  assertPositiveOption(options.targetLatency, "targetLatency");
+  assertPositiveOption(options.maxHealthCursorAgeMs, "maxHealthCursorAgeMs");
+  assertPositiveOption(options.publisherLeaseTtlMs, "publisherLeaseTtlMs");
+
+  if (
+    options.blockingReload !== undefined &&
+    (!Number.isFinite(options.blockingReload.timeoutMs) ||
+      options.blockingReload.timeoutMs < 0)
+  ) {
+    throw new Error("blockingReload.timeoutMs must be a non-negative number");
+  }
+}
+
+function assertPositiveOption(value: number | undefined, name: string): void {
+  if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
+    throw new Error(`${name} must be a positive number`);
+  }
 }
 
 async function handleStoredRuntimeRequest(

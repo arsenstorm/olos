@@ -54,6 +54,30 @@ describe("stored coordinator runtime handler", () => {
     expect(() =>
       createStoredCoordinatorRuntimeHandler({ ...options, maxAttempts: 1.5 })
     ).toThrow("maxAttempts must be a positive integer");
+    expect(() =>
+      createStoredCoordinatorRuntimeHandler({ ...options, targetLatency: 0 })
+    ).toThrow("targetLatency must be a positive number");
+    expect(() =>
+      createStoredCoordinatorRuntimeHandler({
+        ...options,
+        maxHealthCursorAgeMs: 0,
+      })
+    ).toThrow("maxHealthCursorAgeMs must be a positive number");
+    expect(() =>
+      createStoredCoordinatorRuntimeHandler({
+        ...options,
+        publisherLeaseTtlMs: 0,
+      })
+    ).toThrow("publisherLeaseTtlMs must be a positive number");
+    expect(() =>
+      createStoredCoordinatorRuntimeHandler({
+        ...options,
+        blockingReload: {
+          timeoutMs: -1,
+          waitForCursor: () => Promise.resolve(undefined),
+        },
+      })
+    ).toThrow("blockingReload.timeoutMs must be a non-negative number");
   });
 
   test("runs stored coordinator routes through Request and Response", async () => {

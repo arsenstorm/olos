@@ -91,6 +91,9 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(() =>
       createStoredS3CoordinatorRuntimeHandler({ ...options, maxAttempts: 0 })
     ).toThrow("maxAttempts must be a positive integer");
+    expect(() =>
+      createStoredS3CoordinatorRuntimeHandler({ ...options, targetLatency: 0 })
+    ).toThrow("targetLatency must be a positive number");
   });
 
   test("delegates runtime routes and issues S3 upload grants", async () => {
