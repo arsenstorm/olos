@@ -19,6 +19,17 @@ describe("SQLite serialized coordinator store backend", () => {
     ).resolves.toBeUndefined();
   });
 
+  test("supports SQLite clients that report top-level changes", async () => {
+    await expect(
+      assertSerializedCoordinatorStoreBackendConformance({
+        createBackend: () =>
+          createSqliteSerializedCoordinatorStoreBackend({
+            database: createDatabase("changes"),
+          }),
+      })
+    ).resolves.toBeUndefined();
+  });
+
   test("rejects unsafe table names", () => {
     expect(() =>
       createSqliteSerializedCoordinatorStoreBackend({
@@ -29,7 +40,11 @@ describe("SQLite serialized coordinator store backend", () => {
   });
 });
 
-function createDatabase(): SqliteSerializedCoordinatorStoreDatabase {
+type ChangeResultShape = "changes" | "meta";
+
+function createDatabase(
+  resultShape: ChangeResultShape = "meta"
+): SqliteSerializedCoordinatorStoreDatabase {
   const records = new Map<string, { etag: string; snapshot: string }>();
 
   return {
@@ -41,7 +56,7 @@ function createDatabase(): SqliteSerializedCoordinatorStoreDatabase {
               return Promise.resolve(select<T>(records, sql, values));
             },
             run() {
-              return Promise.resolve(run(records, sql, values));
+              return Promise.resolve(run(records, sql, values, resultShape));
             },
           };
         },
@@ -65,13 +80,14 @@ function select<T>(
 function run(
   records: Map<string, { etag: string; snapshot: string }>,
   sql: string,
-  values: readonly unknown[]
+  values: readonly unknown[],
+  resultShape: ChangeResultShape
 ): SqliteSerializedCoordinatorStoreRunResult {
   if (sql.startsWith("insert")) {
     const sessionId = String(values[0]);
 
     if (records.has(sessionId)) {
-      return { meta: { changes: 0 } };
+      return changed(0, resultShape);
     }
 
     records.set(sessionId, {
@@ -79,7 +95,7 @@ function run(
       snapshot: String(values[2]),
     });
 
-    return { meta: { changes: 1 } };
+    return changed(1, resultShape);
   }
 
   if (!sql.startsWith("update")) {
@@ -91,7 +107,7 @@ function run(
   const current = records.get(sessionId);
 
   if (current?.etag !== expectedEtag) {
-    return { meta: { changes: 0 } };
+    return changed(0, resultShape);
   }
 
   records.set(sessionId, {
@@ -99,5 +115,12 @@ function run(
     snapshot: String(values[1]),
   });
 
-  return { meta: { changes: 1 } };
+  return changed(1, resultShape);
+}
+
+function changed(
+  changes: number,
+  resultShape: ChangeResultShape
+): SqliteSerializedCoordinatorStoreRunResult {
+  return resultShape === "changes" ? { changes } : { meta: { changes } };
 }
