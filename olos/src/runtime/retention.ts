@@ -4,6 +4,7 @@ import {
   planCoordinatorRetention,
 } from "../protocol";
 import type { OlosId } from "../types/ids";
+import { assertUrlSafeIdentifier } from "../validation/ids";
 
 export interface DeleteRetiredCoordinatorObjectsOptions {
   deleteObject(object: RetiredCoordinatorObjectDeletion): Promise<void> | void;
@@ -70,6 +71,8 @@ export async function deleteRetiredCoordinatorObjects(
 export async function planStoredCoordinatorRetention(
   options: PlanStoredCoordinatorRetentionOptions
 ): Promise<StoredRuntimeRetentionPlan> {
+  assertStoredRetentionOptions(options);
+
   const snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
@@ -94,6 +97,13 @@ export async function planStoredCoordinatorRetention(
   };
 }
 
+function assertStoredRetentionOptions(
+  options: PlanStoredCoordinatorRetentionOptions
+): void {
+  assertUrlSafeIdentifier(options.sessionId, "sessionId");
+  timestampMs(options.now, "now");
+}
+
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     headers: { "content-type": "application/json; charset=utf-8" },
@@ -103,4 +113,14 @@ function jsonResponse(body: unknown, status: number): Response {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "retention deletion failed";
+}
+
+function timestampMs(value: string, name: string): number {
+  const timestamp = Date.parse(value);
+
+  if (Number.isNaN(timestamp)) {
+    throw new Error(`${name} must be a valid timestamp`);
+  }
+
+  return timestamp;
 }

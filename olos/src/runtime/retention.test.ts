@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  type CoordinatorPipelineStore,
   commitCoordinatorUpload,
   createCoordinatorPipeline,
   createMemoryCoordinatorStore,
@@ -95,6 +96,35 @@ describe("stored runtime retention", () => {
 
     expect(result.status).toBe("not_found");
     expect(result.response.status).toBe(404);
+  });
+
+  test("rejects invalid stored retention options before loading state", async () => {
+    let loads = 0;
+    const store: CoordinatorPipelineStore = {
+      load: () => {
+        loads += 1;
+        return Promise.resolve(undefined);
+      },
+      save: () => {
+        throw new Error("store save should not be called");
+      },
+    };
+
+    await expect(
+      planStoredCoordinatorRetention({
+        now: "2026-01-01T00:00:06.000Z",
+        sessionId: "../session",
+        store,
+      })
+    ).rejects.toThrow("sessionId must be a non-empty URL-safe identifier");
+    await expect(
+      planStoredCoordinatorRetention({
+        now: "soon",
+        sessionId: session.sessionId,
+        store,
+      })
+    ).rejects.toThrow("now must be a valid timestamp");
+    expect(loads).toBe(0);
   });
 
   test("deletes retired coordinator objects through an app-owned callback", async () => {
