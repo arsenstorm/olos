@@ -579,6 +579,11 @@ describe("stored S3 publisher upload step", () => {
       heartbeat: { status: "refreshed" },
       status: "committed",
     });
+    expect(summarizeStoredS3PublisherUploadStep(step)).toMatchObject({
+      heartbeatStatus: "refreshed",
+      ok: true,
+      status: "committed",
+    });
     expect(events).toEqual(["heartbeat", "upload"]);
     expect(headObjectInputs).toEqual([
       {
@@ -604,6 +609,11 @@ describe("stored S3 publisher upload step", () => {
 
     expect(step).toEqual({
       heartbeat: { status: "stale" },
+      status: "heartbeat_failed",
+    });
+    expect(summarizeStoredS3PublisherUploadStep(step)).toEqual({
+      heartbeatStatus: "stale",
+      ok: false,
       status: "heartbeat_failed",
     });
     expect(grantIssued).toBe(false);

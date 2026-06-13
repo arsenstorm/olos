@@ -225,6 +225,7 @@ import type {
   StoredS3CoordinatorReconciliationResponse,
   StoredS3CoordinatorRetentionResponse,
   StoredS3CoordinatorSlotGrantResponse,
+  StoredS3PublisherUploadStepSummary,
 } from "olos/s3";
 import { OLOS_JSON_SCHEMAS } from "olos/schema";
 import {
@@ -460,6 +461,11 @@ const s3RetentionResponse: StoredS3CoordinatorRetentionResponse = {
     planned: 0,
   },
 };
+const s3PublisherSummary: StoredS3PublisherUploadStepSummary = {
+  heartbeatStatus: "refreshed",
+  ok: true,
+  status: "committed",
+};
 
 if (!grant.requiredHeaders) {
   throw new Error("expected S3 grant headers");
@@ -508,6 +514,7 @@ s3CommitResponse satisfies StoredS3CoordinatorCommitResponse;
 s3EventResponse satisfies StoredS3CoordinatorEventRouteResponse;
 s3ReconciliationResponse satisfies StoredS3CoordinatorReconciliationResponse;
 s3RetentionResponse satisfies StoredS3CoordinatorRetentionResponse;
+s3PublisherSummary satisfies StoredS3PublisherUploadStepSummary;
 expiredSlots satisfies typeof selectExpiredUploadSlots;
 retiredObjects satisfies typeof selectRetiredCommittedObjects;
 `.trimStart();

@@ -123,6 +123,7 @@ export interface StoredS3PublisherUploadStepSummary {
   commitStatus?: StoredS3CoordinatorUploadCommit["status"];
   error?: string;
   errorCode?: OlosErrorCode;
+  heartbeatStatus?: RuntimePublisherHeartbeatResult["status"];
   issueStatus?: Exclude<
     StoredS3CoordinatorUploadGrantIssue,
     { status: "saved" }
@@ -249,6 +250,7 @@ export function summarizeStoredS3PublisherUploadStep(
 ): StoredS3PublisherUploadStepSummary {
   const slot = "slot" in step ? step.slot : undefined;
   const commit = "commit" in step ? step.commit : undefined;
+  const heartbeat = "heartbeat" in step ? step.heartbeat : undefined;
   const issue = "issue" in step ? step.issue : undefined;
   const error = "error" in step ? step.error : undefined;
   const errorCode = resultErrorCode(commit) ?? resultErrorCode(issue);
@@ -260,6 +262,7 @@ export function summarizeStoredS3PublisherUploadStep(
     ...(commit === undefined ? {} : { commitStatus: commit.status }),
     ...(error === undefined ? {} : { error }),
     ...(errorCode === undefined ? {} : { errorCode }),
+    ...(heartbeat === undefined ? {} : { heartbeatStatus: heartbeat.status }),
     ...(issue === undefined ? {} : { issueStatus: issue.status }),
     ...(slot === undefined
       ? {}
