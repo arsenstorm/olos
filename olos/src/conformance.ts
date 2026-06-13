@@ -887,7 +887,7 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     id: "SEC-DIRECT-007",
     level: "security",
     status: "covered",
-    testFile: "src/protocol/coordinator.test.ts",
+    testFile: "src/s3/http.test.ts",
   },
 ] as const satisfies readonly OlosConformanceCoverage[];
 

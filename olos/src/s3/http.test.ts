@@ -1126,6 +1126,11 @@ describe("stored S3 coordinator runtime handler", () => {
 
   test("applies publication control to S3 grant issuance", async () => {
     const store = createMemoryCoordinatorStore();
+    await store.save({
+      sessionId: session.sessionId,
+      state: committedSegmentState(),
+    });
+
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
@@ -1135,26 +1140,25 @@ describe("stored S3 coordinator runtime handler", () => {
       store,
     });
 
-    await handle(
-      jsonRequest("https://edge.example.com/sessions", {
-        pathways,
-        session,
-      })
+    const before = await handle(
+      new Request("https://edge.example.com/v1/live/session_1/v1080/media.m3u8")
     );
-
     const response = await handle(
       jsonRequest(
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          deliveryUrl: "https://media.example.com/live/session/v1080/3811.m4s",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
-          objectKey: "live/session/v1080/3810.m4s",
-          slotId: "slot_3810",
+          mediaSequenceNumber: 3811,
+          objectKey: "live/session/v1080/3811.m4s",
+          slotId: "slot_3811",
         })
       )
+    );
+    const after = await handle(
+      new Request("https://edge.example.com/v1/live/session_1/v1080/media.m3u8")
     );
     const body = (await response.json()) as {
       error: {
@@ -1163,8 +1167,12 @@ describe("stored S3 coordinator runtime handler", () => {
       };
     };
     const stored = await store.load(session.sessionId);
+    const beforeBody = await before.text();
+    const afterBody = await after.text();
 
+    expect(before.status).toBe(200);
     expect(response.status).toBe(409);
+    expect(after.status).toBe(200);
     expect(body.error).toMatchObject({
       code: "olos.security_policy_violation",
       details: {
@@ -1172,7 +1180,12 @@ describe("stored S3 coordinator runtime handler", () => {
         reason: "incident",
       },
     });
-    expect(stored?.state.slots).toEqual([]);
+    expect(beforeBody).toContain("live/session/v1080/3810.m4s");
+    expect(afterBody).toBe(beforeBody);
+    expect(afterBody).not.toContain("live/session/v1080/3811.m4s");
+    expect(
+      stored?.state.slots.some((slot) => slot.slotId === "slot_3811")
+    ).toBe(false);
   });
 
   test("routes S3 object-created event payloads", async () => {
@@ -2312,6 +2325,71 @@ function slotPayload(options: SlotPayloadOptions) {
     renditionId: "v1080",
     slotId: options.slotId,
   };
+}
+
+function committedSegmentState(): CoordinatorPipelineState {
+  const initIssued = issueCoordinatorSlot({
+    ...slotPayload({
+      deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
+      duration: 1,
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "live/session/v1080/init.mp4",
+      slotId: "slot_init",
+    }),
+    state: createCoordinatorPipeline({ pathways, session }),
+  });
+  const initCommitted = commitCoordinatorUpload({
+    commitId: "commit_init",
+    committedAt: "2026-01-01T00:00:01.000Z",
+    object: createObservedUpload({
+      contentType: "video/mp4",
+      objectKey: "live/session/v1080/init.mp4",
+      observedAt: "2026-01-01T00:00:01.000Z",
+      providerId: "s3_primary",
+      size: 1024,
+    }),
+    slotId: "slot_init",
+    state: initIssued.state,
+  });
+
+  if (initCommitted.status !== "committed") {
+    throw new Error("expected committed init fixture");
+  }
+
+  const segmentIssued = issueCoordinatorSlot({
+    ...slotPayload({
+      deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+      duration: 2,
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "live/session/v1080/3810.m4s",
+      slotId: "slot_3810",
+    }),
+    state: initCommitted.state,
+  });
+  const segmentCommitted = commitCoordinatorUpload({
+    commitId: "commit_3810",
+    committedAt: "2026-01-01T00:00:02.000Z",
+    independent: true,
+    object: createObservedUpload({
+      contentType: "video/mp4",
+      objectKey: "live/session/v1080/3810.m4s",
+      observedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "s3_primary",
+      size: 98_304,
+    }),
+    slotId: "slot_3810",
+    state: segmentIssued.state,
+  });
+
+  if (segmentCommitted.status !== "committed") {
+    throw new Error("expected committed segment fixture");
+  }
+
+  return segmentCommitted.state;
 }
 
 function inconsistentReconciliationState(): CoordinatorPipelineState {
