@@ -61,9 +61,11 @@ export const expectedRuntimeExports = {
     "createStoredS3CoordinatorRuntimeHandler",
     "deleteRetiredS3CoordinatorObjects",
     "issueStoredS3CoordinatorUploadGrant",
+    "normalizeS3ObjectCreatedEvents",
     "observeS3Object",
     "planStoredS3CoordinatorReconciliation",
     "reconcileStoredS3CoordinatorUploads",
+    "routeStoredS3CoordinatorUploadEvent",
     "runNextStoredS3PublisherUploadStep",
   ],
   "olos/state": [
@@ -143,6 +145,8 @@ import {
 import {
   createS3UploadGrant,
   createStoredS3CoordinatorRuntimeHandler,
+  normalizeS3ObjectCreatedEvents,
+  routeStoredS3CoordinatorUploadEvent,
 } from "olos/s3";
 import { OLOS_JSON_SCHEMAS } from "olos/schema";
 import type {
@@ -158,6 +162,10 @@ const runtimeHandler: typeof createStoredCoordinatorRuntimeHandler =
   createStoredCoordinatorRuntimeHandler;
 const s3RuntimeHandler: typeof createStoredS3CoordinatorRuntimeHandler =
   createStoredS3CoordinatorRuntimeHandler;
+const normalizeS3Events: typeof normalizeS3ObjectCreatedEvents =
+  normalizeS3ObjectCreatedEvents;
+const routeS3Event: typeof routeStoredS3CoordinatorUploadEvent =
+  routeStoredS3CoordinatorUploadEvent;
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -243,6 +251,8 @@ if (!grant.requiredHeaders) {
 grant.requiredHeaders["x-amz-meta-olos-slot-id"] satisfies string;
 runtimeHandler satisfies typeof createStoredCoordinatorRuntimeHandler;
 s3RuntimeHandler satisfies typeof createStoredS3CoordinatorRuntimeHandler;
+normalizeS3Events satisfies typeof normalizeS3ObjectCreatedEvents;
+routeS3Event satisfies typeof routeStoredS3CoordinatorUploadEvent;
 `.trimStart();
 }
 
