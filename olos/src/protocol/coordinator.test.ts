@@ -537,6 +537,14 @@ describe("coordinator pipeline", () => {
     expect(revoked.slot.state).toBe("revoked");
     expect(revoked.state.commits).toEqual([]);
     expect(revoked.state.cursor).toBeUndefined();
+    expect(
+      createCoordinatorManifestArtifacts({
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+        state: revoked.state,
+      })
+    ).toEqual({ artifacts: [] });
   });
 
   test("rejects revocation after upload reaches the trusted cursor", () => {
