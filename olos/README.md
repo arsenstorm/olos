@@ -581,6 +581,13 @@ authorization, object-key secrecy, cache purge, and emergency prefix blocks. If
 media must never be public before commit, use a read-gated or private-upload
 promotion flow instead of direct-public publication.
 
+#### No-Scan Mode
+
+OLOS does not inspect uploaded media bytes. It validates publication rights,
+object identity, slot sequence, object size, immutability, and delivery context;
+it does not prove that media is safe, legal, well-formed, decodable, or free
+from malware.
+
 For deployment controls, see the repository
 [direct-public checklist](https://github.com/arsenstorm/olos/blob/main/contributing/core/direct-public-deployment.md).
 
