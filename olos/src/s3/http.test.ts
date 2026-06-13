@@ -716,6 +716,12 @@ describe("stored S3 coordinator runtime handler", () => {
     });
     expect(stored?.state.commits).toEqual([]);
     expect(stored?.state.cursor).toBeUndefined();
+    expect(stored?.state.slots).toMatchObject([
+      {
+        slotId: "slot_3810",
+        state: "issued",
+      },
+    ]);
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
