@@ -7,10 +7,11 @@ import { readLiveS3ConfigFromEnv } from "./s3-config";
 
 const contentType = "application/octet-stream";
 const payload = new TextEncoder().encode("olos live s3 integration\n");
+const overwritePayload = new TextEncoder().encode("olos overwrite attempt\n");
 const liveS3Config = readLiveS3ConfigFromEnv(process.env);
 
 test.skipIf(liveS3Config.status === "disabled")(
-  "uploads and observes an object through a live S3-compatible provider",
+  "uploads, rejects overwrite, and observes an object through a live S3-compatible provider",
   async () => {
     if (liveS3Config.status === "disabled") {
       throw new Error("live S3 test is disabled");
@@ -47,6 +48,14 @@ test.skipIf(liveS3Config.status === "disabled")(
       if (!uploaded.ok) {
         throw new Error(`live S3 upload failed with ${uploaded.status}`);
       }
+
+      const overwrite = await fetch(grant.url, {
+        body: overwritePayload,
+        headers: grant.requiredHeaders,
+        method: grant.method,
+      });
+
+      expect(overwrite.ok).toBe(false);
 
       const observed = await observeS3Object({
         bucket: config.bucket,

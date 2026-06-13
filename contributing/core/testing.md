@@ -52,6 +52,11 @@ OLOS_LIVE_S3_PREFIX=olos-live-s3
 empty prefixes, traversal segments, query strings, fragments, duplicate path
 separators, and control characters before contacting the provider.
 
+When enabled, the provider check uploads one object through an OLOS S3 grant,
+reuses the same exact-key grant with `If-None-Match: *`, expects the overwrite
+attempt to fail, verifies the object through `HeadObject`, and deletes the
+object afterwards.
+
 One-shot S3-compatible endpoint example:
 
 ```bash
