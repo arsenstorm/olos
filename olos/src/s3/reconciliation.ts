@@ -5,6 +5,7 @@ import type {
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
+import type { OlosErrorCode } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertUrlSafeIdentifier } from "../validation/ids";
@@ -84,6 +85,7 @@ export type StoredS3CoordinatorUploadReconciliationCommit =
 export interface StoredS3CoordinatorUploadReconciliationSummary {
   committed: number;
   failed: number;
+  failedErrorCodes: readonly OlosErrorCode[];
   failedSlotIds: readonly OlosId[];
   idempotent: number;
   ok: boolean;
@@ -132,6 +134,7 @@ export function summarizeStoredS3CoordinatorUploadReconciliation(
     return {
       committed: 0,
       failed: 0,
+      failedErrorCodes: [],
       failedSlotIds: [],
       idempotent: 0,
       ok: false,
@@ -144,6 +147,7 @@ export function summarizeStoredS3CoordinatorUploadReconciliation(
   const summary = {
     committed: 0,
     failed: 0,
+    failedErrorCodes: [] as OlosErrorCode[],
     failedSlotIds: [] as OlosId[],
     idempotent: 0,
     slotIds: [] as OlosId[],
@@ -162,8 +166,16 @@ export function summarizeStoredS3CoordinatorUploadReconciliation(
       continue;
     }
 
-    summary.failed += 1;
-    summary.failedSlotIds.push(entry.slot.slotId);
+    if (entry.status === "failed") {
+      summary.failed += 1;
+      summary.failedSlotIds.push(entry.slot.slotId);
+
+      const failedResult = entry.result;
+
+      if (failedResult?.status === "rejected") {
+        summary.failedErrorCodes.push(failedResult.error.error.code);
+      }
+    }
   }
 
   return {

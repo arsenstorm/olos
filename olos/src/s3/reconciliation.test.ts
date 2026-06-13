@@ -114,6 +114,7 @@ describe("stored S3 upload reconciliation", () => {
     expect(summarizeStoredS3CoordinatorUploadReconciliation(result)).toEqual({
       committed: 2,
       failed: 0,
+      failedErrorCodes: [],
       failedSlotIds: [],
       idempotent: 0,
       ok: true,
@@ -195,6 +196,17 @@ describe("stored S3 upload reconciliation", () => {
       },
       status: "failed",
     });
+    expect(summarizeStoredS3CoordinatorUploadReconciliation(result)).toEqual({
+      committed: 1,
+      failed: 1,
+      failedErrorCodes: ["olos.quota_exceeded"],
+      failedSlotIds: ["slot_3810"],
+      idempotent: 0,
+      ok: false,
+      planned: 2,
+      slotIds: ["slot_init", "slot_3810"],
+      status: "reconciled",
+    });
     expect(snapshot?.state.commits).toHaveLength(0);
     expect(snapshot?.state.initCommits).toHaveLength(1);
     expect(snapshot?.state.cursor).toBeUndefined();
@@ -237,6 +249,7 @@ describe("stored S3 upload reconciliation", () => {
     expect(summarizeStoredS3CoordinatorUploadReconciliation(result)).toEqual({
       committed: 1,
       failed: 1,
+      failedErrorCodes: [],
       failedSlotIds: ["slot_3810"],
       idempotent: 0,
       ok: false,
