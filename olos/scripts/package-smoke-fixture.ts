@@ -136,8 +136,14 @@ function assertList(name, actual, expected) {
 function packageTypeSmokeSource(): string {
   return `
 import { OLOS_WIRE_VERSION } from "olos";
-import { createRuntimeObjectLowLatencyProfile } from "olos/runtime";
-import { createS3UploadGrant } from "olos/s3";
+import {
+  createRuntimeObjectLowLatencyProfile,
+  createStoredCoordinatorRuntimeHandler,
+} from "olos/runtime";
+import {
+  createS3UploadGrant,
+  createStoredS3CoordinatorRuntimeHandler,
+} from "olos/s3";
 import { OLOS_JSON_SCHEMAS } from "olos/schema";
 import type {
   ProviderCapabilityDocument,
@@ -148,6 +154,10 @@ import type {
 import { assertSession } from "olos/validation";
 
 const profile = createRuntimeObjectLowLatencyProfile();
+const runtimeHandler: typeof createStoredCoordinatorRuntimeHandler =
+  createStoredCoordinatorRuntimeHandler;
+const s3RuntimeHandler: typeof createStoredS3CoordinatorRuntimeHandler =
+  createStoredS3CoordinatorRuntimeHandler;
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -231,6 +241,8 @@ if (!grant.requiredHeaders) {
 }
 
 grant.requiredHeaders["x-amz-meta-olos-slot-id"] satisfies string;
+runtimeHandler satisfies typeof createStoredCoordinatorRuntimeHandler;
+s3RuntimeHandler satisfies typeof createStoredS3CoordinatorRuntimeHandler;
 `.trimStart();
 }
 
