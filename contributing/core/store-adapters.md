@@ -63,7 +63,9 @@ changed a row.
 
 `createSqliteSerializedCoordinatorStoreBackend` implements this contract for
 SQLite-style clients that expose `prepare().bind().first()` and
-`prepare().bind().run()`.
+`prepare().bind().run()`. The `run()` result may report changed rows as either
+top-level `changes` or D1-style `meta.changes`; a missing or zero count is
+treated as a conflict.
 
 ## KV and Document Stores
 
