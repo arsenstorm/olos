@@ -18,8 +18,9 @@ That workflow verifies:
 - conformance report generation
 - package artifact generation
 
-`publish:check` includes changelog verification, type checking, Bun unit tests,
-Vitest E2E tests, build, dry pack, and packed-package smoke testing.
+`publish:check` includes changelog verification, conformance coverage checking,
+type checking, Bun unit tests, Vitest E2E tests, build, dry pack, and
+packed-package smoke testing.
 
 The packed-package smoke test is also the public export guard. It verifies the
 documented subpaths and keeps root `olos` limited to protocol metadata

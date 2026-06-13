@@ -24,6 +24,12 @@ Generate the current CI-friendly report with:
 bun --filter olos conformance:report
 ```
 
+Check that every known assertion is mapped before release work with:
+
+```bash
+bun --filter olos conformance:check
+```
+
 The validation workflow uploads this report as `olos-conformance`.
 
 When adding or changing behavior:

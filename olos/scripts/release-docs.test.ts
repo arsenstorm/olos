@@ -10,6 +10,7 @@ describe("release documentation", () => {
 
     expect(releases).toContain("## v0.1 Readiness");
     expect(releases).toContain("Treat `v0.1` as package-ready");
+    expect(releases).toContain("checks conformance coverage");
     expect(releases).toContain("`publish:check` passes from a clean checkout");
     expect(releases).toContain(
       "The conformance report has no unmapped assertions"
