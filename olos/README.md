@@ -476,6 +476,12 @@ The S3 runtime handler delegates the stored runtime routes and adds:
 | `POST` | `/sessions/:id/s3/reconcile` | Retry S3-backed commits for issued slots after missed events or process restarts. |
 | `POST` | `/sessions/:id/s3/retention` | Plan retention and delete retired media objects through S3. |
 
+For typed route consumers, `olos/s3` exports
+`StoredS3CoordinatorSlotGrantResponse`, `StoredS3CoordinatorCommitResponse`,
+`StoredS3CoordinatorEventRouteResponse`,
+`StoredS3CoordinatorReconciliationResponse`, and
+`StoredS3CoordinatorRetentionResponse`.
+
 The generic runtime routes remain available through the same handler, including
 `POST /sessions`, `POST /sessions/:id/slots`, `POST /sessions/:id/commits`,
 `POST /sessions/:id/transition`, `POST /sessions/:id/heartbeat`,
