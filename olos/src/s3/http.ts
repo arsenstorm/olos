@@ -12,7 +12,10 @@ import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import { assertUrlSafeIdentifier } from "../validation/ids";
-import { assertSafeMediaObjectKey } from "../validation/object-key";
+import {
+  assertSafeMediaObjectKey,
+  assertSafeObjectKey,
+} from "../validation/object-key";
 import {
   completeStoredS3CoordinatorUpload,
   issueStoredS3CoordinatorUploadGrant,
@@ -521,6 +524,7 @@ function parseCommitPayload(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): S3CommitPayload {
   const providerId = providerIdField(value, options);
+  const objectKey = optionalObjectKeyField(value);
 
   return {
     commitId: urlSafeIdentifierField(value, "commitId"),
@@ -529,7 +533,7 @@ function parseCommitPayload(
     slotId: urlSafeIdentifierField(value, "slotId"),
     ...optionalBooleanField(value, "independent"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
-    ...optionalStringField(value, "objectKey"),
+    ...objectKey,
     ...optionalTimestampField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
   };
@@ -918,7 +922,20 @@ function optionalBooleanField(
   return { [field]: value[field] };
 }
 
-function optionalStringField<Field extends "objectKey" | "versionId">(
+function optionalObjectKeyField(
+  value: Record<string, unknown>
+): Partial<Pick<S3CommitPayload, "objectKey">> {
+  if (value.objectKey === undefined) {
+    return {};
+  }
+
+  const objectKey = stringField(value, "objectKey");
+  assertSafeObjectKey(objectKey, "objectKey");
+
+  return { objectKey };
+}
+
+function optionalStringField<Field extends "versionId">(
   value: Record<string, unknown>,
   field: Field
 ): Partial<Record<Field, string>> {

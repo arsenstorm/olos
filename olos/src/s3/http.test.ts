@@ -908,6 +908,16 @@ describe("stored S3 coordinator runtime handler", () => {
         url: "https://edge.example.com/sessions/session_1/s3/commits",
       },
       {
+        expected: "objectKey must be a safe relative object key",
+        payload: {
+          commitId: "commit_3810",
+          committedAt: "2026-01-01T00:00:02.000Z",
+          objectKey: "live/session/../secret.m4s",
+          slotId: "slot_3810",
+        },
+        url: "https://edge.example.com/sessions/session_1/s3/commits",
+      },
+      {
         expected: "providerId must be a non-empty URL-safe identifier",
         payload: {
           committedAt: "2026-01-01T00:00:02.000Z",
