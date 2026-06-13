@@ -9,6 +9,7 @@ import {
   OLOS_ERROR_SCHEMA,
   OLOS_JSON_SCHEMAS,
   OLOS_MEDIA_OBJECT_SCHEMA,
+  OLOS_PATHWAY_SCHEMA,
   OLOS_PROVIDER_CAPABILITY_SCHEMA,
   OLOS_SESSION_SCHEMA,
   OLOS_UPLOAD_GRANT_SCHEMA,
@@ -80,6 +81,7 @@ describe("OLOS JSON schemas", () => {
     expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.kind.enum).toEqual(
       MEDIA_OBJECT_KINDS
     );
+    expect(OLOS_PATHWAY_SCHEMA.required).toContain("state");
   });
 
   test("describes provider capability preconditions", () => {
