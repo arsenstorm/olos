@@ -91,29 +91,44 @@ function readLiveS3Config(): LiveS3Config {
     return { status: "disabled" };
   }
 
+  const required = readRequiredLiveS3Env([
+    "OLOS_LIVE_S3_ACCESS_KEY_ID",
+    "OLOS_LIVE_S3_BUCKET",
+    "OLOS_LIVE_S3_REGION",
+    "OLOS_LIVE_S3_SECRET_ACCESS_KEY",
+  ]);
+
   return {
-    accessKeyId: requiredEnv("OLOS_LIVE_S3_ACCESS_KEY_ID"),
-    bucket: requiredEnv("OLOS_LIVE_S3_BUCKET"),
+    accessKeyId: required.OLOS_LIVE_S3_ACCESS_KEY_ID,
+    bucket: required.OLOS_LIVE_S3_BUCKET,
     endpoint: process.env.OLOS_LIVE_S3_ENDPOINT,
     forcePathStyle: boolEnv(
       "OLOS_LIVE_S3_FORCE_PATH_STYLE",
       process.env.OLOS_LIVE_S3_ENDPOINT !== undefined
     ),
     prefix: process.env.OLOS_LIVE_S3_PREFIX ?? "olos-live-s3",
-    region: requiredEnv("OLOS_LIVE_S3_REGION"),
-    secretAccessKey: requiredEnv("OLOS_LIVE_S3_SECRET_ACCESS_KEY"),
+    region: required.OLOS_LIVE_S3_REGION,
+    secretAccessKey: required.OLOS_LIVE_S3_SECRET_ACCESS_KEY,
     status: "enabled",
   };
 }
 
-function requiredEnv(name: string): string {
-  const value = process.env[name];
+function readRequiredLiveS3Env<const Names extends readonly string[]>(
+  names: Names
+): Record<Names[number], string> {
+  const missing = names.filter(
+    (name) => process.env[name] === undefined || process.env[name] === ""
+  );
 
-  if (value === undefined || value === "") {
-    throw new Error(`${name} is required when OLOS_LIVE_S3=1`);
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required live S3 env when OLOS_LIVE_S3=1: ${missing.join(", ")}`
+    );
   }
 
-  return value;
+  return Object.fromEntries(
+    names.map((name) => [name, process.env[name]])
+  ) as Record<Names[number], string>;
 }
 
 function boolEnv(name: string, fallback: boolean): boolean {
