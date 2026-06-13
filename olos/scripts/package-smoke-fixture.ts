@@ -127,7 +127,12 @@ function packageTypeSmokeSource(): string {
 import { OLOS_WIRE_VERSION } from "olos";
 import { createRuntimeObjectLowLatencyProfile } from "olos/runtime";
 import { createS3UploadGrant } from "olos/s3";
-import type { Session, UploadGrant, UploadSlot } from "olos/types";
+import type {
+  ProviderCapabilityDocument,
+  Session,
+  UploadGrant,
+  UploadSlot,
+} from "olos/types";
 import { assertSession } from "olos/validation";
 
 const profile = createRuntimeObjectLowLatencyProfile();
@@ -156,6 +161,32 @@ const session: Session = {
 };
 
 assertSession(session);
+
+const capability = {
+  consistency: {
+    headAfterCreate: "strong",
+    readAfterCreate: "strong",
+  },
+  delivery: {
+    negativeCachingPolicyDeclared: true,
+    publicBaseUrl: "https://media.example.com",
+  },
+  kind: "object-store",
+  olos: OLOS_WIRE_VERSION,
+  providerId: "s3_primary",
+  publication: {
+    createIfAbsent: true,
+    directObjectPublication: true,
+  },
+  uploadGrants: {
+    exactKey: true,
+    methodBound: true,
+    objectSizeCanBeObserved: true,
+    presignedPut: true,
+  },
+} satisfies ProviderCapabilityDocument;
+
+capability.uploadGrants.objectSizeCanBeObserved satisfies true;
 
 const slot: UploadSlot = {
   contentType: "video/mp4",
