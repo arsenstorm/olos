@@ -61,6 +61,8 @@ function pathParts(value: string): string[] {
 export async function createPresignedS3UploadGrant(
   options: CreatePresignedS3UploadGrantOptions
 ): Promise<UploadGrant> {
+  assertPresignedS3UploadGrantOptions(options);
+
   const requiredHeaders = createRequiredHeaders(options);
   const command = new PutObjectCommand({
     Bucket: options.bucket,
@@ -105,6 +107,23 @@ export async function createPresignedS3UploadGrant(
   });
 }
 
+function assertPresignedS3UploadGrantOptions(
+  options: CreatePresignedS3UploadGrantOptions
+): void {
+  if (options.bucket.length === 0) {
+    throw new Error("bucket must be a non-empty string");
+  }
+
+  if (
+    !Number.isFinite(options.expiresInSeconds) ||
+    options.expiresInSeconds <= 0
+  ) {
+    throw new Error("expiresInSeconds must be a positive number");
+  }
+
+  timestampMs(options.now ?? new Date(), "now");
+}
+
 function createRequiredHeaders(
   options: CreatePresignedS3UploadGrantOptions
 ): Record<string, string> {
@@ -143,10 +162,19 @@ function assertDoesNotOverrideS3Metadata(
 }
 
 function expiresAt(options: CreatePresignedS3UploadGrantOptions): string {
-  const nowMs =
-    options.now === undefined ? Date.now() : new Date(options.now).getTime();
+  const nowMs = timestampMs(options.now ?? new Date(), "now");
 
   return new Date(nowMs + options.expiresInSeconds * 1000).toISOString();
+}
+
+function timestampMs(value: Date | string, name: string): number {
+  const timestamp = new Date(value).getTime();
+
+  if (Number.isNaN(timestamp)) {
+    throw new Error(`${name} must be a valid timestamp`);
+  }
+
+  return timestamp;
 }
 
 function isHeaderRequest(

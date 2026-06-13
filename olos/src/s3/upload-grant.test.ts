@@ -93,6 +93,34 @@ describe("s3 upload grants", () => {
     );
   });
 
+  test("rejects invalid SDK-presigned grant options", async () => {
+    await expect(
+      createPresignedS3UploadGrant({
+        bucket: "",
+        client: createClient(),
+        expiresInSeconds: 3,
+        slot,
+      })
+    ).rejects.toThrow("bucket must be a non-empty string");
+    await expect(
+      createPresignedS3UploadGrant({
+        bucket: "media",
+        client: createClient(),
+        expiresInSeconds: 0,
+        slot,
+      })
+    ).rejects.toThrow("expiresInSeconds must be a positive number");
+    await expect(
+      createPresignedS3UploadGrant({
+        bucket: "media",
+        client: createClient(),
+        expiresInSeconds: 3,
+        now: "soon",
+        slot,
+      })
+    ).rejects.toThrow("now must be a valid timestamp");
+  });
+
   test("creates an upload grant from an S3 presigned PUT URL", () => {
     expect(
       createS3UploadGrant({
