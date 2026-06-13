@@ -91,6 +91,70 @@ describe("S3 retention", () => {
       },
     ]);
   });
+
+  test("rejects empty S3 retention buckets before deleting objects", async () => {
+    const inputs: unknown[] = [];
+
+    await expect(
+      deleteRetiredS3CoordinatorObjects({
+        bucket: "",
+        client: clientFor(inputs),
+        objects: [
+          {
+            commitId: "commit_3810",
+            objectKey: "media/s3810.m4s",
+            slotId: "slot_3810",
+          },
+        ],
+      })
+    ).rejects.toThrow("bucket must be a non-empty string");
+    expect(inputs).toEqual([]);
+  });
+
+  test("records unsafe S3 retention object keys as failed deletes", async () => {
+    const inputs: unknown[] = [];
+
+    const result = await deleteRetiredS3CoordinatorObjects({
+      bucket: "media",
+      client: clientFor(inputs),
+      objects: [
+        {
+          commitId: "commit_bad",
+          objectKey: "media/../secret.m4s",
+          slotId: "slot_bad",
+        },
+        {
+          commitId: "commit_ok",
+          objectKey: "media/ok.m4s",
+          slotId: "slot_ok",
+        },
+      ],
+    });
+
+    expect(inputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/ok.m4s",
+      },
+    ]);
+    expect(result.deletedObjects).toEqual([
+      {
+        commitId: "commit_ok",
+        objectKey: "media/ok.m4s",
+        slotId: "slot_ok",
+      },
+    ]);
+    expect(result.failedObjects).toEqual([
+      {
+        error: "objectKey must be a safe relative object key",
+        object: {
+          commitId: "commit_bad",
+          objectKey: "media/../secret.m4s",
+          slotId: "slot_bad",
+        },
+      },
+    ]);
+  });
 });
 
 function clientFor(
