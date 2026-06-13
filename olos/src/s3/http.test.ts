@@ -89,6 +89,12 @@ describe("stored S3 coordinator runtime handler", () => {
       })
     ).toThrow("providerId must be a non-empty URL-safe identifier");
     expect(() =>
+      createStoredS3CoordinatorRuntimeHandler({
+        ...options,
+        allowedMediaOrigins: ["http://media.example.com"],
+      })
+    ).toThrow("allowedMediaOrigins must contain HTTPS origins");
+    expect(() =>
       createStoredS3CoordinatorRuntimeHandler({ ...options, maxAttempts: 0 })
     ).toThrow("maxAttempts must be a positive integer");
     expect(() =>

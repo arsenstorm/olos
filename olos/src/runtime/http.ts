@@ -71,6 +71,10 @@ export function createStoredCoordinatorRuntimeHandler(
 function assertRuntimeHandlerOptions(
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): void {
+  assertAllowedMediaOrigins(options.allowedMediaOrigins);
+  assertRoutePath(options.sessionPath ?? DEFAULT_SESSION_PATH, "sessionPath");
+  assertRoutePath(options.livePath ?? DEFAULT_LIVE_PATH, "livePath");
+
   if (
     options.maxAttempts !== undefined &&
     (!Number.isInteger(options.maxAttempts) || options.maxAttempts < 1)
@@ -91,10 +95,53 @@ function assertRuntimeHandlerOptions(
   }
 }
 
+function assertAllowedMediaOrigins(origins: readonly string[]): void {
+  for (const origin of origins) {
+    let url: URL;
+
+    try {
+      url = new URL(origin);
+    } catch {
+      throw new Error("allowedMediaOrigins must contain HTTPS origins");
+    }
+
+    if (url.protocol !== "https:" || url.origin !== origin) {
+      throw new Error("allowedMediaOrigins must contain HTTPS origins");
+    }
+  }
+}
+
+function assertRoutePath(value: string, name: string): void {
+  if (
+    value.length === 0 ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    hasControlCharacter(value)
+  ) {
+    throw new Error(`${name} must be a safe route path`);
+  }
+
+  if (value.includes("?") || value.includes("#")) {
+    throw new Error(`${name} must not contain query strings or fragments`);
+  }
+}
+
 function assertPositiveOption(value: number | undefined, name: string): void {
   if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
     throw new Error(`${name} must be a positive number`);
   }
+}
+
+function hasControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 async function handleStoredRuntimeRequest(

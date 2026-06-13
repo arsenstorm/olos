@@ -49,6 +49,27 @@ describe("stored coordinator runtime handler", () => {
     };
 
     expect(() =>
+      createStoredCoordinatorRuntimeHandler({
+        ...options,
+        allowedMediaOrigins: ["http://media.example.com"],
+      })
+    ).toThrow("allowedMediaOrigins must contain HTTPS origins");
+    expect(() =>
+      createStoredCoordinatorRuntimeHandler({
+        ...options,
+        allowedMediaOrigins: ["https://media.example.com/path"],
+      })
+    ).toThrow("allowedMediaOrigins must contain HTTPS origins");
+    expect(() =>
+      createStoredCoordinatorRuntimeHandler({ ...options, livePath: "live" })
+    ).toThrow("livePath must be a safe route path");
+    expect(() =>
+      createStoredCoordinatorRuntimeHandler({
+        ...options,
+        sessionPath: "/sessions?debug=1",
+      })
+    ).toThrow("sessionPath must not contain query strings or fragments");
+    expect(() =>
       createStoredCoordinatorRuntimeHandler({ ...options, maxAttempts: 0 })
     ).toThrow("maxAttempts must be a positive integer");
     expect(() =>
