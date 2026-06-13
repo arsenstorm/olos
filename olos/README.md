@@ -588,7 +588,10 @@ media-only response header policy, forbidden response headers, and supported
 media extensions that a CDN or media gateway should enforce.
 Use `createDirectPublicMediaResponseHeaders` to compose committed-media
 `Content-Type`, immutable `Cache-Control`, `nosniff`, and cross-origin headers
-before serving media objects from a direct-public origin. Use
+before serving media objects from a direct-public origin.
+Use `createDirectPublicNegativeObjectResponseHeaders` for missing or future
+media-object responses so 404s use the declared short negative cache policy.
+Use
 `resolveDirectPublicMediaRequestPolicy` to reject unknown extensions, document
 navigations, and HTML `Accept` requests before serving direct-public media.
 

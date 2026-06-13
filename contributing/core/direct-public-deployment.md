@@ -44,6 +44,8 @@ Set-Cookie: never
 Use `createDirectPublicMediaResponseHeaders` from `olos/state` to compose these
 headers from a direct-public security policy before serving committed media
 objects.
+Use `createDirectPublicNegativeObjectResponseHeaders` for missing or future
+media-object responses so 404s use the declared short negative cache policy.
 
 Block:
 
