@@ -107,6 +107,7 @@ export const OLOS_CONFORMANCE_ASSERTION_IDS = [
   "HLS-HOLDBACK-001",
   "HLS-BLOCK-001",
   "HLS-BLOCK-002",
+  "HLS-BLOCK-003",
   "SEC-DIRECT-001",
   "SEC-DIRECT-002",
   "SEC-DIRECT-003",
@@ -727,6 +728,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     level: "hls",
     status: "covered",
     testFile: "src/hls/manifest-artifacts.test.ts",
+  },
+  {
+    id: "HLS-BLOCK-003",
+    level: "hls",
+    status: "covered",
+    testFile: "e2e/runtime-client-flow.test.ts",
   },
   {
     id: "SEC-DIRECT-004",
