@@ -433,6 +433,80 @@ describe("S3 HTTP pipeline", () => {
     });
   });
 
+  test("rejects wrong-key S3 commits without advancing manifests", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createS3Client(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "media/v1080/3810.m4s": 98_304,
+          "media/v1080/wrong.m4s": 98_304,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      response: manifestOptions.response,
+      store,
+      ...manifestOptions.manifest,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "media/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const rejected = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_wrong",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        objectKey: "media/v1080/wrong.m4s",
+        slotId: "slot_3810",
+      })
+    );
+    const rejectedBody = (await rejected.json()) as {
+      error: {
+        code: string;
+        details: Record<string, unknown>;
+      };
+    };
+    const stored = await store.load(session.sessionId);
+    const media = await handle(
+      new Request("https://edge.example.com/v1/live/session_1/v1080/media.m3u8")
+    );
+
+    expect(rejected.status).toBe(409);
+    expect(rejectedBody.error).toMatchObject({
+      code: "olos.key_mismatch",
+      details: {
+        objectKey: "media/v1080/wrong.m4s",
+        slotId: "slot_3810",
+      },
+    });
+    expect(stored?.state.commits).toEqual([]);
+    expect(stored?.state.cursor).toBeUndefined();
+    expect(media.status).toBe(404);
+    expect(await media.text()).toBe("manifest not found");
+    expect(headObjectInputs).toEqual([]);
+  });
+
   test("recovers missed S3 commits through reconciliation routes", async () => {
     const headObjectInputs: unknown[] = [];
     const notifier = createMemoryRuntimeCursorNotifier();
