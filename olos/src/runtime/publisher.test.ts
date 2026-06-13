@@ -93,6 +93,13 @@ describe("runtime publisher upload step", () => {
         step: { status: "issue_failed" },
       })
     ).toThrow("maxAttempts must be a positive integer");
+    expect(() =>
+      resolveRuntimePublisherLoopDecision({
+        attempt: 0,
+        maxAttempts: 3,
+        step: { status: "unknown" as "issue_failed" },
+      })
+    ).toThrow("publisher step status is unsupported");
   });
 
   test("issues, uploads, and commits one publisher segment", async () => {

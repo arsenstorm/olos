@@ -228,6 +228,7 @@ export function resolveRuntimePublisherLoopDecision(
 ): RuntimePublisherLoopDecision {
   const attempt = nonNegativeInteger(options.attempt, "attempt");
   const maxAttempts = positiveInteger(options.maxAttempts, "maxAttempts");
+  assertPublisherStepStatus(options.step.status);
 
   if (
     options.step.status === "committed" ||
@@ -249,6 +250,21 @@ export function resolveRuntimePublisherLoopDecision(
     action: "stop",
     reason: "attempts_exhausted",
   };
+}
+
+function assertPublisherStepStatus(status: string): void {
+  if (
+    status === "committed" ||
+    status === "idempotent" ||
+    status === "heartbeat_failed" ||
+    status === "issue_failed" ||
+    status === "upload_failed" ||
+    status === "commit_failed"
+  ) {
+    return;
+  }
+
+  throw new Error("publisher step status is unsupported");
 }
 
 function optionalBoolean<Key extends string>(
