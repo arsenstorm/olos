@@ -52,6 +52,11 @@
       "import": "./dist/runtime.js",
       "default": "./dist/runtime.js"
     },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js",
+      "default": "./dist/schema.js"
+    },
     "./s3": {
       "types": "./dist/s3.d.ts",
       "import": "./dist/s3.js",

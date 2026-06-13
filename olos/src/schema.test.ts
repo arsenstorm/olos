@@ -1,0 +1,39 @@
+import { describe, expect, test } from "bun:test";
+import { PUBLICATION_MODES } from "./config/publication";
+import { LATENCY_PROFILES, SESSION_STATES } from "./config/session";
+import {
+  OLOS_COMMIT_SCHEMA,
+  OLOS_JSON_SCHEMAS,
+  OLOS_SESSION_SCHEMA,
+  OLOS_UPLOAD_SLOT_SCHEMA,
+} from "./schema";
+
+describe("OLOS JSON schemas", () => {
+  test("exports stable core schema names", () => {
+    expect(Object.keys(OLOS_JSON_SCHEMAS).sort()).toEqual([
+      "commit",
+      "committedWindow",
+      "cursor",
+      "pathway",
+      "session",
+      "uploadSlot",
+    ]);
+  });
+
+  test("describes the session wire version and enums", () => {
+    expect(OLOS_SESSION_SCHEMA.properties.olos).toEqual({ const: "1.0" });
+    expect(OLOS_SESSION_SCHEMA.properties.state.enum).toEqual(SESSION_STATES);
+    expect(OLOS_SESSION_SCHEMA.properties.latencyProfile.enum).toEqual(
+      LATENCY_PROFILES
+    );
+    expect(OLOS_SESSION_SCHEMA.required).toContain("renditions");
+  });
+
+  test("describes upload slot and commit object keys", () => {
+    expect(OLOS_UPLOAD_SLOT_SCHEMA.required).toContain("objectKey");
+    expect(OLOS_COMMIT_SCHEMA.required).toContain("objectKey");
+    expect(OLOS_COMMIT_SCHEMA.properties.publicationMode.enum).toEqual(
+      PUBLICATION_MODES
+    );
+  });
+});
