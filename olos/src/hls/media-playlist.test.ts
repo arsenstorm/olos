@@ -143,6 +143,17 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
     ).toContain("PART-HOLD-BACK=2.000,HOLD-BACK=4.000");
   });
 
+  test("omits preload hints by default", () => {
+    expect(
+      renderMediaPlaylist(committedWindow, {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+      })
+    ).not.toContain("#EXT-X-PRELOAD-HINT");
+  });
+
   test("renders discontinuities before flagged segments", () => {
     const playlist = renderMediaPlaylist(
       {
