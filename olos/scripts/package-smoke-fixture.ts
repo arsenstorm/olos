@@ -14,9 +14,15 @@ export const expectedRuntimeExports = {
     "OLOS_CONFORMANCE_COVERAGE",
   ],
   "olos/hls": [
+    "createHlsManifestArtifactResponse",
+    "createHlsManifestErrorWebResponse",
+    "createHlsManifestWebResponse",
+    "parseHlsBlockingReloadRequest",
     "renderMediaPlaylist",
     "resolveBlockingHlsManifestArtifactResponse",
+    "resolveHlsBlockingReload",
     "resolveHlsManifestArtifactResponse",
+    "waitForHlsBlockingReload",
   ],
   "olos/protocol": [
     "assertSerializedCoordinatorStoreBackendConformance",
@@ -158,6 +164,15 @@ function packageTypeSmokeSource(): string {
   return `
 import { OLOS_WIRE_VERSION } from "olos";
 import {
+  createHlsManifestArtifactResponse,
+  createHlsManifestErrorWebResponse,
+  createHlsManifestWebResponse,
+  parseHlsBlockingReloadRequest,
+  resolveBlockingHlsManifestArtifactResponse,
+  resolveHlsBlockingReload,
+  waitForHlsBlockingReload,
+} from "olos/hls";
+import {
   createMemoryRuntimeCursorNotifier,
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
@@ -192,6 +207,20 @@ import type {
 import { assertSession } from "olos/validation";
 
 const profile = createRuntimeObjectLowLatencyProfile();
+const manifestArtifactResponse: typeof createHlsManifestArtifactResponse =
+  createHlsManifestArtifactResponse;
+const manifestErrorResponse: typeof createHlsManifestErrorWebResponse =
+  createHlsManifestErrorWebResponse;
+const manifestWebResponse: typeof createHlsManifestWebResponse =
+  createHlsManifestWebResponse;
+const blockingReloadRequest: typeof parseHlsBlockingReloadRequest =
+  parseHlsBlockingReloadRequest;
+const blockingManifestResponse: typeof resolveBlockingHlsManifestArtifactResponse =
+  resolveBlockingHlsManifestArtifactResponse;
+const blockingReload: typeof resolveHlsBlockingReload =
+  resolveHlsBlockingReload;
+const blockingReloadWait: typeof waitForHlsBlockingReload =
+  waitForHlsBlockingReload;
 const runtimeHandler: typeof createStoredCoordinatorRuntimeHandler =
   createStoredCoordinatorRuntimeHandler;
 const memoryNotifier: typeof createMemoryRuntimeCursorNotifier =
@@ -313,6 +342,13 @@ if (!grant.requiredHeaders) {
 }
 
 grant.requiredHeaders["x-amz-meta-olos-slot-id"] satisfies string;
+manifestArtifactResponse satisfies typeof createHlsManifestArtifactResponse;
+manifestErrorResponse satisfies typeof createHlsManifestErrorWebResponse;
+manifestWebResponse satisfies typeof createHlsManifestWebResponse;
+blockingReloadRequest satisfies typeof parseHlsBlockingReloadRequest;
+blockingManifestResponse satisfies typeof resolveBlockingHlsManifestArtifactResponse;
+blockingReload satisfies typeof resolveHlsBlockingReload;
+blockingReloadWait satisfies typeof waitForHlsBlockingReload;
 runtimeHandler satisfies typeof createStoredCoordinatorRuntimeHandler;
 memoryNotifier satisfies typeof createMemoryRuntimeCursorNotifier;
 manifestOptions satisfies typeof createRuntimeObjectLowLatencyManifestOptions;
