@@ -11,6 +11,7 @@ import type { Cursor } from "../types/cursor";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
+import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeMediaObjectKey } from "../validation/object-key";
 import {
   completeStoredS3CoordinatorUpload,
@@ -504,10 +505,10 @@ function parseCommitPayload(
   const providerId = providerIdField(value, options);
 
   return {
-    commitId: stringField(value, "commitId"),
+    commitId: urlSafeIdentifierField(value, "commitId"),
     committedAt: timestampField(value, "committedAt"),
     providerId,
-    slotId: stringField(value, "slotId"),
+    slotId: urlSafeIdentifierField(value, "slotId"),
     ...optionalBooleanField(value, "independent"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
     ...optionalStringField(value, "objectKey"),
@@ -531,7 +532,7 @@ async function parseS3ReconciliationPlanRequest(
 
     return {
       payload: {
-        ...optionalStringArrayField(payload, "slotIds"),
+        ...optionalUrlSafeIdentifierArrayField(payload, "slotIds"),
       },
       status: "valid",
     };
@@ -602,7 +603,7 @@ function parseReconciliationPayload(
     ...optionalPositiveIntegerField(value, "maxSegments"),
     ...optionalTimestampField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
-    ...optionalStringArrayField(value, "slotIds"),
+    ...optionalUrlSafeIdentifierArrayField(value, "slotIds"),
   };
 }
 
@@ -758,6 +759,15 @@ function stringField(value: Record<string, unknown>, field: string): string {
   if (typeof value[field] !== "string") {
     throw new Error(`${field} must be a string`);
   }
+
+  return value[field];
+}
+
+function urlSafeIdentifierField(
+  value: Record<string, unknown>,
+  field: string
+): string {
+  assertUrlSafeIdentifier(value[field], field);
 
   return value[field];
 }
@@ -924,15 +934,30 @@ function optionalStringArrayField(
   return { [field]: value[field] };
 }
 
+function optionalUrlSafeIdentifierArrayField(
+  value: Record<string, unknown>,
+  field: "slotIds"
+): Partial<Pick<S3ReconciliationPayload, "slotIds">> {
+  const result = optionalStringArrayField(value, field);
+
+  for (const entry of result[field] ?? []) {
+    assertUrlSafeIdentifier(entry, field);
+  }
+
+  return result;
+}
+
 function providerIdField(
   value: Record<string, unknown>,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): string {
   if (value.providerId !== undefined) {
-    return stringField(value, "providerId");
+    return urlSafeIdentifierField(value, "providerId");
   }
 
   if (options.providerId !== undefined) {
+    assertUrlSafeIdentifier(options.providerId, "providerId");
+
     return options.providerId;
   }
 
