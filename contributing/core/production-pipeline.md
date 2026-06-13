@@ -3,6 +3,13 @@
 This is the recommended shape for an OLOS object-store deployment. It is a
 runbook for wiring the package primitives, not a separate conformance target.
 
+The executable package-level wiring proof is
+`olos/e2e/production-wiring.test.ts`. It covers the intended composition of the
+stored S3 runtime handler, object low-latency profile defaults, playback
+manifests, publisher heartbeat health, reconciliation, and retention deletion.
+It is not a substitute for application-owned authentication, authorization,
+storage policy, monitoring, or provider-specific integration tests.
+
 ## Services
 
 Use four application-owned surfaces:
