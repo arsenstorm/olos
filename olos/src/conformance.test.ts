@@ -69,6 +69,15 @@ describe("conformance manifest", () => {
     });
   });
 
+  test("maps revoked-slot conformance to coordinator tests", () => {
+    expect(getOlosConformanceCoverage("CORE-SLOT-006")).toEqual({
+      id: "CORE-SLOT-006",
+      level: "core",
+      status: "covered",
+      testFile: "src/protocol/coordinator.test.ts",
+    });
+  });
+
   test("asserts coordinator store conformance", async () => {
     await expect(
       assertCoordinatorPipelineStoreConformance({
