@@ -556,6 +556,14 @@ commit only observed objects that match issued slots, keep manifests gated by
 the trusted cursor, and derive cache policies for manifests, media objects, and
 negative object responses.
 
+Object keys are treated as storage identity, not URLs. Validators and runtime
+request parsers reject traversal segments, absolute-style paths, control
+characters, query strings, and fragments for object keys. Delivery URLs must be
+root-relative or absolute HTTP(S) URLs and must not carry query strings,
+fragments, or control characters. Completion hints may include an object key,
+but never a publisher-supplied media URL; committed delivery URLs are derived
+from the issued slot and provider/coordinator state.
+
 The application and storage layer still own bucket policy, CDN rules, viewer
 authorization, object-key secrecy, cache purge, and emergency prefix blocks. If
 media must never be public before commit, use a read-gated or private-upload
