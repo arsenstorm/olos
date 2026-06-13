@@ -13,6 +13,7 @@ export interface RuntimeObjectLowLatencyProfile {
   latencyProfile: "object-ll";
   manifestMaxAgeSeconds: number;
   minUploadTtlSeconds: number;
+  partHoldBack: number;
   partTarget: number;
   publisherLeaseTtlMs: number;
   segmentTarget: number;
@@ -23,7 +24,7 @@ export interface RuntimeObjectLowLatencyManifestOptions {
   blockingReloadTimeoutMs: number;
   manifest: Pick<
     CreateHlsManifestArtifactsOptions,
-    "partTarget" | "segmentTarget" | "targetLatency"
+    "partHoldBack" | "partTarget" | "segmentTarget" | "targetLatency"
   >;
   response: CreateHlsManifestArtifactResponseOptions;
 }
@@ -62,6 +63,7 @@ export function createRuntimeObjectLowLatencyProfile(): RuntimeObjectLowLatencyP
     latencyProfile: "object-ll",
     manifestMaxAgeSeconds: 1,
     minUploadTtlSeconds: 1,
+    partHoldBack: 3,
     partTarget: 0.5,
     publisherLeaseTtlMs: 3000,
     segmentTarget: 2,
@@ -75,6 +77,7 @@ export function createRuntimeObjectLowLatencyManifestOptions(
   return {
     blockingReloadTimeoutMs: profile.blockingReloadTimeoutMs,
     manifest: {
+      partHoldBack: profile.partHoldBack,
       partTarget: profile.partTarget,
       segmentTarget: profile.segmentTarget,
       targetLatency: profile.targetLatency,

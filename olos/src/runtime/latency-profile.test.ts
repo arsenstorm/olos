@@ -14,6 +14,7 @@ describe("runtime latency profile", () => {
       latencyProfile: "object-ll",
       manifestMaxAgeSeconds: 1,
       minUploadTtlSeconds: 1,
+      partHoldBack: 3,
       partTarget: 0.5,
       publisherLeaseTtlMs: 3000,
       segmentTarget: 2,
@@ -29,6 +30,8 @@ describe("runtime latency profile", () => {
     expect(profile.targetLatency).toBeGreaterThanOrEqual(2);
     expect(profile.targetLatency).toBeLessThanOrEqual(4);
     expect(profile.partTarget).toBeLessThanOrEqual(0.5);
+    expect(profile.partHoldBack).toBeGreaterThanOrEqual(3 * profile.partTarget);
+    expect(profile.partHoldBack).toBe(profile.targetLatency);
     expect(profile.segmentTarget).toBeLessThanOrEqual(profile.targetLatency);
     expect(profile.manifestMaxAgeSeconds).toBeLessThanOrEqual(1);
     expect(manifest.response.maxAgeSeconds).toBeLessThanOrEqual(
@@ -46,6 +49,7 @@ describe("runtime latency profile", () => {
     expect(createRuntimeObjectLowLatencyManifestOptions()).toEqual({
       blockingReloadTimeoutMs: 3000,
       manifest: {
+        partHoldBack: 3,
         partTarget: 0.5,
         segmentTarget: 2,
         targetLatency: 3,
