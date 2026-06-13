@@ -32,6 +32,7 @@ export const expectedRuntimeExports = {
     "createNextCoordinatorPipelineEtag",
     "createSerializedCoordinatorStore",
     "createSqliteSerializedCoordinatorStoreBackend",
+    "createSqliteSerializedCoordinatorStoreSchema",
     "parseCoordinatorPipelineSnapshot",
     "planCoordinatorRetention",
     "serializeCoordinatorPipelineSnapshot",
@@ -193,6 +194,7 @@ import {
   createNextCoordinatorPipelineEtag,
   createSerializedCoordinatorStore,
   createSqliteSerializedCoordinatorStoreBackend,
+  createSqliteSerializedCoordinatorStoreSchema,
   parseCoordinatorPipelineSnapshot,
   planCoordinatorRetention,
   serializeCoordinatorPipelineSnapshot,
@@ -271,6 +273,8 @@ const memorySerializedBackend: typeof createMemorySerializedCoordinatorStoreBack
   createMemorySerializedCoordinatorStoreBackend;
 const sqliteSerializedBackend: typeof createSqliteSerializedCoordinatorStoreBackend =
   createSqliteSerializedCoordinatorStoreBackend;
+const sqliteSerializedSchema: typeof createSqliteSerializedCoordinatorStoreSchema =
+  createSqliteSerializedCoordinatorStoreSchema;
 const serializedBackendConformance: typeof assertSerializedCoordinatorStoreBackendConformance =
   assertSerializedCoordinatorStoreBackendConformance;
 const nextEtag: typeof createNextCoordinatorPipelineEtag =
@@ -498,6 +502,7 @@ blockingReloadWait satisfies typeof waitForHlsBlockingReload;
 serializedStore satisfies typeof createSerializedCoordinatorStore;
 memorySerializedBackend satisfies typeof createMemorySerializedCoordinatorStoreBackend;
 sqliteSerializedBackend satisfies typeof createSqliteSerializedCoordinatorStoreBackend;
+sqliteSerializedSchema satisfies typeof createSqliteSerializedCoordinatorStoreSchema;
 serializedBackendConformance satisfies typeof assertSerializedCoordinatorStoreBackendConformance;
 nextEtag satisfies typeof createNextCoordinatorPipelineEtag;
 parseSnapshot satisfies typeof parseCoordinatorPipelineSnapshot;
