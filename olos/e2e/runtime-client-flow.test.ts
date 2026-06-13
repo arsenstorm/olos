@@ -11,6 +11,7 @@ import {
   getRuntimeSessionRetentionPlan,
   issueRuntimeSlot,
   type RuntimeFetch,
+  RuntimeHttpError,
   transitionRuntimeSession,
 } from "olos/runtime";
 import type { Pathway, Session } from "olos/types";
@@ -276,6 +277,29 @@ describe("runtime public client flow", () => {
     expect(reloaded.playlist).toContain(
       "https://media.example.com/media/v1080/3811.m4s"
     );
+  });
+
+  test("returns structured errors for failed public client requests", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      store,
+    });
+    const fetch = runtimeFetchFor(handle);
+
+    const error = await getRuntimeSessionHealth({
+      baseUrl: "https://edge.example.com",
+      fetch,
+      sessionId: "missing_session",
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(RuntimeHttpError);
+    expect(error).toMatchObject({
+      body: { error: { message: expect.any(String) } },
+      message: "session health failed with status 404",
+      status: 404,
+    });
+    expect((error as RuntimeHttpError).response.status).toBe(404);
   });
 });
 
