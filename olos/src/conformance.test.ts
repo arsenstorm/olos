@@ -84,6 +84,21 @@ describe("conformance manifest", () => {
     });
   });
 
+  test("maps verified-object conformance to state tests", () => {
+    expect(getOlosConformanceCoverage("CORE-COMMIT-006")).toEqual({
+      id: "CORE-COMMIT-006",
+      level: "core",
+      status: "covered",
+      testFile: "src/state/commit.test.ts",
+    });
+    expect(getOlosConformanceCoverage("CORE-EVENT-002")).toEqual({
+      id: "CORE-EVENT-002",
+      level: "core",
+      status: "covered",
+      testFile: "src/state/observed-upload.test.ts",
+    });
+  });
+
   test("asserts coordinator store conformance", async () => {
     await expect(
       assertCoordinatorPipelineStoreConformance({
