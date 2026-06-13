@@ -1,10 +1,66 @@
 import { describe, expect, test } from "bun:test";
+import { createHlsManifestArtifacts } from "../hls/manifest-artifacts";
+import type { CommittedWindow } from "../types/committed-window";
+import type { Session } from "../types/session";
 import {
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
   createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
 } from "./latency-profile";
+
+const session: Session = {
+  createdAt: "2026-01-01T00:00:00.000Z",
+  epoch: 1,
+  latencyProfile: "object-ll",
+  olos: "1.0",
+  partTarget: 0.5,
+  renditions: [
+    {
+      bitrate: 5_000_000,
+      codec: "avc1.640028",
+      frameRate: 30,
+      height: 1080,
+      kind: "video",
+      renditionId: "v1080",
+      width: 1920,
+    },
+  ],
+  segmentTarget: 2,
+  sessionId: "session_1",
+  state: "live",
+  tenantId: "tenant_1",
+};
+
+const committedWindow: CommittedWindow = {
+  discontinuitySequence: 0,
+  epoch: 1,
+  firstMediaSequenceNumber: 3810,
+  lastMediaSequenceNumber: 3810,
+  renditions: {
+    v1080: {
+      init: {
+        commitId: "commit_init",
+        deliveryUrl: "https://media.example.com/media/init.mp4",
+        objectKey: "media/init.mp4",
+        slotId: "slot_init",
+      },
+      renditionId: "v1080",
+      segments: [
+        {
+          duration: 2,
+          mediaSequenceNumber: 3810,
+          segment: {
+            commitId: "commit_3810",
+            deliveryUrl: "https://media.example.com/media/3810.m4s",
+            objectKey: "media/3810.m4s",
+            slotId: "slot_3810",
+          },
+        },
+      ],
+    },
+  },
+};
 
 describe("runtime latency profile", () => {
   test("creates object low-latency runtime defaults", () => {
@@ -59,6 +115,19 @@ describe("runtime latency profile", () => {
         targetLatencySeconds: 3,
       },
     });
+  });
+
+  test("renders manifests with object low-latency hold-backs", () => {
+    const options = createRuntimeObjectLowLatencyManifestOptions();
+    const artifacts = createHlsManifestArtifacts(session, committedWindow, {
+      allowedMediaOrigins: ["https://media.example.com"],
+      ...options.manifest,
+    });
+    const media = artifacts.find((artifact) =>
+      artifact.path.endsWith("/media.m3u8")
+    );
+
+    expect(media?.body).toContain("PART-HOLD-BACK=3.000,HOLD-BACK=3.000");
   });
 
   test("creates publisher options from object low-latency defaults", () => {
