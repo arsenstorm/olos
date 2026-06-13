@@ -1,5 +1,6 @@
 import type { UploadEventNormalization } from "../state/observed-upload";
 import { normalizeUploadEvent } from "../state/observed-upload";
+import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 
 const DEFAULT_S3_EVENT_CONTENT_TYPE = "application/octet-stream";
@@ -38,6 +39,10 @@ export function normalizeS3ObjectCreatedEvents(
 export function normalizeS3ObjectCreatedEventRecord(
   options: NormalizeS3ObjectCreatedEventRecordOptions
 ): UploadEventNormalization {
+  if (!isProviderId(options.providerId)) {
+    return invalidS3Event("providerId must be a non-empty URL-safe identifier");
+  }
+
   const record = asRecord(options.record);
   const object = asRecord(asRecord(record?.s3)?.object);
 
@@ -74,6 +79,15 @@ export function normalizeS3ObjectCreatedEventRecord(
       size: object.size,
     },
   });
+}
+
+function isProviderId(value: string): boolean {
+  try {
+    assertUrlSafeIdentifier(value, "providerId");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function eventId(

@@ -113,6 +113,23 @@ describe("s3 event normalization", () => {
         status: "invalid_event",
       },
     ]);
+
+    expect(
+      normalizeS3ObjectCreatedEvents({
+        payload: { Records: [record] },
+        providerId: "../provider",
+      })
+    ).toEqual([
+      {
+        error: {
+          error: {
+            code: "olos.invalid_state",
+            message: "providerId must be a non-empty URL-safe identifier",
+          },
+        },
+        status: "invalid_event",
+      },
+    ]);
   });
 
   test("rejects unsupported or malformed S3 event records", () => {
