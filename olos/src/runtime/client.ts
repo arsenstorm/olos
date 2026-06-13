@@ -1,3 +1,4 @@
+import type { CoordinatorRetentionPlan } from "../protocol";
 import type { RuntimeLiveHealth } from "./health";
 import type { RuntimePublisherLease } from "./publisher-lease";
 
@@ -22,6 +23,12 @@ export interface RuntimeSessionHealthOptions extends RuntimeHttpClientOptions {
   sessionId: string;
 }
 
+export interface RuntimeSessionRetentionOptions
+  extends RuntimeHttpClientOptions {
+  now?: string;
+  sessionId: string;
+}
+
 export interface RuntimePublisherHeartbeatResponse {
   lease: RuntimePublisherLease;
   response: Response;
@@ -29,6 +36,11 @@ export interface RuntimePublisherHeartbeatResponse {
 
 export interface RuntimeSessionHealthResponse {
   health: RuntimeLiveHealth;
+  response: Response;
+}
+
+export interface RuntimeSessionRetentionResponse {
+  plan: CoordinatorRetentionPlan;
   response: Response;
 }
 
@@ -79,6 +91,27 @@ export async function getRuntimeSessionHealth(
   };
 }
 
+export async function getRuntimeSessionRetentionPlan(
+  options: RuntimeSessionRetentionOptions
+): Promise<RuntimeSessionRetentionResponse> {
+  const url = sessionUrl(options.baseUrl, options.sessionId, "retention");
+
+  if (options.now !== undefined) {
+    url.searchParams.set("now", options.now);
+  }
+
+  const response = await fetchFor(options)(url);
+
+  if (!response.ok) {
+    throw new Error(`session retention failed with status ${response.status}`);
+  }
+
+  return {
+    plan: retentionPayload(await response.json()),
+    response,
+  };
+}
+
 function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
   return new URL(
     `sessions/${encodeURIComponent(sessionId)}/${action}`,
@@ -108,6 +141,14 @@ function healthPayload(value: unknown): RuntimeLiveHealth {
   }
 
   return value.health as unknown as RuntimeLiveHealth;
+}
+
+function retentionPayload(value: unknown): CoordinatorRetentionPlan {
+  if (!(isRecord(value) && isRecord(value.plan))) {
+    throw new Error("session retention response must include a plan");
+  }
+
+  return value.plan as unknown as CoordinatorRetentionPlan;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

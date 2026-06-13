@@ -4,6 +4,7 @@ import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
   getRuntimeSessionHealth,
+  getRuntimeSessionRetentionPlan,
   type RuntimeFetch,
   sendRuntimePublisherHeartbeat,
 } from "./client";
@@ -77,6 +78,12 @@ describe("runtime HTTP client", () => {
       publisherInstanceId: "publisher_1",
       sessionId: session.sessionId,
     });
+    const retention = await getRuntimeSessionRetentionPlan({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      now: "2026-01-01T00:00:02.000Z",
+      sessionId: session.sessionId,
+    });
 
     expect(heartbeat.response.status).toBe(200);
     expect(heartbeat.lease.publisherInstanceId).toBe("publisher_1");
@@ -87,6 +94,8 @@ describe("runtime HTTP client", () => {
       publisherInstanceId: "publisher_1",
       status: "starting",
     });
+    expect(retention.response.status).toBe(200);
+    expect(retention.plan.retiredObjects).toEqual([]);
   });
 
   test("throws for failed runtime responses", async () => {
@@ -109,5 +118,13 @@ describe("runtime HTTP client", () => {
         sessionId: session.sessionId,
       })
     ).rejects.toThrow("session health failed with status 404");
+
+    await expect(
+      getRuntimeSessionRetentionPlan({
+        baseUrl: "https://edge.example.com",
+        fetch: clientFetch,
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("session retention failed with status 404");
   });
 });
