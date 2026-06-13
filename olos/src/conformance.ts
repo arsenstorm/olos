@@ -605,7 +605,7 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     id: "OBJ-FLOW-005",
     level: "object",
     status: "covered",
-    testFile: "src/s3/reconciliation.test.ts",
+    testFile: "src/s3/http.test.ts",
   },
   {
     id: "OBJ-FLOW-006",
@@ -623,7 +623,7 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     id: "OBJ-FLOW-008",
     level: "object",
     status: "covered",
-    testFile: "src/s3/reconciliation.test.ts",
+    testFile: "src/s3/http.test.ts",
   },
   {
     id: "OBJ-FLOW-009",
@@ -635,7 +635,7 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     id: "OBJ-FLOW-010",
     level: "object",
     status: "covered",
-    testFile: "src/s3/retention.test.ts",
+    testFile: "src/s3/http.test.ts",
   },
   {
     id: "OBJ-FLOW-011",

@@ -2253,6 +2253,7 @@ describe("stored S3 coordinator runtime handler", () => {
       );
     }
 
+    const before = await store.load(session.sessionId);
     const response = await handle(
       jsonRequest("https://edge.example.com/sessions/session_1/s3/retention", {
         now: "2026-01-01T00:00:06.000Z",
@@ -2260,6 +2261,7 @@ describe("stored S3 coordinator runtime handler", () => {
     );
     const body =
       (await response.json()) as StoredS3CoordinatorRetentionResponse;
+    const after = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
     expect(deleteInputs).toEqual([
@@ -2289,6 +2291,7 @@ describe("stored S3 coordinator runtime handler", () => {
       ok: false,
       planned: 1,
     });
+    expect(after?.state.cursor).toEqual(before?.state.cursor);
   });
 });
 
