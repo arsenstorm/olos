@@ -10,6 +10,7 @@ const repoRoot = dirname(packageRoot);
 const workRoot = join(repoRoot, "out", "published-package-smoke");
 const consumerRoot = join(workRoot, "consumer");
 const tempRoot = join(workRoot, "tmp");
+const tsc = join(packageRoot, "node_modules", ".bin", "tsc");
 const version = process.argv[2] ?? packageJson.version;
 
 if (version === "0.0.0") {
@@ -37,6 +38,7 @@ await runWithRetries("bun", ["add", "--exact", `olos@${version}`], {
 });
 await writePackageSmokeFile(consumerRoot);
 await run("bun", ["smoke.mjs"], { cwd: consumerRoot });
+await run(tsc, ["--project", "tsconfig.json"], { cwd: consumerRoot });
 
 async function runWithRetries(
   command: string,
