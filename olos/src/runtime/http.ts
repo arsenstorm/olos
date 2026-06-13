@@ -76,6 +76,10 @@ async function handleStoredRuntimeRequest(
     options.sessionPath ?? DEFAULT_SESSION_PATH
   );
 
+  if (sessionParts === "invalid") {
+    return badRequest("route path contains invalid percent encoding");
+  }
+
   if (sessionParts !== undefined) {
     return await handleSessionRoute(request, sessionParts, options);
   }
@@ -84,6 +88,10 @@ async function handleStoredRuntimeRequest(
     url.pathname,
     options.livePath ?? DEFAULT_LIVE_PATH
   );
+
+  if (liveParts === "invalid") {
+    return badRequest("route path contains invalid percent encoding");
+  }
 
   if (liveParts !== undefined) {
     return await handleLiveRoute(request, liveParts, options);
@@ -437,18 +445,22 @@ async function parseHeartbeatRequest(request: Request): Promise<
 function routeParts(
   pathname: string,
   routePath: string
-): readonly string[] | undefined {
+): "invalid" | readonly string[] | undefined {
   const normalized = normalizePath(routePath);
 
   if (pathname !== normalized && !pathname.startsWith(`${normalized}/`)) {
     return;
   }
 
-  return pathname
-    .slice(normalized.length)
-    .split("/")
-    .filter(Boolean)
-    .map(decodeURIComponent);
+  try {
+    return pathname
+      .slice(normalized.length)
+      .split("/")
+      .filter(Boolean)
+      .map(decodeURIComponent);
+  } catch {
+    return "invalid";
+  }
 }
 
 function normalizePath(path: string): string {

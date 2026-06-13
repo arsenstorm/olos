@@ -240,6 +240,22 @@ describe("stored coordinator runtime handler", () => {
     });
   });
 
+  test("rejects malformed route percent encoding", async () => {
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const response = await handle(
+      new Request("https://edge.example.com/sessions/%E0%A4%A/health")
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: { message: "route path contains invalid percent encoding" },
+    });
+  });
+
   test("returns invalid responses for invalid session creation payloads", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],

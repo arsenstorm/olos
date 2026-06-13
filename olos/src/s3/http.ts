@@ -363,6 +363,13 @@ function s3Route(
     return { status: "not_s3" };
   }
 
+  if (parts === "invalid") {
+    return {
+      message: "route path contains invalid percent encoding",
+      status: "invalid",
+    };
+  }
+
   const [sessionId, provider, action] = parts;
 
   if (
@@ -621,18 +628,22 @@ function parseReconciliationPayload(
 function routeParts(
   pathname: string,
   routePath: string
-): readonly string[] | undefined {
+): "invalid" | readonly string[] | undefined {
   const normalized = normalizePath(routePath);
 
   if (pathname !== normalized && !pathname.startsWith(`${normalized}/`)) {
     return;
   }
 
-  return pathname
-    .slice(normalized.length)
-    .split("/")
-    .filter(Boolean)
-    .map(decodeURIComponent);
+  try {
+    return pathname
+      .slice(normalized.length)
+      .split("/")
+      .filter(Boolean)
+      .map(decodeURIComponent);
+  } catch {
+    return "invalid";
+  }
 }
 
 function normalizePath(path: string): string {

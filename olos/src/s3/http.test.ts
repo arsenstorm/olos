@@ -290,6 +290,36 @@ describe("stored S3 coordinator runtime handler", () => {
     });
   });
 
+  test("rejects malformed S3 route percent encoding", async () => {
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const response = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/%E0%A4%A/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: { message: "route path contains invalid percent encoding" },
+    });
+  });
+
   test("rejects unsafe S3 slot payload paths", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
