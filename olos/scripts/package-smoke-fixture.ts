@@ -25,22 +25,41 @@ export const expectedRuntimeExports = {
     "createSerializedCoordinatorStore",
   ],
   "olos/runtime": [
+    "commitStoredCoordinatorUploadFromRequest",
     "commitRuntimeUpload",
+    "createMemoryRuntimeCursorNotifier",
+    "createRuntimeObjectLowLatencyManifestOptions",
     "createRuntimeObjectLowLatencyProfile",
+    "createRuntimeObjectLowLatencyPublisherDefaults",
+    "createRuntimeObjectLowLatencyPublisherOptions",
+    "createRuntimePublisherLease",
+    "createRuntimePublisherNextObjectPlan",
     "createRuntimePublisherObjectKeyNonce",
+    "createRuntimePublisherObjectPlan",
+    "createRuntimePublisherObjectPlanInput",
     "createRuntimeSession",
     "createStoredCoordinatorSession",
     "createStoredCoordinatorRuntimeHandler",
+    "deleteRetiredCoordinatorObjects",
     "getRuntimeMasterPlaylist",
     "getRuntimeMediaPlaylist",
     "getRuntimeSessionHealth",
     "getRuntimeSessionRetentionPlan",
+    "issueStoredCoordinatorSlotFromRequest",
     "issueRuntimeSlot",
     "planStoredCoordinatorRetention",
     "resolveRuntimeLiveHealth",
+    "resolveRuntimePublisherLeaseStatus",
+    "resolveRuntimePublisherLoopDecision",
+    "resolveRuntimePublisherNextObjectPosition",
+    "resolveRuntimePublisherObjectExpiry",
+    "refreshRuntimePublisherLease",
     "runRuntimePublisherUploadStep",
     "RuntimeHttpError",
     "sendRuntimePublisherHeartbeat",
+    "serveStoredBlockingCoordinatorManifest",
+    "serveStoredCoordinatorManifest",
+    "transitionStoredCoordinatorSession",
     "transitionRuntimeSession",
   ],
   "olos/schema": [
@@ -139,8 +158,23 @@ function packageTypeSmokeSource(): string {
   return `
 import { OLOS_WIRE_VERSION } from "olos";
 import {
+  createMemoryRuntimeCursorNotifier,
+  createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
+  createRuntimeObjectLowLatencyPublisherDefaults,
+  createRuntimeObjectLowLatencyPublisherOptions,
+  createRuntimePublisherLease,
+  createRuntimePublisherNextObjectPlan,
+  createRuntimePublisherObjectPlan,
+  createRuntimePublisherObjectPlanInput,
   createStoredCoordinatorRuntimeHandler,
+  refreshRuntimePublisherLease,
+  resolveRuntimePublisherLeaseStatus,
+  resolveRuntimePublisherLoopDecision,
+  resolveRuntimePublisherNextObjectPosition,
+  resolveRuntimePublisherObjectExpiry,
+  serveStoredBlockingCoordinatorManifest,
+  serveStoredCoordinatorManifest,
 } from "olos/runtime";
 import {
   createS3UploadGrant,
@@ -160,6 +194,36 @@ import { assertSession } from "olos/validation";
 const profile = createRuntimeObjectLowLatencyProfile();
 const runtimeHandler: typeof createStoredCoordinatorRuntimeHandler =
   createStoredCoordinatorRuntimeHandler;
+const memoryNotifier: typeof createMemoryRuntimeCursorNotifier =
+  createMemoryRuntimeCursorNotifier;
+const manifestOptions: typeof createRuntimeObjectLowLatencyManifestOptions =
+  createRuntimeObjectLowLatencyManifestOptions;
+const publisherOptions: typeof createRuntimeObjectLowLatencyPublisherOptions =
+  createRuntimeObjectLowLatencyPublisherOptions;
+const publisherDefaults: typeof createRuntimeObjectLowLatencyPublisherDefaults =
+  createRuntimeObjectLowLatencyPublisherDefaults;
+const publisherLease: typeof createRuntimePublisherLease =
+  createRuntimePublisherLease;
+const refreshLease: typeof refreshRuntimePublisherLease =
+  refreshRuntimePublisherLease;
+const leaseStatus: typeof resolveRuntimePublisherLeaseStatus =
+  resolveRuntimePublisherLeaseStatus;
+const loopDecision: typeof resolveRuntimePublisherLoopDecision =
+  resolveRuntimePublisherLoopDecision;
+const nextPosition: typeof resolveRuntimePublisherNextObjectPosition =
+  resolveRuntimePublisherNextObjectPosition;
+const nextObjectPlan: typeof createRuntimePublisherNextObjectPlan =
+  createRuntimePublisherNextObjectPlan;
+const objectPlan: typeof createRuntimePublisherObjectPlan =
+  createRuntimePublisherObjectPlan;
+const objectPlanInput: typeof createRuntimePublisherObjectPlanInput =
+  createRuntimePublisherObjectPlanInput;
+const objectExpiry: typeof resolveRuntimePublisherObjectExpiry =
+  resolveRuntimePublisherObjectExpiry;
+const storedManifest: typeof serveStoredCoordinatorManifest =
+  serveStoredCoordinatorManifest;
+const storedBlockingManifest: typeof serveStoredBlockingCoordinatorManifest =
+  serveStoredBlockingCoordinatorManifest;
 const s3RuntimeHandler: typeof createStoredS3CoordinatorRuntimeHandler =
   createStoredS3CoordinatorRuntimeHandler;
 const normalizeS3Events: typeof normalizeS3ObjectCreatedEvents =
@@ -250,6 +314,21 @@ if (!grant.requiredHeaders) {
 
 grant.requiredHeaders["x-amz-meta-olos-slot-id"] satisfies string;
 runtimeHandler satisfies typeof createStoredCoordinatorRuntimeHandler;
+memoryNotifier satisfies typeof createMemoryRuntimeCursorNotifier;
+manifestOptions satisfies typeof createRuntimeObjectLowLatencyManifestOptions;
+publisherOptions satisfies typeof createRuntimeObjectLowLatencyPublisherOptions;
+publisherDefaults satisfies typeof createRuntimeObjectLowLatencyPublisherDefaults;
+publisherLease satisfies typeof createRuntimePublisherLease;
+refreshLease satisfies typeof refreshRuntimePublisherLease;
+leaseStatus satisfies typeof resolveRuntimePublisherLeaseStatus;
+loopDecision satisfies typeof resolveRuntimePublisherLoopDecision;
+nextPosition satisfies typeof resolveRuntimePublisherNextObjectPosition;
+nextObjectPlan satisfies typeof createRuntimePublisherNextObjectPlan;
+objectPlan satisfies typeof createRuntimePublisherObjectPlan;
+objectPlanInput satisfies typeof createRuntimePublisherObjectPlanInput;
+objectExpiry satisfies typeof resolveRuntimePublisherObjectExpiry;
+storedManifest satisfies typeof serveStoredCoordinatorManifest;
+storedBlockingManifest satisfies typeof serveStoredBlockingCoordinatorManifest;
 s3RuntimeHandler satisfies typeof createStoredS3CoordinatorRuntimeHandler;
 normalizeS3Events satisfies typeof normalizeS3ObjectCreatedEvents;
 routeS3Event satisfies typeof routeStoredS3CoordinatorUploadEvent;
