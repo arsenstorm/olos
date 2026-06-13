@@ -132,6 +132,12 @@ Do not emit preload hints for deterministic future object URLs in direct-public
 object-store mode unless the deployment proves future 404s cannot poison
 playback.
 
+Serve media bytes from a separate media origin, not from the coordinator
+runtime routes. Use `createDirectPublicMediaResponseHeaders` for committed
+media responses and `createDirectPublicNegativeObjectResponseHeaders` for
+missing or future media-object responses when that origin fronts direct-public
+objects.
+
 ## Security Boundary
 
 OLOS does not authenticate users, authorize viewers, provision buckets, enforce
