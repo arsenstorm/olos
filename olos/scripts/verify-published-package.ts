@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import packageJson from "../package.json" with { type: "json" };
 import { assertInstalledPackageContents } from "./package-contents";
 import { writePackageSmokeFile } from "./package-smoke-fixture";
+import { assertPublishedPackageVersion } from "./published-package";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repoRoot = dirname(packageRoot);
@@ -14,9 +15,7 @@ const tempRoot = join(workRoot, "tmp");
 const tsc = join(packageRoot, "node_modules", ".bin", "tsc");
 const version = process.argv[2] ?? packageJson.version;
 
-if (version === "0.0.0") {
-  throw new Error("published package verification requires a released version");
-}
+assertPublishedPackageVersion(version);
 
 await rm(workRoot, { force: true, recursive: true });
 await mkdir(consumerRoot, { recursive: true });
