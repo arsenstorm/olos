@@ -20,6 +20,30 @@ S3-compatible provider. Run `bun run test:live-s3` separately when a release
 changes S3 upload grants, object observation, provider events, reconciliation,
 or retention behavior that should be proven against a real provider.
 
+## v0.1 Readiness
+
+Treat `v0.1` as package-ready when these are true:
+
+- The public export map is intentional and verified by packed-package smoke
+  tests.
+- `publish:check` passes from a clean checkout.
+- The conformance report has no unmapped assertions.
+- The production wiring E2E passes and is referenced from the production
+  pipeline guide.
+- README import examples are covered by package smoke tests.
+- Known deployment responsibilities are documented as application-owned, not
+  implied package behavior.
+
+Treat a deployment as production-ready only after the application also proves:
+
+- publisher and viewer authentication
+- tenant/session quotas and kill switches
+- a transactional or conditional-write coordinator store
+- real S3-compatible provider behavior with `test:live-s3` or equivalent
+- media-origin security headers, cache policy, and direct-public controls
+- health polling, stale lease alerts, recovery scheduling, and retention retry
+  handling
+
 Release checklist:
 
 1. Update `olos/package.json` to the intended version.
