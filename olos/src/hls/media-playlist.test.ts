@@ -143,6 +143,42 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
     ).toContain("PART-HOLD-BACK=2.000,HOLD-BACK=4.000");
   });
 
+  test("rejects unrealistic part hold-back values", () => {
+    expect(() =>
+      renderMediaPlaylist(committedWindow, {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partHoldBack: 1,
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+      })
+    ).toThrow(
+      "options.partHoldBack must be at least three times options.partTarget"
+    );
+  });
+
+  test("rejects invalid explicit hold-back values", () => {
+    expect(() =>
+      renderMediaPlaylist(committedWindow, {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partHoldBack: 0,
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+      })
+    ).toThrow("options.partHoldBack must be a positive number");
+
+    expect(() =>
+      renderMediaPlaylist(committedWindow, {
+        allowedMediaOrigins: ["https://media.example.com"],
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+        targetLatency: 0,
+      })
+    ).toThrow("options.targetLatency must be a positive number");
+  });
+
   test("omits preload hints by default", () => {
     expect(
       renderMediaPlaylist(committedWindow, {

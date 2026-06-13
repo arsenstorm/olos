@@ -28,9 +28,7 @@ export function renderMediaPlaylist(
     throw new Error(`rendition not found: ${options.renditionId}`);
   }
 
-  const targetLatency = options.targetLatency ?? 3;
-  const partHoldBack =
-    options.partHoldBack ?? Math.max(3 * options.partTarget, targetLatency);
+  const { partHoldBack, targetLatency } = resolveHoldBackOptions(options);
   const lines = [
     "#EXTM3U",
     "#EXT-X-VERSION:10",
@@ -92,6 +90,27 @@ function renderMediaUri(
 ): string {
   assertSafeMediaUri(value, policy, name);
   return escapePlaylistValue(value);
+}
+
+function resolveHoldBackOptions(options: RenderMediaPlaylistOptions): {
+  partHoldBack: number;
+  targetLatency: number;
+} {
+  const targetLatency = options.targetLatency ?? 3;
+  assertPositiveNumber(targetLatency, "options.targetLatency");
+
+  const minimumPartHoldBack = 3 * options.partTarget;
+  const partHoldBack =
+    options.partHoldBack ?? Math.max(minimumPartHoldBack, targetLatency);
+  assertPositiveNumber(partHoldBack, "options.partHoldBack");
+
+  if (partHoldBack < minimumPartHoldBack) {
+    throw new Error(
+      "options.partHoldBack must be at least three times options.partTarget"
+    );
+  }
+
+  return { partHoldBack, targetLatency };
 }
 
 function assertPositiveNumber(value: unknown, name: string): void {
