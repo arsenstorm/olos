@@ -6,6 +6,7 @@ import {
   isOlosConformanceAssertionId,
   OLOS_CONFORMANCE_ASSERTION_IDS,
   OLOS_CONFORMANCE_COVERAGE,
+  type OlosConformanceAssertionId,
 } from "./conformance";
 import { createMemoryCoordinatorStore } from "./protocol";
 
@@ -113,6 +114,28 @@ describe("conformance manifest", () => {
       status: "covered",
       testFile: "src/state/observed-upload.test.ts",
     });
+  });
+
+  test("maps public S3 object-flow conformance to route and E2E tests", () => {
+    const expected: {
+      id: OlosConformanceAssertionId;
+      testFile: string;
+    }[] = [
+      { id: "OBJ-FLOW-001", testFile: "e2e/s3-http-pipeline.test.ts" },
+      { id: "OBJ-FLOW-005", testFile: "src/s3/http.test.ts" },
+      { id: "OBJ-FLOW-008", testFile: "src/s3/http.test.ts" },
+      { id: "OBJ-FLOW-010", testFile: "src/s3/http.test.ts" },
+      { id: "OBJ-FLOW-013", testFile: "e2e/s3-http-pipeline.test.ts" },
+    ];
+
+    for (const { id, testFile } of expected) {
+      expect(getOlosConformanceCoverage(id)).toEqual({
+        id,
+        level: "object",
+        status: "covered",
+        testFile,
+      });
+    }
   });
 
   test("asserts coordinator store conformance", async () => {
