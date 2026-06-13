@@ -70,6 +70,10 @@ schedule encoders, poll jobs, or choose a database.
 `olos/runtime` provides provider-neutral helpers for HTTP services that keep
 coordinator state in an application-owned store.
 
+Runtime session creation expects protocol-ready `session` and `pathways`
+objects. App-level source setup, tenant policy, encoder configuration, and
+playback URL assembly belong above this package.
+
 ```ts
 import {
   commitStoredCoordinatorUploadFromRequest,
