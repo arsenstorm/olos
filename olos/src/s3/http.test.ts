@@ -88,6 +88,9 @@ describe("stored S3 coordinator runtime handler", () => {
         providerId: "../provider",
       })
     ).toThrow("providerId must be a non-empty URL-safe identifier");
+    expect(() =>
+      createStoredS3CoordinatorRuntimeHandler({ ...options, maxAttempts: 0 })
+    ).toThrow("maxAttempts must be a positive integer");
   });
 
   test("delegates runtime routes and issues S3 upload grants", async () => {

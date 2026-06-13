@@ -42,6 +42,20 @@ const pathways: Pathway[] = [
 ];
 
 describe("stored coordinator runtime handler", () => {
+  test("rejects invalid runtime handler options", () => {
+    const options = {
+      allowedMediaOrigins: ["https://media.example.com"],
+      store: createMemoryCoordinatorStore(),
+    };
+
+    expect(() =>
+      createStoredCoordinatorRuntimeHandler({ ...options, maxAttempts: 0 })
+    ).toThrow("maxAttempts must be a positive integer");
+    expect(() =>
+      createStoredCoordinatorRuntimeHandler({ ...options, maxAttempts: 1.5 })
+    ).toThrow("maxAttempts must be a positive integer");
+  });
+
   test("runs stored coordinator routes through Request and Response", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({

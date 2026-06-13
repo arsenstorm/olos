@@ -63,7 +63,20 @@ export type StoredCoordinatorRuntimeHandler = (
 export function createStoredCoordinatorRuntimeHandler(
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): StoredCoordinatorRuntimeHandler {
+  assertRuntimeHandlerOptions(options);
+
   return async (request) => handleStoredRuntimeRequest(request, options);
+}
+
+function assertRuntimeHandlerOptions(
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
+): void {
+  if (
+    options.maxAttempts !== undefined &&
+    (!Number.isInteger(options.maxAttempts) || options.maxAttempts < 1)
+  ) {
+    throw new Error("maxAttempts must be a positive integer");
+  }
 }
 
 async function handleStoredRuntimeRequest(
