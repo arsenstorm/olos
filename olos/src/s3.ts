@@ -39,6 +39,7 @@ export {
   type StoredS3CoordinatorRetentionResponse,
   type StoredS3CoordinatorRouteError,
   type StoredS3CoordinatorRuntimeHandler,
+  type StoredS3CoordinatorSlotGrantResponse,
 } from "./s3/http";
 export {
   type CreateObservedUploadFromS3HeadObjectOptions,

@@ -15,7 +15,8 @@ import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosErrorCode } from "../types/errors";
 import type { MediaObjectKind } from "../types/media-object";
-import type { PublicationMode } from "../types/upload-slot";
+import type { UploadGrant } from "../types/upload-grant";
+import type { PublicationMode, UploadSlot } from "../types/upload-slot";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import {
@@ -57,6 +58,11 @@ export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
 export type StoredS3CoordinatorRuntimeHandler = (
   request: Request
 ) => Promise<Response>;
+
+export interface StoredS3CoordinatorSlotGrantResponse {
+  grant: UploadGrant;
+  slot: UploadSlot;
+}
 
 export interface StoredS3CoordinatorRetentionResponse {
   plan: CoordinatorRetentionPlan;
@@ -183,7 +189,12 @@ async function handleS3SlotGrant(
   });
 
   if (result.status === "saved") {
-    return jsonResponse({ grant: result.grant, slot: result.slot }, 201);
+    const body: StoredS3CoordinatorSlotGrantResponse = {
+      grant: result.grant,
+      slot: result.slot,
+    };
+
+    return jsonResponse(body, 201);
   }
 
   if (result.status === "not_found") {

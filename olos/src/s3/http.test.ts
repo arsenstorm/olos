@@ -23,6 +23,7 @@ import {
   createStoredS3CoordinatorRuntimeHandler,
   type StoredS3CoordinatorReconciliationResponse,
   type StoredS3CoordinatorRetentionResponse,
+  type StoredS3CoordinatorSlotGrantResponse,
 } from "./http";
 import type { S3HeadObjectClient } from "./object-observation";
 import type { S3DeleteObjectClient } from "./retention";
@@ -146,20 +147,7 @@ describe("stored S3 coordinator runtime handler", () => {
         })
       )
     );
-    const body = (await grant.json()) as {
-      grant: {
-        expiresAt: string;
-        method: string;
-        requiredHeaders: Record<string, string>;
-        slotId: string;
-        url: string;
-      };
-      slot: {
-        objectKey: string;
-        slotId: string;
-        state: string;
-      };
-    };
+    const body = (await grant.json()) as StoredS3CoordinatorSlotGrantResponse;
     const stored = await store.load(session.sessionId);
 
     expect(created.status).toBe(201);
