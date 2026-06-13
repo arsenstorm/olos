@@ -601,6 +601,47 @@ describe("stored S3 coordinator runtime handler", () => {
     });
   });
 
+  test("rejects playlist-like S3 uploads before issuing grants", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+
+    const response = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl:
+            "https://media.example.com/live/session/v1080/playlist.m3u8",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/playlist.m3u8",
+          slotId: "slot_playlist",
+        })
+      )
+    );
+    const stored = await store.load("session_1");
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: { message: "objectKey must use a supported media extension" },
+    });
+    expect(stored?.state.slots).toHaveLength(0);
+  });
+
   test("returns audit metadata for oversized S3 commit rejections", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
