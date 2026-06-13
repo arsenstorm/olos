@@ -129,7 +129,13 @@ async function savedOrConflict(
 function changedRows(
   result: SqliteSerializedCoordinatorStoreRunResult
 ): number {
-  return result.meta?.changes ?? result.changes ?? 0;
+  const changes = result.meta?.changes ?? result.changes;
+
+  if (changes === undefined) {
+    throw new Error("SQLite run result must include changed row count");
+  }
+
+  return changes;
 }
 
 function sqliteIdentifier(value: string, name: string): string {

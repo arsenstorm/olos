@@ -30,6 +30,19 @@ describe("SQLite serialized coordinator store backend", () => {
     ).resolves.toBeUndefined();
   });
 
+  test("rejects SQLite clients that omit changed row counts", async () => {
+    const backend = createSqliteSerializedCoordinatorStoreBackend({
+      database: createDatabase("missing"),
+    });
+
+    await expect(
+      backend.save({
+        record: { etag: "1", snapshot: '{"etag":"1"}' },
+        sessionId: "session_1",
+      })
+    ).rejects.toThrow("SQLite run result must include changed row count");
+  });
+
   test("rejects unsafe table names", () => {
     expect(() =>
       createSqliteSerializedCoordinatorStoreBackend({
@@ -40,7 +53,7 @@ describe("SQLite serialized coordinator store backend", () => {
   });
 });
 
-type ChangeResultShape = "changes" | "meta";
+type ChangeResultShape = "changes" | "meta" | "missing";
 
 function createDatabase(
   resultShape: ChangeResultShape = "meta"
@@ -122,5 +135,9 @@ function changed(
   changes: number,
   resultShape: ChangeResultShape
 ): SqliteSerializedCoordinatorStoreRunResult {
+  if (resultShape === "missing") {
+    return {};
+  }
+
   return resultShape === "changes" ? { changes } : { meta: { changes } };
 }
