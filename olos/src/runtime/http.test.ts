@@ -213,6 +213,34 @@ describe("stored coordinator runtime handler", () => {
     });
   });
 
+  test("returns invalid responses for invalid session transition states", async () => {
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      store: createMemoryCoordinatorStore(),
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/transition", {
+        state: "unknown",
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: {
+        message:
+          "state must be one of: created, starting, live, ending, ended, aborted, expired",
+      },
+    });
+  });
+
   test("applies publication control to slot issuance", async () => {
     const store = createMemoryCoordinatorStore();
     const setup = createStoredCoordinatorRuntimeHandler({

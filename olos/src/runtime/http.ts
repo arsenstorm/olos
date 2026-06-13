@@ -1,3 +1,4 @@
+import { SESSION_STATES } from "../config/session";
 import type {
   CreateHlsManifestArtifactResponseOptions,
   HlsCursorWaitContext,
@@ -367,17 +368,23 @@ async function parseTransitionRequest(request: Request): Promise<
       return invalid("session transition request must be a JSON object");
     }
 
-    if (typeof payload.state !== "string") {
-      return invalid("state must be a string");
-    }
-
     return {
-      state: payload.state as SessionState,
+      state: sessionStateField(payload),
       status: "valid",
     };
   } catch (error) {
     return invalid(errorMessage(error, "invalid session transition request"));
   }
+}
+
+function sessionStateField(value: Record<string, unknown>): SessionState {
+  const state = stringField(value, "state");
+
+  if (!SESSION_STATES.includes(state as SessionState)) {
+    throw new Error(`state must be one of: ${SESSION_STATES.join(", ")}`);
+  }
+
+  return state as SessionState;
 }
 
 async function parseHeartbeatRequest(request: Request): Promise<
