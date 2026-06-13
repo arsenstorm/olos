@@ -187,6 +187,27 @@ describe("stored runtime mutations", () => {
     expect(result.response.status).toBe(404);
   });
 
+  test("rejects invalid stored mutation attempt limits", async () => {
+    const store = await createReadyStore();
+
+    await expect(
+      issueStoredCoordinatorSlotFromRequest({
+        maxAttempts: 0,
+        request: slotPayload(),
+        sessionId: session.sessionId,
+        store,
+      })
+    ).rejects.toThrow("maxAttempts must be a positive integer");
+    await expect(
+      commitStoredCoordinatorUploadFromRequest({
+        maxAttempts: 1.5,
+        request: commitPayload(),
+        sessionId: session.sessionId,
+        store,
+      })
+    ).rejects.toThrow("maxAttempts must be a positive integer");
+  });
+
   test("retries issue mutations after save conflicts with current state", async () => {
     const store = await createConflictingStore();
 

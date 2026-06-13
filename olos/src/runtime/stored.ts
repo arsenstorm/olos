@@ -119,7 +119,7 @@ export async function serveStoredBlockingCoordinatorManifest(
 export async function issueStoredCoordinatorSlotFromRequest(
   options: IssueStoredCoordinatorSlotFromRequestOptions
 ): Promise<StoredRuntimeSlotIssue> {
-  const attempts = options.maxAttempts ?? 2;
+  const attempts = positiveAttempts(options.maxAttempts);
   let snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
@@ -164,7 +164,7 @@ export async function issueStoredCoordinatorSlotFromRequest(
 export async function commitStoredCoordinatorUploadFromRequest(
   options: CommitStoredCoordinatorUploadFromRequestOptions
 ): Promise<StoredRuntimeUploadCommit> {
-  const attempts = options.maxAttempts ?? 2;
+  const attempts = positiveAttempts(options.maxAttempts);
   let snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
@@ -212,6 +212,16 @@ export async function commitStoredCoordinatorUploadFromRequest(
   }
 
   return conflict(snapshot);
+}
+
+function positiveAttempts(value: number | undefined): number {
+  const attempts = value ?? 2;
+
+  if (!Number.isInteger(attempts) || attempts < 1) {
+    throw new Error("maxAttempts must be a positive integer");
+  }
+
+  return attempts;
 }
 
 function requestForAttempt<RequestType extends RuntimeCommitRequest>(
