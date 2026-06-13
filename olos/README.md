@@ -545,10 +545,13 @@ S3 slots, then pass selected IDs into `reconcileStoredS3CoordinatorUploads` to
 retry commits after missed provider events or process restarts. The application
 decides when to run recovery and how many slots to target.
 Use `summarizeStoredS3CoordinatorUploadReconciliation` to count committed,
-idempotent, and failed recovery results.
+idempotent, and failed recovery results. The summary includes failed slot IDs
+and OLOS error codes for rejected recovery commits.
 
 Retention jobs can pass retired objects from `planStoredCoordinatorRetention`
 to `deleteRetiredS3CoordinatorObjects` to delete old media objects through S3.
+Use `summarizeRetiredCoordinatorObjectDeletions` to count deleted and failed
+objects and retain failed object keys and slot IDs for retry logs.
 The S3 runtime handler exposes the same deletion path at
 `POST /sessions/:id/s3/retention`. The body requires `now` so the retention
 cutoff is explicit.

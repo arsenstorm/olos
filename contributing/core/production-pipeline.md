@@ -79,7 +79,8 @@ plan in-flight S3 slots -> reconcile selected slots -> record summary
 
 Keep the batch size application-owned. Reconciliation should not block the live
 publisher loop, and failed slots should be reported without stopping the rest of
-the batch.
+the batch. Record rejected OLOS error codes separately from missing-object or
+provider failures so policy stops are visible in job metrics.
 
 ## Retention Job
 
@@ -91,7 +92,8 @@ plan retention -> delete retired objects -> record failed deletes for retry
 ```
 
 Never reuse deleted live media keys. Retention cleans storage cost; it must not
-change the trusted cursor.
+change the trusted cursor. Record failed object keys and slot IDs for retry
+logs; failed deletes must not roll back successful deletes from the same run.
 
 ## Operational Monitoring
 
