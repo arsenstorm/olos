@@ -1,4 +1,5 @@
 import type { S3Client } from "@aws-sdk/client-s3";
+import { MEDIA_OBJECT_KINDS } from "../config/media-object";
 import { PUBLICATION_MODES } from "../config/publication";
 import {
   type CreateStoredCoordinatorRuntimeHandlerOptions,
@@ -418,7 +419,7 @@ async function parseJsonRequest(
 }
 
 function parsePayload(value: Record<string, unknown>): RuntimeSlotIssuePayload {
-  const kind = stringField(value, "kind") as MediaObjectKind;
+  const kind = mediaObjectKindField(value);
   const deliveryUrl = stringField(value, "deliveryUrl");
   const objectKey = stringField(value, "objectKey");
 
@@ -759,6 +760,16 @@ function stringField(value: Record<string, unknown>, field: string): string {
   }
 
   return value[field];
+}
+
+function mediaObjectKindField(value: Record<string, unknown>): MediaObjectKind {
+  const kind = stringField(value, "kind");
+
+  if (!MEDIA_OBJECT_KINDS.includes(kind as MediaObjectKind)) {
+    throw new Error(`kind must be one of: ${MEDIA_OBJECT_KINDS.join(", ")}`);
+  }
+
+  return kind as MediaObjectKind;
 }
 
 function publicationModeField(value: Record<string, unknown>): PublicationMode {
