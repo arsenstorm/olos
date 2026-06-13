@@ -6,6 +6,7 @@ import {
   createStoredCoordinatorRuntimeHandler,
   planStoredCoordinatorRetention,
   type RuntimeSlotIssuePayload,
+  summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
 import type { Cursor } from "../types/cursor";
 import type { MediaObjectKind } from "../types/media-object";
@@ -354,7 +355,14 @@ async function handleS3Retention(
     objects: planned.plan.retiredObjects,
   });
 
-  return jsonResponse({ plan: planned.plan, result }, 202);
+  return jsonResponse(
+    {
+      plan: planned.plan,
+      result,
+      summary: summarizeRetiredCoordinatorObjectDeletions(result),
+    },
+    202
+  );
 }
 
 type S3Route =

@@ -2198,6 +2198,14 @@ describe("stored S3 coordinator runtime handler", () => {
         }[];
         failedObjects: unknown[];
       };
+      summary: {
+        deleted: number;
+        failed: number;
+        failedObjectKeys: string[];
+        failedSlotIds: string[];
+        ok: boolean;
+        planned: number;
+      };
     };
 
     expect(response.status).toBe(202);
@@ -2217,6 +2225,14 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(body.result).toEqual({
       deletedObjects: body.plan.retiredObjects,
       failedObjects: [],
+    });
+    expect(body.summary).toEqual({
+      deleted: 1,
+      failed: 0,
+      failedObjectKeys: [],
+      failedSlotIds: [],
+      ok: true,
+      planned: 1,
     });
   });
 
@@ -2291,6 +2307,14 @@ describe("stored S3 coordinator runtime handler", () => {
           };
         }[];
       };
+      summary: {
+        deleted: number;
+        failed: number;
+        failedObjectKeys: string[];
+        failedSlotIds: string[];
+        ok: boolean;
+        planned: number;
+      };
     };
 
     expect(response.status).toBe(202);
@@ -2312,6 +2336,14 @@ describe("stored S3 coordinator runtime handler", () => {
           },
         },
       ],
+    });
+    expect(body.summary).toEqual({
+      deleted: 0,
+      failed: 1,
+      failedObjectKeys: ["live/session/v1080/3810.m4s"],
+      failedSlotIds: ["slot_3810"],
+      ok: false,
+      planned: 1,
     });
   });
 });
