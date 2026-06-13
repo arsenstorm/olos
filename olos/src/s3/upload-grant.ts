@@ -1,6 +1,9 @@
 import { PutObjectCommand, type S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { createUploadGrant } from "../state/upload-grant";
+import {
+  assertAdditionalUploadHeaders,
+  createUploadGrant,
+} from "../state/upload-grant";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
 
@@ -171,6 +174,8 @@ function assertDoesNotOverrideS3Metadata(
   if (headers === undefined) {
     return;
   }
+
+  assertAdditionalUploadHeaders(headers);
 
   for (const header of Object.keys(headers)) {
     if (header.toLowerCase() === S3_SLOT_ID_METADATA_HEADER) {

@@ -119,6 +119,17 @@ describe("s3 upload grants", () => {
         slot,
       })
     ).rejects.toThrow("now must be a valid timestamp");
+    await expect(
+      createPresignedS3UploadGrant({
+        additionalHeaders: {
+          "x-provider-checksum": 123,
+        } as unknown as Record<string, string>,
+        bucket: "media",
+        client: createClient(),
+        expiresInSeconds: 3,
+        slot,
+      })
+    ).rejects.toThrow("additionalHeaders must be a string map");
   });
 
   test("creates an upload grant from an S3 presigned PUT URL", () => {
@@ -249,6 +260,17 @@ describe("s3 upload grants", () => {
         slot,
       })
     ).toThrow("additionalHeaders must not override x-amz-meta-olos-slot-id");
+  });
+
+  test("rejects malformed S3 additional headers", () => {
+    expect(() =>
+      createS3UploadGrant({
+        additionalHeaders: null as unknown as Record<string, string>,
+        presignedUrl:
+          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+        slot,
+      })
+    ).toThrow("additionalHeaders must be a string map");
   });
 });
 

@@ -95,6 +95,25 @@ describe("upload grant builder", () => {
     ).toThrow("additionalHeaders must not override content-type");
   });
 
+  test("rejects malformed additional headers", () => {
+    expect(() =>
+      createUploadGrant({
+        additionalHeaders: null as unknown as Record<string, string>,
+        slot,
+        url: "https://storage.example.com/upload/signed",
+      })
+    ).toThrow("additionalHeaders must be a string map");
+    expect(() =>
+      createUploadGrant({
+        additionalHeaders: {
+          "x-provider-checksum": 123,
+        } as unknown as Record<string, string>,
+        slot,
+        url: "https://storage.example.com/upload/signed",
+      })
+    ).toThrow("additionalHeaders must be a string map");
+  });
+
   test("rejects non-HTTP upload URLs", () => {
     expect(() =>
       createUploadGrant({

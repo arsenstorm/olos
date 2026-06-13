@@ -37,9 +37,11 @@ function createRequiredHeaders(
     "x-olos-slot-id": options.slot.slotId,
   };
 
-  if (!options.additionalHeaders) {
+  if (options.additionalHeaders === undefined) {
     return headers;
   }
+
+  assertAdditionalUploadHeaders(options.additionalHeaders);
 
   const reserved = new Set(
     Object.keys(headers).map((header) => header.toLowerCase())
@@ -52,6 +54,20 @@ function createRequiredHeaders(
   }
 
   return { ...headers, ...options.additionalHeaders };
+}
+
+export function assertAdditionalUploadHeaders(
+  value: unknown
+): asserts value is Record<string, string> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("additionalHeaders must be a string map");
+  }
+
+  for (const [header, headerValue] of Object.entries(value)) {
+    if (header.length === 0 || typeof headerValue !== "string") {
+      throw new Error("additionalHeaders must be a string map");
+    }
+  }
 }
 
 function assertUploadGrantPreconditions(
