@@ -113,6 +113,7 @@ function assertUploadGrants(value: unknown): void {
     "exactKey",
     "methodBound",
     "contentTypeBound",
+    "objectSizeCanBeObserved",
     "requiredHeadersCanBeSigned",
   ] as const) {
     if (value[field] !== undefined) {

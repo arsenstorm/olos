@@ -35,6 +35,7 @@ export interface ProviderUploadGrantCapabilities {
   exactKey?: boolean;
   maxRecommendedTtlSeconds?: number;
   methodBound?: boolean;
+  objectSizeCanBeObserved?: boolean;
   presignedPut?: boolean;
   requiredHeadersCanBeSigned?: boolean;
   temporaryCredentials?: boolean;

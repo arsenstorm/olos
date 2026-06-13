@@ -41,6 +41,7 @@ const capability: ProviderCapabilityDocument = {
     exactKey: true,
     maxRecommendedTtlSeconds: 60,
     methodBound: true,
+    objectSizeCanBeObserved: true,
     presignedPut: true,
     requiredHeadersCanBeSigned: true,
     temporaryCredentials: true,
@@ -168,6 +169,23 @@ describe("provider upload grant policy", () => {
       })
     ).toThrow(
       "providerCapability.uploadGrants.requiredHeadersCanBeSigned must be true"
+    );
+  });
+
+  test("rejects providers that cannot observe object size", () => {
+    expect(() =>
+      assertProviderCanIssueUploadGrant({
+        capability: {
+          ...capability,
+          uploadGrants: {
+            ...capability.uploadGrants,
+            objectSizeCanBeObserved: false,
+          },
+        },
+        slot,
+      })
+    ).toThrow(
+      "providerCapability.uploadGrants.objectSizeCanBeObserved must be true"
     );
   });
 

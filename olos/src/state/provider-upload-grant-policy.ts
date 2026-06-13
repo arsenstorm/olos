@@ -10,6 +10,7 @@ export interface ProviderUploadGrantPolicyOptions {
   requireCreateIfAbsent?: boolean;
   requireExactKey?: boolean;
   requireMethodBound?: boolean;
+  requireObjectSizeObservation?: boolean;
   requirePresignedPut?: boolean;
   requireSignedRequiredHeaders?: boolean;
   slot: UploadSlot;
@@ -117,6 +118,15 @@ function assertUploadGrantCapabilities(
   ) {
     throw new Error(
       "providerCapability.uploadGrants.requiredHeadersCanBeSigned must be true"
+    );
+  }
+
+  if (
+    options.requireObjectSizeObservation !== false &&
+    uploadGrants.objectSizeCanBeObserved !== true
+  ) {
+    throw new Error(
+      "providerCapability.uploadGrants.objectSizeCanBeObserved must be true"
     );
   }
 

@@ -41,6 +41,7 @@ const capability: ProviderCapabilityDocument = {
     exactKey: true,
     maxRecommendedTtlSeconds: 60,
     methodBound: true,
+    objectSizeCanBeObserved: true,
     presignedPut: true,
     requiredHeadersCanBeSigned: true,
     temporaryCredentials: true,
