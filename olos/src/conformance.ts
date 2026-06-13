@@ -16,6 +16,7 @@ export const OLOS_CONFORMANCE_ASSERTION_IDS = [
   "CORE-STORE-006",
   "CORE-STORE-007",
   "CORE-STORE-008",
+  "CORE-SCHEMA-001",
   "CORE-SLOT-001",
   "CORE-SLOT-002",
   "CORE-SLOT-003",
@@ -195,6 +196,12 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     level: "core",
     status: "covered",
     testFile: "src/protocol/sqlite-store.test.ts",
+  },
+  {
+    id: "CORE-SCHEMA-001",
+    level: "core",
+    status: "covered",
+    testFile: "src/schema.test.ts",
   },
   {
     id: "CORE-SLOT-001",
