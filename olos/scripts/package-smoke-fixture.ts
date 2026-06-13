@@ -103,6 +103,8 @@ export const expectedRuntimeExports = {
     "createCursor",
     "createPublicationKillSwitch",
     "resolvePublicationControl",
+    "selectExpiredUploadSlots",
+    "selectRetiredCommittedObjects",
   ],
   "olos/types": [],
   "olos/validation": ["assertSession", "isSession", "isUploadSlot"],
@@ -214,6 +216,10 @@ import {
   routeStoredS3CoordinatorUploadEvent,
 } from "olos/s3";
 import { OLOS_JSON_SCHEMAS } from "olos/schema";
+import {
+  selectExpiredUploadSlots,
+  selectRetiredCommittedObjects,
+} from "olos/state";
 import type {
   ProviderCapabilityDocument,
   Session,
@@ -291,6 +297,10 @@ const normalizeS3Events: typeof normalizeS3ObjectCreatedEvents =
   normalizeS3ObjectCreatedEvents;
 const routeS3Event: typeof routeStoredS3CoordinatorUploadEvent =
   routeStoredS3CoordinatorUploadEvent;
+const expiredSlots: typeof selectExpiredUploadSlots =
+  selectExpiredUploadSlots;
+const retiredObjects: typeof selectRetiredCommittedObjects =
+  selectRetiredCommittedObjects;
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -408,6 +418,8 @@ storedBlockingManifest satisfies typeof serveStoredBlockingCoordinatorManifest;
 s3RuntimeHandler satisfies typeof createStoredS3CoordinatorRuntimeHandler;
 normalizeS3Events satisfies typeof normalizeS3ObjectCreatedEvents;
 routeS3Event satisfies typeof routeStoredS3CoordinatorUploadEvent;
+expiredSlots satisfies typeof selectExpiredUploadSlots;
+retiredObjects satisfies typeof selectRetiredCommittedObjects;
 `.trimStart();
 }
 
