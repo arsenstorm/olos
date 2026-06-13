@@ -196,7 +196,15 @@ function boolEnv(name: string, fallback: boolean): boolean {
     return fallback;
   }
 
-  return value === "1" || value.toLowerCase() === "true";
+  if (value === "1" || value.toLowerCase() === "true") {
+    return true;
+  }
+
+  if (value === "0" || value.toLowerCase() === "false") {
+    return false;
+  }
+
+  throw new Error(`${name} must be true, false, 1, or 0`);
 }
 
 function createSlot(objectKey: string): UploadSlot {
