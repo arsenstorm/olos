@@ -1,0 +1,70 @@
+import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { expectedRuntimeExports } from "./package-smoke-fixture";
+
+const README_IMPORT_PATTERN =
+  /import\s+(type\s+)?\{\s*([^;]*?)\s*\}\s+from\s+["'](olos(?:\/[a-z-]+)?)["'];/g;
+const README_TYPESCRIPT_BLOCK_PATTERN = /```ts\n([\s\S]*?)\n```/g;
+const IMPORT_ALIAS_PATTERN = /\s+as\s+/;
+
+describe("package smoke fixture", () => {
+  test("covers README runtime import examples", () => {
+    const documented = readmeRuntimeImports();
+    const missing = new Map<string, string[]>();
+
+    for (const [specifier, names] of documented) {
+      const covered = new Set(
+        expectedRuntimeExports[specifier as keyof typeof expectedRuntimeExports]
+      );
+      const missingNames = names.filter((name) => !covered.has(name));
+
+      if (missingNames.length > 0) {
+        missing.set(specifier, missingNames);
+      }
+    }
+
+    expect(Object.fromEntries(missing)).toEqual({});
+  });
+});
+
+function readmeRuntimeImports(): Map<string, string[]> {
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const imports = new Map<string, Set<string>>();
+
+  for (const block of readme.matchAll(README_TYPESCRIPT_BLOCK_PATTERN)) {
+    const [, source] = block;
+
+    for (const match of source.matchAll(README_IMPORT_PATTERN)) {
+      const [, typeOnly, rawNames, specifier] = match;
+
+      if (typeOnly !== undefined || specifier === "olos/types") {
+        continue;
+      }
+
+      const names = rawNames
+        .split(",")
+        .map((name) => name.trim())
+        .filter(Boolean)
+        .map((name) => name.split(IMPORT_ALIAS_PATTERN)[0]?.trim() ?? "")
+        .filter((name) => name.length > 0 && !name.startsWith("type "));
+
+      if (!imports.has(specifier)) {
+        imports.set(specifier, new Set());
+      }
+
+      const existing = imports.get(specifier);
+
+      if (existing === undefined) {
+        throw new Error(`missing import set for ${specifier}`);
+      }
+
+      for (const name of names) {
+        existing.add(name);
+      }
+    }
+  }
+
+  return new Map(
+    [...imports].map(([specifier, names]) => [specifier, [...names].sort()])
+  );
+}
