@@ -7,6 +7,7 @@ import type { CoordinatorPipelineState } from "../protocol/coordinator";
 import { createObservedUpload } from "../state/observed-upload";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
+import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import type { ObservedUpload } from "../validation/observed-upload";
 
@@ -118,10 +119,10 @@ function parsePayload(value: unknown): RuntimeCommitPayload {
   }
 
   return {
-    commitId: stringField(value, "commitId"),
+    commitId: urlSafeIdentifierField(value, "commitId"),
     committedAt: timestampField(value, "committedAt"),
     object: parseObjectPayload(value.object),
-    slotId: stringField(value, "slotId"),
+    slotId: urlSafeIdentifierField(value, "slotId"),
     ...optionalBooleanField(value, "independent"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
     ...optionalTimestampField(value, "programDateTime"),
@@ -141,7 +142,7 @@ function parseObjectPayload(value: unknown): RuntimeObservedUploadPayload {
     contentType: stringField(value, "contentType"),
     objectKey,
     observedAt: timestampField(value, "observedAt"),
-    providerId: stringField(value, "providerId"),
+    providerId: urlSafeIdentifierField(value, "providerId"),
     size: positiveNumberField(value, "size"),
     ...optionalStringField(value, "etag"),
     ...optionalMetadataField(value),
@@ -177,6 +178,15 @@ function stringField(value: Record<string, unknown>, field: string): string {
   if (typeof value[field] !== "string") {
     throw new Error(`${field} must be a string`);
   }
+
+  return value[field];
+}
+
+function urlSafeIdentifierField(
+  value: Record<string, unknown>,
+  field: string
+): string {
+  assertUrlSafeIdentifier(value[field], field);
 
   return value[field];
 }

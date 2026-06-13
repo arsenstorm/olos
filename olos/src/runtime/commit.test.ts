@@ -120,6 +120,51 @@ describe("runtime commit adapter", () => {
     );
   });
 
+  test("returns invalid responses for unsafe JSON identifiers", async () => {
+    const cases = [
+      {
+        expected: "commitId must be a non-empty URL-safe identifier",
+        payload: { ...commitPayload(), commitId: "../commit" },
+      },
+      {
+        expected: "slotId must be a non-empty URL-safe identifier",
+        payload: { ...commitPayload(), slotId: "../slot" },
+      },
+      {
+        expected: "providerId must be a non-empty URL-safe identifier",
+        payload: {
+          ...commitPayload(),
+          object: {
+            ...commitPayload().object,
+            providerId: "../provider",
+          },
+        },
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const result = await commitCoordinatorUploadFromRequest({
+        request: new Request(
+          "https://edge.example.com/v1/live/session_1/commit",
+          {
+            body: JSON.stringify(testCase.payload),
+            method: "POST",
+          }
+        ),
+        state: createReadyState(),
+      });
+
+      expect(result.status).toBe("invalid");
+
+      if (result.status !== "invalid") {
+        throw new Error("expected invalid commit request");
+      }
+
+      expect(result.response.status).toBe(400);
+      expect(result.message).toBe(testCase.expected);
+    }
+  });
+
   test("returns invalid responses for non-positive object sizes", async () => {
     const result = await commitCoordinatorUploadFromRequest({
       request: new Request(
