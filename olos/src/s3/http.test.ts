@@ -22,6 +22,7 @@ import type { Session } from "../types/session";
 import {
   createStoredS3CoordinatorRuntimeHandler,
   type StoredS3CoordinatorCommitResponse,
+  type StoredS3CoordinatorEventRouteResponse,
   type StoredS3CoordinatorReconciliationResponse,
   type StoredS3CoordinatorRetentionResponse,
   type StoredS3CoordinatorSlotGrantResponse,
@@ -1187,12 +1188,8 @@ describe("stored S3 coordinator runtime handler", () => {
         s3Event("live/session/v1080/3810.m4s")
       )
     );
-    const body = (await response.json()) as {
-      results: {
-        commit?: { objectKey: string; slotId: string };
-        status: string;
-      }[];
-    };
+    const body =
+      (await response.json()) as StoredS3CoordinatorEventRouteResponse;
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -1312,16 +1309,8 @@ describe("stored S3 coordinator runtime handler", () => {
         s3Event("live/session/v1080/3810.m4s")
       )
     );
-    const body = (await response.json()) as {
-      results: {
-        error?: {
-          code: string;
-          details?: Record<string, unknown>;
-          message: string;
-        };
-        status: string;
-      }[];
-    };
+    const body =
+      (await response.json()) as StoredS3CoordinatorEventRouteResponse;
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -1432,13 +1421,8 @@ describe("stored S3 coordinator runtime handler", () => {
         ],
       })
     );
-    const body = (await response.json()) as {
-      results: {
-        commit?: { objectKey: string; slotId: string };
-        error?: { code: string };
-        status: string;
-      }[];
-    };
+    const body =
+      (await response.json()) as StoredS3CoordinatorEventRouteResponse;
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -1583,12 +1567,8 @@ describe("stored S3 coordinator runtime handler", () => {
         s3Event("live/session/v1080/3810.m4s")
       )
     );
-    const body = (await response.json()) as {
-      results: {
-        commit?: { objectKey: string; slotId: string };
-        status: string;
-      }[];
-    };
+    const body =
+      (await response.json()) as StoredS3CoordinatorEventRouteResponse;
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);

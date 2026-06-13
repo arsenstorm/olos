@@ -35,6 +35,8 @@ export {
   type CreateStoredS3CoordinatorRuntimeHandlerOptions,
   createStoredS3CoordinatorRuntimeHandler,
   type StoredS3CoordinatorCommitResponse,
+  type StoredS3CoordinatorEventRouteResponse,
+  type StoredS3CoordinatorEventRouteResponseResult,
   type StoredS3CoordinatorReconciliationResponse,
   type StoredS3CoordinatorReconciliationResponseResult,
   type StoredS3CoordinatorRetentionResponse,

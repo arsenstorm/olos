@@ -69,6 +69,24 @@ export interface StoredS3CoordinatorCommitResponse {
   cursor?: Cursor;
 }
 
+export interface StoredS3CoordinatorEventRouteResponse {
+  results: readonly StoredS3CoordinatorEventRouteResponseResult[];
+}
+
+export type StoredS3CoordinatorEventRouteResponseResult =
+  | {
+      commit: Commit;
+      status: "committed" | "idempotent";
+    }
+  | {
+      auditEvent?: unknown;
+      error: StoredS3CoordinatorRouteError;
+      status: "invalid_event" | "rejected";
+    }
+  | {
+      status: "conflict" | "not_found";
+    };
+
 export interface StoredS3CoordinatorRetentionResponse {
   plan: CoordinatorRetentionPlan;
   result: RetiredCoordinatorObjectDeletionResult;
@@ -290,7 +308,7 @@ async function handleS3Events(
     payload: parsed.payload,
     providerId: options.providerId,
   });
-  const results: Record<string, unknown>[] = [];
+  const results: StoredS3CoordinatorEventRouteResponseResult[] = [];
 
   for (const event of events) {
     const result = await routeStoredS3CoordinatorUploadEvent({
@@ -312,7 +330,9 @@ async function handleS3Events(
     results.push(eventRouteResult(result));
   }
 
-  return jsonResponse({ results }, 202);
+  const body: StoredS3CoordinatorEventRouteResponse = { results };
+
+  return jsonResponse(body, 202);
 }
 
 async function handleS3ReconciliationPlan(
@@ -776,7 +796,7 @@ function rejectionStatus(code: string): number {
 
 function eventRouteResult(
   result: Awaited<ReturnType<typeof routeStoredS3CoordinatorUploadEvent>>
-): Record<string, unknown> {
+): StoredS3CoordinatorEventRouteResponseResult {
   if (result.status === "committed" || result.status === "idempotent") {
     return {
       commit: result.commit,
