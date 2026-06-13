@@ -43,11 +43,11 @@ describe("conformance manifest", () => {
 
   test("matches the documented coverage snapshot", () => {
     expect(countCoverageByLevel()).toEqual({
-      core: 56,
+      core: 59,
       hls: 12,
-      object: 36,
+      object: 37,
       security: 7,
-      total: 111,
+      total: 115,
     });
   });
 

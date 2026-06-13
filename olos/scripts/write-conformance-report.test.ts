@@ -5,7 +5,7 @@ describe("conformance report writer", () => {
   test("includes summary counts and mapped assertion rows", () => {
     const report = buildConformanceReport();
 
-    expect(report).toContain("| Total | 111 | 111 | 111 | 0 | 0 |");
+    expect(report).toContain("| Total | 115 | 115 | 115 | 0 | 0 |");
     expect(report).toContain("## Mapped Assertions");
     expect(report).toContain("### Object");
     expect(report).toContain(
