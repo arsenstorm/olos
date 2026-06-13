@@ -19,6 +19,7 @@ export interface OlosJsonSchema {
 }
 
 const JSON_SCHEMA_DRAFT = "https://json-schema.org/draft/2020-12/schema";
+const JSON_SCHEMA_THEN = "then";
 const ID_PATTERN = "^[A-Za-z0-9_-]+$";
 const SAFE_OBJECT_KEY_PATTERN =
   "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$";
@@ -79,6 +80,20 @@ const providerPublicationSchema = {
 
 const providerUploadGrantSchema = {
   additionalProperties: false,
+  anyOf: [
+    {
+      properties: {
+        presignedPut: { const: true },
+      },
+      required: ["presignedPut"],
+    },
+    {
+      properties: {
+        temporaryCredentials: { const: true },
+      },
+      required: ["temporaryCredentials"],
+    },
+  ],
   properties: {
     contentTypeBound: { type: "boolean" },
     exactKey: { type: "boolean" },
@@ -353,6 +368,35 @@ export const OLOS_PATHWAY_SCHEMA = {
 export const OLOS_PROVIDER_CAPABILITY_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
+  allOf: [
+    {
+      if: {
+        properties: {
+          publication: {
+            properties: {
+              directObjectPublication: { const: true },
+            },
+            required: ["directObjectPublication"],
+          },
+        },
+      },
+      [JSON_SCHEMA_THEN]: {
+        properties: {
+          consistency: {
+            properties: {
+              headAfterCreate: { const: "strong" },
+            },
+            required: ["headAfterCreate"],
+          },
+          publication: {
+            properties: {
+              overwritesAllowed: { not: { const: true } },
+            },
+          },
+        },
+      },
+    },
+  ],
   properties: {
     api: providerApiSchema,
     consistency: providerConsistencySchema,

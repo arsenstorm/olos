@@ -81,4 +81,53 @@ describe("OLOS JSON schemas", () => {
       MEDIA_OBJECT_KINDS
     );
   });
+
+  test("describes provider capability preconditions", () => {
+    expect(
+      OLOS_PROVIDER_CAPABILITY_SCHEMA.properties.uploadGrants.anyOf
+    ).toEqual([
+      {
+        properties: {
+          presignedPut: { const: true },
+        },
+        required: ["presignedPut"],
+      },
+      {
+        properties: {
+          temporaryCredentials: { const: true },
+        },
+        required: ["temporaryCredentials"],
+      },
+    ]);
+    const directPublicationPrecondition =
+      OLOS_PROVIDER_CAPABILITY_SCHEMA.allOf[0];
+
+    expect(directPublicationPrecondition.if).toEqual({
+      properties: {
+        publication: {
+          properties: {
+            directObjectPublication: { const: true },
+          },
+          required: ["directObjectPublication"],
+        },
+      },
+    });
+    expect(directPublicationPrecondition.then).toEqual({
+      properties: {
+        consistency: {
+          properties: {
+            headAfterCreate: { const: "strong" },
+          },
+          required: ["headAfterCreate"],
+        },
+        publication: {
+          properties: {
+            overwritesAllowed: {
+              not: { const: true },
+            },
+          },
+        },
+      },
+    });
+  });
 });
