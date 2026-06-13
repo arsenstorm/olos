@@ -29,6 +29,8 @@ export const expectedRuntimeExports = {
     "createRuntimePublisherObjectKeyNonce",
     "createStoredCoordinatorSession",
     "createStoredCoordinatorRuntimeHandler",
+    "getRuntimeMasterPlaylist",
+    "getRuntimeMediaPlaylist",
     "getRuntimeSessionHealth",
     "getRuntimeSessionRetentionPlan",
     "planStoredCoordinatorRetention",

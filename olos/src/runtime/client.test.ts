@@ -3,6 +3,8 @@ import { createMemoryCoordinatorStore } from "../protocol";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
+  getRuntimeMasterPlaylist,
+  getRuntimeMediaPlaylist,
   getRuntimeSessionHealth,
   getRuntimeSessionRetentionPlan,
   type RuntimeFetch,
@@ -98,6 +100,54 @@ describe("runtime HTTP client", () => {
     expect(retention.plan.retiredObjects).toEqual([]);
   });
 
+  test("fetches generated master playlists", async () => {
+    let requestedUrl = "";
+    const clientFetch: RuntimeFetch = (request) => {
+      requestedUrl = String(request);
+      return Promise.resolve(
+        new Response("#EXTM3U\n/v1/live/session_1/v1080/media.m3u8\n", {
+          status: 200,
+        })
+      );
+    };
+
+    const master = await getRuntimeMasterPlaylist({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      sessionId: session.sessionId,
+    });
+
+    expect(master.response.status).toBe(200);
+    expect(master.playlist).toContain("#EXTM3U");
+    expect(master.playlist).toContain("/v1/live/session_1/v1080/media.m3u8");
+    expect(requestedUrl).toBe(
+      "https://edge.example.com/v1/live/session_1/master.m3u8"
+    );
+  });
+
+  test("fetches media playlists with blocking reload query parameters", async () => {
+    let requestedUrl = "";
+    const clientFetch: RuntimeFetch = (request) => {
+      requestedUrl = String(request);
+      return Promise.resolve(new Response("#EXTM3U\n", { status: 200 }));
+    };
+
+    const media = await getRuntimeMediaPlaylist({
+      baseUrl: "https://edge.example.com/runtime",
+      fetch: clientFetch,
+      hlsMsn: 3810,
+      hlsPart: 3,
+      livePath: "/live",
+      renditionId: "v1080",
+      sessionId: session.sessionId,
+    });
+
+    expect(media.playlist).toBe("#EXTM3U\n");
+    expect(requestedUrl).toBe(
+      "https://edge.example.com/runtime/live/session_1/v1080/media.m3u8?_HLS_msn=3810&_HLS_part=3"
+    );
+  });
+
   test("throws for failed runtime responses", async () => {
     const clientFetch: RuntimeFetch = () =>
       Promise.resolve(new Response("missing", { status: 404 }));
@@ -126,5 +176,22 @@ describe("runtime HTTP client", () => {
         sessionId: session.sessionId,
       })
     ).rejects.toThrow("session retention failed with status 404");
+
+    await expect(
+      getRuntimeMasterPlaylist({
+        baseUrl: "https://edge.example.com",
+        fetch: clientFetch,
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("master playlist failed with status 404");
+
+    await expect(
+      getRuntimeMediaPlaylist({
+        baseUrl: "https://edge.example.com",
+        fetch: clientFetch,
+        renditionId: "v1080",
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("media playlist failed with status 404");
   });
 });

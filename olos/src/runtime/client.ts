@@ -29,6 +29,18 @@ export interface RuntimeSessionRetentionOptions
   sessionId: string;
 }
 
+export interface RuntimeMasterPlaylistOptions extends RuntimeHttpClientOptions {
+  livePath?: string;
+  sessionId: string;
+}
+
+export interface RuntimeMediaPlaylistOptions
+  extends RuntimeMasterPlaylistOptions {
+  hlsMsn?: number;
+  hlsPart?: number;
+  renditionId: string;
+}
+
 export interface RuntimePublisherHeartbeatResponse {
   lease: RuntimePublisherLease;
   response: Response;
@@ -41,6 +53,11 @@ export interface RuntimeSessionHealthResponse {
 
 export interface RuntimeSessionRetentionResponse {
   plan: CoordinatorRetentionPlan;
+  response: Response;
+}
+
+export interface RuntimePlaylistResponse {
+  playlist: string;
   response: Response;
 }
 
@@ -112,6 +129,53 @@ export async function getRuntimeSessionRetentionPlan(
   };
 }
 
+export async function getRuntimeMasterPlaylist(
+  options: RuntimeMasterPlaylistOptions
+): Promise<RuntimePlaylistResponse> {
+  const response = await fetchFor(options)(
+    liveUrl(options, `${encodeURIComponent(options.sessionId)}/master.m3u8`)
+  );
+
+  if (!response.ok) {
+    throw new Error(`master playlist failed with status ${response.status}`);
+  }
+
+  return {
+    playlist: await response.text(),
+    response,
+  };
+}
+
+export async function getRuntimeMediaPlaylist(
+  options: RuntimeMediaPlaylistOptions
+): Promise<RuntimePlaylistResponse> {
+  const url = liveUrl(
+    options,
+    `${encodeURIComponent(options.sessionId)}/${encodeURIComponent(
+      options.renditionId
+    )}/media.m3u8`
+  );
+
+  if (options.hlsMsn !== undefined) {
+    url.searchParams.set("_HLS_msn", String(options.hlsMsn));
+  }
+
+  if (options.hlsPart !== undefined) {
+    url.searchParams.set("_HLS_part", String(options.hlsPart));
+  }
+
+  const response = await fetchFor(options)(url);
+
+  if (!response.ok) {
+    throw new Error(`media playlist failed with status ${response.status}`);
+  }
+
+  return {
+    playlist: await response.text(),
+    response,
+  };
+}
+
 function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
   return new URL(
     `sessions/${encodeURIComponent(sessionId)}/${action}`,
@@ -119,8 +183,20 @@ function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
   );
 }
 
+function liveUrl(options: RuntimeMasterPlaylistOptions, path: string): URL {
+  const livePath = options.livePath ?? "v1/live";
+  return new URL(
+    `${trimSlashes(livePath)}/${path}`,
+    normalizedBaseUrl(options.baseUrl)
+  );
+}
+
 function normalizedBaseUrl(value: string): string {
   return value.endsWith("/") ? value : `${value}/`;
+}
+
+function trimSlashes(value: string): string {
+  return value.replace(/^\/+|\/+$/g, "");
 }
 
 function fetchFor(options: RuntimeHttpClientOptions): RuntimeFetch {

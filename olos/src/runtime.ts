@@ -1,10 +1,15 @@
 // biome-ignore-all lint/performance/noBarrelFile: public runtime facade for the olos/runtime export
 
 export {
+  getRuntimeMasterPlaylist,
+  getRuntimeMediaPlaylist,
   getRuntimeSessionHealth,
   getRuntimeSessionRetentionPlan,
   type RuntimeFetch,
   type RuntimeHttpClientOptions,
+  type RuntimeMasterPlaylistOptions,
+  type RuntimeMediaPlaylistOptions,
+  type RuntimePlaylistResponse,
   type RuntimePublisherHeartbeatOptions,
   type RuntimePublisherHeartbeatResponse,
   type RuntimeSessionHealthOptions,
