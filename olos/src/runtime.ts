@@ -14,6 +14,7 @@ export {
   type RuntimeCreateSessionResponse,
   type RuntimeFetch,
   type RuntimeHttpClientOptions,
+  RuntimeHttpError,
   type RuntimeIssueSlotOptions,
   type RuntimeIssueSlotResponse,
   type RuntimeMasterPlaylistOptions,

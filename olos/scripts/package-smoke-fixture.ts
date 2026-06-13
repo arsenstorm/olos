@@ -39,6 +39,7 @@ export const expectedRuntimeExports = {
     "planStoredCoordinatorRetention",
     "resolveRuntimeLiveHealth",
     "runRuntimePublisherUploadStep",
+    "RuntimeHttpError",
     "sendRuntimePublisherHeartbeat",
     "transitionRuntimeSession",
   ],

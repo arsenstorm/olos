@@ -11,6 +11,7 @@ import {
   getRuntimeSessionRetentionPlan,
   issueRuntimeSlot,
   type RuntimeFetch,
+  RuntimeHttpError,
   sendRuntimePublisherHeartbeat,
   transitionRuntimeSession,
 } from "./client";
@@ -225,16 +226,30 @@ describe("runtime HTTP client", () => {
 
   test("throws for failed runtime responses", async () => {
     const clientFetch: RuntimeFetch = () =>
-      Promise.resolve(new Response("missing", { status: 404 }));
+      Promise.resolve(
+        new Response(JSON.stringify({ error: { message: "missing" } }), {
+          headers: { "content-type": "application/json" },
+          status: 404,
+        })
+      );
 
-    await expect(
-      sendRuntimePublisherHeartbeat({
-        baseUrl: "https://edge.example.com",
-        fetch: clientFetch,
-        publisherInstanceId: "publisher_1",
-        sessionId: session.sessionId,
-      })
-    ).rejects.toThrow("publisher heartbeat failed with status 404");
+    const heartbeatError = sendRuntimePublisherHeartbeat({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+    }).catch((error: unknown) => error);
+
+    await expect(heartbeatError).resolves.toBeInstanceOf(RuntimeHttpError);
+    await expect(heartbeatError).resolves.toMatchObject({
+      body: { error: { message: "missing" } },
+      message: "publisher heartbeat failed with status 404",
+      status: 404,
+    });
+    await expect(heartbeatError).resolves.toHaveProperty(
+      "response.status",
+      404
+    );
 
     await expect(
       createRuntimeSession({

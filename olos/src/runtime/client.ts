@@ -19,6 +19,20 @@ export interface RuntimeHttpClientOptions {
   fetch?: RuntimeFetch;
 }
 
+export class RuntimeHttpError extends Error {
+  readonly body: unknown;
+  readonly response: Response;
+  readonly status: number;
+
+  constructor(message: string, response: Response, body: unknown) {
+    super(message);
+    this.body = body;
+    this.name = "RuntimeHttpError";
+    this.response = response;
+    this.status = response.status;
+  }
+}
+
 export interface RuntimePublisherHeartbeatOptions
   extends RuntimeHttpClientOptions {
   publisherInstanceId: string;
@@ -126,9 +140,7 @@ export async function sendRuntimePublisherHeartbeat(
   );
 
   if (!response.ok) {
-    throw new Error(
-      `publisher heartbeat failed with status ${response.status}`
-    );
+    throw await runtimeHttpError("publisher heartbeat", response);
   }
 
   return {
@@ -150,7 +162,7 @@ export async function createRuntimeSession(
   });
 
   if (!response.ok) {
-    throw new Error(`session create failed with status ${response.status}`);
+    throw await runtimeHttpError("session create", response);
   }
 
   return {
@@ -172,7 +184,7 @@ export async function transitionRuntimeSession(
   );
 
   if (!response.ok) {
-    throw new Error(`session transition failed with status ${response.status}`);
+    throw await runtimeHttpError("session transition", response);
   }
 
   const payload = transitionPayload(await response.json());
@@ -192,7 +204,7 @@ export async function issueRuntimeSlot(
   );
 
   if (!response.ok) {
-    throw new Error(`slot issue failed with status ${response.status}`);
+    throw await runtimeHttpError("slot issue", response);
   }
 
   return {
@@ -210,7 +222,7 @@ export async function commitRuntimeUpload(
   );
 
   if (!response.ok) {
-    throw new Error(`upload commit failed with status ${response.status}`);
+    throw await runtimeHttpError("upload commit", response);
   }
 
   return {
@@ -231,7 +243,7 @@ export async function getRuntimeSessionHealth(
   const response = await fetchFor(options)(url);
 
   if (!response.ok) {
-    throw new Error(`session health failed with status ${response.status}`);
+    throw await runtimeHttpError("session health", response);
   }
 
   return {
@@ -252,7 +264,7 @@ export async function getRuntimeSessionRetentionPlan(
   const response = await fetchFor(options)(url);
 
   if (!response.ok) {
-    throw new Error(`session retention failed with status ${response.status}`);
+    throw await runtimeHttpError("session retention", response);
   }
 
   return {
@@ -269,7 +281,7 @@ export async function getRuntimeMasterPlaylist(
   );
 
   if (!response.ok) {
-    throw new Error(`master playlist failed with status ${response.status}`);
+    throw await runtimeHttpError("master playlist", response);
   }
 
   return {
@@ -299,7 +311,7 @@ export async function getRuntimeMediaPlaylist(
   const response = await fetchFor(options)(url);
 
   if (!response.ok) {
-    throw new Error(`media playlist failed with status ${response.status}`);
+    throw await runtimeHttpError("media playlist", response);
   }
 
   return {
@@ -345,6 +357,31 @@ function trimSlashes(value: string): string {
 
 function fetchFor(options: RuntimeHttpClientOptions): RuntimeFetch {
   return options.fetch ?? fetch;
+}
+
+async function runtimeHttpError(
+  operation: string,
+  response: Response
+): Promise<RuntimeHttpError> {
+  return new RuntimeHttpError(
+    `${operation} failed with status ${response.status}`,
+    response,
+    await responseBody(response)
+  );
+}
+
+async function responseBody(response: Response): Promise<unknown> {
+  const text = await response.clone().text();
+
+  if (text.length === 0) {
+    return;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 function leasePayload(value: unknown): RuntimePublisherLease {
