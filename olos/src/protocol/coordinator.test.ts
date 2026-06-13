@@ -303,6 +303,32 @@ describe("coordinator pipeline", () => {
     expect(result).toEqual({ status: "not_found" });
   });
 
+  test("rejects invalid coordinator mutation attempt limits", async () => {
+    const store = createMemoryCoordinatorStore();
+    const state = createCoordinatorPipeline({ pathways, session });
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    await expect(
+      mutateCoordinatorPipeline({
+        maxAttempts: 0,
+        mutate: (current) => current,
+        sessionId: session.sessionId,
+        store,
+      })
+    ).rejects.toThrow("maxAttempts must be a positive integer");
+    await expect(
+      mutateCoordinatorPipeline({
+        maxAttempts: 1.5,
+        mutate: (current) => current,
+        sessionId: session.sessionId,
+        store,
+      })
+    ).rejects.toThrow("maxAttempts must be a positive integer");
+  });
+
   test("retries coordinator store conflicts with the latest state", async () => {
     const store = createMemoryCoordinatorStore();
     const state = createCoordinatorPipeline({ pathways, session });

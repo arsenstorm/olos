@@ -339,7 +339,7 @@ export function parseCoordinatorPipelineSnapshot(
 export async function mutateCoordinatorPipeline(
   options: MutateCoordinatorPipelineOptions
 ): Promise<CoordinatorPipelineMutation> {
-  const maxAttempts = options.maxAttempts ?? 2;
+  const maxAttempts = positiveMutationAttempts(options.maxAttempts);
   let snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
@@ -369,6 +369,16 @@ export async function mutateCoordinatorPipeline(
     current: snapshot,
     status: "conflict",
   };
+}
+
+function positiveMutationAttempts(value: number | undefined): number {
+  const attempts = value ?? 2;
+
+  if (!Number.isInteger(attempts) || attempts < 1) {
+    throw new Error("maxAttempts must be a positive integer");
+  }
+
+  return attempts;
 }
 
 export function issueCoordinatorSlot(
