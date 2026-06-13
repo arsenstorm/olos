@@ -3,12 +3,16 @@ import { createMemoryCoordinatorStore } from "../protocol";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
+  commitRuntimeUpload,
+  createRuntimeSession,
   getRuntimeMasterPlaylist,
   getRuntimeMediaPlaylist,
   getRuntimeSessionHealth,
   getRuntimeSessionRetentionPlan,
+  issueRuntimeSlot,
   type RuntimeFetch,
   sendRuntimePublisherHeartbeat,
+  transitionRuntimeSession,
 } from "./client";
 import { createStoredCoordinatorRuntimeHandler } from "./http";
 
@@ -46,6 +50,82 @@ const pathways: Pathway[] = [
 ];
 
 describe("runtime HTTP client", () => {
+  test("creates sessions, issues slots, commits uploads, and transitions state", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      store,
+    });
+    const clientFetch = runtimeFetchFor(handle);
+
+    const created = await createRuntimeSession({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      pathways,
+      session: { ...session, state: "created" },
+    });
+    const transitioned = await transitionRuntimeSession({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      sessionId: session.sessionId,
+      state: "starting",
+    });
+    const live = await transitionRuntimeSession({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      sessionId: session.sessionId,
+      state: "live",
+    });
+    const issued = await issueRuntimeSlot({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      payload: {
+        contentType: "video/mp4",
+        deliveryUrl: "https://media.example.com/init.mp4",
+        duration: 1,
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "init",
+        maxBytes: 2048,
+        mediaSequenceNumber: 0,
+        objectKey: "media/init-slot_1.mp4",
+        publicationMode: "direct-public",
+        publisherInstanceId: "publisher_1",
+        renditionId: "v1080",
+        slotId: "slot_init",
+      },
+      sessionId: session.sessionId,
+    });
+    const committed = await commitRuntimeUpload({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      payload: {
+        commitId: "commit_init",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        object: {
+          contentType: "video/mp4",
+          objectKey: "media/init-slot_1.mp4",
+          observedAt: "2026-01-01T00:00:02.000Z",
+          providerId: "s3_primary",
+          size: 1024,
+        },
+        slotId: "slot_init",
+      },
+      sessionId: session.sessionId,
+    });
+
+    expect(created.response.status).toBe(201);
+    expect(created.sessionId).toBe(session.sessionId);
+    expect(transitioned).toMatchObject({
+      sessionId: session.sessionId,
+      state: "starting",
+    });
+    expect(live.state).toBe("live");
+    expect(issued.response.status).toBe(201);
+    expect(issued.slot.slotId).toBe("slot_init");
+    expect(committed.response.status).toBe(201);
+    expect(committed.commit.slotId).toBe("slot_init");
+  });
+
   test("sends publisher heartbeats and reads stored health", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
@@ -53,12 +133,7 @@ describe("runtime HTTP client", () => {
       now: () => "2026-01-01T00:00:02.000Z",
       store,
     });
-    const clientFetch: RuntimeFetch = (request, init) =>
-      handle(
-        request instanceof Request
-          ? request
-          : new Request(String(request), init)
-      );
+    const clientFetch = runtimeFetchFor(handle);
 
     await handle(
       new Request("https://edge.example.com/sessions", {
@@ -162,6 +237,66 @@ describe("runtime HTTP client", () => {
     ).rejects.toThrow("publisher heartbeat failed with status 404");
 
     await expect(
+      createRuntimeSession({
+        baseUrl: "https://edge.example.com",
+        fetch: clientFetch,
+        pathways,
+        session,
+      })
+    ).rejects.toThrow("session create failed with status 404");
+
+    await expect(
+      transitionRuntimeSession({
+        baseUrl: "https://edge.example.com",
+        fetch: clientFetch,
+        sessionId: session.sessionId,
+        state: "ended",
+      })
+    ).rejects.toThrow("session transition failed with status 404");
+
+    await expect(
+      issueRuntimeSlot({
+        baseUrl: "https://edge.example.com",
+        fetch: clientFetch,
+        payload: {
+          contentType: "video/mp4",
+          deliveryUrl: "https://media.example.com/init.mp4",
+          duration: 1,
+          expiresAt: "2026-01-01T00:00:05.000Z",
+          kind: "init",
+          maxBytes: 2048,
+          mediaSequenceNumber: 0,
+          objectKey: "media/init-slot_1.mp4",
+          publicationMode: "direct-public",
+          publisherInstanceId: "publisher_1",
+          renditionId: "v1080",
+          slotId: "slot_init",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("slot issue failed with status 404");
+
+    await expect(
+      commitRuntimeUpload({
+        baseUrl: "https://edge.example.com",
+        fetch: clientFetch,
+        payload: {
+          commitId: "commit_init",
+          committedAt: "2026-01-01T00:00:02.000Z",
+          object: {
+            contentType: "video/mp4",
+            objectKey: "media/init-slot_1.mp4",
+            observedAt: "2026-01-01T00:00:02.000Z",
+            providerId: "s3_primary",
+            size: 1024,
+          },
+          slotId: "slot_init",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("upload commit failed with status 404");
+
+    await expect(
       getRuntimeSessionHealth({
         baseUrl: "https://edge.example.com",
         fetch: clientFetch,
@@ -195,3 +330,12 @@ describe("runtime HTTP client", () => {
     ).rejects.toThrow("media playlist failed with status 404");
   });
 });
+
+function runtimeFetchFor(
+  handle: (request: Request) => Promise<Response>
+): RuntimeFetch {
+  return (request, init) =>
+    handle(
+      request instanceof Request ? request : new Request(String(request), init)
+    );
+}

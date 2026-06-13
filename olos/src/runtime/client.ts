@@ -1,6 +1,13 @@
 import type { CoordinatorRetentionPlan } from "../protocol";
+import type { Commit } from "../types/commit";
+import type { Cursor } from "../types/cursor";
+import type { Pathway } from "../types/pathway";
+import type { Session, SessionState } from "../types/session";
+import type { UploadSlot } from "../types/upload-slot";
+import type { RuntimeCommitPayload } from "./commit";
 import type { RuntimeLiveHealth } from "./health";
 import type { RuntimePublisherLease } from "./publisher-lease";
+import type { RuntimeSlotIssuePayload } from "./slot";
 
 export type RuntimeFetch = (
   input: Request | URL | string,
@@ -15,6 +22,27 @@ export interface RuntimeHttpClientOptions {
 export interface RuntimePublisherHeartbeatOptions
   extends RuntimeHttpClientOptions {
   publisherInstanceId: string;
+  sessionId: string;
+}
+
+export interface RuntimeCreateSessionOptions extends RuntimeHttpClientOptions {
+  pathways: readonly Pathway[];
+  session: Session;
+}
+
+export interface RuntimeTransitionSessionOptions
+  extends RuntimeHttpClientOptions {
+  sessionId: string;
+  state: SessionState;
+}
+
+export interface RuntimeIssueSlotOptions extends RuntimeHttpClientOptions {
+  payload: RuntimeSlotIssuePayload;
+  sessionId: string;
+}
+
+export interface RuntimeCommitUploadOptions extends RuntimeHttpClientOptions {
+  payload: RuntimeCommitPayload;
   sessionId: string;
 }
 
@@ -43,6 +71,28 @@ export interface RuntimeMediaPlaylistOptions
 
 export interface RuntimePublisherHeartbeatResponse {
   lease: RuntimePublisherLease;
+  response: Response;
+}
+
+export interface RuntimeCreateSessionResponse {
+  response: Response;
+  sessionId: string;
+}
+
+export interface RuntimeTransitionSessionResponse {
+  response: Response;
+  sessionId: string;
+  state: SessionState;
+}
+
+export interface RuntimeIssueSlotResponse {
+  response: Response;
+  slot: UploadSlot;
+}
+
+export interface RuntimeCommitUploadResponse {
+  commit: Commit;
+  cursor?: Cursor;
   response: Response;
 }
 
@@ -83,6 +133,88 @@ export async function sendRuntimePublisherHeartbeat(
 
   return {
     lease: leasePayload(await response.json()),
+    response,
+  };
+}
+
+export async function createRuntimeSession(
+  options: RuntimeCreateSessionOptions
+): Promise<RuntimeCreateSessionResponse> {
+  const response = await fetchFor(options)(sessionsUrl(options.baseUrl), {
+    body: JSON.stringify({
+      pathways: options.pathways,
+      session: options.session,
+    }),
+    headers: { "content-type": "application/json" },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(`session create failed with status ${response.status}`);
+  }
+
+  return {
+    response,
+    sessionId: sessionIdPayload(await response.json(), "session create"),
+  };
+}
+
+export async function transitionRuntimeSession(
+  options: RuntimeTransitionSessionOptions
+): Promise<RuntimeTransitionSessionResponse> {
+  const response = await fetchFor(options)(
+    sessionUrl(options.baseUrl, options.sessionId, "transition"),
+    {
+      body: JSON.stringify({ state: options.state }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`session transition failed with status ${response.status}`);
+  }
+
+  const payload = transitionPayload(await response.json());
+
+  return {
+    ...payload,
+    response,
+  };
+}
+
+export async function issueRuntimeSlot(
+  options: RuntimeIssueSlotOptions
+): Promise<RuntimeIssueSlotResponse> {
+  const response = await fetchFor(options)(
+    sessionUrl(options.baseUrl, options.sessionId, "slots"),
+    jsonPost(options.payload)
+  );
+
+  if (!response.ok) {
+    throw new Error(`slot issue failed with status ${response.status}`);
+  }
+
+  return {
+    response,
+    slot: slotPayload(await response.json()),
+  };
+}
+
+export async function commitRuntimeUpload(
+  options: RuntimeCommitUploadOptions
+): Promise<RuntimeCommitUploadResponse> {
+  const response = await fetchFor(options)(
+    sessionUrl(options.baseUrl, options.sessionId, "commits"),
+    jsonPost(options.payload)
+  );
+
+  if (!response.ok) {
+    throw new Error(`upload commit failed with status ${response.status}`);
+  }
+
+  return {
+    ...commitPayload(await response.json()),
     response,
   };
 }
@@ -176,6 +308,10 @@ export async function getRuntimeMediaPlaylist(
   };
 }
 
+function sessionsUrl(baseUrl: string): URL {
+  return new URL("sessions", normalizedBaseUrl(baseUrl));
+}
+
 function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
   return new URL(
     `sessions/${encodeURIComponent(sessionId)}/${action}`,
@@ -189,6 +325,14 @@ function liveUrl(options: RuntimeMasterPlaylistOptions, path: string): URL {
     `${trimSlashes(livePath)}/${path}`,
     normalizedBaseUrl(options.baseUrl)
   );
+}
+
+function jsonPost(body: unknown): RequestInit {
+  return {
+    body: JSON.stringify(body),
+    headers: { "content-type": "application/json" },
+    method: "POST",
+  };
 }
 
 function normalizedBaseUrl(value: string): string {
@@ -209,6 +353,58 @@ function leasePayload(value: unknown): RuntimePublisherLease {
   }
 
   return value.lease as unknown as RuntimePublisherLease;
+}
+
+function sessionIdPayload(value: unknown, context: string): string {
+  if (!(isRecord(value) && typeof value.sessionId === "string")) {
+    throw new Error(`${context} response must include sessionId`);
+  }
+
+  return value.sessionId;
+}
+
+function transitionPayload(
+  value: unknown
+): Omit<RuntimeTransitionSessionResponse, "response"> {
+  if (
+    !(
+      isRecord(value) &&
+      typeof value.sessionId === "string" &&
+      typeof value.state === "string"
+    )
+  ) {
+    throw new Error(
+      "session transition response must include sessionId and state"
+    );
+  }
+
+  return {
+    sessionId: value.sessionId,
+    state: value.state as SessionState,
+  };
+}
+
+function slotPayload(value: unknown): UploadSlot {
+  if (!(isRecord(value) && isRecord(value.slot))) {
+    throw new Error("slot issue response must include a slot");
+  }
+
+  return value.slot as unknown as UploadSlot;
+}
+
+function commitPayload(
+  value: unknown
+): Omit<RuntimeCommitUploadResponse, "response"> {
+  if (!(isRecord(value) && isRecord(value.commit))) {
+    throw new Error("upload commit response must include a commit");
+  }
+
+  return {
+    commit: value.commit as unknown as Commit,
+    ...(isRecord(value.cursor)
+      ? { cursor: value.cursor as unknown as Cursor }
+      : {}),
+  };
 }
 
 function healthPayload(value: unknown): RuntimeLiveHealth {
