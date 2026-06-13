@@ -240,7 +240,7 @@ async function handleGetSessionActionRoute(
     const snapshot = await options.store.load(sessionId);
 
     if (snapshot === undefined) {
-      return notFound();
+      return sessionNotFound();
     }
 
     const publisherInstanceId = new URL(request.url).searchParams.get(
@@ -295,7 +295,7 @@ async function handleLiveRoute(
   const snapshot = await options.store.load(sessionId);
 
   if (snapshot === undefined) {
-    return notFound();
+    return sessionNotFound();
   }
 
   const manifest = {
@@ -455,6 +455,13 @@ function methodNotAllowed(): Response {
 
 function notFound(): Response {
   return jsonResponse({ error: { message: "route not found" } }, 404);
+}
+
+function sessionNotFound(): Response {
+  return jsonResponse(
+    { error: { message: "coordinator session was not found" } },
+    404
+  );
 }
 
 function jsonResponse(body: unknown, status: number): Response {

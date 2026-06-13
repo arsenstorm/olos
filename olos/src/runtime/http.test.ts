@@ -188,6 +188,31 @@ describe("stored coordinator runtime handler", () => {
     ).toHaveProperty("status", 405);
   });
 
+  test("returns specific errors for missing runtime sessions", async () => {
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const health = await handle(
+      new Request("https://edge.example.com/sessions/missing_session/health")
+    );
+    const manifest = await handle(
+      new Request(
+        "https://edge.example.com/v1/live/missing_session/master.m3u8"
+      )
+    );
+
+    expect(health.status).toBe(404);
+    expect(manifest.status).toBe(404);
+    expect(await health.json()).toEqual({
+      error: { message: "coordinator session was not found" },
+    });
+    expect(await manifest.json()).toEqual({
+      error: { message: "coordinator session was not found" },
+    });
+  });
+
   test("applies publication control to slot issuance", async () => {
     const store = createMemoryCoordinatorStore();
     const setup = createStoredCoordinatorRuntimeHandler({

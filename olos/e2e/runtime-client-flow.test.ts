@@ -295,7 +295,7 @@ describe("runtime public client flow", () => {
 
     expect(error).toBeInstanceOf(RuntimeHttpError);
     expect(error).toMatchObject({
-      body: { error: { message: expect.any(String) } },
+      body: { error: { message: "coordinator session was not found" } },
       message: "session health failed with status 404",
       status: 404,
     });
