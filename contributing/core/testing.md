@@ -46,6 +46,19 @@ OLOS_LIVE_S3_FORCE_PATH_STYLE=true
 OLOS_LIVE_S3_PREFIX=olos-live-s3
 ```
 
+One-shot S3-compatible endpoint example:
+
+```bash
+OLOS_LIVE_S3=1 \
+OLOS_LIVE_S3_BUCKET=media \
+OLOS_LIVE_S3_REGION=auto \
+OLOS_LIVE_S3_ACCESS_KEY_ID=... \
+OLOS_LIVE_S3_SECRET_ACCESS_KEY=... \
+OLOS_LIVE_S3_ENDPOINT=https://s3.example.com \
+OLOS_LIVE_S3_PREFIX=olos-live-s3 \
+bun run test:live-s3
+```
+
 Typecheck and build the publishable package:
 
 ```bash
