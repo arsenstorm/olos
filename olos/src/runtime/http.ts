@@ -264,6 +264,13 @@ async function handleGetSessionActionRoute(
     const publisherInstanceId = new URL(request.url).searchParams.get(
       "publisherInstanceId"
     );
+    const publisherInstanceIdError = routePublisherInstanceIdError(
+      publisherInstanceId ?? undefined
+    );
+
+    if (publisherInstanceIdError !== undefined) {
+      return badRequest(publisherInstanceIdError);
+    }
 
     return jsonResponse(
       {
@@ -491,6 +498,20 @@ function routeSessionIdError(
     assertUrlSafeIdentifier(sessionId, "sessionId");
   } catch (error) {
     return errorMessage(error, "invalid route sessionId");
+  }
+}
+
+function routePublisherInstanceIdError(
+  publisherInstanceId: string | undefined
+): string | undefined {
+  if (publisherInstanceId === undefined) {
+    return;
+  }
+
+  try {
+    assertUrlSafeIdentifier(publisherInstanceId, "publisherInstanceId");
+  } catch (error) {
+    return errorMessage(error, "invalid publisherInstanceId");
   }
 }
 
