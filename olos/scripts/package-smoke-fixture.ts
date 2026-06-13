@@ -99,6 +99,10 @@ export const expectedRuntimeExports = {
     "reconcileStoredS3CoordinatorUploads",
     "routeStoredS3CoordinatorUploadEvent",
     "runNextStoredS3PublisherUploadStep",
+    "runPlannedStoredS3PublisherUploadStep",
+    "runStoredS3PublisherUploadStep",
+    "summarizeStoredS3CoordinatorUploadReconciliation",
+    "summarizeStoredS3PublisherUploadStep",
   ],
   "olos/state": [
     "createCursor",
@@ -218,6 +222,10 @@ import {
   createStoredS3CoordinatorRuntimeHandler,
   normalizeS3ObjectCreatedEvents,
   routeStoredS3CoordinatorUploadEvent,
+  runPlannedStoredS3PublisherUploadStep,
+  runStoredS3PublisherUploadStep,
+  summarizeStoredS3CoordinatorUploadReconciliation,
+  summarizeStoredS3PublisherUploadStep,
 } from "olos/s3";
 import type {
   StoredS3CoordinatorCommitResponse,
@@ -317,6 +325,14 @@ const normalizeS3Events: typeof normalizeS3ObjectCreatedEvents =
   normalizeS3ObjectCreatedEvents;
 const routeS3Event: typeof routeStoredS3CoordinatorUploadEvent =
   routeStoredS3CoordinatorUploadEvent;
+const plannedS3PublisherStep: typeof runPlannedStoredS3PublisherUploadStep =
+  runPlannedStoredS3PublisherUploadStep;
+const rawS3PublisherStep: typeof runStoredS3PublisherUploadStep =
+  runStoredS3PublisherUploadStep;
+const s3ReconciliationSummary: typeof summarizeStoredS3CoordinatorUploadReconciliation =
+  summarizeStoredS3CoordinatorUploadReconciliation;
+const s3PublisherStepSummary: typeof summarizeStoredS3PublisherUploadStep =
+  summarizeStoredS3PublisherUploadStep;
 const expiredSlots: typeof selectExpiredUploadSlots =
   selectExpiredUploadSlots;
 const retiredObjects: typeof selectRetiredCommittedObjects =
@@ -509,6 +525,10 @@ directPublicRequestPolicy satisfies typeof resolveDirectPublicMediaRequestPolicy
 s3RuntimeHandler satisfies typeof createStoredS3CoordinatorRuntimeHandler;
 normalizeS3Events satisfies typeof normalizeS3ObjectCreatedEvents;
 routeS3Event satisfies typeof routeStoredS3CoordinatorUploadEvent;
+plannedS3PublisherStep satisfies typeof runPlannedStoredS3PublisherUploadStep;
+rawS3PublisherStep satisfies typeof runStoredS3PublisherUploadStep;
+s3ReconciliationSummary satisfies typeof summarizeStoredS3CoordinatorUploadReconciliation;
+s3PublisherStepSummary satisfies typeof summarizeStoredS3PublisherUploadStep;
 s3SlotGrantResponse satisfies StoredS3CoordinatorSlotGrantResponse;
 s3CommitResponse satisfies StoredS3CoordinatorCommitResponse;
 s3EventResponse satisfies StoredS3CoordinatorEventRouteResponse;
