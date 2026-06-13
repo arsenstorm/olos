@@ -507,6 +507,87 @@ describe("S3 HTTP pipeline", () => {
     expect(headObjectInputs).toEqual([]);
   });
 
+  test("rejects oversized S3 commits without advancing manifests", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createS3Client(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "media/v1080/3810.m4s": 100_001,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      response: manifestOptions.response,
+      store,
+      ...manifestOptions.manifest,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "media/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const rejected = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        slotId: "slot_3810",
+      })
+    );
+    const rejectedBody = (await rejected.json()) as {
+      auditEvent: {
+        maxBytes: number;
+        objectKey: string;
+        observedBytes: number;
+        reason: string;
+        slotId: string;
+      };
+      error: {
+        code: string;
+      };
+    };
+    const stored = await store.load(session.sessionId);
+    const media = await handle(
+      new Request("https://edge.example.com/v1/live/session_1/v1080/media.m3u8")
+    );
+
+    expect(rejected.status).toBe(409);
+    expect(rejectedBody.error.code).toBe("olos.object_too_large");
+    expect(rejectedBody.auditEvent).toMatchObject({
+      maxBytes: 100_000,
+      objectKey: "media/v1080/3810.m4s",
+      observedBytes: 100_001,
+      reason: "object_too_large",
+      slotId: "slot_3810",
+    });
+    expect(stored?.state.commits).toEqual([]);
+    expect(stored?.state.cursor).toBeUndefined();
+    expect(media.status).toBe(404);
+    expect(await media.text()).toBe("manifest not found");
+    expect(headObjectInputs).toEqual([
+      { Bucket: "media", Key: "media/v1080/3810.m4s" },
+    ]);
+  });
+
   test("recovers missed S3 commits through reconciliation routes", async () => {
     const headObjectInputs: unknown[] = [];
     const notifier = createMemoryRuntimeCursorNotifier();
