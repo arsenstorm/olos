@@ -8,6 +8,13 @@ const README_TYPESCRIPT_BLOCK_PATTERN = /```ts\n([\s\S]*?)\n```/g;
 const IMPORT_ALIAS_PATTERN = /\s+as\s+/;
 
 describe("package smoke fixture", () => {
+  test("keeps README code fences balanced", () => {
+    const readme = readmeSource();
+    const fences = [...readme.matchAll(/^```/gm)];
+
+    expect(fences.length % 2).toBe(0);
+  });
+
   test("covers README runtime import examples", () => {
     const documented = readmeRuntimeImports();
     const missing = new Map<string, string[]>();
@@ -28,7 +35,7 @@ describe("package smoke fixture", () => {
 });
 
 function readmeRuntimeImports(): Map<string, string[]> {
-  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const readme = readmeSource();
   const imports = new Map<string, Set<string>>();
 
   for (const block of readme.matchAll(README_TYPESCRIPT_BLOCK_PATTERN)) {
@@ -67,4 +74,8 @@ function readmeRuntimeImports(): Map<string, string[]> {
   return new Map(
     [...imports].map(([specifier, names]) => [specifier, [...names].sort()])
   );
+}
+
+function readmeSource(): string {
+  return readFileSync(new URL("../README.md", import.meta.url), "utf8");
 }
