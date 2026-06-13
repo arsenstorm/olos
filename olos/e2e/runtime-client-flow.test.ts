@@ -12,6 +12,7 @@ import {
   issueRuntimeSlot,
   type RuntimeFetch,
   RuntimeHttpError,
+  sendRuntimePublisherHeartbeat,
   transitionRuntimeSession,
 } from "olos/runtime";
 import type { Pathway, Session } from "olos/types";
@@ -196,6 +197,98 @@ describe("runtime public client flow", () => {
     );
     expect(health.health.status).toBe("active");
     expect(retention.plan.retiredObjects).toEqual([]);
+  });
+
+  test("reports stale publisher leases through stored health", async () => {
+    let now = "2026-01-01T00:00:00.000Z";
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      maxHealthCursorAgeMs: 10_000,
+      now: () => now,
+      publisherLeaseTtlMs: 3000,
+      store,
+    });
+    const fetch = runtimeFetchFor(handle);
+
+    await createRuntimeSession({
+      baseUrl: "https://edge.example.com",
+      fetch,
+      pathways,
+      session,
+    });
+    await transitionRuntimeSession({
+      baseUrl: "https://edge.example.com",
+      fetch,
+      sessionId: session.sessionId,
+      state: "starting",
+    });
+    await transitionRuntimeSession({
+      baseUrl: "https://edge.example.com",
+      fetch,
+      sessionId: session.sessionId,
+      state: "live",
+    });
+    await publishObject(fetch, {
+      commitId: "commit_init",
+      duration: 1,
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/v1080/init.mp4",
+      size: 1024,
+      slotId: "slot_init",
+    });
+    await publishObject(fetch, {
+      commitId: "commit_3810",
+      independent: true,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/v1080/3810.m4s",
+      size: 98_304,
+      slotId: "slot_3810",
+    });
+
+    now = "2026-01-01T00:00:02.000Z";
+    const heartbeat = await sendRuntimePublisherHeartbeat({
+      baseUrl: "https://edge.example.com",
+      fetch,
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+    });
+    const active = await getRuntimeSessionHealth({
+      baseUrl: "https://edge.example.com",
+      fetch,
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+    });
+
+    now = "2026-01-01T00:00:05.001Z";
+    const stale = await getRuntimeSessionHealth({
+      baseUrl: "https://edge.example.com",
+      fetch,
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+    });
+
+    expect(heartbeat.lease).toMatchObject({
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      lastSeenAt: "2026-01-01T00:00:02.000Z",
+      publisherInstanceId: "publisher_1",
+    });
+    expect(active.health).toMatchObject({
+      cursorAgeMs: 0,
+      cursorFreshness: "fresh",
+      leaseStatus: "active",
+      publisherInstanceId: "publisher_1",
+      status: "active",
+    });
+    expect(stale.health).toMatchObject({
+      cursorAgeMs: 3001,
+      cursorFreshness: "fresh",
+      leaseStatus: "stale",
+      publisherInstanceId: "publisher_1",
+      status: "stale",
+    });
   });
 
   test("blocks public playlist reloads until the requested cursor is committed", async () => {
