@@ -62,9 +62,9 @@ describe("conformance manifest", () => {
     expect(countCoverageByLevel()).toEqual({
       core: 62,
       hls: 14,
-      object: 40,
+      object: 41,
       security: 7,
-      total: 123,
+      total: 124,
     });
   });
 
@@ -126,6 +126,7 @@ describe("conformance manifest", () => {
       { id: "OBJ-FLOW-008", testFile: "src/s3/http.test.ts" },
       { id: "OBJ-FLOW-010", testFile: "src/s3/http.test.ts" },
       { id: "OBJ-FLOW-013", testFile: "e2e/s3-http-pipeline.test.ts" },
+      { id: "OBJ-RUNTIME-014", testFile: "e2e/s3-http-pipeline.test.ts" },
     ];
 
     for (const { id, testFile } of expected) {
