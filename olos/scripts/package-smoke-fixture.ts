@@ -221,6 +221,10 @@ import {
   serveStoredCoordinatorManifest,
   summarizeRetiredCoordinatorObjectDeletions,
 } from "olos/runtime";
+import type {
+  CommitCoordinatorUploadFromRequestOptions,
+  RunRuntimePublisherUploadStepOptions,
+} from "olos/runtime";
 import {
   createS3UploadGrant,
   createStoredS3CoordinatorRuntimeHandler,
@@ -238,6 +242,9 @@ import type {
   StoredS3CoordinatorRetentionResponse,
   StoredS3CoordinatorSlotGrantResponse,
   StoredS3PublisherUploadStepSummary,
+  CreateStoredS3CoordinatorRuntimeHandlerOptions,
+  ReconcileStoredS3CoordinatorUploadsOptions,
+  RunPlannedStoredS3PublisherUploadStepOptions,
 } from "olos/s3";
 import { OLOS_JSON_SCHEMAS } from "olos/schema";
 import {
@@ -349,6 +356,21 @@ const expiredSlots: typeof selectExpiredUploadSlots =
   selectExpiredUploadSlots;
 const retiredObjects: typeof selectRetiredCommittedObjects =
   selectRetiredCommittedObjects;
+const runtimeCommitLateTolerance = {
+  lateToleranceMs: 500,
+} satisfies Pick<CommitCoordinatorUploadFromRequestOptions, "lateToleranceMs">;
+const runtimePublisherLateTolerance = {
+  lateToleranceMs: 500,
+} satisfies Pick<RunRuntimePublisherUploadStepOptions, "lateToleranceMs">;
+const s3RuntimeLateTolerance = {
+  lateToleranceMs: 500,
+} satisfies Pick<CreateStoredS3CoordinatorRuntimeHandlerOptions, "lateToleranceMs">;
+const s3ReconciliationLateTolerance = {
+  lateToleranceMs: () => 500,
+} satisfies Pick<ReconcileStoredS3CoordinatorUploadsOptions, "lateToleranceMs">;
+const s3PublisherLateTolerance = {
+  lateToleranceMs: 500,
+} satisfies Pick<RunPlannedStoredS3PublisherUploadStepOptions, "lateToleranceMs">;
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -552,6 +574,26 @@ s3RetentionResponse satisfies StoredS3CoordinatorRetentionResponse;
 s3PublisherSummary satisfies StoredS3PublisherUploadStepSummary;
 expiredSlots satisfies typeof selectExpiredUploadSlots;
 retiredObjects satisfies typeof selectRetiredCommittedObjects;
+runtimeCommitLateTolerance satisfies Pick<
+  CommitCoordinatorUploadFromRequestOptions,
+  "lateToleranceMs"
+>;
+runtimePublisherLateTolerance satisfies Pick<
+  RunRuntimePublisherUploadStepOptions,
+  "lateToleranceMs"
+>;
+s3RuntimeLateTolerance satisfies Pick<
+  CreateStoredS3CoordinatorRuntimeHandlerOptions,
+  "lateToleranceMs"
+>;
+s3ReconciliationLateTolerance satisfies Pick<
+  ReconcileStoredS3CoordinatorUploadsOptions,
+  "lateToleranceMs"
+>;
+s3PublisherLateTolerance satisfies Pick<
+  RunPlannedStoredS3PublisherUploadStepOptions,
+  "lateToleranceMs"
+>;
 `.trimStart();
 }
 
