@@ -92,6 +92,10 @@ describe("delivery cache policy", () => {
             ...capability.delivery,
             negativeCachingPolicyDeclared: false,
           },
+          publication: {
+            ...capability.publication,
+            directObjectPublication: false,
+          },
         },
         target: "negative-object",
       })

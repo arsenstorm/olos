@@ -119,6 +119,20 @@ describe("provider capability validation", () => {
     );
   });
 
+  test("rejects direct publication without negative caching policy", () => {
+    expect(() =>
+      assertProviderCapabilityDocument({
+        ...capability,
+        delivery: {
+          ...capability.delivery,
+          negativeCachingPolicyDeclared: false,
+        },
+      })
+    ).toThrow(
+      "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct object publication"
+    );
+  });
+
   test("rejects capabilities without an upload grant mechanism", () => {
     expect(() =>
       assertProviderCapabilityDocument({
@@ -187,6 +201,10 @@ describe("provider capability validation", () => {
           ...capability.publication,
           directObjectPublication: false,
           readGateAvailable: true,
+        },
+        delivery: {
+          ...capability.delivery,
+          negativeCachingPolicyDeclared: false,
         },
       })
     ).not.toThrow();

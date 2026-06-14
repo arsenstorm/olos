@@ -388,6 +388,12 @@ export const OLOS_PROVIDER_CAPABILITY_SCHEMA = {
             },
             required: ["headAfterCreate"],
           },
+          delivery: {
+            properties: {
+              negativeCachingPolicyDeclared: { const: true },
+            },
+            required: ["negativeCachingPolicyDeclared"],
+          },
           publication: {
             properties: {
               manifestGatedPublication: { const: true },

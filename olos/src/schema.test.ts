@@ -122,6 +122,12 @@ describe("OLOS JSON schemas", () => {
           },
           required: ["headAfterCreate"],
         },
+        delivery: {
+          properties: {
+            negativeCachingPolicyDeclared: { const: true },
+          },
+          required: ["negativeCachingPolicyDeclared"],
+        },
         publication: {
           properties: {
             manifestGatedPublication: {

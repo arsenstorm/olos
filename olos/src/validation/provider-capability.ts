@@ -198,6 +198,15 @@ function assertCapabilityPreconditions(
       "providerCapability.publication.overwritesAllowed must not be true for direct object publication"
     );
   }
+
+  if (
+    value.publication.directObjectPublication &&
+    value.delivery.negativeCachingPolicyDeclared !== true
+  ) {
+    throw new Error(
+      "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct object publication"
+    );
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
