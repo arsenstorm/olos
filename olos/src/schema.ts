@@ -268,7 +268,7 @@ export const OLOS_UPLOAD_SLOT_SCHEMA = {
     kind: { enum: MEDIA_OBJECT_KINDS, type: "string" },
     maxBytes: positiveNumber,
     mediaSequenceNumber: nonNegativeInteger,
-    minBytes: positiveNumber,
+    minBytes: nonNegativeInteger,
     objectKey,
     partNumber: nonNegativeInteger,
     publicationMode: { enum: PUBLICATION_MODES, type: "string" },

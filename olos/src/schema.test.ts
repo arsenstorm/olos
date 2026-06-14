@@ -44,6 +44,10 @@ describe("OLOS JSON schemas", () => {
   test("describes upload slot and commit object keys", () => {
     expect(OLOS_UPLOAD_SLOT_SCHEMA.required).toContain("objectKey");
     expect(OLOS_COMMIT_SCHEMA.required).toContain("objectKey");
+    expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.minBytes).toEqual({
+      minimum: 0,
+      type: "integer",
+    });
     expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.deliveryUrl).toMatchObject({
       pattern: "^(?:/(?!/)|https?://)[^?#]+$",
     });
