@@ -125,5 +125,17 @@ describe("session validation", () => {
         renditions: [{ ...validSession.renditions[0], width: 0 }],
       })
     ).toThrow("session.renditions[].width must be a positive integer");
+
+    expect(() =>
+      assertSession({
+        ...validSession,
+        renditions: [
+          {
+            ...validSession.renditions[0],
+            height: undefined,
+          },
+        ],
+      })
+    ).toThrow("session.renditions[] must define width and height together");
   });
 });

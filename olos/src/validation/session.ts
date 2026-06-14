@@ -75,6 +75,15 @@ function assertRendition(value: unknown): asserts value is Rendition {
     }
   }
 
+  if (
+    (value.width === undefined && value.height !== undefined) ||
+    (value.width !== undefined && value.height === undefined)
+  ) {
+    throw new Error(
+      "session.renditions[] must define width and height together"
+    );
+  }
+
   if (value.frameRate !== undefined) {
     assertPositiveNumberField(value, "frameRate", "session.renditions[]");
   }
