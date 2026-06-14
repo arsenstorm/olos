@@ -53,7 +53,7 @@ describe("dry package verifier", () => {
         },
         "./package.json": "./package.json",
         "./runtime": {
-          default: "./dist/runtime.js",
+          default: "./dist/runtime-default.js",
           import: "./dist/runtime.js",
           types: "./dist/runtime.d.ts",
         },
@@ -61,6 +61,7 @@ describe("dry package verifier", () => {
     ).toEqual([
       "dist/index.d.ts",
       "dist/index.js",
+      "dist/runtime-default.js",
       "dist/runtime.d.ts",
       "dist/runtime.js",
     ]);

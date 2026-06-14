@@ -34,6 +34,7 @@ export function requiredDryPackFilesFromExports(
       continue;
     }
 
+    addExportFile(files, value, "default");
     addExportFile(files, value, "import");
     addExportFile(files, value, "types");
   }
@@ -44,7 +45,7 @@ export function requiredDryPackFilesFromExports(
 function addExportFile(
   files: Set<string>,
   value: unknown,
-  field: "import" | "types"
+  field: "default" | "import" | "types"
 ): void {
   if (!isRecord(value)) {
     return;
