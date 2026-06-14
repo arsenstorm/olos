@@ -81,6 +81,12 @@ describe("stored coordinator runtime handler", () => {
     expect(() =>
       createStoredCoordinatorRuntimeHandler({
         ...options,
+        lateToleranceMs: -1,
+      })
+    ).toThrow("lateToleranceMs must be a non-negative number");
+    expect(() =>
+      createStoredCoordinatorRuntimeHandler({
+        ...options,
         maxHealthCursorAgeMs: 0,
       })
     ).toThrow("maxHealthCursorAgeMs must be a positive number");

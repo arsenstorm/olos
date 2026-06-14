@@ -223,6 +223,33 @@ describe("runtime commit adapter", () => {
     expect(result.message).toBe("maxSegments must be a positive integer");
   });
 
+  test("returns invalid responses for invalid late tolerance", async () => {
+    const result = await commitCoordinatorUploadFromRequest({
+      request: new Request(
+        "https://edge.example.com/v1/live/session_1/commit",
+        {
+          body: JSON.stringify({
+            ...commitPayload(),
+            lateToleranceMs: -1,
+          }),
+          method: "POST",
+        }
+      ),
+      state: createReadyState(),
+    });
+
+    expect(result.status).toBe("invalid");
+
+    if (result.status !== "invalid") {
+      throw new Error("expected invalid commit request");
+    }
+
+    expect(result.response.status).toBe(400);
+    expect(result.message).toBe(
+      "lateToleranceMs must be a non-negative number"
+    );
+  });
+
   test("returns invalid responses for invalid JSON timestamps", async () => {
     const cases = [
       {

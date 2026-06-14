@@ -100,6 +100,12 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(() =>
       createStoredS3CoordinatorRuntimeHandler({ ...options, targetLatency: 0 })
     ).toThrow("targetLatency must be a positive number");
+    expect(() =>
+      createStoredS3CoordinatorRuntimeHandler({
+        ...options,
+        lateToleranceMs: -1,
+      })
+    ).toThrow("lateToleranceMs must be a non-negative number");
   });
 
   test("delegates runtime routes and issues S3 upload grants", async () => {
@@ -1040,7 +1046,7 @@ describe("stored S3 coordinator runtime handler", () => {
     }
   });
 
-  test("rejects invalid S3 max segment limits", async () => {
+  test("rejects invalid S3 commit and reconciliation numbers", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
@@ -1065,14 +1071,37 @@ describe("stored S3 coordinator runtime handler", () => {
         maxSegments: 1.5,
       })
     );
+    const commitLateToleranceResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        lateToleranceMs: -1,
+        objectKey: "live/session/v1080/3810.m4s",
+        slotId: "slot_3810",
+      })
+    );
+    const reconciliationLateToleranceResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/reconcile", {
+        committedAt: "2026-01-01T00:00:02.000Z",
+        lateToleranceMs: -1,
+      })
+    );
 
     expect(commitResponse.status).toBe(400);
     expect(reconciliationResponse.status).toBe(400);
+    expect(commitLateToleranceResponse.status).toBe(400);
+    expect(reconciliationLateToleranceResponse.status).toBe(400);
     expect(await commitResponse.json()).toEqual({
       error: { message: "maxSegments must be a positive integer" },
     });
     expect(await reconciliationResponse.json()).toEqual({
       error: { message: "maxSegments must be a positive integer" },
+    });
+    expect(await commitLateToleranceResponse.json()).toEqual({
+      error: { message: "lateToleranceMs must be a non-negative number" },
+    });
+    expect(await reconciliationLateToleranceResponse.json()).toEqual({
+      error: { message: "lateToleranceMs must be a non-negative number" },
     });
   });
 
