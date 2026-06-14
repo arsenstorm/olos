@@ -2,6 +2,20 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 describe("release documentation", () => {
+  test("keeps the publish workflow release-safe", () => {
+    const workflow = readFileSync(
+      new URL("../../.github/workflows/publish.yml", import.meta.url),
+      "utf8"
+    );
+
+    expect(workflow).toContain("id-token: write");
+    expect(workflow).toContain("bun --filter olos release:verify-tag");
+    expect(workflow).toContain("bun run publish:check");
+    expect(workflow).toContain("npm publish --provenance --access public");
+    expect(workflow).toContain("working-directory: olos");
+    expect(workflow).toContain("bun --filter olos release:verify-published");
+  });
+
   test("documents the repository validation boundary", () => {
     const checks = readFileSync(
       new URL("../../contributing/repository/checks.md", import.meta.url),
