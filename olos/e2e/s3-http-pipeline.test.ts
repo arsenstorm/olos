@@ -10,9 +10,12 @@ import {
   createMemoryRuntimeCursorNotifier,
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
+  type RuntimeFetch,
 } from "olos/runtime";
 import {
+  completeS3RuntimeUpload,
   createStoredS3CoordinatorRuntimeHandler,
+  issueS3RuntimeUploadGrant,
   type S3DeleteObjectClient,
   type S3HeadObjectClient,
 } from "olos/s3";
@@ -104,38 +107,39 @@ describe("S3 HTTP pipeline", () => {
       store,
       ...manifestOptions.manifest,
     });
+    const clientFetch = runtimeFetchFor(handle);
 
     const created = await handle(
       jsonRequest("https://edge.example.com/sessions", { pathways, session })
     );
-    const initGrant = await handle(
-      jsonRequest(
-        "https://edge.example.com/sessions/session_1/s3/slots",
-        slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
-          duration: 1,
-          kind: "init",
-          maxBytes: 2048,
-          mediaSequenceNumber: 0,
-          objectKey: "media/v1080/init.mp4",
-          slotId: "slot_init",
-        })
-      )
-    );
-    const segmentGrant = await handle(
-      jsonRequest(
-        "https://edge.example.com/sessions/session_1/s3/slots",
-        slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
-          duration: 2,
-          kind: "segment",
-          maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
-          objectKey: "media/v1080/3810.m4s",
-          slotId: "slot_3810",
-        })
-      )
-    );
+    const initGrant = await issueS3RuntimeUploadGrant({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      payload: slotPayload({
+        deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+        duration: 1,
+        kind: "init",
+        maxBytes: 2048,
+        mediaSequenceNumber: 0,
+        objectKey: "media/v1080/init.mp4",
+        slotId: "slot_init",
+      }),
+      sessionId: session.sessionId,
+    });
+    const segmentGrant = await issueS3RuntimeUploadGrant({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      payload: slotPayload({
+        deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+        duration: 2,
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKey: "media/v1080/3810.m4s",
+        slotId: "slot_3810",
+      }),
+      sessionId: session.sessionId,
+    });
     const initCommit = await handle(
       jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
         commitId: "commit_init",
@@ -143,37 +147,33 @@ describe("S3 HTTP pipeline", () => {
         slotId: "slot_init",
       })
     );
-    const segmentCommit = await handle(
-      jsonRequest(
-        "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
-        {
-          commitId: "commit_3810",
-          committedAt: "2026-01-01T00:00:02.000Z",
-          etag: '"publisher-hint"',
-          independent: true,
-          objectKey: "media/v1080/3810.m4s",
-          size: 1,
-        }
-      )
-    );
+    const segmentCommit = await completeS3RuntimeUpload({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      payload: {
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        etag: '"publisher-hint"',
+        independent: true,
+        objectKey: segmentGrant.slot.objectKey,
+        size: 1,
+      },
+      sessionId: session.sessionId,
+      slotId: segmentGrant.slot.slotId,
+    });
     const master = await handle(
       new Request("https://edge.example.com/v1/live/session_1/master.m3u8")
     );
     const media = await handle(
       new Request("https://edge.example.com/v1/live/session_1/v1080/media.m3u8")
     );
-    const initGrantBody = (await initGrant.json()) as {
-      grant: {
-        requiredHeaders: Record<string, string>;
-      };
-    };
     const mediaBody = await media.text();
 
     expect(created.status).toBe(201);
-    expect(initGrant.status).toBe(201);
-    expect(segmentGrant.status).toBe(201);
+    expect(initGrant.response.status).toBe(201);
+    expect(segmentGrant.response.status).toBe(201);
     expect(initCommit.status).toBe(201);
-    expect(segmentCommit.status).toBe(201);
+    expect(segmentCommit.response.status).toBe(201);
     expect(master.status).toBe(200);
     expect(await master.text()).toContain(
       "/v1/live/session_1/v1080/media.m3u8"
@@ -182,7 +182,7 @@ describe("S3 HTTP pipeline", () => {
     expect(media.headers.get("cache-control")).toBe(
       "public, max-age=1, must-revalidate"
     );
-    expect(initGrantBody.grant.requiredHeaders).toMatchObject({
+    expect(initGrant.grant.requiredHeaders).toMatchObject({
       "x-amz-meta-olos-slot-id": "slot_init",
       "x-olos-slot-id": "slot_init",
     });
@@ -1132,6 +1132,15 @@ function jsonRequest(url: string, body: unknown): Request {
     },
     method: "POST",
   });
+}
+
+function runtimeFetchFor(
+  handle: (request: Request) => Promise<Response>
+): RuntimeFetch {
+  return (request, init) =>
+    handle(
+      request instanceof Request ? request : new Request(String(request), init)
+    );
 }
 
 interface S3ObjectCreatedPayloadOptions {
