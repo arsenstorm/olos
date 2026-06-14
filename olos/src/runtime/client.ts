@@ -9,6 +9,8 @@ import type { RuntimeLiveHealth } from "./health";
 import type { RuntimePublisherLease } from "./publisher-lease";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
+const URL_SCHEME_PREFIX = /^[A-Za-z][A-Za-z\d+.-]*:/;
+
 export type RuntimeFetch = (
   input: Request | URL | string,
   init?: RequestInit
@@ -334,11 +336,8 @@ function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
 }
 
 function liveUrl(options: RuntimeMasterPlaylistOptions, path: string): URL {
-  const livePath = options.livePath ?? "v1/live";
-  return new URL(
-    `${trimSlashes(livePath)}/${path}`,
-    normalizedBaseUrl(options.baseUrl)
-  );
+  const livePath = normalizedLivePath(options.livePath ?? "v1/live");
+  return new URL(`${livePath}/${path}`, normalizedBaseUrl(options.baseUrl));
 }
 
 function jsonPost(body: unknown): RequestInit {
@@ -357,10 +356,47 @@ function trimSlashes(value: string): string {
   return value.replace(/^\/+|\/+$/g, "");
 }
 
+function normalizedLivePath(value: string): string {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.startsWith("//") ||
+    value.includes("?") ||
+    value.includes("#") ||
+    hasControlCharacter(value) ||
+    URL_SCHEME_PREFIX.test(value)
+  ) {
+    throw new Error("livePath must be a safe relative path");
+  }
+
+  const path = trimSlashes(value);
+
+  if (
+    path.length === 0 ||
+    path.split("/").some((segment) => segment === "." || segment === "..")
+  ) {
+    throw new Error("livePath must be a safe relative path");
+  }
+
+  return path;
+}
+
 function assertNonNegativeInteger(value: number, name: string): void {
   if (!Number.isInteger(value) || value < 0) {
     throw new Error(`${name} must be a non-negative integer`);
   }
+}
+
+function hasControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function fetchFor(options: RuntimeHttpClientOptions): RuntimeFetch {

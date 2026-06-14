@@ -246,6 +246,31 @@ describe("runtime HTTP client", () => {
     expect(requests).toBe(0);
   });
 
+  test("rejects unsafe live playlist paths before fetch", async () => {
+    let requests = 0;
+    const clientFetch: RuntimeFetch = () => {
+      requests += 1;
+      return Promise.resolve(new Response("#EXTM3U\n", { status: 200 }));
+    };
+    const options = {
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      sessionId: session.sessionId,
+    };
+
+    await expect(
+      getRuntimeMasterPlaylist({ ...options, livePath: "https://evil.test" })
+    ).rejects.toThrow("livePath must be a safe relative path");
+    await expect(
+      getRuntimeMediaPlaylist({
+        ...options,
+        livePath: "../live",
+        renditionId: "v1080",
+      })
+    ).rejects.toThrow("livePath must be a safe relative path");
+    expect(requests).toBe(0);
+  });
+
   test("throws for failed runtime responses", async () => {
     const clientFetch: RuntimeFetch = () =>
       Promise.resolve(
