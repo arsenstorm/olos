@@ -269,10 +269,9 @@ async function handlePostSessionActionRoute(
       store: options.store,
     });
 
-    notifyCursor(
-      options.cursorNotifier,
-      "state" in result ? result.state.cursor : undefined
-    );
+    if (result.status === "committed" || result.status === "idempotent") {
+      notifyCursor(options.cursorNotifier, result.state.cursor);
+    }
 
     return result.response;
   }

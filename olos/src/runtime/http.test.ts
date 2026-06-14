@@ -623,6 +623,73 @@ describe("stored coordinator runtime handler", () => {
       "https://media.example.com/media/v1080/3811.m4s"
     );
   });
+
+  test("does not notify cursor waiters for rejected commit routes", async () => {
+    const notifiedCursors: Cursor[] = [];
+    const store = createMemoryCoordinatorStore();
+
+    await seedRuntimeStore(store, 3810);
+
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      commitPolicy: () => ({
+        error: {
+          error: {
+            code: "olos.quota_exceeded",
+            message: "tenant quota exceeded",
+          },
+        },
+        status: "rejected",
+      }),
+      cursorNotifier: {
+        notify: (cursor) => notifiedCursors.push(cursor),
+        waitForCursor: () =>
+          Promise.reject(new Error("waiter should not be called")),
+      },
+      store,
+    });
+
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/3811.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3811,
+          objectKey: "media/v1080/3811.m4s",
+          slotId: "slot_3811",
+        })
+      )
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/commits", {
+        ...commitPayload({
+          commitId: "commit_3811",
+          objectKey: "media/v1080/3811.m4s",
+          size: 98_304,
+          slotId: "slot_3811",
+        }),
+        independent: false,
+      })
+    );
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "olos.quota_exceeded",
+        message: "tenant quota exceeded",
+      },
+    });
+    expect(stored?.state.cursor?.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+    expect(notifiedCursors).toEqual([]);
+  });
 });
 
 interface SlotPayloadOptions {
