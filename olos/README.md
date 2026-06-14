@@ -490,6 +490,38 @@ For typed route consumers, `olos/s3` exports
 `StoredS3CoordinatorReconciliationResponse`, and
 `StoredS3CoordinatorRetentionResponse`.
 
+Publisher-side HTTP clients can use the S3 runtime helpers instead of
+hand-building route URLs:
+
+```ts
+import {
+  completeS3RuntimeUpload,
+  issueS3RuntimeUploadGrant,
+} from "olos/s3";
+
+const issued = await issueS3RuntimeUploadGrant({
+  baseUrl: "https://edge.example.com",
+  payload: slotPayload,
+  sessionId: "session_1",
+});
+
+await uploadToGrantedUrl(issued.grant);
+
+const completed = await completeS3RuntimeUpload({
+  baseUrl: "https://edge.example.com",
+  payload: {
+    etag: uploadEtag,
+    objectKey: issued.slot.objectKey,
+    size: uploadedBytes,
+  },
+  sessionId: "session_1",
+  slotId: issued.slot.slotId,
+});
+```
+
+The completion call is still only a hint. The coordinator verifies the exact
+object with S3 before committing it.
+
 The generic runtime routes remain available through the same handler, including
 `POST /sessions`, `POST /sessions/:id/slots`, `POST /sessions/:id/commits`,
 `POST /sessions/:id/transition`, `POST /sessions/:id/heartbeat`,
