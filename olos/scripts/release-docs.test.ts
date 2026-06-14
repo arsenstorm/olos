@@ -30,4 +30,18 @@ describe("release documentation", () => {
       "health polling, stale lease alerts, recovery scheduling, and retention retry"
     );
   });
+
+  test("documents published package verification with package versions", () => {
+    const releases = readFileSync(
+      new URL("../../contributing/repository/releases.md", import.meta.url),
+      "utf8"
+    );
+
+    expect(releases).toContain(
+      "bun --filter olos release:verify-published 0.1.0"
+    );
+    expect(releases).toContain(
+      "Pass the npm package version, not the git tag name"
+    );
+  });
 });

@@ -79,6 +79,9 @@ or local working tree:
 bun --filter olos release:verify-published 0.1.0
 ```
 
+Pass the npm package version, not the git tag name, to
+`release:verify-published`.
+
 Then verify npm signatures and provenance attestations from a temporary npm
 consumer project:
 
