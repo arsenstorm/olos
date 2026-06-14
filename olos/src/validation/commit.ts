@@ -36,14 +36,14 @@ export function assertCommit(value: unknown): asserts value is Commit {
 
   assertSafeObjectKey(value.objectKey, "commit.objectKey");
   assertSafeDeliveryUrl(value.deliveryUrl, "commit.deliveryUrl");
-  assertNonEmptyStringField(value, "committedAt");
+  assertTimestampField(value, "committedAt");
 
   if (value.etag !== undefined) {
     assertStringField(value, "etag");
   }
 
   if (value.programDateTime !== undefined) {
-    assertStringField(value, "programDateTime");
+    assertTimestampField(value, "programDateTime");
   }
 
   if (
@@ -95,12 +95,15 @@ function assertPositiveNumberField(
   }
 }
 
-function assertNonEmptyStringField(
+function assertTimestampField(
   value: Record<string, unknown>,
   field: string
 ): void {
-  if (typeof value[field] !== "string" || value[field].length === 0) {
-    throw new Error(`commit.${field} must be a non-empty string`);
+  if (
+    typeof value[field] !== "string" ||
+    Number.isNaN(Date.parse(value[field]))
+  ) {
+    throw new Error(`commit.${field} must be a valid timestamp`);
   }
 }
 

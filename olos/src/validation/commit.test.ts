@@ -93,6 +93,15 @@ describe("commit validation", () => {
     );
   });
 
+  test("rejects invalid timestamps", () => {
+    expect(() => assertCommit({ ...validCommit, committedAt: "soon" })).toThrow(
+      "commit.committedAt must be a valid timestamp"
+    );
+    expect(() =>
+      assertCommit({ ...validCommit, programDateTime: "soon" })
+    ).toThrow("commit.programDateTime must be a valid timestamp");
+  });
+
   test("rejects invalid optional fields", () => {
     expect(() =>
       assertCommit({ ...validCommit, independent: "false" })
