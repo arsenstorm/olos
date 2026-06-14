@@ -2048,6 +2048,98 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
   });
 
+  test("applies commit policy to S3 reconciliation runtime commits", async () => {
+    const headObjectInputs: unknown[] = [];
+    const notifiedCursors: Cursor[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      commitPolicy: () => ({
+        error: {
+          error: {
+            code: "olos.quota_exceeded",
+            message: "tenant quota exceeded",
+          },
+        },
+        status: "rejected",
+      }),
+      cursorNotifier: {
+        notify: (cursor) => notifiedCursors.push(cursor),
+        waitForCursor: () =>
+          Promise.reject(new Error("waiter should not be called")),
+      },
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/reconcile", {
+        committedAt: "2026-01-01T00:00:02.000Z",
+      })
+    );
+    const body =
+      (await response.json()) as StoredS3CoordinatorReconciliationResponse;
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(202);
+    expect(body.results).toEqual([
+      {
+        error: {
+          code: "olos.quota_exceeded",
+          message: "tenant quota exceeded",
+        },
+        slotId: "slot_3810",
+        status: "failed",
+      },
+    ]);
+    expect(body.summary).toMatchObject({
+      failed: 1,
+      failedErrorCodes: ["olos.quota_exceeded"],
+      failedSlotIds: ["slot_3810"],
+      ok: false,
+    });
+    expect(stored?.state.commits).toEqual([]);
+    expect(stored?.state.cursor).toBeUndefined();
+    expect(notifiedCursors).toEqual([]);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
+  });
+
   test("plans S3 reconciliation candidates through the runtime route", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({

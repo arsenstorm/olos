@@ -374,6 +374,7 @@ async function handleS3Reconciliation(
     ...parsed.payload,
     bucket: options.bucket,
     client: options.objectClient ?? options.client,
+    commitPolicy: options.commitPolicy,
     maxAttempts: options.maxAttempts,
     publicationControl: options.publicationControl,
     sessionId,
