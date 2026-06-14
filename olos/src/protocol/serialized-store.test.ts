@@ -80,6 +80,38 @@ describe("serialized coordinator store", () => {
     await expect(backend.load(session.sessionId)).resolves.toEqual(second);
   });
 
+  test("keeps memory serialized backend records isolated", async () => {
+    const backend = createMemorySerializedCoordinatorStoreBackend();
+    const first = record("1");
+
+    await expect(
+      backend.save({ record: first, sessionId: session.sessionId })
+    ).resolves.toEqual({ status: "saved" });
+
+    first.etag = "mutated_input";
+
+    const loaded = await backend.load(session.sessionId);
+
+    if (loaded === undefined) {
+      throw new Error("expected stored record");
+    }
+
+    loaded.etag = "mutated_load";
+
+    const duplicate = await backend.save({
+      record: record("2"),
+      sessionId: session.sessionId,
+    });
+
+    if (duplicate.status !== "conflict" || duplicate.current === undefined) {
+      throw new Error("expected duplicate insert conflict");
+    }
+
+    duplicate.current.etag = "mutated_conflict";
+
+    await expect(backend.load(session.sessionId)).resolves.toEqual(record("1"));
+  });
+
   test("stores JSON snapshots with monotonic etags", async () => {
     const backend = createBackend();
     const store = createSerializedCoordinatorStore(backend);

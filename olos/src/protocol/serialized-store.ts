@@ -89,7 +89,11 @@ export function createMemorySerializedCoordinatorStoreBackend(): MemorySerialize
 
   return {
     load(sessionId) {
-      return Promise.resolve(records.get(sessionId));
+      const record = records.get(sessionId);
+
+      return Promise.resolve(
+        record === undefined ? undefined : cloneRecord(record)
+      );
     },
     records,
     save(options) {
@@ -101,19 +105,19 @@ export function createMemorySerializedCoordinatorStoreBackend(): MemorySerialize
 
       if (current !== undefined && options.expectedEtag === undefined) {
         return Promise.resolve({
-          current,
+          current: cloneRecord(current),
           status: "conflict",
         });
       }
 
       if (current !== undefined && current.etag !== options.expectedEtag) {
         return Promise.resolve({
-          current,
+          current: cloneRecord(current),
           status: "conflict",
         });
       }
 
-      records.set(options.sessionId, options.record);
+      records.set(options.sessionId, cloneRecord(options.record));
       return Promise.resolve({ status: "saved" });
     },
   };
@@ -198,6 +202,15 @@ function createRecord(
   return {
     etag,
     snapshot: serializeCoordinatorPipelineSnapshot({ etag, state }),
+  };
+}
+
+function cloneRecord(
+  record: SerializedCoordinatorStoreRecord
+): SerializedCoordinatorStoreRecord {
+  return {
+    etag: record.etag,
+    snapshot: record.snapshot,
   };
 }
 
