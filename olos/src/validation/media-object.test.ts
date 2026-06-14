@@ -75,7 +75,10 @@ describe("media object validation", () => {
 
   test("rejects invalid etags", () => {
     expect(() => assertMediaObject({ ...validMediaObject, etag: 123 })).toThrow(
-      "mediaObject.etag must be a string"
+      "mediaObject.etag must be a non-empty string"
+    );
+    expect(() => assertMediaObject({ ...validMediaObject, etag: "" })).toThrow(
+      "mediaObject.etag must be a non-empty string"
     );
   });
 });

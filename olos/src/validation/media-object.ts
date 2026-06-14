@@ -30,7 +30,7 @@ export function assertMediaObject(
   assertPositiveNumberField(value, "size");
 
   if (value.etag !== undefined) {
-    assertStringField(value, "etag");
+    assertNonEmptyStringField(value, "etag");
   }
 }
 
@@ -69,14 +69,5 @@ function assertPositiveNumberField(
     value[field] <= 0
   ) {
     throw new Error(`mediaObject.${field} must be a positive number`);
-  }
-}
-
-function assertStringField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (typeof value[field] !== "string") {
-    throw new Error(`mediaObject.${field} must be a string`);
   }
 }
