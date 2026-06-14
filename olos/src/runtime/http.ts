@@ -16,6 +16,7 @@ import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { resolveRuntimeLiveHealthFromState } from "./health";
+import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
 import { planStoredCoordinatorRetention } from "./retention";
 import {
   createStoredCoordinatorSession,
@@ -30,7 +31,8 @@ import {
 } from "./stored";
 
 const DEFAULT_LIVE_PATH = "/v1/live";
-const DEFAULT_MAX_HEALTH_CURSOR_AGE_MS = 5000;
+const DEFAULT_MAX_HEALTH_CURSOR_AGE_MS =
+  createRuntimeObjectLowLatencyProfile().cursorMaxAgeMs;
 const DEFAULT_PUBLISHER_LEASE_TTL_MS = 3000;
 const DEFAULT_SESSION_PATH = "/sessions";
 const DEFAULT_TARGET_LATENCY = 3;
