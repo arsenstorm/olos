@@ -51,6 +51,7 @@ describe("s3 event normalization", () => {
   test("normalizes S3 object-created event envelopes", () => {
     expect(
       normalizeS3ObjectCreatedEvents({
+        expectedBucket: "media",
         payload: { Records: [record] },
         providerId: "s3_primary",
       })
@@ -71,6 +72,36 @@ describe("s3 event normalization", () => {
         status: "object_created",
       },
     ]);
+  });
+
+  test("rejects S3 events from unexpected buckets", () => {
+    expect(
+      normalizeS3ObjectCreatedEventRecord({
+        expectedBucket: "media",
+        providerId: "s3_primary",
+        record: {
+          ...record,
+          s3: {
+            bucket: {
+              name: "archive",
+            },
+            object: {
+              key: "media/v1080/3810.m4s",
+              sequencer: "0065A4",
+              size: 98_304,
+            },
+          },
+        },
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          message: "s3 event bucket does not match expected bucket",
+        },
+      },
+      status: "invalid_event",
+    });
   });
 
   test("decodes S3 object keys and falls back to sequencer event ids", () => {

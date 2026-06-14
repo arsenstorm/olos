@@ -304,6 +304,7 @@ async function handleS3Events(
   }
 
   const events = normalizeS3ObjectCreatedEvents({
+    expectedBucket: options.bucket,
     payload: parsed.payload,
     providerId: options.providerId,
   });

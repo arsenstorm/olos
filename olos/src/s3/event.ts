@@ -2,17 +2,20 @@ import type { UploadEventNormalization } from "../state/observed-upload";
 import { normalizeUploadEvent } from "../state/observed-upload";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
+import { assertS3BucketName } from "./bucket";
 
 const DEFAULT_S3_EVENT_CONTENT_TYPE = "application/octet-stream";
 
 export interface NormalizeS3ObjectCreatedEventRecordOptions {
   contentType?: string;
+  expectedBucket?: string;
   providerId: string;
   record: unknown;
 }
 
 export interface NormalizeS3ObjectCreatedEventsOptions {
   contentType?: string;
+  expectedBucket?: string;
   payload: unknown;
   providerId: string;
 }
@@ -30,6 +33,7 @@ export function normalizeS3ObjectCreatedEvents(
   return records.map((record) =>
     normalizeS3ObjectCreatedEventRecord({
       contentType: options.contentType,
+      expectedBucket: options.expectedBucket,
       providerId: options.providerId,
       record,
     })
@@ -58,6 +62,13 @@ export function normalizeS3ObjectCreatedEventRecord(
 
   if (!isS3BucketName(bucket.name)) {
     return invalidS3Event("s3 event bucket is invalid");
+  }
+
+  if (
+    options.expectedBucket !== undefined &&
+    bucket.name !== options.expectedBucket
+  ) {
+    return invalidS3Event("s3 event bucket does not match expected bucket");
   }
 
   const key = objectKey(object.key);
@@ -137,7 +148,16 @@ function isObjectCreatedEventName(value: unknown): boolean {
 }
 
 function isS3BucketName(value: unknown): boolean {
-  return typeof value === "string" && value.length > 0 && !value.includes("/");
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  try {
+    assertS3BucketName(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

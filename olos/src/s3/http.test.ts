@@ -1321,6 +1321,38 @@ describe("stored S3 coordinator runtime handler", () => {
     ).toBe(false);
   });
 
+  test("rejects S3 event payloads for unexpected buckets", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      providerId: "s3_primary",
+      store,
+    });
+
+    const response = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/events",
+        s3Event("live/session/v1080/3810.m4s", "archive")
+      )
+    );
+    const body =
+      (await response.json()) as StoredS3CoordinatorEventRouteResponse;
+
+    expect(response.status).toBe(202);
+    expect(body.results).toEqual([
+      {
+        error: {
+          code: "olos.invalid_state",
+          message: "s3 event bucket does not match expected bucket",
+        },
+        status: "invalid_event",
+      },
+    ]);
+  });
+
   test("routes S3 object-created event payloads", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
@@ -2748,13 +2780,13 @@ function jsonRequest(url: string, body: unknown): Request {
   });
 }
 
-function s3Event(objectKey: string) {
+function s3Event(objectKey: string, bucket = "media") {
   return {
-    Records: [s3EventRecord(objectKey, "event_3810")],
+    Records: [s3EventRecord(objectKey, "event_3810", bucket)],
   };
 }
 
-function s3EventRecord(objectKey: string, eventId: string) {
+function s3EventRecord(objectKey: string, eventId: string, bucket = "media") {
   return {
     eventName: "ObjectCreated:Put",
     eventTime: "2026-01-01T00:00:02.000Z",
@@ -2763,7 +2795,7 @@ function s3EventRecord(objectKey: string, eventId: string) {
     },
     s3: {
       bucket: {
-        name: "media",
+        name: bucket,
       },
       object: {
         eTag: eventId,
