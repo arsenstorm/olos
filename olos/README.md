@@ -612,6 +612,30 @@ Use `summarizeStoredS3CoordinatorUploadReconciliation` to count committed,
 idempotent, and failed recovery results. The summary includes failed slot IDs
 and OLOS error codes for rejected recovery commits.
 
+HTTP recovery clients can use the S3 runtime helpers over the same routes:
+
+```ts
+import {
+  planS3RuntimeReconciliation,
+  reconcileS3RuntimeUploads,
+} from "olos/s3";
+
+const plan = await planS3RuntimeReconciliation({
+  baseUrl: "https://edge.example.com",
+  payload: { slotIds: ["slot_3810"] },
+  sessionId: "session_1",
+});
+
+const recovered = await reconcileS3RuntimeUploads({
+  baseUrl: "https://edge.example.com",
+  payload: {
+    committedAt: new Date().toISOString(),
+    slotIds: plan.slotIds,
+  },
+  sessionId: "session_1",
+});
+```
+
 Retention jobs can pass retired objects from `planStoredCoordinatorRetention`
 to `deleteRetiredS3CoordinatorObjects` to delete old media objects through S3.
 Use `summarizeRetiredCoordinatorObjectDeletions` to count deleted and failed
