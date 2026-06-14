@@ -386,6 +386,45 @@ describe("committed window validation", () => {
     );
   });
 
+  test("rejects invalid program date-times", () => {
+    const firstSegment = validSegment(0);
+    const liveSegment = validSegment(2);
+    const firstPart = validPart(0);
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [{ ...firstSegment, programDateTime: "soon" }],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.segments[].programDateTime must be a valid timestamp"
+    );
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [
+              {
+                ...liveSegment,
+                parts: [{ ...firstPart, programDateTime: "soon" }],
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.segments[].parts[].programDateTime must be a valid timestamp"
+    );
+  });
+
   test("rejects unrenderable segments", () => {
     expect(() =>
       assertCommittedWindow({

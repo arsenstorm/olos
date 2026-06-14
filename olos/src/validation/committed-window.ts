@@ -122,7 +122,7 @@ function assertCommittedSegment(
   assertPositiveNumberField(value, "duration", name);
 
   if (value.programDateTime !== undefined) {
-    assertStringField(value, "programDateTime", name);
+    assertTimestampField(value, "programDateTime", name);
   }
 
   if (
@@ -202,7 +202,7 @@ function assertCommittedPart(
   assertPositiveNumberField(value, "duration", name);
 
   if (value.programDateTime !== undefined) {
-    assertStringField(value, "programDateTime", name);
+    assertTimestampField(value, "programDateTime", name);
   }
 
   if (
@@ -284,5 +284,18 @@ function assertStringField(
 ): void {
   if (typeof value[field] !== "string") {
     throw new Error(`${name}.${field} must be a string`);
+  }
+}
+
+function assertTimestampField(
+  value: Record<string, unknown>,
+  field: string,
+  name: string
+): void {
+  if (
+    typeof value[field] !== "string" ||
+    Number.isNaN(Date.parse(value[field]))
+  ) {
+    throw new Error(`${name}.${field} must be a valid timestamp`);
   }
 }
