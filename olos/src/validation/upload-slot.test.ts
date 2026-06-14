@@ -50,6 +50,12 @@ describe("upload slot validation", () => {
     ).toThrow("uploadSlot.mediaSequenceNumber must be a non-negative integer");
   });
 
+  test("rejects invalid expiry timestamps", () => {
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, expiresAt: "soon" })
+    ).toThrow("uploadSlot.expiresAt must be a valid timestamp");
+  });
+
   test("rejects unsafe object keys", () => {
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, objectKey: "/media/key.m4s" })

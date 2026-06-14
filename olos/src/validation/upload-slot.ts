@@ -36,6 +36,7 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
 
   assertPositiveNumberField(value, "duration");
   assertPositiveNumberField(value, "maxBytes");
+  assertTimestampField(value, "expiresAt");
 
   if (value.minBytes !== undefined) {
     assertNonNegativeIntegerField(value, "minBytes");
@@ -98,6 +99,18 @@ function assertPositiveNumberField(
     value[field] <= 0
   ) {
     throw new Error(`uploadSlot.${field} must be a positive number`);
+  }
+}
+
+function assertTimestampField(
+  value: Record<string, unknown>,
+  field: string
+): void {
+  if (
+    typeof value[field] !== "string" ||
+    Number.isNaN(Date.parse(value[field]))
+  ) {
+    throw new Error(`uploadSlot.${field} must be a valid timestamp`);
   }
 }
 
