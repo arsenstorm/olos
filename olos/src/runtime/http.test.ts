@@ -476,6 +476,30 @@ describe("stored coordinator runtime handler", () => {
     expect(stored?.state.publisherLeases).toHaveLength(1);
   });
 
+  test("uses the object low-latency cursor staleness default for health", async () => {
+    const store = createMemoryCoordinatorStore();
+    await seedRuntimeStore(store, 3810);
+
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      now: () => "2026-01-01T00:00:06.500Z",
+      store,
+    });
+
+    const response = await handle(
+      new Request("https://edge.example.com/sessions/session_1/health")
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      health: {
+        cursorAgeMs: 4500,
+        cursorFreshness: "fresh",
+        status: "active",
+      },
+    });
+  });
+
   test("rejects invalid heartbeat publisher identifiers", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],

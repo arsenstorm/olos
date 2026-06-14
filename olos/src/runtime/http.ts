@@ -30,6 +30,7 @@ import {
 } from "./stored";
 
 const DEFAULT_LIVE_PATH = "/v1/live";
+const DEFAULT_MAX_HEALTH_CURSOR_AGE_MS = 5000;
 const DEFAULT_PUBLISHER_LEASE_TTL_MS = 3000;
 const DEFAULT_SESSION_PATH = "/sessions";
 const DEFAULT_TARGET_LATENCY = 3;
@@ -353,8 +354,7 @@ async function handleGetSessionActionRoute(
       {
         health: resolveRuntimeLiveHealthFromState({
           maxCursorAgeMs:
-            options.maxHealthCursorAgeMs ??
-            (options.targetLatency ?? DEFAULT_TARGET_LATENCY) * 1000,
+            options.maxHealthCursorAgeMs ?? DEFAULT_MAX_HEALTH_CURSOR_AGE_MS,
           now: currentNow(options),
           ...(publisherInstanceId === null ? {} : { publisherInstanceId }),
           state: snapshot.state,
