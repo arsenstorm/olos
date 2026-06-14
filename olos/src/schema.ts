@@ -40,6 +40,11 @@ const pathwayBaseUrl = {
   pattern: "^https?://[^?#]+$",
   type: "string",
 } as const;
+const deliveryUrl = {
+  minLength: 1,
+  pattern: "^(?:/(?!/)|https?://)[^?#]+$",
+  type: "string",
+} as const;
 const stringMap = {
   additionalProperties: { type: "string" },
   type: "object",
@@ -147,7 +152,7 @@ const committedObjectSchema = {
   properties: {
     commitId: id,
     contentType: nonEmptyString,
-    deliveryUrl: nonEmptyString,
+    deliveryUrl,
     duration: positiveNumber,
     etag: nonEmptyString,
     objectKey,
@@ -255,7 +260,7 @@ export const OLOS_UPLOAD_SLOT_SCHEMA = {
   additionalProperties: false,
   properties: {
     contentType: nonEmptyString,
-    deliveryUrl: nonEmptyString,
+    deliveryUrl,
     duration: positiveNumber,
     epoch: nonNegativeInteger,
     expiresAt: timestamp,
@@ -301,7 +306,7 @@ export const OLOS_COMMIT_SCHEMA = {
   properties: {
     commitId: id,
     committedAt: timestamp,
-    deliveryUrl: nonEmptyString,
+    deliveryUrl,
     duration: positiveNumber,
     epoch: nonNegativeInteger,
     etag: nonEmptyString,
