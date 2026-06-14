@@ -1,6 +1,17 @@
 // biome-ignore-all lint/performance/noBarrelFile: public S3 facade for the olos/s3 export
 
 export {
+  completeS3RuntimeUpload,
+  issueS3RuntimeUploadGrant,
+  type S3RuntimeCompleteUploadOptions,
+  type S3RuntimeCompleteUploadResponse,
+  type S3RuntimeCompletionHintPayload,
+  type S3RuntimeHttpClientOptions,
+  S3RuntimeHttpError,
+  type S3RuntimeIssueUploadGrantOptions,
+  type S3RuntimeIssueUploadGrantResponse,
+} from "./s3/client";
+export {
   type CommitS3CoordinatorUploadOptions,
   type CommitStoredS3CoordinatorUploadOptions,
   type CompleteStoredS3CoordinatorUploadByObjectKeyOptions,
