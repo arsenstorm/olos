@@ -85,6 +85,10 @@ describe("OLOS JSON schemas", () => {
     expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.kind.enum).toEqual(
       MEDIA_OBJECT_KINDS
     );
+    expect(OLOS_PATHWAY_SCHEMA.properties.baseUrl).toMatchObject({
+      format: "uri",
+      pattern: "^https?://[^?#]+$",
+    });
     expect(OLOS_PATHWAY_SCHEMA.required).toContain("state");
   });
 

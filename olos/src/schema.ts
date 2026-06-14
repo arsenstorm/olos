@@ -34,6 +34,12 @@ const absoluteHttpUrl = {
   minLength: 1,
   type: "string",
 } as const;
+const pathwayBaseUrl = {
+  format: "uri",
+  minLength: 1,
+  pattern: "^https?://[^?#]+$",
+  type: "string",
+} as const;
 const stringMap = {
   additionalProperties: { type: "string" },
   type: "object",
@@ -365,7 +371,7 @@ export const OLOS_PATHWAY_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
   properties: {
-    baseUrl: nonEmptyString,
+    baseUrl: pathwayBaseUrl,
     pathwayId: id,
     priority: nonNegativeInteger,
     providerId: id,
