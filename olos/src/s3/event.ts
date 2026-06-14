@@ -47,6 +47,13 @@ export function normalizeS3ObjectCreatedEventRecord(
     return invalidS3Event("providerId must be a non-empty URL-safe identifier");
   }
 
+  if (
+    options.expectedBucket !== undefined &&
+    !isS3BucketName(options.expectedBucket)
+  ) {
+    return invalidS3Event("expectedBucket is invalid");
+  }
+
   const record = asRecord(options.record);
   const s3 = asRecord(record?.s3);
   const bucket = asRecord(s3?.bucket);

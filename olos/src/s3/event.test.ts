@@ -77,6 +77,22 @@ describe("s3 event normalization", () => {
   test("rejects S3 events from unexpected buckets", () => {
     expect(
       normalizeS3ObjectCreatedEventRecord({
+        expectedBucket: "media/live",
+        providerId: "s3_primary",
+        record,
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          message: "expectedBucket is invalid",
+        },
+      },
+      status: "invalid_event",
+    });
+
+    expect(
+      normalizeS3ObjectCreatedEventRecord({
         expectedBucket: "media",
         providerId: "s3_primary",
         record: {
