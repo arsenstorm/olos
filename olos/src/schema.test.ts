@@ -15,6 +15,7 @@ import {
   OLOS_UPLOAD_GRANT_SCHEMA,
   OLOS_UPLOAD_SLOT_SCHEMA,
 } from "./schema";
+import { CONTENT_TYPE_SCHEMA_PATTERN } from "./validation/content-type";
 
 describe("OLOS JSON schemas", () => {
   test("exports stable wire schema names", () => {
@@ -52,6 +53,9 @@ describe("OLOS JSON schemas", () => {
       pattern:
         "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
     });
+    expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.contentType).toMatchObject({
+      pattern: CONTENT_TYPE_SCHEMA_PATTERN,
+    });
     expect(OLOS_COMMIT_SCHEMA.properties.deliveryUrl).toMatchObject({
       pattern:
         "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
@@ -83,6 +87,9 @@ describe("OLOS JSON schemas", () => {
     });
     expect(OLOS_MEDIA_OBJECT_SCHEMA.properties.providerId).toMatchObject({
       pattern: "^[A-Za-z0-9_-]+$",
+    });
+    expect(OLOS_MEDIA_OBJECT_SCHEMA.properties.contentType).toMatchObject({
+      pattern: CONTENT_TYPE_SCHEMA_PATTERN,
     });
     expect(Object.hasOwn(OLOS_MEDIA_OBJECT_SCHEMA.properties, "kind")).toBe(
       false

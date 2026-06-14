@@ -126,6 +126,15 @@ describe("upload slot validation", () => {
     ).toThrow("uploadSlot.objectKey must use a supported media extension");
   });
 
+  test("rejects invalid content types", () => {
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, contentType: "" })
+    ).toThrow("uploadSlot.contentType must be a valid content type");
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, contentType: "video" })
+    ).toThrow("uploadSlot.contentType must be a valid content type");
+  });
+
   test("rejects invalid byte limits", () => {
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, minBytes: 20, maxBytes: 10 })

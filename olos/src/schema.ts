@@ -13,6 +13,7 @@ import {
   SESSION_STATES,
 } from "./config/session";
 import { UPLOAD_SLOT_STATES } from "./config/upload-slot";
+import { CONTENT_TYPE_SCHEMA_PATTERN } from "./validation/content-type";
 import { HTTP_HEADER_NAME_SCHEMA_PATTERN } from "./validation/http-header";
 
 export interface OlosJsonSchema {
@@ -27,6 +28,10 @@ const SAFE_OBJECT_KEY_PATTERN =
 
 const id = { minLength: 1, pattern: ID_PATTERN, type: "string" } as const;
 const nonEmptyString = { minLength: 1, type: "string" } as const;
+const contentType = {
+  pattern: CONTENT_TYPE_SCHEMA_PATTERN,
+  type: "string",
+} as const;
 const nonNegativeInteger = { minimum: 0, type: "integer" } as const;
 const positiveNumber = { exclusiveMinimum: 0, type: "number" } as const;
 const timestamp = { format: "date-time", type: "string" } as const;
@@ -154,7 +159,7 @@ const committedObjectSchema = {
   additionalProperties: false,
   properties: {
     commitId: id,
-    contentType: nonEmptyString,
+    contentType,
     deliveryUrl,
     duration: positiveNumber,
     etag: nonEmptyString,
@@ -262,7 +267,7 @@ export const OLOS_UPLOAD_SLOT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
   properties: {
-    contentType: nonEmptyString,
+    contentType,
     deliveryUrl,
     duration: positiveNumber,
     epoch: nonNegativeInteger,
@@ -363,7 +368,7 @@ export const OLOS_MEDIA_OBJECT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
   properties: {
-    contentType: nonEmptyString,
+    contentType,
     etag: nonEmptyString,
     objectKey,
     observedAt: timestamp,

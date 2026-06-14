@@ -1,4 +1,5 @@
 import type { MediaObject } from "../types/media-object";
+import { assertContentType } from "./content-type";
 import { isUrlSafeIdentifier } from "./ids";
 import { assertSafeObjectKey } from "./object-key";
 
@@ -25,7 +26,7 @@ export function assertMediaObject(
   }
 
   assertSafeObjectKey(value.objectKey, "mediaObject.objectKey");
-  assertNonEmptyStringField(value, "contentType");
+  assertContentType(value.contentType, "mediaObject.contentType");
   assertIsoDateField(value, "observedAt");
   assertPositiveNumberField(value, "size");
 

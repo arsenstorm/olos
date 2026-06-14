@@ -58,7 +58,16 @@ describe("media object validation", () => {
   test("rejects missing content types", () => {
     expect(() =>
       assertMediaObject({ ...validMediaObject, contentType: "" })
-    ).toThrow("mediaObject.contentType must be a non-empty string");
+    ).toThrow("mediaObject.contentType must be a valid content type");
+    expect(() =>
+      assertMediaObject({ ...validMediaObject, contentType: "video" })
+    ).toThrow("mediaObject.contentType must be a valid content type");
+    expect(() =>
+      assertMediaObject({
+        ...validMediaObject,
+        contentType: "video/mp4\ntext/html",
+      })
+    ).toThrow("mediaObject.contentType must be a valid content type");
   });
 
   test("rejects invalid observation timestamps", () => {

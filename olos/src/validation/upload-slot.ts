@@ -3,6 +3,7 @@ import { PUBLICATION_MODES } from "../config/publication";
 import { UPLOAD_SLOT_STATES } from "../config/upload-slot";
 import type { MediaObjectKind } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
+import { assertContentType } from "./content-type";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
 import { assertSafeMediaObjectKey } from "./object-key";
@@ -55,7 +56,7 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
     "uploadSlot.objectKey"
   );
   assertSafeDeliveryUrl(value.deliveryUrl, "uploadSlot.deliveryUrl");
-  assertNonEmptyStringField(value, "contentType");
+  assertContentType(value.contentType, "uploadSlot.contentType");
 
   assertAllowedValue(
     value.publicationMode,
@@ -111,15 +112,6 @@ function assertTimestampField(
     Number.isNaN(Date.parse(value[field]))
   ) {
     throw new Error(`uploadSlot.${field} must be a valid timestamp`);
-  }
-}
-
-function assertNonEmptyStringField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (typeof value[field] !== "string" || value[field].length === 0) {
-    throw new Error(`uploadSlot.${field} must be a non-empty string`);
   }
 }
 
