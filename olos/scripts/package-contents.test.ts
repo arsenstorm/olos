@@ -34,6 +34,26 @@ describe("package contents verifier", () => {
       "package contains private file: dist/index.test.js"
     );
   });
+
+  test("rejects test declarations inside published roots", async () => {
+    const root = await createPackageRoot();
+
+    await writeFile(join(root, "dist", "index.test.d.ts"), "");
+
+    await expect(assertInstalledPackageContents(root)).rejects.toThrow(
+      "package contains private file: dist/index.test.d.ts"
+    );
+  });
+
+  test("rejects spec files inside published roots", async () => {
+    const root = await createPackageRoot();
+
+    await writeFile(join(root, "dist", "index.spec.js"), "");
+
+    await expect(assertInstalledPackageContents(root)).rejects.toThrow(
+      "package contains private file: dist/index.spec.js"
+    );
+  });
 });
 
 async function createPackageRoot(): Promise<string> {

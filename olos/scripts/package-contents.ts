@@ -9,7 +9,7 @@ const forbiddenPackagePaths = [
   /^live(?:\/|$)/,
   /^scripts(?:\/|$)/,
   /^src(?:\/|$)/,
-  /(?:^|\/)[^/]+\.test\.[cm]?[jt]s$/,
+  /(?:^|\/)[^/]+\.(?:test|spec)(?:\.d)?\.[cm]?[jt]s$/,
   /(?:^|\/)tsconfig(?:\.[^.]+)?\.json$/,
 ] as const;
 
