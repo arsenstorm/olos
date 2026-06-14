@@ -89,6 +89,7 @@ export const expectedRuntimeExports = {
   ],
   "olos/s3": [
     "completeS3RuntimeUpload",
+    "commitS3RuntimeUpload",
     "createPresignedS3UploadGrant",
     "createS3UploadGrant",
     "createObservedUploadFromS3HeadObject",
@@ -229,6 +230,7 @@ import type {
 } from "olos/runtime";
 import {
   completeS3RuntimeUpload,
+  commitS3RuntimeUpload,
   createObservedUploadFromS3HeadObject,
   createPresignedS3UploadGrant,
   createS3UploadGrant,
@@ -247,6 +249,8 @@ import {
   summarizeStoredS3PublisherUploadStep,
 } from "olos/s3";
 import type {
+  S3RuntimeCommitPayload,
+  S3RuntimeCommitUploadOptions,
   S3RuntimeCompleteUploadOptions,
   S3RuntimeCompletionHintPayload,
   S3RuntimeIssueUploadGrantOptions,
@@ -358,6 +362,8 @@ const s3RuntimeGrantClient: typeof issueS3RuntimeUploadGrant =
   issueS3RuntimeUploadGrant;
 const s3RuntimeCompletionClient: typeof completeS3RuntimeUpload =
   completeS3RuntimeUpload;
+const s3RuntimeCommitClient: typeof commitS3RuntimeUpload =
+  commitS3RuntimeUpload;
 const presignedS3Grant: typeof createPresignedS3UploadGrant =
   createPresignedS3UploadGrant;
 const observedS3HeadObject: typeof createObservedUploadFromS3HeadObject =
@@ -486,6 +492,12 @@ const s3CompletionHint = {
   objectKey: slot.objectKey,
   size: 98_304,
 } satisfies S3RuntimeCompletionHintPayload;
+const s3RuntimeCommitPayload = {
+  commitId: "commit_3810",
+  committedAt: "2026-01-01T00:00:02.000Z",
+  objectKey: slot.objectKey,
+  slotId: slot.slotId,
+} satisfies S3RuntimeCommitPayload;
 const s3RuntimeGrantOptions = {
   baseUrl: "https://edge.example.com",
   payload: {
@@ -510,6 +522,11 @@ const s3RuntimeCompletionOptions = {
   sessionId: slot.sessionId,
   slotId: slot.slotId,
 } satisfies S3RuntimeCompleteUploadOptions;
+const s3RuntimeCommitOptions = {
+  baseUrl: "https://edge.example.com",
+  payload: s3RuntimeCommitPayload,
+  sessionId: slot.sessionId,
+} satisfies S3RuntimeCommitUploadOptions;
 
 const s3SlotGrantResponse: StoredS3CoordinatorSlotGrantResponse = {
   grant,
@@ -624,6 +641,7 @@ directPublicRequestPolicy satisfies typeof resolveDirectPublicMediaRequestPolicy
 s3RuntimeHandler satisfies typeof createStoredS3CoordinatorRuntimeHandler;
 s3RuntimeGrantClient satisfies typeof issueS3RuntimeUploadGrant;
 s3RuntimeCompletionClient satisfies typeof completeS3RuntimeUpload;
+s3RuntimeCommitClient satisfies typeof commitS3RuntimeUpload;
 presignedS3Grant satisfies typeof createPresignedS3UploadGrant;
 observedS3HeadObject satisfies typeof createObservedUploadFromS3HeadObject;
 observeS3 satisfies typeof observeS3Object;
@@ -666,8 +684,10 @@ s3PublisherLateTolerance satisfies Pick<
   "lateToleranceMs"
 >;
 s3CompletionHint satisfies S3RuntimeCompletionHintPayload;
+s3RuntimeCommitPayload satisfies S3RuntimeCommitPayload;
 s3RuntimeGrantOptions satisfies S3RuntimeIssueUploadGrantOptions;
 s3RuntimeCompletionOptions satisfies S3RuntimeCompleteUploadOptions;
+s3RuntimeCommitOptions satisfies S3RuntimeCommitUploadOptions;
 `.trimStart();
 }
 

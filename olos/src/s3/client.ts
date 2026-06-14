@@ -37,6 +37,25 @@ export interface S3RuntimeCompleteUploadOptions
   slotId: string;
 }
 
+export interface S3RuntimeCommitUploadOptions
+  extends S3RuntimeHttpClientOptions {
+  payload: S3RuntimeCommitPayload;
+  sessionId: string;
+}
+
+export interface S3RuntimeCommitPayload {
+  commitId: string;
+  committedAt: string;
+  independent?: boolean;
+  lateToleranceMs?: number;
+  maxSegments?: number;
+  objectKey?: string;
+  programDateTime?: string;
+  providerId?: string;
+  slotId: string;
+  versionId?: string;
+}
+
 export interface S3RuntimeCompletionHintPayload {
   commitId?: string;
   committedAt?: string;
@@ -58,6 +77,12 @@ export interface S3RuntimeIssueUploadGrantResponse {
 }
 
 export interface S3RuntimeCompleteUploadResponse {
+  commit: Commit;
+  cursor?: Cursor;
+  response: Response;
+}
+
+export interface S3RuntimeCommitUploadResponse {
   commit: Commit;
   cursor?: Cursor;
   response: Response;
@@ -91,6 +116,24 @@ export async function completeS3RuntimeUpload(
 
   if (!response.ok) {
     throw await s3RuntimeHttpError("S3 upload completion", response);
+  }
+
+  return {
+    ...commitPayload(await response.json()),
+    response,
+  };
+}
+
+export async function commitS3RuntimeUpload(
+  options: S3RuntimeCommitUploadOptions
+): Promise<S3RuntimeCommitUploadResponse> {
+  const response = await fetchFor(options)(
+    sessionUrl(options.baseUrl, options.sessionId, "s3/commits"),
+    jsonPost(options.payload)
+  );
+
+  if (!response.ok) {
+    throw await s3RuntimeHttpError("S3 upload commit", response);
   }
 
   return {

@@ -9,6 +9,7 @@ import { createRuntimeSession, type RuntimeFetch } from "../runtime";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
+  commitS3RuntimeUpload,
   completeS3RuntimeUpload,
   issueS3RuntimeUploadGrant,
   S3RuntimeHttpError,
@@ -60,7 +61,10 @@ describe("S3 runtime HTTP client", () => {
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
-        { "live/session/v1080/init.mp4": 1024 },
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+          "live/session/v1080/init.mp4": 1024,
+        },
         headObjectInputs
       ),
       providerId: "s3_primary",
@@ -94,32 +98,73 @@ describe("S3 runtime HTTP client", () => {
       },
       sessionId: session.sessionId,
     });
+    const segment = await issueS3RuntimeUploadGrant({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      payload: {
+        contentType: "video/mp4",
+        deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+        duration: 2,
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKey: "live/session/v1080/3810.m4s",
+        publicationMode: "direct-public",
+        publisherInstanceId: "publisher_1",
+        renditionId: "v1080",
+        slotId: "slot_3810",
+      },
+      sessionId: session.sessionId,
+    });
+    const committed = await commitS3RuntimeUpload({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      payload: {
+        commitId: "commit_init",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        objectKey: "live/session/v1080/init.mp4",
+        slotId: issued.slot.slotId,
+      },
+      sessionId: session.sessionId,
+    });
     const completed = await completeS3RuntimeUpload({
       baseUrl: "https://edge.example.com",
       fetch: clientFetch,
       payload: {
-        committedAt: "2026-01-01T00:00:02.000Z",
-        etag: '"live/session/v1080/init.mp4"',
-        objectKey: "live/session/v1080/init.mp4",
-        size: 1024,
+        committedAt: "2026-01-01T00:00:03.000Z",
+        etag: '"live/session/v1080/3810.m4s"',
+        independent: true,
+        objectKey: "live/session/v1080/3810.m4s",
+        size: 98_304,
       },
       sessionId: session.sessionId,
-      slotId: issued.slot.slotId,
+      slotId: segment.slot.slotId,
     });
 
     expect(issued.response.status).toBe(201);
     expect(issued.grant.slotId).toBe("slot_init");
     expect(issued.slot.objectKey).toBe("live/session/v1080/init.mp4");
-    expect(completed.response.status).toBe(201);
-    expect(completed.commit).toMatchObject({
-      commitId: "complete_slot_init",
+    expect(committed.response.status).toBe(201);
+    expect(committed.commit).toMatchObject({
+      commitId: "commit_init",
       objectKey: "live/session/v1080/init.mp4",
       slotId: "slot_init",
+    });
+    expect(completed.response.status).toBe(201);
+    expect(completed.commit).toMatchObject({
+      commitId: "complete_slot_3810",
+      objectKey: "live/session/v1080/3810.m4s",
+      slotId: "slot_3810",
     });
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
         Key: "live/session/v1080/init.mp4",
+      },
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
       },
     ]);
   });
@@ -159,6 +204,19 @@ describe("S3 runtime HTTP client", () => {
       message: "S3 upload grant issue failed with status 404",
       status: 404,
     });
+
+    await expect(
+      commitS3RuntimeUpload({
+        baseUrl: "https://edge.example.com",
+        fetch: clientFetch,
+        payload: {
+          commitId: "commit_init",
+          committedAt: "2026-01-01T00:00:02.000Z",
+          slotId: "slot_init",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("S3 upload commit failed with status 404");
 
     await expect(
       completeS3RuntimeUpload({
