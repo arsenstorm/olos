@@ -108,6 +108,19 @@ describe("S3 retention", () => {
         ],
       })
     ).rejects.toThrow("bucket must be a non-empty string");
+    await expect(
+      deleteRetiredS3CoordinatorObjects({
+        bucket: "media/live",
+        client: clientFor(inputs),
+        objects: [
+          {
+            commitId: "commit_3810",
+            objectKey: "media/s3810.m4s",
+            slotId: "slot_3810",
+          },
+        ],
+      })
+    ).rejects.toThrow("bucket must not contain path separators");
     expect(inputs).toEqual([]);
   });
 

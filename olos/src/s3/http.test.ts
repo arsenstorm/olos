@@ -79,6 +79,12 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(() =>
       createStoredS3CoordinatorRuntimeHandler({
         ...options,
+        bucket: "media/live",
+      })
+    ).toThrow("bucket must not contain path separators");
+    expect(() =>
+      createStoredS3CoordinatorRuntimeHandler({
+        ...options,
         expiresInSeconds: 0,
       })
     ).toThrow("expiresInSeconds must be a positive number");

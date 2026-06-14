@@ -6,6 +6,7 @@ import { createObservedUpload } from "../state/observed-upload";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import type { ObservedUpload } from "../validation/observed-upload";
+import { assertS3BucketName } from "./bucket";
 
 export interface S3HeadObjectClient {
   send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput>;
@@ -51,10 +52,7 @@ export async function observeS3Object(
 }
 
 function assertObserveS3ObjectOptions(options: ObserveS3ObjectOptions): void {
-  if (options.bucket.length === 0) {
-    throw new Error("bucket must be a non-empty string");
-  }
-
+  assertS3BucketName(options.bucket);
   assertSafeObjectKey(options.objectKey, "objectKey");
   assertUrlSafeIdentifier(options.providerId, "providerId");
 

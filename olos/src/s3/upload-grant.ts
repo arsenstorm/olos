@@ -6,6 +6,7 @@ import {
 } from "../state/upload-grant";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
+import { assertS3BucketName } from "./bucket";
 
 const S3_METADATA_HEADER_PREFIX = "x-amz-meta-olos-";
 
@@ -145,16 +146,6 @@ function assertPresignedS3UploadGrantOptions(
   }
 
   timestampMs(options.now ?? new Date(), "now");
-}
-
-function assertS3BucketName(value: string): void {
-  if (value.length === 0) {
-    throw new Error("bucket must be a non-empty string");
-  }
-
-  if (value.includes("/")) {
-    throw new Error("bucket must not contain path separators");
-  }
 }
 
 function createRequiredHeaders(

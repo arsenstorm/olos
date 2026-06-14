@@ -9,6 +9,7 @@ import type { OlosErrorCode } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertUrlSafeIdentifier } from "../validation/ids";
+import { assertS3BucketName } from "./bucket";
 import {
   commitStoredS3CoordinatorUpload,
   type StoredS3CoordinatorManifestOptions,
@@ -121,10 +122,7 @@ export async function reconcileStoredS3CoordinatorUploads(
 function assertReconciliationOptions(
   options: ReconcileStoredS3CoordinatorUploadsOptions
 ): void {
-  if (options.bucket.length === 0) {
-    throw new Error("bucket must be a non-empty string");
-  }
-
+  assertS3BucketName(options.bucket);
   assertUrlSafeIdentifier(options.providerId, "providerId");
 }
 

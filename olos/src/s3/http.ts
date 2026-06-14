@@ -23,6 +23,7 @@ import {
   assertSafeMediaObjectKey,
   assertSafeObjectKey,
 } from "../validation/object-key";
+import { assertS3BucketName } from "./bucket";
 import {
   completeStoredS3CoordinatorUpload,
   issueStoredS3CoordinatorUploadGrant,
@@ -172,10 +173,7 @@ export function createStoredS3CoordinatorRuntimeHandler(
 function assertS3HandlerOptions(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): void {
-  if (options.bucket.length === 0) {
-    throw new Error("bucket must be a non-empty string");
-  }
-
+  assertS3BucketName(options.bucket);
   if (
     !Number.isFinite(options.expiresInSeconds) ||
     options.expiresInSeconds <= 0

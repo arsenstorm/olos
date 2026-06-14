@@ -8,6 +8,7 @@ import {
   type RetiredCoordinatorObjectDeletionResult,
 } from "../runtime/retention";
 import { assertSafeObjectKey } from "../validation/object-key";
+import { assertS3BucketName } from "./bucket";
 
 export interface S3DeleteObjectClient {
   send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput>;
@@ -22,9 +23,7 @@ export interface DeleteRetiredS3CoordinatorObjectsOptions {
 export async function deleteRetiredS3CoordinatorObjects(
   options: DeleteRetiredS3CoordinatorObjectsOptions
 ): Promise<RetiredCoordinatorObjectDeletionResult> {
-  if (options.bucket.length === 0) {
-    throw new Error("bucket must be a non-empty string");
-  }
+  assertS3BucketName(options.bucket);
 
   return await deleteRetiredCoordinatorObjects({
     deleteObject: async (object) => {

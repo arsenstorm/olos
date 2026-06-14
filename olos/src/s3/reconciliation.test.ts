@@ -281,6 +281,9 @@ describe("stored S3 upload reconciliation", () => {
       reconcileStoredS3CoordinatorUploads({ ...options, bucket: "" })
     ).rejects.toThrow("bucket must be a non-empty string");
     await expect(
+      reconcileStoredS3CoordinatorUploads({ ...options, bucket: "media/live" })
+    ).rejects.toThrow("bucket must not contain path separators");
+    await expect(
       reconcileStoredS3CoordinatorUploads({
         ...options,
         providerId: "../provider",

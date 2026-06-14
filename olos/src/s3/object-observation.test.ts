@@ -130,6 +130,9 @@ describe("s3 object observation", () => {
       "bucket must be a non-empty string"
     );
     await expect(
+      observeS3Object({ ...options, bucket: "media/live" })
+    ).rejects.toThrow("bucket must not contain path separators");
+    await expect(
       observeS3Object({
         ...options,
         objectKey: "live/session/../secret.m4s",
