@@ -61,6 +61,10 @@ function assertAbsoluteHttpUrl(value: unknown, name: string): void {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error(`${name} must be an absolute HTTP(S) URL`);
   }
+
+  if (url.search.length > 0 || url.hash.length > 0) {
+    throw new Error(`${name} must not contain query strings or fragments`);
+  }
 }
 
 function assertAllowedValue<const Values extends readonly string[]>(

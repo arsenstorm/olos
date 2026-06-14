@@ -49,6 +49,20 @@ describe("pathway validation", () => {
     expect(() =>
       assertPathway({ ...validPathway, baseUrl: "ftp://media.example.com" })
     ).toThrow("pathway.baseUrl must be an absolute HTTP(S) URL");
+
+    expect(() =>
+      assertPathway({
+        ...validPathway,
+        baseUrl: "https://media.example.com/live?token=abc",
+      })
+    ).toThrow("pathway.baseUrl must not contain query strings or fragments");
+
+    expect(() =>
+      assertPathway({
+        ...validPathway,
+        baseUrl: "https://media.example.com/live#media",
+      })
+    ).toThrow("pathway.baseUrl must not contain query strings or fragments");
   });
 
   test("rejects invalid priority", () => {
