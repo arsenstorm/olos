@@ -25,10 +25,12 @@ export function readLiveS3ConfigFromEnv(env: LiveS3Env): LiveS3Config {
     "OLOS_LIVE_S3_SECRET_ACCESS_KEY",
   ]);
 
+  assertLiveS3Bucket(required.OLOS_LIVE_S3_BUCKET);
+
   return {
     accessKeyId: required.OLOS_LIVE_S3_ACCESS_KEY_ID,
     bucket: required.OLOS_LIVE_S3_BUCKET,
-    endpoint: env.OLOS_LIVE_S3_ENDPOINT,
+    endpoint: readLiveS3Endpoint(env),
     forcePathStyle: readBoolEnv(
       env,
       "OLOS_LIVE_S3_FORCE_PATH_STYLE",
@@ -39,6 +41,34 @@ export function readLiveS3ConfigFromEnv(env: LiveS3Env): LiveS3Config {
     secretAccessKey: required.OLOS_LIVE_S3_SECRET_ACCESS_KEY,
     status: "enabled",
   };
+}
+
+function readLiveS3Endpoint(env: LiveS3Env): string | undefined {
+  const endpoint = env.OLOS_LIVE_S3_ENDPOINT;
+
+  if (endpoint === undefined) {
+    return;
+  }
+
+  let url: URL;
+
+  try {
+    url = new URL(endpoint);
+  } catch {
+    throw new Error("OLOS_LIVE_S3_ENDPOINT must be an absolute HTTP(S) URL");
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("OLOS_LIVE_S3_ENDPOINT must be an absolute HTTP(S) URL");
+  }
+
+  if (url.pathname !== "/" || url.search !== "" || url.hash !== "") {
+    throw new Error(
+      "OLOS_LIVE_S3_ENDPOINT must not include a path, query, or fragment"
+    );
+  }
+
+  return endpoint;
 }
 
 function readLiveS3Prefix(env: LiveS3Env): string {
@@ -62,6 +92,14 @@ function readLiveS3Prefix(env: LiveS3Env): string {
   }
 
   return prefix;
+}
+
+function assertLiveS3Bucket(value: string): void {
+  if (hasControlCharacter(value) || value.includes("/")) {
+    throw new Error(
+      "OLOS_LIVE_S3_BUCKET must not contain path separators or control characters"
+    );
+  }
 }
 
 function hasControlCharacter(value: string): boolean {

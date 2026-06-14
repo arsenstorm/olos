@@ -9,6 +9,8 @@ const requiredEnv = {
   OLOS_LIVE_S3_SECRET_ACCESS_KEY: "secret",
 } satisfies LiveS3Env;
 
+const liveS3EndpointError = /OLOS_LIVE_S3_ENDPOINT must/;
+
 describe("live S3 config", () => {
   test("is disabled unless explicitly enabled", () => {
     expect(readLiveS3ConfigFromEnv({})).toEqual({ status: "disabled" });
@@ -55,6 +57,21 @@ describe("live S3 config", () => {
     ).toMatchObject({ forcePathStyle: expected });
   });
 
+  test.each([
+    "not a url",
+    "ftp://s3.example.com",
+    "https://s3.example.com/bucket",
+    "https://s3.example.com?bucket=media",
+    "https://s3.example.com#media",
+  ])("rejects invalid endpoint %s", (endpoint) => {
+    expect(() =>
+      readLiveS3ConfigFromEnv({
+        ...requiredEnv,
+        OLOS_LIVE_S3_ENDPOINT: endpoint,
+      })
+    ).toThrow(liveS3EndpointError);
+  });
+
   test("rejects invalid force path style values", () => {
     expect(() =>
       readLiveS3ConfigFromEnv({
@@ -67,6 +84,20 @@ describe("live S3 config", () => {
   test("reports every missing required value", () => {
     expect(() => readLiveS3ConfigFromEnv({ OLOS_LIVE_S3: "1" })).toThrow(
       "Missing required live S3 env when OLOS_LIVE_S3=1: OLOS_LIVE_S3_ACCESS_KEY_ID, OLOS_LIVE_S3_BUCKET, OLOS_LIVE_S3_REGION, OLOS_LIVE_S3_SECRET_ACCESS_KEY"
+    );
+  });
+
+  test.each([
+    "media/live",
+    "media\u0001bad",
+  ])("rejects unsafe bucket %s", (bucket) => {
+    expect(() =>
+      readLiveS3ConfigFromEnv({
+        ...requiredEnv,
+        OLOS_LIVE_S3_BUCKET: bucket,
+      })
+    ).toThrow(
+      "OLOS_LIVE_S3_BUCKET must not contain path separators or control characters"
     );
   });
 

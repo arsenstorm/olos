@@ -47,6 +47,9 @@ OLOS_LIVE_S3_PREFIX=olos-live-s3
 ```
 
 `OLOS_LIVE_S3_FORCE_PATH_STYLE` accepts `true`, `false`, `1`, or `0`.
+`OLOS_LIVE_S3_ENDPOINT`, when set, must be an absolute HTTP(S) origin without
+a path, query string, or fragment. `OLOS_LIVE_S3_BUCKET` must be a bucket name,
+not a bucket plus object prefix.
 
 `OLOS_LIVE_S3_PREFIX` must be a safe relative object prefix. The test rejects
 empty prefixes, traversal segments, query strings, fragments, duplicate path
