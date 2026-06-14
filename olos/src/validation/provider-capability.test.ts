@@ -191,6 +191,30 @@ describe("provider capability validation", () => {
     ).toThrow(
       "providerCapability.delivery.publicBaseUrl must be an absolute HTTP(S) URL"
     );
+
+    expect(() =>
+      assertProviderCapabilityDocument({
+        ...capability,
+        delivery: {
+          ...capability.delivery,
+          publicBaseUrl: "https://media.example.com/live?token=abc",
+        },
+      })
+    ).toThrow(
+      "providerCapability.delivery.publicBaseUrl must not contain query strings or fragments"
+    );
+
+    expect(() =>
+      assertProviderCapabilityDocument({
+        ...capability,
+        delivery: {
+          ...capability.delivery,
+          publicBaseUrl: "https://media.example.com/live#media",
+        },
+      })
+    ).toThrow(
+      "providerCapability.delivery.publicBaseUrl must not contain query strings or fragments"
+    );
   });
 
   test("rejects missing negative caching declarations", () => {

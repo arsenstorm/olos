@@ -92,6 +92,13 @@ describe("OLOS JSON schemas", () => {
       OLOS_PROVIDER_CAPABILITY_SCHEMA.properties.uploadGrants.properties
         .presignedPut
     ).toEqual({ type: "boolean" });
+    expect(
+      OLOS_PROVIDER_CAPABILITY_SCHEMA.properties.delivery.properties
+        .publicBaseUrl
+    ).toMatchObject({
+      format: "uri",
+      pattern: "^https?://[^?#]+$",
+    });
     expect(OLOS_ERROR_SCHEMA.properties.error.properties.code.enum).toEqual(
       OLOS_ERROR_CODES
     );

@@ -132,7 +132,7 @@ const providerDeliverySchema = {
     documentNavigationCanBeBlocked: { type: "boolean" },
     immutableCaching: { type: "boolean" },
     negativeCachingPolicyDeclared: { type: "boolean" },
-    publicBaseUrl: absoluteHttpUrl,
+    publicBaseUrl: pathwayBaseUrl,
     rangeRequests: { type: "boolean" },
   },
   required: ["negativeCachingPolicyDeclared", "publicBaseUrl"],
