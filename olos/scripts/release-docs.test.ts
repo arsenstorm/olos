@@ -2,6 +2,24 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 describe("release documentation", () => {
+  test("documents the repository validation boundary", () => {
+    const checks = readFileSync(
+      new URL("../../contributing/repository/checks.md", import.meta.url),
+      "utf8"
+    );
+
+    expect(checks).toContain("Required status check");
+    expect(checks).toContain("`publish:check`");
+    expect(checks).toContain(
+      "The packed-package smoke test is also the public export guard"
+    );
+    expect(checks).toContain("keeps root `olos` limited to protocol metadata");
+    expect(checks).toContain("constants, with runtime functionality exposed");
+    expect(checks).toContain(
+      "Provider compatibility still needs `bun run test:live-s3`"
+    );
+  });
+
   test("keeps v0.1 package readiness separate from deployment readiness", () => {
     const releases = readFileSync(
       new URL("../../contributing/repository/releases.md", import.meta.url),
