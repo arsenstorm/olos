@@ -4,6 +4,8 @@ export {
   commitS3RuntimeUpload,
   completeS3RuntimeUpload,
   issueS3RuntimeUploadGrant,
+  planS3RuntimeReconciliation,
+  reconcileS3RuntimeUploads,
   type S3RuntimeCommitPayload,
   type S3RuntimeCommitUploadOptions,
   type S3RuntimeCommitUploadResponse,
@@ -14,6 +16,12 @@ export {
   S3RuntimeHttpError,
   type S3RuntimeIssueUploadGrantOptions,
   type S3RuntimeIssueUploadGrantResponse,
+  type S3RuntimePlanReconciliationOptions,
+  type S3RuntimeReconcileUploadsOptions,
+  type S3RuntimeReconcileUploadsResponse,
+  type S3RuntimeReconciliationPayload,
+  type S3RuntimeReconciliationPlanPayload,
+  type S3RuntimeReconciliationPlanResponse,
 } from "./s3/client";
 export {
   type CommitS3CoordinatorUploadOptions,

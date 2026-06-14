@@ -4,6 +4,8 @@ import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
+import type { StoredS3CoordinatorReconciliationResponse } from "./http";
+import type { StoredS3CoordinatorReconciliationPlan } from "./reconciliation";
 
 export interface S3RuntimeHttpClientOptions {
   baseUrl: string;
@@ -43,6 +45,18 @@ export interface S3RuntimeCommitUploadOptions
   sessionId: string;
 }
 
+export interface S3RuntimePlanReconciliationOptions
+  extends S3RuntimeHttpClientOptions {
+  payload?: S3RuntimeReconciliationPlanPayload;
+  sessionId: string;
+}
+
+export interface S3RuntimeReconcileUploadsOptions
+  extends S3RuntimeHttpClientOptions {
+  payload: S3RuntimeReconciliationPayload;
+  sessionId: string;
+}
+
 export interface S3RuntimeCommitPayload {
   commitId: string;
   committedAt: string;
@@ -54,6 +68,21 @@ export interface S3RuntimeCommitPayload {
   providerId?: string;
   slotId: string;
   versionId?: string;
+}
+
+export interface S3RuntimeReconciliationPayload {
+  committedAt: string;
+  independent?: boolean;
+  lateToleranceMs?: number;
+  maxSegments?: number;
+  programDateTime?: string;
+  providerId?: string;
+  slotIds?: readonly string[];
+  versionId?: string;
+}
+
+export interface S3RuntimeReconciliationPlanPayload {
+  slotIds?: readonly string[];
 }
 
 export interface S3RuntimeCompletionHintPayload {
@@ -87,6 +116,16 @@ export interface S3RuntimeCommitUploadResponse {
   cursor?: Cursor;
   response: Response;
 }
+
+export type S3RuntimeReconciliationPlanResponse =
+  StoredS3CoordinatorReconciliationPlan & {
+    response: Response;
+  };
+
+export type S3RuntimeReconcileUploadsResponse =
+  StoredS3CoordinatorReconciliationResponse & {
+    response: Response;
+  };
 
 export async function issueS3RuntimeUploadGrant(
   options: S3RuntimeIssueUploadGrantOptions
@@ -138,6 +177,42 @@ export async function commitS3RuntimeUpload(
 
   return {
     ...commitPayload(await response.json()),
+    response,
+  };
+}
+
+export async function planS3RuntimeReconciliation(
+  options: S3RuntimePlanReconciliationOptions
+): Promise<S3RuntimeReconciliationPlanResponse> {
+  const response = await fetchFor(options)(
+    sessionUrl(options.baseUrl, options.sessionId, "s3/reconcile-plan"),
+    jsonPost(options.payload ?? {})
+  );
+
+  if (!response.ok) {
+    throw await s3RuntimeHttpError("S3 reconciliation plan", response);
+  }
+
+  return {
+    ...reconciliationPlanPayload(await response.json()),
+    response,
+  };
+}
+
+export async function reconcileS3RuntimeUploads(
+  options: S3RuntimeReconcileUploadsOptions
+): Promise<S3RuntimeReconcileUploadsResponse> {
+  const response = await fetchFor(options)(
+    sessionUrl(options.baseUrl, options.sessionId, "s3/reconcile"),
+    jsonPost(options.payload)
+  );
+
+  if (!response.ok) {
+    throw await s3RuntimeHttpError("S3 upload reconciliation", response);
+  }
+
+  return {
+    ...reconciliationPayload(await response.json()),
     response,
   };
 }
@@ -229,6 +304,26 @@ function commitPayload(
       ? { cursor: value.cursor as unknown as Cursor }
       : {}),
   };
+}
+
+function reconciliationPlanPayload(
+  value: unknown
+): StoredS3CoordinatorReconciliationPlan {
+  if (!(isRecord(value) && typeof value.status === "string")) {
+    throw new Error("S3 reconciliation plan response must include status");
+  }
+
+  return value as unknown as StoredS3CoordinatorReconciliationPlan;
+}
+
+function reconciliationPayload(
+  value: unknown
+): StoredS3CoordinatorReconciliationResponse {
+  if (!(isRecord(value) && Array.isArray(value.results))) {
+    throw new Error("S3 reconciliation response must include results");
+  }
+
+  return value as unknown as StoredS3CoordinatorReconciliationResponse;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

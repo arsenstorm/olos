@@ -12,6 +12,8 @@ import {
   commitS3RuntimeUpload,
   completeS3RuntimeUpload,
   issueS3RuntimeUploadGrant,
+  planS3RuntimeReconciliation,
+  reconcileS3RuntimeUploads,
   S3RuntimeHttpError,
 } from "./client";
 import { createStoredS3CoordinatorRuntimeHandler } from "./http";
@@ -219,6 +221,25 @@ describe("S3 runtime HTTP client", () => {
     ).rejects.toThrow("S3 upload commit failed with status 404");
 
     await expect(
+      planS3RuntimeReconciliation({
+        baseUrl: "https://edge.example.com",
+        fetch: clientFetch,
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("S3 reconciliation plan failed with status 404");
+
+    await expect(
+      reconcileS3RuntimeUploads({
+        baseUrl: "https://edge.example.com",
+        fetch: clientFetch,
+        payload: {
+          committedAt: "2026-01-01T00:00:02.000Z",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("S3 upload reconciliation failed with status 404");
+
+    await expect(
       completeS3RuntimeUpload({
         baseUrl: "https://edge.example.com",
         fetch: clientFetch,
@@ -226,6 +247,125 @@ describe("S3 runtime HTTP client", () => {
         slotId: "slot_init",
       })
     ).rejects.toThrow("S3 upload completion failed with status 404");
+  });
+
+  test("plans and reconciles missed S3 uploads through the HTTP runtime", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+          "live/session/v1080/init.mp4": 1024,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      store,
+    });
+    const clientFetch = runtimeFetchFor(handle);
+
+    await createRuntimeSession({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      pathways,
+      session,
+    });
+
+    await issueS3RuntimeUploadGrant({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      payload: {
+        contentType: "video/mp4",
+        deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
+        duration: 1,
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "init",
+        maxBytes: 2048,
+        mediaSequenceNumber: 0,
+        objectKey: "live/session/v1080/init.mp4",
+        publicationMode: "direct-public",
+        publisherInstanceId: "publisher_1",
+        renditionId: "v1080",
+        slotId: "slot_init",
+      },
+      sessionId: session.sessionId,
+    });
+    await issueS3RuntimeUploadGrant({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      payload: {
+        contentType: "video/mp4",
+        deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+        duration: 2,
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKey: "live/session/v1080/3810.m4s",
+        publicationMode: "direct-public",
+        publisherInstanceId: "publisher_1",
+        renditionId: "v1080",
+        slotId: "slot_3810",
+      },
+      sessionId: session.sessionId,
+    });
+
+    const plan = await planS3RuntimeReconciliation({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      payload: {
+        slotIds: ["slot_3810"],
+      },
+      sessionId: session.sessionId,
+    });
+    const reconciled = await reconcileS3RuntimeUploads({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      payload: {
+        committedAt: "2026-01-01T00:00:02.000Z",
+      },
+      sessionId: session.sessionId,
+    });
+
+    expect(plan.response.status).toBe(200);
+    expect(plan).toMatchObject({
+      slotIds: ["slot_3810"],
+      status: "planned",
+    });
+    expect(reconciled.response.status).toBe(202);
+    expect(reconciled.summary).toMatchObject({
+      committed: 2,
+      failed: 0,
+      ok: true,
+      planned: 2,
+      status: "reconciled",
+    });
+    expect(reconciled.results).toMatchObject([
+      {
+        slotId: "slot_init",
+        status: "committed",
+      },
+      {
+        slotId: "slot_3810",
+        status: "committed",
+      },
+    ]);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/init.mp4",
+      },
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
   });
 });
 

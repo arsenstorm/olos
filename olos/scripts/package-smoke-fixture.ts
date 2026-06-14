@@ -99,7 +99,9 @@ export const expectedRuntimeExports = {
     "issueStoredS3CoordinatorUploadGrant",
     "normalizeS3ObjectCreatedEvents",
     "observeS3Object",
+    "planS3RuntimeReconciliation",
     "planStoredS3CoordinatorReconciliation",
+    "reconcileS3RuntimeUploads",
     "reconcileStoredS3CoordinatorUploads",
     "routeStoredS3CoordinatorUploadEvent",
     "runNextStoredS3PublisherUploadStep",
@@ -240,7 +242,9 @@ import {
   issueStoredS3CoordinatorUploadGrant,
   normalizeS3ObjectCreatedEvents,
   observeS3Object,
+  planS3RuntimeReconciliation,
   planStoredS3CoordinatorReconciliation,
+  reconcileS3RuntimeUploads,
   reconcileStoredS3CoordinatorUploads,
   routeStoredS3CoordinatorUploadEvent,
   runPlannedStoredS3PublisherUploadStep,
@@ -254,6 +258,10 @@ import type {
   S3RuntimeCompleteUploadOptions,
   S3RuntimeCompletionHintPayload,
   S3RuntimeIssueUploadGrantOptions,
+  S3RuntimePlanReconciliationOptions,
+  S3RuntimeReconcileUploadsOptions,
+  S3RuntimeReconciliationPayload,
+  S3RuntimeReconciliationPlanPayload,
   StoredS3CoordinatorCommitResponse,
   StoredS3CoordinatorEventRouteResponse,
   StoredS3CoordinatorReconciliationResponse,
@@ -375,8 +383,12 @@ const normalizeS3Events: typeof normalizeS3ObjectCreatedEvents =
   normalizeS3ObjectCreatedEvents;
 const routeS3Event: typeof routeStoredS3CoordinatorUploadEvent =
   routeStoredS3CoordinatorUploadEvent;
+const planS3RuntimeRecovery: typeof planS3RuntimeReconciliation =
+  planS3RuntimeReconciliation;
 const planS3Reconciliation: typeof planStoredS3CoordinatorReconciliation =
   planStoredS3CoordinatorReconciliation;
+const reconcileS3RuntimeRecovery: typeof reconcileS3RuntimeUploads =
+  reconcileS3RuntimeUploads;
 const reconcileS3Uploads: typeof reconcileStoredS3CoordinatorUploads =
   reconcileStoredS3CoordinatorUploads;
 const deleteS3Objects: typeof deleteRetiredS3CoordinatorObjects =
@@ -527,6 +539,23 @@ const s3RuntimeCommitOptions = {
   payload: s3RuntimeCommitPayload,
   sessionId: slot.sessionId,
 } satisfies S3RuntimeCommitUploadOptions;
+const s3RuntimeReconciliationPlanPayload = {
+  slotIds: [slot.slotId],
+} satisfies S3RuntimeReconciliationPlanPayload;
+const s3RuntimeReconciliationPayload = {
+  committedAt: "2026-01-01T00:00:02.000Z",
+  slotIds: [slot.slotId],
+} satisfies S3RuntimeReconciliationPayload;
+const s3RuntimeReconciliationPlanOptions = {
+  baseUrl: "https://edge.example.com",
+  payload: s3RuntimeReconciliationPlanPayload,
+  sessionId: slot.sessionId,
+} satisfies S3RuntimePlanReconciliationOptions;
+const s3RuntimeReconciliationOptions = {
+  baseUrl: "https://edge.example.com",
+  payload: s3RuntimeReconciliationPayload,
+  sessionId: slot.sessionId,
+} satisfies S3RuntimeReconcileUploadsOptions;
 
 const s3SlotGrantResponse: StoredS3CoordinatorSlotGrantResponse = {
   grant,
@@ -648,7 +677,9 @@ observeS3 satisfies typeof observeS3Object;
 issueS3Grant satisfies typeof issueStoredS3CoordinatorUploadGrant;
 normalizeS3Events satisfies typeof normalizeS3ObjectCreatedEvents;
 routeS3Event satisfies typeof routeStoredS3CoordinatorUploadEvent;
+planS3RuntimeRecovery satisfies typeof planS3RuntimeReconciliation;
 planS3Reconciliation satisfies typeof planStoredS3CoordinatorReconciliation;
+reconcileS3RuntimeRecovery satisfies typeof reconcileS3RuntimeUploads;
 reconcileS3Uploads satisfies typeof reconcileStoredS3CoordinatorUploads;
 deleteS3Objects satisfies typeof deleteRetiredS3CoordinatorObjects;
 plannedS3PublisherStep satisfies typeof runPlannedStoredS3PublisherUploadStep;
@@ -688,6 +719,10 @@ s3RuntimeCommitPayload satisfies S3RuntimeCommitPayload;
 s3RuntimeGrantOptions satisfies S3RuntimeIssueUploadGrantOptions;
 s3RuntimeCompletionOptions satisfies S3RuntimeCompleteUploadOptions;
 s3RuntimeCommitOptions satisfies S3RuntimeCommitUploadOptions;
+s3RuntimeReconciliationPlanPayload satisfies S3RuntimeReconciliationPlanPayload;
+s3RuntimeReconciliationPayload satisfies S3RuntimeReconciliationPayload;
+s3RuntimeReconciliationPlanOptions satisfies S3RuntimePlanReconciliationOptions;
+s3RuntimeReconciliationOptions satisfies S3RuntimeReconcileUploadsOptions;
 `.trimStart();
 }
 
