@@ -738,6 +738,64 @@ describe("s3 coordinator uploads", () => {
     ]);
   });
 
+  test("rejects stored S3 uploads with mismatched slot metadata", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const state = issueCoordinatorSlot({
+      ...segmentSlot(),
+      state: createCoordinatorPipeline({ pathways, session }),
+    }).state;
+    await store.save({
+      sessionId: session.sessionId,
+      state,
+    });
+
+    const result = await commitStoredS3CoordinatorUpload({
+      bucket: "media",
+      client: clientFor(
+        "media/s3810.m4s",
+        98_304,
+        headObjectInputs,
+        "video/mp4",
+        {
+          "x-amz-meta-olos-slot-id": "slot_other",
+        }
+      ),
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotId: "slot_3810",
+      store,
+    });
+    const stored = await store.load(session.sessionId);
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected metadata mismatch rejection");
+    }
+
+    expect(result.error.error).toEqual({
+      code: "olos.invalid_state",
+      details: {
+        objectKey: "media/s3810.m4s",
+        observedSlotId: "slot_other",
+        slotId: "slot_3810",
+      },
+      message: "object slot metadata does not match slot",
+    });
+    expect(stored?.etag).toBe("1");
+    expect(stored?.state.commits).toEqual([]);
+    expect(stored?.state.cursor).toBeUndefined();
+    expect(stored?.state.slots).toEqual(state.slots);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/s3810.m4s",
+      },
+    ]);
+  });
+
   test("derives manifests from stored S3 coordinator commits", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
@@ -1482,7 +1540,8 @@ function clientFor(
   objectKey: string,
   size: number,
   inputs: unknown[],
-  contentType = "video/mp4"
+  contentType = "video/mp4",
+  metadata?: Record<string, string>
 ): S3HeadObjectClient {
   return {
     send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
@@ -1494,6 +1553,7 @@ function clientFor(
         ContentType: contentType,
         ETag: `"${objectKey}"`,
         LastModified: new Date("2026-01-01T00:00:01.000Z"),
+        ...(metadata === undefined ? {} : { Metadata: metadata }),
       });
     },
   };

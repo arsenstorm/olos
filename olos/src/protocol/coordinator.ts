@@ -575,6 +575,24 @@ function rejectInvalidObservedUpload(options: {
     };
   }
 
+  const observedSlotId = object.metadata?.["x-olos-slot-id"];
+
+  if (observedSlotId !== undefined && observedSlotId !== slot.slotId) {
+    return {
+      error: coordinatorError(
+        "olos.invalid_state",
+        "object slot metadata does not match slot",
+        {
+          objectKey: object.objectKey,
+          observedSlotId,
+          slotId: slot.slotId,
+        }
+      ),
+      state: options.state,
+      status: "rejected",
+    };
+  }
+
   if (object.size <= slot.maxBytes) {
     return;
   }
