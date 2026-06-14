@@ -107,7 +107,10 @@ describe("commit validation", () => {
       assertCommit({ ...validCommit, independent: "false" })
     ).toThrow("commit.independent must be a boolean");
     expect(() => assertCommit({ ...validCommit, etag: 123 })).toThrow(
-      "commit.etag must be a string"
+      "commit.etag must be a non-empty string"
+    );
+    expect(() => assertCommit({ ...validCommit, etag: "" })).toThrow(
+      "commit.etag must be a non-empty string"
     );
   });
 

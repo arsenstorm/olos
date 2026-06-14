@@ -39,7 +39,7 @@ export function assertCommit(value: unknown): asserts value is Commit {
   assertTimestampField(value, "committedAt");
 
   if (value.etag !== undefined) {
-    assertStringField(value, "etag");
+    assertNonEmptyStringField(value, "etag");
   }
 
   if (value.programDateTime !== undefined) {
@@ -107,12 +107,12 @@ function assertTimestampField(
   }
 }
 
-function assertStringField(
+function assertNonEmptyStringField(
   value: Record<string, unknown>,
   field: string
 ): void {
-  if (typeof value[field] !== "string") {
-    throw new Error(`commit.${field} must be a string`);
+  if (typeof value[field] !== "string" || value[field].length === 0) {
+    throw new Error(`commit.${field} must be a non-empty string`);
   }
 }
 
