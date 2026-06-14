@@ -754,4 +754,5 @@ bun --filter olos publish:check
 ```
 
 The gate verifies the changelog, release notes, type checks, Bun tests, E2E
-tests, build output, dry packing, and package smoke import/type checks.
+tests, build output, export-map dry packing, and package smoke import/type
+checks.

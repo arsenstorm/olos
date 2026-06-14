@@ -24,6 +24,7 @@ describe("release documentation", () => {
 
     expect(checks).toContain("Required status check");
     expect(checks).toContain("`publish:check`");
+    expect(checks).toContain("export-map dry pack");
     expect(checks).toContain(
       "The packed-package smoke test is also the public export guard"
     );
@@ -43,6 +44,7 @@ describe("release documentation", () => {
     expect(releases).toContain("## v0.1 Readiness");
     expect(releases).toContain("Treat `v0.1` as package-ready");
     expect(releases).toContain("checks conformance coverage");
+    expect(releases).toContain("export-map dry pack");
     expect(releases).toContain("`publish:check` passes from a clean checkout");
     expect(releases).toContain(
       "The conformance report has no unmapped assertions"

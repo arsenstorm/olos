@@ -10,8 +10,8 @@ bun run publish:check
 ```
 
 `publish:check` verifies the changelog, checks conformance coverage, runs type
-checking, Bun unit tests, Vitest E2E tests, build, dry pack, and packed-package
-runtime/type import smoke tests.
+checking, Bun unit tests, Vitest E2E tests, build, export-map dry pack, and
+packed-package runtime/type import smoke tests.
 The validation workflow also uploads the generated package tarball as a CI
 artifact for inspection.
 
