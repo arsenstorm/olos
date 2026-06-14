@@ -129,6 +129,10 @@ function assertRoutePath(value: string, name: string): void {
   if (value.includes("?") || value.includes("#")) {
     throw new Error(`${name} must not contain query strings or fragments`);
   }
+
+  if (trimRouteSlashes(value).split("/").some(isUnsafeRouteSegment)) {
+    throw new Error(`${name} must be a safe route path`);
+  }
 }
 
 function assertPositiveOption(value: number | undefined, name: string): void {
@@ -156,6 +160,14 @@ function hasControlCharacter(value: string): boolean {
   }
 
   return false;
+}
+
+function trimRouteSlashes(value: string): string {
+  return value.replace(/^\/+|\/+$/g, "");
+}
+
+function isUnsafeRouteSegment(segment: string): boolean {
+  return segment === "." || segment === "..";
 }
 
 async function handleStoredRuntimeRequest(

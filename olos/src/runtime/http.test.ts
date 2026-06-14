@@ -66,6 +66,12 @@ describe("stored coordinator runtime handler", () => {
     expect(() =>
       createStoredCoordinatorRuntimeHandler({
         ...options,
+        livePath: "/../live",
+      })
+    ).toThrow("livePath must be a safe route path");
+    expect(() =>
+      createStoredCoordinatorRuntimeHandler({
+        ...options,
         sessionPath: "/sessions?debug=1",
       })
     ).toThrow("sessionPath must not contain query strings or fragments");
