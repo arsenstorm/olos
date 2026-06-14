@@ -82,6 +82,16 @@ describe("commit validation", () => {
         deliveryUrl: "/media/key.m4s\n#EXT-X-ENDLIST",
       })
     ).toThrow("commit.deliveryUrl must not contain control characters");
+    expect(() =>
+      assertCommit({ ...validCommit, deliveryUrl: "/media/../key.m4s" })
+    ).toThrow(
+      "commit.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
+    );
+    expect(() =>
+      assertCommit({ ...validCommit, deliveryUrl: "/media//key.m4s" })
+    ).toThrow(
+      "commit.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
+    );
   });
 
   test("rejects invalid size and duration", () => {

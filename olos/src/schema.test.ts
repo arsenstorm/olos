@@ -49,10 +49,12 @@ describe("OLOS JSON schemas", () => {
       type: "integer",
     });
     expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.deliveryUrl).toMatchObject({
-      pattern: "^(?:/(?!/)|https?://)[^?#]+$",
+      pattern:
+        "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
     });
     expect(OLOS_COMMIT_SCHEMA.properties.deliveryUrl).toMatchObject({
-      pattern: "^(?:/(?!/)|https?://)[^?#]+$",
+      pattern:
+        "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
     });
     expect(OLOS_COMMIT_SCHEMA.properties.publicationMode.enum).toEqual(
       PUBLICATION_MODES

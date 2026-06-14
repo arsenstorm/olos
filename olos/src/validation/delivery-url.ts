@@ -11,7 +11,7 @@ export function assertSafeDeliveryUrl(value: unknown, name: string): void {
     throw new Error(`${name} must not contain query strings or fragments`);
   }
 
-  if (value.startsWith("/") && !value.startsWith("//")) {
+  if (value.startsWith("/") && isSafeRelativePath(value)) {
     return;
   }
 
@@ -34,6 +34,15 @@ function hasControlCharacter(value: string): boolean {
   }
 
   return false;
+}
+
+function isSafeRelativePath(value: string): boolean {
+  if (value.startsWith("//") || value.includes("//")) {
+    return false;
+  }
+
+  const parts = value.split("/");
+  return parts.every((part) => part !== "." && part !== "..");
 }
 
 function parseAbsoluteUrl(value: string): URL | undefined {

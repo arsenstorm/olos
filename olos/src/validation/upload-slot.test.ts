@@ -98,6 +98,16 @@ describe("upload slot validation", () => {
         deliveryUrl: "/media/key.m4s\n#EXT-X-ENDLIST",
       })
     ).toThrow("uploadSlot.deliveryUrl must not contain control characters");
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, deliveryUrl: "/media/../key.m4s" })
+    ).toThrow(
+      "uploadSlot.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
+    );
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, deliveryUrl: "/media//key.m4s" })
+    ).toThrow(
+      "uploadSlot.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
+    );
   });
 
   test("rejects unsupported media object extensions", () => {

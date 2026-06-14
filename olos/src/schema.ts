@@ -43,7 +43,8 @@ const pathwayBaseUrl = {
 } as const;
 const deliveryUrl = {
   minLength: 1,
-  pattern: "^(?:/(?!/)|https?://)[^?#]+$",
+  pattern:
+    "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
   type: "string",
 } as const;
 const headerMap = {
