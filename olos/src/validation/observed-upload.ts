@@ -8,6 +8,7 @@ export interface ObservedUpload extends MediaObject {
 }
 
 export interface ObservedUploadMatchOptions {
+  lateToleranceMs?: number;
   object: ObservedUpload;
   slot: UploadSlot;
 }
@@ -87,7 +88,15 @@ function assertObjectMatchesSlot(options: ObservedUploadMatchOptions): void {
     );
   }
 
-  if (Date.parse(object.observedAt) > Date.parse(slot.expiresAt)) {
+  const lateToleranceMs = nonNegativeNumber(
+    options.lateToleranceMs ?? 0,
+    "lateToleranceMs"
+  );
+
+  if (
+    Date.parse(object.observedAt) >
+    Date.parse(slot.expiresAt) + lateToleranceMs
+  ) {
     throw new Error(
       "observedUpload.observedAt must be before or equal to uploadSlot.expiresAt"
     );
@@ -100,6 +109,14 @@ function assertObjectMatchesSlot(options: ObservedUploadMatchOptions): void {
       "observedUpload.metadata.x-olos-slot-id must match uploadSlot.slotId"
     );
   }
+}
+
+function nonNegativeNumber(value: number, name: string): number {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative number`);
+  }
+
+  return value;
 }
 
 function isOptionalStringMap(

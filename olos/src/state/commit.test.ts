@@ -238,6 +238,30 @@ describe("commit builder", () => {
       })
     ).toThrow("commit.committedAt must be before uploadSlot.expiresAt");
   });
+
+  test("allows commits within configured late tolerance", () => {
+    expect(
+      createCommit({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:05.500Z",
+        lateToleranceMs: 1000,
+        mediaObject,
+        slot,
+      }).commitId
+    ).toBe("commit_1");
+  });
+
+  test("rejects invalid late tolerance", () => {
+    expect(() =>
+      createCommit({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:05.500Z",
+        lateToleranceMs: -1,
+        mediaObject,
+        slot,
+      })
+    ).toThrow("lateToleranceMs must be a non-negative number");
+  });
 });
 
 describe("upload commit resolution", () => {

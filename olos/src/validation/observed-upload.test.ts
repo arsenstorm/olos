@@ -112,6 +112,16 @@ describe("observed upload validation", () => {
     );
   });
 
+  test("allows observations within configured late tolerance", () => {
+    expect(() =>
+      assertObservedUploadMatchesSlot({
+        lateToleranceMs: 1000,
+        object: { ...object, observedAt: "2026-01-01T00:00:05.500Z" },
+        slot,
+      })
+    ).not.toThrow();
+  });
+
   test("rejects slot id metadata mismatches when metadata is available", () => {
     expect(() =>
       assertObservedUploadMatchesSlot({

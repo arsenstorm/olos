@@ -27,6 +27,7 @@ export interface RunRuntimePublisherUploadStepOptions {
   issueSlot(
     payload: RuntimeSlotIssuePayload
   ): Promise<RuntimePublisherIssueResult>;
+  lateToleranceMs?: number;
   maxSegments?: number;
   programDateTime?: string;
   slot: RuntimeSlotIssuePayload;
@@ -144,6 +145,7 @@ export async function runRuntimePublisherUploadStep(
       object: observed,
       slotId: issued.slot.slotId,
       ...optionalBoolean("independent", options.independent),
+      ...optionalNumber("lateToleranceMs", options.lateToleranceMs),
       ...optionalNumber("maxSegments", options.maxSegments),
       ...optionalString("programDateTime", options.programDateTime),
     });

@@ -15,6 +15,7 @@ export interface CreateCommitOptions {
   commitId: OlosId;
   committedAt: string;
   independent?: boolean;
+  lateToleranceMs?: number;
   mediaObject: MediaObject;
   programDateTime?: string;
   slot: UploadSlot;
@@ -58,6 +59,7 @@ export interface CommitObservedUploadOptions {
   commitId: OlosId;
   committedAt: string;
   independent?: boolean;
+  lateToleranceMs?: number;
   object: ObservedUpload;
   programDateTime?: string;
   slot: UploadSlot;
@@ -124,6 +126,7 @@ export function commitObservedUpload(
   options: CommitObservedUploadOptions
 ): CommitObservedUploadResult {
   const slot = observeUpload({
+    lateToleranceMs: options.lateToleranceMs,
     object: options.object,
     slot: options.slot,
   });
@@ -132,6 +135,7 @@ export function commitObservedUpload(
     commitId: options.commitId,
     committedAt: options.committedAt,
     independent: options.independent,
+    lateToleranceMs: options.lateToleranceMs,
     mediaObject: options.object,
     programDateTime: options.programDateTime,
     slot,
@@ -259,6 +263,7 @@ export function resolveCommitAttempt(
     commitId: options.commitId,
     committedAt: options.committedAt,
     independent: options.independent,
+    lateToleranceMs: options.lateToleranceMs,
     mediaObject: options.mediaObject,
     programDateTime: options.programDateTime,
     slot: options.slot,
@@ -342,8 +347,12 @@ function assertCommitPreconditions(options: CreateCommitOptions): void {
 
   const committedAt = timestampMs(options.committedAt, "commit.committedAt");
   const expiresAt = timestampMs(slot.expiresAt, "uploadSlot.expiresAt");
+  const lateToleranceMs = nonNegativeNumber(
+    options.lateToleranceMs ?? 0,
+    "lateToleranceMs"
+  );
 
-  if (committedAt > expiresAt) {
+  if (committedAt > expiresAt + lateToleranceMs) {
     throw new Error("commit.committedAt must be before uploadSlot.expiresAt");
   }
 }
@@ -356,6 +365,14 @@ function timestampMs(value: string, name: string): number {
   }
 
   return timestamp;
+}
+
+function nonNegativeNumber(value: number, name: string): number {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative number`);
+  }
+
+  return value;
 }
 
 function isLateSlot(slot: UploadSlot, cursor: Cursor): boolean {

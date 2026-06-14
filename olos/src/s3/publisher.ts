@@ -50,6 +50,7 @@ export interface RunPlannedStoredS3PublisherUploadStepOptions {
   headObjectClient?: S3HeadObjectClient;
   heartbeat?(): Promise<RuntimePublisherHeartbeatResult>;
   independent?: boolean;
+  lateToleranceMs?: number;
   manifest?: StoredS3CoordinatorManifestOptions;
   maxAttempts?: number;
   maxSegments?: number;
@@ -298,6 +299,7 @@ async function runStoredS3PublisherObjectPlanStep(
         committedAt: options.committedAt,
         commitPolicy: options.commitPolicy,
         independent: options.independent,
+        lateToleranceMs: options.lateToleranceMs,
         manifest: options.manifest,
         maxAttempts: options.maxAttempts,
         maxSegments: options.maxSegments,

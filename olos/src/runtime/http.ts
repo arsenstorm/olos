@@ -47,6 +47,7 @@ export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   };
   commitPolicy?: CoordinatorCommitPolicy;
   cursorNotifier?: RuntimeCursorNotifier;
+  lateToleranceMs?: number;
   livePath?: string;
   maxAttempts?: number;
   maxHealthCursorAgeMs?: number;
@@ -88,6 +89,7 @@ function assertRuntimeHandlerOptions(
   assertPositiveOption(options.targetLatency, "targetLatency");
   assertPositiveOption(options.maxHealthCursorAgeMs, "maxHealthCursorAgeMs");
   assertPositiveOption(options.publisherLeaseTtlMs, "publisherLeaseTtlMs");
+  assertNonNegativeOption(options.lateToleranceMs, "lateToleranceMs");
 
   if (
     options.blockingReload !== undefined &&
@@ -132,6 +134,15 @@ function assertRoutePath(value: string, name: string): void {
 function assertPositiveOption(value: number | undefined, name: string): void {
   if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
     throw new Error(`${name} must be a positive number`);
+  }
+}
+
+function assertNonNegativeOption(
+  value: number | undefined,
+  name: string
+): void {
+  if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
+    throw new Error(`${name} must be a non-negative number`);
   }
 }
 
@@ -265,6 +276,7 @@ async function handlePostSessionActionRoute(
   if (action === "commits") {
     const result = await commitStoredCoordinatorUploadFromRequest({
       commitPolicy: options.commitPolicy,
+      lateToleranceMs: options.lateToleranceMs,
       maxAttempts: options.maxAttempts,
       publicationControl: options.publicationControl,
       request,

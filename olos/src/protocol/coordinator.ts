@@ -127,6 +127,7 @@ export interface CommitCoordinatorUploadOptions {
   commitPolicy?: CoordinatorCommitPolicy;
   committedAt: string;
   independent?: boolean;
+  lateToleranceMs?: number;
   maxSegments?: number;
   object: ObservedUpload;
   programDateTime?: string;
@@ -440,6 +441,7 @@ export function commitCoordinatorUpload(
       commitId: options.commitId,
       committedAt: options.committedAt,
       independent: options.independent,
+      lateToleranceMs: options.lateToleranceMs,
       mediaObject: options.object,
       programDateTime: options.programDateTime,
       slot: { ...slot, state: "upload_observed" },
@@ -489,6 +491,7 @@ export function commitCoordinatorUpload(
     slot === undefined
       ? undefined
       : observeUpload({
+          lateToleranceMs: options.lateToleranceMs,
           object: options.object,
           slot,
         });
@@ -497,6 +500,7 @@ export function commitCoordinatorUpload(
     committedAt: options.committedAt,
     cursor: options.state.cursor,
     independent: options.independent,
+    lateToleranceMs: options.lateToleranceMs,
     mediaObject: options.object,
     objectVerified: true,
     programDateTime: options.programDateTime,

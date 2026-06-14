@@ -512,6 +512,43 @@ describe("coordinator pipeline", () => {
     expect(duplicateCommit.state.commits).toHaveLength(1);
   });
 
+  test("commits uploads within configured late tolerance", () => {
+    let state = createCoordinatorPipeline({ pathways, session });
+    const issued = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/init.mp4",
+      duration: 1,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/init.mp4",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_init",
+      state,
+    });
+    state = issued.state;
+
+    const committed = commitCoordinatorUpload({
+      commitId: "commit_init",
+      committedAt: "2026-01-01T00:00:05.500Z",
+      lateToleranceMs: 1000,
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "media/init.mp4",
+        observedAt: "2026-01-01T00:00:05.500Z",
+        providerId: "s3_primary",
+        size: 1024,
+      }),
+      slotId: "slot_init",
+      state,
+    });
+
+    expect(committed.status).toBe("committed");
+  });
+
   test("revokes committed uploads before they are announced", () => {
     let state = createCoordinatorPipeline({ pathways, session });
     const issued = issueCoordinatorSlot({

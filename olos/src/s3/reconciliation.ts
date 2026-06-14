@@ -25,6 +25,7 @@ export interface ReconcileStoredS3CoordinatorUploadsOptions {
   commitPolicy?: CoordinatorCommitPolicy;
   committedAt: SlotValue<string>;
   independent?: SlotValue<boolean | undefined>;
+  lateToleranceMs?: SlotValue<number | undefined>;
   manifest?: StoredS3CoordinatorManifestOptions;
   maxAttempts?: number;
   maxSegments?: number;
@@ -220,6 +221,7 @@ async function reconcileSlot(
       slotId: slot.slotId,
       store: options.store,
       ...optionalSlotValue("independent", options.independent, slot),
+      ...optionalSlotValue("lateToleranceMs", options.lateToleranceMs, slot),
       ...optionalField("manifest", options.manifest),
       ...optionalField("maxAttempts", options.maxAttempts),
       ...optionalField("maxSegments", options.maxSegments),

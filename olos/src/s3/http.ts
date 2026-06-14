@@ -50,6 +50,7 @@ export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
   client: S3Client;
   expiresInSeconds: number;
   grantNow?: () => Date | string;
+  lateToleranceMs?: number;
   objectClient?: S3HeadObjectClient;
   providerId?: string;
   retentionClient?: S3DeleteObjectClient;
@@ -316,6 +317,7 @@ async function handleS3Events(
       client: options.objectClient ?? options.client,
       commitPolicy: options.commitPolicy,
       event,
+      lateToleranceMs: options.lateToleranceMs,
       maxAttempts: options.maxAttempts,
       providerId: options.providerId,
       publicationControl: options.publicationControl,
@@ -569,6 +571,7 @@ interface S3CommitPayload {
   commitId: string;
   committedAt: string;
   independent?: boolean;
+  lateToleranceMs?: number;
   maxSegments?: number;
   objectKey?: string;
   programDateTime?: string;
@@ -580,6 +583,7 @@ interface S3CommitPayload {
 interface S3ReconciliationPayload {
   committedAt: string;
   independent?: boolean;
+  lateToleranceMs?: number;
   maxSegments?: number;
   programDateTime?: string;
   providerId: string;
@@ -631,6 +635,7 @@ function parseCommitPayload(
     providerId,
     slotId: urlSafeIdentifierField(value, "slotId"),
     ...optionalBooleanField(value, "independent"),
+    ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
     ...objectKey,
     ...optionalTimestampField(value, "programDateTime"),
@@ -721,6 +726,7 @@ function parseReconciliationPayload(
     committedAt: timestampField(value, "committedAt"),
     providerId,
     ...optionalBooleanField(value, "independent"),
+    ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
     ...optionalTimestampField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
@@ -993,6 +999,23 @@ function optionalPositiveIntegerField(
   }
 
   return { [field]: positiveIntegerField(value, field) };
+}
+
+function optionalNonNegativeNumberField(
+  value: Record<string, unknown>,
+  field: "lateToleranceMs"
+): Partial<Pick<S3CommitPayload, "lateToleranceMs">> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  const number = numberField(value, field);
+
+  if (number < 0) {
+    throw new Error(`${field} must be a non-negative number`);
+  }
+
+  return { [field]: number };
 }
 
 function optionalNonNegativeIntegerField(

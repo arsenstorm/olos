@@ -25,6 +25,7 @@ export interface RuntimeCommitPayload
 
 export interface CommitCoordinatorUploadFromRequestOptions {
   commitPolicy?: CoordinatorCommitPolicy;
+  lateToleranceMs?: number;
   publicationControl?: PublicationControlPolicy;
   request: RuntimeCommitRequest;
   state: CoordinatorPipelineState;
@@ -61,6 +62,7 @@ export async function commitCoordinatorUploadFromRequest(
     const committed = commitCoordinatorUpload({
       ...payload.value,
       commitPolicy: options.commitPolicy,
+      lateToleranceMs: payload.value.lateToleranceMs ?? options.lateToleranceMs,
       object: createObservedUpload(payload.value.object),
       publicationControl: options.publicationControl,
       state: options.state,
@@ -124,6 +126,7 @@ function parsePayload(value: unknown): RuntimeCommitPayload {
     object: parseObjectPayload(value.object),
     slotId: urlSafeIdentifierField(value, "slotId"),
     ...optionalBooleanField(value, "independent"),
+    ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
     ...optionalTimestampField(value, "programDateTime"),
   };
@@ -259,6 +262,23 @@ function optionalPositiveIntegerField(
   }
 
   return { [field]: positiveIntegerField(value, field) };
+}
+
+function optionalNonNegativeNumberField(
+  value: Record<string, unknown>,
+  field: "lateToleranceMs"
+): Partial<Pick<RuntimeCommitPayload, "lateToleranceMs">> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  const number = numberField(value, field);
+
+  if (number < 0) {
+    throw new Error(`${field} must be a non-negative number`);
+  }
+
+  return { [field]: number };
 }
 
 function optionalStringField<Field extends "etag" | "programDateTime">(

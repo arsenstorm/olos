@@ -40,6 +40,7 @@ export interface CommitS3CoordinatorUploadOptions {
   commitPolicy?: CoordinatorCommitPolicy;
   committedAt: string;
   independent?: boolean;
+  lateToleranceMs?: number;
   maxSegments?: number;
   programDateTime?: string;
   providerId: string;
@@ -76,6 +77,7 @@ export interface RouteStoredS3CoordinatorUploadEventOptions {
   commitPolicy?: CoordinatorCommitPolicy;
   event: UploadEventNormalization;
   independent?: boolean;
+  lateToleranceMs?: number;
   manifest?: StoredS3CoordinatorManifestOptions;
   maxAttempts?: number;
   maxSegments?: number;
@@ -328,6 +330,7 @@ export async function commitS3CoordinatorUpload(
     committedAt: options.committedAt,
     commitPolicy: options.commitPolicy,
     independent: options.independent,
+    lateToleranceMs: options.lateToleranceMs,
     maxSegments: options.maxSegments,
     object,
     publicationControl: options.publicationControl,
@@ -558,6 +561,7 @@ export async function routeStoredS3CoordinatorUploadEvent(
       committedAt: options.event.event.object.observedAt,
       commitPolicy: options.commitPolicy,
       independent: options.independent,
+      lateToleranceMs: options.lateToleranceMs,
       manifest: options.manifest,
       maxAttempts: options.maxAttempts,
       maxSegments: options.maxSegments,
@@ -578,6 +582,7 @@ export async function routeStoredS3CoordinatorUploadEvent(
     committedAt: options.event.hint.eventTime,
     commitPolicy: options.commitPolicy,
     independent: options.independent,
+    lateToleranceMs: options.lateToleranceMs,
     manifest: options.manifest,
     maxAttempts: options.maxAttempts,
     maxSegments: options.maxSegments,

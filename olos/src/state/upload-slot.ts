@@ -30,6 +30,7 @@ export interface CreateIssuedUploadSlotOptions {
 
 export interface ObserveUploadOptions {
   cursor?: Cursor;
+  lateToleranceMs?: number;
   object: ObservedUpload;
   slot: UploadSlot;
 }
