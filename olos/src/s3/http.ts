@@ -733,6 +733,7 @@ function parseCompletionHintPayload(
   slotId: string
 ): S3CommitPayload {
   const providerId = providerIdField(value, options);
+  assertNoCompletionHintDeliveryUrl(value);
   optionalStringField(value, "etag");
   optionalNonNegativeNumberField(value, "size");
 
@@ -750,6 +751,14 @@ function parseCompletionHintPayload(
     ...optionalTimestampField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
   };
+}
+
+function assertNoCompletionHintDeliveryUrl(
+  value: Record<string, unknown>
+): void {
+  if (value.deliveryUrl !== undefined) {
+    throw new Error("completion hint must not include deliveryUrl");
+  }
 }
 
 function parseCommitPayload(

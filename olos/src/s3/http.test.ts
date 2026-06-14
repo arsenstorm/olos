@@ -422,6 +422,38 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
   });
 
+  test("rejects publisher media URLs in S3 completion hints", async () => {
+    const headObjectInputs: unknown[] = [];
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      objectClient: objectClientFor({}, headObjectInputs),
+      providerId: "s3_primary",
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const response = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
+        {
+          deliveryUrl: "https://attacker.example.com/live/3810.m3u8",
+          etag: '"publisher-hint"',
+          size: 98_304,
+        }
+      )
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: {
+        message: "completion hint must not include deliveryUrl",
+      },
+    });
+    expect(headObjectInputs).toEqual([]);
+  });
+
   test("returns S3 route errors without swallowing base routes", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
