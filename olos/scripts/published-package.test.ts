@@ -11,4 +11,13 @@ describe("published package verifier", () => {
       "published package verification requires a released version"
     );
   });
+
+  test("rejects non-version package selectors", () => {
+    expect(() => assertPublishedPackageVersion("latest")).toThrow(
+      "published package verification requires a semantic version"
+    );
+    expect(() => assertPublishedPackageVersion("olos-v0.1.0")).toThrow(
+      "published package verification requires a semantic version"
+    );
+  });
 });
