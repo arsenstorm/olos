@@ -1,5 +1,6 @@
 import type { MediaObject } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
+import { isHttpHeaderName } from "./http-header";
 import { assertMediaObject } from "./media-object";
 import { assertUploadSlot } from "./upload-slot";
 
@@ -128,6 +129,7 @@ function isOptionalStringMap(
 
   return Object.entries(value).every(
     ([key, entry]) =>
-      key.length > 0 && (typeof entry === "string" || entry === undefined)
+      isHttpHeaderName(key) &&
+      (typeof entry === "string" || entry === undefined)
   );
 }

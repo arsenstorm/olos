@@ -93,6 +93,19 @@ describe("observed upload builder", () => {
         size: 98_304,
       })
     ).toThrow("observedUpload.metadata must be a string map");
+
+    expect(() =>
+      createObservedUpload({
+        contentType: "video/mp4",
+        metadata: {
+          "bad metadata": "slot_1",
+        },
+        objectKey: "media/session/v1080/3810.m4s",
+        observedAt: "2026-01-01T00:00:01.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      })
+    ).toThrow("observedUpload.metadata must be a string map");
   });
 });
 

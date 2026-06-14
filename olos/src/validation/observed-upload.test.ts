@@ -159,5 +159,17 @@ describe("observed upload validation", () => {
         slot,
       })
     ).toThrow("observedUpload.metadata must be a string map");
+
+    expect(() =>
+      assertObservedUploadMatchesSlot({
+        object: {
+          ...object,
+          metadata: {
+            "bad metadata": "slot_1",
+          },
+        },
+        slot,
+      })
+    ).toThrow("observedUpload.metadata must be a string map");
   });
 });
