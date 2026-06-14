@@ -301,10 +301,12 @@ export async function getRuntimeMediaPlaylist(
   );
 
   if (options.hlsMsn !== undefined) {
+    assertNonNegativeInteger(options.hlsMsn, "hlsMsn");
     url.searchParams.set("_HLS_msn", String(options.hlsMsn));
   }
 
   if (options.hlsPart !== undefined) {
+    assertNonNegativeInteger(options.hlsPart, "hlsPart");
     url.searchParams.set("_HLS_part", String(options.hlsPart));
   }
 
@@ -353,6 +355,12 @@ function normalizedBaseUrl(value: string): string {
 
 function trimSlashes(value: string): string {
   return value.replace(/^\/+|\/+$/g, "");
+}
+
+function assertNonNegativeInteger(value: number, name: string): void {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative integer`);
+  }
 }
 
 function fetchFor(options: RuntimeHttpClientOptions): RuntimeFetch {

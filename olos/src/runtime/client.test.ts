@@ -224,6 +224,28 @@ describe("runtime HTTP client", () => {
     );
   });
 
+  test("rejects invalid blocking reload query parameters before fetch", async () => {
+    let requests = 0;
+    const clientFetch: RuntimeFetch = () => {
+      requests += 1;
+      return Promise.resolve(new Response("#EXTM3U\n", { status: 200 }));
+    };
+    const options = {
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      renditionId: "v1080",
+      sessionId: session.sessionId,
+    };
+
+    await expect(
+      getRuntimeMediaPlaylist({ ...options, hlsMsn: -1 })
+    ).rejects.toThrow("hlsMsn must be a non-negative integer");
+    await expect(
+      getRuntimeMediaPlaylist({ ...options, hlsPart: Number.NaN })
+    ).rejects.toThrow("hlsPart must be a non-negative integer");
+    expect(requests).toBe(0);
+  });
+
   test("throws for failed runtime responses", async () => {
     const clientFetch: RuntimeFetch = () =>
       Promise.resolve(
