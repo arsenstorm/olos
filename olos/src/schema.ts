@@ -202,6 +202,10 @@ export const OLOS_SESSION_SCHEMA = {
     renditions: {
       items: {
         additionalProperties: false,
+        dependentRequired: {
+          height: ["width"],
+          width: ["height"],
+        },
         properties: {
           bitrate: { exclusiveMinimum: 0, type: "integer" },
           channels: { exclusiveMinimum: 0, type: "integer" },

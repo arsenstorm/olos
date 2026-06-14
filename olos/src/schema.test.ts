@@ -53,6 +53,10 @@ describe("OLOS JSON schemas", () => {
     expect(OLOS_SESSION_SCHEMA.additionalProperties).toBe(false);
     expect(OLOS_SESSION_SCHEMA.properties.renditions.items).toMatchObject({
       additionalProperties: false,
+      dependentRequired: {
+        height: ["width"],
+        width: ["height"],
+      },
     });
     expect(OLOS_UPLOAD_SLOT_SCHEMA.additionalProperties).toBe(false);
     expect(OLOS_COMMIT_SCHEMA.additionalProperties).toBe(false);
