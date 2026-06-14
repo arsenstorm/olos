@@ -237,6 +237,85 @@ describe("stored coordinator runtime handler", () => {
     });
   });
 
+  test("commits late uploads within configured route tolerance", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+          duration: 1,
+          kind: "init",
+          maxBytes: 2048,
+          mediaSequenceNumber: 0,
+          objectKey: "media/v1080/init.mp4",
+          slotId: "slot_init",
+        })
+      )
+    );
+    await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/commits", {
+        ...commitPayload({
+          commitId: "commit_init",
+          objectKey: "media/v1080/init.mp4",
+          size: 1024,
+          slotId: "slot_init",
+        }),
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "media/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const payload = commitPayload({
+      commitId: "commit_3810",
+      objectKey: "media/v1080/3810.m4s",
+      size: 98_304,
+      slotId: "slot_3810",
+    });
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/commits", {
+        ...payload,
+        committedAt: "2026-01-01T00:00:05.500Z",
+        independent: true,
+        lateToleranceMs: 1000,
+        object: {
+          ...payload.object,
+          observedAt: "2026-01-01T00:00:05.500Z",
+        },
+      })
+    );
+    const stored = await store.load(session.sessionId);
+
+    expect(response.status).toBe(201);
+    expect(stored?.state.cursor?.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+  });
+
   test("returns route errors for unsupported requests", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
