@@ -47,6 +47,7 @@ const deliveryUrl = {
 } as const;
 const stringMap = {
   additionalProperties: { type: "string" },
+  propertyNames: { minLength: 1 },
   type: "object",
 } as const;
 const objectKey = {
