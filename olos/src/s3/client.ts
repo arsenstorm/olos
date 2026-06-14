@@ -4,6 +4,7 @@ import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
+import { assertUrlSafeIdentifier } from "../validation/ids";
 import type {
   StoredS3CoordinatorReconciliationResponse,
   StoredS3CoordinatorRetentionResponse,
@@ -254,6 +255,8 @@ export async function applyS3RuntimeRetention(
 }
 
 function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
+  assertUrlSafeIdentifier(sessionId, "sessionId");
+
   return new URL(
     `sessions/${encodeURIComponent(sessionId)}/${action}`,
     normalizedBaseUrl(baseUrl)
@@ -265,6 +268,9 @@ function completionUrl(
   sessionId: string,
   slotId: string
 ): URL {
+  assertUrlSafeIdentifier(sessionId, "sessionId");
+  assertUrlSafeIdentifier(slotId, "slotId");
+
   return new URL(
     `sessions/${encodeURIComponent(sessionId)}/upload-slots/${encodeURIComponent(
       slotId

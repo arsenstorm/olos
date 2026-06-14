@@ -264,6 +264,31 @@ describe("S3 runtime HTTP client", () => {
     ).rejects.toThrow("S3 upload completion failed with status 404");
   });
 
+  test("rejects unsafe S3 runtime route identifiers before fetch", async () => {
+    let requests = 0;
+    const clientFetch: RuntimeFetch = () => {
+      requests += 1;
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    };
+    const options = {
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      sessionId: "../session",
+    };
+
+    await expect(planS3RuntimeReconciliation(options)).rejects.toThrow(
+      "sessionId must be a non-empty URL-safe identifier"
+    );
+    await expect(
+      completeS3RuntimeUpload({
+        ...options,
+        sessionId: session.sessionId,
+        slotId: "../slot",
+      })
+    ).rejects.toThrow("slotId must be a non-empty URL-safe identifier");
+    expect(requests).toBe(0);
+  });
+
   test("plans and reconciles missed S3 uploads through the HTTP runtime", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
