@@ -1,13 +1,12 @@
 import { spawn } from "node:child_process";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import packageJson from "../package.json" with { type: "json" };
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const requiredDryPackFiles = [
-  "dist/index.js",
-  "dist/index.d.ts",
-  "dist/s3.js",
-] as const;
+const requiredDryPackFiles = requiredDryPackFilesFromExports(
+  packageJson.exports
+);
 
 if (fileURLToPath(import.meta.url) === process.argv[1]) {
   assertDryPackIncludesRequiredFiles(
@@ -22,6 +21,39 @@ export function assertDryPackIncludesRequiredFiles(output: string): void {
         `dry package is missing ${file}; run bun run build first`
       );
     }
+  }
+}
+
+export function requiredDryPackFilesFromExports(
+  exportsMap: Record<string, unknown>
+): string[] {
+  const files = new Set<string>();
+
+  for (const [subpath, value] of Object.entries(exportsMap)) {
+    if (subpath === "./package.json") {
+      continue;
+    }
+
+    addExportFile(files, value, "import");
+    addExportFile(files, value, "types");
+  }
+
+  return [...files].sort();
+}
+
+function addExportFile(
+  files: Set<string>,
+  value: unknown,
+  field: "import" | "types"
+): void {
+  if (!isRecord(value)) {
+    return;
+  }
+
+  const path = value[field];
+
+  if (typeof path === "string" && path.startsWith("./dist/")) {
+    files.add(path.slice(2));
   }
 }
 
@@ -54,4 +86,8 @@ async function run(command: string, args: readonly string[]): Promise<string> {
   }
 
   return `${stdout}\n${stderr}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
