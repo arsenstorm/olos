@@ -1,5 +1,6 @@
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
+import { isHttpHeaderName } from "../validation/http-header";
 import { assertUploadGrant } from "../validation/upload-grant";
 import { assertUploadSlot } from "../validation/upload-slot";
 
@@ -64,7 +65,7 @@ export function assertAdditionalUploadHeaders(
   }
 
   for (const [header, headerValue] of Object.entries(value)) {
-    if (header.length === 0 || typeof headerValue !== "string") {
+    if (!isHttpHeaderName(header) || typeof headerValue !== "string") {
       throw new Error("additionalHeaders must be a string map");
     }
   }

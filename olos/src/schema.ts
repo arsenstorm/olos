@@ -13,6 +13,7 @@ import {
   SESSION_STATES,
 } from "./config/session";
 import { UPLOAD_SLOT_STATES } from "./config/upload-slot";
+import { HTTP_HEADER_NAME_SCHEMA_PATTERN } from "./validation/http-header";
 
 export interface OlosJsonSchema {
   readonly [key: string]: unknown;
@@ -45,9 +46,9 @@ const deliveryUrl = {
   pattern: "^(?:/(?!/)|https?://)[^?#]+$",
   type: "string",
 } as const;
-const stringMap = {
+const headerMap = {
   additionalProperties: { type: "string" },
-  propertyNames: { minLength: 1 },
+  propertyNames: { pattern: HTTP_HEADER_NAME_SCHEMA_PATTERN },
   type: "object",
 } as const;
 const objectKey = {
@@ -348,7 +349,7 @@ export const OLOS_UPLOAD_GRANT_SCHEMA = {
   properties: {
     expiresAt: timestamp,
     method: { const: "PUT" },
-    requiredHeaders: stringMap,
+    requiredHeaders: headerMap,
     slotId: id,
     url: absoluteHttpUrl,
   },

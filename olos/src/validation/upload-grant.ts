@@ -1,4 +1,5 @@
 import type { UploadGrant } from "../types/upload-grant";
+import { isHttpHeaderName } from "./http-header";
 import { isUrlSafeIdentifier } from "./ids";
 
 export function isUploadGrant(value: unknown): value is UploadGrant {
@@ -82,7 +83,7 @@ function assertStringMap(value: unknown, name: string): void {
   }
 
   for (const [key, headerValue] of Object.entries(value)) {
-    if (key.length === 0 || typeof headerValue !== "string") {
+    if (!isHttpHeaderName(key) || typeof headerValue !== "string") {
       throw new Error(`${name} must be a string map`);
     }
   }

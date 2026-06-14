@@ -112,6 +112,15 @@ describe("upload grant builder", () => {
         url: "https://storage.example.com/upload/signed",
       })
     ).toThrow("additionalHeaders must be a string map");
+    expect(() =>
+      createUploadGrant({
+        additionalHeaders: {
+          "bad header": "sha256:abc123",
+        },
+        slot,
+        url: "https://storage.example.com/upload/signed",
+      })
+    ).toThrow("additionalHeaders must be a string map");
   });
 
   test("rejects non-HTTP upload URLs", () => {

@@ -94,5 +94,12 @@ describe("upload grant validation", () => {
         requiredHeaders: { "": "video/iso.segment" },
       })
     ).toThrow("uploadGrant.requiredHeaders must be a string map");
+
+    expect(() =>
+      assertUploadGrant({
+        ...validUploadGrant,
+        requiredHeaders: { "bad header": "video/iso.segment" },
+      })
+    ).toThrow("uploadGrant.requiredHeaders must be a string map");
   });
 });

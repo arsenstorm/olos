@@ -77,7 +77,7 @@ describe("OLOS JSON schemas", () => {
       const: "PUT",
     });
     expect(OLOS_UPLOAD_GRANT_SCHEMA.properties.requiredHeaders).toMatchObject({
-      propertyNames: { minLength: 1 },
+      propertyNames: { pattern: "^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+$" },
     });
     expect(OLOS_MEDIA_OBJECT_SCHEMA.properties.providerId).toMatchObject({
       pattern: "^[A-Za-z0-9_-]+$",
