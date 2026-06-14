@@ -227,7 +227,7 @@ function assertCommittedObject(
   assertSafeDeliveryUrl(value.deliveryUrl, `${name}.deliveryUrl`);
 
   if (value.contentType !== undefined) {
-    assertStringField(value, "contentType", name);
+    assertNonEmptyStringField(value, "contentType", name);
   }
 
   if (value.duration !== undefined) {
@@ -235,7 +235,7 @@ function assertCommittedObject(
   }
 
   if (value.etag !== undefined) {
-    assertStringField(value, "etag", name);
+    assertNonEmptyStringField(value, "etag", name);
   }
 }
 
@@ -277,13 +277,13 @@ function assertPositiveNumberField(
   }
 }
 
-function assertStringField(
+function assertNonEmptyStringField(
   value: Record<string, unknown>,
   field: string,
   name: string
 ): void {
-  if (typeof value[field] !== "string") {
-    throw new Error(`${name}.${field} must be a string`);
+  if (typeof value[field] !== "string" || value[field].length === 0) {
+    throw new Error(`${name}.${field} must be a non-empty string`);
   }
 }
 

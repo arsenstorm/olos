@@ -277,6 +277,54 @@ describe("committed window validation", () => {
     );
   });
 
+  test("rejects empty optional committed object strings", () => {
+    const firstSegment = validSegment(0);
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [
+              {
+                ...firstSegment,
+                segment: {
+                  ...firstSegment.segment,
+                  contentType: "",
+                },
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.segments[].segment.contentType must be a non-empty string"
+    );
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [
+              {
+                ...firstSegment,
+                segment: {
+                  ...firstSegment.segment,
+                  etag: "",
+                },
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.segments[].segment.etag must be a non-empty string"
+    );
+  });
+
   test("rejects non-monotonic media sequences", () => {
     const firstSegment = validSegment(0);
     const secondSegment = validSegment(1);
