@@ -66,6 +66,10 @@ the coordinator state itself. Apply the same hook to normal commit routes,
 provider-event commit paths, reconciliation, and publisher helpers so recovery
 cannot publish objects that the live path would reject.
 
+Slot expiry is strict unless the deployment sets `lateToleranceMs`. Use late
+tolerance only for bounded clock or provider-event delays, and apply the same
+value to live commits, provider events, publisher helpers, and reconciliation.
+
 ## Provider Events
 
 Provider events are useful for recovery and low-latency commit paths, but they

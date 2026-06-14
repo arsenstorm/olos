@@ -207,6 +207,11 @@ per-kind object defaults before a concrete plan is created.
 `ttlSeconds` from object duration plus target latency. Use it for planned slot
 expiry and provider upload grant TTLs when you want OLOS to keep that policy
 consistent without taking over scheduling.
+Commit paths reject observations after `expiresAt` by default. Set
+`lateToleranceMs` only when a deployment deliberately accepts small clock or
+provider-event delays, and apply the same value to live commits, provider
+events, publisher helpers, and reconciliation so recovery does not publish a
+different stream than the live path would.
 `createRuntimePublisherNextObjectPlan` combines cursor cadence, object defaults,
 and expiry policy into the next planned object. The application still owns the
 publisher loop, encoder timing, upload retries, and commit timing.
@@ -568,6 +573,9 @@ The S3 runtime handler exposes the same recovery path at
 `POST /sessions/:id/s3/reconcile`. The body requires `committedAt`; `providerId`
 can be supplied in the body or configured on the handler. The response includes
 per-slot `results` and a `summary` for log or metric sinks.
+If the live path uses `lateToleranceMs`, pass that value to the handler or
+include it in the commit and reconciliation bodies so S3 events, completion
+hints, and recovery share the same slot-expiry policy.
 Use `POST /sessions/:id/s3/reconcile-plan` with optional `slotIds` to inspect
 candidate slots before running recovery.
 
