@@ -226,9 +226,16 @@ import type {
   RunRuntimePublisherUploadStepOptions,
 } from "olos/runtime";
 import {
+  createObservedUploadFromS3HeadObject,
+  createPresignedS3UploadGrant,
   createS3UploadGrant,
   createStoredS3CoordinatorRuntimeHandler,
+  deleteRetiredS3CoordinatorObjects,
+  issueStoredS3CoordinatorUploadGrant,
   normalizeS3ObjectCreatedEvents,
+  observeS3Object,
+  planStoredS3CoordinatorReconciliation,
+  reconcileStoredS3CoordinatorUploads,
   routeStoredS3CoordinatorUploadEvent,
   runPlannedStoredS3PublisherUploadStep,
   runStoredS3PublisherUploadStep,
@@ -340,10 +347,23 @@ const directPublicRequestPolicy: typeof resolveDirectPublicMediaRequestPolicy =
   resolveDirectPublicMediaRequestPolicy;
 const s3RuntimeHandler: typeof createStoredS3CoordinatorRuntimeHandler =
   createStoredS3CoordinatorRuntimeHandler;
+const presignedS3Grant: typeof createPresignedS3UploadGrant =
+  createPresignedS3UploadGrant;
+const observedS3HeadObject: typeof createObservedUploadFromS3HeadObject =
+  createObservedUploadFromS3HeadObject;
+const observeS3: typeof observeS3Object = observeS3Object;
+const issueS3Grant: typeof issueStoredS3CoordinatorUploadGrant =
+  issueStoredS3CoordinatorUploadGrant;
 const normalizeS3Events: typeof normalizeS3ObjectCreatedEvents =
   normalizeS3ObjectCreatedEvents;
 const routeS3Event: typeof routeStoredS3CoordinatorUploadEvent =
   routeStoredS3CoordinatorUploadEvent;
+const planS3Reconciliation: typeof planStoredS3CoordinatorReconciliation =
+  planStoredS3CoordinatorReconciliation;
+const reconcileS3Uploads: typeof reconcileStoredS3CoordinatorUploads =
+  reconcileStoredS3CoordinatorUploads;
+const deleteS3Objects: typeof deleteRetiredS3CoordinatorObjects =
+  deleteRetiredS3CoordinatorObjects;
 const plannedS3PublisherStep: typeof runPlannedStoredS3PublisherUploadStep =
   runPlannedStoredS3PublisherUploadStep;
 const rawS3PublisherStep: typeof runStoredS3PublisherUploadStep =
@@ -560,8 +580,15 @@ directPublicMediaHeaders satisfies typeof createDirectPublicMediaResponseHeaders
 directPublicNegativeHeaders satisfies typeof createDirectPublicNegativeObjectResponseHeaders;
 directPublicRequestPolicy satisfies typeof resolveDirectPublicMediaRequestPolicy;
 s3RuntimeHandler satisfies typeof createStoredS3CoordinatorRuntimeHandler;
+presignedS3Grant satisfies typeof createPresignedS3UploadGrant;
+observedS3HeadObject satisfies typeof createObservedUploadFromS3HeadObject;
+observeS3 satisfies typeof observeS3Object;
+issueS3Grant satisfies typeof issueStoredS3CoordinatorUploadGrant;
 normalizeS3Events satisfies typeof normalizeS3ObjectCreatedEvents;
 routeS3Event satisfies typeof routeStoredS3CoordinatorUploadEvent;
+planS3Reconciliation satisfies typeof planStoredS3CoordinatorReconciliation;
+reconcileS3Uploads satisfies typeof reconcileStoredS3CoordinatorUploads;
+deleteS3Objects satisfies typeof deleteRetiredS3CoordinatorObjects;
 plannedS3PublisherStep satisfies typeof runPlannedStoredS3PublisherUploadStep;
 rawS3PublisherStep satisfies typeof runStoredS3PublisherUploadStep;
 s3ReconciliationSummary satisfies typeof summarizeStoredS3CoordinatorUploadReconciliation;
