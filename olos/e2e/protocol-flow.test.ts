@@ -71,7 +71,12 @@ const directPublicCapability: ProviderCapabilityDocument = {
     overwritesAllowed: false,
   },
   uploadGrants: {
+    contentTypeBound: true,
+    exactKey: true,
+    methodBound: true,
+    objectSizeCanBeObserved: true,
     presignedPut: true,
+    requiredHeadersCanBeSigned: true,
   },
 };
 

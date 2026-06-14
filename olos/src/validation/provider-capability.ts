@@ -108,14 +108,16 @@ function assertUploadGrants(value: unknown): void {
   }
 
   for (const field of [
-    "presignedPut",
-    "temporaryCredentials",
     "exactKey",
     "methodBound",
     "contentTypeBound",
     "objectSizeCanBeObserved",
     "requiredHeadersCanBeSigned",
   ] as const) {
+    assertBooleanField(value, field, name);
+  }
+
+  for (const field of ["presignedPut", "temporaryCredentials"] as const) {
     if (value[field] !== undefined) {
       assertBooleanField(value, field, name);
     }

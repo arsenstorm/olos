@@ -104,6 +104,13 @@ const providerUploadGrantSchema = {
     requiredHeadersCanBeSigned: { type: "boolean" },
     temporaryCredentials: { type: "boolean" },
   },
+  required: [
+    "contentTypeBound",
+    "exactKey",
+    "methodBound",
+    "objectSizeCanBeObserved",
+    "requiredHeadersCanBeSigned",
+  ],
   type: "object",
 } as const;
 

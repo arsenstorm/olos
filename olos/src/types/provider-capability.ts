@@ -31,13 +31,13 @@ export interface ProviderPublicationCapabilities {
 }
 
 export interface ProviderUploadGrantCapabilities {
-  contentTypeBound?: boolean;
-  exactKey?: boolean;
+  contentTypeBound: boolean;
+  exactKey: boolean;
   maxRecommendedTtlSeconds?: number;
-  methodBound?: boolean;
-  objectSizeCanBeObserved?: boolean;
+  methodBound: boolean;
+  objectSizeCanBeObserved: boolean;
   presignedPut?: boolean;
-  requiredHeadersCanBeSigned?: boolean;
+  requiredHeadersCanBeSigned: boolean;
   temporaryCredentials?: boolean;
 }
 

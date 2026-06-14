@@ -101,6 +101,15 @@ describe("OLOS JSON schemas", () => {
         required: ["temporaryCredentials"],
       },
     ]);
+    expect(
+      OLOS_PROVIDER_CAPABILITY_SCHEMA.properties.uploadGrants.required
+    ).toEqual([
+      "contentTypeBound",
+      "exactKey",
+      "methodBound",
+      "objectSizeCanBeObserved",
+      "requiredHeadersCanBeSigned",
+    ]);
     const directPublicationPrecondition =
       OLOS_PROVIDER_CAPABILITY_SCHEMA.allOf[0];
 

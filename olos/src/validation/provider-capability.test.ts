@@ -138,13 +138,31 @@ describe("provider capability validation", () => {
       assertProviderCapabilityDocument({
         ...capability,
         uploadGrants: {
+          contentTypeBound: true,
           exactKey: true,
           methodBound: true,
+          objectSizeCanBeObserved: true,
+          requiredHeadersCanBeSigned: true,
         },
       })
     ).toThrow(
       "providerCapability.uploadGrants must support presignedPut or temporaryCredentials"
     );
+  });
+
+  test("rejects missing upload grant safety declarations", () => {
+    expect(() =>
+      assertProviderCapabilityDocument({
+        ...capability,
+        uploadGrants: {
+          contentTypeBound: true,
+          methodBound: true,
+          objectSizeCanBeObserved: true,
+          presignedPut: true,
+          requiredHeadersCanBeSigned: true,
+        },
+      })
+    ).toThrow("providerCapability.uploadGrants.exactKey must be a boolean");
   });
 
   test("rejects invalid upload grant TTLs", () => {
