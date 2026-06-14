@@ -1,3 +1,4 @@
+import { SESSION_STATES } from "../config/session";
 import {
   type CoordinatorPipelineSnapshot,
   type CoordinatorPipelineState,
@@ -10,6 +11,7 @@ import { assertSessionTransition } from "../state/session";
 import type { OlosId } from "../types/ids";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
+import { assertUrlSafeIdentifier } from "../validation/ids";
 import {
   createRuntimePublisherLease,
   refreshRuntimePublisherHeartbeat,
@@ -118,6 +120,9 @@ export async function transitionStoredCoordinatorSession(
   options: TransitionStoredCoordinatorSessionOptions
 ): Promise<StoredRuntimeSessionTransition> {
   try {
+    assertUrlSafeIdentifier(options.sessionId, "sessionId");
+    assertSessionState(options.state);
+
     const result = await mutateCoordinatorPipeline({
       maxAttempts: options.maxAttempts,
       mutate: (state) => transitionState(state, options.state),
@@ -154,6 +159,8 @@ export async function heartbeatStoredCoordinatorPublisher(
   options: HeartbeatStoredCoordinatorPublisherOptions
 ): Promise<StoredRuntimePublisherHeartbeat> {
   try {
+    assertHeartbeatOptions(options);
+
     let lease: CoordinatorPublisherLease | undefined;
     const result = await mutateCoordinatorPipeline({
       maxAttempts: options.maxAttempts,
@@ -254,6 +261,37 @@ function assertHeartbeatSessionState(state: SessionState): void {
   if (state === "aborted" || state === "ended" || state === "expired") {
     throw new Error("publisher heartbeat is not allowed for terminal sessions");
   }
+}
+
+function assertHeartbeatOptions(
+  options: HeartbeatStoredCoordinatorPublisherOptions
+): void {
+  assertUrlSafeIdentifier(options.sessionId, "sessionId");
+  assertUrlSafeIdentifier(options.publisherInstanceId, "publisherInstanceId");
+  timestampMs(options.now, "now");
+
+  if (!Number.isFinite(options.ttlMs) || options.ttlMs <= 0) {
+    throw new Error("ttlMs must be a positive number");
+  }
+}
+
+function assertSessionState(value: unknown): asserts value is SessionState {
+  if (
+    typeof value !== "string" ||
+    !SESSION_STATES.includes(value as SessionState)
+  ) {
+    throw new Error(`state must be one of: ${SESSION_STATES.join(", ")}`);
+  }
+}
+
+function timestampMs(value: string, name: string): number {
+  const timestamp = Date.parse(value);
+
+  if (Number.isNaN(timestamp)) {
+    throw new Error(`${name} must be a valid timestamp`);
+  }
+
+  return timestamp;
 }
 
 function notFound(): StoredRuntimeSessionMutation {

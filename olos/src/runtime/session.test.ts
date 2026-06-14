@@ -216,6 +216,36 @@ describe("stored session runtime", () => {
     });
   });
 
+  test("rejects invalid stored session transition options", async () => {
+    const store = createMemoryCoordinatorStore();
+
+    const invalidSessionId = await transitionStoredCoordinatorSession({
+      sessionId: "../session",
+      state: "starting",
+      store,
+    });
+    const invalidState = await transitionStoredCoordinatorSession({
+      sessionId: session.sessionId,
+      state: "paused" as never,
+      store,
+    });
+
+    expect(invalidSessionId.status).toBe("rejected");
+    expect(invalidSessionId.response.status).toBe(409);
+    expect(await invalidSessionId.response.json()).toEqual({
+      error: { message: "sessionId must be a non-empty URL-safe identifier" },
+    });
+
+    expect(invalidState.status).toBe("rejected");
+    expect(invalidState.response.status).toBe(409);
+    expect(await invalidState.response.json()).toEqual({
+      error: {
+        message:
+          "state must be one of: created, starting, live, ending, ended, aborted, expired",
+      },
+    });
+  });
+
   test("returns not found for missing stored session transitions", async () => {
     const result = await transitionStoredCoordinatorSession({
       sessionId: "missing",
@@ -225,6 +255,52 @@ describe("stored session runtime", () => {
 
     expect(result.status).toBe("not_found");
     expect(result.response.status).toBe(404);
+  });
+
+  test("rejects invalid publisher heartbeat options", async () => {
+    const store = createMemoryCoordinatorStore();
+
+    const invalidPublisher = await heartbeatStoredCoordinatorPublisher({
+      now: "2026-01-01T00:00:01.000Z",
+      publisherInstanceId: "../publisher",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 3000,
+    });
+    const invalidNow = await heartbeatStoredCoordinatorPublisher({
+      now: "soon",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 3000,
+    });
+    const invalidTtl = await heartbeatStoredCoordinatorPublisher({
+      now: "2026-01-01T00:00:01.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 0,
+    });
+
+    expect(invalidPublisher.status).toBe("rejected");
+    expect(invalidPublisher.response.status).toBe(409);
+    expect(await invalidPublisher.response.json()).toEqual({
+      error: {
+        message: "publisherInstanceId must be a non-empty URL-safe identifier",
+      },
+    });
+
+    expect(invalidNow.status).toBe("rejected");
+    expect(invalidNow.response.status).toBe(409);
+    expect(await invalidNow.response.json()).toEqual({
+      error: { message: "now must be a valid timestamp" },
+    });
+
+    expect(invalidTtl.status).toBe("rejected");
+    expect(invalidTtl.response.status).toBe(409);
+    expect(await invalidTtl.response.json()).toEqual({
+      error: { message: "ttlMs must be a positive number" },
+    });
   });
 });
 
