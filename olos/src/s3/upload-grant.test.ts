@@ -105,6 +105,18 @@ describe("s3 upload grants", () => {
     );
   });
 
+  test("validates SDK-presigned slots before signing", async () => {
+    await expect(
+      createPresignedS3UploadGrant({
+        bucket: "media",
+        client: null as unknown as S3Client,
+        expiresInSeconds: 3,
+        now: "2026-01-01T00:00:00.000Z",
+        slot: { ...slot, state: "expired" },
+      })
+    ).rejects.toThrow("uploadSlot.state must be issued");
+  });
+
   test("rejects invalid SDK-presigned grant options", async () => {
     await expect(
       createPresignedS3UploadGrant({
@@ -147,6 +159,7 @@ describe("s3 upload grants", () => {
         bucket: "media",
         client: createClient(),
         expiresInSeconds: 3,
+        now: "2026-01-01T00:00:00.000Z",
         slot,
       })
     ).rejects.toThrow("additionalHeaders must be a string map");

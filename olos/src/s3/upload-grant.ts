@@ -6,6 +6,7 @@ import {
 } from "../state/upload-grant";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
+import { assertUploadSlot } from "../validation/upload-slot";
 import { assertS3BucketName } from "./bucket";
 
 const S3_METADATA_HEADER_PREFIX = "x-amz-meta-olos-";
@@ -136,6 +137,7 @@ export async function createPresignedS3UploadGrant(
 function assertPresignedS3UploadGrantOptions(
   options: CreatePresignedS3UploadGrantOptions
 ): void {
+  assertUploadSlot(options.slot);
   assertS3BucketName(options.bucket);
 
   if (
@@ -146,6 +148,24 @@ function assertPresignedS3UploadGrantOptions(
   }
 
   timestampMs(options.now ?? new Date(), "now");
+
+  if (options.slot.state !== "issued") {
+    throw new Error("uploadSlot.state must be issued");
+  }
+
+  const grantExpiresAt =
+    timestampMs(options.now ?? new Date(), "now") +
+    options.expiresInSeconds * 1000;
+  const slotExpiresAt = timestampMs(
+    options.slot.expiresAt,
+    "uploadSlot.expiresAt"
+  );
+
+  if (grantExpiresAt > slotExpiresAt) {
+    throw new Error(
+      "uploadGrant.expiresAt must be before or equal to uploadSlot.expiresAt"
+    );
+  }
 }
 
 function createRequiredHeaders(
