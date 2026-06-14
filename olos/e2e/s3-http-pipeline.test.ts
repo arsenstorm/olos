@@ -144,12 +144,17 @@ describe("S3 HTTP pipeline", () => {
       })
     );
     const segmentCommit = await handle(
-      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
-        commitId: "commit_3810",
-        committedAt: "2026-01-01T00:00:02.000Z",
-        independent: true,
-        slotId: "slot_3810",
-      })
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
+        {
+          commitId: "commit_3810",
+          committedAt: "2026-01-01T00:00:02.000Z",
+          etag: '"publisher-hint"',
+          independent: true,
+          objectKey: "media/v1080/3810.m4s",
+          size: 1,
+        }
+      )
     );
     const master = await handle(
       new Request("https://edge.example.com/v1/live/session_1/master.m3u8")
