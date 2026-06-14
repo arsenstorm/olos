@@ -150,6 +150,15 @@ export function createStoredS3CoordinatorRuntimeHandler(
       return await handleS3Commit(request, route.sessionId, options);
     }
 
+    if (route.action === "completion-hint") {
+      return await handleS3CompletionHint(
+        request,
+        route.sessionId,
+        route.slotId,
+        options
+      );
+    }
+
     if (route.action === "events") {
       return await handleS3Events(request, route.sessionId, options);
     }
@@ -252,6 +261,39 @@ async function handleS3Commit(
     store: options.store,
   });
 
+  return s3CommitResponse(result, options);
+}
+
+async function handleS3CompletionHint(
+  request: Request,
+  sessionId: string,
+  slotId: string,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  const parsed = await parseS3CompletionHintRequest(request, options, slotId);
+
+  if (parsed.status === "invalid") {
+    return badRequest(parsed.message);
+  }
+
+  const result = await completeStoredS3CoordinatorUpload({
+    ...parsed.payload,
+    bucket: options.bucket,
+    client: options.objectClient ?? options.client,
+    commitPolicy: options.commitPolicy,
+    maxAttempts: options.maxAttempts,
+    publicationControl: options.publicationControl,
+    sessionId,
+    store: options.store,
+  });
+
+  return s3CommitResponse(result, options);
+}
+
+function s3CommitResponse(
+  result: Awaited<ReturnType<typeof completeStoredS3CoordinatorUpload>>,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): Response {
   if (result.status === "committed" || result.status === "idempotent") {
     notifyCursor(options.cursorNotifier, result.cursor);
 
@@ -438,6 +480,12 @@ async function handleS3Retention(
 
 type S3Route =
   | {
+      action: "completion-hint";
+      sessionId: string;
+      slotId: string;
+      status: "matched";
+    }
+  | {
       action:
         | "commits"
         | "events"
@@ -474,6 +522,40 @@ function s3Route(
   }
 
   const [sessionId, provider, action] = parts;
+
+  if (
+    sessionId !== undefined &&
+    provider === "upload-slots" &&
+    action !== undefined &&
+    parts[3] === "complete" &&
+    parts.length === 4
+  ) {
+    if (request.method !== "POST") {
+      return { status: "method_not_allowed" };
+    }
+
+    const sessionIdError = routeSessionIdError(sessionId);
+
+    if (sessionIdError !== undefined) {
+      return { message: sessionIdError, status: "invalid" };
+    }
+
+    try {
+      assertUrlSafeIdentifier(action, "slotId");
+    } catch (error) {
+      return {
+        message: errorMessage(error, "invalid route slotId"),
+        status: "invalid",
+      };
+    }
+
+    return {
+      action: "completion-hint",
+      sessionId,
+      slotId: action,
+      status: "matched",
+    };
+  }
 
   if (
     sessionId === undefined ||
@@ -598,6 +680,30 @@ interface S3RetentionPayload {
   now: string;
 }
 
+async function parseS3CompletionHintRequest(
+  request: Request,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
+  slotId: string
+): Promise<
+  | { payload: S3CommitPayload; status: "valid" }
+  | { message: string; status: "invalid" }
+> {
+  try {
+    const payload = await request.json();
+
+    if (!isRecord(payload)) {
+      return invalid("S3 completion hint request must be a JSON object");
+    }
+
+    return {
+      payload: parseCompletionHintPayload(payload, options, slotId),
+      status: "valid",
+    };
+  } catch (error) {
+    return invalid(errorMessage(error, "invalid S3 completion hint request"));
+  }
+}
+
 async function parseS3CommitRequest(
   request: Request,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
@@ -619,6 +725,31 @@ async function parseS3CommitRequest(
   } catch (error) {
     return invalid(errorMessage(error));
   }
+}
+
+function parseCompletionHintPayload(
+  value: Record<string, unknown>,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
+  slotId: string
+): S3CommitPayload {
+  const providerId = providerIdField(value, options);
+  optionalStringField(value, "etag");
+  optionalNonNegativeNumberField(value, "size");
+
+  return {
+    commitId:
+      optionalUrlSafeIdentifierField(value, "commitId") ?? `complete_${slotId}`,
+    committedAt:
+      optionalTimestampValueField(value, "committedAt") ??
+      new Date().toISOString(),
+    providerId,
+    slotId,
+    ...optionalBooleanField(value, "independent"),
+    ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
+    ...optionalPositiveIntegerField(value, "maxSegments"),
+    ...optionalTimestampField(value, "programDateTime"),
+    ...optionalStringField(value, "versionId"),
+  };
 }
 
 function parseCommitPayload(
@@ -1002,8 +1133,8 @@ function optionalPositiveIntegerField(
 
 function optionalNonNegativeNumberField(
   value: Record<string, unknown>,
-  field: "lateToleranceMs"
-): Partial<Pick<S3CommitPayload, "lateToleranceMs">> {
+  field: "lateToleranceMs" | "size"
+): Partial<Record<typeof field, number>> {
   if (value[field] === undefined) {
     return {};
   }
@@ -1056,7 +1187,7 @@ function optionalObjectKeyField(
   return { objectKey };
 }
 
-function optionalStringField<Field extends "versionId">(
+function optionalStringField<Field extends "etag" | "versionId">(
   value: Record<string, unknown>,
   field: Field
 ): Partial<Record<Field, string>> {
@@ -1067,6 +1198,28 @@ function optionalStringField<Field extends "versionId">(
   return { [field]: stringField(value, field) } as Partial<
     Record<Field, string>
   >;
+}
+
+function optionalUrlSafeIdentifierField(
+  value: Record<string, unknown>,
+  field: "commitId"
+): string | undefined {
+  if (value[field] === undefined) {
+    return;
+  }
+
+  return urlSafeIdentifierField(value, field);
+}
+
+function optionalTimestampValueField(
+  value: Record<string, unknown>,
+  field: "committedAt"
+): string | undefined {
+  if (value[field] === undefined) {
+    return;
+  }
+
+  return timestampField(value, field);
 }
 
 function optionalTimestampField<Field extends "programDateTime">(

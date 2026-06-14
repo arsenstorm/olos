@@ -354,6 +354,74 @@ describe("stored S3 coordinator runtime handler", () => {
     });
   });
 
+  test("accepts S3 upload-slot completion hints after object verification", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const response = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
+        {
+          committedAt: "2026-01-01T00:00:02.000Z",
+          etag: '"publisher-hint"',
+          independent: true,
+          size: 1,
+        }
+      )
+    );
+    const body = (await response.json()) as StoredS3CoordinatorCommitResponse;
+
+    expect(response.status).toBe(201);
+    expect(body.commit).toMatchObject({
+      commitId: "complete_slot_3810",
+      objectKey: "live/session/v1080/3810.m4s",
+      size: 98_304,
+      slotId: "slot_3810",
+    });
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
+  });
+
   test("returns S3 route errors without swallowing base routes", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
