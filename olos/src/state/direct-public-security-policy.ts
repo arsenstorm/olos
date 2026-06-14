@@ -1,5 +1,6 @@
 import type { DirectPublicSecurityPolicy } from "../types/direct-public-security-policy";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
+import { isSafeObjectKey } from "../validation/object-key";
 import { assertProviderCapabilityDocument } from "../validation/provider-capability";
 import { createDeliveryCachePolicy } from "./cache-policy";
 
@@ -12,6 +13,7 @@ export interface CreateDirectPublicSecurityPolicyOptions {
 export type DirectPublicMediaRequestBlockReason =
   | "document-navigation"
   | "html-accept"
+  | "unsafe-object-key"
   | "unsupported-extension";
 
 export type DirectPublicMediaRequestPolicy =
@@ -75,6 +77,14 @@ export function createDirectPublicSecurityPolicy(
 export function resolveDirectPublicMediaRequestPolicy(
   options: ResolveDirectPublicMediaRequestPolicyOptions
 ): DirectPublicMediaRequestPolicy {
+  if (!isSafeObjectKey(options.objectKey)) {
+    return {
+      allowed: false,
+      reason: "unsafe-object-key",
+      status: 404,
+    };
+  }
+
   const lowerObjectKey = options.objectKey.toLowerCase();
   const supportedExtension = DIRECT_PUBLIC_MEDIA_EXTENSIONS.some((extension) =>
     lowerObjectKey.endsWith(extension)

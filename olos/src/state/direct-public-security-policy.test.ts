@@ -244,6 +244,19 @@ describe("direct-public security policy", () => {
     });
   });
 
+  test("blocks unsafe media object keys", () => {
+    for (const objectKey of [
+      "../media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
+      "media/tenant/session/e1/v1080/s1/\u0000p0-slot_1.m4s",
+    ]) {
+      expect(resolveDirectPublicMediaRequestPolicy({ objectKey })).toEqual({
+        allowed: false,
+        reason: "unsafe-object-key",
+        status: 404,
+      });
+    }
+  });
+
   test("blocks document navigation to media objects", () => {
     expect(
       resolveDirectPublicMediaRequestPolicy({
