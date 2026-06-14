@@ -88,11 +88,13 @@ export const expectedRuntimeExports = {
     "OLOS_UPLOAD_SLOT_SCHEMA",
   ],
   "olos/s3": [
+    "completeS3RuntimeUpload",
     "createPresignedS3UploadGrant",
     "createS3UploadGrant",
     "createObservedUploadFromS3HeadObject",
     "createStoredS3CoordinatorRuntimeHandler",
     "deleteRetiredS3CoordinatorObjects",
+    "issueS3RuntimeUploadGrant",
     "issueStoredS3CoordinatorUploadGrant",
     "normalizeS3ObjectCreatedEvents",
     "observeS3Object",
@@ -226,11 +228,13 @@ import type {
   RunRuntimePublisherUploadStepOptions,
 } from "olos/runtime";
 import {
+  completeS3RuntimeUpload,
   createObservedUploadFromS3HeadObject,
   createPresignedS3UploadGrant,
   createS3UploadGrant,
   createStoredS3CoordinatorRuntimeHandler,
   deleteRetiredS3CoordinatorObjects,
+  issueS3RuntimeUploadGrant,
   issueStoredS3CoordinatorUploadGrant,
   normalizeS3ObjectCreatedEvents,
   observeS3Object,
@@ -243,6 +247,9 @@ import {
   summarizeStoredS3PublisherUploadStep,
 } from "olos/s3";
 import type {
+  S3RuntimeCompleteUploadOptions,
+  S3RuntimeCompletionHintPayload,
+  S3RuntimeIssueUploadGrantOptions,
   StoredS3CoordinatorCommitResponse,
   StoredS3CoordinatorEventRouteResponse,
   StoredS3CoordinatorReconciliationResponse,
@@ -347,6 +354,10 @@ const directPublicRequestPolicy: typeof resolveDirectPublicMediaRequestPolicy =
   resolveDirectPublicMediaRequestPolicy;
 const s3RuntimeHandler: typeof createStoredS3CoordinatorRuntimeHandler =
   createStoredS3CoordinatorRuntimeHandler;
+const s3RuntimeGrantClient: typeof issueS3RuntimeUploadGrant =
+  issueS3RuntimeUploadGrant;
+const s3RuntimeCompletionClient: typeof completeS3RuntimeUpload =
+  completeS3RuntimeUpload;
 const presignedS3Grant: typeof createPresignedS3UploadGrant =
   createPresignedS3UploadGrant;
 const observedS3HeadObject: typeof createObservedUploadFromS3HeadObject =
@@ -435,10 +446,12 @@ const capability = {
     directObjectPublication: true,
   },
   uploadGrants: {
+    contentTypeBound: true,
     exactKey: true,
     methodBound: true,
     objectSizeCanBeObserved: true,
     presignedPut: true,
+    requiredHeadersCanBeSigned: true,
   },
 } satisfies ProviderCapabilityDocument;
 
@@ -468,6 +481,35 @@ const grant: UploadGrant = createS3UploadGrant({
     "https://media.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
   slot,
 });
+const s3CompletionHint = {
+  etag: '"abc"',
+  objectKey: slot.objectKey,
+  size: 98_304,
+} satisfies S3RuntimeCompletionHintPayload;
+const s3RuntimeGrantOptions = {
+  baseUrl: "https://edge.example.com",
+  payload: {
+    contentType: slot.contentType,
+    deliveryUrl: slot.deliveryUrl,
+    duration: slot.duration,
+    expiresAt: slot.expiresAt,
+    kind: slot.kind,
+    maxBytes: slot.maxBytes,
+    mediaSequenceNumber: slot.mediaSequenceNumber,
+    objectKey: slot.objectKey,
+    publicationMode: slot.publicationMode,
+    publisherInstanceId: slot.publisherInstanceId,
+    renditionId: slot.renditionId,
+    slotId: slot.slotId,
+  },
+  sessionId: slot.sessionId,
+} satisfies S3RuntimeIssueUploadGrantOptions;
+const s3RuntimeCompletionOptions = {
+  baseUrl: "https://edge.example.com",
+  payload: s3CompletionHint,
+  sessionId: slot.sessionId,
+  slotId: slot.slotId,
+} satisfies S3RuntimeCompleteUploadOptions;
 
 const s3SlotGrantResponse: StoredS3CoordinatorSlotGrantResponse = {
   grant,
@@ -580,6 +622,8 @@ directPublicMediaHeaders satisfies typeof createDirectPublicMediaResponseHeaders
 directPublicNegativeHeaders satisfies typeof createDirectPublicNegativeObjectResponseHeaders;
 directPublicRequestPolicy satisfies typeof resolveDirectPublicMediaRequestPolicy;
 s3RuntimeHandler satisfies typeof createStoredS3CoordinatorRuntimeHandler;
+s3RuntimeGrantClient satisfies typeof issueS3RuntimeUploadGrant;
+s3RuntimeCompletionClient satisfies typeof completeS3RuntimeUpload;
 presignedS3Grant satisfies typeof createPresignedS3UploadGrant;
 observedS3HeadObject satisfies typeof createObservedUploadFromS3HeadObject;
 observeS3 satisfies typeof observeS3Object;
@@ -621,6 +665,9 @@ s3PublisherLateTolerance satisfies Pick<
   RunPlannedStoredS3PublisherUploadStepOptions,
   "lateToleranceMs"
 >;
+s3CompletionHint satisfies S3RuntimeCompletionHintPayload;
+s3RuntimeGrantOptions satisfies S3RuntimeIssueUploadGrantOptions;
+s3RuntimeCompletionOptions satisfies S3RuntimeCompleteUploadOptions;
 `.trimStart();
 }
 
