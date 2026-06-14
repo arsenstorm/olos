@@ -80,6 +80,9 @@ describe("s3 event normalization", () => {
         ...record,
         responseElements: {},
         s3: {
+          bucket: {
+            name: "media",
+          },
           object: {
             key: "media/v1080/segment+3810.m4s",
             sequencer: "0065A4",
@@ -153,8 +156,38 @@ describe("s3 event normalization", () => {
         providerId: "s3_primary",
         record: {
           ...record,
+          s3: {
+            bucket: {
+              name: "media/live",
+            },
+            object: {
+              key: "media/v1080/3810.m4s",
+              sequencer: "0065A4",
+              size: 98_304,
+            },
+          },
+        },
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          message: "s3 event bucket is invalid",
+        },
+      },
+      status: "invalid_event",
+    });
+
+    expect(
+      normalizeS3ObjectCreatedEventRecord({
+        providerId: "s3_primary",
+        record: {
+          ...record,
           responseElements: {},
           s3: {
+            bucket: {
+              name: "media",
+            },
             object: {
               key: "%not-valid",
               size: 98_304,
@@ -178,6 +211,9 @@ describe("s3 event normalization", () => {
         record: {
           ...record,
           s3: {
+            bucket: {
+              name: "media",
+            },
             object: {
               key: "media/session/%2E%2E/secret.m4s",
               sequencer: "0065A4",

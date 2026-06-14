@@ -44,14 +44,20 @@ export function normalizeS3ObjectCreatedEventRecord(
   }
 
   const record = asRecord(options.record);
-  const object = asRecord(asRecord(record?.s3)?.object);
+  const s3 = asRecord(record?.s3);
+  const bucket = asRecord(s3?.bucket);
+  const object = asRecord(s3?.object);
 
-  if (record === undefined || object === undefined) {
+  if (record === undefined || bucket === undefined || object === undefined) {
     return invalidS3Event("s3 event record is invalid");
   }
 
   if (!isObjectCreatedEventName(record.eventName)) {
     return invalidS3Event("s3 event record is not object-created");
+  }
+
+  if (!isS3BucketName(bucket.name)) {
+    return invalidS3Event("s3 event bucket is invalid");
   }
 
   const key = objectKey(object.key);
@@ -128,6 +134,10 @@ function objectKey(value: unknown): string | undefined {
 
 function isObjectCreatedEventName(value: unknown): boolean {
   return typeof value === "string" && value.startsWith("ObjectCreated:");
+}
+
+function isS3BucketName(value: unknown): boolean {
+  return typeof value === "string" && value.length > 0 && !value.includes("/");
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

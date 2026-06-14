@@ -640,6 +640,9 @@ describe("object-store flow", () => {
               "x-amz-request-id": "evt_3810",
             },
             s3: {
+              bucket: {
+                name: "media",
+              },
               object: {
                 eTag: `"${issued.segmentPlan.slot.objectKey}"`,
                 key: issued.segmentPlan.slot.objectKey,

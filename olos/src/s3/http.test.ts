@@ -2756,6 +2756,9 @@ function s3EventRecord(objectKey: string, eventId: string) {
       "x-amz-request-id": eventId,
     },
     s3: {
+      bucket: {
+        name: "media",
+      },
       object: {
         eTag: eventId,
         key: encodeURIComponent(objectKey),
