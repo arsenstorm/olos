@@ -13,6 +13,7 @@ import {
   type RuntimeFetch,
 } from "olos/runtime";
 import {
+  commitS3RuntimeUpload,
   completeS3RuntimeUpload,
   createStoredS3CoordinatorRuntimeHandler,
   issueS3RuntimeUploadGrant,
@@ -140,13 +141,16 @@ describe("S3 HTTP pipeline", () => {
       }),
       sessionId: session.sessionId,
     });
-    const initCommit = await handle(
-      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+    const initCommit = await commitS3RuntimeUpload({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      payload: {
         commitId: "commit_init",
         committedAt: "2026-01-01T00:00:01.000Z",
-        slotId: "slot_init",
-      })
-    );
+        slotId: initGrant.slot.slotId,
+      },
+      sessionId: session.sessionId,
+    });
     const segmentCommit = await completeS3RuntimeUpload({
       baseUrl: "https://edge.example.com",
       fetch: clientFetch,
@@ -172,7 +176,7 @@ describe("S3 HTTP pipeline", () => {
     expect(created.status).toBe(201);
     expect(initGrant.response.status).toBe(201);
     expect(segmentGrant.response.status).toBe(201);
-    expect(initCommit.status).toBe(201);
+    expect(initCommit.response.status).toBe(201);
     expect(segmentCommit.response.status).toBe(201);
     expect(master.status).toBe(200);
     expect(await master.text()).toContain(
