@@ -20,5 +20,7 @@ This project follows semantic versioning for the published `olos` package.
 - Added S3-compatible upload grants, object observation, event routing,
   reconciliation, and retention helpers.
 - Added S3-native slot metadata binding and observation normalization.
+- Hardened S3-compatible upload grant and live-provider test configuration
+  validation.
 - Added in-memory and SQLite-backed serialized coordinator store adapters.
 - Added conformance coverage metadata and package publication checks.
