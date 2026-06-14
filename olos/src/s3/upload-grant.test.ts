@@ -116,6 +116,14 @@ describe("s3 upload grants", () => {
     ).rejects.toThrow("bucket must be a non-empty string");
     await expect(
       createPresignedS3UploadGrant({
+        bucket: "media/live",
+        client: createClient(),
+        expiresInSeconds: 3,
+        slot,
+      })
+    ).rejects.toThrow("bucket must not contain path separators");
+    await expect(
+      createPresignedS3UploadGrant({
         bucket: "media",
         client: createClient(),
         expiresInSeconds: 0,
@@ -196,6 +204,26 @@ describe("s3 upload grants", () => {
         slot,
       })
     ).toThrow("presignedUrl path must match uploadSlot.objectKey");
+  });
+
+  test("rejects invalid manual path-style bucket names", () => {
+    expect(() =>
+      createS3UploadGrant({
+        bucket: "",
+        presignedUrl:
+          "https://s3.example.com/media/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+        slot,
+      })
+    ).toThrow("bucket must be a non-empty string");
+
+    expect(() =>
+      createS3UploadGrant({
+        bucket: "media/live",
+        presignedUrl:
+          "https://s3.example.com/media/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+        slot,
+      })
+    ).toThrow("bucket must not contain path separators");
   });
 
   test("rejects invalid manual S3 presigned URLs", () => {

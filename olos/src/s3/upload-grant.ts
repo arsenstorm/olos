@@ -29,6 +29,10 @@ export interface CreatePresignedS3UploadGrantOptions {
 export function createS3UploadGrant(
   options: CreateS3UploadGrantOptions
 ): UploadGrant {
+  if (options.bucket !== undefined) {
+    assertS3BucketName(options.bucket);
+  }
+
   assertPresignedUrlMatchesSlot(options);
 
   return createUploadGrant({
@@ -131,9 +135,7 @@ export async function createPresignedS3UploadGrant(
 function assertPresignedS3UploadGrantOptions(
   options: CreatePresignedS3UploadGrantOptions
 ): void {
-  if (options.bucket.length === 0) {
-    throw new Error("bucket must be a non-empty string");
-  }
+  assertS3BucketName(options.bucket);
 
   if (
     !Number.isFinite(options.expiresInSeconds) ||
@@ -143,6 +145,16 @@ function assertPresignedS3UploadGrantOptions(
   }
 
   timestampMs(options.now ?? new Date(), "now");
+}
+
+function assertS3BucketName(value: string): void {
+  if (value.length === 0) {
+    throw new Error("bucket must be a non-empty string");
+  }
+
+  if (value.includes("/")) {
+    throw new Error("bucket must not contain path separators");
+  }
 }
 
 function createRequiredHeaders(
