@@ -495,7 +495,7 @@ hand-building route URLs:
 
 ```ts
 import {
-  completeS3RuntimeUpload,
+  commitS3RuntimeUpload,
   issueS3RuntimeUploadGrant,
 } from "olos/s3";
 
@@ -506,6 +506,24 @@ const issued = await issueS3RuntimeUploadGrant({
 });
 
 await uploadToGrantedUrl(issued.grant);
+
+const committed = await commitS3RuntimeUpload({
+  baseUrl: "https://edge.example.com",
+  payload: {
+    commitId: "commit_3810",
+    committedAt: new Date().toISOString(),
+    objectKey: issued.slot.objectKey,
+    slotId: issued.slot.slotId,
+  },
+  sessionId: "session_1",
+});
+```
+
+If the publisher only sends a completion hint, use the slot-scoped completion
+route instead:
+
+```ts
+import { completeS3RuntimeUpload } from "olos/s3";
 
 const completed = await completeS3RuntimeUpload({
   baseUrl: "https://edge.example.com",
