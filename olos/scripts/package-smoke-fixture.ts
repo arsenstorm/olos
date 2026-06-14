@@ -88,6 +88,7 @@ export const expectedRuntimeExports = {
     "OLOS_UPLOAD_SLOT_SCHEMA",
   ],
   "olos/s3": [
+    "applyS3RuntimeRetention",
     "completeS3RuntimeUpload",
     "commitS3RuntimeUpload",
     "createPresignedS3UploadGrant",
@@ -231,6 +232,7 @@ import type {
   RunRuntimePublisherUploadStepOptions,
 } from "olos/runtime";
 import {
+  applyS3RuntimeRetention,
   completeS3RuntimeUpload,
   commitS3RuntimeUpload,
   createObservedUploadFromS3HeadObject,
@@ -253,6 +255,7 @@ import {
   summarizeStoredS3PublisherUploadStep,
 } from "olos/s3";
 import type {
+  S3RuntimeApplyRetentionOptions,
   S3RuntimeCommitPayload,
   S3RuntimeCommitUploadOptions,
   S3RuntimeCompleteUploadOptions,
@@ -262,6 +265,7 @@ import type {
   S3RuntimeReconcileUploadsOptions,
   S3RuntimeReconciliationPayload,
   S3RuntimeReconciliationPlanPayload,
+  S3RuntimeRetentionPayload,
   StoredS3CoordinatorCommitResponse,
   StoredS3CoordinatorEventRouteResponse,
   StoredS3CoordinatorReconciliationResponse,
@@ -372,6 +376,8 @@ const s3RuntimeCompletionClient: typeof completeS3RuntimeUpload =
   completeS3RuntimeUpload;
 const s3RuntimeCommitClient: typeof commitS3RuntimeUpload =
   commitS3RuntimeUpload;
+const s3RuntimeRetentionClient: typeof applyS3RuntimeRetention =
+  applyS3RuntimeRetention;
 const presignedS3Grant: typeof createPresignedS3UploadGrant =
   createPresignedS3UploadGrant;
 const observedS3HeadObject: typeof createObservedUploadFromS3HeadObject =
@@ -556,6 +562,14 @@ const s3RuntimeReconciliationOptions = {
   payload: s3RuntimeReconciliationPayload,
   sessionId: slot.sessionId,
 } satisfies S3RuntimeReconcileUploadsOptions;
+const s3RuntimeRetentionPayload = {
+  now: "2026-01-01T00:00:06.000Z",
+} satisfies S3RuntimeRetentionPayload;
+const s3RuntimeRetentionOptions = {
+  baseUrl: "https://edge.example.com",
+  payload: s3RuntimeRetentionPayload,
+  sessionId: slot.sessionId,
+} satisfies S3RuntimeApplyRetentionOptions;
 
 const s3SlotGrantResponse: StoredS3CoordinatorSlotGrantResponse = {
   grant,
@@ -671,6 +685,7 @@ s3RuntimeHandler satisfies typeof createStoredS3CoordinatorRuntimeHandler;
 s3RuntimeGrantClient satisfies typeof issueS3RuntimeUploadGrant;
 s3RuntimeCompletionClient satisfies typeof completeS3RuntimeUpload;
 s3RuntimeCommitClient satisfies typeof commitS3RuntimeUpload;
+s3RuntimeRetentionClient satisfies typeof applyS3RuntimeRetention;
 presignedS3Grant satisfies typeof createPresignedS3UploadGrant;
 observedS3HeadObject satisfies typeof createObservedUploadFromS3HeadObject;
 observeS3 satisfies typeof observeS3Object;
@@ -723,6 +738,8 @@ s3RuntimeReconciliationPlanPayload satisfies S3RuntimeReconciliationPlanPayload;
 s3RuntimeReconciliationPayload satisfies S3RuntimeReconciliationPayload;
 s3RuntimeReconciliationPlanOptions satisfies S3RuntimePlanReconciliationOptions;
 s3RuntimeReconciliationOptions satisfies S3RuntimeReconcileUploadsOptions;
+s3RuntimeRetentionPayload satisfies S3RuntimeRetentionPayload;
+s3RuntimeRetentionOptions satisfies S3RuntimeApplyRetentionOptions;
 `.trimStart();
 }
 

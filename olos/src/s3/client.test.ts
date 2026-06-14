@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  type DeleteObjectCommand,
+  type DeleteObjectCommandOutput,
   type HeadObjectCommand,
   type HeadObjectCommandOutput,
   S3Client,
@@ -9,6 +11,7 @@ import { createRuntimeSession, type RuntimeFetch } from "../runtime";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
+  applyS3RuntimeRetention,
   commitS3RuntimeUpload,
   completeS3RuntimeUpload,
   issueS3RuntimeUploadGrant,
@@ -18,6 +21,7 @@ import {
 } from "./client";
 import { createStoredS3CoordinatorRuntimeHandler } from "./http";
 import type { S3HeadObjectClient } from "./object-observation";
+import type { S3DeleteObjectClient } from "./retention";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -240,6 +244,17 @@ describe("S3 runtime HTTP client", () => {
     ).rejects.toThrow("S3 upload reconciliation failed with status 404");
 
     await expect(
+      applyS3RuntimeRetention({
+        baseUrl: "https://edge.example.com",
+        fetch: clientFetch,
+        payload: {
+          now: "2026-01-01T00:00:06.000Z",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("S3 retention failed with status 404");
+
+    await expect(
       completeS3RuntimeUpload({
         baseUrl: "https://edge.example.com",
         fetch: clientFetch,
@@ -367,6 +382,132 @@ describe("S3 runtime HTTP client", () => {
       },
     ]);
   });
+
+  test("applies S3 retention through the HTTP runtime", async () => {
+    const deleteInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+          "live/session/v1080/3811.m4s": 98_304,
+          "live/session/v1080/init.mp4": 1024,
+        },
+        []
+      ),
+      retentionClient: deleteClientFor(deleteInputs),
+      store,
+    });
+    const clientFetch = runtimeFetchFor(handle);
+
+    await createRuntimeSession({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      pathways,
+      session,
+    });
+
+    for (const object of [
+      {
+        commitId: "commit_init",
+        duration: 1,
+        kind: "init" as const,
+        maxBytes: 2048,
+        mediaSequenceNumber: 0,
+        objectKey: "live/session/v1080/init.mp4",
+        slotId: "slot_init",
+      },
+      {
+        commitId: "commit_3810",
+        duration: 2,
+        kind: "segment" as const,
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKey: "live/session/v1080/3810.m4s",
+        slotId: "slot_3810",
+      },
+      {
+        commitId: "commit_3811",
+        duration: 2,
+        kind: "segment" as const,
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3811,
+        objectKey: "live/session/v1080/3811.m4s",
+        slotId: "slot_3811",
+      },
+    ]) {
+      await issueS3RuntimeUploadGrant({
+        baseUrl: "https://edge.example.com",
+        fetch: clientFetch,
+        payload: {
+          contentType: "video/mp4",
+          deliveryUrl: `https://media.example.com/${object.objectKey}`,
+          duration: object.duration,
+          expiresAt: "2026-01-01T00:00:05.000Z",
+          kind: object.kind,
+          maxBytes: object.maxBytes,
+          mediaSequenceNumber: object.mediaSequenceNumber,
+          objectKey: object.objectKey,
+          publicationMode: "direct-public",
+          publisherInstanceId: "publisher_1",
+          renditionId: "v1080",
+          slotId: object.slotId,
+        },
+        sessionId: session.sessionId,
+      });
+      await commitS3RuntimeUpload({
+        baseUrl: "https://edge.example.com",
+        fetch: clientFetch,
+        payload: {
+          commitId: object.commitId,
+          committedAt: "2026-01-01T00:00:02.000Z",
+          independent: object.kind === "segment",
+          objectKey: object.objectKey,
+          providerId: "s3_primary",
+          slotId: object.slotId,
+          ...(object.kind === "segment" ? { maxSegments: 1 } : {}),
+        },
+        sessionId: session.sessionId,
+      });
+    }
+
+    const retained = await applyS3RuntimeRetention({
+      baseUrl: "https://edge.example.com",
+      fetch: clientFetch,
+      payload: {
+        now: "2026-01-01T00:00:06.000Z",
+      },
+      sessionId: session.sessionId,
+    });
+
+    expect(retained.response.status).toBe(202);
+    expect(retained.plan.retiredObjects).toEqual([
+      {
+        commitId: "commit_3810",
+        objectKey: "live/session/v1080/3810.m4s",
+        slotId: "slot_3810",
+      },
+    ]);
+    expect(retained.summary).toEqual({
+      deleted: 1,
+      failed: 0,
+      failedObjectKeys: [],
+      failedSlotIds: [],
+      ok: true,
+      planned: 1,
+    });
+    expect(deleteInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
+  });
 });
 
 function runtimeFetchFor(
@@ -412,6 +553,16 @@ function objectClientFor(
         ETag: `"${objectKey}"`,
         LastModified: new Date("2026-01-01T00:00:01.000Z"),
       });
+    },
+  };
+}
+
+function deleteClientFor(inputs: unknown[]): S3DeleteObjectClient {
+  return {
+    send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput> {
+      inputs.push(command.input);
+
+      return Promise.resolve({ $metadata: {} });
     },
   };
 }

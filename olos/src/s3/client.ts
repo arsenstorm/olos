@@ -4,7 +4,10 @@ import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
-import type { StoredS3CoordinatorReconciliationResponse } from "./http";
+import type {
+  StoredS3CoordinatorReconciliationResponse,
+  StoredS3CoordinatorRetentionResponse,
+} from "./http";
 import type { StoredS3CoordinatorReconciliationPlan } from "./reconciliation";
 
 export interface S3RuntimeHttpClientOptions {
@@ -57,6 +60,12 @@ export interface S3RuntimeReconcileUploadsOptions
   sessionId: string;
 }
 
+export interface S3RuntimeApplyRetentionOptions
+  extends S3RuntimeHttpClientOptions {
+  payload: S3RuntimeRetentionPayload;
+  sessionId: string;
+}
+
 export interface S3RuntimeCommitPayload {
   commitId: string;
   committedAt: string;
@@ -83,6 +92,10 @@ export interface S3RuntimeReconciliationPayload {
 
 export interface S3RuntimeReconciliationPlanPayload {
   slotIds?: readonly string[];
+}
+
+export interface S3RuntimeRetentionPayload {
+  now: string;
 }
 
 export interface S3RuntimeCompletionHintPayload {
@@ -124,6 +137,11 @@ export type S3RuntimeReconciliationPlanResponse =
 
 export type S3RuntimeReconcileUploadsResponse =
   StoredS3CoordinatorReconciliationResponse & {
+    response: Response;
+  };
+
+export type S3RuntimeApplyRetentionResponse =
+  StoredS3CoordinatorRetentionResponse & {
     response: Response;
   };
 
@@ -213,6 +231,24 @@ export async function reconcileS3RuntimeUploads(
 
   return {
     ...reconciliationPayload(await response.json()),
+    response,
+  };
+}
+
+export async function applyS3RuntimeRetention(
+  options: S3RuntimeApplyRetentionOptions
+): Promise<S3RuntimeApplyRetentionResponse> {
+  const response = await fetchFor(options)(
+    sessionUrl(options.baseUrl, options.sessionId, "s3/retention"),
+    jsonPost(options.payload)
+  );
+
+  if (!response.ok) {
+    throw await s3RuntimeHttpError("S3 retention", response);
+  }
+
+  return {
+    ...retentionPayload(await response.json()),
     response,
   };
 }
@@ -324,6 +360,16 @@ function reconciliationPayload(
   }
 
   return value as unknown as StoredS3CoordinatorReconciliationResponse;
+}
+
+function retentionPayload(
+  value: unknown
+): StoredS3CoordinatorRetentionResponse {
+  if (!(isRecord(value) && isRecord(value.plan) && isRecord(value.summary))) {
+    throw new Error("S3 retention response must include plan and summary");
+  }
+
+  return value as unknown as StoredS3CoordinatorRetentionResponse;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
