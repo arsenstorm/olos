@@ -644,6 +644,18 @@ The S3 runtime handler exposes the same deletion path at
 `POST /sessions/:id/s3/retention`. The body requires `now` so the retention
 cutoff is explicit.
 
+HTTP retention clients can use the matching S3 runtime helper:
+
+```ts
+import { applyS3RuntimeRetention } from "olos/s3";
+
+const retained = await applyS3RuntimeRetention({
+  baseUrl: "https://edge.example.com",
+  payload: { now: new Date().toISOString() },
+  sessionId: "session_1",
+});
+```
+
 The S3 runtime handler exposes the same recovery path at
 `POST /sessions/:id/s3/reconcile`. The body requires `committedAt`; `providerId`
 can be supplied in the body or configured on the handler. The response includes
