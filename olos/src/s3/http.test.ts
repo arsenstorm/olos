@@ -401,6 +401,7 @@ describe("stored S3 coordinator runtime handler", () => {
           committedAt: "2026-01-01T00:00:02.000Z",
           etag: '"publisher-hint"',
           independent: true,
+          objectKey: "live/session/v1080/3810.m4s",
           size: 1,
         }
       )
@@ -420,6 +421,65 @@ describe("stored S3 coordinator runtime handler", () => {
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
+  });
+
+  test("rejects mismatched object keys in S3 completion hints", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: ["https://media.example.com"],
+      bucket: "media",
+      client: createClient(),
+      expiresInSeconds: 3,
+      grantNow: () => "2026-01-01T00:00:00.000Z",
+      objectClient: objectClientFor({}, headObjectInputs),
+      providerId: "s3_primary",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const response = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
+        {
+          committedAt: "2026-01-01T00:00:02.000Z",
+          objectKey: "live/session/v1080/other.m4s",
+        }
+      )
+    );
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "olos.key_mismatch",
+        details: {
+          objectKey: "live/session/v1080/other.m4s",
+          slotId: "slot_3810",
+        },
+        message: "object key mismatches slot",
+      },
+    });
+    expect(headObjectInputs).toEqual([]);
   });
 
   test("rejects publisher media URLs in S3 completion hints", async () => {

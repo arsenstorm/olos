@@ -734,6 +734,7 @@ function parseCompletionHintPayload(
 ): S3CommitPayload {
   const providerId = providerIdField(value, options);
   assertNoCompletionHintDeliveryUrl(value);
+  const objectKey = optionalObjectKeyField(value);
   optionalStringField(value, "etag");
   optionalNonNegativeNumberField(value, "size");
 
@@ -748,6 +749,7 @@ function parseCompletionHintPayload(
     ...optionalBooleanField(value, "independent"),
     ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
+    ...objectKey,
     ...optionalTimestampField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
   };
