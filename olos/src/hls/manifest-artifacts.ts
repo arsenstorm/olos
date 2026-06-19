@@ -82,6 +82,11 @@ type InvalidParsedBlockingReloadRequest = Extract<
   { status: "invalid" }
 >;
 
+type NotFoundHlsManifestArtifactResponseResolution = Extract<
+  BlockingHlsManifestArtifactResponseResolution,
+  { status: "not_found" }
+>;
+
 type ParsedBlockingReloadRequest =
   | HlsBlockingReloadRequest
   | InvalidParsedBlockingReloadRequest;
@@ -229,7 +234,7 @@ export async function resolveBlockingHlsManifestArtifactResponse(
   );
 
   if (!response) {
-    return { status: "not_found" };
+    return notFoundHlsManifestArtifactResponseResolution();
   }
 
   return {
@@ -245,11 +250,23 @@ function parseBlockingReloadRequest(
   try {
     return parseHlsBlockingReloadRequest(requestUrl);
   } catch (error) {
-    return {
-      message: error instanceof Error ? error.message : "invalid request URL",
-      status: "invalid",
-    };
+    return invalidParsedBlockingReloadRequest(
+      error instanceof Error ? error.message : "invalid request URL"
+    );
   }
+}
+
+function invalidParsedBlockingReloadRequest(
+  message: string
+): InvalidParsedBlockingReloadRequest {
+  return {
+    message,
+    status: "invalid",
+  };
+}
+
+function notFoundHlsManifestArtifactResponseResolution(): NotFoundHlsManifestArtifactResponseResolution {
+  return { status: "not_found" };
 }
 
 function isInvalidParsedBlockingReloadRequest(
