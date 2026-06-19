@@ -12,6 +12,7 @@ import {
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
 import { errorMessage } from "../runtime/errors";
+import { optionalField } from "../runtime/optional-field";
 import { rejectionStatusCode } from "../runtime/rejection-status";
 import {
   isRecord,
@@ -1043,7 +1044,7 @@ function optionalObjectKeyField(
   const objectKey = stringField(value, "objectKey");
   assertSafeObjectKey(objectKey, "objectKey");
 
-  return { objectKey };
+  return optionalField("objectKey", objectKey);
 }
 
 function optionalStringArrayField(
@@ -1054,16 +1055,19 @@ function optionalStringArrayField(
     return {};
   }
 
-  if (
-    !(
-      Array.isArray(value[field]) &&
-      value[field].every((entry) => typeof entry === "string")
-    )
-  ) {
+  const fieldValue = value[field];
+
+  if (!isStringArray(fieldValue)) {
     throw new Error(`${field} must be a string array`);
   }
 
-  return { [field]: value[field] };
+  return optionalField(field, fieldValue);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((entry) => typeof entry === "string")
+  );
 }
 
 function optionalUrlSafeIdentifierArrayField(
