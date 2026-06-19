@@ -17,7 +17,8 @@ import {
   booleanField,
   isRecord,
   nonNegativeIntegerField,
-  nonNegativeNumberField,
+  optionalNonNegativeIntegerField,
+  optionalNonNegativeNumberField,
   optionalPositiveIntegerField,
   positiveNumberField,
   stringField,
@@ -1025,28 +1026,6 @@ function publicationModeField(value: Record<string, unknown>): PublicationMode {
   }
 
   return publicationMode as PublicationMode;
-}
-
-function optionalNonNegativeNumberField(
-  value: Record<string, unknown>,
-  field: "lateToleranceMs" | "size"
-): Partial<Record<typeof field, number>> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return { [field]: nonNegativeNumberField(value, field) };
-}
-
-function optionalNonNegativeIntegerField(
-  value: Record<string, unknown>,
-  field: "minBytes" | "partNumber"
-): Partial<Pick<RuntimeSlotIssuePayload, "minBytes" | "partNumber">> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return { [field]: nonNegativeIntegerField(value, field) };
 }
 
 function optionalBooleanField(

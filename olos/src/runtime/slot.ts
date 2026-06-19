@@ -19,6 +19,7 @@ import { rejectionStatus } from "./rejection-status";
 import {
   isRecord,
   nonNegativeIntegerField,
+  optionalNonNegativeIntegerField,
   positiveNumberField,
   stringField,
   urlSafeIdentifierField,
@@ -180,15 +181,4 @@ function publicationModeField(value: Record<string, unknown>): PublicationMode {
   }
 
   return publicationMode as PublicationMode;
-}
-
-function optionalNonNegativeIntegerField(
-  value: Record<string, unknown>,
-  field: "minBytes" | "partNumber"
-): Partial<Pick<RuntimeSlotIssuePayload, "minBytes" | "partNumber">> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return { [field]: nonNegativeIntegerField(value, field) };
 }

@@ -14,7 +14,7 @@ import { rejectionStatus } from "./rejection-status";
 import {
   booleanField,
   isRecord,
-  nonNegativeNumberField,
+  optionalNonNegativeNumberField,
   optionalPositiveIntegerField,
   positiveNumberField,
   stringField,
@@ -183,17 +183,6 @@ function optionalBooleanField(
   }
 
   return { [field]: booleanField(value, field) };
-}
-
-function optionalNonNegativeNumberField(
-  value: Record<string, unknown>,
-  field: "lateToleranceMs"
-): Partial<Pick<RuntimeCommitPayload, "lateToleranceMs">> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return { [field]: nonNegativeNumberField(value, field) };
 }
 
 function optionalStringField<Field extends "etag" | "programDateTime">(

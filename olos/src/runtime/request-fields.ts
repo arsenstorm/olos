@@ -55,6 +55,19 @@ export function nonNegativeNumberField(
   return nonNegativeNumber(number, field);
 }
 
+export function optionalNonNegativeNumberField<Field extends string>(
+  value: Record<string, unknown>,
+  field: Field
+): Partial<Record<Field, number>> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  return { [field]: nonNegativeNumberField(value, field) } as Partial<
+    Record<Field, number>
+  >;
+}
+
 export function nonNegativeNumber(value: number, name: string): number {
   if (!Number.isFinite(value) || value < 0) {
     throw new Error(`${name} must be a non-negative number`);
@@ -70,6 +83,19 @@ export function nonNegativeIntegerField(
   const number = numberField(value, field);
 
   return nonNegativeInteger(number, field);
+}
+
+export function optionalNonNegativeIntegerField<Field extends string>(
+  value: Record<string, unknown>,
+  field: Field
+): Partial<Record<Field, number>> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  return { [field]: nonNegativeIntegerField(value, field) } as Partial<
+    Record<Field, number>
+  >;
 }
 
 export function nonNegativeInteger(value: number, name: string): number {
