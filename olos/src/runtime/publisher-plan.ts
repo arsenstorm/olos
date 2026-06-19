@@ -43,6 +43,19 @@ export interface RuntimePublisherObjectPlan {
   slot: RuntimeSlotIssuePayload;
 }
 
+type InitPublisherObjectPlanOptions =
+  CreateRuntimePublisherObjectPlanOptions & {
+    kind: "init";
+  };
+type PartPublisherObjectPlanOptions =
+  CreateRuntimePublisherObjectPlanOptions & {
+    kind: "part";
+  };
+type SegmentPublisherObjectPlanOptions =
+  CreateRuntimePublisherObjectPlanOptions & {
+    kind: "segment";
+  };
+
 export function createRuntimePublisherObjectPlan(
   options: CreateRuntimePublisherObjectPlanOptions
 ): RuntimePublisherObjectPlan {
@@ -95,7 +108,7 @@ function assertPlanOptions(
   assertSafePathSegment(options.extension, "extension");
   assertSupportedMediaExtension(options.extension, options.kind, "extension");
 
-  if (options.kind === "part") {
+  if (isPartPublisherObjectPlan(options)) {
     if (!isNonNegativeInteger(options.partNumber)) {
       throw new Error("partNumber must be a non-negative integer for parts");
     }
@@ -139,14 +152,14 @@ function createObjectKey(
   const extension = options.extension.replace(LEADING_DOTS_PATTERN, "");
   const nonce = options.objectKeyNonce;
 
-  if (options.kind === "init") {
+  if (isInitPublisherObjectPlan(options)) {
     const fileName =
       nonce === undefined ? `init.${extension}` : `init-${nonce}.${extension}`;
 
     return `${prefix}/${options.renditionId}/${fileName}`;
   }
 
-  if (options.kind === "segment") {
+  if (isSegmentPublisherObjectPlan(options)) {
     return createSegmentObjectKey(options, prefix, extension, nonce);
   }
 
@@ -178,15 +191,33 @@ function createObjectId(
   options: CreateRuntimePublisherObjectPlanOptions,
   prefix: string
 ): string {
-  if (options.kind === "init") {
+  if (isInitPublisherObjectPlan(options)) {
     return `${prefix}_init_${options.renditionId}`;
   }
 
-  if (options.kind === "segment") {
+  if (isSegmentPublisherObjectPlan(options)) {
     return `${prefix}_${options.renditionId}_s${options.mediaSequenceNumber}`;
   }
 
   return `${prefix}_${options.renditionId}_s${options.mediaSequenceNumber}_p${options.partNumber}`;
+}
+
+function isInitPublisherObjectPlan(
+  options: CreateRuntimePublisherObjectPlanOptions
+): options is InitPublisherObjectPlanOptions {
+  return options.kind === "init";
+}
+
+function isPartPublisherObjectPlan(
+  options: CreateRuntimePublisherObjectPlanOptions
+): options is PartPublisherObjectPlanOptions {
+  return options.kind === "part";
+}
+
+function isSegmentPublisherObjectPlan(
+  options: CreateRuntimePublisherObjectPlanOptions
+): options is SegmentPublisherObjectPlanOptions {
+  return options.kind === "segment";
 }
 
 function createDeliveryUrl(baseUrl: string, objectKey: string): string {
