@@ -7,6 +7,7 @@ import {
 import type { CoordinatorPipelineState } from "../protocol/coordinator";
 import {
   type PublicationControlPolicy,
+  type PublicationControlResolution,
   resolvePublicationControl,
 } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
@@ -56,6 +57,11 @@ export type RuntimeCoordinatorSlotIssue =
       status: "rejected";
     };
 
+type BlockedPublicationControl = Extract<
+  PublicationControlResolution,
+  { status: "blocked" }
+>;
+
 export async function issueCoordinatorSlotFromRequest(
   options: IssueCoordinatorSlotFromRequestOptions
 ): Promise<RuntimeCoordinatorSlotIssue> {
@@ -70,7 +76,7 @@ export async function issueCoordinatorSlotFromRequest(
     policy: options.publicationControl,
   });
 
-  if (publication.status === "blocked") {
+  if (isBlockedPublicationControl(publication)) {
     return rejected(publication.error, options.state);
   }
 
@@ -147,6 +153,12 @@ function invalid(
     response: jsonResponse({ error: { message } }, 400),
     status: "invalid",
   };
+}
+
+function isBlockedPublicationControl(
+  result: PublicationControlResolution
+): result is BlockedPublicationControl {
+  return result.status === "blocked";
 }
 
 function rejected(
