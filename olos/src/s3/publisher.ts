@@ -124,6 +124,11 @@ type RejectedStoredS3PublisherErrorCodeResult = Extract<
   { status: "rejected" }
 >;
 
+type SavedStoredS3CoordinatorUploadGrantIssue = Extract<
+  StoredS3CoordinatorUploadGrantIssue,
+  { status: "saved" }
+>;
+
 const SUCCESSFUL_STORED_S3_PUBLISHER_STEP_STATUSES = [
   "committed",
   "idempotent",
@@ -213,7 +218,7 @@ export async function runStoredS3PublisherUploadStep(
     };
   }
 
-  if (issued.status !== "saved") {
+  if (!isSavedStoredS3CoordinatorUploadGrantIssue(issued)) {
     return {
       ...heartbeatResult(heartbeat.result),
       issue: issued,
@@ -316,6 +321,12 @@ function isRejectedStoredS3PublisherErrorCodeResult(
   result: StoredS3PublisherErrorCodeResult | undefined
 ): result is RejectedStoredS3PublisherErrorCodeResult {
   return result?.status === "rejected";
+}
+
+function isSavedStoredS3CoordinatorUploadGrantIssue(
+  result: StoredS3CoordinatorUploadGrantIssue
+): result is SavedStoredS3CoordinatorUploadGrantIssue {
+  return result.status === "saved";
 }
 
 async function runStoredS3PublisherObjectPlanStep(
