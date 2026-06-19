@@ -48,6 +48,10 @@ const DEFAULT_MAX_HEALTH_CURSOR_AGE_MS =
 const DEFAULT_PUBLISHER_LEASE_TTL_MS = 3000;
 const DEFAULT_SESSION_PATH = "/sessions";
 const DEFAULT_TARGET_LATENCY = 3;
+const SUCCESSFUL_RUNTIME_COMMIT_STATUSES = ["committed", "idempotent"] as const;
+
+type SuccessfulRuntimeCommitStatus =
+  (typeof SUCCESSFUL_RUNTIME_COMMIT_STATUSES)[number];
 
 export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   allowedMediaOrigins: readonly string[];
@@ -290,7 +294,7 @@ async function handlePostSessionActionRoute(
       store: options.store,
     });
 
-    if (result.status === "committed" || result.status === "idempotent") {
+    if (isSuccessfulRuntimeCommitResult(result)) {
       notifyCursor(options.cursorNotifier, result.state.cursor);
     }
 
@@ -394,6 +398,18 @@ function notifyCursor(
   if (notifier !== undefined && cursor !== undefined) {
     notifier.notify(cursor);
   }
+}
+
+function isSuccessfulRuntimeCommitResult<
+  Result extends Awaited<
+    ReturnType<typeof commitStoredCoordinatorUploadFromRequest>
+  >,
+>(
+  result: Result
+): result is Extract<Result, { status: SuccessfulRuntimeCommitStatus }> {
+  return SUCCESSFUL_RUNTIME_COMMIT_STATUSES.includes(
+    result.status as SuccessfulRuntimeCommitStatus
+  );
 }
 
 async function handleLiveRoute(
