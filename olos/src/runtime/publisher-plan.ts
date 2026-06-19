@@ -3,6 +3,7 @@ import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "../validation/ids";
 import { assertSupportedMediaExtension } from "../validation/object-key";
+import { timestampMs } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
 const LEADING_DOTS_PATTERN = /^\.+/;
@@ -257,14 +258,4 @@ function trimSlashes(value: string): string {
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/g, "");
-}
-
-function timestampMs(value: string, name: string): number {
-  const timestamp = Date.parse(value);
-
-  if (Number.isNaN(timestamp)) {
-    throw new Error(`${name} must be a valid timestamp`);
-  }
-
-  return timestamp;
 }

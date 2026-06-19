@@ -6,6 +6,7 @@ import {
 import type { OlosId } from "../types/ids";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { errorMessage } from "./errors";
+import { timestampMs } from "./request-fields";
 import { jsonResponse } from "./response";
 
 export interface DeleteRetiredCoordinatorObjectsOptions {
@@ -128,14 +129,4 @@ function assertStoredRetentionOptions(
 ): void {
   assertUrlSafeIdentifier(options.sessionId, "sessionId");
   timestampMs(options.now, "now");
-}
-
-function timestampMs(value: string, name: string): number {
-  const timestamp = Date.parse(value);
-
-  if (Number.isNaN(timestamp)) {
-    throw new Error(`${name} must be a valid timestamp`);
-  }
-
-  return timestamp;
 }

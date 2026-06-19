@@ -9,6 +9,7 @@ import {
   type RuntimePublisherLeaseStatus,
   resolveRuntimePublisherLeaseStatus,
 } from "./publisher-lease";
+import { timestampMs } from "./request-fields";
 
 export interface ResolveRuntimeLiveHealthOptions {
   cursor?: Cursor;
@@ -133,14 +134,4 @@ function positiveNumber(value: number, name: string): number {
   }
 
   return value;
-}
-
-function timestampMs(value: string, name: string): number {
-  const timestamp = Date.parse(value);
-
-  if (Number.isNaN(timestamp)) {
-    throw new Error(`${name} must be a valid timestamp`);
-  }
-
-  return timestamp;
 }

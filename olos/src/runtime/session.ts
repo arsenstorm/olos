@@ -16,6 +16,7 @@ import {
   createRuntimePublisherLease,
   refreshRuntimePublisherHeartbeat,
 } from "./publisher-lease";
+import { timestampMs } from "./request-fields";
 import { jsonResponse } from "./response";
 
 export interface CreateStoredCoordinatorSessionOptions {
@@ -283,16 +284,6 @@ function assertSessionState(value: unknown): asserts value is SessionState {
   ) {
     throw new Error(`state must be one of: ${SESSION_STATES.join(", ")}`);
   }
-}
-
-function timestampMs(value: string, name: string): number {
-  const timestamp = Date.parse(value);
-
-  if (Number.isNaN(timestamp)) {
-    throw new Error(`${name} must be a valid timestamp`);
-  }
-
-  return timestamp;
 }
 
 function notFound(): StoredRuntimeSessionMutation {
