@@ -8,6 +8,7 @@ import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertUploadSlot } from "../validation/upload-slot";
 import { assertS3BucketName } from "./bucket";
+import { timestampMs } from "./timestamp";
 
 const S3_METADATA_HEADER_PREFIX = "x-amz-meta-olos-";
 
@@ -228,16 +229,6 @@ function expiresAt(options: CreatePresignedS3UploadGrantOptions): string {
   const nowMs = timestampMs(options.now ?? new Date(), "now");
 
   return new Date(nowMs + options.expiresInSeconds * 1000).toISOString();
-}
-
-function timestampMs(value: Date | string, name: string): number {
-  const timestamp = new Date(value).getTime();
-
-  if (Number.isNaN(timestamp)) {
-    throw new Error(`${name} must be a valid timestamp`);
-  }
-
-  return timestamp;
 }
 
 function isHeaderRequest(

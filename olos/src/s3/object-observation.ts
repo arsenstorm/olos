@@ -7,6 +7,7 @@ import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { assertS3BucketName } from "./bucket";
+import { timestampMs } from "./timestamp";
 
 export interface S3HeadObjectClient {
   send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput>;
@@ -119,14 +120,4 @@ function observedAt(
   }
 
   return new Date().toISOString();
-}
-
-function timestampMs(value: Date | string, name: string): number {
-  const timestamp = new Date(value).getTime();
-
-  if (Number.isNaN(timestamp)) {
-    throw new Error(`${name} must be a valid timestamp`);
-  }
-
-  return timestamp;
 }
