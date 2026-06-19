@@ -6,6 +6,7 @@ import type { MediaObject } from "../types/media-object";
 import type { Session } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertCommit } from "../validation/commit";
+import { nonNegativeNumber } from "../validation/fields";
 import { assertMediaObject } from "../validation/media-object";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { assertUploadSlot } from "../validation/upload-slot";
@@ -356,14 +357,6 @@ function assertCommitPreconditions(options: CreateCommitOptions): void {
   if (committedAt > expiresAt + lateToleranceMs) {
     throw new Error("commit.committedAt must be before uploadSlot.expiresAt");
   }
-}
-
-function nonNegativeNumber(value: number, name: string): number {
-  if (!Number.isFinite(value) || value < 0) {
-    throw new Error(`${name} must be a non-negative number`);
-  }
-
-  return value;
 }
 
 function isLateSlot(slot: UploadSlot, cursor: Cursor): boolean {

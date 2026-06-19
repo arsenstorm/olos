@@ -1,5 +1,6 @@
 import type { MediaObject } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
+import { nonNegativeNumber } from "./fields";
 import { isOptionalHttpHeaderStringMap } from "./http-header";
 import { assertMediaObject } from "./media-object";
 import { assertUploadSlot } from "./upload-slot";
@@ -110,12 +111,4 @@ function assertObjectMatchesSlot(options: ObservedUploadMatchOptions): void {
       "observedUpload.metadata.x-olos-slot-id must match uploadSlot.slotId"
     );
   }
-}
-
-function nonNegativeNumber(value: number, name: string): number {
-  if (!Number.isFinite(value) || value < 0) {
-    throw new Error(`${name} must be a non-negative number`);
-  }
-
-  return value;
 }
