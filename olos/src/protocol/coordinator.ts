@@ -106,6 +106,11 @@ type BlockedPublicationControl = Extract<
   { status: "blocked" }
 >;
 
+type RejectedCoordinatorCommitPolicyDecision = Extract<
+  CoordinatorCommitPolicyDecision,
+  { status: "rejected" }
+>;
+
 export interface MutateCoordinatorPipelineOptions {
   maxAttempts?: number;
   mutate(
@@ -418,6 +423,12 @@ function isBlockedPublicationControl(
   return result.status === "blocked";
 }
 
+function isRejectedCoordinatorCommitPolicyDecision(
+  result: CoordinatorCommitPolicyDecision
+): result is RejectedCoordinatorCommitPolicyDecision {
+  return result.status === "rejected";
+}
+
 export function issueCoordinatorSlot(
   options: IssueCoordinatorSlotOptions
 ): CoordinatorSlotIssue {
@@ -514,7 +525,7 @@ export function commitCoordinatorUpload(
       state: options.state,
     });
 
-    if (policy.status === "rejected") {
+    if (isRejectedCoordinatorCommitPolicyDecision(policy)) {
       return {
         error: policy.error,
         state: options.state,
