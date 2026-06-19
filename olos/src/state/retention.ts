@@ -33,11 +33,18 @@ export function selectExpiredUploadSlots(
   return options.slots.filter((slot) => {
     assertUploadSlot(slot);
 
-    return (
-      isIssuedUploadSlot(slot) &&
-      timestampMs(slot.expiresAt, "uploadSlot.expiresAt") <= now
-    );
+    return isExpiredIssuedUploadSlot(slot, now);
   });
+}
+
+function isExpiredIssuedUploadSlot(
+  slot: UploadSlot,
+  now: number
+): slot is IssuedUploadSlot {
+  return (
+    isIssuedUploadSlot(slot) &&
+    timestampMs(slot.expiresAt, "uploadSlot.expiresAt") <= now
+  );
 }
 
 function isIssuedUploadSlot(slot: UploadSlot): slot is IssuedUploadSlot {
