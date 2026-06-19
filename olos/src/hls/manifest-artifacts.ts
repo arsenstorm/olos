@@ -100,20 +100,40 @@ export function createHlsManifestArtifacts(
       continue;
     }
 
-    const path = mediaPlaylistPath(session, rendition);
-    assertSafeRelativePath(path, "media playlist path");
-
-    artifacts.push({
-      body: renderMediaPlaylist(committedWindow, {
-        ...options,
-        renditionId: rendition.renditionId,
-      }),
-      contentType: HLS_CONTENT_TYPE,
-      path,
-    });
+    artifacts.push(
+      createMediaPlaylistArtifact(
+        session,
+        committedWindow,
+        rendition,
+        mediaPlaylistPath,
+        options
+      )
+    );
   }
 
   return artifacts;
+}
+
+function createMediaPlaylistArtifact(
+  session: Session,
+  committedWindow: CommittedWindow,
+  rendition: Rendition,
+  mediaPlaylistPath: NonNullable<
+    CreateHlsManifestArtifactsOptions["mediaPlaylistPath"]
+  >,
+  options: CreateHlsManifestArtifactsOptions
+): HlsManifestArtifact {
+  const path = mediaPlaylistPath(session, rendition);
+  assertSafeRelativePath(path, "media playlist path");
+
+  return {
+    body: renderMediaPlaylist(committedWindow, {
+      ...options,
+      renditionId: rendition.renditionId,
+    }),
+    contentType: HLS_CONTENT_TYPE,
+    path,
+  };
 }
 
 export function createHlsManifestArtifactResponse(
