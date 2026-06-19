@@ -123,6 +123,11 @@ type StoredS3CoordinatorUploadRejection = Extract<
   auditEvent?: StoredS3CoordinatorUploadAuditEvent;
 };
 
+type RejectedS3CoordinatorUploadCommit = Extract<
+  CoordinatorUploadCommit,
+  { status: "rejected" }
+>;
+
 type CoordinatorStoreSaveResult = Awaited<
   ReturnType<CoordinatorPipelineStore["save"]>
 >;
@@ -381,7 +386,7 @@ export async function commitStoredS3CoordinatorUpload(
       state: snapshot.state,
     });
 
-    if (commit.status === "rejected") {
+    if (isRejectedS3CoordinatorUploadCommit(commit)) {
       return withAuditEvent(commit, commitOptions.committedAt);
     }
 
@@ -444,6 +449,12 @@ function isIdempotentS3CoordinatorUploadCommit(
   result: CoordinatorUploadCommit
 ): result is IdempotentS3CoordinatorUploadCommit {
   return result.status === "idempotent";
+}
+
+function isRejectedS3CoordinatorUploadCommit(
+  result: CoordinatorUploadCommit
+): result is RejectedS3CoordinatorUploadCommit {
+  return result.status === "rejected";
 }
 
 export async function completeStoredS3CoordinatorUpload(
@@ -523,7 +534,7 @@ export async function completeStoredS3CoordinatorUploadByObjectKey(
 }
 
 function withAuditEvent(
-  commit: Extract<CoordinatorUploadCommit, { status: "rejected" }>,
+  commit: RejectedS3CoordinatorUploadCommit,
   occurredAt: string
 ): StoredS3CoordinatorUploadRejection {
   const details = commit.error.error.details;
