@@ -20,6 +20,13 @@ import {
 import type { S3HeadObjectClient } from "./object-observation";
 
 type SlotValue<T> = T | ((slot: UploadSlot) => T);
+const SUCCESSFUL_S3_RECONCILIATION_STATUSES = [
+  "committed",
+  "idempotent",
+] as const;
+
+type SuccessfulS3ReconciliationStatus =
+  (typeof SUCCESSFUL_S3_RECONCILIATION_STATUSES)[number];
 
 export interface ReconcileStoredS3CoordinatorUploadsOptions {
   bucket: string;
@@ -230,7 +237,7 @@ async function reconcileSlot(
       ...optionalField("versionId", options.versionId),
     });
 
-    if (result.status === "committed" || result.status === "idempotent") {
+    if (isSuccessfulS3ReconciliationCommit(result)) {
       return {
         commit: result,
         slot,
@@ -250,6 +257,16 @@ async function reconcileSlot(
       status: "failed",
     };
   }
+}
+
+function isSuccessfulS3ReconciliationCommit<
+  Result extends StoredS3CoordinatorUploadCommit,
+>(
+  result: Result
+): result is Extract<Result, { status: SuccessfulS3ReconciliationStatus }> {
+  return SUCCESSFUL_S3_RECONCILIATION_STATUSES.includes(
+    result.status as SuccessfulS3ReconciliationStatus
+  );
 }
 
 function reconciliationSlots(
