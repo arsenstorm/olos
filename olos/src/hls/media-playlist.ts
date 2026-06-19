@@ -1,4 +1,5 @@
 import type {
+  CommittedPart,
   CommittedSegment,
   CommittedWindow,
 } from "../types/committed-window";
@@ -72,16 +73,20 @@ function renderSegment(
   }
 
   for (const part of segment.parts ?? []) {
-    const attributes = [
-      `DURATION=${formatSeconds(part.duration)}`,
-      part.independent ? "INDEPENDENT=YES" : undefined,
-      `URI="${renderMediaUri(part.deliveryUrl, policy, "part.deliveryUrl")}"`,
-    ].filter((attribute) => attribute !== undefined);
-
-    lines.push(`#EXT-X-PART:${attributes.join(",")}`);
+    lines.push(renderPart(part, policy));
   }
 
   return lines;
+}
+
+function renderPart(part: CommittedPart, policy: MediaUriPolicy): string {
+  const attributes = [
+    `DURATION=${formatSeconds(part.duration)}`,
+    part.independent ? "INDEPENDENT=YES" : undefined,
+    `URI="${renderMediaUri(part.deliveryUrl, policy, "part.deliveryUrl")}"`,
+  ].filter((attribute) => attribute !== undefined);
+
+  return `#EXT-X-PART:${attributes.join(",")}`;
 }
 
 function renderMediaUri(
