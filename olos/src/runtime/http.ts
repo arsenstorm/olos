@@ -20,6 +20,7 @@ import { resolveRuntimeLiveHealthFromState } from "./health";
 import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
 import {
   isRecord,
+  nonNegativeNumber,
   positiveNumber,
   stringField,
   urlSafeIdentifierField,
@@ -100,12 +101,11 @@ function assertRuntimeHandlerOptions(
   assertPositiveOption(options.publisherLeaseTtlMs, "publisherLeaseTtlMs");
   assertNonNegativeOption(options.lateToleranceMs, "lateToleranceMs");
 
-  if (
-    options.blockingReload !== undefined &&
-    (!Number.isFinite(options.blockingReload.timeoutMs) ||
-      options.blockingReload.timeoutMs < 0)
-  ) {
-    throw new Error("blockingReload.timeoutMs must be a non-negative number");
+  if (options.blockingReload !== undefined) {
+    nonNegativeNumber(
+      options.blockingReload.timeoutMs,
+      "blockingReload.timeoutMs"
+    );
   }
 }
 
@@ -154,8 +154,8 @@ function assertNonNegativeOption(
   value: number | undefined,
   name: string
 ): void {
-  if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
-    throw new Error(`${name} must be a non-negative number`);
+  if (value !== undefined) {
+    nonNegativeNumber(value, name);
   }
 }
 

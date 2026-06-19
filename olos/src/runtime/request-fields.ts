@@ -52,11 +52,15 @@ export function nonNegativeNumberField(
 ): number {
   const number = numberField(value, field);
 
-  if (number < 0) {
-    throw new Error(`${field} must be a non-negative number`);
+  return nonNegativeNumber(number, field);
+}
+
+export function nonNegativeNumber(value: number, name: string): number {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative number`);
   }
 
-  return number;
+  return value;
 }
 
 export function nonNegativeIntegerField(
