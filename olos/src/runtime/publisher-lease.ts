@@ -1,4 +1,5 @@
-import { isUrlSafeIdentifier } from "../validation/ids";
+import { assertUrlSafeIdentifier } from "../validation/ids";
+import { isRecord } from "./request-fields";
 
 export interface RuntimePublisherLease {
   expiresAt: string;
@@ -157,11 +158,7 @@ function assertLeaseIdentity(value: Record<string, unknown>): void {
     "sessionId",
     "publisherInstanceId",
   ] as const) {
-    if (!isUrlSafeIdentifier(value[field])) {
-      throw new Error(
-        `publisherLease.${field} must be a non-empty URL-safe identifier`
-      );
-    }
+    assertUrlSafeIdentifier(value[field], `publisherLease.${field}`);
   }
 }
 
@@ -192,8 +189,4 @@ function timestampMs(value: string, name: string): number {
   }
 
   return timestamp;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
