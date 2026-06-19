@@ -15,6 +15,7 @@ import {
   numberField,
   positiveNumberField,
   stringField,
+  timestampField,
   urlSafeIdentifierField,
 } from "./request-fields";
 import { jsonResponse } from "./response";
@@ -172,16 +173,6 @@ function invalid(
 
 function rejectionStatus(error: OlosError): number {
   return error.error.code === "olos.unknown_slot" ? 404 : 409;
-}
-
-function timestampField(value: Record<string, unknown>, field: string): string {
-  const timestamp = stringField(value, field);
-
-  if (Number.isNaN(Date.parse(timestamp))) {
-    throw new Error(`${field} must be a valid timestamp`);
-  }
-
-  return timestamp;
 }
 
 function positiveIntegerField(

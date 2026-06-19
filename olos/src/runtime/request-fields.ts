@@ -47,3 +47,16 @@ export function positiveNumberField(
 
   return number;
 }
+
+export function timestampField(
+  value: Record<string, unknown>,
+  field: string
+): string {
+  const timestamp = stringField(value, field);
+
+  if (Number.isNaN(Date.parse(timestamp))) {
+    throw new Error(`${field} must be a valid timestamp`);
+  }
+
+  return timestamp;
+}
