@@ -161,6 +161,11 @@ export type StoredS3CoordinatorUploadCommit =
 export type StoredS3CoordinatorUploadCompletion =
   StoredS3CoordinatorUploadCommit;
 
+type IdempotentS3CoordinatorUploadCommit = Extract<
+  CoordinatorUploadCommit,
+  { status: "committed" | "idempotent" }
+> & { status: "idempotent" };
+
 export type StoredS3CoordinatorUploadEventRoute =
   | StoredS3CoordinatorUploadCompletion
   | {
@@ -380,7 +385,7 @@ export async function commitStoredS3CoordinatorUpload(
       return withAuditEvent(commit, commitOptions.committedAt);
     }
 
-    if (commit.status === "idempotent") {
+    if (isIdempotentS3CoordinatorUploadCommit(commit)) {
       return withManifest(
         {
           ...commit,
@@ -433,6 +438,12 @@ function isSavedCoordinatorPipelineMutation(
   result: CoordinatorPipelineMutationResult
 ): result is SavedCoordinatorPipelineMutation {
   return result.status === "saved";
+}
+
+function isIdempotentS3CoordinatorUploadCommit(
+  result: CoordinatorUploadCommit
+): result is IdempotentS3CoordinatorUploadCommit {
+  return result.status === "idempotent";
 }
 
 export async function completeStoredS3CoordinatorUpload(
