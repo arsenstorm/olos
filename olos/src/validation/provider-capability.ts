@@ -5,7 +5,13 @@ import {
 } from "../config/provider-capability";
 import { OLOS_WIRE_VERSION } from "../index";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
-import { isUrlSafeIdentifier } from "./ids";
+import {
+  assertNonEmptyStringField,
+  assertOneOfField,
+  assertPositiveIntegerField,
+  assertUrlSafeField,
+  isRecord,
+} from "./fields";
 
 export function isProviderCapabilityDocument(
   value: unknown
@@ -211,30 +217,6 @@ function assertCapabilityPreconditions(
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function assertUrlSafeField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (!isUrlSafeIdentifier(value[field])) {
-    throw new Error(`${name}.${field} must be a non-empty URL-safe identifier`);
-  }
-}
-
-function assertNonEmptyStringField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (typeof value[field] !== "string" || value[field].length === 0) {
-    throw new Error(`${name}.${field} must be a non-empty string`);
-  }
-}
-
 function assertBooleanField(
   value: Record<string, unknown>,
   field: string,
@@ -242,27 +224,6 @@ function assertBooleanField(
 ): void {
   if (typeof value[field] !== "boolean") {
     throw new Error(`${name}.${field} must be a boolean`);
-  }
-}
-
-function assertPositiveIntegerField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (!Number.isInteger(value[field]) || Number(value[field]) <= 0) {
-    throw new Error(`${name}.${field} must be a positive integer`);
-  }
-}
-
-function assertOneOfField<const T extends readonly string[]>(
-  value: Record<string, unknown>,
-  field: string,
-  allowed: T,
-  name: string
-): void {
-  if (!allowed.includes(value[field] as T[number])) {
-    throw new Error(`${name}.${field} must be one of: ${allowed.join(", ")}`);
   }
 }
 
