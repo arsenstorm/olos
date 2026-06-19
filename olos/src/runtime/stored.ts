@@ -82,6 +82,15 @@ type TerminalRuntimeCoordinatorUploadCommit = Extract<
   { status: "invalid" | "rejected" }
 >;
 
+type CoordinatorStoreSaveResult = Awaited<
+  ReturnType<CoordinatorPipelineStore["save"]>
+>;
+
+type SavedCoordinatorStoreResult = Extract<
+  CoordinatorStoreSaveResult,
+  { status: "saved" }
+>;
+
 const TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES = [
   "invalid",
   "rejected",
@@ -158,7 +167,7 @@ export async function issueStoredCoordinatorSlotFromRequest(
       state: issued.state,
     });
 
-    if (saved.status === "saved") {
+    if (isSavedCoordinatorStoreResult(saved)) {
       return {
         ...issued,
         etag: saved.etag,
@@ -212,7 +221,7 @@ export async function commitStoredCoordinatorUploadFromRequest(
       state: committed.state,
     });
 
-    if (saved.status === "saved") {
+    if (isSavedCoordinatorStoreResult(saved)) {
       return {
         ...committed,
         etag: saved.etag,
@@ -236,6 +245,12 @@ function isTerminalRuntimeCoordinatorUploadCommit(
   return TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES.includes(
     result.status as TerminalRuntimeCoordinatorUploadCommit["status"]
   );
+}
+
+function isSavedCoordinatorStoreResult(
+  result: CoordinatorStoreSaveResult
+): result is SavedCoordinatorStoreResult {
+  return result.status === "saved";
 }
 
 function requestForAttempt<RequestType extends RuntimeCommitRequest>(
