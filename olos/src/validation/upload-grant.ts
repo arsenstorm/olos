@@ -1,6 +1,6 @@
 import type { UploadGrant } from "../types/upload-grant";
+import { assertIsoDateField, assertUrlSafeField, isRecord } from "./fields";
 import { isHttpHeaderName } from "./http-header";
-import { isUrlSafeIdentifier } from "./ids";
 
 export function isUploadGrant(value: unknown): value is UploadGrant {
   try {
@@ -18,32 +18,17 @@ export function assertUploadGrant(
     throw new Error("uploadGrant must be an object");
   }
 
-  assertUrlSafeField(value, "slotId");
+  assertUrlSafeField(value, "slotId", "uploadGrant");
 
   if (value.method !== "PUT") {
     throw new Error("uploadGrant.method must be PUT");
   }
 
   assertAbsoluteHttpUrl(value.url, "uploadGrant.url");
-  assertIsoDateField(value, "expiresAt");
+  assertIsoDateField(value, "expiresAt", "uploadGrant");
 
   if (value.requiredHeaders !== undefined) {
     assertStringMap(value.requiredHeaders, "uploadGrant.requiredHeaders");
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function assertUrlSafeField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (!isUrlSafeIdentifier(value[field])) {
-    throw new Error(
-      `uploadGrant.${field} must be a non-empty URL-safe identifier`
-    );
   }
 }
 
@@ -62,18 +47,6 @@ function assertAbsoluteHttpUrl(value: unknown, name: string): void {
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error(`${name} must be an absolute HTTP(S) URL`);
-  }
-}
-
-function assertIsoDateField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (
-    typeof value[field] !== "string" ||
-    Number.isNaN(Date.parse(value[field]))
-  ) {
-    throw new Error(`uploadGrant.${field} must be a valid timestamp`);
   }
 }
 
