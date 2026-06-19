@@ -15,6 +15,10 @@ export interface ObservedUploadMatchOptions {
   slot: UploadSlot;
 }
 
+type ObservableUploadSlot = UploadSlot & {
+  state: "issued" | "upload_observed";
+};
+
 export function isObservedUpload(value: unknown): value is ObservedUpload {
   try {
     assertObservedUpload(value);
@@ -60,9 +64,15 @@ export function assertObservedUpload(
 }
 
 function assertObservableSlotState(slot: UploadSlot): void {
-  if (slot.state !== "issued" && slot.state !== "upload_observed") {
+  if (!isObservableUploadSlot(slot)) {
     throw new Error("uploadSlot.state must be issued or upload_observed");
   }
+}
+
+function isObservableUploadSlot(
+  slot: UploadSlot
+): slot is ObservableUploadSlot {
+  return slot.state === "issued" || slot.state === "upload_observed";
 }
 
 function assertObjectMatchesSlot(options: ObservedUploadMatchOptions): void {
