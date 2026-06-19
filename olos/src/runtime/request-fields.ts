@@ -1,4 +1,5 @@
 import { assertUrlSafeIdentifier } from "../validation/ids";
+import { optionalField } from "./optional-field";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -23,9 +24,7 @@ export function optionalStringField<Field extends string>(
     return {};
   }
 
-  return { [field]: stringField(value, field) } as Partial<
-    Record<Field, string>
-  >;
+  return optionalField(field, stringField(value, field));
 }
 
 export function urlSafeIdentifierField(
@@ -78,9 +77,7 @@ export function optionalBooleanField<Field extends string>(
     return {};
   }
 
-  return { [field]: booleanField(value, field) } as Partial<
-    Record<Field, boolean>
-  >;
+  return optionalField(field, booleanField(value, field));
 }
 
 export function nonNegativeNumberField(
@@ -100,9 +97,7 @@ export function optionalNonNegativeNumberField<Field extends string>(
     return {};
   }
 
-  return { [field]: nonNegativeNumberField(value, field) } as Partial<
-    Record<Field, number>
-  >;
+  return optionalField(field, nonNegativeNumberField(value, field));
 }
 
 export function nonNegativeNumber(value: number, name: string): number {
@@ -130,9 +125,7 @@ export function optionalNonNegativeIntegerField<Field extends string>(
     return {};
   }
 
-  return { [field]: nonNegativeIntegerField(value, field) } as Partial<
-    Record<Field, number>
-  >;
+  return optionalField(field, nonNegativeIntegerField(value, field));
 }
 
 export function nonNegativeInteger(value: number, name: string): number {
@@ -160,9 +153,7 @@ export function optionalPositiveIntegerField<Field extends string>(
     return {};
   }
 
-  return { [field]: positiveIntegerField(value, field) } as Partial<
-    Record<Field, number>
-  >;
+  return optionalField(field, positiveIntegerField(value, field));
 }
 
 export function positiveInteger(value: number, name: string): number {
@@ -211,9 +202,7 @@ export function optionalTimestampField<Field extends string>(
     return {};
   }
 
-  return { [field]: timestampField(value, field) } as Partial<
-    Record<Field, string>
-  >;
+  return optionalField(field, timestampField(value, field));
 }
 
 export function optionalTimestampValueField(
