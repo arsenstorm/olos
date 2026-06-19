@@ -133,15 +133,21 @@ export function resolveHlsBlockingReload(
     return { request, status: "ready" };
   }
 
-  const liveEdgePart = cursor.window.lastPartNumber ?? Number.MAX_SAFE_INTEGER;
-
   return {
     request,
-    status:
-      request.partNumber !== undefined && request.partNumber > liveEdgePart
-        ? "block"
-        : "ready",
+    status: resolveLiveEdgePartStatus(cursor, request),
   };
+}
+
+function resolveLiveEdgePartStatus(
+  cursor: Cursor,
+  request: HlsBlockingReloadRequest
+): "block" | "ready" {
+  const liveEdgePart = cursor.window.lastPartNumber ?? Number.MAX_SAFE_INTEGER;
+
+  return request.partNumber !== undefined && request.partNumber > liveEdgePart
+    ? "block"
+    : "ready";
 }
 
 function parseOptionalInteger(
