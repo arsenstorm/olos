@@ -4,7 +4,7 @@ import type { PublicationMode } from "../types/upload-slot";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "../validation/ids";
 import { assertSupportedMediaExtension } from "../validation/object-key";
 import { trimSlashes, trimTrailingSlash } from "./path";
-import { timestampMs } from "./request-fields";
+import { positiveNumber, timestampMs } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
 const LEADING_DOTS_PATTERN = /^\.+/;
@@ -103,15 +103,11 @@ function assertPlanOptions(
     throw new Error("mediaSequenceNumber must be a non-negative integer");
   }
 
-  if (!Number.isFinite(options.duration) || options.duration <= 0) {
-    throw new Error("duration must be a positive number");
-  }
+  positiveNumber(options.duration, "duration");
 
   timestampMs(options.expiresAt, "expiresAt");
 
-  if (!Number.isFinite(options.maxBytes) || options.maxBytes <= 0) {
-    throw new Error("maxBytes must be a positive number");
-  }
+  positiveNumber(options.maxBytes, "maxBytes");
 
   if (
     options.minBytes !== undefined &&

@@ -9,7 +9,7 @@ import {
   type RuntimePublisherLeaseStatus,
   resolveRuntimePublisherLeaseStatus,
 } from "./publisher-lease";
-import { timestampMs } from "./request-fields";
+import { positiveNumber, timestampMs } from "./request-fields";
 
 export interface ResolveRuntimeLiveHealthOptions {
   cursor?: Cursor;
@@ -126,12 +126,4 @@ function selectPublisherLease(
   }
 
   return latest;
-}
-
-function positiveNumber(value: number, name: string): number {
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new Error(`${name} must be a positive number`);
-  }
-
-  return value;
 }

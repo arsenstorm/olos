@@ -16,7 +16,7 @@ import {
   createRuntimePublisherLease,
   refreshRuntimePublisherHeartbeat,
 } from "./publisher-lease";
-import { timestampMs } from "./request-fields";
+import { positiveNumber, timestampMs } from "./request-fields";
 import { jsonResponse } from "./response";
 
 export interface CreateStoredCoordinatorSessionOptions {
@@ -272,9 +272,7 @@ function assertHeartbeatOptions(
   assertUrlSafeIdentifier(options.publisherInstanceId, "publisherInstanceId");
   timestampMs(options.now, "now");
 
-  if (!Number.isFinite(options.ttlMs) || options.ttlMs <= 0) {
-    throw new Error("ttlMs must be a positive number");
-  }
+  positiveNumber(options.ttlMs, "ttlMs");
 }
 
 function assertSessionState(value: unknown): asserts value is SessionState {

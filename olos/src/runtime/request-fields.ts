@@ -91,11 +91,15 @@ export function positiveNumberField(
 ): number {
   const number = numberField(value, field);
 
-  if (number <= 0) {
-    throw new Error(`${field} must be a positive number`);
+  return positiveNumber(number, field);
+}
+
+export function positiveNumber(value: number, name: string): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`${name} must be a positive number`);
   }
 
-  return number;
+  return value;
 }
 
 export function timestampField(

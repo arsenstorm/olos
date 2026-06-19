@@ -1,3 +1,5 @@
+import { positiveNumber } from "./request-fields";
+
 const DEFAULT_MIN_TTL_SECONDS = 1;
 const MILLISECONDS_PER_SECOND = 1000;
 
@@ -34,14 +36,6 @@ export function resolveRuntimePublisherObjectExpiry(
     ).toISOString(),
     ttlSeconds,
   };
-}
-
-function positiveNumber(value: number, name: string): number {
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new Error(`${name} must be a positive number`);
-  }
-
-  return value;
 }
 
 function timestampMs(value: Date | string): number {

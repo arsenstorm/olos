@@ -1,5 +1,5 @@
 import { assertUrlSafeIdentifier } from "../validation/ids";
-import { isRecord, timestampMs } from "./request-fields";
+import { isRecord, positiveNumber, timestampMs } from "./request-fields";
 
 export interface RuntimePublisherLease {
   expiresAt: string;
@@ -48,7 +48,7 @@ export function createRuntimePublisherLease(
   });
 
   const nowMs = timestampMs(options.now, "now");
-  const ttlMs = positiveTtlMs(options.ttlMs);
+  const ttlMs = positiveNumber(options.ttlMs, "ttlMs");
 
   return {
     expiresAt: new Date(nowMs + ttlMs).toISOString(),
@@ -66,7 +66,7 @@ export function refreshRuntimePublisherLease(
   assertRuntimePublisherLease(options.lease);
 
   const nowMs = timestampMs(options.now, "now");
-  const ttlMs = positiveTtlMs(options.ttlMs);
+  const ttlMs = positiveNumber(options.ttlMs, "ttlMs");
 
   if (nowMs < timestampMs(options.lease.issuedAt, "publisherLease.issuedAt")) {
     throw new Error("now must be after or equal to publisherLease.issuedAt");
@@ -171,12 +171,4 @@ function timestampFieldMs(
   }
 
   return timestampMs(value[field], `publisherLease.${field}`);
-}
-
-function positiveTtlMs(value: number): number {
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new Error("ttlMs must be a positive number");
-  }
-
-  return value;
 }
