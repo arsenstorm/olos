@@ -437,10 +437,14 @@ function commitPayload(
 
   return {
     commit: value.commit as unknown as Commit,
-    ...(isRecord(value.cursor)
-      ? { cursor: value.cursor as unknown as Cursor }
-      : {}),
+    ...optionalCursorPayload(value.cursor),
   };
+}
+
+function optionalCursorPayload(
+  value: unknown
+): Pick<RuntimeCommitUploadResponse, "cursor"> | Record<string, never> {
+  return isRecord(value) ? { cursor: value as unknown as Cursor } : {};
 }
 
 function healthPayload(value: unknown): RuntimeLiveHealth {
