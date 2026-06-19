@@ -5,7 +5,14 @@ import type { MediaObjectKind } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertContentType } from "./content-type";
 import { assertSafeDeliveryUrl } from "./delivery-url";
-import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
+import {
+  assertIsoDateField,
+  assertNonNegativeIntegerField,
+  assertOneOfField,
+  assertPositiveNumberField,
+  assertUrlSafeField,
+  isRecord,
+} from "./fields";
 import { assertSafeMediaObjectKey } from "./object-key";
 
 export function isUploadSlot(value: unknown): value is UploadSlot {
@@ -22,25 +29,25 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
     throw new Error("uploadSlot must be an object");
   }
 
-  assertUrlSafeField(value, "slotId");
-  assertUrlSafeField(value, "sessionId");
-  assertUrlSafeField(value, "tenantId");
-  assertUrlSafeField(value, "publisherInstanceId");
-  assertUrlSafeField(value, "renditionId");
+  assertUrlSafeField(value, "slotId", "uploadSlot");
+  assertUrlSafeField(value, "sessionId", "uploadSlot");
+  assertUrlSafeField(value, "tenantId", "uploadSlot");
+  assertUrlSafeField(value, "publisherInstanceId", "uploadSlot");
+  assertUrlSafeField(value, "renditionId", "uploadSlot");
 
-  assertNonNegativeIntegerField(value, "epoch");
-  assertNonNegativeIntegerField(value, "mediaSequenceNumber");
+  assertNonNegativeIntegerField(value, "epoch", "uploadSlot");
+  assertNonNegativeIntegerField(value, "mediaSequenceNumber", "uploadSlot");
 
   if (value.partNumber !== undefined) {
-    assertNonNegativeIntegerField(value, "partNumber");
+    assertNonNegativeIntegerField(value, "partNumber", "uploadSlot");
   }
 
-  assertPositiveNumberField(value, "duration");
-  assertPositiveNumberField(value, "maxBytes");
-  assertTimestampField(value, "expiresAt");
+  assertPositiveNumberField(value, "duration", "uploadSlot");
+  assertPositiveNumberField(value, "maxBytes", "uploadSlot");
+  assertIsoDateField(value, "expiresAt", "uploadSlot");
 
   if (value.minBytes !== undefined) {
-    assertNonNegativeIntegerField(value, "minBytes");
+    assertNonNegativeIntegerField(value, "minBytes", "uploadSlot");
 
     if (Number(value.minBytes) > Number(value.maxBytes)) {
       throw new Error(
@@ -49,7 +56,7 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
     }
   }
 
-  assertAllowedValue(value.kind, MEDIA_OBJECT_KINDS, "uploadSlot.kind");
+  assertOneOfField(value, "kind", MEDIA_OBJECT_KINDS, "uploadSlot");
   assertSafeMediaObjectKey(
     value.objectKey,
     value.kind as MediaObjectKind,
@@ -58,69 +65,6 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
   assertSafeDeliveryUrl(value.deliveryUrl, "uploadSlot.deliveryUrl");
   assertContentType(value.contentType, "uploadSlot.contentType");
 
-  assertAllowedValue(
-    value.publicationMode,
-    PUBLICATION_MODES,
-    "uploadSlot.publicationMode"
-  );
-  assertAllowedValue(value.state, UPLOAD_SLOT_STATES, "uploadSlot.state");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function assertUrlSafeField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (!isUrlSafeIdentifier(value[field])) {
-    throw new Error(
-      `uploadSlot.${field} must be a non-empty URL-safe identifier`
-    );
-  }
-}
-
-function assertNonNegativeIntegerField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (!isNonNegativeInteger(value[field])) {
-    throw new Error(`uploadSlot.${field} must be a non-negative integer`);
-  }
-}
-
-function assertPositiveNumberField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (
-    typeof value[field] !== "number" ||
-    !Number.isFinite(value[field]) ||
-    value[field] <= 0
-  ) {
-    throw new Error(`uploadSlot.${field} must be a positive number`);
-  }
-}
-
-function assertTimestampField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (
-    typeof value[field] !== "string" ||
-    Number.isNaN(Date.parse(value[field]))
-  ) {
-    throw new Error(`uploadSlot.${field} must be a valid timestamp`);
-  }
-}
-
-function assertAllowedValue<const Values extends readonly string[]>(
-  value: unknown,
-  allowedValues: Values,
-  name: string
-): void {
-  if (typeof value !== "string" || !allowedValues.includes(value)) {
-    throw new Error(`${name} must be one of: ${allowedValues.join(", ")}`);
-  }
+  assertOneOfField(value, "publicationMode", PUBLICATION_MODES, "uploadSlot");
+  assertOneOfField(value, "state", UPLOAD_SLOT_STATES, "uploadSlot");
 }
