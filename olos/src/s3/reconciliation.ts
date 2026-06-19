@@ -121,6 +121,11 @@ type MissingStoredS3CoordinatorUploadReconciliation = Extract<
   { status: "not_found" }
 >;
 
+type MissingStoredS3CoordinatorReconciliationPlan = Extract<
+  StoredS3CoordinatorReconciliationPlan,
+  { status: "not_found" }
+>;
+
 export interface StoredS3CoordinatorUploadReconciliationSummary {
   committed: number;
   failed: number;
@@ -141,7 +146,7 @@ export async function reconcileStoredS3CoordinatorUploads(
   const snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
-    return { status: "not_found" };
+    return missingStoredS3CoordinatorUploadReconciliation();
   }
 
   const results: StoredS3CoordinatorUploadReconciliationResult[] = [];
@@ -228,7 +233,7 @@ export async function planStoredS3CoordinatorReconciliation(
   const snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
-    return { status: "not_found" };
+    return missingStoredS3CoordinatorReconciliationPlan();
   }
 
   const slots = reconciliationSlots(snapshot.state.slots, options);
@@ -273,18 +278,40 @@ async function reconcileSlot(
       };
     }
 
-    return {
-      result,
-      slot,
-      status: "failed",
-    };
+    return failedStoredS3CoordinatorUploadReconciliationResult(slot, result);
   } catch (error) {
-    return {
-      error: errorMessage(error, "S3 reconciliation failed"),
-      slot,
-      status: "failed",
-    };
+    return failedStoredS3CoordinatorUploadReconciliationError(slot, error);
   }
+}
+
+function missingStoredS3CoordinatorUploadReconciliation(): MissingStoredS3CoordinatorUploadReconciliation {
+  return { status: "not_found" };
+}
+
+function missingStoredS3CoordinatorReconciliationPlan(): MissingStoredS3CoordinatorReconciliationPlan {
+  return { status: "not_found" };
+}
+
+function failedStoredS3CoordinatorUploadReconciliationResult(
+  slot: UploadSlot,
+  result: StoredS3CoordinatorUploadCommit
+): FailedStoredS3CoordinatorUploadReconciliationResult {
+  return {
+    result,
+    slot,
+    status: "failed",
+  };
+}
+
+function failedStoredS3CoordinatorUploadReconciliationError(
+  slot: UploadSlot,
+  error: unknown
+): FailedStoredS3CoordinatorUploadReconciliationResult {
+  return {
+    error: errorMessage(error, "S3 reconciliation failed"),
+    slot,
+    status: "failed",
+  };
 }
 
 function isSuccessfulS3ReconciliationCommit<
