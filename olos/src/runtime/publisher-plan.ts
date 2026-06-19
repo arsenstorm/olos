@@ -3,6 +3,7 @@ import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "../validation/ids";
 import { assertSupportedMediaExtension } from "../validation/object-key";
+import { optionalField } from "./optional-field";
 import { trimSlashes, trimTrailingSlash } from "./path";
 import { positiveNumber, timestampMs } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
@@ -62,8 +63,8 @@ export function createRuntimePublisherObjectPlan(
       publisherInstanceId: options.publisherInstanceId,
       renditionId: options.renditionId,
       slotId,
-      ...optionalNumber("minBytes", options.minBytes),
-      ...optionalNumber("partNumber", options.partNumber),
+      ...optionalField("minBytes", options.minBytes),
+      ...optionalField("partNumber", options.partNumber),
     },
   };
 }
@@ -240,11 +241,4 @@ function assertSafePathSegment(value: string, name: string): void {
   ) {
     throw new Error(`${name} must be a safe path segment without dots`);
   }
-}
-
-function optionalNumber<Key extends "minBytes" | "partNumber">(
-  key: Key,
-  value: number | undefined
-): Partial<Record<Key, number>> {
-  return value === undefined ? {} : ({ [key]: value } as Record<Key, number>);
 }

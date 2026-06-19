@@ -1,6 +1,7 @@
 import type { CursorWindow } from "../types/cursor";
 import type { PublicationMode } from "../types/upload-slot";
 import { isNonNegativeInteger } from "../validation/ids";
+import { optionalField } from "./optional-field";
 import {
   type ResolveRuntimePublisherObjectExpiryOptions,
   type RuntimePublisherObjectExpiry,
@@ -154,9 +155,9 @@ export function createRuntimePublisherObjectPlanInput(
     publicationMode: options.publicationMode,
     publisherInstanceId: options.publisherInstanceId,
     renditionId: options.renditionId,
-    ...optionalNumber("minBytes", defaults.minBytes),
-    ...optionalString("objectKeyNonce", options.objectKeyNonce),
-    ...optionalNumber("partNumber", options.position.partNumber),
+    ...optionalField("minBytes", defaults.minBytes),
+    ...optionalField("objectKeyNonce", options.objectKeyNonce),
+    ...optionalField("partNumber", options.position.partNumber),
   };
 }
 
@@ -225,20 +226,6 @@ function positiveInteger(value: number | undefined, name: string): number {
   }
 
   return value;
-}
-
-function optionalNumber<Key extends "minBytes" | "partNumber">(
-  key: Key,
-  value: number | undefined
-): Partial<Record<Key, number>> {
-  return value === undefined ? {} : ({ [key]: value } as Record<Key, number>);
-}
-
-function optionalString<Key extends "objectKeyNonce">(
-  key: Key,
-  value: string | undefined
-): Partial<Record<Key, string>> {
-  return value === undefined ? {} : ({ [key]: value } as Record<Key, string>);
 }
 
 function nonNegativeInteger(value: number, name: string): number {

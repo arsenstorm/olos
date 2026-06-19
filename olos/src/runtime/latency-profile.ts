@@ -2,6 +2,7 @@ import type {
   CreateHlsManifestArtifactResponseOptions,
   CreateHlsManifestArtifactsOptions,
 } from "../hls/manifest-artifacts";
+import { optionalField } from "./optional-field";
 import type {
   RuntimePublisherObjectKindDefaults,
   RuntimePublisherPlannedObjectDefaults,
@@ -162,13 +163,6 @@ function publisherObjectDefaults(options: {
     duration: options.duration,
     extension: options.extension,
     maxBytes: options.object.maxBytes,
-    ...optionalNumber("minBytes", options.object.minBytes),
+    ...optionalField("minBytes", options.object.minBytes),
   };
-}
-
-function optionalNumber<Key extends "minBytes">(
-  key: Key,
-  value: number | undefined
-): Partial<Record<Key, number>> {
-  return value === undefined ? {} : ({ [key]: value } as Record<Key, number>);
 }

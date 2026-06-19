@@ -4,6 +4,7 @@ import type {
   RuntimeObservedUploadPayload,
 } from "./commit";
 import { errorMessage } from "./errors";
+import { optionalField } from "./optional-field";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
 export interface RuntimePublisherIssueResult {
@@ -145,10 +146,10 @@ export async function runRuntimePublisherUploadStep(
       committedAt: options.committedAt,
       object: observed,
       slotId: issued.slot.slotId,
-      ...optionalBoolean("independent", options.independent),
-      ...optionalNumber("lateToleranceMs", options.lateToleranceMs),
-      ...optionalNumber("maxSegments", options.maxSegments),
-      ...optionalString("programDateTime", options.programDateTime),
+      ...optionalField("independent", options.independent),
+      ...optionalField("lateToleranceMs", options.lateToleranceMs),
+      ...optionalField("maxSegments", options.maxSegments),
+      ...optionalField("programDateTime", options.programDateTime),
     });
   } catch (error) {
     return {
@@ -268,27 +269,6 @@ function assertPublisherStepStatus(status: string): void {
   }
 
   throw new Error("publisher step status is unsupported");
-}
-
-function optionalBoolean<Key extends string>(
-  key: Key,
-  value: boolean | undefined
-): Partial<Record<Key, boolean>> {
-  return value === undefined ? {} : ({ [key]: value } as Record<Key, boolean>);
-}
-
-function optionalNumber<Key extends string>(
-  key: Key,
-  value: number | undefined
-): Partial<Record<Key, number>> {
-  return value === undefined ? {} : ({ [key]: value } as Record<Key, number>);
-}
-
-function optionalString<Key extends string>(
-  key: Key,
-  value: string | undefined
-): Partial<Record<Key, string>> {
-  return value === undefined ? {} : ({ [key]: value } as Record<Key, string>);
 }
 
 function nonNegativeInteger(value: number, name: string): number {
