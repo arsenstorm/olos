@@ -16,6 +16,14 @@ import {
   isRecord,
 } from "./fields";
 
+const OPTIONAL_RENDITION_INTEGER_FIELDS = [
+  "bitrate",
+  "channels",
+  "sampleRate",
+] as const;
+
+const RENDITION_DIMENSION_FIELDS = ["width", "height"] as const;
+
 export function isSession(value: unknown): value is Session {
   try {
     assertSession(value);
@@ -72,13 +80,13 @@ function assertRendition(value: unknown): asserts value is Rendition {
   assertOneOfField(value, "kind", RENDITION_KINDS, "session.renditions[]");
   assertNonEmptyStringField(value, "codec", "session.renditions[]");
 
-  for (const field of ["bitrate", "channels", "sampleRate"] as const) {
+  for (const field of OPTIONAL_RENDITION_INTEGER_FIELDS) {
     if (value[field] !== undefined) {
       assertPositiveIntegerField(value, field, "session.renditions[]");
     }
   }
 
-  for (const field of ["width", "height"] as const) {
+  for (const field of RENDITION_DIMENSION_FIELDS) {
     if (value[field] !== undefined) {
       assertPositiveIntegerField(value, field, "session.renditions[]");
     }
