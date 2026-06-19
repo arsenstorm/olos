@@ -89,6 +89,11 @@ export type CoordinatorStoreSave =
       status: "conflict";
     };
 
+type SavedCoordinatorStoreSave = Extract<
+  CoordinatorStoreSave,
+  { status: "saved" }
+>;
+
 export interface MutateCoordinatorPipelineOptions {
   maxAttempts?: number;
   mutate(
@@ -356,7 +361,7 @@ export async function mutateCoordinatorPipeline(
       state,
     });
 
-    if (saved.status === "saved") {
+    if (isSavedCoordinatorStoreSave(saved)) {
       return saved;
     }
 
@@ -381,6 +386,12 @@ function positiveMutationAttempts(value: number | undefined): number {
   }
 
   return attempts;
+}
+
+function isSavedCoordinatorStoreSave(
+  result: CoordinatorStoreSave
+): result is SavedCoordinatorStoreSave {
+  return result.status === "saved";
 }
 
 export function issueCoordinatorSlot(
