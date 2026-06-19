@@ -53,6 +53,15 @@ const SUCCESSFUL_RUNTIME_COMMIT_STATUSES = ["committed", "idempotent"] as const;
 type SuccessfulRuntimeCommitStatus =
   (typeof SUCCESSFUL_RUNTIME_COMMIT_STATUSES)[number];
 
+interface InvalidRuntimeHttpRequestParse {
+  message: string;
+  status: "invalid";
+}
+
+type RuntimeHttpRequestParse<Valid extends object> =
+  | (Valid & { status: "valid" })
+  | InvalidRuntimeHttpRequestParse;
+
 export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   allowedMediaOrigins: readonly string[];
   blockingReload?: {
@@ -465,12 +474,10 @@ async function handleLiveRoute(
 }
 
 async function parseSessionCreateRequest(request: Request): Promise<
-  | {
-      pathways: readonly Pathway[];
-      session: Session;
-      status: "valid";
-    }
-  | { message: string; status: "invalid" }
+  RuntimeHttpRequestParse<{
+    pathways: readonly Pathway[];
+    session: Session;
+  }>
 > {
   try {
     const payload = await request.json();
@@ -503,13 +510,9 @@ function parsePathways(value: unknown): readonly Pathway[] {
   return value;
 }
 
-async function parseTransitionRequest(request: Request): Promise<
-  | {
-      state: SessionState;
-      status: "valid";
-    }
-  | { message: string; status: "invalid" }
-> {
+async function parseTransitionRequest(
+  request: Request
+): Promise<RuntimeHttpRequestParse<{ state: SessionState }>> {
   try {
     const payload = await request.json();
 
@@ -536,13 +539,9 @@ function sessionStateField(value: Record<string, unknown>): SessionState {
   return state as SessionState;
 }
 
-async function parseHeartbeatRequest(request: Request): Promise<
-  | {
-      publisherInstanceId: string;
-      status: "valid";
-    }
-  | { message: string; status: "invalid" }
-> {
+async function parseHeartbeatRequest(
+  request: Request
+): Promise<RuntimeHttpRequestParse<{ publisherInstanceId: string }>> {
   try {
     const payload = await request.json();
 
@@ -599,7 +598,7 @@ function routePublisherInstanceIdError(
   }
 }
 
-function invalid(message: string): { message: string; status: "invalid" } {
+function invalid(message: string): InvalidRuntimeHttpRequestParse {
   return { message, status: "invalid" };
 }
 
