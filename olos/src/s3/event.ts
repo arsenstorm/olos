@@ -1,5 +1,6 @@
 import type { UploadEventNormalization } from "../state/observed-upload";
 import { normalizeUploadEvent } from "../state/observed-upload";
+import { isRecord } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import { assertS3BucketName } from "./bucket";
@@ -168,11 +169,7 @@ function isS3BucketName(value: unknown): boolean {
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return;
-  }
-
-  return value as Record<string, unknown>;
+  return isRecord(value) ? value : undefined;
 }
 
 function stringValue(value: unknown): string | undefined {
