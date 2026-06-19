@@ -21,6 +21,8 @@ export type PathwayFailoverResolution =
       status: "unavailable";
     };
 
+type ActivePathway = Pathway & { state: "active" };
+
 export function resolvePathwayFailover(
   options: ResolvePathwayFailoverOptions
 ): PathwayFailoverResolution {
@@ -79,6 +81,10 @@ function unavailable(
 
 function nextActivePathway(pathways: readonly Pathway[]): Pathway | undefined {
   return pathways
-    .filter((pathway) => pathway.state === "active")
+    .filter(isActivePathway)
     .sort((first, second) => first.priority - second.priority)[0];
+}
+
+function isActivePathway(pathway: Pathway): pathway is ActivePathway {
+  return pathway.state === "active";
 }
