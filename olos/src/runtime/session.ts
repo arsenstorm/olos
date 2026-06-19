@@ -1,9 +1,11 @@
 import { SESSION_STATES } from "../config/session";
 import {
+  type CoordinatorPipelineMutation,
   type CoordinatorPipelineSnapshot,
   type CoordinatorPipelineState,
   type CoordinatorPipelineStore,
   type CoordinatorPublisherLease,
+  type CoordinatorStoreSave,
   createCoordinatorPipeline,
   mutateCoordinatorPipeline,
 } from "../protocol";
@@ -88,6 +90,11 @@ export type StoredRuntimeSessionMutation =
       status: "not_found";
     };
 
+type StoredSessionConflictSource = Extract<
+  CoordinatorPipelineMutation | CoordinatorStoreSave,
+  { status: "conflict" }
+>;
+
 export async function createStoredCoordinatorSession(
   options: CreateStoredCoordinatorSessionOptions
 ): Promise<StoredRuntimeSessionCreate> {
@@ -106,7 +113,7 @@ export async function createStoredCoordinatorSession(
     state,
   });
 
-  if (saved.status === "conflict") {
+  if (isStoredSessionConflictSource(saved)) {
     return conflict(saved.current);
   }
 
@@ -136,7 +143,7 @@ export async function transitionStoredCoordinatorSession(
       return notFound();
     }
 
-    if (result.status === "conflict") {
+    if (isStoredSessionConflictSource(result)) {
       return conflict(result.current);
     }
 
@@ -180,7 +187,7 @@ export async function heartbeatStoredCoordinatorPublisher(
       return notFound();
     }
 
-    if (result.status === "conflict") {
+    if (isStoredSessionConflictSource(result)) {
       return conflict(result.current);
     }
 
@@ -282,6 +289,12 @@ function assertSessionState(value: unknown): asserts value is SessionState {
   ) {
     throw new Error(`state must be one of: ${SESSION_STATES.join(", ")}`);
   }
+}
+
+function isStoredSessionConflictSource(
+  result: CoordinatorPipelineMutation | CoordinatorStoreSave
+): result is StoredSessionConflictSource {
+  return result.status === "conflict";
 }
 
 function notFound(): StoredRuntimeSessionMutation {
