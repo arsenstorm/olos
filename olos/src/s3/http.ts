@@ -22,6 +22,7 @@ import {
   optionalPositiveIntegerField,
   optionalStringField,
   optionalTimestampField,
+  optionalTimestampValueField,
   optionalUrlSafeIdentifierValueField,
   positiveNumberField,
   stringField,
@@ -1043,17 +1044,6 @@ function optionalObjectKeyField(
   assertSafeObjectKey(objectKey, "objectKey");
 
   return { objectKey };
-}
-
-function optionalTimestampValueField(
-  value: Record<string, unknown>,
-  field: "committedAt"
-): string | undefined {
-  if (value[field] === undefined) {
-    return;
-  }
-
-  return timestampField(value, field);
 }
 
 function optionalStringArrayField(

@@ -216,6 +216,17 @@ export function optionalTimestampField<Field extends string>(
   >;
 }
 
+export function optionalTimestampValueField(
+  value: Record<string, unknown>,
+  field: string
+): string | undefined {
+  if (value[field] === undefined) {
+    return;
+  }
+
+  return timestampField(value, field);
+}
+
 export function timestampMs(value: string, name: string): number {
   const timestamp = Date.parse(value);
 
