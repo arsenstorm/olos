@@ -15,6 +15,7 @@ import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
+import { errorMessage } from "./errors";
 import { resolveRuntimeLiveHealthFromState } from "./health";
 import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
 import {
@@ -617,8 +618,4 @@ function sessionNotFound(): Response {
     { error: { message: "coordinator session was not found" } },
     404
   );
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
 }

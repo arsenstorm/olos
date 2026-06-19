@@ -11,6 +11,7 @@ import {
   type RuntimeSlotIssuePayload,
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
+import { errorMessage } from "../runtime/errors";
 import {
   isRecord,
   numberField,
@@ -611,7 +612,7 @@ async function parseS3SlotGrantRequest(
       status: "valid",
     };
   } catch (error) {
-    return invalid(errorMessage(error));
+    return invalid(errorMessage(error, "invalid S3 slot grant request"));
   }
 }
 
@@ -732,7 +733,7 @@ async function parseS3CommitRequest(
       status: "valid",
     };
   } catch (error) {
-    return invalid(errorMessage(error));
+    return invalid(errorMessage(error, "invalid S3 slot grant request"));
   }
 }
 
@@ -1225,11 +1226,4 @@ function providerIdField(
   }
 
   throw new Error("providerId must be configured or provided");
-}
-
-function errorMessage(
-  error: unknown,
-  fallback = "invalid S3 slot grant request"
-): string {
-  return error instanceof Error ? error.message : fallback;
 }
