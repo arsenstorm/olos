@@ -3,6 +3,7 @@ import type {
   CoordinatorPipelineStore,
 } from "../protocol";
 import { errorMessage } from "../runtime/errors";
+import { optionalField } from "../runtime/optional-field";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
@@ -289,16 +290,7 @@ function optionalSlotValue<Key extends string, Value>(
 ): Partial<Record<Key, Value>> {
   const resolved = resolveSlotValue(value, slot);
 
-  return resolved === undefined
-    ? {}
-    : ({ [key]: resolved } as Record<Key, Value>);
-}
-
-function optionalField<Key extends string, Value>(
-  key: Key,
-  value: Value | undefined
-): Partial<Record<Key, Value>> {
-  return value === undefined ? {} : ({ [key]: value } as Record<Key, Value>);
+  return optionalField(key, resolved);
 }
 
 function commitId(slot: UploadSlot): OlosId {
