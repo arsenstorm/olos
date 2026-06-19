@@ -80,7 +80,14 @@ function assertCursorWindow(value: unknown): asserts value is CursorWindow {
     "lastMediaSequenceNumber",
     "cursor.window"
   );
+  assertCursorWindowSequence(value);
 
+  if (value.lastPartNumber !== undefined) {
+    assertNonNegativeIntegerField(value, "lastPartNumber", "cursor.window");
+  }
+}
+
+function assertCursorWindowSequence(value: Record<string, unknown>): void {
   if (
     Number(value.firstMediaSequenceNumber) >
     Number(value.lastMediaSequenceNumber)
@@ -88,10 +95,6 @@ function assertCursorWindow(value: unknown): asserts value is CursorWindow {
     throw new Error(
       "cursor.window.firstMediaSequenceNumber must be less than or equal to lastMediaSequenceNumber"
     );
-  }
-
-  if (value.lastPartNumber !== undefined) {
-    assertNonNegativeIntegerField(value, "lastPartNumber", "cursor.window");
   }
 }
 
