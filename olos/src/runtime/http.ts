@@ -18,6 +18,7 @@ import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { errorMessage } from "./errors";
 import { resolveRuntimeLiveHealthFromState } from "./health";
 import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
+import { hasControlCharacter } from "./path";
 import {
   isRecord,
   nonNegativeNumber,
@@ -157,18 +158,6 @@ function assertNonNegativeOption(
   if (value !== undefined) {
     nonNegativeNumber(value, name);
   }
-}
-
-function hasControlCharacter(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-
-    if (code <= 0x1f || code === 0x7f) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 function trimRouteSlashes(value: string): string {

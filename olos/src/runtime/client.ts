@@ -14,7 +14,7 @@ import {
   type RuntimeHttpFetch,
   responseBody,
 } from "./http-client";
-import { trimSlashes } from "./path";
+import { hasControlCharacter, trimSlashes } from "./path";
 import type { RuntimePublisherLease } from "./publisher-lease";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
@@ -375,18 +375,6 @@ function assertNonNegativeInteger(value: number, name: string): void {
   if (!Number.isInteger(value) || value < 0) {
     throw new Error(`${name} must be a non-negative integer`);
   }
-}
-
-function hasControlCharacter(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-
-    if (code <= 0x1f || code === 0x7f) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 async function runtimeHttpError(
