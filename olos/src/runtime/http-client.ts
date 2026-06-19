@@ -1,3 +1,7 @@
+import { isRecord as requestFieldIsRecord } from "./request-fields";
+
+export const isRecord = requestFieldIsRecord;
+
 export type RuntimeHttpFetch = (
   input: Request | URL | string,
   init?: RequestInit
@@ -35,8 +39,4 @@ export async function responseBody(response: Response): Promise<unknown> {
   } catch {
     return text;
   }
-}
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
