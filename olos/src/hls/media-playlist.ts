@@ -1,4 +1,5 @@
 import type {
+  CommittedObject,
   CommittedPart,
   CommittedSegment,
   CommittedWindow,
@@ -15,6 +16,10 @@ export interface RenderMediaPlaylistOptions extends MediaUriPolicy {
   segmentTarget: number;
   targetLatency?: number;
 }
+
+type FullCommittedSegment = CommittedSegment & {
+  segment: CommittedObject;
+};
 
 export function renderMediaPlaylist(
   committedWindow: CommittedWindow,
@@ -64,7 +69,7 @@ function renderSegment(
     lines.push(`#EXT-X-PROGRAM-DATE-TIME:${segment.programDateTime}`);
   }
 
-  if (segment.segment) {
+  if (hasFullCommittedSegment(segment)) {
     lines.push(
       `#EXTINF:${formatSeconds(segment.duration)},`,
       renderMediaUri(segment.segment.deliveryUrl, policy, "segment.deliveryUrl")
@@ -77,6 +82,12 @@ function renderSegment(
   }
 
   return lines;
+}
+
+function hasFullCommittedSegment(
+  segment: CommittedSegment
+): segment is FullCommittedSegment {
+  return segment.segment !== undefined;
 }
 
 function renderPart(part: CommittedPart, policy: MediaUriPolicy): string {
