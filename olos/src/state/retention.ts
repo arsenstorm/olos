@@ -23,6 +23,8 @@ export interface SelectRetiredCommittedObjectsOptions {
   retainedWindow: CommittedWindow;
 }
 
+type IssuedUploadSlot = UploadSlot & { state: "issued" };
+
 export function selectExpiredUploadSlots(
   options: SelectExpiredUploadSlotsOptions
 ): UploadSlot[] {
@@ -32,10 +34,14 @@ export function selectExpiredUploadSlots(
     assertUploadSlot(slot);
 
     return (
-      slot.state === "issued" &&
+      isIssuedUploadSlot(slot) &&
       timestampMs(slot.expiresAt, "uploadSlot.expiresAt") <= now
     );
   });
+}
+
+function isIssuedUploadSlot(slot: UploadSlot): slot is IssuedUploadSlot {
+  return slot.state === "issued";
 }
 
 export function selectRetiredCommittedObjects(
