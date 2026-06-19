@@ -10,6 +10,12 @@ export interface CreateObjectPublicationOptions {
   commit: Commit;
 }
 
+type DirectPublicCommit = Commit & { publicationMode: "direct-public" };
+type PrivatePromotionCommit = Commit & {
+  publicationMode: "private-upload-public-promotion";
+};
+type ReadGatedCommit = Commit & { publicationMode: "read-gated" };
+
 export function createObjectPublication(
   options: CreateObjectPublicationOptions
 ): ObjectPublication {
@@ -32,7 +38,7 @@ function deliveryUrlForPublication(
 ): string {
   const { capability, commit } = options;
 
-  if (commit.publicationMode === "direct-public") {
+  if (isDirectPublicCommit(commit)) {
     if (capability.publication.directObjectPublication !== true) {
       throw new Error(
         "providerCapability.publication.directObjectPublication must be true for direct-public commits"
@@ -49,7 +55,7 @@ function deliveryUrlForPublication(
   }
 
   if (
-    commit.publicationMode === "read-gated" &&
+    isReadGatedCommit(commit) &&
     capability.publication.readGateAvailable !== true
   ) {
     throw new Error(
@@ -58,7 +64,7 @@ function deliveryUrlForPublication(
   }
 
   if (
-    commit.publicationMode === "private-upload-public-promotion" &&
+    isPrivatePromotionCommit(commit) &&
     capability.publication.privateUploadPublicPromotion !== true
   ) {
     throw new Error(
@@ -67,6 +73,20 @@ function deliveryUrlForPublication(
   }
 
   return commit.deliveryUrl;
+}
+
+function isDirectPublicCommit(commit: Commit): commit is DirectPublicCommit {
+  return commit.publicationMode === "direct-public";
+}
+
+function isPrivatePromotionCommit(
+  commit: Commit
+): commit is PrivatePromotionCommit {
+  return commit.publicationMode === "private-upload-public-promotion";
+}
+
+function isReadGatedCommit(commit: Commit): commit is ReadGatedCommit {
+  return commit.publicationMode === "read-gated";
 }
 
 function assertProviderOwnsCommit(
