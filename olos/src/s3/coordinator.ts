@@ -25,6 +25,7 @@ import { positiveAttempts } from "../runtime/attempts";
 import type { UploadEventNormalization } from "../state/observed-upload";
 import {
   type PublicationControlPolicy,
+  type PublicationControlResolution,
   resolvePublicationControl,
 } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
@@ -126,6 +127,11 @@ type StoredS3CoordinatorUploadRejection = Extract<
 type RejectedS3CoordinatorUploadCommit = Extract<
   CoordinatorUploadCommit,
   { status: "rejected" }
+>;
+
+type BlockedPublicationControl = Extract<
+  PublicationControlResolution,
+  { status: "blocked" }
 >;
 
 type CoordinatorStoreSaveResult = Awaited<
@@ -262,7 +268,7 @@ export async function issueStoredS3CoordinatorUploadGrant(
     policy: slotOptions.publicationControl,
   });
 
-  if (publication.status === "blocked") {
+  if (isBlockedPublicationControl(publication)) {
     const snapshot = await store.load(sessionId);
 
     if (snapshot === undefined) {
@@ -323,7 +329,7 @@ export async function commitS3CoordinatorUpload(
     policy: options.publicationControl,
   });
 
-  if (publication.status === "blocked") {
+  if (isBlockedPublicationControl(publication)) {
     return {
       error: publication.error,
       state: options.state,
@@ -455,6 +461,12 @@ function isRejectedS3CoordinatorUploadCommit(
   result: CoordinatorUploadCommit
 ): result is RejectedS3CoordinatorUploadCommit {
   return result.status === "rejected";
+}
+
+function isBlockedPublicationControl(
+  result: PublicationControlResolution
+): result is BlockedPublicationControl {
+  return result.status === "blocked";
 }
 
 export async function completeStoredS3CoordinatorUpload(
