@@ -65,6 +65,10 @@ import {
 } from "./retention";
 
 const DEFAULT_SESSION_PATH = "/sessions";
+const SUCCESSFUL_S3_MUTATION_STATUSES = ["committed", "idempotent"] as const;
+
+type SuccessfulS3MutationStatus =
+  (typeof SUCCESSFUL_S3_MUTATION_STATUSES)[number];
 
 export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
   extends CreateStoredCoordinatorRuntimeHandlerOptions {
@@ -314,7 +318,7 @@ function s3CommitResponse(
   result: Awaited<ReturnType<typeof completeStoredS3CoordinatorUpload>>,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): Response {
-  if (result.status === "committed" || result.status === "idempotent") {
+  if (isSuccessfulS3MutationResult(result)) {
     notifyCursor(options.cursorNotifier, result.cursor);
 
     const body: StoredS3CoordinatorCommitResponse = {
@@ -386,7 +390,7 @@ async function handleS3Events(
       store: options.store,
     });
 
-    if (result.status === "committed" || result.status === "idempotent") {
+    if (isSuccessfulS3MutationResult(result)) {
       notifyCursor(options.cursorNotifier, result.cursor);
     }
 
@@ -449,7 +453,7 @@ async function handleS3Reconciliation(
   }
 
   for (const entry of result.results) {
-    if (entry.status === "committed" || entry.status === "idempotent") {
+    if (isSuccessfulS3MutationResult(entry)) {
       notifyCursor(options.cursorNotifier, entry.commit.cursor);
     }
   }
@@ -930,10 +934,18 @@ function conflict(): Response {
   );
 }
 
+function isSuccessfulS3MutationResult<Result extends { status: string }>(
+  result: Result
+): result is Extract<Result, { status: SuccessfulS3MutationStatus }> {
+  return SUCCESSFUL_S3_MUTATION_STATUSES.includes(
+    result.status as SuccessfulS3MutationStatus
+  );
+}
+
 function eventRouteResult(
   result: Awaited<ReturnType<typeof routeStoredS3CoordinatorUploadEvent>>
 ): StoredS3CoordinatorEventRouteResponseResult {
-  if (result.status === "committed" || result.status === "idempotent") {
+  if (isSuccessfulS3MutationResult(result)) {
     return {
       commit: result.commit,
       status: result.status,
@@ -974,7 +986,7 @@ function rejectionBody(
 function reconciliationResult(
   result: StoredS3CoordinatorUploadReconciliationResult
 ): StoredS3CoordinatorReconciliationResponseResult {
-  if (result.status === "committed" || result.status === "idempotent") {
+  if (isSuccessfulS3MutationResult(result)) {
     return {
       commit: result.commit.commit,
       ...(result.commit.cursor === undefined
@@ -1006,10 +1018,7 @@ function reconciliationResult(
     };
   }
 
-  return {
-    slotId: result.slot.slotId,
-    status: result.status,
-  };
+  throw new Error("unsupported S3 reconciliation result status");
 }
 
 function mediaObjectKindField(value: Record<string, unknown>): MediaObjectKind {
