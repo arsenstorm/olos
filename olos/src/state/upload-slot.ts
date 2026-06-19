@@ -71,6 +71,9 @@ export interface UploadRevocationResult {
   status: "already_revoked" | "revoked";
 }
 
+type IssuedUploadSlot = UploadSlot & { state: "issued" };
+type ObservedUploadSlot = UploadSlot & { state: "upload_observed" };
+
 export function createIssuedUploadSlot(
   options: CreateIssuedUploadSlotOptions
 ): UploadSlot {
@@ -135,21 +138,28 @@ export function resolveUploadObservation(
       ...options.slot,
       state: "upload_observed",
     },
-    status:
-      options.slot.state === "upload_observed"
-        ? "already_observed"
-        : "observed",
+    status: isObservedUploadSlot(options.slot)
+      ? "already_observed"
+      : "observed",
   };
 
   if (options.cursor !== undefined) {
     result.cursor = options.cursor;
   }
 
-  if (options.slot.state === "issued") {
+  if (isIssuedUploadSlot(options.slot)) {
     assertUploadSlotTransition(options.slot.state, "upload_observed");
   }
 
   return result;
+}
+
+function isIssuedUploadSlot(slot: UploadSlot): slot is IssuedUploadSlot {
+  return slot.state === "issued";
+}
+
+function isObservedUploadSlot(slot: UploadSlot): slot is ObservedUploadSlot {
+  return slot.state === "upload_observed";
 }
 
 export function expireUpload(options: ResolveUploadExpiryOptions): UploadSlot {
