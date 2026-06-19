@@ -11,6 +11,13 @@ import {
   type RuntimeSlotIssuePayload,
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
+import {
+  isRecord,
+  numberField,
+  positiveNumberField,
+  stringField,
+  urlSafeIdentifierField,
+} from "../runtime/request-fields";
 import { jsonResponse } from "../runtime/response";
 import { routeParts } from "../runtime/route";
 import type { Commit } from "../types/commit";
@@ -997,27 +1004,6 @@ function reconciliationResult(
   };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function stringField(value: Record<string, unknown>, field: string): string {
-  if (typeof value[field] !== "string") {
-    throw new Error(`${field} must be a string`);
-  }
-
-  return value[field];
-}
-
-function urlSafeIdentifierField(
-  value: Record<string, unknown>,
-  field: string
-): string {
-  assertUrlSafeIdentifier(value[field], field);
-
-  return value[field];
-}
-
 function mediaObjectKindField(value: Record<string, unknown>): MediaObjectKind {
   const kind = stringField(value, "kind");
 
@@ -1048,27 +1034,6 @@ function timestampField(value: Record<string, unknown>, field: string): string {
   }
 
   return timestamp;
-}
-
-function numberField(value: Record<string, unknown>, field: string): number {
-  if (typeof value[field] !== "number" || !Number.isFinite(value[field])) {
-    throw new Error(`${field} must be a finite number`);
-  }
-
-  return value[field];
-}
-
-function positiveNumberField(
-  value: Record<string, unknown>,
-  field: string
-): number {
-  const number = numberField(value, field);
-
-  if (number <= 0) {
-    throw new Error(`${field} must be a positive number`);
-  }
-
-  return number;
 }
 
 function nonNegativeIntegerField(
