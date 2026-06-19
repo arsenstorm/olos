@@ -1,3 +1,5 @@
+import { hasControlCharacter } from "../validation/fields";
+
 export interface MediaUriPolicy {
   allowedMediaOrigins?: readonly string[];
 }
@@ -53,18 +55,6 @@ export function assertSafeMediaUri(
   if (!allowedOrigins.includes(url.origin)) {
     throw new Error(`${name} origin is not allowed`);
   }
-}
-
-function hasControlCharacter(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-
-    if (code <= 0x1f || code === 0x7f) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 function parseAbsoluteUrl(value: string): URL | undefined {
