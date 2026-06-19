@@ -752,7 +752,6 @@ function packageTypeSmokeConfig(): string {
         noEmit: true,
         strict: true,
         target: "ES2022",
-        types: ["node"],
       },
       include: ["smoke.ts"],
     },

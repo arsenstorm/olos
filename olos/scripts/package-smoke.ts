@@ -1,5 +1,12 @@
 import { spawn } from "node:child_process";
-import { mkdir, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertInstalledPackageContents } from "./package-contents";
@@ -13,7 +20,6 @@ const consumerRoot = join(workRoot, "consumer");
 const consumerNodeModules = join(consumerRoot, "node_modules");
 const packageInstallRoot = join(consumerNodeModules, "olos");
 const tempRoot = join(workRoot, "tmp");
-const tsc = join(packageRoot, "node_modules", ".bin", "tsc");
 
 await rm(workRoot, { force: true, recursive: true });
 await mkdir(tempRoot, { recursive: true });
@@ -45,7 +51,9 @@ await writeFile(
 await writePackageSmokeFile(consumerRoot);
 
 await run("bun", ["smoke.mjs"], { cwd: consumerRoot });
-await run(tsc, ["--project", "tsconfig.json"], { cwd: consumerRoot });
+await run(await resolveBin("tsc"), ["--project", "tsconfig.json"], {
+  cwd: consumerRoot,
+});
 
 async function linkPackageDependencies() {
   const packageNodeModules = join(packageRoot, "node_modules");
@@ -61,6 +69,29 @@ async function linkPackageDependencies() {
       join(consumerNodeModules, entry),
       "dir"
     );
+  }
+}
+
+async function resolveBin(name: string): Promise<string> {
+  for (const root of [packageRoot, repoRoot]) {
+    const candidate = join(root, "node_modules", ".bin", name);
+
+    if (await pathExists(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(
+    `${name} binary not found in package or workspace node_modules`
+  );
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
   }
 }
 
