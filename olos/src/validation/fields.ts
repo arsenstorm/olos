@@ -81,3 +81,25 @@ export function assertOneOfField<const T extends readonly string[]>(
     throw new Error(`${name}.${field} must be one of: ${allowed.join(", ")}`);
   }
 }
+
+export function assertAbsoluteHttpUrl(value: unknown, name: string): void {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`${name} must be an absolute HTTP(S) URL`);
+  }
+
+  let url: URL;
+
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`${name} must be an absolute HTTP(S) URL`);
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`${name} must be an absolute HTTP(S) URL`);
+  }
+
+  if (url.search.length > 0 || url.hash.length > 0) {
+    throw new Error(`${name} must not contain query strings or fragments`);
+  }
+}

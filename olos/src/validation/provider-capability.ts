@@ -6,6 +6,7 @@ import {
 import { OLOS_WIRE_VERSION } from "../index";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
 import {
+  assertAbsoluteHttpUrl,
   assertNonEmptyStringField,
   assertOneOfField,
   assertPositiveIntegerField,
@@ -224,27 +225,5 @@ function assertBooleanField(
 ): void {
   if (typeof value[field] !== "boolean") {
     throw new Error(`${name}.${field} must be a boolean`);
-  }
-}
-
-function assertAbsoluteHttpUrl(value: unknown, name: string): void {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${name} must be an absolute HTTP(S) URL`);
-  }
-
-  let url: URL;
-
-  try {
-    url = new URL(value);
-  } catch {
-    throw new Error(`${name} must be an absolute HTTP(S) URL`);
-  }
-
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error(`${name} must be an absolute HTTP(S) URL`);
-  }
-
-  if (url.search.length > 0 || url.hash.length > 0) {
-    throw new Error(`${name} must not contain query strings or fragments`);
   }
 }
