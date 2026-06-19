@@ -6,7 +6,14 @@ import type {
   RenditionWindow,
 } from "../types/committed-window";
 import { assertSafeDeliveryUrl } from "./delivery-url";
-import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
+import {
+  assertIsoDateField,
+  assertNonEmptyStringField,
+  assertNonNegativeIntegerField,
+  assertPositiveNumberField,
+  assertUrlSafeField,
+  isRecord,
+} from "./fields";
 import { assertSafeObjectKey } from "./object-key";
 
 export function isCommittedWindow(value: unknown): value is CommittedWindow {
@@ -122,7 +129,7 @@ function assertCommittedSegment(
   assertPositiveNumberField(value, "duration", name);
 
   if (value.programDateTime !== undefined) {
-    assertTimestampField(value, "programDateTime", name);
+    assertIsoDateField(value, "programDateTime", name);
   }
 
   if (
@@ -202,7 +209,7 @@ function assertCommittedPart(
   assertPositiveNumberField(value, "duration", name);
 
   if (value.programDateTime !== undefined) {
-    assertTimestampField(value, "programDateTime", name);
+    assertIsoDateField(value, "programDateTime", name);
   }
 
   if (
@@ -236,66 +243,5 @@ function assertCommittedObject(
 
   if (value.etag !== undefined) {
     assertNonEmptyStringField(value, "etag", name);
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function assertUrlSafeField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (!isUrlSafeIdentifier(value[field])) {
-    throw new Error(`${name}.${field} must be a non-empty URL-safe identifier`);
-  }
-}
-
-function assertNonNegativeIntegerField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (!isNonNegativeInteger(value[field])) {
-    throw new Error(`${name}.${field} must be a non-negative integer`);
-  }
-}
-
-function assertPositiveNumberField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (
-    typeof value[field] !== "number" ||
-    !Number.isFinite(value[field]) ||
-    value[field] <= 0
-  ) {
-    throw new Error(`${name}.${field} must be a positive number`);
-  }
-}
-
-function assertNonEmptyStringField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (typeof value[field] !== "string" || value[field].length === 0) {
-    throw new Error(`${name}.${field} must be a non-empty string`);
-  }
-}
-
-function assertTimestampField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (
-    typeof value[field] !== "string" ||
-    Number.isNaN(Date.parse(value[field]))
-  ) {
-    throw new Error(`${name}.${field} must be a valid timestamp`);
   }
 }
