@@ -5,6 +5,7 @@ import {
 } from "../hls/manifest-artifacts";
 import {
   createCommit,
+  type DuplicateCommitResolution,
   resolveCommitAttempt,
   resolveDuplicateCommit,
 } from "../state/commit";
@@ -92,6 +93,11 @@ export type CoordinatorStoreSave =
 type SavedCoordinatorStoreSave = Extract<
   CoordinatorStoreSave,
   { status: "saved" }
+>;
+
+type ConflictingDuplicateCommit = Extract<
+  DuplicateCommitResolution,
+  { status: "conflict" }
 >;
 
 export interface MutateCoordinatorPipelineOptions {
@@ -394,6 +400,12 @@ function isSavedCoordinatorStoreSave(
   return result.status === "saved";
 }
 
+function isConflictingDuplicateCommit(
+  result: DuplicateCommitResolution
+): result is ConflictingDuplicateCommit {
+  return result.status === "conflict";
+}
+
 export function issueCoordinatorSlot(
   options: IssueCoordinatorSlotOptions
 ): CoordinatorSlotIssue {
@@ -463,7 +475,7 @@ export function commitCoordinatorUpload(
       existingCommit,
     });
 
-    if (duplicate.status === "conflict") {
+    if (isConflictingDuplicateCommit(duplicate)) {
       return {
         error: duplicate.error,
         state: options.state,
