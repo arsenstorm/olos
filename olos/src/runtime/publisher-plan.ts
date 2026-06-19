@@ -1,7 +1,10 @@
 import { PUBLICATION_MODES } from "../config/publication";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
-import { isNonNegativeInteger, isUrlSafeIdentifier } from "../validation/ids";
+import {
+  assertUrlSafeIdentifier,
+  isNonNegativeInteger,
+} from "../validation/ids";
 import { assertSupportedMediaExtension } from "../validation/object-key";
 import { optionalField } from "./optional-field";
 import { trimSlashes, trimTrailingSlash } from "./path";
@@ -196,12 +199,6 @@ function baseHttpUrl(value: string): URL {
     return new URL(value);
   } catch {
     throw new Error("baseUrl must be an absolute HTTP(S) URL");
-  }
-}
-
-function assertUrlSafeIdentifier(value: string, name: string): void {
-  if (!isUrlSafeIdentifier(value)) {
-    throw new Error(`${name} must be a non-empty URL-safe identifier`);
   }
 }
 
