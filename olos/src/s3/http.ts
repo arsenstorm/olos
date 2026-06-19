@@ -18,7 +18,7 @@ import {
   isRecord,
   nonNegativeIntegerField,
   nonNegativeNumberField,
-  positiveIntegerField,
+  optionalPositiveIntegerField,
   positiveNumberField,
   stringField,
   timestampField,
@@ -1025,17 +1025,6 @@ function publicationModeField(value: Record<string, unknown>): PublicationMode {
   }
 
   return publicationMode as PublicationMode;
-}
-
-function optionalPositiveIntegerField(
-  value: Record<string, unknown>,
-  field: "maxSegments"
-): Partial<Pick<S3CommitPayload, "maxSegments">> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return { [field]: positiveIntegerField(value, field) };
 }
 
 function optionalNonNegativeNumberField(

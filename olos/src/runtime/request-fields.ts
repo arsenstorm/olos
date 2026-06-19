@@ -89,6 +89,19 @@ export function positiveIntegerField(
   return positiveInteger(number, field);
 }
 
+export function optionalPositiveIntegerField<Field extends string>(
+  value: Record<string, unknown>,
+  field: Field
+): Partial<Record<Field, number>> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  return { [field]: positiveIntegerField(value, field) } as Partial<
+    Record<Field, number>
+  >;
+}
+
 export function positiveInteger(value: number, name: string): number {
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer`);

@@ -15,7 +15,7 @@ import {
   booleanField,
   isRecord,
   nonNegativeNumberField,
-  positiveIntegerField,
+  optionalPositiveIntegerField,
   positiveNumberField,
   stringField,
   timestampField,
@@ -183,17 +183,6 @@ function optionalBooleanField(
   }
 
   return { [field]: booleanField(value, field) };
-}
-
-function optionalPositiveIntegerField(
-  value: Record<string, unknown>,
-  field: "maxSegments"
-): Partial<Pick<RuntimeCommitPayload, "maxSegments">> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return { [field]: positiveIntegerField(value, field) };
 }
 
 function optionalNonNegativeNumberField(
