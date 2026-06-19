@@ -14,6 +14,7 @@ import type { Session, SessionState } from "../types/session";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
+import { positiveAttempts } from "./attempts";
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { errorMessage } from "./errors";
 import { resolveRuntimeLiveHealthFromState } from "./health";
@@ -90,12 +91,7 @@ function assertRuntimeHandlerOptions(
   assertRoutePath(options.sessionPath ?? DEFAULT_SESSION_PATH, "sessionPath");
   assertRoutePath(options.livePath ?? DEFAULT_LIVE_PATH, "livePath");
 
-  if (
-    options.maxAttempts !== undefined &&
-    (!Number.isInteger(options.maxAttempts) || options.maxAttempts < 1)
-  ) {
-    throw new Error("maxAttempts must be a positive integer");
-  }
+  positiveAttempts(options.maxAttempts);
 
   assertPositiveOption(options.targetLatency, "targetLatency");
   assertPositiveOption(options.maxHealthCursorAgeMs, "maxHealthCursorAgeMs");
