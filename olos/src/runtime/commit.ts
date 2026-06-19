@@ -12,10 +12,12 @@ import type { ObservedUpload } from "../validation/observed-upload";
 import { errorMessage } from "./errors";
 import { rejectionStatus } from "./rejection-status";
 import {
-  booleanField,
   isRecord,
+  optionalBooleanField,
   optionalNonNegativeNumberField,
   optionalPositiveIntegerField,
+  optionalStringField,
+  optionalTimestampField,
   positiveNumberField,
   stringField,
   timestampField,
@@ -172,43 +174,6 @@ function invalid(
     response: jsonResponse({ error: { message } }, 400),
     status: "invalid",
   };
-}
-
-function optionalBooleanField(
-  value: Record<string, unknown>,
-  field: "independent"
-): Partial<Pick<RuntimeCommitPayload, "independent">> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return { [field]: booleanField(value, field) };
-}
-
-function optionalStringField<Field extends "etag" | "programDateTime">(
-  value: Record<string, unknown>,
-  field: Field
-): Partial<Record<Field, string>> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return { [field]: stringField(value, field) } as Partial<
-    Record<Field, string>
-  >;
-}
-
-function optionalTimestampField<Field extends "programDateTime">(
-  value: Record<string, unknown>,
-  field: Field
-): Partial<Record<Field, string>> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return { [field]: timestampField(value, field) } as Partial<
-    Record<Field, string>
-  >;
 }
 
 function optionalMetadataField(

@@ -15,6 +15,19 @@ export function stringField(
   return value[field];
 }
 
+export function optionalStringField<Field extends string>(
+  value: Record<string, unknown>,
+  field: Field
+): Partial<Record<Field, string>> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  return { [field]: stringField(value, field) } as Partial<
+    Record<Field, string>
+  >;
+}
+
 export function urlSafeIdentifierField(
   value: Record<string, unknown>,
   field: string
@@ -44,6 +57,19 @@ export function booleanField(
   }
 
   return value[field];
+}
+
+export function optionalBooleanField<Field extends string>(
+  value: Record<string, unknown>,
+  field: Field
+): Partial<Record<Field, boolean>> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  return { [field]: booleanField(value, field) } as Partial<
+    Record<Field, boolean>
+  >;
 }
 
 export function nonNegativeNumberField(
@@ -164,6 +190,19 @@ export function timestampField(
   }
 
   return timestamp;
+}
+
+export function optionalTimestampField<Field extends string>(
+  value: Record<string, unknown>,
+  field: Field
+): Partial<Record<Field, string>> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  return { [field]: timestampField(value, field) } as Partial<
+    Record<Field, string>
+  >;
 }
 
 export function timestampMs(value: string, name: string): number {

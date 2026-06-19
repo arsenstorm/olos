@@ -14,12 +14,14 @@ import {
 import { errorMessage } from "../runtime/errors";
 import { rejectionStatusCode } from "../runtime/rejection-status";
 import {
-  booleanField,
   isRecord,
   nonNegativeIntegerField,
+  optionalBooleanField,
   optionalNonNegativeIntegerField,
   optionalNonNegativeNumberField,
   optionalPositiveIntegerField,
+  optionalStringField,
+  optionalTimestampField,
   positiveNumberField,
   stringField,
   timestampField,
@@ -1028,17 +1030,6 @@ function publicationModeField(value: Record<string, unknown>): PublicationMode {
   return publicationMode as PublicationMode;
 }
 
-function optionalBooleanField(
-  value: Record<string, unknown>,
-  field: "independent"
-): Partial<Pick<S3CommitPayload, "independent">> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return { [field]: booleanField(value, field) };
-}
-
 function optionalObjectKeyField(
   value: Record<string, unknown>
 ): Partial<Pick<S3CommitPayload, "objectKey">> {
@@ -1050,19 +1041,6 @@ function optionalObjectKeyField(
   assertSafeObjectKey(objectKey, "objectKey");
 
   return { objectKey };
-}
-
-function optionalStringField<Field extends "etag" | "versionId">(
-  value: Record<string, unknown>,
-  field: Field
-): Partial<Record<Field, string>> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return { [field]: stringField(value, field) } as Partial<
-    Record<Field, string>
-  >;
 }
 
 function optionalUrlSafeIdentifierField(
@@ -1085,19 +1063,6 @@ function optionalTimestampValueField(
   }
 
   return timestampField(value, field);
-}
-
-function optionalTimestampField<Field extends "programDateTime">(
-  value: Record<string, unknown>,
-  field: Field
-): Partial<Record<Field, string>> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return { [field]: timestampField(value, field) } as Partial<
-    Record<Field, string>
-  >;
 }
 
 function optionalStringArrayField(
