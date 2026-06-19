@@ -7,6 +7,9 @@ export interface RenderMasterPlaylistOptions {
   mediaPlaylistPath?: (session: Session, rendition: Rendition) => string;
 }
 
+type AudioRendition = Rendition & { kind: "audio" };
+type VideoRendition = Rendition & { kind: "video" };
+
 export function renderMasterPlaylist(
   session: Session,
   options: RenderMasterPlaylistOptions = {}
@@ -14,11 +17,9 @@ export function renderMasterPlaylist(
   assertSessionShape(session);
 
   const audioCodecs = session.renditions
-    .filter((rendition) => rendition.kind === "audio")
+    .filter(isAudioRendition)
     .map((rendition) => rendition.codec);
-  const videoRenditions = session.renditions.filter(
-    (rendition) => rendition.kind === "video"
-  );
+  const videoRenditions = session.renditions.filter(isVideoRendition);
 
   if (videoRenditions.length === 0) {
     throw new Error(
@@ -41,8 +42,8 @@ export function renderMasterPlaylist(
 
 function renderVariantEntry(
   session: Session,
-  rendition: Rendition,
-  audioCodecs: string[],
+  rendition: VideoRendition,
+  audioCodecs: readonly string[],
   mediaPlaylistPath: (session: Session, rendition: Rendition) => string
 ): string[] {
   const path = mediaPlaylistPath(session, rendition);
@@ -55,8 +56,8 @@ function renderVariantEntry(
 }
 
 function renderStreamAttributes(
-  rendition: Rendition,
-  audioCodecs: string[]
+  rendition: VideoRendition,
+  audioCodecs: readonly string[]
 ): string {
   const bandwidth = rendition.bitrate;
 
@@ -87,6 +88,14 @@ function renderStreamAttributes(
   }
 
   return attributes.join(",");
+}
+
+function isAudioRendition(rendition: Rendition): rendition is AudioRendition {
+  return rendition.kind === "audio";
+}
+
+function isVideoRendition(rendition: Rendition): rendition is VideoRendition {
+  return rendition.kind === "video";
 }
 
 function defaultMediaPlaylistPath(
