@@ -110,6 +110,11 @@ type SuccessfulRuntimePublisherUploadStep = Extract<
   { status: "committed" | "idempotent" }
 >;
 
+type IssuedRuntimePublisherIssueResult = RuntimePublisherIssueResult & {
+  slot: UploadSlot;
+  status: "issued";
+};
+
 const SUCCESSFUL_PUBLISHER_STEP_STATUSES = [
   "committed",
   "idempotent",
@@ -136,7 +141,7 @@ export async function runRuntimePublisherUploadStep(
     };
   }
 
-  if (issued.status !== "issued" || issued.slot === undefined) {
+  if (!isIssuedRuntimePublisherIssueResult(issued)) {
     return {
       ...heartbeatResult(heartbeat.result),
       issue: issued,
@@ -298,6 +303,12 @@ function isSuccessfulPublisherStepStatus(
   return SUCCESSFUL_PUBLISHER_STEP_STATUSES.includes(
     status as SuccessfulRuntimePublisherUploadStep["status"]
   );
+}
+
+function isIssuedRuntimePublisherIssueResult(
+  result: RuntimePublisherIssueResult
+): result is IssuedRuntimePublisherIssueResult {
+  return result.status === "issued" && result.slot !== undefined;
 }
 
 function nonNegativeInteger(value: number, name: string): number {
