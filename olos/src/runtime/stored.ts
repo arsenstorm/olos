@@ -82,10 +82,8 @@ type SuccessfulRuntimeCoordinatorUploadCommit = Extract<
   { status: "committed" | "idempotent" }
 >;
 
-type IdempotentRuntimeCoordinatorUploadCommit = Extract<
-  RuntimeCoordinatorUploadCommit,
-  { status: "committed" | "idempotent" }
-> & { status: "idempotent" };
+type IdempotentRuntimeCoordinatorUploadCommit =
+  SuccessfulRuntimeCoordinatorUploadCommit & { status: "idempotent" };
 
 type TerminalRuntimeCoordinatorUploadCommit = Extract<
   RuntimeCoordinatorUploadCommit,
