@@ -95,6 +95,15 @@ type StoredSessionConflictSource = Extract<
   { status: "conflict" }
 >;
 
+const HEARTBEAT_TERMINAL_SESSION_STATES = [
+  "aborted",
+  "ended",
+  "expired",
+] as const satisfies readonly SessionState[];
+
+type HeartbeatTerminalSessionState =
+  (typeof HEARTBEAT_TERMINAL_SESSION_STATES)[number];
+
 export async function createStoredCoordinatorSession(
   options: CreateStoredCoordinatorSessionOptions
 ): Promise<StoredRuntimeSessionCreate> {
@@ -267,9 +276,17 @@ function heartbeatState(
 }
 
 function assertHeartbeatSessionState(state: SessionState): void {
-  if (state === "aborted" || state === "ended" || state === "expired") {
+  if (isHeartbeatTerminalSessionState(state)) {
     throw new Error("publisher heartbeat is not allowed for terminal sessions");
   }
+}
+
+function isHeartbeatTerminalSessionState(
+  state: SessionState
+): state is HeartbeatTerminalSessionState {
+  return HEARTBEAT_TERMINAL_SESSION_STATES.includes(
+    state as HeartbeatTerminalSessionState
+  );
 }
 
 function assertHeartbeatOptions(
