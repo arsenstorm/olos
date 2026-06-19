@@ -1,3 +1,5 @@
+import { isRecord } from "./fields";
+
 const HTTP_HEADER_NAME_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 
 export function isHttpHeaderName(value: string): boolean {
@@ -39,7 +41,3 @@ export function assertHttpHeaderStringMap(
 
 export const HTTP_HEADER_NAME_SCHEMA_PATTERN =
   "^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+$";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
