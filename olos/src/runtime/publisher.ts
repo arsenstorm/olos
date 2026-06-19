@@ -3,6 +3,7 @@ import type {
   RuntimeCommitPayload,
   RuntimeObservedUploadPayload,
 } from "./commit";
+import { errorMessage } from "./errors";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
 export interface RuntimePublisherIssueResult {
@@ -109,7 +110,7 @@ export async function runRuntimePublisherUploadStep(
     issued = await options.issueSlot(options.slot);
   } catch (error) {
     return {
-      error: errorMessage(error),
+      error: errorMessage(error, "publisher upload failed"),
       ...heartbeatResult(heartbeat.result),
       status: "issue_failed",
     };
@@ -129,7 +130,7 @@ export async function runRuntimePublisherUploadStep(
     observed = await options.upload(issued.slot);
   } catch (error) {
     return {
-      error: errorMessage(error),
+      error: errorMessage(error, "publisher upload failed"),
       ...heartbeatResult(heartbeat.result),
       slot: issued.slot,
       status: "upload_failed",
@@ -151,7 +152,7 @@ export async function runRuntimePublisherUploadStep(
     });
   } catch (error) {
     return {
-      error: errorMessage(error),
+      error: errorMessage(error, "publisher upload failed"),
       ...heartbeatResult(heartbeat.result),
       observed,
       slot: issued.slot,
@@ -212,7 +213,7 @@ async function runPublisherHeartbeat(
     return {
       status: "failed",
       step: {
-        error: errorMessage(error),
+        error: errorMessage(error, "publisher upload failed"),
         status: "heartbeat_failed",
       },
     };
@@ -288,10 +289,6 @@ function optionalString<Key extends string>(
   value: string | undefined
 ): Partial<Record<Key, string>> {
   return value === undefined ? {} : ({ [key]: value } as Record<Key, string>);
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "publisher upload failed";
 }
 
 function nonNegativeInteger(value: number, name: string): number {

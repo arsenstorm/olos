@@ -2,6 +2,7 @@ import type {
   CoordinatorCommitPolicy,
   CoordinatorPipelineStore,
 } from "../protocol";
+import { errorMessage } from "../runtime/errors";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
@@ -243,7 +244,7 @@ async function reconcileSlot(
     };
   } catch (error) {
     return {
-      error: errorMessage(error),
+      error: errorMessage(error, "S3 reconciliation failed"),
       slot,
       status: "failed",
     };
@@ -302,8 +303,4 @@ function optionalField<Key extends string, Value>(
 
 function commitId(slot: UploadSlot): OlosId {
   return `reconcile_${slot.slotId}`;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "S3 reconciliation failed";
 }

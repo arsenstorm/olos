@@ -10,6 +10,7 @@ import type { OlosError } from "../types/errors";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import type { ObservedUpload } from "../validation/observed-upload";
+import { errorMessage } from "./errors";
 
 export type RuntimeCommitRequest = Request | RuntimeCommitPayload;
 
@@ -94,7 +95,7 @@ export async function commitCoordinatorUploadFromRequest(
       status: committed.status,
     };
   } catch (error) {
-    return invalid(errorMessage(error));
+    return invalid(errorMessage(error, "invalid commit request"));
   }
 }
 
@@ -111,7 +112,7 @@ async function parseRequest(
   try {
     return { status: "valid", value: parsePayload(await request.json()) };
   } catch (error) {
-    return invalid(errorMessage(error));
+    return invalid(errorMessage(error, "invalid commit request"));
   }
 }
 
@@ -330,8 +331,4 @@ function isMetadata(
       (entry) => typeof entry === "string" || entry === undefined
     )
   );
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "invalid commit request";
 }

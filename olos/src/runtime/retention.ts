@@ -5,6 +5,7 @@ import {
 } from "../protocol";
 import type { OlosId } from "../types/ids";
 import { assertUrlSafeIdentifier } from "../validation/ids";
+import { errorMessage } from "./errors";
 
 export interface DeleteRetiredCoordinatorObjectsOptions {
   deleteObject(object: RetiredCoordinatorObjectDeletion): Promise<void> | void;
@@ -65,7 +66,7 @@ export async function deleteRetiredCoordinatorObjects(
       deletedObjects.push(object);
     } catch (error) {
       failedObjects.push({
-        error: errorMessage(error),
+        error: errorMessage(error, "retention deletion failed"),
         object,
       });
     }
@@ -133,10 +134,6 @@ function jsonResponse(body: unknown, status: number): Response {
     headers: { "content-type": "application/json; charset=utf-8" },
     status,
   });
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "retention deletion failed";
 }
 
 function timestampMs(value: string, name: string): number {

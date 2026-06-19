@@ -3,6 +3,7 @@ import type {
   CoordinatorCommitPolicy,
   CoordinatorPipelineStore,
 } from "../protocol";
+import { errorMessage } from "../runtime/errors";
 import type { RuntimePublisherHeartbeatResult } from "../runtime/publisher";
 import {
   type CreateRuntimePublisherNextObjectPlanOptions,
@@ -187,7 +188,7 @@ export async function runStoredS3PublisherUploadStep(
     issued = await options.issueGrant();
   } catch (error) {
     return {
-      error: errorMessage(error),
+      error: errorMessage(error, "S3 publisher step failed"),
       ...heartbeatResult(heartbeat.result),
       status: "issue_failed",
     };
@@ -205,7 +206,7 @@ export async function runStoredS3PublisherUploadStep(
     await options.upload(issued.grant);
   } catch (error) {
     return {
-      error: errorMessage(error),
+      error: errorMessage(error, "S3 publisher step failed"),
       grant: issued.grant,
       ...heartbeatResult(heartbeat.result),
       slot: issued.slot,
@@ -219,7 +220,7 @@ export async function runStoredS3PublisherUploadStep(
     committed = await options.commit(issued.slot);
   } catch (error) {
     return {
-      error: errorMessage(error),
+      error: errorMessage(error, "S3 publisher step failed"),
       grant: issued.grant,
       ...heartbeatResult(heartbeat.result),
       slot: issued.slot,
@@ -372,7 +373,7 @@ async function runPublisherHeartbeat(
     return {
       status: "failed",
       step: {
-        error: errorMessage(error),
+        error: errorMessage(error, "S3 publisher step failed"),
         status: "heartbeat_failed",
       },
     };
@@ -383,8 +384,4 @@ function heartbeatResult(
   heartbeat: RuntimePublisherHeartbeatResult | undefined
 ): { heartbeat?: RuntimePublisherHeartbeatResult } {
   return heartbeat === undefined ? {} : { heartbeat };
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "S3 publisher step failed";
 }

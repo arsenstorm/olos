@@ -15,6 +15,7 @@ import type { PublicationMode, UploadSlot } from "../types/upload-slot";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeMediaObjectKey } from "../validation/object-key";
+import { errorMessage } from "./errors";
 
 export type RuntimeSlotIssueRequest = Request | RuntimeSlotIssuePayload;
 
@@ -78,7 +79,7 @@ export async function issueCoordinatorSlotFromRequest(
       status: "issued",
     };
   } catch (error) {
-    return invalid(errorMessage(error));
+    return invalid(errorMessage(error, "invalid slot issue request"));
   }
 }
 
@@ -95,7 +96,7 @@ async function parseRequest(
   try {
     return { status: "valid", value: parsePayload(await request.json()) };
   } catch (error) {
-    return invalid(errorMessage(error));
+    return invalid(errorMessage(error, "invalid slot issue request"));
   }
 }
 
@@ -248,8 +249,4 @@ function optionalNonNegativeIntegerField(
   }
 
   return { [field]: nonNegativeIntegerField(value, field) };
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "invalid slot issue request";
 }
