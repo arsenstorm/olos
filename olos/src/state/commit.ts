@@ -72,6 +72,10 @@ export interface CommitObservedUploadResult {
   slot: UploadSlot;
 }
 
+type ObservedUploadSlot = UploadSlot & {
+  state: "upload_observed";
+};
+
 export interface ResolveDuplicateCommitOptions {
   candidateCommit: Commit;
   existingCommit: Commit;
@@ -323,7 +327,7 @@ export function resolveDuplicateCommit(
 function assertCommitPreconditions(options: CreateCommitOptions): void {
   const { mediaObject, slot } = options;
 
-  if (slot.state !== "upload_observed") {
+  if (!isObservedUploadSlot(slot)) {
     throw new Error("uploadSlot.state must be upload_observed");
   }
 
@@ -357,6 +361,10 @@ function assertCommitPreconditions(options: CreateCommitOptions): void {
   if (committedAt > expiresAt + lateToleranceMs) {
     throw new Error("commit.committedAt must be before uploadSlot.expiresAt");
   }
+}
+
+function isObservedUploadSlot(slot: UploadSlot): slot is ObservedUploadSlot {
+  return slot.state === "upload_observed";
 }
 
 function isLateSlot(slot: UploadSlot, cursor: Cursor): boolean {
