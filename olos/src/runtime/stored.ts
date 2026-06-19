@@ -16,6 +16,7 @@ import {
   serveBlockingCoordinatorManifest,
   serveCoordinatorManifest,
 } from "./manifest";
+import { jsonResponse } from "./response";
 import {
   issueCoordinatorSlotFromRequest,
   type RuntimeCoordinatorSlotIssue,
@@ -268,11 +269,4 @@ function conflict(
     ),
     status: "conflict",
   };
-}
-
-function jsonResponse(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    headers: { "content-type": "application/json; charset=utf-8" },
-    status,
-  });
 }

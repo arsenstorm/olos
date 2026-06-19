@@ -11,6 +11,7 @@ import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { errorMessage } from "./errors";
+import { jsonResponse } from "./response";
 
 export type RuntimeCommitRequest = Request | RuntimeCommitPayload;
 
@@ -165,13 +166,6 @@ function invalid(
 
 function rejectionStatus(error: OlosError): number {
   return error.error.code === "olos.unknown_slot" ? 404 : 409;
-}
-
-function jsonResponse(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    headers: { "content-type": "application/json; charset=utf-8" },
-    status,
-  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

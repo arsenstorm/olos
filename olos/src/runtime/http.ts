@@ -17,6 +17,7 @@ import { assertSession } from "../validation/session";
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { resolveRuntimeLiveHealthFromState } from "./health";
 import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
+import { jsonResponse } from "./response";
 import { planStoredCoordinatorRetention } from "./retention";
 import { routeParts } from "./route";
 import {
@@ -611,13 +612,6 @@ function sessionNotFound(): Response {
     { error: { message: "coordinator session was not found" } },
     404
   );
-}
-
-function jsonResponse(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    headers: { "content-type": "application/json; charset=utf-8" },
-    status,
-  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

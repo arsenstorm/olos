@@ -6,6 +6,7 @@ import {
 import type { OlosId } from "../types/ids";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { errorMessage } from "./errors";
+import { jsonResponse } from "./response";
 
 export interface DeleteRetiredCoordinatorObjectsOptions {
   deleteObject(object: RetiredCoordinatorObjectDeletion): Promise<void> | void;
@@ -127,13 +128,6 @@ function assertStoredRetentionOptions(
 ): void {
   assertUrlSafeIdentifier(options.sessionId, "sessionId");
   timestampMs(options.now, "now");
-}
-
-function jsonResponse(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    headers: { "content-type": "application/json; charset=utf-8" },
-    status,
-  });
 }
 
 function timestampMs(value: string, name: string): number {

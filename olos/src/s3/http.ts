@@ -11,6 +11,7 @@ import {
   type RuntimeSlotIssuePayload,
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
+import { jsonResponse } from "../runtime/response";
 import { routeParts } from "../runtime/route";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
@@ -994,13 +995,6 @@ function reconciliationResult(
     slotId: result.slot.slotId,
     status: result.status,
   };
-}
-
-function jsonResponse(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    headers: { "content-type": "application/json; charset=utf-8" },
-    status,
-  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

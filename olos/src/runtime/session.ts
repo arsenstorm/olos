@@ -16,6 +16,7 @@ import {
   createRuntimePublisherLease,
   refreshRuntimePublisherHeartbeat,
 } from "./publisher-lease";
+import { jsonResponse } from "./response";
 
 export interface CreateStoredCoordinatorSessionOptions {
   pathways: readonly Pathway[];
@@ -349,11 +350,4 @@ function rejectedHeartbeat(error: unknown): StoredRuntimePublisherHeartbeat {
     ),
     status: "rejected",
   };
-}
-
-function jsonResponse(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    headers: { "content-type": "application/json; charset=utf-8" },
-    status,
-  });
 }
