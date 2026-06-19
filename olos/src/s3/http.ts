@@ -529,9 +529,14 @@ type S3Route =
       sessionId: string;
       status: "matched";
     }
-  | { message: string; status: "invalid" }
+  | InvalidS3Route
   | { status: "method_not_allowed" }
   | { status: "not_s3" };
+
+interface InvalidS3Route {
+  message: string;
+  status: "invalid";
+}
 
 function s3Route(
   request: Request,
@@ -548,10 +553,7 @@ function s3Route(
   }
 
   if (parts === "invalid") {
-    return {
-      message: "route path contains invalid percent encoding",
-      status: "invalid",
-    };
+    return invalidS3Route("route path contains invalid percent encoding");
   }
 
   const [sessionId, provider, action] = parts;
@@ -570,16 +572,13 @@ function s3Route(
     const sessionIdError = routeSessionIdError(sessionId);
 
     if (sessionIdError !== undefined) {
-      return { message: sessionIdError, status: "invalid" };
+      return invalidS3Route(sessionIdError);
     }
 
     try {
       assertUrlSafeIdentifier(action, "slotId");
     } catch (error) {
-      return {
-        message: errorMessage(error, "invalid route slotId"),
-        status: "invalid",
-      };
+      return invalidS3Route(errorMessage(error, "invalid route slotId"));
     }
 
     return {
@@ -611,10 +610,14 @@ function s3Route(
   const sessionIdError = routeSessionIdError(sessionId);
 
   if (sessionIdError !== undefined) {
-    return { message: sessionIdError, status: "invalid" };
+    return invalidS3Route(sessionIdError);
   }
 
   return { action, sessionId, status: "matched" };
+}
+
+function invalidS3Route(message: string): InvalidS3Route {
+  return { message, status: "invalid" };
 }
 
 async function parseS3SlotGrantRequest(
