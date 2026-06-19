@@ -15,6 +15,7 @@ import type { PublicationMode, UploadSlot } from "../types/upload-slot";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import { assertSafeMediaObjectKey } from "../validation/object-key";
 import { errorMessage } from "./errors";
+import { rejectionStatus } from "./rejection-status";
 import {
   isRecord,
   nonNegativeIntegerField,
@@ -157,10 +158,6 @@ function rejected(
     state,
     status: "rejected",
   };
-}
-
-function rejectionStatus(error: OlosError): number {
-  return error.error.code === "olos.unknown_slot" ? 404 : 409;
 }
 
 function mediaObjectKindField(value: Record<string, unknown>): MediaObjectKind {

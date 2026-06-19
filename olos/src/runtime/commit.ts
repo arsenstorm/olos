@@ -10,6 +10,7 @@ import type { OlosError } from "../types/errors";
 import { assertSafeObjectKey } from "../validation/object-key";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { errorMessage } from "./errors";
+import { rejectionStatus } from "./rejection-status";
 import {
   booleanField,
   isRecord,
@@ -171,10 +172,6 @@ function invalid(
     response: jsonResponse({ error: { message } }, 400),
     status: "invalid",
   };
-}
-
-function rejectionStatus(error: OlosError): number {
-  return error.error.code === "olos.unknown_slot" ? 404 : 409;
 }
 
 function optionalBooleanField(
