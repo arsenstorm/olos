@@ -20,6 +20,9 @@ import {
 import type { S3HeadObjectClient } from "./object-observation";
 
 type SlotValue<T> = T | ((slot: UploadSlot) => T);
+type ReconciliationUploadSlot = UploadSlot & {
+  state: "issued" | "upload_observed";
+};
 const SUCCESSFUL_S3_RECONCILIATION_STATUSES = [
   "committed",
   "idempotent",
@@ -335,9 +338,21 @@ function reconciliationSlots(
 
   return slots.filter(
     (slot) =>
-      (slot.state === "issued" || slot.state === "upload_observed") &&
-      (allowedIds === undefined || allowedIds.has(slot.slotId))
+      isReconciliationUploadSlot(slot) && isAllowedSlot(slot, allowedIds)
   );
+}
+
+function isReconciliationUploadSlot(
+  slot: UploadSlot
+): slot is ReconciliationUploadSlot {
+  return slot.state === "issued" || slot.state === "upload_observed";
+}
+
+function isAllowedSlot(
+  slot: UploadSlot,
+  allowedIds: ReadonlySet<OlosId> | undefined
+): boolean {
+  return allowedIds === undefined || allowedIds.has(slot.slotId);
 }
 
 function resolveSlotValue<T>(
