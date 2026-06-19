@@ -339,16 +339,9 @@ function conflict(
 
 function rejected(error: unknown): StoredRuntimeSessionTransition {
   return {
-    response: jsonResponse(
-      {
-        error: {
-          message:
-            error instanceof Error
-              ? error.message
-              : "coordinator session transition was rejected",
-        },
-      },
-      409
+    response: rejectionResponse(
+      error,
+      "coordinator session transition was rejected"
     ),
     status: "rejected",
   };
@@ -356,17 +349,18 @@ function rejected(error: unknown): StoredRuntimeSessionTransition {
 
 function rejectedHeartbeat(error: unknown): StoredRuntimePublisherHeartbeat {
   return {
-    response: jsonResponse(
-      {
-        error: {
-          message:
-            error instanceof Error
-              ? error.message
-              : "publisher heartbeat was rejected",
-        },
-      },
-      409
-    ),
+    response: rejectionResponse(error, "publisher heartbeat was rejected"),
     status: "rejected",
   };
+}
+
+function rejectionResponse(error: unknown, fallbackMessage: string): Response {
+  return jsonResponse(
+    {
+      error: {
+        message: error instanceof Error ? error.message : fallbackMessage,
+      },
+    },
+    409
+  );
 }
