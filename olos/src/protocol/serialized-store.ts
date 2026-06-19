@@ -35,6 +35,11 @@ export type SerializedCoordinatorStoreSave =
       status: "conflict";
     };
 
+type SerializedCoordinatorStoreConflict = Extract<
+  SerializedCoordinatorStoreSave,
+  { status: "conflict" }
+>;
+
 export interface AssertSerializedCoordinatorStoreBackendConformanceOptions {
   createBackend():
     | SerializedCoordinatorStoreBackend
@@ -65,7 +70,7 @@ export function createSerializedCoordinatorStore(
         sessionId: options.sessionId,
       });
 
-      if (saved.status === "conflict") {
+      if (isSerializedCoordinatorStoreConflict(saved)) {
         return {
           current:
             saved.current === undefined
@@ -149,7 +154,7 @@ export async function assertSerializedCoordinatorStoreBackendConformance(
     "duplicate insert must conflict"
   );
 
-  if (duplicateInsert.status === "conflict") {
+  if (isSerializedCoordinatorStoreConflict(duplicateInsert)) {
     expectSerializedBackendValue(
       duplicateInsert.current?.etag,
       first.etag,
@@ -212,6 +217,12 @@ function cloneRecord(
     etag: record.etag,
     snapshot: record.snapshot,
   };
+}
+
+function isSerializedCoordinatorStoreConflict(
+  result: SerializedCoordinatorStoreSave
+): result is SerializedCoordinatorStoreConflict {
+  return result.status === "conflict";
 }
 
 function parseRecord(record: SerializedCoordinatorStoreRecord) {
