@@ -17,7 +17,7 @@ import { assertSafeMediaObjectKey } from "../validation/object-key";
 import { errorMessage } from "./errors";
 import {
   isRecord,
-  numberField,
+  nonNegativeIntegerField,
   positiveNumberField,
   stringField,
   urlSafeIdentifierField,
@@ -183,19 +183,6 @@ function publicationModeField(value: Record<string, unknown>): PublicationMode {
   }
 
   return publicationMode as PublicationMode;
-}
-
-function nonNegativeIntegerField(
-  value: Record<string, unknown>,
-  field: string
-): number {
-  const number = numberField(value, field);
-
-  if (!Number.isInteger(number) || number < 0) {
-    throw new Error(`${field} must be a non-negative integer`);
-  }
-
-  return number;
 }
 
 function optionalNonNegativeIntegerField(

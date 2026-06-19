@@ -11,8 +11,10 @@ import { assertSafeObjectKey } from "../validation/object-key";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { errorMessage } from "./errors";
 import {
+  booleanField,
   isRecord,
-  numberField,
+  nonNegativeNumberField,
+  positiveIntegerField,
   positiveNumberField,
   stringField,
   timestampField,
@@ -175,19 +177,6 @@ function rejectionStatus(error: OlosError): number {
   return error.error.code === "olos.unknown_slot" ? 404 : 409;
 }
 
-function positiveIntegerField(
-  value: Record<string, unknown>,
-  field: string
-): number {
-  const number = numberField(value, field);
-
-  if (!Number.isInteger(number) || number <= 0) {
-    throw new Error(`${field} must be a positive integer`);
-  }
-
-  return number;
-}
-
 function optionalBooleanField(
   value: Record<string, unknown>,
   field: "independent"
@@ -196,11 +185,7 @@ function optionalBooleanField(
     return {};
   }
 
-  if (typeof value[field] !== "boolean") {
-    throw new Error(`${field} must be a boolean`);
-  }
-
-  return { [field]: value[field] };
+  return { [field]: booleanField(value, field) };
 }
 
 function optionalPositiveIntegerField(
@@ -222,13 +207,7 @@ function optionalNonNegativeNumberField(
     return {};
   }
 
-  const number = numberField(value, field);
-
-  if (number < 0) {
-    throw new Error(`${field} must be a non-negative number`);
-  }
-
-  return { [field]: number };
+  return { [field]: nonNegativeNumberField(value, field) };
 }
 
 function optionalStringField<Field extends "etag" | "programDateTime">(

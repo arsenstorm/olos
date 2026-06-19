@@ -35,6 +35,56 @@ export function numberField(
   return value[field];
 }
 
+export function booleanField(
+  value: Record<string, unknown>,
+  field: string
+): boolean {
+  if (typeof value[field] !== "boolean") {
+    throw new Error(`${field} must be a boolean`);
+  }
+
+  return value[field];
+}
+
+export function nonNegativeNumberField(
+  value: Record<string, unknown>,
+  field: string
+): number {
+  const number = numberField(value, field);
+
+  if (number < 0) {
+    throw new Error(`${field} must be a non-negative number`);
+  }
+
+  return number;
+}
+
+export function nonNegativeIntegerField(
+  value: Record<string, unknown>,
+  field: string
+): number {
+  const number = numberField(value, field);
+
+  if (!Number.isInteger(number) || number < 0) {
+    throw new Error(`${field} must be a non-negative integer`);
+  }
+
+  return number;
+}
+
+export function positiveIntegerField(
+  value: Record<string, unknown>,
+  field: string
+): number {
+  const number = numberField(value, field);
+
+  if (!Number.isInteger(number) || number <= 0) {
+    throw new Error(`${field} must be a positive integer`);
+  }
+
+  return number;
+}
+
 export function positiveNumberField(
   value: Record<string, unknown>,
   field: string
