@@ -103,6 +103,11 @@ type FailedStoredS3CoordinatorUploadReconciliationResult = Extract<
   { status: "failed" }
 >;
 
+type CommittedStoredS3CoordinatorUploadReconciliationResult = Extract<
+  StoredS3CoordinatorUploadReconciliationResult,
+  { status: "committed" }
+>;
+
 export interface StoredS3CoordinatorUploadReconciliationSummary {
   committed: number;
   failed: number;
@@ -174,7 +179,7 @@ export function summarizeStoredS3CoordinatorUploadReconciliation(
   for (const entry of result.results) {
     summary.slotIds.push(entry.slot.slotId);
 
-    if (entry.status === "committed") {
+    if (isCommittedStoredS3CoordinatorUploadReconciliationResult(entry)) {
       summary.committed += 1;
       continue;
     }
@@ -289,6 +294,12 @@ function isFailedStoredS3CoordinatorUploadReconciliationResult(
   result: StoredS3CoordinatorUploadReconciliationResult
 ): result is FailedStoredS3CoordinatorUploadReconciliationResult {
   return result.status === "failed";
+}
+
+function isCommittedStoredS3CoordinatorUploadReconciliationResult(
+  result: StoredS3CoordinatorUploadReconciliationResult
+): result is CommittedStoredS3CoordinatorUploadReconciliationResult {
+  return result.status === "committed";
 }
 
 function reconciliationSlots(
