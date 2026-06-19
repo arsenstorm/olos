@@ -8,6 +8,7 @@ import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertUploadSlot } from "../validation/upload-slot";
 import { assertS3BucketName } from "./bucket";
+import { assertPositiveExpiresInSeconds } from "./options";
 import { timestampMs } from "./timestamp";
 
 const S3_METADATA_HEADER_PREFIX = "x-amz-meta-olos-";
@@ -141,12 +142,7 @@ function assertPresignedS3UploadGrantOptions(
   assertUploadSlot(options.slot);
   assertS3BucketName(options.bucket);
 
-  if (
-    !Number.isFinite(options.expiresInSeconds) ||
-    options.expiresInSeconds <= 0
-  ) {
-    throw new Error("expiresInSeconds must be a positive number");
-  }
+  assertPositiveExpiresInSeconds(options.expiresInSeconds);
 
   timestampMs(options.now ?? new Date(), "now");
 

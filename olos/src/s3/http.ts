@@ -46,6 +46,7 @@ import {
 } from "./coordinator";
 import { normalizeS3ObjectCreatedEvents } from "./event";
 import type { S3HeadObjectClient } from "./object-observation";
+import { assertPositiveExpiresInSeconds } from "./options";
 import {
   planStoredS3CoordinatorReconciliation,
   reconcileStoredS3CoordinatorUploads,
@@ -198,12 +199,7 @@ function assertS3HandlerOptions(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): void {
   assertS3BucketName(options.bucket);
-  if (
-    !Number.isFinite(options.expiresInSeconds) ||
-    options.expiresInSeconds <= 0
-  ) {
-    throw new Error("expiresInSeconds must be a positive number");
-  }
+  assertPositiveExpiresInSeconds(options.expiresInSeconds);
 
   if (options.providerId !== undefined) {
     assertUrlSafeIdentifier(options.providerId, "providerId");
