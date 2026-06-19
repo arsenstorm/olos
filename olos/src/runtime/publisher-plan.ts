@@ -3,6 +3,7 @@ import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
 import { isNonNegativeInteger, isUrlSafeIdentifier } from "../validation/ids";
 import { assertSupportedMediaExtension } from "../validation/object-key";
+import { trimSlashes, trimTrailingSlash } from "./path";
 import { timestampMs } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
@@ -250,12 +251,4 @@ function optionalNumber<Key extends "minBytes" | "partNumber">(
   value: number | undefined
 ): Partial<Record<Key, number>> {
   return value === undefined ? {} : ({ [key]: value } as Record<Key, number>);
-}
-
-function trimSlashes(value: string): string {
-  return value.replace(/^\/+|\/+$/g, "");
-}
-
-function trimTrailingSlash(value: string): string {
-  return value.replace(/\/+$/g, "");
 }

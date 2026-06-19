@@ -14,6 +14,7 @@ import {
   type RuntimeHttpFetch,
   responseBody,
 } from "./http-client";
+import { trimSlashes } from "./path";
 import type { RuntimePublisherLease } from "./publisher-lease";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
@@ -343,10 +344,6 @@ function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
 function liveUrl(options: RuntimeMasterPlaylistOptions, path: string): URL {
   const livePath = normalizedLivePath(options.livePath ?? "v1/live");
   return new URL(`${livePath}/${path}`, normalizedBaseUrl(options.baseUrl));
-}
-
-function trimSlashes(value: string): string {
-  return value.replace(/^\/+|\/+$/g, "");
 }
 
 function normalizedLivePath(value: string): string {
