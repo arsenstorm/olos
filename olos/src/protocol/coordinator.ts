@@ -34,6 +34,7 @@ import type { OlosId } from "../types/ids";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
+import { isRecord } from "../validation/fields";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { assertSession } from "../validation/session";
 
@@ -935,8 +936,4 @@ function assertArray(value: unknown, name: string): void {
   if (!Array.isArray(value)) {
     throw new Error(`${name} must be an array`);
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
