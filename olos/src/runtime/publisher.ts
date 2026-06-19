@@ -141,16 +141,9 @@ export async function runRuntimePublisherUploadStep(
   let committed: RuntimePublisherCommitResult;
 
   try {
-    committed = await options.commit({
-      commitId: options.commitId,
-      committedAt: options.committedAt,
-      object: observed,
-      slotId: issued.slot.slotId,
-      ...optionalField("independent", options.independent),
-      ...optionalField("lateToleranceMs", options.lateToleranceMs),
-      ...optionalField("maxSegments", options.maxSegments),
-      ...optionalField("programDateTime", options.programDateTime),
-    });
+    committed = await options.commit(
+      publisherCommitPayload(options, issued.slot, observed)
+    );
   } catch (error) {
     return {
       error: errorMessage(error, "publisher upload failed"),
@@ -177,6 +170,23 @@ export async function runRuntimePublisherUploadStep(
     ...heartbeatResult(heartbeat.result),
     slot: issued.slot,
     status: "commit_failed",
+  };
+}
+
+function publisherCommitPayload(
+  options: RunRuntimePublisherUploadStepOptions,
+  slot: UploadSlot,
+  object: RuntimeObservedUploadPayload
+): RuntimeCommitPayload {
+  return {
+    commitId: options.commitId,
+    committedAt: options.committedAt,
+    object,
+    slotId: slot.slotId,
+    ...optionalField("independent", options.independent),
+    ...optionalField("lateToleranceMs", options.lateToleranceMs),
+    ...optionalField("maxSegments", options.maxSegments),
+    ...optionalField("programDateTime", options.programDateTime),
   };
 }
 
