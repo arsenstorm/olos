@@ -70,6 +70,15 @@ const SUCCESSFUL_S3_MUTATION_STATUSES = ["committed", "idempotent"] as const;
 type SuccessfulS3MutationStatus =
   (typeof SUCCESSFUL_S3_MUTATION_STATUSES)[number];
 
+interface InvalidS3HttpRequestParse {
+  message: string;
+  status: "invalid";
+}
+
+type S3HttpRequestParse<Payload> =
+  | { payload: Payload; status: "valid" }
+  | InvalidS3HttpRequestParse;
+
 export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
   extends CreateStoredCoordinatorRuntimeHandlerOptions {
   additionalHeaders?: Record<string, string>;
@@ -610,10 +619,7 @@ function s3Route(
 
 async function parseS3SlotGrantRequest(
   request: Request
-): Promise<
-  | { payload: RuntimeSlotIssuePayload; status: "valid" }
-  | { message: string; status: "invalid" }
-> {
+): Promise<S3HttpRequestParse<RuntimeSlotIssuePayload>> {
   try {
     const payload = await request.json();
 
@@ -633,9 +639,7 @@ async function parseS3SlotGrantRequest(
 async function parseJsonRequest(
   request: Request,
   name: string
-): Promise<
-  { payload: unknown; status: "valid" } | { message: string; status: "invalid" }
-> {
+): Promise<S3HttpRequestParse<unknown>> {
   try {
     return {
       payload: await request.json(),
@@ -708,10 +712,7 @@ async function parseS3CompletionHintRequest(
   request: Request,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
   slotId: string
-): Promise<
-  | { payload: S3CommitPayload; status: "valid" }
-  | { message: string; status: "invalid" }
-> {
+): Promise<S3HttpRequestParse<S3CommitPayload>> {
   try {
     const payload = await request.json();
 
@@ -731,10 +732,7 @@ async function parseS3CompletionHintRequest(
 async function parseS3CommitRequest(
   request: Request,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
-): Promise<
-  | { payload: S3CommitPayload; status: "valid" }
-  | { message: string; status: "invalid" }
-> {
+): Promise<S3HttpRequestParse<S3CommitPayload>> {
   try {
     const payload = await request.json();
 
@@ -811,10 +809,7 @@ function parseCommitPayload(
 
 async function parseS3ReconciliationPlanRequest(
   request: Request
-): Promise<
-  | { payload: S3ReconciliationPlanPayload; status: "valid" }
-  | { message: string; status: "invalid" }
-> {
+): Promise<S3HttpRequestParse<S3ReconciliationPlanPayload>> {
   try {
     const payload = await request.json();
 
@@ -838,10 +833,7 @@ async function parseS3ReconciliationPlanRequest(
 async function parseS3ReconciliationRequest(
   request: Request,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
-): Promise<
-  | { payload: S3ReconciliationPayload; status: "valid" }
-  | { message: string; status: "invalid" }
-> {
+): Promise<S3HttpRequestParse<S3ReconciliationPayload>> {
   try {
     const payload = await request.json();
 
@@ -860,10 +852,7 @@ async function parseS3ReconciliationRequest(
 
 async function parseS3RetentionRequest(
   request: Request
-): Promise<
-  | { payload: S3RetentionPayload; status: "valid" }
-  | { message: string; status: "invalid" }
-> {
+): Promise<S3HttpRequestParse<S3RetentionPayload>> {
   try {
     const payload = await request.json();
 
@@ -900,7 +889,7 @@ function parseReconciliationPayload(
   };
 }
 
-function invalid(message: string): { message: string; status: "invalid" } {
+function invalid(message: string): InvalidS3HttpRequestParse {
   return { message, status: "invalid" };
 }
 
