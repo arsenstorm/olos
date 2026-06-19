@@ -98,6 +98,11 @@ export type StoredS3CoordinatorUploadReconciliationCommit =
     status: "committed" | "idempotent";
   };
 
+type FailedStoredS3CoordinatorUploadReconciliationResult = Extract<
+  StoredS3CoordinatorUploadReconciliationResult,
+  { status: "failed" }
+>;
+
 export interface StoredS3CoordinatorUploadReconciliationSummary {
   committed: number;
   failed: number;
@@ -179,7 +184,7 @@ export function summarizeStoredS3CoordinatorUploadReconciliation(
       continue;
     }
 
-    if (entry.status === "failed") {
+    if (isFailedStoredS3CoordinatorUploadReconciliationResult(entry)) {
       summary.failed += 1;
       summary.failedSlotIds.push(entry.slot.slotId);
 
@@ -278,6 +283,12 @@ function isRejectedS3CoordinatorUploadCommit(
   result: StoredS3CoordinatorUploadCommit | undefined
 ): result is RejectedS3CoordinatorUploadCommit {
   return result?.status === "rejected";
+}
+
+function isFailedStoredS3CoordinatorUploadReconciliationResult(
+  result: StoredS3CoordinatorUploadReconciliationResult
+): result is FailedStoredS3CoordinatorUploadReconciliationResult {
+  return result.status === "failed";
 }
 
 function reconciliationSlots(
