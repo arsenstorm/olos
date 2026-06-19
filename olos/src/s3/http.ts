@@ -323,7 +323,7 @@ function s3CommitResponse(
 
     const body: StoredS3CoordinatorCommitResponse = {
       commit: result.commit,
-      ...(result.cursor === undefined ? {} : { cursor: result.cursor }),
+      ...optionalCursorResponse(result.cursor),
     };
 
     return jsonResponse(body, result.status === "committed" ? 201 : 200);
@@ -989,9 +989,7 @@ function reconciliationResult(
   if (isSuccessfulS3MutationResult(result)) {
     return {
       commit: result.commit.commit,
-      ...(result.commit.cursor === undefined
-        ? {}
-        : { cursor: result.commit.cursor }),
+      ...optionalCursorResponse(result.commit.cursor),
       slotId: result.slot.slotId,
       status: result.status,
     };
@@ -1019,6 +1017,12 @@ function reconciliationResult(
   }
 
   throw new Error("unsupported S3 reconciliation result status");
+}
+
+function optionalCursorResponse(
+  cursor: Cursor | undefined
+): Pick<StoredS3CoordinatorCommitResponse, "cursor"> | Record<string, never> {
+  return cursor === undefined ? {} : { cursor };
 }
 
 function mediaObjectKindField(value: Record<string, unknown>): MediaObjectKind {
