@@ -108,6 +108,11 @@ type CommittedStoredS3CoordinatorUploadReconciliationResult = Extract<
   { status: "committed" }
 >;
 
+type IdempotentStoredS3CoordinatorUploadReconciliationResult = Extract<
+  StoredS3CoordinatorUploadReconciliationResult,
+  { status: "idempotent" }
+>;
+
 export interface StoredS3CoordinatorUploadReconciliationSummary {
   committed: number;
   failed: number;
@@ -184,7 +189,7 @@ export function summarizeStoredS3CoordinatorUploadReconciliation(
       continue;
     }
 
-    if (entry.status === "idempotent") {
+    if (isIdempotentStoredS3CoordinatorUploadReconciliationResult(entry)) {
       summary.idempotent += 1;
       continue;
     }
@@ -300,6 +305,12 @@ function isCommittedStoredS3CoordinatorUploadReconciliationResult(
   result: StoredS3CoordinatorUploadReconciliationResult
 ): result is CommittedStoredS3CoordinatorUploadReconciliationResult {
   return result.status === "committed";
+}
+
+function isIdempotentStoredS3CoordinatorUploadReconciliationResult(
+  result: StoredS3CoordinatorUploadReconciliationResult
+): result is IdempotentStoredS3CoordinatorUploadReconciliationResult {
+  return result.status === "idempotent";
 }
 
 function reconciliationSlots(
