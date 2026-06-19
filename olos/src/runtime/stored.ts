@@ -5,6 +5,7 @@ import type {
 } from "../protocol";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosId } from "../types/ids";
+import { positiveAttempts } from "./attempts";
 import {
   commitCoordinatorUploadFromRequest,
   type RuntimeCommitRequest,
@@ -215,16 +216,6 @@ export async function commitStoredCoordinatorUploadFromRequest(
   }
 
   return conflict(snapshot);
-}
-
-function positiveAttempts(value: number | undefined): number {
-  const attempts = value ?? 2;
-
-  if (!Number.isInteger(attempts) || attempts < 1) {
-    throw new Error("maxAttempts must be a positive integer");
-  }
-
-  return attempts;
 }
 
 function requestForAttempt<RequestType extends RuntimeCommitRequest>(

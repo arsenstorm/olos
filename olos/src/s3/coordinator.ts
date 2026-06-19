@@ -21,6 +21,7 @@ import type {
   CoordinatorPipelineState,
   IssueCoordinatorSlotOptions,
 } from "../protocol/coordinator";
+import { positiveAttempts } from "../runtime/attempts";
 import type { UploadEventNormalization } from "../state/observed-upload";
 import {
   type PublicationControlPolicy,
@@ -402,16 +403,6 @@ export async function commitStoredS3CoordinatorUpload(
     current: snapshot,
     status: "conflict",
   };
-}
-
-function positiveAttempts(value: number | undefined): number {
-  const attempts = value ?? 2;
-
-  if (!Number.isInteger(attempts) || attempts < 1) {
-    throw new Error("maxAttempts must be a positive integer");
-  }
-
-  return attempts;
 }
 
 export async function completeStoredS3CoordinatorUpload(
