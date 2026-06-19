@@ -49,6 +49,15 @@ export interface RuntimePublisherStepStatus {
 export type RuntimePublisherUploadStepStatus =
   RuntimePublisherUploadStep["status"];
 
+const PUBLISHER_STEP_STATUSES = [
+  "committed",
+  "idempotent",
+  "heartbeat_failed",
+  "issue_failed",
+  "upload_failed",
+  "commit_failed",
+] as const satisfies readonly RuntimePublisherUploadStepStatus[];
+
 export type RuntimePublisherLoopDecision =
   | {
       action: "continue";
@@ -268,12 +277,7 @@ export function resolveRuntimePublisherLoopDecision(
 
 function assertPublisherStepStatus(status: string): void {
   if (
-    status === "committed" ||
-    status === "idempotent" ||
-    status === "heartbeat_failed" ||
-    status === "issue_failed" ||
-    status === "upload_failed" ||
-    status === "commit_failed"
+    PUBLISHER_STEP_STATUSES.includes(status as RuntimePublisherUploadStepStatus)
   ) {
     return;
   }
