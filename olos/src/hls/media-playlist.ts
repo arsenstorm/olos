@@ -3,6 +3,7 @@ import type {
   CommittedWindow,
 } from "../types/committed-window";
 import { assertCommittedWindow } from "../validation/committed-window";
+import { positiveNumber } from "../validation/fields";
 import { escapePlaylistValue, formatSeconds } from "./format";
 import { assertSafeMediaUri, type MediaUriPolicy } from "./uri";
 
@@ -19,8 +20,8 @@ export function renderMediaPlaylist(
   options: RenderMediaPlaylistOptions
 ): string {
   assertCommittedWindow(committedWindow);
-  assertPositiveNumber(options.partTarget, "options.partTarget");
-  assertPositiveNumber(options.segmentTarget, "options.segmentTarget");
+  positiveNumber(options.partTarget, "options.partTarget");
+  positiveNumber(options.segmentTarget, "options.segmentTarget");
 
   const rendition = committedWindow.renditions[options.renditionId];
 
@@ -97,12 +98,12 @@ function resolveHoldBackOptions(options: RenderMediaPlaylistOptions): {
   targetLatency: number;
 } {
   const targetLatency = options.targetLatency ?? 3;
-  assertPositiveNumber(targetLatency, "options.targetLatency");
+  positiveNumber(targetLatency, "options.targetLatency");
 
   const minimumPartHoldBack = 3 * options.partTarget;
   const partHoldBack =
     options.partHoldBack ?? Math.max(minimumPartHoldBack, targetLatency);
-  assertPositiveNumber(partHoldBack, "options.partHoldBack");
+  positiveNumber(partHoldBack, "options.partHoldBack");
 
   if (partHoldBack < minimumPartHoldBack) {
     throw new Error(
@@ -111,10 +112,4 @@ function resolveHoldBackOptions(options: RenderMediaPlaylistOptions): {
   }
 
   return { partHoldBack, targetLatency };
-}
-
-function assertPositiveNumber(value: unknown, name: string): void {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    throw new Error(`${name} must be a positive number`);
-  }
 }

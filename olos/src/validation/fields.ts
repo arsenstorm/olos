@@ -39,13 +39,15 @@ export function assertPositiveNumberField(
   field: string,
   name: string
 ): void {
-  if (
-    typeof value[field] !== "number" ||
-    !Number.isFinite(value[field]) ||
-    value[field] <= 0
-  ) {
-    throw new Error(`${name}.${field} must be a positive number`);
+  positiveNumber(value[field], `${name}.${field}`);
+}
+
+export function positiveNumber(value: unknown, name: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`${name} must be a positive number`);
   }
+
+  return value;
 }
 
 export function nonNegativeNumber(value: number, name: string): number {
