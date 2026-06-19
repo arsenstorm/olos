@@ -1,6 +1,6 @@
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
-import { isHttpHeaderName } from "../validation/http-header";
+import { assertHttpHeaderStringMap } from "../validation/http-header";
 import { assertUploadGrant } from "../validation/upload-grant";
 import { assertUploadSlot } from "../validation/upload-slot";
 
@@ -60,15 +60,7 @@ function createRequiredHeaders(
 export function assertAdditionalUploadHeaders(
   value: unknown
 ): asserts value is Record<string, string> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("additionalHeaders must be a string map");
-  }
-
-  for (const [header, headerValue] of Object.entries(value)) {
-    if (!isHttpHeaderName(header) || typeof headerValue !== "string") {
-      throw new Error("additionalHeaders must be a string map");
-    }
-  }
+  assertHttpHeaderStringMap(value, "additionalHeaders");
 }
 
 function assertUploadGrantPreconditions(

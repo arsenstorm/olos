@@ -1,6 +1,6 @@
 import type { MediaObject } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
-import { isHttpHeaderName } from "./http-header";
+import { isOptionalHttpHeaderStringMap } from "./http-header";
 import { assertMediaObject } from "./media-object";
 import { assertUploadSlot } from "./upload-slot";
 
@@ -52,7 +52,7 @@ export function assertObservedUpload(
 
   if (
     observed.metadata !== undefined &&
-    !isOptionalStringMap(observed.metadata)
+    !isOptionalHttpHeaderStringMap(observed.metadata)
   ) {
     throw new Error("observedUpload.metadata must be a string map");
   }
@@ -118,18 +118,4 @@ function nonNegativeNumber(value: number, name: string): number {
   }
 
   return value;
-}
-
-function isOptionalStringMap(
-  value: unknown
-): value is Record<string, string | undefined> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return false;
-  }
-
-  return Object.entries(value).every(
-    ([key, entry]) =>
-      isHttpHeaderName(key) &&
-      (typeof entry === "string" || entry === undefined)
-  );
 }

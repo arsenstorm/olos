@@ -1,6 +1,6 @@
 import type { UploadGrant } from "../types/upload-grant";
 import { assertIsoDateField, assertUrlSafeField, isRecord } from "./fields";
-import { isHttpHeaderName } from "./http-header";
+import { assertHttpHeaderStringMap } from "./http-header";
 
 export function isUploadGrant(value: unknown): value is UploadGrant {
   try {
@@ -28,7 +28,10 @@ export function assertUploadGrant(
   assertIsoDateField(value, "expiresAt", "uploadGrant");
 
   if (value.requiredHeaders !== undefined) {
-    assertStringMap(value.requiredHeaders, "uploadGrant.requiredHeaders");
+    assertHttpHeaderStringMap(
+      value.requiredHeaders,
+      "uploadGrant.requiredHeaders"
+    );
   }
 }
 
@@ -47,17 +50,5 @@ function assertAbsoluteHttpUrl(value: unknown, name: string): void {
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error(`${name} must be an absolute HTTP(S) URL`);
-  }
-}
-
-function assertStringMap(value: unknown, name: string): void {
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be a string map`);
-  }
-
-  for (const [key, headerValue] of Object.entries(value)) {
-    if (!isHttpHeaderName(key) || typeof headerValue !== "string") {
-      throw new Error(`${name} must be a string map`);
-    }
   }
 }
