@@ -152,6 +152,16 @@ type SavedCoordinatorPipelineMutation = Extract<
   { status: "saved" }
 >;
 
+type MissingStoredS3CoordinatorUploadCommit = Extract<
+  StoredS3CoordinatorUploadCommit,
+  { status: "not_found" }
+>;
+
+type MissingStoredS3CoordinatorUploadGrantIssue = Extract<
+  StoredS3CoordinatorUploadGrantIssue,
+  { status: "not_found" }
+>;
+
 export type StoredS3CoordinatorUploadCommit =
   | (Extract<
       CoordinatorUploadCommit,
@@ -272,7 +282,7 @@ export async function issueStoredS3CoordinatorUploadGrant(
     const snapshot = await store.load(sessionId);
 
     if (snapshot === undefined) {
-      return { status: "not_found" };
+      return missingStoredS3CoordinatorUploadGrantIssue();
     }
 
     return {
@@ -383,7 +393,7 @@ export async function commitStoredS3CoordinatorUpload(
   let snapshot = await store.load(sessionId);
 
   if (snapshot === undefined) {
-    return { status: "not_found" };
+    return missingStoredS3CoordinatorUploadCommit();
   }
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -481,7 +491,7 @@ export async function completeStoredS3CoordinatorUpload(
   const snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
-    return { status: "not_found" };
+    return missingStoredS3CoordinatorUploadCommit();
   }
 
   const slot = snapshot.state.slots.find(
@@ -522,7 +532,7 @@ export async function completeStoredS3CoordinatorUploadByObjectKey(
   const snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
-    return { status: "not_found" };
+    return missingStoredS3CoordinatorUploadCommit();
   }
 
   const slot = snapshot.state.slots.find(
@@ -667,7 +677,7 @@ async function resolveStoredProviderEventPublication(
   const snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
-    return { status: "not_found" };
+    return missingStoredS3CoordinatorUploadCommit();
   }
 
   return {
@@ -701,6 +711,14 @@ function withManifest<T extends { state: CoordinatorPipelineState }>(
       })),
     },
   };
+}
+
+function missingStoredS3CoordinatorUploadCommit(): MissingStoredS3CoordinatorUploadCommit {
+  return { status: "not_found" };
+}
+
+function missingStoredS3CoordinatorUploadGrantIssue(): MissingStoredS3CoordinatorUploadGrantIssue {
+  return { status: "not_found" };
 }
 
 function coordinatorError(
