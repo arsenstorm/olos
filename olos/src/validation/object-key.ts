@@ -1,4 +1,5 @@
 import type { MediaObjectKind } from "../types/media-object";
+import { hasControlCharacter } from "./fields";
 
 export function isSafeObjectKey(value: unknown): value is string {
   return typeof value === "string" && safeObjectKeyError(value) === undefined;
@@ -72,18 +73,6 @@ function safeObjectKeyError(value: unknown): string | undefined {
   ) {
     return "must be a safe relative object key";
   }
-}
-
-function hasControlCharacter(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-
-    if (code <= 0x1f || code === 0x7f) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 const MEDIA_OBJECT_EXTENSIONS: Partial<

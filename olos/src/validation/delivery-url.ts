@@ -1,3 +1,5 @@
+import { hasControlCharacter } from "./fields";
+
 export function assertSafeDeliveryUrl(value: unknown, name: string): void {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`${name} must be a non-empty string`);
@@ -22,18 +24,6 @@ export function assertSafeDeliveryUrl(value: unknown, name: string): void {
       `${name} must be an absolute HTTP(S) URL or safe relative path`
     );
   }
-}
-
-function hasControlCharacter(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-
-    if (code <= 0x1f || code === 0x7f) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 function isSafeRelativePath(value: string): boolean {

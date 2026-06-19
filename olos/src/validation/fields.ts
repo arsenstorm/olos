@@ -56,6 +56,18 @@ export function nonNegativeNumber(value: number, name: string): number {
   return value;
 }
 
+export function hasControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function assertNonEmptyStringField(
   value: Record<string, unknown>,
   field: string,
