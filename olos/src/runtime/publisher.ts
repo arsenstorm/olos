@@ -110,6 +110,11 @@ type SuccessfulRuntimePublisherUploadStep = Extract<
   { status: "committed" | "idempotent" }
 >;
 
+type FailedRuntimePublisherHeartbeatStep = Extract<
+  RuntimePublisherUploadStep,
+  { status: "heartbeat_failed" }
+>;
+
 type IssuedRuntimePublisherIssueResult = RuntimePublisherIssueResult & {
   slot: UploadSlot;
   status: "issued";
@@ -222,8 +227,8 @@ async function runPublisherHeartbeat(
       status: "ready";
     }
   | {
+      step: FailedRuntimePublisherHeartbeatStep;
       status: "failed";
-      step: Extract<RuntimePublisherUploadStep, { status: "heartbeat_failed" }>;
     }
 > {
   if (heartbeat === undefined) {
