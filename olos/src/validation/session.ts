@@ -5,7 +5,16 @@ import {
 } from "../config/session";
 import { OLOS_WIRE_VERSION } from "../index";
 import type { Rendition, Session } from "../types/session";
-import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
+import {
+  assertIsoDateField,
+  assertNonEmptyStringField,
+  assertNonNegativeIntegerField,
+  assertOneOfField,
+  assertPositiveIntegerField,
+  assertPositiveNumberField,
+  assertUrlSafeField,
+  isRecord,
+} from "./fields";
 
 export function isSession(value: unknown): value is Session {
   try {
@@ -86,87 +95,5 @@ function assertRendition(value: unknown): asserts value is Rendition {
 
   if (value.frameRate !== undefined) {
     assertPositiveNumberField(value, "frameRate", "session.renditions[]");
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function assertUrlSafeField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (!isUrlSafeIdentifier(value[field])) {
-    throw new Error(`${name}.${field} must be a non-empty URL-safe identifier`);
-  }
-}
-
-function assertNonNegativeIntegerField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (!isNonNegativeInteger(value[field])) {
-    throw new Error(`${name}.${field} must be a non-negative integer`);
-  }
-}
-
-function assertPositiveIntegerField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (!Number.isInteger(value[field]) || Number(value[field]) <= 0) {
-    throw new Error(`${name}.${field} must be a positive integer`);
-  }
-}
-
-function assertPositiveNumberField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (
-    typeof value[field] !== "number" ||
-    !Number.isFinite(value[field]) ||
-    value[field] <= 0
-  ) {
-    throw new Error(`${name}.${field} must be a positive number`);
-  }
-}
-
-function assertNonEmptyStringField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (typeof value[field] !== "string" || value[field].length === 0) {
-    throw new Error(`${name}.${field} must be a non-empty string`);
-  }
-}
-
-function assertIsoDateField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (
-    typeof value[field] !== "string" ||
-    Number.isNaN(Date.parse(value[field]))
-  ) {
-    throw new Error(`${name}.${field} must be a valid timestamp`);
-  }
-}
-
-function assertOneOfField<const T extends readonly string[]>(
-  value: Record<string, unknown>,
-  field: string,
-  allowed: T,
-  name: string
-): void {
-  if (!allowed.includes(value[field] as T[number])) {
-    throw new Error(`${name}.${field} must be one of: ${allowed.join(", ")}`);
   }
 }

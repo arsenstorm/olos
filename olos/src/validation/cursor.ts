@@ -2,7 +2,14 @@ import { LATENCY_PROFILES, SESSION_STATES } from "../config/session";
 import { OLOS_WIRE_VERSION } from "../index";
 import type { Cursor, CursorWindow } from "../types/cursor";
 import { assertCommittedWindow } from "./committed-window";
-import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
+import {
+  assertIsoDateField,
+  assertNonNegativeIntegerField,
+  assertOneOfField,
+  assertPositiveNumberField,
+  assertUrlSafeField,
+  isRecord,
+} from "./fields";
 import { assertPathway } from "./pathway";
 
 export function isCursor(value: unknown): value is Cursor {
@@ -95,67 +102,5 @@ function assertPathways(value: unknown): void {
     }
 
     seenPathways.add(pathway.pathwayId as string);
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function assertUrlSafeField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (!isUrlSafeIdentifier(value[field])) {
-    throw new Error(`${name}.${field} must be a non-empty URL-safe identifier`);
-  }
-}
-
-function assertNonNegativeIntegerField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (!isNonNegativeInteger(value[field])) {
-    throw new Error(`${name}.${field} must be a non-negative integer`);
-  }
-}
-
-function assertPositiveNumberField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (
-    typeof value[field] !== "number" ||
-    !Number.isFinite(value[field]) ||
-    value[field] <= 0
-  ) {
-    throw new Error(`${name}.${field} must be a positive number`);
-  }
-}
-
-function assertIsoDateField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (
-    typeof value[field] !== "string" ||
-    Number.isNaN(Date.parse(value[field]))
-  ) {
-    throw new Error(`${name}.${field} must be a valid timestamp`);
-  }
-}
-
-function assertOneOfField<const T extends readonly string[]>(
-  value: Record<string, unknown>,
-  field: string,
-  allowed: T,
-  name: string
-): void {
-  if (!allowed.includes(value[field] as T[number])) {
-    throw new Error(`${name}.${field} must be one of: ${allowed.join(", ")}`);
   }
 }
