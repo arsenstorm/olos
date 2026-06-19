@@ -17,6 +17,11 @@ import { assertSession } from "../validation/session";
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { resolveRuntimeLiveHealthFromState } from "./health";
 import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
+import {
+  isRecord,
+  stringField,
+  urlSafeIdentifierField,
+} from "./request-fields";
 import { jsonResponse } from "./response";
 import { planStoredCoordinatorRetention } from "./retention";
 import { routeParts } from "./route";
@@ -612,27 +617,6 @@ function sessionNotFound(): Response {
     { error: { message: "coordinator session was not found" } },
     404
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function stringField(value: Record<string, unknown>, field: string): string {
-  if (typeof value[field] !== "string") {
-    throw new Error(`${field} must be a string`);
-  }
-
-  return value[field];
-}
-
-function urlSafeIdentifierField(
-  value: Record<string, unknown>,
-  field: string
-): string {
-  assertUrlSafeIdentifier(value[field], field);
-
-  return value[field];
 }
 
 function errorMessage(error: unknown, fallback: string): string {
