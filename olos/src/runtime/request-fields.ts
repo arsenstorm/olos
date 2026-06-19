@@ -86,11 +86,15 @@ export function positiveIntegerField(
 ): number {
   const number = numberField(value, field);
 
-  if (!Number.isInteger(number) || number <= 0) {
-    throw new Error(`${field} must be a positive integer`);
+  return positiveInteger(number, field);
+}
+
+export function positiveInteger(value: number, name: string): number {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer`);
   }
 
-  return number;
+  return value;
 }
 
 export function positiveNumberField(
