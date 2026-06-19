@@ -69,11 +69,15 @@ export function nonNegativeIntegerField(
 ): number {
   const number = numberField(value, field);
 
-  if (!Number.isInteger(number) || number < 0) {
-    throw new Error(`${field} must be a non-negative integer`);
+  return nonNegativeInteger(number, field);
+}
+
+export function nonNegativeInteger(value: number, name: string): number {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative integer`);
   }
 
-  return number;
+  return value;
 }
 
 export function positiveIntegerField(

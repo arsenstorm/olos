@@ -16,6 +16,7 @@ import {
 } from "./http-client";
 import { hasControlCharacter, trimSlashes } from "./path";
 import type { RuntimePublisherLease } from "./publisher-lease";
+import { nonNegativeInteger } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
 const URL_SCHEME_PREFIX = /^[A-Za-z][A-Za-z\d+.-]*:/;
@@ -309,12 +310,12 @@ export async function getRuntimeMediaPlaylist(
   );
 
   if (options.hlsMsn !== undefined) {
-    assertNonNegativeInteger(options.hlsMsn, "hlsMsn");
+    nonNegativeInteger(options.hlsMsn, "hlsMsn");
     url.searchParams.set("_HLS_msn", String(options.hlsMsn));
   }
 
   if (options.hlsPart !== undefined) {
-    assertNonNegativeInteger(options.hlsPart, "hlsPart");
+    nonNegativeInteger(options.hlsPart, "hlsPart");
     url.searchParams.set("_HLS_part", String(options.hlsPart));
   }
 
@@ -369,12 +370,6 @@ function normalizedLivePath(value: string): string {
   }
 
   return path;
-}
-
-function assertNonNegativeInteger(value: number, name: string): void {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`${name} must be a non-negative integer`);
-  }
 }
 
 async function runtimeHttpError(
