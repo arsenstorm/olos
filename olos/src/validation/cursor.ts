@@ -1,5 +1,6 @@
 import { LATENCY_PROFILES, SESSION_STATES } from "../config/session";
 import { OLOS_WIRE_VERSION } from "../index";
+import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor, CursorWindow } from "../types/cursor";
 import { assertCommittedWindow } from "./committed-window";
 import {
@@ -42,16 +43,23 @@ export function assertCursor(value: unknown): asserts value is Cursor {
   const cursorWindow = value.window;
   assertCursorWindow(cursorWindow);
   assertCommittedWindow(value.committedWindow);
+  assertCursorCommittedWindow(value, cursorWindow, value.committedWindow);
+}
 
-  if (value.epoch !== value.committedWindow.epoch) {
+function assertCursorCommittedWindow(
+  cursor: Record<string, unknown>,
+  cursorWindow: CursorWindow,
+  committedWindow: CommittedWindow
+): void {
+  if (cursor.epoch !== committedWindow.epoch) {
     throw new Error("cursor.epoch must match committedWindow.epoch");
   }
 
   if (
     cursorWindow.firstMediaSequenceNumber !==
-      value.committedWindow.firstMediaSequenceNumber ||
+      committedWindow.firstMediaSequenceNumber ||
     cursorWindow.lastMediaSequenceNumber !==
-      value.committedWindow.lastMediaSequenceNumber
+      committedWindow.lastMediaSequenceNumber
   ) {
     throw new Error("cursor.window must match committedWindow media sequence");
   }
