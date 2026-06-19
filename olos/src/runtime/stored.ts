@@ -72,6 +72,11 @@ export type StoredRuntimeSlotIssue =
   | Exclude<RuntimeCoordinatorSlotIssue, { status: "issued" }>
   | StoredRuntimeMutation;
 
+type IssuedRuntimeCoordinatorSlotIssue = Extract<
+  RuntimeCoordinatorSlotIssue,
+  { status: "issued" }
+>;
+
 type SuccessfulRuntimeCoordinatorUploadCommit = Extract<
   RuntimeCoordinatorUploadCommit,
   { status: "committed" | "idempotent" }
@@ -162,7 +167,7 @@ export async function issueStoredCoordinatorSlotFromRequest(
       state: snapshot.state,
     });
 
-    if (issued.status !== "issued") {
+    if (!isIssuedRuntimeCoordinatorSlotIssue(issued)) {
       return issued;
     }
 
@@ -250,6 +255,12 @@ function isTerminalRuntimeCoordinatorUploadCommit(
   return TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES.includes(
     result.status as TerminalRuntimeCoordinatorUploadCommit["status"]
   );
+}
+
+function isIssuedRuntimeCoordinatorSlotIssue(
+  result: RuntimeCoordinatorSlotIssue
+): result is IssuedRuntimeCoordinatorSlotIssue {
+  return result.status === "issued";
 }
 
 function isIdempotentRuntimeCoordinatorUploadCommit(
