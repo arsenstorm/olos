@@ -1,6 +1,12 @@
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { isRecord, positiveNumber, timestampMs } from "./request-fields";
 
+const LEASE_IDENTITY_FIELDS = [
+  "tenantId",
+  "sessionId",
+  "publisherInstanceId",
+] as const;
+
 export interface RuntimePublisherLease {
   expiresAt: string;
   issuedAt: string;
@@ -141,11 +147,7 @@ function assertLeaseOwner(
 ): void {
   assertRuntimePublisherLease(lease);
 
-  for (const field of [
-    "tenantId",
-    "sessionId",
-    "publisherInstanceId",
-  ] as const) {
+  for (const field of LEASE_IDENTITY_FIELDS) {
     if (lease[field] !== owner[field]) {
       throw new Error(`publisherLease.${field} does not match heartbeat`);
     }
@@ -153,11 +155,7 @@ function assertLeaseOwner(
 }
 
 function assertLeaseIdentity(value: Record<string, unknown>): void {
-  for (const field of [
-    "tenantId",
-    "sessionId",
-    "publisherInstanceId",
-  ] as const) {
+  for (const field of LEASE_IDENTITY_FIELDS) {
     assertUrlSafeIdentifier(value[field], `publisherLease.${field}`);
   }
 }
