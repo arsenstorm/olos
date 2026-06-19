@@ -2,6 +2,7 @@ import type { Commit } from "../types/commit";
 import type { CommittedWindow } from "../types/committed-window";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertUploadSlot } from "../validation/upload-slot";
+import { timestampMs as validTimestampMs } from "./timestamp";
 
 export interface SelectExpiredUploadSlotsOptions {
   now: string;
@@ -69,11 +70,9 @@ function retainedWindowSlotIds(window: CommittedWindow): Set<string> {
 }
 
 function timestampMs(value: string, name: string): number {
-  const timestamp = Date.parse(value);
-
-  if (Number.isNaN(timestamp)) {
+  try {
+    return validTimestampMs(value, name);
+  } catch {
     throw new Error(`${name} must be an ISO timestamp`);
   }
-
-  return timestamp;
 }
