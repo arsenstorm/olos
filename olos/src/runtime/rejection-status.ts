@@ -1,5 +1,9 @@
-import type { OlosError } from "../types/errors";
+import type { OlosError, OlosErrorCode } from "../types/errors";
 
 export function rejectionStatus(error: OlosError): number {
-  return error.error.code === "olos.unknown_slot" ? 404 : 409;
+  return rejectionStatusCode(error.error.code);
+}
+
+export function rejectionStatusCode(code: OlosErrorCode): number {
+  return code === "olos.unknown_slot" ? 404 : 409;
 }

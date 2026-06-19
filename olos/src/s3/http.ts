@@ -12,6 +12,7 @@ import {
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
 import { errorMessage } from "../runtime/errors";
+import { rejectionStatusCode } from "../runtime/rejection-status";
 import {
   booleanField,
   isRecord,
@@ -247,7 +248,10 @@ async function handleS3SlotGrant(
   }
 
   if (result.status === "rejected") {
-    return jsonResponse(result.error, rejectionStatus(result.error.error.code));
+    return jsonResponse(
+      result.error,
+      rejectionStatusCode(result.error.error.code)
+    );
   }
 
   return conflict();
@@ -322,7 +326,7 @@ function s3CommitResponse(
   if (result.status === "rejected") {
     return jsonResponse(
       rejectionBody(result),
-      rejectionStatus(result.error.error.code)
+      rejectionStatusCode(result.error.error.code)
     );
   }
 
@@ -921,10 +925,6 @@ function conflict(): Response {
     { error: { message: "coordinator session changed during mutation" } },
     409
   );
-}
-
-function rejectionStatus(code: string): number {
-  return code === "olos.unknown_slot" ? 404 : 409;
 }
 
 function eventRouteResult(
