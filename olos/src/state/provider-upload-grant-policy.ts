@@ -16,6 +16,12 @@ export interface ProviderUploadGrantPolicyOptions {
   slot: UploadSlot;
 }
 
+type DirectPublicUploadSlot = UploadSlot & { publicationMode: "direct-public" };
+type PrivatePromotionUploadSlot = UploadSlot & {
+  publicationMode: "private-upload-public-promotion";
+};
+type ReadGatedUploadSlot = UploadSlot & { publicationMode: "read-gated" };
+
 export function canProviderIssueUploadGrant(
   options: ProviderUploadGrantPolicyOptions
 ): boolean {
@@ -42,7 +48,7 @@ function assertProviderMatchesPublicationMode(
 ): void {
   const { capability, slot } = options;
 
-  if (slot.publicationMode === "direct-public") {
+  if (isDirectPublicUploadSlot(slot)) {
     if (!capability.publication.directObjectPublication) {
       throw new Error(
         "providerCapability.publication.directObjectPublication must be true for direct-public slots"
@@ -63,7 +69,7 @@ function assertProviderMatchesPublicationMode(
   }
 
   if (
-    slot.publicationMode === "read-gated" &&
+    isReadGatedUploadSlot(slot) &&
     capability.publication.readGateAvailable !== true
   ) {
     throw new Error(
@@ -72,13 +78,29 @@ function assertProviderMatchesPublicationMode(
   }
 
   if (
-    slot.publicationMode === "private-upload-public-promotion" &&
+    isPrivatePromotionUploadSlot(slot) &&
     capability.publication.privateUploadPublicPromotion !== true
   ) {
     throw new Error(
       "providerCapability.publication.privateUploadPublicPromotion must be true for private-upload-public-promotion slots"
     );
   }
+}
+
+function isDirectPublicUploadSlot(
+  slot: UploadSlot
+): slot is DirectPublicUploadSlot {
+  return slot.publicationMode === "direct-public";
+}
+
+function isPrivatePromotionUploadSlot(
+  slot: UploadSlot
+): slot is PrivatePromotionUploadSlot {
+  return slot.publicationMode === "private-upload-public-promotion";
+}
+
+function isReadGatedUploadSlot(slot: UploadSlot): slot is ReadGatedUploadSlot {
+  return slot.publicationMode === "read-gated";
 }
 
 function assertUploadGrantCapabilities(
