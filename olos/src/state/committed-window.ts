@@ -133,19 +133,7 @@ function createSegments(
 
   for (const commit of sortedCommits) {
     const segment = segmentForCommit(segmentsBySequence, commit);
-
-    if (commit.partNumber === undefined) {
-      if (segment.segment !== undefined) {
-        throw new Error("commits must not contain duplicate segment positions");
-      }
-
-      segment.segment = committedObject(commit);
-      continue;
-    }
-
-    const parts = segment.parts ?? [];
-    parts.push(committedPart(commit));
-    segment.parts = parts;
+    addCommitToSegment(segment, commit);
   }
 
   const segments = [...segmentsBySequence.values()]
@@ -161,6 +149,21 @@ function createSegments(
   }
 
   return segments;
+}
+
+function addCommitToSegment(segment: CommittedSegment, commit: Commit): void {
+  if (commit.partNumber === undefined) {
+    if (segment.segment !== undefined) {
+      throw new Error("commits must not contain duplicate segment positions");
+    }
+
+    segment.segment = committedObject(commit);
+    return;
+  }
+
+  const parts = segment.parts ?? [];
+  parts.push(committedPart(commit));
+  segment.parts = parts;
 }
 
 function commitContiguousParts(segment: CommittedSegment): CommittedSegment {
