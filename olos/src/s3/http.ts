@@ -22,6 +22,7 @@ import {
   optionalPositiveIntegerField,
   optionalStringField,
   optionalTimestampField,
+  optionalUrlSafeIdentifierValueField,
   positiveNumberField,
   stringField,
   timestampField,
@@ -757,7 +758,8 @@ function parseCompletionHintPayload(
 
   return {
     commitId:
-      optionalUrlSafeIdentifierField(value, "commitId") ?? `complete_${slotId}`,
+      optionalUrlSafeIdentifierValueField(value, "commitId") ??
+      `complete_${slotId}`,
     committedAt:
       optionalTimestampValueField(value, "committedAt") ??
       new Date().toISOString(),
@@ -1041,17 +1043,6 @@ function optionalObjectKeyField(
   assertSafeObjectKey(objectKey, "objectKey");
 
   return { objectKey };
-}
-
-function optionalUrlSafeIdentifierField(
-  value: Record<string, unknown>,
-  field: "commitId"
-): string | undefined {
-  if (value[field] === undefined) {
-    return;
-  }
-
-  return urlSafeIdentifierField(value, field);
 }
 
 function optionalTimestampValueField(

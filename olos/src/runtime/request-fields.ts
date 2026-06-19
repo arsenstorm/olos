@@ -37,6 +37,17 @@ export function urlSafeIdentifierField(
   return value[field];
 }
 
+export function optionalUrlSafeIdentifierValueField(
+  value: Record<string, unknown>,
+  field: string
+): string | undefined {
+  if (value[field] === undefined) {
+    return;
+  }
+
+  return urlSafeIdentifierField(value, field);
+}
+
 export function numberField(
   value: Record<string, unknown>,
   field: string
