@@ -147,14 +147,7 @@ function createObjectKey(
   }
 
   if (options.kind === "segment") {
-    const fileName =
-      nonce === undefined
-        ? `s${options.mediaSequenceNumber}.${extension}`
-        : `segment-${nonce}.${extension}`;
-
-    return nonce === undefined
-      ? `${prefix}/${options.renditionId}/${fileName}`
-      : `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}/${fileName}`;
+    return createSegmentObjectKey(options, prefix, extension, nonce);
   }
 
   const fileName =
@@ -163,6 +156,22 @@ function createObjectKey(
       : `p${options.partNumber}-${nonce}.${extension}`;
 
   return `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}/${fileName}`;
+}
+
+function createSegmentObjectKey(
+  options: CreateRuntimePublisherObjectPlanOptions,
+  prefix: string,
+  extension: string,
+  nonce: string | undefined
+): string {
+  const fileName =
+    nonce === undefined
+      ? `s${options.mediaSequenceNumber}.${extension}`
+      : `segment-${nonce}.${extension}`;
+
+  return nonce === undefined
+    ? `${prefix}/${options.renditionId}/${fileName}`
+    : `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}/${fileName}`;
 }
 
 function createObjectId(
