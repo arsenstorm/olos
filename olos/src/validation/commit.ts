@@ -1,7 +1,15 @@
 import { PUBLICATION_MODES } from "../config/publication";
 import type { Commit } from "../types/commit";
 import { assertSafeDeliveryUrl } from "./delivery-url";
-import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
+import {
+  assertIsoDateField,
+  assertNonEmptyStringField,
+  assertNonNegativeIntegerField,
+  assertOneOfField,
+  assertPositiveNumberField,
+  assertUrlSafeField,
+  isRecord,
+} from "./fields";
 import { assertSafeObjectKey } from "./object-key";
 
 export function isCommit(value: unknown): value is Commit {
@@ -18,32 +26,32 @@ export function assertCommit(value: unknown): asserts value is Commit {
     throw new Error("commit must be an object");
   }
 
-  assertUrlSafeField(value, "commitId");
-  assertUrlSafeField(value, "slotId");
-  assertUrlSafeField(value, "sessionId");
-  assertUrlSafeField(value, "renditionId");
-  assertUrlSafeField(value, "providerId");
+  assertUrlSafeField(value, "commitId", "commit");
+  assertUrlSafeField(value, "slotId", "commit");
+  assertUrlSafeField(value, "sessionId", "commit");
+  assertUrlSafeField(value, "renditionId", "commit");
+  assertUrlSafeField(value, "providerId", "commit");
 
-  assertNonNegativeIntegerField(value, "epoch");
-  assertNonNegativeIntegerField(value, "mediaSequenceNumber");
+  assertNonNegativeIntegerField(value, "epoch", "commit");
+  assertNonNegativeIntegerField(value, "mediaSequenceNumber", "commit");
 
   if (value.partNumber !== undefined) {
-    assertNonNegativeIntegerField(value, "partNumber");
+    assertNonNegativeIntegerField(value, "partNumber", "commit");
   }
 
-  assertPositiveNumberField(value, "duration");
-  assertPositiveNumberField(value, "size");
+  assertPositiveNumberField(value, "duration", "commit");
+  assertPositiveNumberField(value, "size", "commit");
 
   assertSafeObjectKey(value.objectKey, "commit.objectKey");
   assertSafeDeliveryUrl(value.deliveryUrl, "commit.deliveryUrl");
-  assertTimestampField(value, "committedAt");
+  assertIsoDateField(value, "committedAt", "commit");
 
   if (value.etag !== undefined) {
-    assertNonEmptyStringField(value, "etag");
+    assertNonEmptyStringField(value, "etag", "commit");
   }
 
   if (value.programDateTime !== undefined) {
-    assertTimestampField(value, "programDateTime");
+    assertIsoDateField(value, "programDateTime", "commit");
   }
 
   if (
@@ -53,75 +61,5 @@ export function assertCommit(value: unknown): asserts value is Commit {
     throw new Error("commit.independent must be a boolean");
   }
 
-  assertAllowedValue(
-    value.publicationMode,
-    PUBLICATION_MODES,
-    "commit.publicationMode"
-  );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function assertUrlSafeField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (!isUrlSafeIdentifier(value[field])) {
-    throw new Error(`commit.${field} must be a non-empty URL-safe identifier`);
-  }
-}
-
-function assertNonNegativeIntegerField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (!isNonNegativeInteger(value[field])) {
-    throw new Error(`commit.${field} must be a non-negative integer`);
-  }
-}
-
-function assertPositiveNumberField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (
-    typeof value[field] !== "number" ||
-    !Number.isFinite(value[field]) ||
-    value[field] <= 0
-  ) {
-    throw new Error(`commit.${field} must be a positive number`);
-  }
-}
-
-function assertTimestampField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (
-    typeof value[field] !== "string" ||
-    Number.isNaN(Date.parse(value[field]))
-  ) {
-    throw new Error(`commit.${field} must be a valid timestamp`);
-  }
-}
-
-function assertNonEmptyStringField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (typeof value[field] !== "string" || value[field].length === 0) {
-    throw new Error(`commit.${field} must be a non-empty string`);
-  }
-}
-
-function assertAllowedValue<const Values extends readonly string[]>(
-  value: unknown,
-  allowedValues: Values,
-  name: string
-): void {
-  if (typeof value !== "string" || !allowedValues.includes(value)) {
-    throw new Error(`${name} must be one of: ${allowedValues.join(", ")}`);
-  }
+  assertOneOfField(value, "publicationMode", PUBLICATION_MODES, "commit");
 }
