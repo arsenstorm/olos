@@ -1,6 +1,9 @@
 import type { CursorWindow } from "../types/cursor";
 import type { PublicationMode } from "../types/upload-slot";
-import { isNonNegativeInteger } from "../validation/ids";
+import {
+  assertNonNegativeInteger,
+  isNonNegativeInteger,
+} from "../validation/ids";
 import { optionalField } from "./optional-field";
 import {
   type ResolveRuntimePublisherObjectExpiryOptions,
@@ -73,8 +76,9 @@ export interface RuntimePublisherNextObjectPlan {
 export function resolveRuntimePublisherNextObjectPosition(
   options: ResolveRuntimePublisherNextObjectPositionOptions = {}
 ): RuntimePublisherObjectPosition {
-  const startMediaSequenceNumber = nonNegativeInteger(
-    options.startMediaSequenceNumber ?? 0,
+  const startMediaSequenceNumber = options.startMediaSequenceNumber ?? 0;
+  assertNonNegativeInteger(
+    startMediaSequenceNumber,
     "startMediaSequenceNumber"
   );
   assertCursorWindow(options.cursorWindow);
@@ -113,11 +117,11 @@ function assertCursorWindow(cursorWindow: CursorWindow | undefined): void {
     return;
   }
 
-  nonNegativeInteger(
+  assertNonNegativeInteger(
     cursorWindow.firstMediaSequenceNumber,
     "cursorWindow.firstMediaSequenceNumber"
   );
-  nonNegativeInteger(
+  assertNonNegativeInteger(
     cursorWindow.lastMediaSequenceNumber,
     "cursorWindow.lastMediaSequenceNumber"
   );
@@ -131,7 +135,7 @@ function assertCursorWindow(cursorWindow: CursorWindow | undefined): void {
   }
 
   if (cursorWindow.lastPartNumber !== undefined) {
-    nonNegativeInteger(
+    assertNonNegativeInteger(
       cursorWindow.lastPartNumber,
       "cursorWindow.lastPartNumber"
     );
@@ -223,14 +227,6 @@ function nextPartPosition(options: {
 function positiveInteger(value: number | undefined, name: string): number {
   if (!isNonNegativeInteger(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer`);
-  }
-
-  return value;
-}
-
-function nonNegativeInteger(value: number, name: string): number {
-  if (!isNonNegativeInteger(value)) {
-    throw new Error(`${name} must be a non-negative integer`);
   }
 
   return value;
