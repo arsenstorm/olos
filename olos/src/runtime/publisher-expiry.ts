@@ -1,4 +1,4 @@
-import { positiveNumber } from "./request-fields";
+import { positiveNumber, timestampMs } from "./request-fields";
 
 const DEFAULT_MIN_TTL_SECONDS = 1;
 const MILLISECONDS_PER_SECOND = 1000;
@@ -28,7 +28,7 @@ export function resolveRuntimePublisherObjectExpiry(
     minTtlSeconds,
     Math.ceil(duration + targetLatency)
   );
-  const nowMs = timestampMs(options.now);
+  const nowMs = timestampMs(options.now, "now");
 
   return {
     expiresAt: new Date(
@@ -36,14 +36,4 @@ export function resolveRuntimePublisherObjectExpiry(
     ).toISOString(),
     ttlSeconds,
   };
-}
-
-function timestampMs(value: Date | string): number {
-  const timestamp = value instanceof Date ? value.getTime() : Date.parse(value);
-
-  if (Number.isNaN(timestamp)) {
-    throw new Error("now must be a valid timestamp");
-  }
-
-  return timestamp;
 }

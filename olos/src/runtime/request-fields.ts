@@ -216,8 +216,8 @@ export function optionalTimestampValueField(
   return timestampField(value, field);
 }
 
-export function timestampMs(value: string, name: string): number {
-  const timestamp = Date.parse(value);
+export function timestampMs(value: Date | string, name: string): number {
+  const timestamp = value instanceof Date ? value.getTime() : Date.parse(value);
 
   if (Number.isNaN(timestamp)) {
     throw new Error(`${name} must be a valid timestamp`);

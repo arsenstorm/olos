@@ -1,9 +1,3 @@
-export function timestampMs(value: Date | string, name: string): number {
-  const timestamp = new Date(value).getTime();
+import { timestampMs as requestFieldTimestampMs } from "../runtime/request-fields";
 
-  if (Number.isNaN(timestamp)) {
-    throw new Error(`${name} must be a valid timestamp`);
-  }
-
-  return timestamp;
-}
+export const timestampMs = requestFieldTimestampMs;
