@@ -1,6 +1,11 @@
 import { PATHWAY_STATES } from "../config/pathway";
 import type { Pathway } from "../types/pathway";
-import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
+import {
+  assertNonNegativeIntegerField,
+  assertOneOfField,
+  assertUrlSafeField,
+  isRecord,
+} from "./fields";
 
 export function isPathway(value: unknown): value is Pathway {
   try {
@@ -16,33 +21,11 @@ export function assertPathway(value: unknown): asserts value is Pathway {
     throw new Error("pathway must be an object");
   }
 
-  assertUrlSafeField(value, "pathwayId");
-  assertUrlSafeField(value, "providerId");
+  assertUrlSafeField(value, "pathwayId", "pathway");
+  assertUrlSafeField(value, "providerId", "pathway");
   assertAbsoluteHttpUrl(value.baseUrl, "pathway.baseUrl");
-  assertNonNegativeIntegerField(value, "priority");
-  assertAllowedValue(value.state, PATHWAY_STATES, "pathway.state");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function assertUrlSafeField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (!isUrlSafeIdentifier(value[field])) {
-    throw new Error(`pathway.${field} must be a non-empty URL-safe identifier`);
-  }
-}
-
-function assertNonNegativeIntegerField(
-  value: Record<string, unknown>,
-  field: string
-): void {
-  if (!isNonNegativeInteger(value[field])) {
-    throw new Error(`pathway.${field} must be a non-negative integer`);
-  }
+  assertNonNegativeIntegerField(value, "priority", "pathway");
+  assertOneOfField(value, "state", PATHWAY_STATES, "pathway");
 }
 
 function assertAbsoluteHttpUrl(value: unknown, name: string): void {
@@ -64,15 +47,5 @@ function assertAbsoluteHttpUrl(value: unknown, name: string): void {
 
   if (url.search.length > 0 || url.hash.length > 0) {
     throw new Error(`${name} must not contain query strings or fragments`);
-  }
-}
-
-function assertAllowedValue<const Values extends readonly string[]>(
-  value: unknown,
-  allowedValues: Values,
-  name: string
-): void {
-  if (typeof value !== "string" || !allowedValues.includes(value)) {
-    throw new Error(`${name} must be one of: ${allowedValues.join(", ")}`);
   }
 }
