@@ -123,6 +123,15 @@ type StoredS3CoordinatorUploadRejection = Extract<
   auditEvent?: StoredS3CoordinatorUploadAuditEvent;
 };
 
+type CoordinatorStoreSaveResult = Awaited<
+  ReturnType<CoordinatorPipelineStore["save"]>
+>;
+
+type SavedCoordinatorStoreResult = Extract<
+  CoordinatorStoreSaveResult,
+  { status: "saved" }
+>;
+
 export type StoredS3CoordinatorUploadCommit =
   | (Extract<
       CoordinatorUploadCommit,
@@ -378,7 +387,7 @@ export async function commitStoredS3CoordinatorUpload(
       state: commit.state,
     });
 
-    if (saved.status === "saved") {
+    if (isSavedCoordinatorStoreResult(saved)) {
       return withManifest(
         {
           ...commit,
@@ -403,6 +412,12 @@ export async function commitStoredS3CoordinatorUpload(
     current: snapshot,
     status: "conflict",
   };
+}
+
+function isSavedCoordinatorStoreResult(
+  result: CoordinatorStoreSaveResult
+): result is SavedCoordinatorStoreResult {
+  return result.status === "saved";
 }
 
 export async function completeStoredS3CoordinatorUpload(
