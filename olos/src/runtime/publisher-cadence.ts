@@ -103,13 +103,10 @@ export function resolveRuntimePublisherNextObjectPosition(
     });
   }
 
-  return {
-    kind: "segment",
-    mediaSequenceNumber:
-      options.cursorWindow === undefined
-        ? startMediaSequenceNumber
-        : options.cursorWindow.lastMediaSequenceNumber + 1,
-  };
+  return nextSegmentPosition({
+    cursorWindow: options.cursorWindow,
+    startMediaSequenceNumber,
+  });
 }
 
 function assertCursorWindow(cursorWindow: CursorWindow | undefined): void {
@@ -162,6 +159,19 @@ export function createRuntimePublisherObjectPlanInput(
     ...optionalField("minBytes", defaults.minBytes),
     ...optionalField("objectKeyNonce", options.objectKeyNonce),
     ...optionalField("partNumber", options.position.partNumber),
+  };
+}
+
+function nextSegmentPosition(options: {
+  cursorWindow?: CursorWindow;
+  startMediaSequenceNumber: number;
+}): RuntimePublisherObjectPosition {
+  return {
+    kind: "segment",
+    mediaSequenceNumber:
+      options.cursorWindow === undefined
+        ? options.startMediaSequenceNumber
+        : options.cursorWindow.lastMediaSequenceNumber + 1,
   };
 }
 
