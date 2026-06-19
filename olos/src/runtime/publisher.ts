@@ -115,6 +115,21 @@ type FailedRuntimePublisherHeartbeatStep = Extract<
   { status: "heartbeat_failed" }
 >;
 
+type FailedRuntimePublisherIssueStep = Extract<
+  RuntimePublisherUploadStep,
+  { status: "issue_failed" }
+>;
+
+type FailedRuntimePublisherUploadObjectStep = Extract<
+  RuntimePublisherUploadStep,
+  { status: "upload_failed" }
+>;
+
+type FailedRuntimePublisherCommitStep = Extract<
+  RuntimePublisherUploadStep,
+  { status: "commit_failed" }
+>;
+
 type IssuedRuntimePublisherIssueResult = RuntimePublisherIssueResult & {
   slot: UploadSlot;
   status: "issued";
@@ -139,19 +154,11 @@ export async function runRuntimePublisherUploadStep(
   try {
     issued = await options.issueSlot(options.slot);
   } catch (error) {
-    return {
-      error: errorMessage(error, "publisher upload failed"),
-      ...heartbeatResult(heartbeat.result),
-      status: "issue_failed",
-    };
+    return failedRuntimePublisherIssueStep(error, heartbeat.result);
   }
 
   if (!isIssuedRuntimePublisherIssueResult(issued)) {
-    return {
-      ...heartbeatResult(heartbeat.result),
-      issue: issued,
-      status: "issue_failed",
-    };
+    return unissuedRuntimePublisherIssueStep(issued, heartbeat.result);
   }
 
   let observed: RuntimeObservedUploadPayload;
@@ -159,12 +166,11 @@ export async function runRuntimePublisherUploadStep(
   try {
     observed = await options.upload(issued.slot);
   } catch (error) {
-    return {
-      error: errorMessage(error, "publisher upload failed"),
-      ...heartbeatResult(heartbeat.result),
-      slot: issued.slot,
-      status: "upload_failed",
-    };
+    return failedRuntimePublisherUploadObjectStep(
+      error,
+      heartbeat.result,
+      issued.slot
+    );
   }
 
   let committed: RuntimePublisherCommitResult;
@@ -174,13 +180,12 @@ export async function runRuntimePublisherUploadStep(
       publisherCommitPayload(options, issued.slot, observed)
     );
   } catch (error) {
-    return {
-      error: errorMessage(error, "publisher upload failed"),
-      ...heartbeatResult(heartbeat.result),
+    return failedRuntimePublisherCommitStep(
+      error,
+      heartbeat.result,
       observed,
-      slot: issued.slot,
-      status: "commit_failed",
-    };
+      issued.slot
+    );
   }
 
   if (isSuccessfulPublisherStepStatus(committed.status)) {
@@ -198,6 +203,56 @@ export async function runRuntimePublisherUploadStep(
     observed,
     ...heartbeatResult(heartbeat.result),
     slot: issued.slot,
+    status: "commit_failed",
+  };
+}
+
+function failedRuntimePublisherIssueStep(
+  error: unknown,
+  heartbeat: RuntimePublisherHeartbeatResult | undefined
+): FailedRuntimePublisherIssueStep {
+  return {
+    error: errorMessage(error, "publisher upload failed"),
+    ...heartbeatResult(heartbeat),
+    status: "issue_failed",
+  };
+}
+
+function unissuedRuntimePublisherIssueStep(
+  issue: RuntimePublisherIssueResult,
+  heartbeat: RuntimePublisherHeartbeatResult | undefined
+): FailedRuntimePublisherIssueStep {
+  return {
+    ...heartbeatResult(heartbeat),
+    issue,
+    status: "issue_failed",
+  };
+}
+
+function failedRuntimePublisherUploadObjectStep(
+  error: unknown,
+  heartbeat: RuntimePublisherHeartbeatResult | undefined,
+  slot: UploadSlot
+): FailedRuntimePublisherUploadObjectStep {
+  return {
+    error: errorMessage(error, "publisher upload failed"),
+    ...heartbeatResult(heartbeat),
+    slot,
+    status: "upload_failed",
+  };
+}
+
+function failedRuntimePublisherCommitStep(
+  error: unknown,
+  heartbeat: RuntimePublisherHeartbeatResult | undefined,
+  observed: RuntimeObservedUploadPayload,
+  slot: UploadSlot
+): FailedRuntimePublisherCommitStep {
+  return {
+    error: errorMessage(error, "publisher upload failed"),
+    ...heartbeatResult(heartbeat),
+    observed,
+    slot,
     status: "commit_failed",
   };
 }
