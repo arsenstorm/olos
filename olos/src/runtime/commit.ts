@@ -7,10 +7,16 @@ import type { CoordinatorPipelineState } from "../protocol/coordinator";
 import { createObservedUpload } from "../state/observed-upload";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
-import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { errorMessage } from "./errors";
+import {
+  isRecord,
+  numberField,
+  positiveNumberField,
+  stringField,
+  urlSafeIdentifierField,
+} from "./request-fields";
 import { jsonResponse } from "./response";
 
 export type RuntimeCommitRequest = Request | RuntimeCommitPayload;
@@ -168,27 +174,6 @@ function rejectionStatus(error: OlosError): number {
   return error.error.code === "olos.unknown_slot" ? 404 : 409;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function stringField(value: Record<string, unknown>, field: string): string {
-  if (typeof value[field] !== "string") {
-    throw new Error(`${field} must be a string`);
-  }
-
-  return value[field];
-}
-
-function urlSafeIdentifierField(
-  value: Record<string, unknown>,
-  field: string
-): string {
-  assertUrlSafeIdentifier(value[field], field);
-
-  return value[field];
-}
-
 function timestampField(value: Record<string, unknown>, field: string): string {
   const timestamp = stringField(value, field);
 
@@ -197,27 +182,6 @@ function timestampField(value: Record<string, unknown>, field: string): string {
   }
 
   return timestamp;
-}
-
-function numberField(value: Record<string, unknown>, field: string): number {
-  if (typeof value[field] !== "number" || !Number.isFinite(value[field])) {
-    throw new Error(`${field} must be a finite number`);
-  }
-
-  return value[field];
-}
-
-function positiveNumberField(
-  value: Record<string, unknown>,
-  field: string
-): number {
-  const number = numberField(value, field);
-
-  if (number <= 0) {
-    throw new Error(`${field} must be a positive number`);
-  }
-
-  return number;
 }
 
 function positiveIntegerField(
