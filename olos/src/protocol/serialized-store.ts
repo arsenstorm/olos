@@ -2,6 +2,7 @@ import type { OlosId } from "../types/ids";
 import {
   type CoordinatorPipelineState,
   type CoordinatorPipelineStore,
+  type CoordinatorStoreSave,
   cloneCoordinatorPipelineState,
   createNextCoordinatorPipelineEtag,
   parseCoordinatorPipelineSnapshot,
@@ -40,6 +41,11 @@ type SerializedCoordinatorStoreConflict = Extract<
   { status: "conflict" }
 >;
 
+type CoordinatorStoreSaveConflict = Extract<
+  CoordinatorStoreSave,
+  { status: "conflict" }
+>;
+
 export interface AssertSerializedCoordinatorStoreBackendConformanceOptions {
   createBackend():
     | SerializedCoordinatorStoreBackend
@@ -71,13 +77,7 @@ export function createSerializedCoordinatorStore(
       });
 
       if (isSerializedCoordinatorStoreConflict(saved)) {
-        return {
-          current:
-            saved.current === undefined
-              ? undefined
-              : parseRecord(saved.current),
-          status: "conflict",
-        };
+        return coordinatorStoreConflictFromSerialized(saved);
       }
 
       return {
@@ -105,21 +105,19 @@ export function createMemorySerializedCoordinatorStoreBackend(): MemorySerialize
       const current = records.get(options.sessionId);
 
       if (current === undefined && options.expectedEtag !== undefined) {
-        return Promise.resolve({ status: "conflict" });
+        return Promise.resolve(serializedCoordinatorStoreConflict());
       }
 
       if (current !== undefined && options.expectedEtag === undefined) {
-        return Promise.resolve({
-          current: cloneRecord(current),
-          status: "conflict",
-        });
+        return Promise.resolve(
+          serializedCoordinatorStoreConflict(cloneRecord(current))
+        );
       }
 
       if (current !== undefined && current.etag !== options.expectedEtag) {
-        return Promise.resolve({
-          current: cloneRecord(current),
-          status: "conflict",
-        });
+        return Promise.resolve(
+          serializedCoordinatorStoreConflict(cloneRecord(current))
+        );
       }
 
       records.set(options.sessionId, cloneRecord(options.record));
@@ -216,6 +214,27 @@ function cloneRecord(
   return {
     etag: record.etag,
     snapshot: record.snapshot,
+  };
+}
+
+function serializedCoordinatorStoreConflict(
+  current?: SerializedCoordinatorStoreRecord
+): SerializedCoordinatorStoreConflict {
+  return {
+    ...(current === undefined ? {} : { current }),
+    status: "conflict",
+  };
+}
+
+function coordinatorStoreConflictFromSerialized(
+  conflict: SerializedCoordinatorStoreConflict
+): CoordinatorStoreSaveConflict {
+  return {
+    current:
+      conflict.current === undefined
+        ? undefined
+        : parseRecord(conflict.current),
+    status: "conflict",
   };
 }
 
