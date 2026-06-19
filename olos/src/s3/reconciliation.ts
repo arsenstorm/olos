@@ -113,6 +113,11 @@ type IdempotentStoredS3CoordinatorUploadReconciliationResult = Extract<
   { status: "idempotent" }
 >;
 
+type MissingStoredS3CoordinatorUploadReconciliation = Extract<
+  StoredS3CoordinatorUploadReconciliation,
+  { status: "not_found" }
+>;
+
 export interface StoredS3CoordinatorUploadReconciliationSummary {
   committed: number;
   failed: number;
@@ -158,7 +163,7 @@ function assertReconciliationOptions(
 export function summarizeStoredS3CoordinatorUploadReconciliation(
   result: StoredS3CoordinatorUploadReconciliation
 ): StoredS3CoordinatorUploadReconciliationSummary {
-  if (result.status === "not_found") {
+  if (isMissingStoredS3CoordinatorUploadReconciliation(result)) {
     return {
       committed: 0,
       failed: 0,
@@ -311,6 +316,12 @@ function isIdempotentStoredS3CoordinatorUploadReconciliationResult(
   result: StoredS3CoordinatorUploadReconciliationResult
 ): result is IdempotentStoredS3CoordinatorUploadReconciliationResult {
   return result.status === "idempotent";
+}
+
+function isMissingStoredS3CoordinatorUploadReconciliation(
+  result: StoredS3CoordinatorUploadReconciliation
+): result is MissingStoredS3CoordinatorUploadReconciliation {
+  return result.status === "not_found";
 }
 
 function reconciliationSlots(
