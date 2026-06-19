@@ -72,16 +72,28 @@ export type StoredRuntimeSlotIssue =
   | Exclude<RuntimeCoordinatorSlotIssue, { status: "issued" }>
   | StoredRuntimeMutation;
 
+type SuccessfulRuntimeCoordinatorUploadCommit = Extract<
+  RuntimeCoordinatorUploadCommit,
+  { status: "committed" | "idempotent" }
+>;
+
+type TerminalRuntimeCoordinatorUploadCommit = Extract<
+  RuntimeCoordinatorUploadCommit,
+  { status: "invalid" | "rejected" }
+>;
+
+const TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES = [
+  "invalid",
+  "rejected",
+] as const satisfies readonly TerminalRuntimeCoordinatorUploadCommit["status"][];
+
 export type StoredRuntimeUploadCommit =
-  | (Extract<
-      RuntimeCoordinatorUploadCommit,
-      { status: "committed" | "idempotent" }
-    > & {
+  | (SuccessfulRuntimeCoordinatorUploadCommit & {
       etag: string;
     })
   | Exclude<
       RuntimeCoordinatorUploadCommit,
-      { status: "committed" | "idempotent" }
+      SuccessfulRuntimeCoordinatorUploadCommit
     >
   | StoredRuntimeMutation;
 
@@ -183,7 +195,7 @@ export async function commitStoredCoordinatorUploadFromRequest(
       state: snapshot.state,
     });
 
-    if (committed.status === "invalid" || committed.status === "rejected") {
+    if (isTerminalRuntimeCoordinatorUploadCommit(committed)) {
       return committed;
     }
 
@@ -216,6 +228,14 @@ export async function commitStoredCoordinatorUploadFromRequest(
   }
 
   return conflict(snapshot);
+}
+
+function isTerminalRuntimeCoordinatorUploadCommit(
+  result: RuntimeCoordinatorUploadCommit
+): result is TerminalRuntimeCoordinatorUploadCommit {
+  return TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES.includes(
+    result.status as TerminalRuntimeCoordinatorUploadCommit["status"]
+  );
 }
 
 function requestForAttempt<RequestType extends RuntimeCommitRequest>(
