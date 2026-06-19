@@ -77,6 +77,11 @@ type SuccessfulRuntimeCoordinatorUploadCommit = Extract<
   { status: "committed" | "idempotent" }
 >;
 
+type IdempotentRuntimeCoordinatorUploadCommit = Extract<
+  RuntimeCoordinatorUploadCommit,
+  { status: "committed" | "idempotent" }
+> & { status: "idempotent" };
+
 type TerminalRuntimeCoordinatorUploadCommit = Extract<
   RuntimeCoordinatorUploadCommit,
   { status: "invalid" | "rejected" }
@@ -208,7 +213,7 @@ export async function commitStoredCoordinatorUploadFromRequest(
       return committed;
     }
 
-    if (committed.status === "idempotent") {
+    if (isIdempotentRuntimeCoordinatorUploadCommit(committed)) {
       return {
         ...committed,
         etag: snapshot.etag,
@@ -245,6 +250,12 @@ function isTerminalRuntimeCoordinatorUploadCommit(
   return TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES.includes(
     result.status as TerminalRuntimeCoordinatorUploadCommit["status"]
   );
+}
+
+function isIdempotentRuntimeCoordinatorUploadCommit(
+  result: RuntimeCoordinatorUploadCommit
+): result is IdempotentRuntimeCoordinatorUploadCommit {
+  return result.status === "idempotent";
 }
 
 function isSavedCoordinatorStoreResult(
