@@ -193,39 +193,37 @@ function assertEvents(value: unknown): void {
 function assertCapabilityPreconditions(
   value: ProviderCapabilityDocument
 ): void {
-  if (
-    value.publication.directObjectPublication &&
-    value.publication.manifestGatedPublication !== true
-  ) {
+  if (!usesDirectObjectPublication(value)) {
+    return;
+  }
+
+  if (value.publication.manifestGatedPublication !== true) {
     throw new Error(
       "providerCapability.publication.manifestGatedPublication must be true for direct object publication"
     );
   }
 
-  if (
-    value.publication.directObjectPublication &&
-    value.consistency.headAfterCreate !== "strong"
-  ) {
+  if (value.consistency.headAfterCreate !== "strong") {
     throw new Error(
       "providerCapability.consistency.headAfterCreate must be strong for direct object publication"
     );
   }
 
-  if (
-    value.publication.directObjectPublication &&
-    value.publication.overwritesAllowed === true
-  ) {
+  if (value.publication.overwritesAllowed === true) {
     throw new Error(
       "providerCapability.publication.overwritesAllowed must not be true for direct object publication"
     );
   }
 
-  if (
-    value.publication.directObjectPublication &&
-    value.delivery.negativeCachingPolicyDeclared !== true
-  ) {
+  if (value.delivery.negativeCachingPolicyDeclared !== true) {
     throw new Error(
       "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct object publication"
     );
   }
+}
+
+function usesDirectObjectPublication(
+  value: ProviderCapabilityDocument
+): boolean {
+  return value.publication.directObjectPublication;
 }
