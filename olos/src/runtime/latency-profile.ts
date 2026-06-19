@@ -6,6 +6,7 @@ import type {
   RuntimePublisherObjectKindDefaults,
   RuntimePublisherPlannedObjectDefaults,
 } from "./publisher-cadence";
+import { positiveNumber } from "./request-fields";
 
 export interface RuntimeObjectLowLatencyProfile {
   blockingReloadTimeoutMs: number;
@@ -138,9 +139,7 @@ function publisherObjectDefaults(options: {
     throw new Error("contentType must be a non-empty string");
   }
 
-  if (!Number.isFinite(options.duration) || options.duration <= 0) {
-    throw new Error("duration must be a positive number");
-  }
+  positiveNumber(options.duration, "duration");
 
   if (
     !Number.isSafeInteger(options.object.maxBytes) ||

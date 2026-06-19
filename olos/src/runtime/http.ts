@@ -20,6 +20,7 @@ import { resolveRuntimeLiveHealthFromState } from "./health";
 import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
 import {
   isRecord,
+  positiveNumber,
   stringField,
   urlSafeIdentifierField,
 } from "./request-fields";
@@ -144,8 +145,8 @@ function assertRoutePath(value: string, name: string): void {
 }
 
 function assertPositiveOption(value: number | undefined, name: string): void {
-  if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
-    throw new Error(`${name} must be a positive number`);
+  if (value !== undefined) {
+    positiveNumber(value, name);
   }
 }
 
