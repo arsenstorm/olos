@@ -28,6 +28,11 @@ const SUCCESSFUL_S3_RECONCILIATION_STATUSES = [
 type SuccessfulS3ReconciliationStatus =
   (typeof SUCCESSFUL_S3_RECONCILIATION_STATUSES)[number];
 
+type RejectedS3CoordinatorUploadCommit = Extract<
+  StoredS3CoordinatorUploadCommit,
+  { status: "rejected" }
+>;
+
 export interface ReconcileStoredS3CoordinatorUploadsOptions {
   bucket: string;
   client: S3HeadObjectClient;
@@ -180,7 +185,7 @@ export function summarizeStoredS3CoordinatorUploadReconciliation(
 
       const failedResult = entry.result;
 
-      if (failedResult?.status === "rejected") {
+      if (isRejectedS3CoordinatorUploadCommit(failedResult)) {
         summary.failedErrorCodes.push(failedResult.error.error.code);
       }
     }
@@ -267,6 +272,12 @@ function isSuccessfulS3ReconciliationCommit<
   return SUCCESSFUL_S3_RECONCILIATION_STATUSES.includes(
     result.status as SuccessfulS3ReconciliationStatus
   );
+}
+
+function isRejectedS3CoordinatorUploadCommit(
+  result: StoredS3CoordinatorUploadCommit | undefined
+): result is RejectedS3CoordinatorUploadCommit {
+  return result?.status === "rejected";
 }
 
 function reconciliationSlots(
