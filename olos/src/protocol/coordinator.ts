@@ -96,6 +96,21 @@ type SavedCoordinatorStoreSave = Extract<
   { status: "saved" }
 >;
 
+type ConflictingCoordinatorStoreSave = Extract<
+  CoordinatorStoreSave,
+  { status: "conflict" }
+>;
+
+type MissingCoordinatorPipelineMutation = Extract<
+  CoordinatorPipelineMutation,
+  { status: "not_found" }
+>;
+
+type ConflictingCoordinatorPipelineMutation = Extract<
+  CoordinatorPipelineMutation,
+  { status: "conflict" }
+>;
+
 type ConflictingDuplicateCommit = Extract<
   DuplicateCommitResolution,
   { status: "conflict" }
@@ -263,23 +278,19 @@ export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
       const current = entries.get(options.sessionId);
 
       if (current === undefined && options.expectedEtag !== undefined) {
-        return Promise.resolve({
-          status: "conflict" as const,
-        });
+        return Promise.resolve(conflictingCoordinatorStoreSave());
       }
 
       if (current !== undefined && options.expectedEtag === undefined) {
-        return Promise.resolve({
-          current: cloneSnapshot(current),
-          status: "conflict" as const,
-        });
+        return Promise.resolve(
+          conflictingCoordinatorStoreSave(cloneSnapshot(current))
+        );
       }
 
       if (current !== undefined && current.etag !== options.expectedEtag) {
-        return Promise.resolve({
-          current: cloneSnapshot(current),
-          status: "conflict" as const,
-        });
+        return Promise.resolve(
+          conflictingCoordinatorStoreSave(cloneSnapshot(current))
+        );
       }
 
       const snapshot = {
@@ -367,7 +378,7 @@ export async function mutateCoordinatorPipeline(
   let snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
-    return { status: "not_found" };
+    return missingCoordinatorPipelineMutation();
   }
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
@@ -389,8 +400,27 @@ export async function mutateCoordinatorPipeline(
     snapshot = saved.current;
   }
 
+  return conflictingCoordinatorPipelineMutation(snapshot);
+}
+
+function conflictingCoordinatorStoreSave(
+  current?: CoordinatorPipelineSnapshot
+): ConflictingCoordinatorStoreSave {
   return {
-    current: snapshot,
+    ...(current === undefined ? {} : { current }),
+    status: "conflict",
+  };
+}
+
+function missingCoordinatorPipelineMutation(): MissingCoordinatorPipelineMutation {
+  return { status: "not_found" };
+}
+
+function conflictingCoordinatorPipelineMutation(
+  current: CoordinatorPipelineSnapshot
+): ConflictingCoordinatorPipelineMutation {
+  return {
+    current,
     status: "conflict",
   };
 }
