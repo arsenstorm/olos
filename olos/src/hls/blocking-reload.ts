@@ -54,6 +54,14 @@ export type WaitForHlsBlockingReloadResult =
       status: "invalid";
     };
 
+type ReadyOrTimeoutHlsBlockingReloadResult = Extract<
+  WaitForHlsBlockingReloadResult,
+  { status: "ready" | "timeout" }
+>;
+type TimeoutHlsBlockingReloadResult = ReadyOrTimeoutHlsBlockingReloadResult & {
+  status: "timeout";
+};
+
 export function parseHlsBlockingReloadRequest(
   requestUrl: string
 ): HlsBlockingReloadRequest {
@@ -94,21 +102,13 @@ export async function waitForHlsBlockingReload(
     const remainingMs = deadline - Date.now();
 
     if (remainingMs <= 0) {
-      return {
-        cursor,
-        request: options.request,
-        status: "timeout",
-      };
+      return timeoutHlsBlockingReloadResult(cursor, options.request);
     }
 
     const nextCursor = await waitForNextCursor(options, cursor, remainingMs);
 
     if (!nextCursor) {
-      return {
-        cursor,
-        request: options.request,
-        status: "timeout",
-      };
+      return timeoutHlsBlockingReloadResult(cursor, options.request);
     }
 
     cursor = nextCursor;
@@ -146,6 +146,17 @@ export function resolveHlsBlockingReload(
   return {
     request,
     status: resolveLiveEdgePartStatus(cursor, request),
+  };
+}
+
+function timeoutHlsBlockingReloadResult(
+  cursor: Cursor,
+  request: HlsBlockingReloadRequest
+): TimeoutHlsBlockingReloadResult {
+  return {
+    cursor,
+    request,
+    status: "timeout",
   };
 }
 
