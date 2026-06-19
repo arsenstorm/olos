@@ -61,6 +61,13 @@ type BlockedPublicationControl = Extract<
   PublicationControlResolution,
   { status: "blocked" }
 >;
+type InvalidRuntimeCoordinatorSlotIssue = Extract<
+  RuntimeCoordinatorSlotIssue,
+  { status: "invalid" }
+>;
+type RuntimeSlotIssueRequestParse =
+  | { status: "valid"; value: RuntimeSlotIssuePayload }
+  | InvalidRuntimeCoordinatorSlotIssue;
 
 export async function issueCoordinatorSlotFromRequest(
   options: IssueCoordinatorSlotFromRequestOptions
@@ -100,10 +107,7 @@ export async function issueCoordinatorSlotFromRequest(
 
 async function parseRequest(
   request: RuntimeSlotIssueRequest
-): Promise<
-  | { status: "valid"; value: RuntimeSlotIssuePayload }
-  | Extract<RuntimeCoordinatorSlotIssue, { status: "invalid" }>
-> {
+): Promise<RuntimeSlotIssueRequestParse> {
   if (!(request instanceof Request)) {
     return { status: "valid", value: request };
   }
@@ -145,9 +149,7 @@ function parsePayload(value: unknown): RuntimeSlotIssuePayload {
   };
 }
 
-function invalid(
-  message: string
-): Extract<RuntimeCoordinatorSlotIssue, { status: "invalid" }> {
+function invalid(message: string): InvalidRuntimeCoordinatorSlotIssue {
   return {
     message,
     response: jsonResponse({ error: { message } }, 400),

@@ -68,6 +68,13 @@ type RejectedCoordinatorUploadCommit = Extract<
   CoordinatorUploadCommit,
   { status: "rejected" }
 >;
+type InvalidRuntimeCoordinatorUploadCommit = Extract<
+  RuntimeCoordinatorUploadCommit,
+  { status: "invalid" }
+>;
+type RuntimeCommitRequestParse =
+  | { status: "valid"; value: RuntimeCommitPayload }
+  | InvalidRuntimeCoordinatorUploadCommit;
 
 export async function commitCoordinatorUploadFromRequest(
   options: CommitCoordinatorUploadFromRequestOptions
@@ -126,10 +133,7 @@ function isRejectedCoordinatorUploadCommit(
 
 async function parseRequest(
   request: RuntimeCommitRequest
-): Promise<
-  | { status: "valid"; value: RuntimeCommitPayload }
-  | Extract<RuntimeCoordinatorUploadCommit, { status: "invalid" }>
-> {
+): Promise<RuntimeCommitRequestParse> {
   if (!(request instanceof Request)) {
     return { status: "valid", value: request };
   }
@@ -178,9 +182,7 @@ function parseObjectPayload(value: unknown): RuntimeObservedUploadPayload {
   };
 }
 
-function invalid(
-  message: string
-): Extract<RuntimeCoordinatorUploadCommit, { status: "invalid" }> {
+function invalid(message: string): InvalidRuntimeCoordinatorUploadCommit {
   return {
     message,
     response: jsonResponse({ error: { message } }, 400),
