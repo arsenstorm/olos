@@ -1,5 +1,8 @@
 import type { Commit } from "../types/commit";
-import type { CommittedWindow } from "../types/committed-window";
+import type {
+  CommittedSegment,
+  CommittedWindow,
+} from "../types/committed-window";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertUploadSlot } from "../validation/upload-slot";
 import { timestampMs as validTimestampMs } from "./timestamp";
@@ -56,17 +59,24 @@ function retainedWindowSlotIds(window: CommittedWindow): Set<string> {
     slotIds.add(rendition.init.slotId);
 
     for (const segment of rendition.segments) {
-      if (segment.segment !== undefined) {
-        slotIds.add(segment.segment.slotId);
-      }
-
-      for (const part of segment.parts ?? []) {
-        slotIds.add(part.slotId);
-      }
+      addSegmentSlotIds(slotIds, segment);
     }
   }
 
   return slotIds;
+}
+
+function addSegmentSlotIds(
+  slotIds: Set<string>,
+  segment: CommittedSegment
+): void {
+  if (segment.segment !== undefined) {
+    slotIds.add(segment.segment.slotId);
+  }
+
+  for (const part of segment.parts ?? []) {
+    slotIds.add(part.slotId);
+  }
 }
 
 function timestampMs(value: string, name: string): number {
