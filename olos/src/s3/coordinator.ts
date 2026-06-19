@@ -132,6 +132,15 @@ type SavedCoordinatorStoreResult = Extract<
   { status: "saved" }
 >;
 
+type CoordinatorPipelineMutationResult = Awaited<
+  ReturnType<typeof mutateCoordinatorPipeline>
+>;
+
+type SavedCoordinatorPipelineMutation = Extract<
+  CoordinatorPipelineMutationResult,
+  { status: "saved" }
+>;
+
 export type StoredS3CoordinatorUploadCommit =
   | (Extract<
       CoordinatorUploadCommit,
@@ -270,7 +279,7 @@ export async function issueStoredS3CoordinatorUploadGrant(
     store,
   });
 
-  if (mutation.status !== "saved") {
+  if (!isSavedCoordinatorPipelineMutation(mutation)) {
     return mutation;
   }
 
@@ -417,6 +426,12 @@ export async function commitStoredS3CoordinatorUpload(
 function isSavedCoordinatorStoreResult(
   result: CoordinatorStoreSaveResult
 ): result is SavedCoordinatorStoreResult {
+  return result.status === "saved";
+}
+
+function isSavedCoordinatorPipelineMutation(
+  result: CoordinatorPipelineMutationResult
+): result is SavedCoordinatorPipelineMutation {
   return result.status === "saved";
 }
 
