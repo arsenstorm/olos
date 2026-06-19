@@ -115,6 +115,15 @@ type SuccessfulStoredS3PublisherUploadStep = Extract<
   { status: "committed" | "idempotent" }
 >;
 
+type StoredS3PublisherErrorCodeResult =
+  | StoredS3CoordinatorUploadCommit
+  | Exclude<StoredS3CoordinatorUploadGrantIssue, { status: "saved" }>;
+
+type RejectedStoredS3PublisherErrorCodeResult = Extract<
+  StoredS3PublisherErrorCodeResult,
+  { status: "rejected" }
+>;
+
 const SUCCESSFUL_STORED_S3_PUBLISHER_STEP_STATUSES = [
   "committed",
   "idempotent",
@@ -296,11 +305,17 @@ function isSuccessfulStoredS3PublisherStepStatus(
 }
 
 function resultErrorCode(
-  result?:
-    | StoredS3CoordinatorUploadCommit
-    | Exclude<StoredS3CoordinatorUploadGrantIssue, { status: "saved" }>
+  result?: StoredS3PublisherErrorCodeResult
 ): OlosErrorCode | undefined {
-  return result?.status === "rejected" ? result.error.error.code : undefined;
+  return isRejectedStoredS3PublisherErrorCodeResult(result)
+    ? result.error.error.code
+    : undefined;
+}
+
+function isRejectedStoredS3PublisherErrorCodeResult(
+  result: StoredS3PublisherErrorCodeResult | undefined
+): result is RejectedStoredS3PublisherErrorCodeResult {
+  return result?.status === "rejected";
 }
 
 async function runStoredS3PublisherObjectPlanStep(
