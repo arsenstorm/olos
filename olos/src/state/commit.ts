@@ -9,6 +9,7 @@ import { assertCommit } from "../validation/commit";
 import { assertMediaObject } from "../validation/media-object";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { assertUploadSlot } from "../validation/upload-slot";
+import { timestampMs } from "./timestamp";
 import { assertUploadSlotTransition, observeUpload } from "./upload-slot";
 
 export interface CreateCommitOptions {
@@ -355,16 +356,6 @@ function assertCommitPreconditions(options: CreateCommitOptions): void {
   if (committedAt > expiresAt + lateToleranceMs) {
     throw new Error("commit.committedAt must be before uploadSlot.expiresAt");
   }
-}
-
-function timestampMs(value: string, name: string): number {
-  const timestamp = Date.parse(value);
-
-  if (Number.isNaN(timestamp)) {
-    throw new Error(`${name} must be a valid timestamp`);
-  }
-
-  return timestamp;
 }
 
 function nonNegativeNumber(value: number, name: string): number {

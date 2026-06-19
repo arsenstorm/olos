@@ -3,6 +3,7 @@ import type { UploadSlot } from "../types/upload-slot";
 import { assertHttpHeaderStringMap } from "../validation/http-header";
 import { assertUploadGrant } from "../validation/upload-grant";
 import { assertUploadSlot } from "../validation/upload-slot";
+import { timestampMs } from "./timestamp";
 
 export interface CreateUploadGrantOptions {
   additionalHeaders?: Record<string, string>;
@@ -84,14 +85,4 @@ function assertUploadGrantPreconditions(
       "uploadGrant.expiresAt must be before or equal to uploadSlot.expiresAt"
     );
   }
-}
-
-function timestampMs(value: string, name: string): number {
-  const timestamp = Date.parse(value);
-
-  if (Number.isNaN(timestamp)) {
-    throw new Error(`${name} must be a valid timestamp`);
-  }
-
-  return timestamp;
 }

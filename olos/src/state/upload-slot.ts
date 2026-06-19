@@ -9,6 +9,7 @@ import {
 } from "../validation/observed-upload";
 import { assertSession } from "../validation/session";
 import { assertUploadSlot } from "../validation/upload-slot";
+import { timestampMs } from "./timestamp";
 
 export interface CreateIssuedUploadSlotOptions {
   contentType: string;
@@ -269,14 +270,4 @@ function allowedUploadSlotTransitions(
   > = UPLOAD_SLOT_TRANSITIONS;
 
   return transitions[from] ?? [];
-}
-
-function timestampMs(value: string, name: string): number {
-  const timestamp = Date.parse(value);
-
-  if (Number.isNaN(timestamp)) {
-    throw new Error(`${name} must be a valid timestamp`);
-  }
-
-  return timestamp;
 }

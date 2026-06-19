@@ -6,6 +6,7 @@ import {
   assertObservedUpload,
   type ObservedUpload,
 } from "../validation/observed-upload";
+import { timestampMs } from "./timestamp";
 
 export const OBJECT_CREATED_EVENT_TYPE = "object.created";
 export const UPLOAD_COMPLETED_HINT_TYPE = "upload.completed";
@@ -381,9 +382,7 @@ function assertUploadCompletionHint(
     throw new Error("uploadCompletionHint.eventType must be upload.completed");
   }
 
-  if (Number.isNaN(Date.parse(options.eventTime))) {
-    throw new Error("uploadCompletionHint.eventTime must be a valid timestamp");
-  }
+  timestampMs(options.eventTime, "uploadCompletionHint.eventTime");
 
   assertSafeObjectKey(options.objectKey, "uploadCompletionHint.objectKey");
 }
