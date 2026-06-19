@@ -14,6 +14,7 @@ import { createCursor, resolveCursorUpdate } from "../state/cursor";
 import {
   assertPublicationAllowed,
   type PublicationControlPolicy,
+  type PublicationControlResolution,
   resolvePublicationControl,
 } from "../state/publication-control";
 import {
@@ -98,6 +99,11 @@ type SavedCoordinatorStoreSave = Extract<
 type ConflictingDuplicateCommit = Extract<
   DuplicateCommitResolution,
   { status: "conflict" }
+>;
+
+type BlockedPublicationControl = Extract<
+  PublicationControlResolution,
+  { status: "blocked" }
 >;
 
 export interface MutateCoordinatorPipelineOptions {
@@ -406,6 +412,12 @@ function isConflictingDuplicateCommit(
   return result.status === "conflict";
 }
 
+function isBlockedPublicationControl(
+  result: PublicationControlResolution
+): result is BlockedPublicationControl {
+  return result.status === "blocked";
+}
+
 export function issueCoordinatorSlot(
   options: IssueCoordinatorSlotOptions
 ): CoordinatorSlotIssue {
@@ -440,7 +452,7 @@ export function commitCoordinatorUpload(
     policy: options.publicationControl,
   });
 
-  if (publication.status === "blocked") {
+  if (isBlockedPublicationControl(publication)) {
     return {
       error: publication.error,
       state: options.state,
@@ -554,7 +566,7 @@ export function commitCoordinatorUpload(
       policy: options.publicationControl,
     });
 
-    if (cursorAdvancement.status === "blocked") {
+    if (isBlockedPublicationControl(cursorAdvancement)) {
       return {
         error: cursorAdvancement.error,
         state: options.state,
