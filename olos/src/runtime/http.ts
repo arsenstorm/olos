@@ -18,6 +18,7 @@ import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { resolveRuntimeLiveHealthFromState } from "./health";
 import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
 import { planStoredCoordinatorRetention } from "./retention";
+import { routeParts } from "./route";
 import {
   createStoredCoordinatorSession,
   heartbeatStoredCoordinatorPublisher,
@@ -550,35 +551,6 @@ async function parseHeartbeatRequest(request: Request): Promise<
   } catch (error) {
     return invalid(errorMessage(error, "invalid publisher heartbeat request"));
   }
-}
-
-function routeParts(
-  pathname: string,
-  routePath: string
-): "invalid" | readonly string[] | undefined {
-  const normalized = normalizePath(routePath);
-
-  if (pathname !== normalized && !pathname.startsWith(`${normalized}/`)) {
-    return;
-  }
-
-  try {
-    return pathname
-      .slice(normalized.length)
-      .split("/")
-      .filter(Boolean)
-      .map(decodeURIComponent);
-  } catch {
-    return "invalid";
-  }
-}
-
-function normalizePath(path: string): string {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-
-  return normalized.endsWith("/") && normalized.length > 1
-    ? normalized.slice(0, -1)
-    : normalized;
 }
 
 function retentionNow(

@@ -11,6 +11,7 @@ import {
   type RuntimeSlotIssuePayload,
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
+import { routeParts } from "../runtime/route";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosErrorCode } from "../types/errors";
@@ -873,35 +874,6 @@ function parseReconciliationPayload(
     ...optionalStringField(value, "versionId"),
     ...optionalUrlSafeIdentifierArrayField(value, "slotIds"),
   };
-}
-
-function routeParts(
-  pathname: string,
-  routePath: string
-): "invalid" | readonly string[] | undefined {
-  const normalized = normalizePath(routePath);
-
-  if (pathname !== normalized && !pathname.startsWith(`${normalized}/`)) {
-    return;
-  }
-
-  try {
-    return pathname
-      .slice(normalized.length)
-      .split("/")
-      .filter(Boolean)
-      .map(decodeURIComponent);
-  } catch {
-    return "invalid";
-  }
-}
-
-function normalizePath(path: string): string {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-
-  return normalized.endsWith("/") && normalized.length > 1
-    ? normalized.slice(0, -1)
-    : normalized;
 }
 
 function invalid(message: string): { message: string; status: "invalid" } {
