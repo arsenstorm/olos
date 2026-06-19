@@ -105,6 +105,16 @@ export type RuntimePublisherUploadStep =
       status: "commit_failed";
     };
 
+type SuccessfulRuntimePublisherUploadStep = Extract<
+  RuntimePublisherUploadStep,
+  { status: "committed" | "idempotent" }
+>;
+
+const SUCCESSFUL_PUBLISHER_STEP_STATUSES = [
+  "committed",
+  "idempotent",
+] as const satisfies readonly SuccessfulRuntimePublisherUploadStep["status"][];
+
 export async function runRuntimePublisherUploadStep(
   options: RunRuntimePublisherUploadStepOptions
 ): Promise<RuntimePublisherUploadStep> {
@@ -163,7 +173,7 @@ export async function runRuntimePublisherUploadStep(
     };
   }
 
-  if (committed.status === "committed" || committed.status === "idempotent") {
+  if (isSuccessfulPublisherStepStatus(committed.status)) {
     return {
       commit: committed,
       ...heartbeatResult(heartbeat.result),
@@ -253,10 +263,7 @@ export function resolveRuntimePublisherLoopDecision(
   const maxAttempts = positiveInteger(options.maxAttempts, "maxAttempts");
   assertPublisherStepStatus(options.step.status);
 
-  if (
-    options.step.status === "committed" ||
-    options.step.status === "idempotent"
-  ) {
+  if (isSuccessfulPublisherStepStatus(options.step.status)) {
     return { action: "continue" };
   }
 
@@ -283,6 +290,14 @@ function assertPublisherStepStatus(status: string): void {
   }
 
   throw new Error("publisher step status is unsupported");
+}
+
+function isSuccessfulPublisherStepStatus(
+  status: string
+): status is SuccessfulRuntimePublisherUploadStep["status"] {
+  return SUCCESSFUL_PUBLISHER_STEP_STATUSES.includes(
+    status as SuccessfulRuntimePublisherUploadStep["status"]
+  );
 }
 
 function nonNegativeInteger(value: number, name: string): number {
