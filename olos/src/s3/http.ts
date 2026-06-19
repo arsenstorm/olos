@@ -13,8 +13,11 @@ import {
 } from "../runtime";
 import { errorMessage } from "../runtime/errors";
 import {
+  booleanField,
   isRecord,
-  numberField,
+  nonNegativeIntegerField,
+  nonNegativeNumberField,
+  positiveIntegerField,
   positiveNumberField,
   stringField,
   timestampField,
@@ -1028,32 +1031,6 @@ function publicationModeField(value: Record<string, unknown>): PublicationMode {
   return publicationMode as PublicationMode;
 }
 
-function nonNegativeIntegerField(
-  value: Record<string, unknown>,
-  field: string
-): number {
-  const number = numberField(value, field);
-
-  if (!Number.isInteger(number) || number < 0) {
-    throw new Error(`${field} must be a non-negative integer`);
-  }
-
-  return number;
-}
-
-function positiveIntegerField(
-  value: Record<string, unknown>,
-  field: string
-): number {
-  const number = numberField(value, field);
-
-  if (!Number.isInteger(number) || number <= 0) {
-    throw new Error(`${field} must be a positive integer`);
-  }
-
-  return number;
-}
-
 function optionalPositiveIntegerField(
   value: Record<string, unknown>,
   field: "maxSegments"
@@ -1073,13 +1050,7 @@ function optionalNonNegativeNumberField(
     return {};
   }
 
-  const number = numberField(value, field);
-
-  if (number < 0) {
-    throw new Error(`${field} must be a non-negative number`);
-  }
-
-  return { [field]: number };
+  return { [field]: nonNegativeNumberField(value, field) };
 }
 
 function optionalNonNegativeIntegerField(
@@ -1101,11 +1072,7 @@ function optionalBooleanField(
     return {};
   }
 
-  if (typeof value[field] !== "boolean") {
-    throw new Error(`${field} must be a boolean`);
-  }
-
-  return { [field]: value[field] };
+  return { [field]: booleanField(value, field) };
 }
 
 function optionalObjectKeyField(
