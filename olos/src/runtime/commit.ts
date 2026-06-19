@@ -1,6 +1,7 @@
 import {
   type CommitCoordinatorUploadOptions,
   type CoordinatorCommitPolicy,
+  type CoordinatorUploadCommit,
   commitCoordinatorUpload,
 } from "../protocol";
 import type { CoordinatorPipelineState } from "../protocol/coordinator";
@@ -63,6 +64,11 @@ export type RuntimeCoordinatorUploadCommit =
       status: "invalid";
     };
 
+type RejectedCoordinatorUploadCommit = Extract<
+  CoordinatorUploadCommit,
+  { status: "rejected" }
+>;
+
 export async function commitCoordinatorUploadFromRequest(
   options: CommitCoordinatorUploadFromRequestOptions
 ): Promise<RuntimeCoordinatorUploadCommit> {
@@ -82,7 +88,7 @@ export async function commitCoordinatorUploadFromRequest(
       state: options.state,
     });
 
-    if (committed.status === "rejected") {
+    if (isRejectedCoordinatorUploadCommit(committed)) {
       return {
         error: committed.error,
         response: jsonResponse(
@@ -110,6 +116,12 @@ export async function commitCoordinatorUploadFromRequest(
   } catch (error) {
     return invalid(errorMessage(error, "invalid commit request"));
   }
+}
+
+function isRejectedCoordinatorUploadCommit(
+  result: CoordinatorUploadCommit
+): result is RejectedCoordinatorUploadCommit {
+  return result.status === "rejected";
 }
 
 async function parseRequest(
