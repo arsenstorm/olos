@@ -8,6 +8,7 @@ import type {
 } from "../types/committed-window";
 import { assertCommit } from "../validation/commit";
 import { assertCommittedWindow } from "../validation/committed-window";
+import { assertPositiveInteger } from "./integers";
 
 export interface CreateCommittedWindowOptions {
   commits: readonly Commit[];
@@ -254,10 +255,4 @@ function compareCommitPosition(left: Commit, right: Commit): number {
   }
 
   return (left.partNumber ?? -1) - (right.partNumber ?? -1);
-}
-
-function assertPositiveInteger(value: number, name: string): void {
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new Error(`${name} must be a positive integer`);
-  }
 }

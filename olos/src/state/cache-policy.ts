@@ -4,6 +4,7 @@ import type {
 } from "../types/cache-policy";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
 import { assertProviderCapabilityDocument } from "../validation/provider-capability";
+import { assertNonNegativeInteger, assertPositiveInteger } from "./integers";
 
 export interface CreateDeliveryCachePolicyOptions {
   capability?: ProviderCapabilityDocument;
@@ -74,16 +75,4 @@ function createFreshnessBoundCachePolicy(
     maxAgeSeconds,
     target: options.target,
   };
-}
-
-function assertPositiveInteger(value: number, name: string): void {
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new Error(`${name} must be a positive integer`);
-  }
-}
-
-function assertNonNegativeInteger(value: number, name: string): void {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`${name} must be a non-negative integer`);
-  }
 }
