@@ -110,6 +110,16 @@ export type StoredS3PublisherUploadStep =
       status: "commit_failed";
     };
 
+type SuccessfulStoredS3PublisherUploadStep = Extract<
+  StoredS3PublisherUploadStep,
+  { status: "committed" | "idempotent" }
+>;
+
+const SUCCESSFUL_STORED_S3_PUBLISHER_STEP_STATUSES = [
+  "committed",
+  "idempotent",
+] as const satisfies readonly SuccessfulStoredS3PublisherUploadStep["status"][];
+
 export type PlannedStoredS3PublisherUploadStep = StoredS3PublisherUploadStep & {
   expiry: RuntimePublisherObjectExpiry;
   plan: RuntimePublisherObjectPlan;
@@ -228,7 +238,7 @@ export async function runStoredS3PublisherUploadStep(
     };
   }
 
-  if (committed.status === "committed" || committed.status === "idempotent") {
+  if (isSuccessfulStoredS3PublisherStepStatus(committed.status)) {
     return {
       commit: committed,
       grant: issued.grant,
@@ -272,9 +282,17 @@ export function summarizeStoredS3PublisherUploadStep(
           objectKey: slot.objectKey,
           slotId: slot.slotId,
         }),
-    ok: step.status === "committed" || step.status === "idempotent",
+    ok: isSuccessfulStoredS3PublisherStepStatus(step.status),
     status: step.status,
   };
+}
+
+function isSuccessfulStoredS3PublisherStepStatus(
+  status: string
+): status is SuccessfulStoredS3PublisherUploadStep["status"] {
+  return SUCCESSFUL_STORED_S3_PUBLISHER_STEP_STATUSES.includes(
+    status as SuccessfulStoredS3PublisherUploadStep["status"]
+  );
 }
 
 function resultErrorCode(
