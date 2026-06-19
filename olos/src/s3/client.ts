@@ -1,4 +1,11 @@
 import type { RuntimeFetch } from "../runtime/client";
+import {
+  fetchFor,
+  isRecord,
+  jsonPost,
+  normalizedBaseUrl,
+  responseBody,
+} from "../runtime/http-client";
 import type { RuntimeSlotIssuePayload } from "../runtime/slot";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
@@ -279,22 +286,6 @@ function completionUrl(
   );
 }
 
-function jsonPost(body: unknown): RequestInit {
-  return {
-    body: JSON.stringify(body),
-    headers: { "content-type": "application/json" },
-    method: "POST",
-  };
-}
-
-function normalizedBaseUrl(value: string): string {
-  return value.endsWith("/") ? value : `${value}/`;
-}
-
-function fetchFor(options: S3RuntimeHttpClientOptions): RuntimeFetch {
-  return options.fetch ?? fetch;
-}
-
 async function s3RuntimeHttpError(
   operation: string,
   response: Response
@@ -304,20 +295,6 @@ async function s3RuntimeHttpError(
     response,
     await responseBody(response)
   );
-}
-
-async function responseBody(response: Response): Promise<unknown> {
-  const text = await response.clone().text();
-
-  if (text.length === 0) {
-    return;
-  }
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
 }
 
 function grantPayload(
@@ -376,8 +353,4 @@ function retentionPayload(
   }
 
   return value as unknown as StoredS3CoordinatorRetentionResponse;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

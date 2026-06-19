@@ -6,15 +6,20 @@ import type { Session, SessionState } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
 import type { RuntimeCommitPayload } from "./commit";
 import type { RuntimeLiveHealth } from "./health";
+import {
+  fetchFor,
+  isRecord,
+  jsonPost,
+  normalizedBaseUrl,
+  type RuntimeHttpFetch,
+  responseBody,
+} from "./http-client";
 import type { RuntimePublisherLease } from "./publisher-lease";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
 const URL_SCHEME_PREFIX = /^[A-Za-z][A-Za-z\d+.-]*:/;
 
-export type RuntimeFetch = (
-  input: Request | URL | string,
-  init?: RequestInit
-) => Promise<Response>;
+export type RuntimeFetch = RuntimeHttpFetch;
 
 export interface RuntimeHttpClientOptions {
   baseUrl: string;
@@ -340,18 +345,6 @@ function liveUrl(options: RuntimeMasterPlaylistOptions, path: string): URL {
   return new URL(`${livePath}/${path}`, normalizedBaseUrl(options.baseUrl));
 }
 
-function jsonPost(body: unknown): RequestInit {
-  return {
-    body: JSON.stringify(body),
-    headers: { "content-type": "application/json" },
-    method: "POST",
-  };
-}
-
-function normalizedBaseUrl(value: string): string {
-  return value.endsWith("/") ? value : `${value}/`;
-}
-
 function trimSlashes(value: string): string {
   return value.replace(/^\/+|\/+$/g, "");
 }
@@ -399,10 +392,6 @@ function hasControlCharacter(value: string): boolean {
   return false;
 }
 
-function fetchFor(options: RuntimeHttpClientOptions): RuntimeFetch {
-  return options.fetch ?? fetch;
-}
-
 async function runtimeHttpError(
   operation: string,
   response: Response
@@ -412,20 +401,6 @@ async function runtimeHttpError(
     response,
     await responseBody(response)
   );
-}
-
-async function responseBody(response: Response): Promise<unknown> {
-  const text = await response.clone().text();
-
-  if (text.length === 0) {
-    return;
-  }
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
 }
 
 function leasePayload(value: unknown): RuntimePublisherLease {
@@ -502,8 +477,4 @@ function retentionPayload(value: unknown): CoordinatorRetentionPlan {
   }
 
   return value.plan as unknown as CoordinatorRetentionPlan;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
