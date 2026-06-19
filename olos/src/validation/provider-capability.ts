@@ -15,6 +15,32 @@ import {
   isRecord,
 } from "./fields";
 
+const OPTIONAL_PUBLICATION_BOOLEAN_FIELDS = [
+  "manifestGatedPublication",
+  "readGateAvailable",
+  "privateUploadPublicPromotion",
+  "overwritesAllowed",
+] as const;
+
+const REQUIRED_UPLOAD_GRANT_BOOLEAN_FIELDS = [
+  "exactKey",
+  "methodBound",
+  "contentTypeBound",
+  "objectSizeCanBeObserved",
+  "requiredHeadersCanBeSigned",
+] as const;
+
+const OPTIONAL_UPLOAD_GRANT_BOOLEAN_FIELDS = [
+  "presignedPut",
+  "temporaryCredentials",
+] as const;
+
+const OPTIONAL_DELIVERY_BOOLEAN_FIELDS = [
+  "rangeRequests",
+  "immutableCaching",
+  "documentNavigationCanBeBlocked",
+] as const;
+
 export function isProviderCapabilityDocument(
   value: unknown
 ): value is ProviderCapabilityDocument {
@@ -96,12 +122,7 @@ function assertPublication(value: unknown): void {
   assertBooleanField(value, "directObjectPublication", name);
   assertBooleanField(value, "createIfAbsent", name);
 
-  for (const field of [
-    "manifestGatedPublication",
-    "readGateAvailable",
-    "privateUploadPublicPromotion",
-    "overwritesAllowed",
-  ] as const) {
+  for (const field of OPTIONAL_PUBLICATION_BOOLEAN_FIELDS) {
     if (value[field] !== undefined) {
       assertBooleanField(value, field, name);
     }
@@ -115,17 +136,11 @@ function assertUploadGrants(value: unknown): void {
     throw new Error(`${name} must be an object`);
   }
 
-  for (const field of [
-    "exactKey",
-    "methodBound",
-    "contentTypeBound",
-    "objectSizeCanBeObserved",
-    "requiredHeadersCanBeSigned",
-  ] as const) {
+  for (const field of REQUIRED_UPLOAD_GRANT_BOOLEAN_FIELDS) {
     assertBooleanField(value, field, name);
   }
 
-  for (const field of ["presignedPut", "temporaryCredentials"] as const) {
+  for (const field of OPTIONAL_UPLOAD_GRANT_BOOLEAN_FIELDS) {
     if (value[field] !== undefined) {
       assertBooleanField(value, field, name);
     }
@@ -152,11 +167,7 @@ function assertDelivery(value: unknown): void {
   assertAbsoluteHttpUrl(value.publicBaseUrl, `${name}.publicBaseUrl`);
   assertBooleanField(value, "negativeCachingPolicyDeclared", name);
 
-  for (const field of [
-    "rangeRequests",
-    "immutableCaching",
-    "documentNavigationCanBeBlocked",
-  ] as const) {
+  for (const field of OPTIONAL_DELIVERY_BOOLEAN_FIELDS) {
     if (value[field] !== undefined) {
       assertBooleanField(value, field, name);
     }
