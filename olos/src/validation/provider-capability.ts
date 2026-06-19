@@ -7,6 +7,7 @@ import { OLOS_WIRE_VERSION } from "../index";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
 import {
   assertAbsoluteHttpUrl,
+  assertBooleanField,
   assertNonEmptyStringField,
   assertOneOfField,
   assertPositiveIntegerField,
@@ -215,15 +216,5 @@ function assertCapabilityPreconditions(
     throw new Error(
       "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct object publication"
     );
-  }
-}
-
-function assertBooleanField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (typeof value[field] !== "boolean") {
-    throw new Error(`${name}.${field} must be a boolean`);
   }
 }

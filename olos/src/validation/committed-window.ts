@@ -7,6 +7,7 @@ import type {
 } from "../types/committed-window";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
+  assertBooleanField,
   assertIsoDateField,
   assertNonEmptyStringField,
   assertNonNegativeIntegerField,
@@ -132,18 +133,12 @@ function assertCommittedSegment(
     assertIsoDateField(value, "programDateTime", name);
   }
 
-  if (
-    value.discontinuityBefore !== undefined &&
-    typeof value.discontinuityBefore !== "boolean"
-  ) {
-    throw new Error(`${name}.discontinuityBefore must be a boolean`);
+  if (value.discontinuityBefore !== undefined) {
+    assertBooleanField(value, "discontinuityBefore", name);
   }
 
-  if (
-    value.independent !== undefined &&
-    typeof value.independent !== "boolean"
-  ) {
-    throw new Error(`${name}.independent must be a boolean`);
+  if (value.independent !== undefined) {
+    assertBooleanField(value, "independent", name);
   }
 
   if (value.segment !== undefined) {
@@ -212,11 +207,8 @@ function assertCommittedPart(
     assertIsoDateField(value, "programDateTime", name);
   }
 
-  if (
-    value.independent !== undefined &&
-    typeof value.independent !== "boolean"
-  ) {
-    throw new Error(`${name}.independent must be a boolean`);
+  if (value.independent !== undefined) {
+    assertBooleanField(value, "independent", name);
   }
 }
 

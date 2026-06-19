@@ -58,6 +58,16 @@ export function assertNonEmptyStringField(
   }
 }
 
+export function assertBooleanField(
+  value: Record<string, unknown>,
+  field: string,
+  name: string
+): void {
+  if (typeof value[field] !== "boolean") {
+    throw new Error(`${name}.${field} must be a boolean`);
+  }
+}
+
 export function assertIsoDateField(
   value: Record<string, unknown>,
   field: string,

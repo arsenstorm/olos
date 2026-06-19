@@ -2,6 +2,7 @@ import { PUBLICATION_MODES } from "../config/publication";
 import type { Commit } from "../types/commit";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
+  assertBooleanField,
   assertIsoDateField,
   assertNonEmptyStringField,
   assertNonNegativeIntegerField,
@@ -54,11 +55,8 @@ export function assertCommit(value: unknown): asserts value is Commit {
     assertIsoDateField(value, "programDateTime", "commit");
   }
 
-  if (
-    value.independent !== undefined &&
-    typeof value.independent !== "boolean"
-  ) {
-    throw new Error("commit.independent must be a boolean");
+  if (value.independent !== undefined) {
+    assertBooleanField(value, "independent", "commit");
   }
 
   assertOneOfField(value, "publicationMode", PUBLICATION_MODES, "commit");
