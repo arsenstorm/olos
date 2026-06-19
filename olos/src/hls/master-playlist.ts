@@ -31,16 +31,27 @@ export function renderMasterPlaylist(
   const lines = ["#EXTM3U", "#EXT-X-VERSION:10", "#EXT-X-INDEPENDENT-SEGMENTS"];
 
   for (const rendition of videoRenditions) {
-    const path = mediaPlaylistPath(session, rendition);
-    assertSafeRelativePath(path, "media playlist path");
-
     lines.push(
-      `#EXT-X-STREAM-INF:${renderStreamAttributes(rendition, audioCodecs)}`,
-      path
+      ...renderVariantEntry(session, rendition, audioCodecs, mediaPlaylistPath)
     );
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+function renderVariantEntry(
+  session: Session,
+  rendition: Rendition,
+  audioCodecs: string[],
+  mediaPlaylistPath: (session: Session, rendition: Rendition) => string
+): string[] {
+  const path = mediaPlaylistPath(session, rendition);
+  assertSafeRelativePath(path, "media playlist path");
+
+  return [
+    `#EXT-X-STREAM-INF:${renderStreamAttributes(rendition, audioCodecs)}`,
+    path,
+  ];
 }
 
 function renderStreamAttributes(
