@@ -6,6 +6,7 @@ import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
 import type { Rendition, Session } from "../types/session";
 import {
+  type HlsBlockingReloadRequest,
   parseHlsBlockingReloadRequest,
   type WaitForHlsBlockingReloadOptions,
   waitForHlsBlockingReload,
@@ -75,6 +76,15 @@ export type HlsManifestErrorResolution = Extract<
   BlockingHlsManifestArtifactResponseResolution,
   { status: "invalid" | "not_found" }
 >;
+
+type InvalidParsedBlockingReloadRequest = Extract<
+  BlockingHlsManifestArtifactResponseResolution,
+  { status: "invalid" }
+>;
+
+type ParsedBlockingReloadRequest =
+  | HlsBlockingReloadRequest
+  | InvalidParsedBlockingReloadRequest;
 
 export function createHlsManifestArtifacts(
   session: Session,
@@ -198,7 +208,7 @@ export async function resolveBlockingHlsManifestArtifactResponse(
 ): Promise<BlockingHlsManifestArtifactResponseResolution> {
   const request = parseBlockingReloadRequest(options.requestUrl);
 
-  if ("status" in request) {
+  if (isInvalidParsedBlockingReloadRequest(request)) {
     return request;
   }
 
@@ -231,9 +241,7 @@ export async function resolveBlockingHlsManifestArtifactResponse(
 
 function parseBlockingReloadRequest(
   requestUrl: string
-):
-  | ReturnType<typeof parseHlsBlockingReloadRequest>
-  | { message: string; status: "invalid" } {
+): ParsedBlockingReloadRequest {
   try {
     return parseHlsBlockingReloadRequest(requestUrl);
   } catch (error) {
@@ -242,6 +250,12 @@ function parseBlockingReloadRequest(
       status: "invalid",
     };
   }
+}
+
+function isInvalidParsedBlockingReloadRequest(
+  request: ParsedBlockingReloadRequest
+): request is InvalidParsedBlockingReloadRequest {
+  return "status" in request;
 }
 
 function defaultMasterPath(session: Session): string {
