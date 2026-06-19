@@ -1,3 +1,5 @@
+import { hasControlCharacter as hasValidationControlCharacter } from "../validation/fields";
+
 export function trimSlashes(value: string): string {
   return value.replace(/^\/+|\/+$/g, "");
 }
@@ -7,13 +9,5 @@ export function trimTrailingSlash(value: string): string {
 }
 
 export function hasControlCharacter(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-
-    if (code <= 0x1f || code === 0x7f) {
-      return true;
-    }
-  }
-
-  return false;
+  return hasValidationControlCharacter(value);
 }
