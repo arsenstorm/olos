@@ -20,6 +20,16 @@ export type HlsBlockingReloadResolution =
       status: "invalid";
     };
 
+type InvalidHlsBlockingReloadResolution = Extract<
+  HlsBlockingReloadResolution,
+  { status: "invalid" }
+>;
+
+type ReadyHlsBlockingReloadResolution = Extract<
+  HlsBlockingReloadResolution,
+  { status: "ready" }
+>;
+
 export interface HlsCursorWaitContext {
   cursor: Cursor;
   request: HlsBlockingReloadRequest;
@@ -69,11 +79,11 @@ export async function waitForHlsBlockingReload(
   for (;;) {
     const resolution = resolveHlsBlockingReload(cursor, options.request);
 
-    if (resolution.status === "invalid") {
+    if (isInvalidHlsBlockingReloadResolution(resolution)) {
       return resolution;
     }
 
-    if (resolution.status === "ready") {
+    if (isReadyHlsBlockingReloadResolution(resolution)) {
       return {
         cursor,
         request: options.request,
@@ -148,6 +158,18 @@ function resolveLiveEdgePartStatus(
   return request.partNumber !== undefined && request.partNumber > liveEdgePart
     ? "block"
     : "ready";
+}
+
+function isInvalidHlsBlockingReloadResolution(
+  resolution: HlsBlockingReloadResolution
+): resolution is InvalidHlsBlockingReloadResolution {
+  return resolution.status === "invalid";
+}
+
+function isReadyHlsBlockingReloadResolution(
+  resolution: HlsBlockingReloadResolution
+): resolution is ReadyHlsBlockingReloadResolution {
+  return resolution.status === "ready";
 }
 
 function parseOptionalInteger(
