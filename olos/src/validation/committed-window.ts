@@ -49,15 +49,7 @@ export function assertCommittedWindow(
     "lastMediaSequenceNumber",
     "committedWindow"
   );
-
-  if (
-    Number(value.firstMediaSequenceNumber) >
-    Number(value.lastMediaSequenceNumber)
-  ) {
-    throw new Error(
-      "committedWindow.firstMediaSequenceNumber must be less than or equal to lastMediaSequenceNumber"
-    );
-  }
+  assertCommittedWindowSequence(value);
 
   if (
     !isRecord(value.renditions) ||
@@ -68,6 +60,17 @@ export function assertCommittedWindow(
 
   for (const [renditionId, rendition] of Object.entries(value.renditions)) {
     assertRenditionWindow(rendition, renditionId);
+  }
+}
+
+function assertCommittedWindowSequence(value: Record<string, unknown>): void {
+  if (
+    Number(value.firstMediaSequenceNumber) >
+    Number(value.lastMediaSequenceNumber)
+  ) {
+    throw new Error(
+      "committedWindow.firstMediaSequenceNumber must be less than or equal to lastMediaSequenceNumber"
+    );
   }
 }
 
