@@ -20,35 +20,38 @@ import {
 import { createStoredCoordinatorRuntimeHandler } from "./http";
 import { runtimeFetchFor } from "./test-fetch.test-helper";
 
+const MEDIA_ORIGIN = "https://media.example.com";
+const RUNTIME_BASE_URL = "https://edge.example.com";
+
 describe("runtime HTTP client", () => {
   test("creates sessions, issues slots, commits uploads, and transitions state", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       store,
     });
     const clientFetch = runtimeFetchFor(handle);
 
     const created = await createRuntimeSession({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       pathways,
       session: { ...session, state: "created" },
     });
     const transitioned = await transitionRuntimeSession({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       sessionId: session.sessionId,
       state: "starting",
     });
     const live = await transitionRuntimeSession({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       sessionId: session.sessionId,
       state: "live",
     });
     const issued = await issueRuntimeSlot({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
@@ -67,7 +70,7 @@ describe("runtime HTTP client", () => {
       sessionId: session.sessionId,
     });
     const committed = await commitRuntimeUpload({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       payload: {
         commitId: "commit_init",
@@ -100,7 +103,7 @@ describe("runtime HTTP client", () => {
   test("sends publisher heartbeats and reads stored health", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       now: () => "2026-01-01T00:00:02.000Z",
       store,
     });
@@ -115,19 +118,19 @@ describe("runtime HTTP client", () => {
     );
 
     const heartbeat = await sendRuntimePublisherHeartbeat({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       publisherInstanceId: "publisher_1",
       sessionId: session.sessionId,
     });
     const health = await getRuntimeSessionHealth({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       publisherInstanceId: "publisher_1",
       sessionId: session.sessionId,
     });
     const retention = await getRuntimeSessionRetentionPlan({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       now: "2026-01-01T00:00:02.000Z",
       sessionId: session.sessionId,
@@ -158,7 +161,7 @@ describe("runtime HTTP client", () => {
     };
 
     const master = await getRuntimeMasterPlaylist({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       sessionId: session.sessionId,
     });
@@ -201,7 +204,7 @@ describe("runtime HTTP client", () => {
       return Promise.resolve(new Response("#EXTM3U\n", { status: 200 }));
     };
     const options = {
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       renditionId: "v1080",
       sessionId: session.sessionId,
@@ -223,7 +226,7 @@ describe("runtime HTTP client", () => {
       return Promise.resolve(new Response("#EXTM3U\n", { status: 200 }));
     };
     const options = {
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       sessionId: session.sessionId,
     };
@@ -251,7 +254,7 @@ describe("runtime HTTP client", () => {
       );
 
     const heartbeatError = sendRuntimePublisherHeartbeat({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       publisherInstanceId: "publisher_1",
       sessionId: session.sessionId,
@@ -270,7 +273,7 @@ describe("runtime HTTP client", () => {
 
     await expect(
       createRuntimeSession({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         pathways,
         session,
@@ -279,7 +282,7 @@ describe("runtime HTTP client", () => {
 
     await expect(
       transitionRuntimeSession({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         sessionId: session.sessionId,
         state: "ended",
@@ -288,7 +291,7 @@ describe("runtime HTTP client", () => {
 
     await expect(
       issueRuntimeSlot({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         payload: {
           contentType: "video/mp4",
@@ -310,7 +313,7 @@ describe("runtime HTTP client", () => {
 
     await expect(
       commitRuntimeUpload({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         payload: {
           commitId: "commit_init",
@@ -330,7 +333,7 @@ describe("runtime HTTP client", () => {
 
     await expect(
       getRuntimeSessionHealth({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         sessionId: session.sessionId,
       })
@@ -338,7 +341,7 @@ describe("runtime HTTP client", () => {
 
     await expect(
       getRuntimeSessionRetentionPlan({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         sessionId: session.sessionId,
       })
@@ -346,7 +349,7 @@ describe("runtime HTTP client", () => {
 
     await expect(
       getRuntimeMasterPlaylist({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         sessionId: session.sessionId,
       })
@@ -354,7 +357,7 @@ describe("runtime HTTP client", () => {
 
     await expect(
       getRuntimeMediaPlaylist({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         renditionId: "v1080",
         sessionId: session.sessionId,
