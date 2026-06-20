@@ -4,6 +4,7 @@ import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
+import { hasControlCharacter } from "../validation/fields";
 import type { RuntimeCommitPayload } from "./commit";
 import type { RuntimeLiveHealth } from "./health";
 import {
@@ -18,7 +19,7 @@ import {
   requiredRecordPayload,
   responseBody,
 } from "./http-client";
-import { hasControlCharacter, trimSlashes } from "./path";
+import { trimSlashes } from "./path";
 import type { RuntimePublisherLease } from "./publisher-lease";
 import { nonNegativeInteger } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";

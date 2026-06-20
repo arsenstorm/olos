@@ -11,6 +11,7 @@ import type { PublicationControlPolicy } from "../state";
 import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
+import { hasControlCharacter } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
@@ -23,7 +24,7 @@ import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { errorMessage } from "./errors";
 import { resolveRuntimeLiveHealthFromState } from "./health";
 import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
-import { hasControlCharacter, trimSlashes } from "./path";
+import { trimSlashes } from "./path";
 import {
   isRecord,
   nonNegativeNumber,
