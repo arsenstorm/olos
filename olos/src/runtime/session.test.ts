@@ -49,7 +49,7 @@ describe("stored session runtime", () => {
 
   test("rejects duplicate coordinator session creation", async () => {
     const store = createMemoryCoordinatorStore();
-    await seedStore(store, createCoordinatorPipeline({ pathways, session }));
+    await seedCreatedSession(store);
 
     const result = await createStoredCoordinatorSession({
       pathways,
@@ -63,7 +63,7 @@ describe("stored session runtime", () => {
 
   test("transitions stored coordinator sessions", async () => {
     const store = createMemoryCoordinatorStore();
-    await seedStore(store, createCoordinatorPipeline({ pathways, session }));
+    await seedCreatedSession(store);
 
     const result = await transitionStoredCoordinatorSession({
       sessionId: session.sessionId,
@@ -111,7 +111,7 @@ describe("stored session runtime", () => {
 
   test("stores and refreshes publisher heartbeats", async () => {
     const store = createMemoryCoordinatorStore();
-    await seedStore(store, createCoordinatorPipeline({ pathways, session }));
+    await seedCreatedSession(store);
 
     const first = await heartbeatStoredCoordinatorPublisher({
       now: "2026-01-01T00:00:01.000Z",
@@ -173,7 +173,7 @@ describe("stored session runtime", () => {
 
   test("rejects invalid stored session transitions", async () => {
     const store = createMemoryCoordinatorStore();
-    await seedStore(store, createCoordinatorPipeline({ pathways, session }));
+    await seedCreatedSession(store);
 
     const result = await transitionStoredCoordinatorSession({
       sessionId: session.sessionId,
@@ -275,6 +275,12 @@ describe("stored session runtime", () => {
     });
   });
 });
+
+async function seedCreatedSession(
+  store: ReturnType<typeof createMemoryCoordinatorStore>
+): Promise<void> {
+  await seedStore(store, createCoordinatorPipeline({ pathways, session }));
+}
 
 async function seedStore(
   store: ReturnType<typeof createMemoryCoordinatorStore>,
