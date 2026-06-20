@@ -1,8 +1,13 @@
+import {
+  isRecord as isValidationRecord,
+  nonNegativeNumber as validationNonNegativeNumber,
+  positiveNumber as validationPositiveNumber,
+} from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { optionalField } from "./optional-field";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return isValidationRecord(value);
 }
 
 export function stringField(
@@ -115,11 +120,7 @@ export function optionalNonNegativeNumberField<Field extends string>(
 }
 
 export function nonNegativeNumber(value: number, name: string): number {
-  if (!Number.isFinite(value) || value < 0) {
-    throw new Error(`${name} must be a non-negative number`);
-  }
-
-  return value;
+  return validationNonNegativeNumber(value, name);
 }
 
 export function nonNegativeIntegerField(
@@ -188,11 +189,7 @@ export function positiveNumberField(
 }
 
 export function positiveNumber(value: number, name: string): number {
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new Error(`${name} must be a positive number`);
-  }
-
-  return value;
+  return validationPositiveNumber(value, name);
 }
 
 export function timestampField(
