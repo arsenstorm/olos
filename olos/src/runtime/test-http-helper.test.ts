@@ -3,6 +3,7 @@ import {
   jsonErrorTestResponse,
   jsonPostRequest,
   jsonResponseBody,
+  jsonResponseStatusAndBody,
   rawOrJsonPostRequest,
 } from "./test-http.test-helper";
 
@@ -46,5 +47,16 @@ describe("test HTTP helpers", () => {
     );
 
     expect(body.ok).toBe(true);
+  });
+
+  test("reads JSON response status and bodies", async () => {
+    await expect(
+      jsonResponseStatusAndBody<{ ok: boolean }>(
+        new Response('{"ok":true}', { status: 202 })
+      )
+    ).resolves.toEqual({
+      body: { ok: true },
+      status: 202,
+    });
   });
 });

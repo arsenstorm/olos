@@ -9,7 +9,10 @@ import { createPublicationKillSwitch } from "../state";
 import type { Cursor } from "../types/cursor";
 import { createMemoryRuntimeCursorNotifier } from "./cursor-notifier";
 import { createStoredCoordinatorRuntimeHandler } from "./http";
-import { jsonPostRequest } from "./test-http.test-helper";
+import {
+  jsonPostRequest,
+  jsonResponseStatusAndBody,
+} from "./test-http.test-helper";
 
 const MEDIA_ORIGIN = "https://media.example.com";
 
@@ -325,13 +328,13 @@ describe("stored coordinator runtime handler", () => {
       )
     );
 
-    expect(health.status).toBe(404);
-    expect(manifest.status).toBe(404);
-    expect(await health.json()).toEqual({
-      error: { message: "coordinator session was not found" },
+    await expect(jsonResponseStatusAndBody(health)).resolves.toEqual({
+      body: { error: { message: "coordinator session was not found" } },
+      status: 404,
     });
-    expect(await manifest.json()).toEqual({
-      error: { message: "coordinator session was not found" },
+    await expect(jsonResponseStatusAndBody(manifest)).resolves.toEqual({
+      body: { error: { message: "coordinator session was not found" } },
+      status: 404,
     });
   });
 
@@ -348,17 +351,21 @@ describe("stored coordinator runtime handler", () => {
       new Request("https://edge.example.com/v1/live/bad%20id/master.m3u8")
     );
 
-    expect(health.status).toBe(400);
-    expect(manifest.status).toBe(400);
-    expect(await health.json()).toEqual({
-      error: {
-        message: "sessionId must be a non-empty URL-safe identifier",
+    await expect(jsonResponseStatusAndBody(health)).resolves.toEqual({
+      body: {
+        error: {
+          message: "sessionId must be a non-empty URL-safe identifier",
+        },
       },
+      status: 400,
     });
-    expect(await manifest.json()).toEqual({
-      error: {
-        message: "sessionId must be a non-empty URL-safe identifier",
+    await expect(jsonResponseStatusAndBody(manifest)).resolves.toEqual({
+      body: {
+        error: {
+          message: "sessionId must be a non-empty URL-safe identifier",
+        },
       },
+      status: 400,
     });
   });
 
@@ -372,9 +379,11 @@ describe("stored coordinator runtime handler", () => {
       new Request("https://edge.example.com/sessions/%E0%A4%A/health")
     );
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      error: { message: "route path contains invalid percent encoding" },
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: { message: "route path contains invalid percent encoding" },
+      },
+      status: 400,
     });
   });
 
@@ -397,19 +406,23 @@ describe("stored coordinator runtime handler", () => {
       })
     );
 
-    expect(sessionResponse.status).toBe(400);
-    expect(pathwayResponse.status).toBe(400);
-    expect(await sessionResponse.json()).toEqual({
-      error: {
-        message:
-          "session.state must be one of: created, starting, live, ending, ended, aborted, expired",
+    await expect(jsonResponseStatusAndBody(sessionResponse)).resolves.toEqual({
+      body: {
+        error: {
+          message:
+            "session.state must be one of: created, starting, live, ending, ended, aborted, expired",
+        },
       },
+      status: 400,
     });
-    expect(await pathwayResponse.json()).toEqual({
-      error: {
-        message:
-          "pathway.state must be one of: active, degraded, draining, disabled",
+    await expect(jsonResponseStatusAndBody(pathwayResponse)).resolves.toEqual({
+      body: {
+        error: {
+          message:
+            "pathway.state must be one of: active, degraded, draining, disabled",
+        },
       },
+      status: 400,
     });
   });
 
@@ -432,12 +445,14 @@ describe("stored coordinator runtime handler", () => {
       })
     );
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      error: {
-        message:
-          "state must be one of: created, starting, live, ending, ended, aborted, expired",
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          message:
+            "state must be one of: created, starting, live, ending, ended, aborted, expired",
+        },
       },
+      status: 400,
     });
   });
 
@@ -476,16 +491,18 @@ describe("stored coordinator runtime handler", () => {
     );
     const stored = await store.load(session.sessionId);
 
-    expect(response.status).toBe(409);
-    expect(await response.json()).toEqual({
-      error: {
-        code: "olos.security_policy_violation",
-        details: {
-          operation: "issue_slot",
-          reason: "incident",
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          code: "olos.security_policy_violation",
+          details: {
+            operation: "issue_slot",
+            reason: "incident",
+          },
+          message: "publication operation is disabled",
         },
-        message: "publication operation is disabled",
       },
+      status: 409,
     });
     expect(stored?.state.slots).toEqual([]);
   });
@@ -582,11 +599,14 @@ describe("stored coordinator runtime handler", () => {
       })
     );
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      error: {
-        message: "publisherInstanceId must be a non-empty URL-safe identifier",
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          message:
+            "publisherInstanceId must be a non-empty URL-safe identifier",
+        },
       },
+      status: 400,
     });
   });
 
@@ -609,11 +629,14 @@ describe("stored coordinator runtime handler", () => {
       )
     );
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      error: {
-        message: "publisherInstanceId must be a non-empty URL-safe identifier",
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          message:
+            "publisherInstanceId must be a non-empty URL-safe identifier",
+        },
       },
+      status: 400,
     });
   });
 
@@ -764,12 +787,14 @@ describe("stored coordinator runtime handler", () => {
     );
     const stored = await store.load(session.sessionId);
 
-    expect(response.status).toBe(409);
-    expect(await response.json()).toEqual({
-      error: {
-        code: "olos.quota_exceeded",
-        message: "tenant quota exceeded",
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          code: "olos.quota_exceeded",
+          message: "tenant quota exceeded",
+        },
       },
+      status: 409,
     });
     expect(stored?.state.cursor?.window).toEqual({
       firstMediaSequenceNumber: 3810,

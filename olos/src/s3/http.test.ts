@@ -19,6 +19,7 @@ import {
 import {
   jsonPostRequest,
   jsonResponseBody,
+  jsonResponseStatusAndBody,
 } from "../runtime/test-http.test-helper";
 import { createObservedUpload, createPublicationKillSwitch } from "../state";
 import type { Cursor } from "../types/cursor";
@@ -445,16 +446,18 @@ describe("stored S3 coordinator runtime handler", () => {
       )
     );
 
-    expect(response.status).toBe(409);
-    expect(await response.json()).toEqual({
-      error: {
-        code: "olos.key_mismatch",
-        details: {
-          objectKey: "live/session/v1080/other.m4s",
-          slotId: "slot_3810",
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          code: "olos.key_mismatch",
+          details: {
+            objectKey: "live/session/v1080/other.m4s",
+            slotId: "slot_3810",
+          },
+          message: "object key mismatches slot",
         },
-        message: "object key mismatches slot",
       },
+      status: 409,
     });
     expect(headObjectInputs).toEqual([]);
   });
@@ -482,11 +485,13 @@ describe("stored S3 coordinator runtime handler", () => {
       )
     );
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      error: {
-        message: "completion hint must not include deliveryUrl",
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          message: "completion hint must not include deliveryUrl",
+        },
       },
+      status: 400,
     });
     expect(headObjectInputs).toEqual([]);
   });
@@ -551,11 +556,13 @@ describe("stored S3 coordinator runtime handler", () => {
       )
     );
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      error: {
-        message: "sessionId must be a non-empty URL-safe identifier",
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          message: "sessionId must be a non-empty URL-safe identifier",
+        },
       },
+      status: 400,
     });
   });
 
@@ -583,9 +590,11 @@ describe("stored S3 coordinator runtime handler", () => {
       )
     );
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      error: { message: "route path contains invalid percent encoding" },
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: { message: "route path contains invalid percent encoding" },
+      },
+      status: 400,
     });
   });
 
@@ -635,15 +644,23 @@ describe("stored S3 coordinator runtime handler", () => {
       )
     );
 
-    expect(objectKeyResponse.status).toBe(400);
-    expect(deliveryUrlResponse.status).toBe(400);
-    expect(await objectKeyResponse.json()).toEqual({
-      error: { message: "objectKey must be a safe relative object key" },
-    });
-    expect(await deliveryUrlResponse.json()).toEqual({
-      error: {
-        message: "deliveryUrl must not contain query strings or fragments",
+    await expect(jsonResponseStatusAndBody(objectKeyResponse)).resolves.toEqual(
+      {
+        body: {
+          error: { message: "objectKey must be a safe relative object key" },
+        },
+        status: 400,
+      }
+    );
+    await expect(
+      jsonResponseStatusAndBody(deliveryUrlResponse)
+    ).resolves.toEqual({
+      body: {
+        error: {
+          message: "deliveryUrl must not contain query strings or fragments",
+        },
       },
+      status: 400,
     });
   });
 
@@ -695,9 +712,9 @@ describe("stored S3 coordinator runtime handler", () => {
         })
       );
 
-      expect(response.status).toBe(400);
-      expect(await response.json()).toEqual({
-        error: { message: testCase.expected },
+      await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+        body: { error: { message: testCase.expected } },
+        status: 400,
       });
     }
   });
@@ -764,9 +781,9 @@ describe("stored S3 coordinator runtime handler", () => {
         )
       );
 
-      expect(response.status).toBe(400);
-      expect(await response.json()).toEqual({
-        error: { message: testCase.expected },
+      await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+        body: { error: { message: testCase.expected } },
+        status: 400,
       });
     }
   });
@@ -802,12 +819,14 @@ describe("stored S3 coordinator runtime handler", () => {
       })
     );
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      error: {
-        message:
-          "publicationMode must be one of: direct-public, read-gated, private-upload-public-promotion",
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          message:
+            "publicationMode must be one of: direct-public, read-gated, private-upload-public-promotion",
+        },
       },
+      status: 400,
     });
   });
 
@@ -842,9 +861,13 @@ describe("stored S3 coordinator runtime handler", () => {
       })
     );
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      error: { message: "kind must be one of: init, part, segment, sidecar" },
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          message: "kind must be one of: init, part, segment, sidecar",
+        },
+      },
+      status: 400,
     });
   });
 
@@ -882,9 +905,11 @@ describe("stored S3 coordinator runtime handler", () => {
     );
     const stored = await store.load("session_1");
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      error: { message: "objectKey must use a supported media extension" },
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: { message: "objectKey must use a supported media extension" },
+      },
+      status: 400,
     });
     expect(stored?.state.slots).toHaveLength(0);
   });
@@ -1269,9 +1294,9 @@ describe("stored S3 coordinator runtime handler", () => {
         jsonRequest(testCase.url, testCase.payload)
       );
 
-      expect(response.status).toBe(400);
-      expect(await response.json()).toEqual({
-        error: { message: testCase.expected },
+      await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+        body: { error: { message: testCase.expected } },
+        status: 400,
       });
     }
   });
@@ -1317,21 +1342,35 @@ describe("stored S3 coordinator runtime handler", () => {
       })
     );
 
-    expect(commitResponse.status).toBe(400);
-    expect(reconciliationResponse.status).toBe(400);
-    expect(commitLateToleranceResponse.status).toBe(400);
-    expect(reconciliationLateToleranceResponse.status).toBe(400);
-    expect(await commitResponse.json()).toEqual({
-      error: { message: "maxSegments must be a positive integer" },
+    await expect(jsonResponseStatusAndBody(commitResponse)).resolves.toEqual({
+      body: {
+        error: { message: "maxSegments must be a positive integer" },
+      },
+      status: 400,
     });
-    expect(await reconciliationResponse.json()).toEqual({
-      error: { message: "maxSegments must be a positive integer" },
+    await expect(
+      jsonResponseStatusAndBody(reconciliationResponse)
+    ).resolves.toEqual({
+      body: {
+        error: { message: "maxSegments must be a positive integer" },
+      },
+      status: 400,
     });
-    expect(await commitLateToleranceResponse.json()).toEqual({
-      error: { message: "lateToleranceMs must be a non-negative number" },
+    await expect(
+      jsonResponseStatusAndBody(commitLateToleranceResponse)
+    ).resolves.toEqual({
+      body: {
+        error: { message: "lateToleranceMs must be a non-negative number" },
+      },
+      status: 400,
     });
-    expect(await reconciliationLateToleranceResponse.json()).toEqual({
-      error: { message: "lateToleranceMs must be a non-negative number" },
+    await expect(
+      jsonResponseStatusAndBody(reconciliationLateToleranceResponse)
+    ).resolves.toEqual({
+      body: {
+        error: { message: "lateToleranceMs must be a non-negative number" },
+      },
+      status: 400,
     });
   });
 
@@ -1388,9 +1427,9 @@ describe("stored S3 coordinator runtime handler", () => {
         jsonRequest(testCase.url, testCase.payload)
       );
 
-      expect(response.status).toBe(400);
-      expect(await response.json()).toEqual({
-        error: { message: testCase.expected },
+      await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+        body: { error: { message: testCase.expected } },
+        status: 400,
       });
     }
   });

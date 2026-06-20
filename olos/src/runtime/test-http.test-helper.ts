@@ -29,3 +29,12 @@ export function jsonErrorTestResponse(
 export async function jsonResponseBody<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
+
+export async function jsonResponseStatusAndBody<T>(
+  response: Response
+): Promise<{ body: T; status: number }> {
+  return {
+    body: await jsonResponseBody<T>(response),
+    status: response.status,
+  };
+}
