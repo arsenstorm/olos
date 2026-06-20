@@ -907,8 +907,8 @@ export function getOlosConformanceCoverage(
 export function isOlosConformanceAssertionId(
   value: string
 ): value is OlosConformanceAssertionId {
-  return OLOS_CONFORMANCE_ASSERTION_IDS.includes(
-    value as OlosConformanceAssertionId
+  return OLOS_CONFORMANCE_ASSERTION_IDS.some(
+    (assertionId) => assertionId === value
   );
 }
 
