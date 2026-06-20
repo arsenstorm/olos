@@ -30,6 +30,8 @@ import type { S3HeadObjectClient } from "./object-observation";
 import { createTestS3Client } from "./test-client.test-helper";
 
 const publishNow = "2026-01-01T00:00:00.000Z";
+const mediaOrigin = "https://media.example.com";
+const s3GrantTtlSeconds = 3;
 const targetLatency = 3;
 
 describe("s3 coordinator uploads", () => {
@@ -48,11 +50,11 @@ describe("s3 coordinator uploads", () => {
       deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
       duration: 2,
       expiresAt: "2026-01-01T00:00:05.000Z",
-      expiresInSeconds: 3,
+      expiresInSeconds: s3GrantTtlSeconds,
       kind: "segment",
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      now: "2026-01-01T00:00:00.000Z",
+      now: publishNow,
       objectKey: "live/session/v1080/3810.m4s",
       publicationMode: "direct-public",
       publisherInstanceId: "pub_1",
@@ -146,11 +148,11 @@ describe("s3 coordinator uploads", () => {
       deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
       duration: 2,
       expiresAt: "2026-01-01T00:00:05.000Z",
-      expiresInSeconds: 3,
+      expiresInSeconds: s3GrantTtlSeconds,
       kind: "segment",
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      now: "2026-01-01T00:00:00.000Z",
+      now: publishNow,
       objectKey: "live/session/v1080/3810.m4s",
       publicationMode: "direct-public",
       publisherInstanceId: "pub_1",
@@ -178,11 +180,11 @@ describe("s3 coordinator uploads", () => {
       deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
       duration: 2,
       expiresAt: "2026-01-01T00:00:05.000Z",
-      expiresInSeconds: 3,
+      expiresInSeconds: s3GrantTtlSeconds,
       kind: "segment",
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      now: "2026-01-01T00:00:00.000Z",
+      now: publishNow,
       objectKey: "live/session/v1080/3810.m4s",
       publicationControl: createPublicationKillSwitch("incident"),
       publicationMode: "direct-public",
@@ -219,11 +221,11 @@ describe("s3 coordinator uploads", () => {
       deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
       duration: 2,
       expiresAt: "2026-01-01T00:00:05.000Z",
-      expiresInSeconds: 3,
+      expiresInSeconds: s3GrantTtlSeconds,
       kind: "segment",
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      now: "2026-01-01T00:00:00.000Z",
+      now: publishNow,
       objectKey: "live/session/v1080/3810.m4s",
       publicationMode: "direct-public",
       publisherInstanceId: "pub_1",
@@ -806,7 +808,7 @@ describe("s3 coordinator uploads", () => {
       commitId: "commit_init",
       committedAt: "2026-01-01T00:00:01.000Z",
       manifest: {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [mediaOrigin],
         partTarget: session.partTarget,
         segmentTarget: session.segmentTarget,
       },
@@ -823,7 +825,7 @@ describe("s3 coordinator uploads", () => {
       committedAt: "2026-01-01T00:00:02.000Z",
       independent: true,
       manifest: {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [mediaOrigin],
         partTarget: session.partTarget,
         response: {
           maxAgeSeconds: 2,
