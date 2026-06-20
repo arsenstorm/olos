@@ -624,11 +624,25 @@ function invalidS3Route(message: string): InvalidS3Route {
 async function parseS3SlotGrantRequest(
   request: Request
 ): Promise<S3HttpRequestParse<RuntimeSlotIssuePayload>> {
+  return await parseRecordRequest(
+    request,
+    "S3 slot grant request",
+    "invalid S3 slot grant request",
+    parsePayload
+  );
+}
+
+async function parseRecordRequest<Payload>(
+  request: Request,
+  name: string,
+  fallbackMessage: string,
+  parsePayload: (value: Record<string, unknown>) => Payload
+): Promise<S3HttpRequestParse<Payload>> {
   try {
     const payload = await request.json();
 
     if (!isRecord(payload)) {
-      return invalid("S3 slot grant request must be a JSON object");
+      return invalid(`${name} must be a JSON object`);
     }
 
     return {
@@ -636,7 +650,7 @@ async function parseS3SlotGrantRequest(
       status: "valid",
     };
   } catch (error) {
-    return invalid(errorMessage(error, "invalid S3 slot grant request"));
+    return invalid(errorMessage(error, fallbackMessage));
   }
 }
 
@@ -721,40 +735,24 @@ async function parseS3CompletionHintRequest(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
   slotId: string
 ): Promise<S3HttpRequestParse<S3CommitPayload>> {
-  try {
-    const payload = await request.json();
-
-    if (!isRecord(payload)) {
-      return invalid("S3 completion hint request must be a JSON object");
-    }
-
-    return {
-      payload: parseCompletionHintPayload(payload, options, slotId),
-      status: "valid",
-    };
-  } catch (error) {
-    return invalid(errorMessage(error, "invalid S3 completion hint request"));
-  }
+  return await parseRecordRequest(
+    request,
+    "S3 completion hint request",
+    "invalid S3 completion hint request",
+    (payload) => parseCompletionHintPayload(payload, options, slotId)
+  );
 }
 
 async function parseS3CommitRequest(
   request: Request,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): Promise<S3HttpRequestParse<S3CommitPayload>> {
-  try {
-    const payload = await request.json();
-
-    if (!isRecord(payload)) {
-      return invalid("S3 commit request must be a JSON object");
-    }
-
-    return {
-      payload: parseCommitPayload(payload, options),
-      status: "valid",
-    };
-  } catch (error) {
-    return invalid(errorMessage(error, "invalid S3 slot grant request"));
-  }
+  return await parseRecordRequest(
+    request,
+    "S3 commit request",
+    "invalid S3 slot grant request",
+    (payload) => parseCommitPayload(payload, options)
+  );
 }
 
 function parseCompletionHintPayload(
@@ -818,65 +816,39 @@ function parseCommitPayload(
 async function parseS3ReconciliationPlanRequest(
   request: Request
 ): Promise<S3HttpRequestParse<S3ReconciliationPlanPayload>> {
-  try {
-    const payload = await request.json();
-
-    if (!isRecord(payload)) {
-      return invalid("S3 reconciliation plan request must be a JSON object");
-    }
-
-    return {
-      payload: {
-        ...optionalUrlSafeIdentifierArrayField(payload, "slotIds"),
-      },
-      status: "valid",
-    };
-  } catch (error) {
-    return invalid(
-      errorMessage(error, "invalid S3 reconciliation plan request")
-    );
-  }
+  return await parseRecordRequest(
+    request,
+    "S3 reconciliation plan request",
+    "invalid S3 reconciliation plan request",
+    (payload) => ({
+      ...optionalUrlSafeIdentifierArrayField(payload, "slotIds"),
+    })
+  );
 }
 
 async function parseS3ReconciliationRequest(
   request: Request,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): Promise<S3HttpRequestParse<S3ReconciliationPayload>> {
-  try {
-    const payload = await request.json();
-
-    if (!isRecord(payload)) {
-      return invalid("S3 reconciliation request must be a JSON object");
-    }
-
-    return {
-      payload: parseReconciliationPayload(payload, options),
-      status: "valid",
-    };
-  } catch (error) {
-    return invalid(errorMessage(error, "invalid S3 reconciliation request"));
-  }
+  return await parseRecordRequest(
+    request,
+    "S3 reconciliation request",
+    "invalid S3 reconciliation request",
+    (payload) => parseReconciliationPayload(payload, options)
+  );
 }
 
 async function parseS3RetentionRequest(
   request: Request
 ): Promise<S3HttpRequestParse<S3RetentionPayload>> {
-  try {
-    const payload = await request.json();
-
-    if (!isRecord(payload)) {
-      return invalid("S3 retention request must be a JSON object");
-    }
-
-    return {
-      payload: {
-        now: timestampField(payload, "now"),
-      },
-      status: "valid",
-    };
-  } catch (error) {
-    return invalid(errorMessage(error, "invalid S3 retention request"));
-  }
+  return await parseRecordRequest(
+    request,
+    "S3 retention request",
+    "invalid S3 retention request",
+    (payload) => ({
+      now: timestampField(payload, "now"),
+    })
+  );
 }
 
 function parseReconciliationPayload(
