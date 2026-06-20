@@ -4,6 +4,8 @@ import {
   isRecord,
   jsonPost,
   normalizedBaseUrl,
+  optionalRecordField,
+  requiredRecordField,
   responseBody,
 } from "../runtime/http-client";
 import type { RuntimeSlotIssuePayload } from "../runtime/slot";
@@ -328,14 +330,16 @@ function commitPayload(
 
   return {
     commit: commit as unknown as Commit,
-    ...optionalCursorPayload(isRecord(value) ? value.cursor : undefined),
+    ...optionalCursorPayload(value),
   };
 }
 
 function optionalCursorPayload(
   value: unknown
 ): Pick<S3RuntimeCompleteUploadResponse, "cursor"> | Record<string, never> {
-  return isRecord(value) ? { cursor: value as unknown as Cursor } : {};
+  const cursor = optionalRecordField(value, "cursor");
+
+  return cursor === undefined ? {} : { cursor: cursor as unknown as Cursor };
 }
 
 function reconciliationPlanPayload(
@@ -373,16 +377,4 @@ function retentionPayload(
   );
 
   return value as unknown as StoredS3CoordinatorRetentionResponse;
-}
-
-function requiredRecordField(
-  value: unknown,
-  field: string,
-  message: string
-): Record<string, unknown> {
-  if (!(isRecord(value) && isRecord(value[field]))) {
-    throw new Error(message);
-  }
-
-  return value[field];
 }

@@ -27,6 +27,31 @@ export function fetchFor(options: RuntimeHttpClientSource): RuntimeHttpFetch {
   return options.fetch ?? fetch;
 }
 
+export function requiredRecordField(
+  value: unknown,
+  field: string,
+  message: string
+): Record<string, unknown> {
+  const record = optionalRecordField(value, field);
+
+  if (record === undefined) {
+    throw new Error(message);
+  }
+
+  return record;
+}
+
+export function optionalRecordField(
+  value: unknown,
+  field: string
+): Record<string, unknown> | undefined {
+  if (!(isRecord(value) && isRecord(value[field]))) {
+    return;
+  }
+
+  return value[field];
+}
+
 export async function responseBody(response: Response): Promise<unknown> {
   const text = await response.clone().text();
 

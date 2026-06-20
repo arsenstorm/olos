@@ -11,7 +11,9 @@ import {
   isRecord,
   jsonPost,
   normalizedBaseUrl,
+  optionalRecordField,
   type RuntimeHttpFetch,
+  requiredRecordField,
   responseBody,
 } from "./http-client";
 import { hasControlCharacter, trimSlashes } from "./path";
@@ -439,14 +441,16 @@ function commitPayload(
 
   return {
     commit: commit as unknown as Commit,
-    ...optionalCursorPayload(isRecord(value) ? value.cursor : undefined),
+    ...optionalCursorPayload(value),
   };
 }
 
 function optionalCursorPayload(
   value: unknown
 ): Pick<RuntimeCommitUploadResponse, "cursor"> | Record<string, never> {
-  return isRecord(value) ? { cursor: value as unknown as Cursor } : {};
+  const cursor = optionalRecordField(value, "cursor");
+
+  return cursor === undefined ? {} : { cursor: cursor as unknown as Cursor };
 }
 
 function healthPayload(value: unknown): RuntimeLiveHealth {
@@ -463,16 +467,4 @@ function retentionPayload(value: unknown): CoordinatorRetentionPlan {
     "plan",
     "session retention response must include a plan"
   ) as unknown as CoordinatorRetentionPlan;
-}
-
-function requiredRecordField(
-  value: unknown,
-  field: string,
-  message: string
-): Record<string, unknown> {
-  if (!(isRecord(value) && isRecord(value[field]))) {
-    throw new Error(message);
-  }
-
-  return value[field];
 }
