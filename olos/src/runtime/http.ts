@@ -31,7 +31,12 @@ import {
   stringField,
   urlSafeIdentifierField,
 } from "./request-fields";
-import { jsonErrorResponse, jsonResponse } from "./response";
+import {
+  jsonBadRequestResponse,
+  jsonErrorResponse,
+  jsonMethodNotAllowedResponse,
+  jsonResponse,
+} from "./response";
 import { planStoredCoordinatorRetention } from "./retention";
 import { routeIdentifierError, routeParts } from "./route";
 import {
@@ -185,7 +190,9 @@ async function handleStoredRuntimeRequest(
   );
 
   if (sessionParts === "invalid") {
-    return badRequest("route path contains invalid percent encoding");
+    return jsonBadRequestResponse(
+      "route path contains invalid percent encoding"
+    );
   }
 
   if (sessionParts !== undefined) {
@@ -198,7 +205,9 @@ async function handleStoredRuntimeRequest(
   );
 
   if (liveParts === "invalid") {
-    return badRequest("route path contains invalid percent encoding");
+    return jsonBadRequestResponse(
+      "route path contains invalid percent encoding"
+    );
   }
 
   if (liveParts !== undefined) {
@@ -217,7 +226,7 @@ async function handleSessionRoute(
     const parsed = await parseSessionCreateRequest(request);
 
     if (parsed.status === "invalid") {
-      return badRequest(parsed.message);
+      return jsonBadRequestResponse(parsed.message);
     }
 
     return (
@@ -238,7 +247,7 @@ async function handleSessionRoute(
   const sessionIdError = routeSessionIdError(sessionId);
 
   if (sessionIdError !== undefined) {
-    return badRequest(sessionIdError);
+    return jsonBadRequestResponse(sessionIdError);
   }
 
   return await handleSessionActionRoute(request, sessionId, action, options);
@@ -268,7 +277,7 @@ async function handleSessionActionRoute(
     );
   }
 
-  return methodNotAllowed();
+  return jsonMethodNotAllowedResponse();
 }
 
 async function handlePostSessionActionRoute(
@@ -311,7 +320,7 @@ async function handlePostSessionActionRoute(
     const parsed = await parseTransitionRequest(request);
 
     if (parsed.status === "invalid") {
-      return badRequest(parsed.message);
+      return jsonBadRequestResponse(parsed.message);
     }
 
     return (
@@ -328,7 +337,7 @@ async function handlePostSessionActionRoute(
     const parsed = await parseHeartbeatRequest(request);
 
     if (parsed.status === "invalid") {
-      return badRequest(parsed.message);
+      return jsonBadRequestResponse(parsed.message);
     }
 
     return (
@@ -343,7 +352,7 @@ async function handlePostSessionActionRoute(
     ).response;
   }
 
-  return methodNotAllowed();
+  return jsonMethodNotAllowedResponse();
 }
 
 async function handleGetSessionActionRoute(
@@ -377,7 +386,7 @@ async function handleGetSessionActionRoute(
     );
 
     if (publisherInstanceIdError !== undefined) {
-      return badRequest(publisherInstanceIdError);
+      return jsonBadRequestResponse(publisherInstanceIdError);
     }
 
     return jsonResponse(
@@ -394,7 +403,7 @@ async function handleGetSessionActionRoute(
     );
   }
 
-  return methodNotAllowed();
+  return jsonMethodNotAllowedResponse();
 }
 
 function notifyCursor(
@@ -422,7 +431,7 @@ async function handleLiveRoute(
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
   if (request.method !== "GET") {
-    return methodNotAllowed();
+    return jsonMethodNotAllowedResponse();
   }
 
   const [sessionId, first, second] = parts;
@@ -437,7 +446,7 @@ async function handleLiveRoute(
   const sessionIdError = routeSessionIdError(sessionId);
 
   if (sessionIdError !== undefined) {
-    return badRequest(sessionIdError);
+    return jsonBadRequestResponse(sessionIdError);
   }
 
   const snapshot = await options.store.load(sessionId);
@@ -595,14 +604,6 @@ function routePublisherInstanceIdError(
 
 function invalid(message: string): InvalidRuntimeHttpRequestParse {
   return { message, status: "invalid" };
-}
-
-function badRequest(message: string): Response {
-  return jsonErrorResponse(message, 400);
-}
-
-function methodNotAllowed(): Response {
-  return jsonErrorResponse("method not allowed", 405);
 }
 
 function notFound(): Response {

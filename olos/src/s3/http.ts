@@ -35,7 +35,12 @@ import {
   timestampField,
   urlSafeIdentifierField,
 } from "../runtime/request-fields";
-import { jsonErrorResponse, jsonResponse } from "../runtime/response";
+import {
+  jsonBadRequestResponse,
+  jsonErrorResponse,
+  jsonMethodNotAllowedResponse,
+  jsonResponse,
+} from "../runtime/response";
 import { routeIdentifierError, routeParts } from "../runtime/route";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
@@ -170,11 +175,11 @@ export function createStoredS3CoordinatorRuntimeHandler(
     }
 
     if (route.status === "method_not_allowed") {
-      return methodNotAllowed();
+      return jsonMethodNotAllowedResponse();
     }
 
     if (route.status === "invalid") {
-      return badRequest(route.message);
+      return jsonBadRequestResponse(route.message);
     }
 
     if (route.action === "slots") {
@@ -233,7 +238,7 @@ async function handleS3SlotGrant(
   const parsed = await parseS3SlotGrantRequest(request);
 
   if (parsed.status === "invalid") {
-    return badRequest(parsed.message);
+    return jsonBadRequestResponse(parsed.message);
   }
 
   const result = await issueStoredS3CoordinatorUploadGrant({
@@ -280,7 +285,7 @@ async function handleS3Commit(
   const parsed = await parseS3CommitRequest(request, options);
 
   if (parsed.status === "invalid") {
-    return badRequest(parsed.message);
+    return jsonBadRequestResponse(parsed.message);
   }
 
   const result = await completeStoredS3CoordinatorUpload({
@@ -306,7 +311,7 @@ async function handleS3CompletionHint(
   const parsed = await parseS3CompletionHintRequest(request, options, slotId);
 
   if (parsed.status === "invalid") {
-    return badRequest(parsed.message);
+    return jsonBadRequestResponse(parsed.message);
   }
 
   const result = await completeStoredS3CoordinatorUpload({
@@ -369,13 +374,15 @@ async function handleS3Events(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
   if (options.providerId === undefined) {
-    return badRequest("providerId must be configured for S3 event routes");
+    return jsonBadRequestResponse(
+      "providerId must be configured for S3 event routes"
+    );
   }
 
   const parsed = await parseJsonRequest(request, "S3 event request");
 
   if (parsed.status === "invalid") {
-    return badRequest(parsed.message);
+    return jsonBadRequestResponse(parsed.message);
   }
 
   const events = normalizeS3ObjectCreatedEvents({
@@ -419,7 +426,7 @@ async function handleS3ReconciliationPlan(
   const parsed = await parseS3ReconciliationPlanRequest(request);
 
   if (parsed.status === "invalid") {
-    return badRequest(parsed.message);
+    return jsonBadRequestResponse(parsed.message);
   }
 
   const result = await planStoredS3CoordinatorReconciliation({
@@ -443,7 +450,7 @@ async function handleS3Reconciliation(
   const parsed = await parseS3ReconciliationRequest(request, options);
 
   if (parsed.status === "invalid") {
-    return badRequest(parsed.message);
+    return jsonBadRequestResponse(parsed.message);
   }
 
   const result = await reconcileStoredS3CoordinatorUploads({
@@ -483,7 +490,7 @@ async function handleS3Retention(
   const parsed = await parseS3RetentionRequest(request);
 
   if (parsed.status === "invalid") {
-    return badRequest(parsed.message);
+    return jsonBadRequestResponse(parsed.message);
   }
 
   const planned = await planStoredCoordinatorRetention({
@@ -878,14 +885,6 @@ function routeSessionIdError(sessionId: string): string | undefined {
     "sessionId",
     "invalid route sessionId"
   );
-}
-
-function badRequest(message: string): Response {
-  return jsonErrorResponse(message, 400);
-}
-
-function methodNotAllowed(): Response {
-  return jsonErrorResponse("method not allowed", 405);
 }
 
 function notFound(): Response {
