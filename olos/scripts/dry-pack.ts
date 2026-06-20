@@ -1,6 +1,6 @@
-import { fileURLToPath } from "node:url";
 import packageJson from "../package.json" with { type: "json" };
 import { isRecord } from "../src/validation/fields";
+import { isCliEntry } from "./script-entry";
 import { packageRoot } from "./script-paths";
 import { runCommandAndCapture } from "./script-runner";
 
@@ -8,7 +8,7 @@ const requiredDryPackFiles = requiredDryPackFilesFromExports(
   packageJson.exports
 );
 
-if (fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isCliEntry(import.meta.url)) {
   assertDryPackIncludesRequiredFiles(
     await runCommandAndCapture("bun", ["pm", "pack", "--dry-run"], {
       cwd: packageRoot,

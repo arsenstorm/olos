@@ -1,12 +1,13 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isCliEntry } from "./script-entry";
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 const distRoot = join(packageRoot, "dist");
 const relativeImportPattern = /(from\s+["'])(\.[^"']+)(["'])/g;
 
-if (fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isCliEntry(import.meta.url)) {
   await fixDeclarationImports();
 }
 

@@ -1,12 +1,12 @@
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 import {
   OLOS_CONFORMANCE_ASSERTION_IDS,
   OLOS_CONFORMANCE_COVERAGE,
   type OlosConformanceAssertionId,
   type OlosConformanceLevel,
 } from "../src/conformance";
+import { isCliEntry } from "./script-entry";
 import { repoRoot } from "./script-paths";
 
 const reportRoot = join(repoRoot, "out", "conformance");
@@ -14,7 +14,7 @@ const reportPath = join(reportRoot, "conformance.md");
 
 const levels = ["core", "object", "hls", "security"] as const;
 
-if (isCliEntry()) {
+if (isCliEntry(import.meta.url)) {
   const report = buildConformanceReport();
 
   await mkdir(reportRoot, { recursive: true });
@@ -83,11 +83,6 @@ export function buildConformanceReport(): string {
   }
 
   return `${lines.join("\n")}\n`;
-}
-
-function isCliEntry(): boolean {
-  const entry = process.argv[1];
-  return entry !== undefined && import.meta.url === pathToFileURL(entry).href;
 }
 
 function countLevel(level: OlosConformanceLevel) {
