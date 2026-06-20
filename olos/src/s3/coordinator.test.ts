@@ -5,13 +5,12 @@ import type {
 } from "@aws-sdk/client-s3";
 import {
   type CoordinatorPipelineStore,
-  createCoordinatorPipeline,
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
 } from "../protocol/coordinator";
 import {
   createCoordinatorStateWithIssuedSegment,
-  testCoordinatorPathways as pathways,
+  createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import { resolveRuntimePublisherObjectExpiry } from "../runtime/publisher-expiry";
@@ -36,7 +35,7 @@ const targetLatency = 3;
 describe("s3 coordinator uploads", () => {
   test("issues and persists an S3 coordinator upload grant", async () => {
     const store = createMemoryCoordinatorStore();
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -83,7 +82,7 @@ describe("s3 coordinator uploads", () => {
 
   test("issues planned part objects through stored S3 grants", async () => {
     const store = createMemoryCoordinatorStore();
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -166,7 +165,7 @@ describe("s3 coordinator uploads", () => {
 
   test("does not issue stored S3 grants while the kill switch is active", async () => {
     const store = createMemoryCoordinatorStore();
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -212,7 +211,7 @@ describe("s3 coordinator uploads", () => {
   });
 
   test("issues a coordinator slot with an S3 upload grant", async () => {
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     const issue = await issueS3CoordinatorUploadGrant({
       bucket: "media",
       client: createTestS3Client(),
@@ -255,7 +254,7 @@ describe("s3 coordinator uploads", () => {
 
   test("observes the issued S3 object before committing", async () => {
     const headObjectInputs: unknown[] = [];
-    let state = createCoordinatorPipeline({ pathways, session });
+    let state = createEmptyCoordinatorState();
     state = issueCoordinatorSlot({
       contentType: "video/mp4",
       deliveryUrl: "https://media.example.com/init.mp4",
@@ -339,7 +338,7 @@ describe("s3 coordinator uploads", () => {
   test("observes and persists S3 coordinator upload commits", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    let state = createCoordinatorPipeline({ pathways, session });
+    let state = createEmptyCoordinatorState();
     state = issueCoordinatorSlot({
       contentType: "video/mp4",
       deliveryUrl: "https://media.example.com/init.mp4",
@@ -581,7 +580,7 @@ describe("s3 coordinator uploads", () => {
       publisherInstanceId: "pub_1",
       renditionId: "v1080",
       slotId: "slot_3810",
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     }).state;
     await store.save({
       sessionId: session.sessionId,
@@ -653,7 +652,7 @@ describe("s3 coordinator uploads", () => {
       publisherInstanceId: "pub_1",
       renditionId: "v1080",
       slotId: "slot_3810",
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     }).state;
     await store.save({
       sessionId: session.sessionId,
@@ -709,7 +708,7 @@ describe("s3 coordinator uploads", () => {
     const store = createMemoryCoordinatorStore();
     const state = issueCoordinatorSlot({
       ...segmentSlot(),
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     }).state;
     await store.save({
       sessionId: session.sessionId,
@@ -765,7 +764,7 @@ describe("s3 coordinator uploads", () => {
   test("derives manifests from stored S3 coordinator commits", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    let state = createCoordinatorPipeline({ pathways, session });
+    let state = createEmptyCoordinatorState();
     state = issueCoordinatorSlot({
       contentType: "video/mp4",
       deliveryUrl: "https://media.example.com/init.mp4",
@@ -861,7 +860,7 @@ describe("s3 coordinator uploads", () => {
   test("completes stored S3 uploads from a matching object key hint", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    let state = createCoordinatorPipeline({ pathways, session });
+    let state = createEmptyCoordinatorState();
     state = issueCoordinatorSlot({
       contentType: "video/mp4",
       deliveryUrl: "https://media.example.com/s3810.m4s",
@@ -918,7 +917,7 @@ describe("s3 coordinator uploads", () => {
       publisherInstanceId: "pub_1",
       renditionId: "v1080",
       slotId: "slot_3810",
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     }).state;
     await store.save({
       sessionId: session.sessionId,
@@ -965,7 +964,7 @@ describe("s3 coordinator uploads", () => {
       publisherInstanceId: "pub_1",
       renditionId: "v1080",
       slotId: "slot_3810",
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     }).state;
     await store.save({
       sessionId: session.sessionId,
@@ -996,7 +995,7 @@ describe("s3 coordinator uploads", () => {
     const store = createMemoryCoordinatorStore();
     await store.save({
       sessionId: session.sessionId,
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     const result = await completeStoredS3CoordinatorUploadByObjectKey({
@@ -1038,7 +1037,7 @@ describe("s3 coordinator uploads", () => {
       publisherInstanceId: "pub_1",
       renditionId: "v1080",
       slotId: "slot_3810",
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     }).state;
     await store.save({
       sessionId: session.sessionId,
@@ -1095,7 +1094,7 @@ describe("s3 coordinator uploads", () => {
       publisherInstanceId: "pub_1",
       renditionId: "v1080",
       slotId: "slot_3810",
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     }).state;
     await store.save({
       sessionId: session.sessionId,
@@ -1172,7 +1171,7 @@ describe("s3 coordinator uploads", () => {
       publisherInstanceId: "pub_1",
       renditionId: "v1080",
       slotId: "slot_3810",
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     }).state;
     await store.save({
       sessionId: session.sessionId,
@@ -1227,7 +1226,7 @@ describe("s3 coordinator uploads", () => {
       publisherInstanceId: "pub_1",
       renditionId: "v1080",
       slotId: "slot_3810",
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     }).state;
     await store.save({
       sessionId: session.sessionId,
@@ -1283,7 +1282,7 @@ describe("s3 coordinator uploads", () => {
       publisherInstanceId: "pub_1",
       renditionId: "v1080",
       slotId: "slot_3810",
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     }).state;
     await store.save({
       sessionId: session.sessionId,
@@ -1367,7 +1366,7 @@ describe("s3 coordinator uploads", () => {
   });
 
   test("does not query S3 for unknown slots", async () => {
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     const result = await commitS3CoordinatorUpload({
       bucket: "media",
       client: {

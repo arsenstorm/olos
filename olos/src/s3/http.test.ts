@@ -8,11 +8,11 @@ import {
   type CoordinatorPipelineState,
   type CoordinatorPipelineStore,
   commitCoordinatorUpload,
-  createCoordinatorPipeline,
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
 } from "../protocol";
 import {
+  createEmptyCoordinatorState,
   testCoordinatorPathways as pathways,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
@@ -2725,7 +2725,7 @@ function committedSegmentState(): CoordinatorPipelineState {
       objectKey: "live/session/v1080/init.mp4",
       slotId: "slot_init",
     }),
-    state: createCoordinatorPipeline({ pathways, session }),
+    state: createEmptyCoordinatorState(),
   });
   const initCommitted = commitCoordinatorUpload({
     commitId: "commit_init",
@@ -2790,7 +2790,7 @@ function inconsistentReconciliationState(): CoordinatorPipelineState {
       objectKey: "live/session/v1080/init.mp4",
       slotId: "slot_init",
     }),
-    state: createCoordinatorPipeline({ pathways, session }),
+    state: createEmptyCoordinatorState(),
   });
   const initCommitted = commitCoordinatorUpload({
     commitId: "reconcile_slot_init",

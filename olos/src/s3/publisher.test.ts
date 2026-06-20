@@ -3,12 +3,9 @@ import type {
   HeadObjectCommand,
   HeadObjectCommandOutput,
 } from "@aws-sdk/client-s3";
+import { createMemoryCoordinatorStore } from "../protocol";
 import {
-  createCoordinatorPipeline,
-  createMemoryCoordinatorStore,
-} from "../protocol";
-import {
-  testCoordinatorPathways as pathways,
+  createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import {
@@ -39,7 +36,7 @@ describe("stored S3 publisher upload step", () => {
 
     await store.save({
       sessionId: session.sessionId,
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     const step = await runPlannedStoredS3PublisherUploadStep({
@@ -113,7 +110,7 @@ describe("stored S3 publisher upload step", () => {
 
     await store.save({
       sessionId: session.sessionId,
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     const step = await runNextStoredS3PublisherUploadStep({
@@ -198,7 +195,7 @@ describe("stored S3 publisher upload step", () => {
 
     await store.save({
       sessionId: session.sessionId,
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     attempt = decision.nextAttempt;
@@ -238,7 +235,7 @@ describe("stored S3 publisher upload step", () => {
 
     await store.save({
       sessionId: session.sessionId,
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     const step = await runNextStoredS3PublisherUploadStep({
@@ -286,7 +283,7 @@ describe("stored S3 publisher upload step", () => {
 
     await store.save({
       sessionId: session.sessionId,
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     const step = await runNextStoredS3PublisherUploadStep({
@@ -353,7 +350,7 @@ describe("stored S3 publisher upload step", () => {
 
     await store.save({
       sessionId: session.sessionId,
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     const step = await runPlannedStoredS3PublisherUploadStep({
@@ -411,7 +408,7 @@ describe("stored S3 publisher upload step", () => {
 
     await store.save({
       sessionId: session.sessionId,
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     const step = await runPlannedStoredS3PublisherUploadStep({
@@ -469,7 +466,7 @@ describe("stored S3 publisher upload step", () => {
 
     await store.save({
       sessionId: session.sessionId,
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     const step = await runStoredS3PublisherUploadStep({
@@ -530,7 +527,7 @@ describe("stored S3 publisher upload step", () => {
 
     await store.save({
       sessionId: session.sessionId,
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     const step = await runNextStoredS3PublisherUploadStep({
@@ -599,7 +596,7 @@ describe("stored S3 publisher upload step", () => {
 
     await store.save({
       sessionId: session.sessionId,
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     const step = await runStoredS3PublisherUploadStep({

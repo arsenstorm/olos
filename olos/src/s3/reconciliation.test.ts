@@ -4,13 +4,12 @@ import type {
   HeadObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import {
-  createCoordinatorPipeline,
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
 } from "../protocol";
 import type { CoordinatorPipelineState } from "../protocol/coordinator";
 import {
-  testCoordinatorPathways as pathways,
+  createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import type { S3HeadObjectClient } from "./object-observation";
@@ -263,7 +262,7 @@ describe("stored S3 upload reconciliation", () => {
 });
 
 function stateWithSlots(): CoordinatorPipelineState {
-  let state = createCoordinatorPipeline({ pathways, session });
+  let state = createEmptyCoordinatorState();
 
   state = issueCoordinatorSlot({
     contentType: "video/mp4",
