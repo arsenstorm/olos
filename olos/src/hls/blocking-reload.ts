@@ -1,6 +1,7 @@
 import type { Cursor } from "../types/cursor";
 import type { MediaSequenceNumber, PartNumber } from "../types/ids";
 import { assertCursor } from "../validation/cursor";
+import { assertNonNegativeInteger } from "../validation/ids";
 import { HLS_RELATIVE_REQUEST_BASE_URL } from "./uri";
 
 const HLS_MSN = "_HLS_msn";
@@ -196,9 +197,7 @@ function parseOptionalInteger(
 
   const number = Number(value);
 
-  if (!Number.isInteger(number) || number < 0) {
-    throw new Error(`${name} must be a non-negative integer`);
-  }
+  assertNonNegativeInteger(number, name);
 
   return name === HLS_MSN
     ? { mediaSequenceNumber: number }

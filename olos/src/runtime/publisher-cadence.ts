@@ -2,7 +2,7 @@ import type { CursorWindow } from "../types/cursor";
 import type { PublicationMode } from "../types/upload-slot";
 import {
   assertNonNegativeInteger,
-  isNonNegativeInteger,
+  assertPositiveInteger,
 } from "../validation/ids";
 import { optionalField } from "./optional-field";
 import {
@@ -235,9 +235,6 @@ function nextPartPosition(options: {
 }
 
 function positiveInteger(value: number | undefined, name: string): number {
-  if (!isNonNegativeInteger(value) || value <= 0) {
-    throw new Error(`${name} must be a positive integer`);
-  }
-
+  assertPositiveInteger(value, name);
   return value;
 }

@@ -37,7 +37,10 @@ import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
 import { isRecord } from "../validation/fields";
-import { assertNonNegativeSafeInteger } from "../validation/ids";
+import {
+  assertNonNegativeSafeInteger,
+  assertPositiveInteger,
+} from "../validation/ids";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { assertSession } from "../validation/session";
 
@@ -427,10 +430,7 @@ function conflictingCoordinatorPipelineMutation(
 function positiveMutationAttempts(value: number | undefined): number {
   const attempts = value ?? 2;
 
-  if (!Number.isInteger(attempts) || attempts < 1) {
-    throw new Error("maxAttempts must be a positive integer");
-  }
-
+  assertPositiveInteger(attempts, "maxAttempts");
   return attempts;
 }
 
