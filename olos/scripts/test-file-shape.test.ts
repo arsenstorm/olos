@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { listDirectoryEntries } from "./directory-walk";
 import { packageRoot } from "./script-paths";
 
 const TEST_DECLARATION_PATTERN = /\b(?:describe|it|test)\(/;
@@ -23,29 +24,16 @@ describe("test file shape", () => {
 });
 
 async function listTestFiles(root: string): Promise<string[]> {
-  const testFiles: string[] = [];
-  const pending = [join(root, "scripts"), join(root, "src")];
+  const roots = [join(root, "scripts"), join(root, "src")];
+  const testFiles = await Promise.all(
+    roots.map(async (directory) =>
+      (await listDirectoryEntries(directory))
+        .filter(
+          (entry) => entry.isFile && entry.relativePath.endsWith(".test.ts")
+        )
+        .map((entry) => entry.absolutePath)
+    )
+  );
 
-  while (pending.length > 0) {
-    const current = pending.pop();
-
-    if (current === undefined) {
-      continue;
-    }
-
-    for (const entry of await readdir(current, { withFileTypes: true })) {
-      const path = join(current, entry.name);
-
-      if (entry.isDirectory()) {
-        pending.push(path);
-        continue;
-      }
-
-      if (entry.isFile() && entry.name.endsWith(".test.ts")) {
-        testFiles.push(path);
-      }
-    }
-  }
-
-  return testFiles.sort();
+  return testFiles.flat().sort();
 }

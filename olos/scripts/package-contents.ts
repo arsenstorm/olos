@@ -1,5 +1,5 @@
 import { readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { listDirectoryEntries } from "./directory-walk";
 
 const expectedRootEntries = ["LICENSE", "README.md", "dist", "package.json"];
 
@@ -22,46 +22,13 @@ export async function assertInstalledPackageContents(
 
   assertList("package root entries", rootEntries, expectedRootEntries);
 
-  for (const path of await listPackagePaths(packageRoot)) {
-    if (forbiddenPackagePaths.some((pattern) => pattern.test(path))) {
-      throw new Error(`package contains private file: ${path}`);
+  for (const entry of await listDirectoryEntries(packageRoot)) {
+    if (
+      forbiddenPackagePaths.some((pattern) => pattern.test(entry.relativePath))
+    ) {
+      throw new Error(`package contains private file: ${entry.relativePath}`);
     }
   }
-}
-
-async function listPackagePaths(root: string): Promise<string[]> {
-  const paths: string[] = [];
-  const pending: Array<{ absolute: string; relative: string }> = [
-    { absolute: root, relative: "" },
-  ];
-
-  while (pending.length > 0) {
-    const current = pending.pop();
-
-    if (current === undefined) {
-      continue;
-    }
-
-    for (const entry of await readdir(current.absolute, {
-      withFileTypes: true,
-    })) {
-      const relativePath =
-        current.relative === ""
-          ? entry.name
-          : `${current.relative}/${entry.name}`;
-
-      paths.push(relativePath);
-
-      if (entry.isDirectory()) {
-        pending.push({
-          absolute: join(current.absolute, entry.name),
-          relative: relativePath,
-        });
-      }
-    }
-  }
-
-  return paths.sort();
 }
 
 function assertList(
