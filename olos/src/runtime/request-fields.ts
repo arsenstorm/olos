@@ -3,6 +3,7 @@ import {
   isRecord as isValidationRecord,
   nonNegativeNumber as validationNonNegativeNumber,
   positiveNumber as validationPositiveNumber,
+  recordValue as validationRecordValue,
 } from "../validation/fields";
 import {
   assertNonNegativeInteger,
@@ -13,6 +14,12 @@ import { optionalField } from "./optional-field";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return isValidationRecord(value);
+}
+
+export function recordValue(
+  value: unknown
+): Record<string, unknown> | undefined {
+  return validationRecordValue(value);
 }
 
 export function stringField(

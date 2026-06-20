@@ -1,6 +1,6 @@
 import type { UploadEventNormalization } from "../state/observed-upload";
 import { normalizeUploadEvent } from "../state/observed-upload";
-import { isRecord } from "../validation/fields";
+import { recordValue } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import { assertS3BucketName } from "./bucket";
@@ -24,7 +24,7 @@ export interface NormalizeS3ObjectCreatedEventsOptions {
 export function normalizeS3ObjectCreatedEvents(
   options: NormalizeS3ObjectCreatedEventsOptions
 ): readonly UploadEventNormalization[] {
-  const payload = asRecord(options.payload);
+  const payload = recordValue(options.payload);
   const records = Array.isArray(payload?.Records) ? payload.Records : undefined;
 
   if (records === undefined) {
@@ -55,10 +55,10 @@ export function normalizeS3ObjectCreatedEventRecord(
     return invalidS3Event("expectedBucket is invalid");
   }
 
-  const record = asRecord(options.record);
-  const s3 = asRecord(record?.s3);
-  const bucket = asRecord(s3?.bucket);
-  const object = asRecord(s3?.object);
+  const record = recordValue(options.record);
+  const s3 = recordValue(record?.s3);
+  const bucket = recordValue(s3?.bucket);
+  const object = recordValue(s3?.object);
 
   if (record === undefined || bucket === undefined || object === undefined) {
     return invalidS3Event("s3 event record is invalid");
@@ -120,7 +120,7 @@ function eventId(
   object: Record<string, unknown>
 ): string | undefined {
   const requestId = stringValue(
-    asRecord(record.responseElements)?.["x-amz-request-id"]
+    recordValue(record.responseElements)?.["x-amz-request-id"]
   );
 
   if (requestId !== undefined) {
@@ -166,10 +166,6 @@ function isS3BucketName(value: unknown): boolean {
   } catch {
     return false;
   }
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return isRecord(value) ? value : undefined;
 }
 
 function stringValue(value: unknown): string | undefined {

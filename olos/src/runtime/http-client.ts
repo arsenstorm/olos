@@ -1,5 +1,8 @@
 import { optionalField } from "./optional-field";
-import { isRecord as requestFieldIsRecord } from "./request-fields";
+import {
+  recordValue,
+  isRecord as requestFieldIsRecord,
+} from "./request-fields";
 
 export const isRecord = requestFieldIsRecord;
 
@@ -54,11 +57,7 @@ export function optionalRecordField(
   value: unknown,
   field: string
 ): Record<string, unknown> | undefined {
-  if (!(isRecord(value) && isRecord(value[field]))) {
-    return;
-  }
-
-  return value[field];
+  return recordValue(recordValue(value)?.[field]);
 }
 
 export function optionalRecordPayload<Field extends string, T>(

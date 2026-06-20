@@ -13,6 +13,7 @@ import {
   isRecord,
   nonNegativeNumber,
   positiveNumber,
+  recordValue,
 } from "./fields";
 
 describe("validation field helpers", () => {
@@ -20,6 +21,8 @@ describe("validation field helpers", () => {
     expect(isRecord({ ok: true })).toBe(true);
     expect(isRecord([])).toBe(false);
     expect(isRecord(null)).toBe(false);
+    expect(recordValue({ ok: true })).toEqual({ ok: true });
+    expect(recordValue([])).toBeUndefined();
   });
 
   test("field assertions accept valid values", () => {
