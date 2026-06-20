@@ -5,6 +5,8 @@ import {
   HLS_RELATIVE_REQUEST_BASE_URL,
 } from "./uri";
 
+const mediaOrigin = "https://media.example.com";
+
 describe("HLS URI helpers", () => {
   test("validates safe relative paths", () => {
     expect(() =>
@@ -28,7 +30,7 @@ describe("HLS URI helpers", () => {
     expect(() =>
       assertSafeMediaUri(
         "https://media.example.com/live/3810.m4s",
-        { allowedMediaOrigins: ["https://media.example.com"] },
+        { allowedMediaOrigins: [mediaOrigin] },
         "uri"
       )
     ).not.toThrow();

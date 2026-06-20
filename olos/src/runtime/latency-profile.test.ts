@@ -9,6 +9,8 @@ import {
   createRuntimeObjectLowLatencyPublisherOptions,
 } from "./latency-profile";
 
+const mediaOrigin = "https://media.example.com";
+
 const committedWindow: CommittedWindow = {
   discontinuitySequence: 0,
   epoch: 1,
@@ -97,7 +99,7 @@ describe("runtime latency profile", () => {
   test("renders manifests with object low-latency hold-backs", () => {
     const options = createRuntimeObjectLowLatencyManifestOptions();
     const artifacts = createHlsManifestArtifacts(session, committedWindow, {
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [mediaOrigin],
       ...options.manifest,
     });
     const media = artifacts.find((artifact) =>

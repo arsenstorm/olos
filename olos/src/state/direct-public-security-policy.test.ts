@@ -7,6 +7,8 @@ import {
   resolveDirectPublicMediaRequestPolicy,
 } from "./direct-public-security-policy";
 
+const mediaOrigin = "https://media.example.com";
+
 const capability: ProviderCapabilityDocument = {
   consistency: {
     headAfterCreate: "strong",
@@ -16,7 +18,7 @@ const capability: ProviderCapabilityDocument = {
     documentNavigationCanBeBlocked: true,
     immutableCaching: true,
     negativeCachingPolicyDeclared: true,
-    publicBaseUrl: "https://media.example.com/live",
+    publicBaseUrl: `${mediaOrigin}/live`,
   },
   kind: "object-store",
   olos: "1.0",
@@ -46,7 +48,7 @@ describe("direct-public security policy", () => {
         targetLatencySeconds: 3,
       })
     ).toEqual({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [mediaOrigin],
       allowedMediaExtensions: [".m4s", ".mp4"],
       forbiddenResponseHeaders: ["set-cookie"],
       manifestCachePolicy: {
