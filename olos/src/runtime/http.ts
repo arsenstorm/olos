@@ -15,6 +15,10 @@ import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
 import { positiveAttempts } from "./attempts";
+import {
+  isSuccessfulCommitStatus,
+  type SuccessfulCommitStatus,
+} from "./commit-status";
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { errorMessage } from "./errors";
 import { resolveRuntimeLiveHealthFromState } from "./health";
@@ -49,10 +53,6 @@ const DEFAULT_MAX_HEALTH_CURSOR_AGE_MS =
 const DEFAULT_PUBLISHER_LEASE_TTL_MS = 3000;
 const DEFAULT_SESSION_PATH = "/sessions";
 const DEFAULT_TARGET_LATENCY = 3;
-const SUCCESSFUL_RUNTIME_COMMIT_STATUSES = ["committed", "idempotent"] as const;
-
-type SuccessfulRuntimeCommitStatus =
-  (typeof SUCCESSFUL_RUNTIME_COMMIT_STATUSES)[number];
 
 interface InvalidRuntimeHttpRequestParse {
   message: string;
@@ -416,8 +416,8 @@ function isSuccessfulRuntimeCommitResult<
   >,
 >(
   result: Result
-): result is Extract<Result, { status: SuccessfulRuntimeCommitStatus }> {
-  return isStringLiteral(result.status, SUCCESSFUL_RUNTIME_COMMIT_STATUSES);
+): result is Extract<Result, { status: SuccessfulCommitStatus }> {
+  return isSuccessfulCommitStatus(result.status);
 }
 
 async function handleLiveRoute(

@@ -11,6 +11,10 @@ import {
   type RuntimeSlotIssuePayload,
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
+import {
+  isSuccessfulCommitStatus,
+  type SuccessfulCommitStatus,
+} from "../runtime/commit-status";
 import { errorMessage } from "../runtime/errors";
 import { optionalField } from "../runtime/optional-field";
 import { rejectionStatusCode } from "../runtime/rejection-status";
@@ -33,7 +37,6 @@ import {
 } from "../runtime/request-fields";
 import { jsonErrorResponse, jsonResponse } from "../runtime/response";
 import { routeParts } from "../runtime/route";
-import { isStringLiteral } from "../runtime/string-literals";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosErrorCode } from "../types/errors";
@@ -66,10 +69,6 @@ import {
 } from "./retention";
 
 const DEFAULT_SESSION_PATH = "/sessions";
-const SUCCESSFUL_S3_MUTATION_STATUSES = ["committed", "idempotent"] as const;
-
-type SuccessfulS3MutationStatus =
-  (typeof SUCCESSFUL_S3_MUTATION_STATUSES)[number];
 
 interface InvalidS3HttpRequestParse {
   message: string;
@@ -899,8 +898,8 @@ function conflict(): Response {
 
 function isSuccessfulS3MutationResult<Result extends { status: string }>(
   result: Result
-): result is Extract<Result, { status: SuccessfulS3MutationStatus }> {
-  return isStringLiteral(result.status, SUCCESSFUL_S3_MUTATION_STATUSES);
+): result is Extract<Result, { status: SuccessfulCommitStatus }> {
+  return isSuccessfulCommitStatus(result.status);
 }
 
 function eventRouteResult(
