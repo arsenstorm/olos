@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { S3Client } from "@aws-sdk/client-s3";
 import type { UploadSlot } from "../types/upload-slot";
+import { invalidStringMapFixture } from "../validation/test-string-map.test-helper";
 import { createTestS3Client } from "./test-client.test-helper";
 import {
   createPresignedS3UploadGrant,
@@ -158,9 +159,9 @@ describe("s3 upload grants", () => {
     ).rejects.toThrow("now must be a valid timestamp");
     await expect(
       createPresignedS3UploadGrant({
-        additionalHeaders: {
+        additionalHeaders: invalidStringMapFixture({
           "x-provider-checksum": 123,
-        } as unknown as Record<string, string>,
+        }),
         bucket: S3_BUCKET,
         client: createTestS3Client(),
         expiresInSeconds: S3_GRANT_TTL_SECONDS,
@@ -336,7 +337,7 @@ describe("s3 upload grants", () => {
   test("rejects malformed S3 additional headers", () => {
     expect(() =>
       createS3UploadGrant({
-        additionalHeaders: null as unknown as Record<string, string>,
+        additionalHeaders: invalidStringMapFixture(null),
         presignedUrl:
           "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
         slot,

@@ -5,6 +5,7 @@ import {
   type ObservedUpload,
   observedUploadMatchesSlot,
 } from "./observed-upload";
+import { invalidStringMapFixture } from "./test-string-map.test-helper";
 
 const slot: UploadSlot = {
   contentType: "video/mp4",
@@ -152,9 +153,9 @@ describe("observed upload validation", () => {
       assertObservedUploadMatchesSlot({
         object: {
           ...object,
-          metadata: {
+          metadata: invalidStringMapFixture({
             checksum: 123,
-          } as unknown as Record<string, string>,
+          }),
         },
         slot,
       })

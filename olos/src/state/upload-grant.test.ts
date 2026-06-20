@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { UploadSlot } from "../types/upload-slot";
+import { invalidStringMapFixture } from "../validation/test-string-map.test-helper";
 import { createUploadGrant } from "./upload-grant";
 
 const slot: UploadSlot = {
@@ -98,16 +99,16 @@ describe("upload grant builder", () => {
   test("rejects malformed additional headers", () => {
     expect(() =>
       createUploadGrant({
-        additionalHeaders: null as unknown as Record<string, string>,
+        additionalHeaders: invalidStringMapFixture(null),
         slot,
         url: "https://storage.example.com/upload/signed",
       })
     ).toThrow("additionalHeaders must be a string map");
     expect(() =>
       createUploadGrant({
-        additionalHeaders: {
+        additionalHeaders: invalidStringMapFixture({
           "x-provider-checksum": 123,
-        } as unknown as Record<string, string>,
+        }),
         slot,
         url: "https://storage.example.com/upload/signed",
       })

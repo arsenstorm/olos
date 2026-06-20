@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { UploadSlot } from "../types/upload-slot";
+import { invalidStringMapFixture } from "../validation/test-string-map.test-helper";
 import {
   createObservedUpload,
   createObservedUploadFromHeadObject,
@@ -84,9 +85,9 @@ describe("observed upload builder", () => {
     expect(() =>
       createObservedUpload({
         contentType: "video/mp4",
-        metadata: {
+        metadata: invalidStringMapFixture({
           checksum: 123,
-        } as unknown as Record<string, string>,
+        }),
         objectKey: "media/session/v1080/3810.m4s",
         observedAt: "2026-01-01T00:00:01.000Z",
         providerId: "s3_primary",
