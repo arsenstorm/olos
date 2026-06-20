@@ -10,6 +10,7 @@ import {
 } from "../protocol/coordinator-state.test-helper";
 import { createRuntimeSession, type RuntimeFetch } from "../runtime";
 import { runtimeFetchFor } from "../runtime/test-fetch.test-helper";
+import { jsonErrorTestResponse } from "../runtime/test-http.test-helper";
 import {
   applyS3RuntimeRetention,
   commitS3RuntimeUpload,
@@ -134,12 +135,7 @@ describe("S3 runtime HTTP client", () => {
 
   test("throws typed errors for failed S3 runtime responses", async () => {
     const clientFetch: RuntimeFetch = () =>
-      Promise.resolve(
-        new Response(JSON.stringify({ error: { message: "missing" } }), {
-          headers: { "content-type": "application/json" },
-          status: 404,
-        })
-      );
+      Promise.resolve(jsonErrorTestResponse("missing", 404));
 
     const grantError = issueS3RuntimeUploadGrant({
       baseUrl: RUNTIME_BASE_URL,

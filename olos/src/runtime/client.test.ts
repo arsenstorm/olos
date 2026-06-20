@@ -19,6 +19,10 @@ import {
 } from "./client";
 import { createStoredCoordinatorRuntimeHandler } from "./http";
 import { runtimeFetchFor } from "./test-fetch.test-helper";
+import {
+  jsonErrorTestResponse,
+  jsonPostRequest,
+} from "./test-http.test-helper";
 
 const MEDIA_ORIGIN = "https://media.example.com";
 const RUNTIME_BASE_URL = "https://edge.example.com";
@@ -110,10 +114,9 @@ describe("runtime HTTP client", () => {
     const clientFetch = runtimeFetchFor(handle);
 
     await handle(
-      new Request("https://edge.example.com/sessions", {
-        body: JSON.stringify({ pathways, session }),
-        headers: { "content-type": "application/json" },
-        method: "POST",
+      jsonPostRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
       })
     );
 
@@ -246,12 +249,7 @@ describe("runtime HTTP client", () => {
 
   test("throws for failed runtime responses", async () => {
     const clientFetch: RuntimeFetch = () =>
-      Promise.resolve(
-        new Response(JSON.stringify({ error: { message: "missing" } }), {
-          headers: { "content-type": "application/json" },
-          status: 404,
-        })
-      );
+      Promise.resolve(jsonErrorTestResponse("missing", 404));
 
     const heartbeatError = sendRuntimePublisherHeartbeat({
       baseUrl: RUNTIME_BASE_URL,

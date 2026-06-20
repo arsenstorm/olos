@@ -9,6 +9,7 @@ import { createPublicationKillSwitch } from "../state";
 import type { Cursor } from "../types/cursor";
 import { createMemoryRuntimeCursorNotifier } from "./cursor-notifier";
 import { createStoredCoordinatorRuntimeHandler } from "./http";
+import { jsonPostRequest } from "./test-http.test-helper";
 
 const MEDIA_ORIGIN = "https://media.example.com";
 
@@ -828,11 +829,7 @@ function commitPayload(options: CommitPayloadOptions) {
 }
 
 function jsonRequest(url: string, body: unknown): Request {
-  return new Request(url, {
-    body: JSON.stringify(body),
-    headers: { "content-type": "application/json" },
-    method: "POST",
-  });
+  return jsonPostRequest(url, body);
 }
 
 async function seedRuntimeStore(

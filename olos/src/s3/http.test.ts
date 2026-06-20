@@ -16,6 +16,7 @@ import {
   testCoordinatorPathways as pathways,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
+import { jsonPostRequest } from "../runtime/test-http.test-helper";
 import { createObservedUpload, createPublicationKillSwitch } from "../state";
 import type { Cursor } from "../types/cursor";
 import {
@@ -2905,11 +2906,7 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
 }
 
 function jsonRequest(url: string, body: unknown): Request {
-  return new Request(url, {
-    body: JSON.stringify(body),
-    headers: { "content-type": "application/json" },
-    method: "POST",
-  });
+  return jsonPostRequest(url, body);
 }
 
 function s3Event(objectKey: string, bucket = "media") {
