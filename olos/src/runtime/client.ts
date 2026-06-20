@@ -4,7 +4,6 @@ import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
-import { hasControlCharacter } from "../validation/fields";
 import type { RuntimeCommitPayload } from "./commit";
 import type { RuntimeLiveHealth } from "./health";
 import {
@@ -19,12 +18,10 @@ import {
   requiredStringField,
   responseBody,
 } from "./http-client";
-import { trimSlashes } from "./path";
+import { normalizedSafeRelativePath } from "./path";
 import type { RuntimePublisherLease } from "./publisher-lease";
 import { nonNegativeInteger } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
-
-const URL_SCHEME_PREFIX = /^[A-Za-z][A-Za-z\d+.-]*:/;
 
 export type RuntimeFetch = RuntimeHttpFetch;
 
@@ -339,33 +336,11 @@ function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
 }
 
 function liveUrl(options: RuntimeMasterPlaylistOptions, path: string): URL {
-  const livePath = normalizedLivePath(options.livePath ?? "v1/live");
+  const livePath = normalizedSafeRelativePath(
+    options.livePath ?? "v1/live",
+    "livePath"
+  );
   return new URL(`${livePath}/${path}`, normalizedBaseUrl(options.baseUrl));
-}
-
-function normalizedLivePath(value: string): string {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    value.startsWith("//") ||
-    value.includes("?") ||
-    value.includes("#") ||
-    hasControlCharacter(value) ||
-    URL_SCHEME_PREFIX.test(value)
-  ) {
-    throw new Error("livePath must be a safe relative path");
-  }
-
-  const path = trimSlashes(value);
-
-  if (
-    path.length === 0 ||
-    path.split("/").some((segment) => segment === "." || segment === "..")
-  ) {
-    throw new Error("livePath must be a safe relative path");
-  }
-
-  return path;
 }
 
 async function runtimeHttpError(
