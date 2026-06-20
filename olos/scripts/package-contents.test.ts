@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { assertInstalledPackageContents } from "./package-contents";
 import { withTemporaryDirectory } from "./test-temp-dir";
 
+const privatePackageRoots = ["e2e", "fixtures", "live", "scripts", "src"];
+
 describe("package contents verifier", () => {
   test("accepts the intended package root", async () => {
     await withPackageRoot(async (root) => {
@@ -16,16 +18,18 @@ describe("package contents verifier", () => {
     });
   });
 
-  test("rejects private source roots", async () => {
-    await withPackageRoot(async (root) => {
-      await mkdir(join(root, "live"));
-      await writeFile(join(root, "live", "s3.test.ts"), "");
+  for (const privateRoot of privatePackageRoots) {
+    test(`rejects private ${privateRoot} roots`, async () => {
+      await withPackageRoot(async (root) => {
+        await mkdir(join(root, privateRoot));
+        await writeFile(join(root, privateRoot, "fixture.txt"), "");
 
-      await expect(assertInstalledPackageContents(root)).rejects.toThrow(
-        "package root entries mismatch"
-      );
+        await expect(assertInstalledPackageContents(root)).rejects.toThrow(
+          "package root entries mismatch"
+        );
+      });
     });
-  });
+  }
 
   test("rejects test files inside published roots", async () => {
     await withPackageRoot(async (root) => {
