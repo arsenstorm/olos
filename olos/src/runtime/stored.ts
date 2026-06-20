@@ -275,18 +275,14 @@ function isSavedCoordinatorStoreResult(
   return result.status === "saved";
 }
 
-function requestForAttempt<RequestType extends RuntimeCommitRequest>(
-  request: RequestType
-): RequestType;
-function requestForAttempt<RequestType extends RuntimeSlotIssueRequest>(
-  request: RequestType
-): RequestType;
-function requestForAttempt<RequestType extends Request | object>(
-  request: RequestType
-): RequestType {
-  return request instanceof Request
-    ? (request.clone() as RequestType)
-    : request;
+function requestForAttempt(request: RuntimeCommitRequest): RuntimeCommitRequest;
+function requestForAttempt(
+  request: RuntimeSlotIssueRequest
+): RuntimeSlotIssueRequest;
+function requestForAttempt(
+  request: RuntimeCommitRequest | RuntimeSlotIssueRequest
+): RuntimeCommitRequest | RuntimeSlotIssueRequest {
+  return request instanceof Request ? new Request(request) : request;
 }
 
 function notFound(): StoredRuntimeMutation {
