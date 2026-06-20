@@ -23,7 +23,7 @@ import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { errorMessage } from "./errors";
 import { resolveRuntimeLiveHealthFromState } from "./health";
 import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
-import { hasControlCharacter } from "./path";
+import { hasControlCharacter, trimSlashes } from "./path";
 import {
   isRecord,
   nonNegativeNumber,
@@ -150,7 +150,7 @@ function assertRoutePath(value: string, name: string): void {
     throw new Error(`${name} must not contain query strings or fragments`);
   }
 
-  if (trimRouteSlashes(value).split("/").some(isUnsafeRouteSegment)) {
+  if (trimSlashes(value).split("/").some(isUnsafeRouteSegment)) {
     throw new Error(`${name} must be a safe route path`);
   }
 }
@@ -168,10 +168,6 @@ function assertNonNegativeOption(
   if (value !== undefined) {
     nonNegativeNumber(value, name);
   }
-}
-
-function trimRouteSlashes(value: string): string {
-  return value.replace(/^\/+|\/+$/g, "");
 }
 
 function isUnsafeRouteSegment(segment: string): boolean {
