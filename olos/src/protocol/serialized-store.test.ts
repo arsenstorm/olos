@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { assertCoordinatorPipelineStoreConformance } from "../conformance";
-import { createCoordinatorPipeline, issueCoordinatorSlot } from "./coordinator";
+import { issueCoordinatorSlot } from "./coordinator";
 import {
-  testCoordinatorPathways as pathways,
+  createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "./coordinator-state.test-helper";
 import {
@@ -84,7 +84,7 @@ describe("serialized coordinator store", () => {
   test("stores JSON snapshots with monotonic etags", async () => {
     const backend = createBackend();
     const store = createSerializedCoordinatorStore(backend);
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     const first = await store.save({
       sessionId: session.sessionId,
       state,
@@ -129,7 +129,7 @@ describe("serialized coordinator store", () => {
   test("returns the current snapshot when an insert races an existing row", async () => {
     const backend = createBackend();
     const store = createSerializedCoordinatorStore(backend);
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     const first = await store.save({
       sessionId: session.sessionId,
       state,
@@ -155,7 +155,7 @@ describe("serialized coordinator store", () => {
   test("returns the current snapshot when an expected-etag update is stale", async () => {
     const backend = createBackend();
     const store = createSerializedCoordinatorStore(backend);
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     const first = await store.save({
       sessionId: session.sessionId,
       state,
@@ -209,7 +209,7 @@ describe("serialized coordinator store", () => {
   test("rejects serialized records with mismatched etags", async () => {
     const backend = createBackend();
     const store = createSerializedCoordinatorStore(backend);
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     const saved = await store.save({
       sessionId: session.sessionId,
       state,

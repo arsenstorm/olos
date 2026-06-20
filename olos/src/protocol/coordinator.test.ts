@@ -8,7 +8,6 @@ import {
   cloneCoordinatorPipelineSnapshot,
   commitCoordinatorUpload,
   createCoordinatorManifestArtifacts,
-  createCoordinatorPipeline,
   createMemoryCoordinatorStore,
   createNextCoordinatorPipelineEtag,
   issueCoordinatorSlot,
@@ -19,14 +18,14 @@ import {
   serializeCoordinatorPipelineSnapshot,
 } from "./coordinator";
 import {
-  testCoordinatorPathways as pathways,
+  createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "./coordinator-state.test-helper";
 
 describe("coordinator pipeline", () => {
   test("saves and loads coordinator state snapshots", async () => {
     const store = createMemoryCoordinatorStore();
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     const saved = await store.save({
       sessionId: session.sessionId,
       state,
@@ -48,7 +47,7 @@ describe("coordinator pipeline", () => {
 
   test("rejects stale coordinator state writes", async () => {
     const store = createMemoryCoordinatorStore();
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     const first = await store.save({
       sessionId: session.sessionId,
       state,
@@ -101,7 +100,7 @@ describe("coordinator pipeline", () => {
 
   test("rejects duplicate coordinator state inserts", async () => {
     const store = createMemoryCoordinatorStore();
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     const first = await store.save({
       sessionId: session.sessionId,
       state,
@@ -125,7 +124,7 @@ describe("coordinator pipeline", () => {
 
   test("rejects coordinator state updates for missing sessions", async () => {
     const store = createMemoryCoordinatorStore();
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     const result = await store.save({
       expectedEtag: "1",
       sessionId: session.sessionId,
@@ -137,7 +136,7 @@ describe("coordinator pipeline", () => {
 
   test("returns independent coordinator state snapshots", async () => {
     const store = createMemoryCoordinatorStore();
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -158,7 +157,7 @@ describe("coordinator pipeline", () => {
   test("clones coordinator snapshots for external stores", () => {
     const snapshot = {
       etag: "1",
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     };
     const cloned = cloneCoordinatorPipelineSnapshot(snapshot);
 
@@ -171,7 +170,7 @@ describe("coordinator pipeline", () => {
   test("serializes and parses coordinator snapshots", () => {
     const snapshot = {
       etag: "1",
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     };
     const serialized = serializeCoordinatorPipelineSnapshot(snapshot);
     const parsed = parseCoordinatorPipelineSnapshot(serialized);
@@ -182,7 +181,7 @@ describe("coordinator pipeline", () => {
   });
 
   test("parses coordinator snapshots without publisher leases", () => {
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     const parsed = parseCoordinatorPipelineSnapshot({
       etag: "1",
       state: {
@@ -201,14 +200,14 @@ describe("coordinator pipeline", () => {
     expect(() =>
       parseCoordinatorPipelineSnapshot({
         etag: "",
-        state: createCoordinatorPipeline({ pathways, session }),
+        state: createEmptyCoordinatorState(),
       })
     ).toThrow("coordinator pipeline snapshot etag must be a non-empty string");
     expect(() =>
       parseCoordinatorPipelineSnapshot({
         etag: "1",
         state: {
-          ...createCoordinatorPipeline({ pathways, session }),
+          ...createEmptyCoordinatorState(),
           commits: undefined,
         },
       })
@@ -225,7 +224,7 @@ describe("coordinator pipeline", () => {
 
   test("mutates stored coordinator state", async () => {
     const store = createMemoryCoordinatorStore();
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -274,7 +273,7 @@ describe("coordinator pipeline", () => {
 
   test("rejects invalid coordinator mutation attempt limits", async () => {
     const store = createMemoryCoordinatorStore();
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -300,7 +299,7 @@ describe("coordinator pipeline", () => {
 
   test("retries coordinator store conflicts with the latest state", async () => {
     const store = createMemoryCoordinatorStore();
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -378,7 +377,7 @@ describe("coordinator pipeline", () => {
   });
 
   test("issues slots, commits verified uploads, and advances trusted state", () => {
-    let state = createCoordinatorPipeline({ pathways, session });
+    let state = createEmptyCoordinatorState();
 
     const initIssue = issueCoordinatorSlot({
       contentType: "video/mp4",
@@ -482,7 +481,7 @@ describe("coordinator pipeline", () => {
   });
 
   test("commits uploads within configured late tolerance", () => {
-    let state = createCoordinatorPipeline({ pathways, session });
+    let state = createEmptyCoordinatorState();
     const issued = issueCoordinatorSlot({
       contentType: "video/mp4",
       deliveryUrl: "https://media.example.com/init.mp4",
@@ -519,7 +518,7 @@ describe("coordinator pipeline", () => {
   });
 
   test("revokes committed uploads before they are announced", () => {
-    let state = createCoordinatorPipeline({ pathways, session });
+    let state = createEmptyCoordinatorState();
     const issued = issueCoordinatorSlot({
       contentType: "video/mp4",
       deliveryUrl: "https://media.example.com/s3810.m4s",
@@ -580,7 +579,7 @@ describe("coordinator pipeline", () => {
   });
 
   test("rejects revocation after upload reaches the trusted cursor", () => {
-    let state = createCoordinatorPipeline({ pathways, session });
+    let state = createEmptyCoordinatorState();
 
     state = commitSlot(state, {
       commitId: "commit_init",
@@ -628,7 +627,7 @@ describe("coordinator pipeline", () => {
   });
 
   test("publishes low-latency parts before the full segment is committed", () => {
-    let state = createCoordinatorPipeline({ pathways, session });
+    let state = createEmptyCoordinatorState();
 
     state = commitSlot(state, {
       commitId: "commit_init",
@@ -716,7 +715,7 @@ describe("coordinator pipeline", () => {
   });
 
   test("derives manifest artifacts from the current cursor", () => {
-    let state = createCoordinatorPipeline({ pathways, session });
+    let state = createEmptyCoordinatorState();
 
     state = commitSlot(state, {
       commitId: "commit_init",
@@ -773,7 +772,7 @@ describe("coordinator pipeline", () => {
   });
 
   test("plans retention from coordinator state", () => {
-    let state = createCoordinatorPipeline({ pathways, session });
+    let state = createEmptyCoordinatorState();
 
     state = commitSlot(state, {
       commitId: "commit_init",
@@ -860,7 +859,7 @@ describe("coordinator pipeline", () => {
   });
 
   test("rejects uploads for unknown slots", () => {
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
     const result = commitCoordinatorUpload({
       commitId: "commit_unknown",
       committedAt: "2026-01-01T00:00:02.000Z",
@@ -897,7 +896,7 @@ describe("coordinator pipeline", () => {
       publisherInstanceId: "pub_1",
       renditionId: "v1080",
       slotId: "slot_3810",
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     }).state;
     const result = commitCoordinatorUpload({
       commitId: "commit_3810",
@@ -938,7 +937,7 @@ describe("coordinator pipeline", () => {
 
   test("blocks publication while the kill switch is active", () => {
     const policy = createPublicationKillSwitch("incident");
-    const state = createCoordinatorPipeline({ pathways, session });
+    const state = createEmptyCoordinatorState();
 
     expect(() =>
       issueCoordinatorSlot({
