@@ -264,11 +264,11 @@ export function resolveUploadEvidence(
 export function normalizeUploadEvent(
   options: NormalizeUploadEventOptions
 ): UploadEventNormalization {
-  const event = options.event as Record<string, unknown> | null;
-
-  if (event === null || typeof event !== "object") {
+  if (!isObjectLikeRecord(options.event)) {
     return invalidUploadEvent("upload event must be an object");
   }
+
+  const event = options.event;
 
   try {
     if (event.eventType === OBJECT_CREATED_EVENT_TYPE) {
@@ -360,6 +360,10 @@ function errorMessage(error: unknown): string {
   }
 
   return "upload event is invalid";
+}
+
+function isObjectLikeRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object";
 }
 
 function assertObjectCreatedEvent(
