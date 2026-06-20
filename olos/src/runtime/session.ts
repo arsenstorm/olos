@@ -19,7 +19,7 @@ import {
   refreshRuntimePublisherHeartbeat,
 } from "./publisher-lease";
 import { positiveNumber, timestampMs } from "./request-fields";
-import { jsonResponse } from "./response";
+import { jsonErrorResponse, jsonResponse } from "./response";
 import { isStringLiteral } from "./string-literals";
 
 export interface CreateStoredCoordinatorSessionOptions {
@@ -312,10 +312,7 @@ function isStoredSessionConflictSource(
 
 function notFound(): StoredRuntimeSessionMutation {
   return {
-    response: jsonResponse(
-      { error: { message: "coordinator session was not found" } },
-      404
-    ),
+    response: jsonErrorResponse("coordinator session was not found", 404),
     status: "not_found",
   };
 }
@@ -325,8 +322,8 @@ function conflict(
 ): StoredRuntimeSessionMutation {
   return {
     ...(current === undefined ? {} : { current }),
-    response: jsonResponse(
-      { error: { message: "coordinator session changed during mutation" } },
+    response: jsonErrorResponse(
+      "coordinator session changed during mutation",
       409
     ),
     status: "conflict",

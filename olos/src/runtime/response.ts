@@ -4,3 +4,7 @@ export function jsonResponse(body: unknown, status: number): Response {
     status,
   });
 }
+
+export function jsonErrorResponse(message: string, status: number): Response {
+  return jsonResponse({ error: { message } }, status);
+}

@@ -17,7 +17,7 @@ import {
   serveBlockingCoordinatorManifest,
   serveCoordinatorManifest,
 } from "./manifest";
-import { jsonResponse } from "./response";
+import { jsonErrorResponse } from "./response";
 import {
   issueCoordinatorSlotFromRequest,
   type RuntimeCoordinatorSlotIssue,
@@ -287,10 +287,7 @@ function requestForAttempt(
 
 function notFound(): StoredRuntimeMutation {
   return {
-    response: jsonResponse(
-      { error: { message: "coordinator session was not found" } },
-      404
-    ),
+    response: jsonErrorResponse("coordinator session was not found", 404),
     status: "not_found",
   };
 }
@@ -307,8 +304,8 @@ function conflict(
 ): StoredRuntimeMutation {
   return {
     ...(current === undefined ? {} : { current }),
-    response: jsonResponse(
-      { error: { message: "coordinator session changed during mutation" } },
+    response: jsonErrorResponse(
+      "coordinator session changed during mutation",
       409
     ),
     status: "conflict",

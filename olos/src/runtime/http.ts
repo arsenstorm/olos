@@ -27,7 +27,7 @@ import {
   stringField,
   urlSafeIdentifierField,
 } from "./request-fields";
-import { jsonResponse } from "./response";
+import { jsonErrorResponse, jsonResponse } from "./response";
 import { planStoredCoordinatorRetention } from "./retention";
 import { routeParts } from "./route";
 import {
@@ -602,20 +602,17 @@ function invalid(message: string): InvalidRuntimeHttpRequestParse {
 }
 
 function badRequest(message: string): Response {
-  return jsonResponse({ error: { message } }, 400);
+  return jsonErrorResponse(message, 400);
 }
 
 function methodNotAllowed(): Response {
-  return jsonResponse({ error: { message: "method not allowed" } }, 405);
+  return jsonErrorResponse("method not allowed", 405);
 }
 
 function notFound(): Response {
-  return jsonResponse({ error: { message: "route not found" } }, 404);
+  return jsonErrorResponse("route not found", 404);
 }
 
 function sessionNotFound(): Response {
-  return jsonResponse(
-    { error: { message: "coordinator session was not found" } },
-    404
-  );
+  return jsonErrorResponse("coordinator session was not found", 404);
 }

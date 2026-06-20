@@ -25,7 +25,7 @@ import {
   stringField,
   urlSafeIdentifierField,
 } from "./request-fields";
-import { jsonResponse } from "./response";
+import { jsonErrorResponse, jsonResponse } from "./response";
 
 export type RuntimeSlotIssueRequest = Request | RuntimeSlotIssuePayload;
 
@@ -156,7 +156,7 @@ function parsePayload(value: unknown): RuntimeSlotIssuePayload {
 function invalid(message: string): InvalidRuntimeCoordinatorSlotIssue {
   return {
     message,
-    response: jsonResponse({ error: { message } }, 400),
+    response: jsonErrorResponse(message, 400),
     status: "invalid",
   };
 }

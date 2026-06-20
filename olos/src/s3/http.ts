@@ -31,7 +31,7 @@ import {
   timestampField,
   urlSafeIdentifierField,
 } from "../runtime/request-fields";
-import { jsonResponse } from "../runtime/response";
+import { jsonErrorResponse, jsonResponse } from "../runtime/response";
 import { routeParts } from "../runtime/route";
 import { isStringLiteral } from "../runtime/string-literals";
 import type { Commit } from "../types/commit";
@@ -910,25 +910,19 @@ function routeSessionIdError(sessionId: string): string | undefined {
 }
 
 function badRequest(message: string): Response {
-  return jsonResponse({ error: { message } }, 400);
+  return jsonErrorResponse(message, 400);
 }
 
 function methodNotAllowed(): Response {
-  return jsonResponse({ error: { message: "method not allowed" } }, 405);
+  return jsonErrorResponse("method not allowed", 405);
 }
 
 function notFound(): Response {
-  return jsonResponse(
-    { error: { message: "coordinator session was not found" } },
-    404
-  );
+  return jsonErrorResponse("coordinator session was not found", 404);
 }
 
 function conflict(): Response {
-  return jsonResponse(
-    { error: { message: "coordinator session changed during mutation" } },
-    409
-  );
+  return jsonErrorResponse("coordinator session changed during mutation", 409);
 }
 
 function isSuccessfulS3MutationResult<Result extends { status: string }>(

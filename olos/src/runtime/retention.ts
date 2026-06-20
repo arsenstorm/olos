@@ -7,7 +7,7 @@ import type { OlosId } from "../types/ids";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { errorMessage } from "./errors";
 import { timestampMs } from "./request-fields";
-import { jsonResponse } from "./response";
+import { jsonErrorResponse, jsonResponse } from "./response";
 
 export interface DeleteRetiredCoordinatorObjectsOptions {
   deleteObject(object: RetiredCoordinatorObjectDeletion): Promise<void> | void;
@@ -104,10 +104,7 @@ export async function planStoredCoordinatorRetention(
 
   if (snapshot === undefined) {
     return {
-      response: jsonResponse(
-        { error: { message: "coordinator session was not found" } },
-        404
-      ),
+      response: jsonErrorResponse("coordinator session was not found", 404),
       status: "not_found",
     };
   }

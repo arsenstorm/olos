@@ -24,7 +24,7 @@ import {
   timestampField,
   urlSafeIdentifierField,
 } from "./request-fields";
-import { jsonResponse } from "./response";
+import { jsonErrorResponse, jsonResponse } from "./response";
 
 export type RuntimeCommitRequest = Request | RuntimeCommitPayload;
 
@@ -185,7 +185,7 @@ function parseObjectPayload(value: unknown): RuntimeObservedUploadPayload {
 function invalid(message: string): InvalidRuntimeCoordinatorUploadCommit {
   return {
     message,
-    response: jsonResponse({ error: { message } }, 400),
+    response: jsonErrorResponse(message, 400),
     status: "invalid",
   };
 }
