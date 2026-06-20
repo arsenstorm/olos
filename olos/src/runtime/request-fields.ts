@@ -1,4 +1,5 @@
 import {
+  isAllowedString,
   isRecord as isValidationRecord,
   nonNegativeNumber as validationNonNegativeNumber,
   positiveNumber as validationPositiveNumber,
@@ -235,11 +236,4 @@ export function timestampMs(value: Date | string, name: string): number {
   }
 
   return timestamp;
-}
-
-function isAllowedString<const Allowed extends readonly string[]>(
-  value: string,
-  allowed: Allowed
-): value is Allowed[number] {
-  return allowed.some((entry) => entry === value);
 }

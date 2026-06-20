@@ -140,7 +140,7 @@ export function assertAbsoluteHttpUrl(value: unknown, name: string): void {
   }
 }
 
-function isAllowedString<const T extends readonly string[]>(
+export function isAllowedString<const T extends readonly string[]>(
   value: unknown,
   allowed: T
 ): value is T[number] {
