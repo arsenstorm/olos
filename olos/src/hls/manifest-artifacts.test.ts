@@ -12,6 +12,8 @@ import {
   resolveHlsManifestArtifactResponse,
 } from "./manifest-artifacts";
 
+const MEDIA_ORIGIN = "https://media.example.com";
+
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
   epoch: 1,
@@ -136,7 +138,7 @@ const advancedCursor: Cursor = {
 describe("HLS manifest artifacts", () => {
   test("creates a master playlist artifact and media playlist artifacts", () => {
     const artifacts = createHlsManifestArtifacts(session, committedWindow, {
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       partTarget: session.partTarget,
       segmentTarget: session.segmentTarget,
     });
@@ -165,7 +167,7 @@ describe("HLS manifest artifacts", () => {
 
   test("supports custom safe playlist paths", () => {
     const artifacts = createHlsManifestArtifacts(session, committedWindow, {
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       masterPath: "/live/session_1/index.m3u8",
       mediaPlaylistPath: (_session, rendition) =>
         `/live/session_1/${rendition.renditionId}.m3u8`,
@@ -183,7 +185,7 @@ describe("HLS manifest artifacts", () => {
   test("rejects unsafe artifact paths", () => {
     expect(() =>
       createHlsManifestArtifacts(session, committedWindow, {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         masterPath: "master.m3u8",
         partTarget: session.partTarget,
         segmentTarget: session.segmentTarget,
@@ -193,7 +195,7 @@ describe("HLS manifest artifacts", () => {
 
   test("creates HTTP response metadata for manifest artifacts", () => {
     const [artifact] = createHlsManifestArtifacts(session, committedWindow, {
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       partTarget: session.partTarget,
       segmentTarget: session.segmentTarget,
     });
@@ -214,7 +216,7 @@ describe("HLS manifest artifacts", () => {
 
   test("creates a web response from manifest response metadata", async () => {
     const [artifact] = createHlsManifestArtifacts(session, committedWindow, {
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       partTarget: session.partTarget,
       segmentTarget: session.segmentTarget,
     });
@@ -261,7 +263,7 @@ describe("HLS manifest artifacts", () => {
 
   test("keeps manifest response freshness within target latency", () => {
     const [artifact] = createHlsManifestArtifacts(session, committedWindow, {
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       partTarget: session.partTarget,
       segmentTarget: session.segmentTarget,
     });
@@ -282,7 +284,7 @@ describe("HLS manifest artifacts", () => {
 
   test("resolves manifest responses by request path", () => {
     const artifacts = createHlsManifestArtifacts(session, committedWindow, {
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       partTarget: session.partTarget,
       segmentTarget: session.segmentTarget,
     }).map((artifact) => ({
@@ -317,7 +319,7 @@ describe("HLS manifest artifacts", () => {
     const result = await resolveBlockingHlsManifestArtifactResponse({
       cursor,
       manifest: {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partTarget: session.partTarget,
         segmentTarget: session.segmentTarget,
       },
@@ -342,7 +344,7 @@ describe("HLS manifest artifacts", () => {
     const result = await resolveBlockingHlsManifestArtifactResponse({
       cursor,
       manifest: {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partTarget: session.partTarget,
         segmentTarget: session.segmentTarget,
       },
@@ -366,7 +368,7 @@ describe("HLS manifest artifacts", () => {
     const result = await resolveBlockingHlsManifestArtifactResponse({
       cursor,
       manifest: {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partTarget: session.partTarget,
         segmentTarget: session.segmentTarget,
       },
@@ -391,7 +393,7 @@ describe("HLS manifest artifacts", () => {
     const result = await resolveBlockingHlsManifestArtifactResponse({
       cursor,
       manifest: {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partTarget: session.partTarget,
         segmentTarget: session.segmentTarget,
       },
@@ -412,7 +414,7 @@ describe("HLS manifest artifacts", () => {
     const result = await resolveBlockingHlsManifestArtifactResponse({
       cursor,
       manifest: {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partTarget: session.partTarget,
         segmentTarget: session.segmentTarget,
       },
@@ -433,7 +435,7 @@ describe("HLS manifest artifacts", () => {
     const result = await resolveBlockingHlsManifestArtifactResponse({
       cursor,
       manifest: {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partTarget: session.partTarget,
         segmentTarget: session.segmentTarget,
       },
