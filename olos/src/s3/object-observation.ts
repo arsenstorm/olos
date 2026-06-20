@@ -2,12 +2,12 @@ import {
   HeadObjectCommand,
   type HeadObjectCommandOutput,
 } from "@aws-sdk/client-s3";
+import { timestampMs } from "../runtime/request-fields";
 import { createObservedUpload } from "../state/observed-upload";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { assertS3BucketName } from "./bucket";
-import { timestampMs } from "./timestamp";
 
 export interface S3HeadObjectClient {
   send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput>;

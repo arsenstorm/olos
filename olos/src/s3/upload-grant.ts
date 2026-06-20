@@ -1,5 +1,6 @@
 import { PutObjectCommand, type S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { timestampMs } from "../runtime/request-fields";
 import {
   assertAdditionalUploadHeaders,
   createUploadGrant,
@@ -9,7 +10,6 @@ import type { UploadSlot } from "../types/upload-slot";
 import { assertUploadSlot } from "../validation/upload-slot";
 import { assertS3BucketName } from "./bucket";
 import { assertPositiveExpiresInSeconds } from "./options";
-import { timestampMs } from "./timestamp";
 
 const S3_METADATA_HEADER_PREFIX = "x-amz-meta-olos-";
 
