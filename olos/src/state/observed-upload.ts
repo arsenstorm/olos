@@ -1,5 +1,6 @@
 import type { OlosError } from "../types/errors";
 import type { UploadSlot } from "../types/upload-slot";
+import { isOptionalHttpHeaderStringMap } from "../validation/http-header";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import {
@@ -279,7 +280,7 @@ export function normalizeUploadEvent(
           eventId: event.eventId as string,
           eventTime: event.eventTime as string,
           eventType: OBJECT_CREATED_EVENT_TYPE,
-          metadata: event.metadata as Record<string, string | undefined>,
+          metadata: optionalUploadEventMetadata(event.metadata),
           objectKey: event.objectKey as string,
           providerId: event.providerId as string,
           size: event.size as number,
@@ -364,6 +365,20 @@ function errorMessage(error: unknown): string {
 
 function isObjectLikeRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
+}
+
+function optionalUploadEventMetadata(
+  value: unknown
+): Record<string, string | undefined> | undefined {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!isOptionalHttpHeaderStringMap(value)) {
+    throw new Error("observedUpload.metadata must be a string map");
+  }
+
+  return value;
 }
 
 function assertObjectCreatedEvent(
