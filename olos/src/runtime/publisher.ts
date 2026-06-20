@@ -1,4 +1,8 @@
 import type { UploadSlot } from "../types/upload-slot";
+import {
+  assertNonNegativeSafeInteger,
+  assertPositiveSafeInteger,
+} from "../validation/ids";
 import type {
   RuntimeCommitPayload,
   RuntimeObservedUploadPayload,
@@ -369,17 +373,11 @@ function isIssuedRuntimePublisherIssueResult(
 }
 
 function nonNegativeInteger(value: number, name: string): number {
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new Error(`${name} must be a non-negative integer`);
-  }
-
+  assertNonNegativeSafeInteger(value, name);
   return value;
 }
 
 function positiveInteger(value: number, name: string): number {
-  if (!Number.isSafeInteger(value) || value <= 0) {
-    throw new Error(`${name} must be a positive integer`);
-  }
-
+  assertPositiveSafeInteger(value, name);
   return value;
 }

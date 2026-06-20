@@ -2,6 +2,10 @@ import type {
   CreateHlsManifestArtifactResponseOptions,
   CreateHlsManifestArtifactsOptions,
 } from "../hls/manifest-artifacts";
+import {
+  isNonNegativeSafeInteger,
+  isPositiveSafeInteger,
+} from "../validation/ids";
 import { optionalField } from "./optional-field";
 import type {
   RuntimePublisherObjectKindDefaults,
@@ -142,17 +146,13 @@ function publisherObjectDefaults(options: {
 
   positiveNumber(options.duration, "duration");
 
-  if (
-    !Number.isSafeInteger(options.object.maxBytes) ||
-    options.object.maxBytes <= 0
-  ) {
+  if (!isPositiveSafeInteger(options.object.maxBytes)) {
     throw new Error("maxBytes must be a positive integer");
   }
 
   if (
     options.object.minBytes !== undefined &&
-    (!Number.isSafeInteger(options.object.minBytes) ||
-      options.object.minBytes < 0 ||
+    (!isNonNegativeSafeInteger(options.object.minBytes) ||
       options.object.minBytes > options.object.maxBytes)
   ) {
     throw new Error("minBytes must be a non-negative integer up to maxBytes");

@@ -37,6 +37,7 @@ import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
 import { isRecord } from "../validation/fields";
+import { assertNonNegativeSafeInteger } from "../validation/ids";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { assertSession } from "../validation/session";
 
@@ -348,9 +349,7 @@ export function createNextCoordinatorPipelineEtag(current?: string): string {
 
   const value = Number(current);
 
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new Error("coordinator pipeline etag must be a non-negative integer");
-  }
+  assertNonNegativeSafeInteger(value, "coordinator pipeline etag");
 
   return String(value + 1);
 }
