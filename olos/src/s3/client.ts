@@ -4,7 +4,8 @@ import {
   isRecord,
   jsonPost,
   normalizedBaseUrl,
-  optionalRecordField,
+  optionalRecordPayload,
+  recordPayload,
   requiredRecordField,
   responseBody,
 } from "../runtime/http-client";
@@ -314,8 +315,8 @@ function grantPayload(
   );
 
   return {
-    grant: grant as unknown as UploadGrant,
-    slot: slot as unknown as UploadSlot,
+    grant: recordPayload<UploadGrant>(grant),
+    slot: recordPayload<UploadSlot>(slot),
   };
 }
 
@@ -329,7 +330,7 @@ function commitPayload(
   );
 
   return {
-    commit: commit as unknown as Commit,
+    commit: recordPayload<Commit>(commit),
     ...optionalCursorPayload(value),
   };
 }
@@ -337,9 +338,7 @@ function commitPayload(
 function optionalCursorPayload(
   value: unknown
 ): Pick<S3RuntimeCompleteUploadResponse, "cursor"> | Record<string, never> {
-  const cursor = optionalRecordField(value, "cursor");
-
-  return cursor === undefined ? {} : { cursor: cursor as unknown as Cursor };
+  return optionalRecordPayload<"cursor", Cursor>(value, "cursor");
 }
 
 function reconciliationPlanPayload(
@@ -349,7 +348,7 @@ function reconciliationPlanPayload(
     throw new Error("S3 reconciliation plan response must include status");
   }
 
-  return value as unknown as StoredS3CoordinatorReconciliationPlan;
+  return recordPayload<StoredS3CoordinatorReconciliationPlan>(value);
 }
 
 function reconciliationPayload(
@@ -359,12 +358,16 @@ function reconciliationPayload(
     throw new Error("S3 reconciliation response must include results");
   }
 
-  return value as unknown as StoredS3CoordinatorReconciliationResponse;
+  return recordPayload<StoredS3CoordinatorReconciliationResponse>(value);
 }
 
 function retentionPayload(
   value: unknown
 ): StoredS3CoordinatorRetentionResponse {
+  if (!isRecord(value)) {
+    throw new Error("S3 retention response must include plan and summary");
+  }
+
   requiredRecordField(
     value,
     "plan",
@@ -376,5 +379,5 @@ function retentionPayload(
     "S3 retention response must include plan and summary"
   );
 
-  return value as unknown as StoredS3CoordinatorRetentionResponse;
+  return recordPayload<StoredS3CoordinatorRetentionResponse>(value);
 }

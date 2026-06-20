@@ -41,6 +41,14 @@ export function requiredRecordField(
   return record;
 }
 
+export function requiredRecordPayload<T>(
+  value: unknown,
+  field: string,
+  message: string
+): T {
+  return recordPayload<T>(requiredRecordField(value, field, message));
+}
+
 export function optionalRecordField(
   value: unknown,
   field: string
@@ -50,6 +58,21 @@ export function optionalRecordField(
   }
 
   return value[field];
+}
+
+export function optionalRecordPayload<Field extends string, T>(
+  value: unknown,
+  field: Field
+): Partial<Record<Field, T>> {
+  const record = optionalRecordField(value, field);
+
+  return record === undefined
+    ? {}
+    : ({ [field]: recordPayload<T>(record) } as Partial<Record<Field, T>>);
+}
+
+export function recordPayload<T>(value: Record<string, unknown>): T {
+  return value as unknown as T;
 }
 
 export async function responseBody(response: Response): Promise<unknown> {

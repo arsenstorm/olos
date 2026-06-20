@@ -11,9 +11,11 @@ import {
   isRecord,
   jsonPost,
   normalizedBaseUrl,
-  optionalRecordField,
+  optionalRecordPayload,
   type RuntimeHttpFetch,
+  recordPayload,
   requiredRecordField,
+  requiredRecordPayload,
   responseBody,
 } from "./http-client";
 import { hasControlCharacter, trimSlashes } from "./path";
@@ -386,11 +388,11 @@ async function runtimeHttpError(
 }
 
 function leasePayload(value: unknown): RuntimePublisherLease {
-  return requiredRecordField(
+  return requiredRecordPayload<RuntimePublisherLease>(
     value,
     "lease",
     "publisher heartbeat response must include a lease"
-  ) as unknown as RuntimePublisherLease;
+  );
 }
 
 function sessionIdPayload(value: unknown, context: string): string {
@@ -423,11 +425,11 @@ function transitionPayload(
 }
 
 function slotPayload(value: unknown): UploadSlot {
-  return requiredRecordField(
+  return requiredRecordPayload<UploadSlot>(
     value,
     "slot",
     "slot issue response must include a slot"
-  ) as unknown as UploadSlot;
+  );
 }
 
 function commitPayload(
@@ -440,7 +442,7 @@ function commitPayload(
   );
 
   return {
-    commit: commit as unknown as Commit,
+    commit: recordPayload<Commit>(commit),
     ...optionalCursorPayload(value),
   };
 }
@@ -448,23 +450,21 @@ function commitPayload(
 function optionalCursorPayload(
   value: unknown
 ): Pick<RuntimeCommitUploadResponse, "cursor"> | Record<string, never> {
-  const cursor = optionalRecordField(value, "cursor");
-
-  return cursor === undefined ? {} : { cursor: cursor as unknown as Cursor };
+  return optionalRecordPayload<"cursor", Cursor>(value, "cursor");
 }
 
 function healthPayload(value: unknown): RuntimeLiveHealth {
-  return requiredRecordField(
+  return requiredRecordPayload<RuntimeLiveHealth>(
     value,
     "health",
     "session health response must include health"
-  ) as unknown as RuntimeLiveHealth;
+  );
 }
 
 function retentionPayload(value: unknown): CoordinatorRetentionPlan {
-  return requiredRecordField(
+  return requiredRecordPayload<CoordinatorRetentionPlan>(
     value,
     "plan",
     "session retention response must include a plan"
-  ) as unknown as CoordinatorRetentionPlan;
+  );
 }
