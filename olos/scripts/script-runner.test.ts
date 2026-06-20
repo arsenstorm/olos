@@ -15,6 +15,12 @@ test("runCommand can return a failing exit code without rejecting", async () => 
   ).resolves.toBe(7);
 });
 
+test("runCommand rejects failing commands by default", async () => {
+  await expect(
+    runCommand(process.execPath, ["--eval", "process.exit(7)"])
+  ).rejects.toThrow("exited with 7");
+});
+
 test("runCommandAndCapture returns stdout", async () => {
   await expect(
     runCommandAndCapture(
