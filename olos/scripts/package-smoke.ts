@@ -7,13 +7,11 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { assertInstalledPackageContents } from "./package-contents";
 import { writePackageSmokeFile } from "./package-smoke-fixture";
+import { packageRoot, repoRoot } from "./script-paths";
 
-const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const repoRoot = dirname(packageRoot);
 const workRoot = join(repoRoot, "out", "package-smoke");
 const tarball = join(workRoot, "olos-smoke.tgz");
 const consumerRoot = join(workRoot, "consumer");

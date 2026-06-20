@@ -1,9 +1,8 @@
 import { spawn } from "node:child_process";
-import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import packageJson from "../package.json" with { type: "json" };
+import { packageRoot } from "./script-paths";
 
-const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const requiredDryPackFiles = requiredDryPackFilesFromExports(
   packageJson.exports
 );

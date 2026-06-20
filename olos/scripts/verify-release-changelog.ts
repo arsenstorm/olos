@@ -1,14 +1,13 @@
 import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import packageJson from "../package.json" with { type: "json" };
 import { hasVersionHeading } from "./changelog";
+import { repoRoot } from "./script-paths";
 
 const version = process.env.OLOS_RELEASE_VERSION ?? packageJson.version;
 
 if (version !== "0.0.0") {
-  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-  const changelogPath = join(dirname(packageRoot), "CHANGELOG.md");
+  const changelogPath = join(repoRoot, "CHANGELOG.md");
   const changelog = await readFile(changelogPath, "utf8");
 
   if (!hasVersionHeading(changelog, version)) {

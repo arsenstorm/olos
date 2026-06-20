@@ -1,15 +1,14 @@
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   OLOS_CONFORMANCE_ASSERTION_IDS,
   OLOS_CONFORMANCE_COVERAGE,
   type OlosConformanceAssertionId,
   type OlosConformanceLevel,
 } from "../src/conformance";
+import { repoRoot } from "./script-paths";
 
-const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const repoRoot = dirname(packageRoot);
 const reportRoot = join(repoRoot, "out", "conformance");
 const reportPath = join(reportRoot, "conformance.md");
 

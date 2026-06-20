@@ -1,12 +1,10 @@
 import { spawn } from "node:child_process";
 import { mkdir, rm } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import packageJson from "../package.json" with { type: "json" };
 import { packageArtifactPath } from "./package-artifact";
+import { packageRoot, repoRoot } from "./script-paths";
 
-const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const repoRoot = dirname(packageRoot);
 const artifactRoot = join(repoRoot, "out", "package-artifacts");
 const artifactPath = packageArtifactPath(artifactRoot, packageJson.version);
 
