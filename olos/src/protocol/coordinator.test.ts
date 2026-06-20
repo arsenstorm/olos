@@ -21,6 +21,10 @@ import {
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "./coordinator-state.test-helper";
+import {
+  conflictingStoreResult,
+  savedStoreResult,
+} from "./test-store.test-helper";
 
 const mediaOrigin = "https://media.example.com";
 
@@ -33,17 +37,14 @@ describe("coordinator pipeline", () => {
       state,
     });
 
-    expect(saved.status).toBe("saved");
-    if (saved.status !== "saved") {
-      throw new Error("expected saved state");
-    }
+    const savedState = savedStoreResult(saved, "expected saved state");
 
     const loaded = await store.load(session.sessionId);
 
-    expect(saved.etag).toBe("1");
+    expect(savedState.etag).toBe("1");
     expect(loaded).toEqual({
-      etag: saved.etag,
-      state: saved.state,
+      etag: savedState.etag,
+      state: savedState.state,
     });
   });
 
@@ -55,9 +56,7 @@ describe("coordinator pipeline", () => {
       state,
     });
 
-    if (first.status !== "saved") {
-      throw new Error("expected first save");
-    }
+    const firstSave = savedStoreResult(first, "expected first save");
 
     const next = issueCoordinatorSlot({
       contentType: "video/mp4",
@@ -75,29 +74,28 @@ describe("coordinator pipeline", () => {
       state,
     });
     const second = await store.save({
-      expectedEtag: first.etag,
+      expectedEtag: firstSave.etag,
       sessionId: session.sessionId,
       state: next.state,
     });
 
-    if (second.status !== "saved") {
-      throw new Error("expected second save");
-    }
+    const secondSave = savedStoreResult(second, "expected second save");
 
     const stale = await store.save({
-      expectedEtag: first.etag,
+      expectedEtag: firstSave.etag,
       sessionId: session.sessionId,
       state,
     });
 
-    expect(second.etag).toBe("2");
+    expect(secondSave.etag).toBe("2");
     expect(stale.status).toBe("conflict");
-    if (stale.status !== "conflict") {
-      throw new Error("expected stale write conflict");
-    }
+    const staleConflict = conflictingStoreResult(
+      stale,
+      "expected stale write conflict"
+    );
 
-    expect(stale.current?.etag).toBe("2");
-    expect(stale.current?.state.slots).toHaveLength(1);
+    expect(staleConflict.current?.etag).toBe("2");
+    expect(staleConflict.current?.state.slots).toHaveLength(1);
   });
 
   test("rejects duplicate coordinator state inserts", async () => {
@@ -112,16 +110,15 @@ describe("coordinator pipeline", () => {
       state,
     });
 
-    if (first.status !== "saved") {
-      throw new Error("expected first save");
-    }
+    const firstSave = savedStoreResult(first, "expected first save");
 
     expect(duplicate.status).toBe("conflict");
-    if (duplicate.status !== "conflict") {
-      throw new Error("expected duplicate insert conflict");
-    }
+    const duplicateConflict = conflictingStoreResult(
+      duplicate,
+      "expected duplicate insert conflict"
+    );
 
-    expect(duplicate.current?.etag).toBe(first.etag);
+    expect(duplicateConflict.current?.etag).toBe(firstSave.etag);
   });
 
   test("rejects coordinator state updates for missing sessions", async () => {

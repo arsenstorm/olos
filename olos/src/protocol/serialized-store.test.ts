@@ -12,6 +12,10 @@ import {
   type SerializedCoordinatorStoreBackend,
   type SerializedCoordinatorStoreRecord,
 } from "./serialized-store";
+import {
+  conflictingStoreResult,
+  savedStoreResult,
+} from "./test-store.test-helper";
 
 describe("serialized coordinator store", () => {
   test("adapts serialized snapshot storage to the coordinator store contract", async () => {
@@ -90,9 +94,7 @@ describe("serialized coordinator store", () => {
       state,
     });
 
-    if (first.status !== "saved") {
-      throw new Error("expected first save");
-    }
+    const firstSave = savedStoreResult(first, "expected first save");
 
     const next = issueCoordinatorSlot({
       contentType: "video/mp4",
@@ -110,18 +112,16 @@ describe("serialized coordinator store", () => {
       state,
     });
     const second = await store.save({
-      expectedEtag: first.etag,
+      expectedEtag: firstSave.etag,
       sessionId: session.sessionId,
       state: next.state,
     });
 
-    if (second.status !== "saved") {
-      throw new Error("expected second save");
-    }
+    const secondSave = savedStoreResult(second, "expected second save");
 
     const record = await backend.load(session.sessionId);
 
-    expect(second.etag).toBe("2");
+    expect(secondSave.etag).toBe("2");
     expect(record?.etag).toBe("2");
     expect(record?.snapshot).toContain('"slotId":"slot_init"');
   });
@@ -139,17 +139,18 @@ describe("serialized coordinator store", () => {
       state,
     });
 
-    if (first.status !== "saved") {
-      throw new Error("expected first save");
-    }
+    const firstSave = savedStoreResult(first, "expected first save");
 
     expect(raced.status).toBe("conflict");
-    if (raced.status !== "conflict") {
-      throw new Error("expected raced insert conflict");
-    }
+    const racedConflict = conflictingStoreResult(
+      raced,
+      "expected raced insert conflict"
+    );
 
-    expect(raced.current?.etag).toBe(first.etag);
-    expect(raced.current?.state.session.sessionId).toBe(session.sessionId);
+    expect(racedConflict.current?.etag).toBe(firstSave.etag);
+    expect(racedConflict.current?.state.session.sessionId).toBe(
+      session.sessionId
+    );
   });
 
   test("returns the current snapshot when an expected-etag update is stale", async () => {
@@ -161,9 +162,7 @@ describe("serialized coordinator store", () => {
       state,
     });
 
-    if (first.status !== "saved") {
-      throw new Error("expected first save");
-    }
+    const firstSave = savedStoreResult(first, "expected first save");
 
     const issued = issueCoordinatorSlot({
       contentType: "video/mp4",
@@ -181,29 +180,28 @@ describe("serialized coordinator store", () => {
       state,
     });
     const second = await store.save({
-      expectedEtag: first.etag,
+      expectedEtag: firstSave.etag,
       sessionId: session.sessionId,
       state: issued.state,
     });
 
-    if (second.status !== "saved") {
-      throw new Error("expected second save");
-    }
+    const secondSave = savedStoreResult(second, "expected second save");
 
     const stale = await store.save({
-      expectedEtag: first.etag,
+      expectedEtag: firstSave.etag,
       sessionId: session.sessionId,
       state,
     });
 
     expect(stale.status).toBe("conflict");
-    if (stale.status !== "conflict") {
-      throw new Error("expected stale update conflict");
-    }
+    const staleConflict = conflictingStoreResult(
+      stale,
+      "expected stale update conflict"
+    );
 
-    expect(stale.current?.etag).toBe(second.etag);
-    expect(stale.current?.state.slots).toHaveLength(1);
-    expect(stale.current?.state.slots[0]?.slotId).toBe("slot_init");
+    expect(staleConflict.current?.etag).toBe(secondSave.etag);
+    expect(staleConflict.current?.state.slots).toHaveLength(1);
+    expect(staleConflict.current?.state.slots[0]?.slotId).toBe("slot_init");
   });
 
   test("rejects serialized records with mismatched etags", async () => {
@@ -215,9 +213,7 @@ describe("serialized coordinator store", () => {
       state,
     });
 
-    if (saved.status !== "saved") {
-      throw new Error("expected saved state");
-    }
+    savedStoreResult(saved, "expected saved state");
 
     backend.records.set(session.sessionId, {
       etag: "different",
