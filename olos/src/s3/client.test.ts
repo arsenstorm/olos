@@ -1,7 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import type {
-  DeleteObjectCommand,
-  DeleteObjectCommandOutput,
   HeadObjectCommand,
   HeadObjectCommandOutput,
 } from "@aws-sdk/client-s3";
@@ -21,8 +19,8 @@ import {
 } from "./client";
 import { createStoredS3CoordinatorRuntimeHandler } from "./http";
 import type { S3HeadObjectClient } from "./object-observation";
-import type { S3DeleteObjectClient } from "./retention";
 import { createTestS3Client } from "./test-client.test";
+import { createTestS3DeleteObjectClient } from "./test-delete-client.test";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -426,7 +424,7 @@ describe("S3 runtime HTTP client", () => {
         },
         []
       ),
-      retentionClient: deleteClientFor(deleteInputs),
+      retentionClient: createTestS3DeleteObjectClient(deleteInputs),
       store,
     });
     const clientFetch = runtimeFetchFor(handle);
@@ -558,16 +556,6 @@ function objectClientFor(
         ETag: `"${objectKey}"`,
         LastModified: new Date("2026-01-01T00:00:01.000Z"),
       });
-    },
-  };
-}
-
-function deleteClientFor(inputs: unknown[]): S3DeleteObjectClient {
-  return {
-    send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput> {
-      inputs.push(command.input);
-
-      return Promise.resolve({ $metadata: {} });
     },
   };
 }

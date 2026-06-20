@@ -1,7 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import type {
-  DeleteObjectCommand,
-  DeleteObjectCommandOutput,
   HeadObjectCommand,
   HeadObjectCommandOutput,
 } from "@aws-sdk/client-s3";
@@ -27,8 +25,8 @@ import {
   type StoredS3CoordinatorSlotGrantResponse,
 } from "./http";
 import type { S3HeadObjectClient } from "./object-observation";
-import type { S3DeleteObjectClient } from "./retention";
 import { createTestS3Client } from "./test-client.test";
+import { createTestS3DeleteObjectClient } from "./test-delete-client.test";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -2547,7 +2545,7 @@ describe("stored S3 coordinator runtime handler", () => {
         },
         []
       ),
-      retentionClient: deleteClientFor(deleteInputs),
+      retentionClient: createTestS3DeleteObjectClient(deleteInputs),
       store,
     });
 
@@ -2634,7 +2632,7 @@ describe("stored S3 coordinator runtime handler", () => {
         },
         []
       ),
-      retentionClient: deleteClientFor(
+      retentionClient: createTestS3DeleteObjectClient(
         deleteInputs,
         "live/session/v1080/3810.m4s"
       ),
@@ -2992,23 +2990,6 @@ function objectClientFor(
           lastModified[objectKey] ?? "2026-01-01T00:00:01.000Z"
         ),
       });
-    },
-  };
-}
-
-function deleteClientFor(
-  inputs: unknown[],
-  failingKey?: string
-): S3DeleteObjectClient {
-  return {
-    send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput> {
-      inputs.push(command.input);
-
-      if (command.input.Key === failingKey) {
-        throw new Error("delete failed");
-      }
-
-      return Promise.resolve({ $metadata: {} });
     },
   };
 }

@@ -1,13 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  DeleteObjectCommand,
-  DeleteObjectCommandOutput,
-} from "@aws-sdk/client-s3";
 
-import {
-  deleteRetiredS3CoordinatorObjects,
-  type S3DeleteObjectClient,
-} from "./retention";
+import { deleteRetiredS3CoordinatorObjects } from "./retention";
+import { createTestS3DeleteObjectClient } from "./test-delete-client.test";
 
 describe("S3 retention", () => {
   test("deletes retired coordinator objects from S3", async () => {
@@ -15,7 +9,7 @@ describe("S3 retention", () => {
 
     const result = await deleteRetiredS3CoordinatorObjects({
       bucket: "media",
-      client: clientFor(inputs),
+      client: createTestS3DeleteObjectClient(inputs),
       objects: [
         {
           commitId: "commit_3810",
@@ -48,7 +42,7 @@ describe("S3 retention", () => {
 
     const result = await deleteRetiredS3CoordinatorObjects({
       bucket: "media",
-      client: clientFor(inputs, "media/fail.m4s"),
+      client: createTestS3DeleteObjectClient(inputs, "media/fail.m4s"),
       objects: [
         {
           commitId: "commit_fail",
@@ -98,7 +92,7 @@ describe("S3 retention", () => {
     await expect(
       deleteRetiredS3CoordinatorObjects({
         bucket: "",
-        client: clientFor(inputs),
+        client: createTestS3DeleteObjectClient(inputs),
         objects: [
           {
             commitId: "commit_3810",
@@ -111,7 +105,7 @@ describe("S3 retention", () => {
     await expect(
       deleteRetiredS3CoordinatorObjects({
         bucket: "media/live",
-        client: clientFor(inputs),
+        client: createTestS3DeleteObjectClient(inputs),
         objects: [
           {
             commitId: "commit_3810",
@@ -129,7 +123,7 @@ describe("S3 retention", () => {
 
     const result = await deleteRetiredS3CoordinatorObjects({
       bucket: "media",
-      client: clientFor(inputs),
+      client: createTestS3DeleteObjectClient(inputs),
       objects: [
         {
           commitId: "commit_bad",
@@ -169,20 +163,3 @@ describe("S3 retention", () => {
     ]);
   });
 });
-
-function clientFor(
-  inputs: unknown[],
-  failingKey?: string
-): S3DeleteObjectClient {
-  return {
-    send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput> {
-      inputs.push(command.input);
-
-      if (command.input.Key === failingKey) {
-        throw new Error("delete failed");
-      }
-
-      return Promise.resolve({ $metadata: {} });
-    },
-  };
-}
