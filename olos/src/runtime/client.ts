@@ -384,11 +384,11 @@ async function runtimeHttpError(
 }
 
 function leasePayload(value: unknown): RuntimePublisherLease {
-  if (!(isRecord(value) && isRecord(value.lease))) {
-    throw new Error("publisher heartbeat response must include a lease");
-  }
-
-  return value.lease as unknown as RuntimePublisherLease;
+  return requiredRecordField(
+    value,
+    "lease",
+    "publisher heartbeat response must include a lease"
+  ) as unknown as RuntimePublisherLease;
 }
 
 function sessionIdPayload(value: unknown, context: string): string {
@@ -421,23 +421,25 @@ function transitionPayload(
 }
 
 function slotPayload(value: unknown): UploadSlot {
-  if (!(isRecord(value) && isRecord(value.slot))) {
-    throw new Error("slot issue response must include a slot");
-  }
-
-  return value.slot as unknown as UploadSlot;
+  return requiredRecordField(
+    value,
+    "slot",
+    "slot issue response must include a slot"
+  ) as unknown as UploadSlot;
 }
 
 function commitPayload(
   value: unknown
 ): Omit<RuntimeCommitUploadResponse, "response"> {
-  if (!(isRecord(value) && isRecord(value.commit))) {
-    throw new Error("upload commit response must include a commit");
-  }
+  const commit = requiredRecordField(
+    value,
+    "commit",
+    "upload commit response must include a commit"
+  );
 
   return {
-    commit: value.commit as unknown as Commit,
-    ...optionalCursorPayload(value.cursor),
+    commit: commit as unknown as Commit,
+    ...optionalCursorPayload(isRecord(value) ? value.cursor : undefined),
   };
 }
 
@@ -448,17 +450,29 @@ function optionalCursorPayload(
 }
 
 function healthPayload(value: unknown): RuntimeLiveHealth {
-  if (!(isRecord(value) && isRecord(value.health))) {
-    throw new Error("session health response must include health");
-  }
-
-  return value.health as unknown as RuntimeLiveHealth;
+  return requiredRecordField(
+    value,
+    "health",
+    "session health response must include health"
+  ) as unknown as RuntimeLiveHealth;
 }
 
 function retentionPayload(value: unknown): CoordinatorRetentionPlan {
-  if (!(isRecord(value) && isRecord(value.plan))) {
-    throw new Error("session retention response must include a plan");
+  return requiredRecordField(
+    value,
+    "plan",
+    "session retention response must include a plan"
+  ) as unknown as CoordinatorRetentionPlan;
+}
+
+function requiredRecordField(
+  value: unknown,
+  field: string,
+  message: string
+): Record<string, unknown> {
+  if (!(isRecord(value) && isRecord(value[field]))) {
+    throw new Error(message);
   }
 
-  return value.plan as unknown as CoordinatorRetentionPlan;
+  return value[field];
 }
