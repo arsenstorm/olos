@@ -8,6 +8,7 @@ import {
   createHlsManifestArtifacts,
   createHlsManifestErrorWebResponse,
   createHlsManifestWebResponse,
+  type HlsManifestArtifact,
   resolveBlockingHlsManifestArtifactResponse,
   resolveHlsManifestArtifactResponse,
 } from "./manifest-artifacts";
@@ -200,12 +201,10 @@ describe("HLS manifest artifacts", () => {
       segmentTarget: session.segmentTarget,
     });
 
-    if (artifact === undefined) {
-      throw new Error("expected manifest artifact");
-    }
+    const manifestArtifact = requiredManifestArtifact(artifact);
 
-    expect(createHlsManifestArtifactResponse(artifact)).toEqual({
-      body: artifact.body,
+    expect(createHlsManifestArtifactResponse(manifestArtifact)).toEqual({
+      body: manifestArtifact.body,
       headers: {
         "cache-control": "public, max-age=1, must-revalidate",
         "content-type": "application/vnd.apple.mpegurl",
@@ -221,11 +220,9 @@ describe("HLS manifest artifacts", () => {
       segmentTarget: session.segmentTarget,
     });
 
-    if (artifact === undefined) {
-      throw new Error("expected manifest artifact");
-    }
+    const manifestArtifact = requiredManifestArtifact(artifact);
 
-    const metadata = createHlsManifestArtifactResponse(artifact);
+    const metadata = createHlsManifestArtifactResponse(manifestArtifact);
     const response = createHlsManifestWebResponse(metadata);
 
     expect(response.status).toBe(200);
@@ -268,12 +265,10 @@ describe("HLS manifest artifacts", () => {
       segmentTarget: session.segmentTarget,
     });
 
-    if (artifact === undefined) {
-      throw new Error("expected manifest artifact");
-    }
+    const manifestArtifact = requiredManifestArtifact(artifact);
 
     expect(() =>
-      createHlsManifestArtifactResponse(artifact, {
+      createHlsManifestArtifactResponse(manifestArtifact, {
         maxAgeSeconds: 5,
         targetLatencySeconds: 3,
       })
@@ -449,6 +444,16 @@ describe("HLS manifest artifacts", () => {
     expect(result).toEqual({ status: "not_found" });
   });
 });
+
+function requiredManifestArtifact(
+  artifact: HlsManifestArtifact | undefined
+): HlsManifestArtifact {
+  if (artifact === undefined) {
+    throw new Error("expected manifest artifact");
+  }
+
+  return artifact;
+}
 
 function missingInit(): never {
   throw new Error("missing v1080 init fixture");
