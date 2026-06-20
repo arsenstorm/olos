@@ -9,10 +9,12 @@ import {
   serveCoordinatorManifest,
 } from "./manifest";
 
+const MEDIA_ORIGIN = "https://media.example.com";
+
 describe("runtime manifest adapter", () => {
   test("serves a coordinator media playlist as a web response", async () => {
     const response = serveCoordinatorManifest({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       partTarget: testCoordinatorSession.partTarget,
       request: "/v1/live/session_1/v1080/media.m3u8",
       segmentTarget: testCoordinatorSession.segmentTarget,
@@ -30,7 +32,7 @@ describe("runtime manifest adapter", () => {
 
   test("returns not found before the coordinator has a cursor", async () => {
     const response = serveCoordinatorManifest({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       partTarget: testCoordinatorSession.partTarget,
       request: "/v1/live/session_1/v1080/media.m3u8",
       segmentTarget: testCoordinatorSession.segmentTarget,
@@ -43,7 +45,7 @@ describe("runtime manifest adapter", () => {
 
   test("serves blocking reloads through the current coordinator cursor", async () => {
     const response = await serveBlockingCoordinatorManifest({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       partTarget: testCoordinatorSession.partTarget,
       request: new Request(
         "https://edge.example.com/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810"
