@@ -1,12 +1,12 @@
+import { createObservedUpload } from "../state/observed-upload";
+import type { Pathway } from "../types/pathway";
+import type { Session } from "../types/session";
 import {
   type CoordinatorPipelineState,
   commitCoordinatorUpload,
   createCoordinatorPipeline,
   issueCoordinatorSlot,
-} from "../protocol";
-import { createObservedUpload } from "../state/observed-upload";
-import type { Pathway } from "../types/pathway";
-import type { Session } from "../types/session";
+} from "./coordinator";
 
 export const testCoordinatorSession: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",

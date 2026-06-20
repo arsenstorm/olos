@@ -3,7 +3,7 @@ import {
   createCoordinatorStateWithCommittedSegment,
   createEmptyCoordinatorState,
   testCoordinatorSession,
-} from "./coordinator-state.test-helper";
+} from "../protocol/coordinator-state.test-helper";
 import {
   serveBlockingCoordinatorManifest,
   serveCoordinatorManifest,

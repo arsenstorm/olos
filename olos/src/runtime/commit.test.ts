@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { createCoordinatorStateWithIssuedSegment } from "../protocol/coordinator-state.test-helper";
 import { commitCoordinatorUploadFromRequest } from "./commit";
-import { createCoordinatorStateWithIssuedSegment } from "./coordinator-state.test-helper";
 
 describe("runtime commit adapter", () => {
   test("commits an upload from a JSON request", async () => {

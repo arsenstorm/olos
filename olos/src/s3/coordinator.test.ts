@@ -5,20 +5,19 @@ import type {
 } from "@aws-sdk/client-s3";
 import {
   type CoordinatorPipelineStore,
-  commitCoordinatorUpload,
   createCoordinatorPipeline,
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
 } from "../protocol/coordinator";
+import {
+  createCoordinatorStateWithIssuedSegment,
+  testCoordinatorPathways as pathways,
+  testCoordinatorSession as session,
+} from "../protocol/coordinator-state.test-helper";
 import { resolveRuntimePublisherObjectExpiry } from "../runtime/publisher-expiry";
 import { createRuntimePublisherObjectPlan } from "../runtime/publisher-plan";
-import {
-  createObservedUpload,
-  normalizeUploadEvent,
-} from "../state/observed-upload";
+import { normalizeUploadEvent } from "../state/observed-upload";
 import { createPublicationKillSwitch } from "../state/publication-control";
-import type { Pathway } from "../types/pathway";
-import type { Session } from "../types/session";
 import {
   commitS3CoordinatorUpload,
   commitStoredS3CoordinatorUpload,
@@ -30,39 +29,6 @@ import {
 } from "./coordinator";
 import type { S3HeadObjectClient } from "./object-observation";
 import { createTestS3Client } from "./test-client.test-helper";
-
-const session: Session = {
-  createdAt: "2026-01-01T00:00:00.000Z",
-  epoch: 1,
-  latencyProfile: "object-ll",
-  olos: "1.0",
-  partTarget: 0.5,
-  renditions: [
-    {
-      bitrate: 5_000_000,
-      codec: "avc1.640028",
-      frameRate: 30,
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
-    },
-  ],
-  segmentTarget: 2,
-  sessionId: "session_1",
-  state: "live",
-  tenantId: "tenant_1",
-};
-
-const pathways: Pathway[] = [
-  {
-    baseUrl: "https://media.example.com",
-    pathwayId: "primary",
-    priority: 0,
-    providerId: "s3_primary",
-    state: "active",
-  },
-];
 
 const publishNow = "2026-01-01T00:00:00.000Z";
 const targetLatency = 3;
@@ -511,7 +477,7 @@ describe("s3 coordinator uploads", () => {
     const store = createMemoryCoordinatorStore();
     await store.save({
       sessionId: session.sessionId,
-      state: createReadyState(),
+      state: createCoordinatorStateWithIssuedSegment(),
     });
 
     await expect(
@@ -549,7 +515,7 @@ describe("s3 coordinator uploads", () => {
 
     await store.save({
       sessionId: session.sessionId,
-      state: createReadyState(),
+      state: createCoordinatorStateWithIssuedSegment(),
     });
 
     const committed = await commitStoredS3CoordinatorUpload({
@@ -1428,7 +1394,7 @@ describe("s3 coordinator uploads", () => {
 async function createCommitConflictingStore(): Promise<CoordinatorPipelineStore> {
   const store = createMemoryCoordinatorStore();
   const originalSave = store.save;
-  const ready = createReadyState();
+  const ready = createCoordinatorStateWithIssuedSegment();
   let conflicted = false;
 
   await store.save({
@@ -1477,46 +1443,6 @@ async function createCommitConflictingStore(): Promise<CoordinatorPipelineStore>
       return await originalSave(options);
     },
   };
-}
-
-function createReadyState() {
-  const init = issueCoordinatorSlot({
-    contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/init.mp4",
-    duration: 1,
-    expiresAt: "2026-01-01T00:00:05.000Z",
-    kind: "init",
-    maxBytes: 2048,
-    mediaSequenceNumber: 0,
-    objectKey: "media/init.mp4",
-    publicationMode: "direct-public",
-    publisherInstanceId: "pub_1",
-    renditionId: "v1080",
-    slotId: "slot_init",
-    state: createCoordinatorPipeline({ pathways, session }),
-  });
-  const initCommit = commitCoordinatorUpload({
-    commitId: "commit_init",
-    committedAt: "2026-01-01T00:00:01.000Z",
-    object: createObservedUpload({
-      contentType: "video/mp4",
-      objectKey: "media/init.mp4",
-      observedAt: "2026-01-01T00:00:01.000Z",
-      providerId: "s3_primary",
-      size: 1024,
-    }),
-    slotId: "slot_init",
-    state: init.state,
-  });
-
-  if (initCommit.status !== "committed") {
-    throw new Error("expected committed init upload");
-  }
-
-  return issueCoordinatorSlot({
-    ...segmentSlot(),
-    state: initCommit.state,
-  }).state;
 }
 
 function segmentSlot() {
