@@ -3,7 +3,10 @@ import { describe, expect, test } from "bun:test";
 import { createEmptyCoordinatorState } from "../protocol/coordinator-state.test-helper";
 import { issueCoordinatorSlotFromRequest } from "./slot";
 import { rawOrJsonPostRequest } from "./test-http.test-helper";
-import { assertInvalidResult } from "./test-result.test-helper";
+import {
+  assertInvalidResult,
+  invalidResultMessage,
+} from "./test-result.test-helper";
 
 describe("runtime slot adapter", () => {
   test("issues a slot from a JSON request", async () => {
@@ -49,13 +52,10 @@ describe("runtime slot adapter", () => {
       state: createEmptyCoordinatorState(),
     });
 
-    const invalidObjectKeyResult = assertInvalidResult(objectKeyResult);
-    const invalidDeliveryUrlResult = assertInvalidResult(deliveryUrlResult);
-
-    expect(invalidObjectKeyResult.message).toBe(
+    expect(invalidResultMessage(objectKeyResult)).toBe(
       "objectKey must be a safe relative object key"
     );
-    expect(invalidDeliveryUrlResult.message).toBe(
+    expect(invalidResultMessage(deliveryUrlResult)).toBe(
       "deliveryUrl must not contain query strings or fragments"
     );
   });
@@ -85,9 +85,7 @@ describe("runtime slot adapter", () => {
         state: createEmptyCoordinatorState(),
       });
 
-      const invalidResult = assertInvalidResult(result);
-
-      expect(invalidResult.message).toBe(testCase.expected);
+      expect(invalidResultMessage(result)).toBe(testCase.expected);
     }
   });
 
@@ -129,9 +127,7 @@ describe("runtime slot adapter", () => {
         state: createEmptyCoordinatorState(),
       });
 
-      const invalidResult = assertInvalidResult(result);
-
-      expect(invalidResult.message).toBe(testCase.expected);
+      expect(invalidResultMessage(result)).toBe(testCase.expected);
     }
   });
 
@@ -144,9 +140,7 @@ describe("runtime slot adapter", () => {
       state: createEmptyCoordinatorState(),
     });
 
-    const invalidResult = assertInvalidResult(result);
-
-    expect(invalidResult.message).toBe(
+    expect(invalidResultMessage(result)).toBe(
       "publicationMode must be one of: direct-public, read-gated, private-upload-public-promotion"
     );
   });
@@ -160,9 +154,7 @@ describe("runtime slot adapter", () => {
       state: createEmptyCoordinatorState(),
     });
 
-    const invalidResult = assertInvalidResult(result);
-
-    expect(invalidResult.message).toBe(
+    expect(invalidResultMessage(result)).toBe(
       "kind must be one of: init, part, segment, sidecar"
     );
   });
@@ -176,9 +168,7 @@ describe("runtime slot adapter", () => {
       state: createEmptyCoordinatorState(),
     });
 
-    const invalidResult = assertInvalidResult(result);
-
-    expect(invalidResult.message).toBe(
+    expect(invalidResultMessage(result)).toBe(
       "uploadSlot.renditionId must belong to session.renditions"
     );
   });

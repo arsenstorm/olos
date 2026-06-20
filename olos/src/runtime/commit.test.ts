@@ -3,7 +3,10 @@ import { describe, expect, test } from "bun:test";
 import { createCoordinatorStateWithIssuedSegment } from "../protocol/coordinator-state.test-helper";
 import { commitCoordinatorUploadFromRequest } from "./commit";
 import { rawOrJsonPostRequest } from "./test-http.test-helper";
-import { assertInvalidResult } from "./test-result.test-helper";
+import {
+  assertInvalidResult,
+  invalidResultMessage,
+} from "./test-result.test-helper";
 
 describe("runtime commit adapter", () => {
   test("commits an upload from a JSON request", async () => {
@@ -54,9 +57,7 @@ describe("runtime commit adapter", () => {
         state: createCoordinatorStateWithIssuedSegment(),
       });
 
-      const invalidResult = assertInvalidResult(result);
-
-      expect(invalidResult.message).toBe(
+      expect(invalidResultMessage(result)).toBe(
         "object.objectKey must be a safe relative object key"
       );
     }
@@ -90,9 +91,7 @@ describe("runtime commit adapter", () => {
         state: createCoordinatorStateWithIssuedSegment(),
       });
 
-      const invalidResult = assertInvalidResult(result);
-
-      expect(invalidResult.message).toBe(testCase.expected);
+      expect(invalidResultMessage(result)).toBe(testCase.expected);
     }
   });
 
@@ -108,9 +107,7 @@ describe("runtime commit adapter", () => {
       state: createCoordinatorStateWithIssuedSegment(),
     });
 
-    const invalidResult = assertInvalidResult(result);
-
-    expect(invalidResult.message).toBe("size must be a positive number");
+    expect(invalidResultMessage(result)).toBe("size must be a positive number");
   });
 
   test("returns invalid responses for invalid max segment limits", async () => {
@@ -122,9 +119,7 @@ describe("runtime commit adapter", () => {
       state: createCoordinatorStateWithIssuedSegment(),
     });
 
-    const invalidResult = assertInvalidResult(result);
-
-    expect(invalidResult.message).toBe(
+    expect(invalidResultMessage(result)).toBe(
       "maxSegments must be a positive integer"
     );
   });
@@ -138,9 +133,7 @@ describe("runtime commit adapter", () => {
       state: createCoordinatorStateWithIssuedSegment(),
     });
 
-    const invalidResult = assertInvalidResult(result);
-
-    expect(invalidResult.message).toBe(
+    expect(invalidResultMessage(result)).toBe(
       "lateToleranceMs must be a non-negative number"
     );
   });
@@ -179,9 +172,7 @@ describe("runtime commit adapter", () => {
         state: createCoordinatorStateWithIssuedSegment(),
       });
 
-      const invalidResult = assertInvalidResult(result);
-
-      expect(invalidResult.message).toBe(testCase.expected);
+      expect(invalidResultMessage(result)).toBe(testCase.expected);
     }
   });
 
