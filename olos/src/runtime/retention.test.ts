@@ -11,6 +11,7 @@ import {
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
+import { savedStoreResult } from "../protocol/test-store.test-helper";
 import { createObservedUpload } from "../state/observed-upload";
 import {
   deleteRetiredCoordinatorObjects,
@@ -26,9 +27,7 @@ describe("stored runtime retention", () => {
       state: retentionState(),
     });
 
-    if (saved.status !== "saved") {
-      throw new Error("expected stored coordinator state");
-    }
+    savedStoreResult(saved, "expected stored coordinator state");
 
     const result = await planStoredCoordinatorRetention({
       now: "2026-01-01T00:00:06.000Z",

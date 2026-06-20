@@ -4,6 +4,7 @@ import {
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
+import { savedStoreResult } from "../protocol/test-store.test-helper";
 import {
   resolveRuntimePublisherLoopDecision,
   runRuntimePublisherUploadStep,
@@ -298,9 +299,7 @@ async function seedSession(
     state: createEmptyCoordinatorState(),
   });
 
-  if (saved.status !== "saved") {
-    throw new Error("expected seeded session");
-  }
+  savedStoreResult(saved, "expected seeded session");
 }
 
 async function seedInitUpload(

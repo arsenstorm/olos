@@ -9,6 +9,7 @@ import {
   testCoordinatorPathways as pathways,
   testCoordinatorSession,
 } from "../protocol/coordinator-state.test-helper";
+import { savedStoreResult } from "../protocol/test-store.test-helper";
 import type { Cursor } from "../types/cursor";
 import type { Session } from "../types/session";
 import {
@@ -291,9 +292,7 @@ async function seedStore(
     state,
   });
 
-  if (saved.status !== "saved") {
-    throw new Error("expected seeded coordinator state");
-  }
+  savedStoreResult(saved, "expected seeded coordinator state");
 }
 
 function cursor(state: Cursor["state"]): Cursor {

@@ -13,6 +13,7 @@ import {
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
+import { savedStoreResult } from "../protocol/test-store.test-helper";
 import { createObservedUpload } from "../state/observed-upload";
 import {
   commitStoredCoordinatorUploadFromRequest,
@@ -331,9 +332,7 @@ async function createSeededStore(): Promise<CoordinatorPipelineStore> {
     state: createEmptyCoordinatorState(),
   });
 
-  if (saved.status !== "saved") {
-    throw new Error("expected seeded coordinator state");
-  }
+  savedStoreResult(saved, "expected seeded coordinator state");
 
   return store;
 }
@@ -367,14 +366,15 @@ async function createConflictingStore(): Promise<CoordinatorPipelineStore> {
           state: currentState,
         });
 
-        if (saved.status !== "saved") {
-          throw new Error("expected external coordinator save");
-        }
+        const savedState = savedStoreResult(
+          saved,
+          "expected external coordinator save"
+        );
 
         return {
           current: {
-            etag: saved.etag,
-            state: saved.state,
+            etag: savedState.etag,
+            state: savedState.state,
           },
           status: "conflict",
         };
@@ -415,14 +415,15 @@ async function createCommitConflictingStore(): Promise<CoordinatorPipelineStore>
           state: next.state,
         });
 
-        if (saved.status !== "saved") {
-          throw new Error("expected external coordinator save");
-        }
+        const savedState = savedStoreResult(
+          saved,
+          "expected external coordinator save"
+        );
 
         return {
           current: {
-            etag: saved.etag,
-            state: saved.state,
+            etag: savedState.etag,
+            state: savedState.state,
           },
           status: "conflict",
         };
@@ -498,9 +499,7 @@ async function createReadyStore(): Promise<CoordinatorPipelineStore> {
     state: slot.state,
   });
 
-  if (saved.status !== "saved") {
-    throw new Error("expected ready coordinator state");
-  }
+  savedStoreResult(saved, "expected ready coordinator state");
 
   return store;
 }
