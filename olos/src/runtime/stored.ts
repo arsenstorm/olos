@@ -23,6 +23,7 @@ import {
   type RuntimeCoordinatorSlotIssue,
   type RuntimeSlotIssueRequest,
 } from "./slot";
+import { isStringLiteral } from "./string-literals";
 
 export interface IssueStoredCoordinatorSlotFromRequestOptions {
   maxAttempts?: number;
@@ -250,8 +251,9 @@ export async function commitStoredCoordinatorUploadFromRequest(
 function isTerminalRuntimeCoordinatorUploadCommit(
   result: RuntimeCoordinatorUploadCommit
 ): result is TerminalRuntimeCoordinatorUploadCommit {
-  return TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES.includes(
-    result.status as TerminalRuntimeCoordinatorUploadCommit["status"]
+  return isStringLiteral(
+    result.status,
+    TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES
   );
 }
 

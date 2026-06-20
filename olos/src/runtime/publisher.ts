@@ -6,6 +6,7 @@ import type {
 import { errorMessage } from "./errors";
 import { optionalField } from "./optional-field";
 import type { RuntimeSlotIssuePayload } from "./slot";
+import { isStringLiteral } from "./string-literals";
 
 export interface RuntimePublisherIssueResult {
   slot?: UploadSlot;
@@ -348,9 +349,7 @@ export function resolveRuntimePublisherLoopDecision(
 }
 
 function assertPublisherStepStatus(status: string): void {
-  if (
-    PUBLISHER_STEP_STATUSES.includes(status as RuntimePublisherUploadStepStatus)
-  ) {
+  if (isStringLiteral(status, PUBLISHER_STEP_STATUSES)) {
     return;
   }
 
@@ -360,9 +359,7 @@ function assertPublisherStepStatus(status: string): void {
 function isSuccessfulPublisherStepStatus(
   status: string
 ): status is SuccessfulRuntimePublisherUploadStep["status"] {
-  return SUCCESSFUL_PUBLISHER_STEP_STATUSES.includes(
-    status as SuccessfulRuntimePublisherUploadStep["status"]
-  );
+  return isStringLiteral(status, SUCCESSFUL_PUBLISHER_STEP_STATUSES);
 }
 
 function isIssuedRuntimePublisherIssueResult(

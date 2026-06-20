@@ -33,6 +33,7 @@ import {
 } from "../runtime/request-fields";
 import { jsonResponse } from "../runtime/response";
 import { routeParts } from "../runtime/route";
+import { isStringLiteral } from "../runtime/string-literals";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosErrorCode } from "../types/errors";
@@ -933,9 +934,7 @@ function conflict(): Response {
 function isSuccessfulS3MutationResult<Result extends { status: string }>(
   result: Result
 ): result is Extract<Result, { status: SuccessfulS3MutationStatus }> {
-  return SUCCESSFUL_S3_MUTATION_STATUSES.includes(
-    result.status as SuccessfulS3MutationStatus
-  );
+  return isStringLiteral(result.status, SUCCESSFUL_S3_MUTATION_STATUSES);
 }
 
 function eventRouteResult(

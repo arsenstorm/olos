@@ -4,6 +4,7 @@ import type {
 } from "../protocol";
 import { errorMessage } from "../runtime/errors";
 import { optionalField } from "../runtime/optional-field";
+import { isStringLiteral } from "../runtime/string-literals";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
@@ -319,9 +320,7 @@ function isSuccessfulS3ReconciliationCommit<
 >(
   result: Result
 ): result is Extract<Result, { status: SuccessfulS3ReconciliationStatus }> {
-  return SUCCESSFUL_S3_RECONCILIATION_STATUSES.includes(
-    result.status as SuccessfulS3ReconciliationStatus
-  );
+  return isStringLiteral(result.status, SUCCESSFUL_S3_RECONCILIATION_STATUSES);
 }
 
 function isRejectedS3CoordinatorUploadCommit(

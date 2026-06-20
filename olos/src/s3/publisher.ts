@@ -19,6 +19,7 @@ import {
   createRuntimePublisherObjectPlan,
   type RuntimePublisherObjectPlan,
 } from "../runtime/publisher-plan";
+import { isStringLiteral } from "../runtime/string-literals";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosErrorCode } from "../types/errors";
 import type { OlosId } from "../types/ids";
@@ -361,9 +362,7 @@ export function summarizeStoredS3PublisherUploadStep(
 function isSuccessfulStoredS3PublisherStepStatus(
   status: string
 ): status is SuccessfulStoredS3PublisherUploadStep["status"] {
-  return SUCCESSFUL_STORED_S3_PUBLISHER_STEP_STATUSES.includes(
-    status as SuccessfulStoredS3PublisherUploadStep["status"]
-  );
+  return isStringLiteral(status, SUCCESSFUL_STORED_S3_PUBLISHER_STEP_STATUSES);
 }
 
 function resultErrorCode(

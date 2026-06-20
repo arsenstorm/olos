@@ -41,6 +41,7 @@ import {
   serveStoredBlockingCoordinatorManifest,
   serveStoredCoordinatorManifest,
 } from "./stored";
+import { isStringLiteral } from "./string-literals";
 
 const DEFAULT_LIVE_PATH = "/v1/live";
 const DEFAULT_MAX_HEALTH_CURSOR_AGE_MS =
@@ -416,9 +417,7 @@ function isSuccessfulRuntimeCommitResult<
 >(
   result: Result
 ): result is Extract<Result, { status: SuccessfulRuntimeCommitStatus }> {
-  return SUCCESSFUL_RUNTIME_COMMIT_STATUSES.includes(
-    result.status as SuccessfulRuntimeCommitStatus
-  );
+  return isStringLiteral(result.status, SUCCESSFUL_RUNTIME_COMMIT_STATUSES);
 }
 
 async function handleLiveRoute(
@@ -532,11 +531,11 @@ async function parseTransitionRequest(
 function sessionStateField(value: Record<string, unknown>): SessionState {
   const state = stringField(value, "state");
 
-  if (!SESSION_STATES.includes(state as SessionState)) {
+  if (!isStringLiteral(state, SESSION_STATES)) {
     throw new Error(`state must be one of: ${SESSION_STATES.join(", ")}`);
   }
 
-  return state as SessionState;
+  return state;
 }
 
 async function parseHeartbeatRequest(

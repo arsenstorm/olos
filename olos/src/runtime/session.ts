@@ -20,6 +20,7 @@ import {
 } from "./publisher-lease";
 import { positiveNumber, timestampMs } from "./request-fields";
 import { jsonResponse } from "./response";
+import { isStringLiteral } from "./string-literals";
 
 export interface CreateStoredCoordinatorSessionOptions {
   pathways: readonly Pathway[];
@@ -284,9 +285,7 @@ function assertHeartbeatSessionState(state: SessionState): void {
 function isHeartbeatTerminalSessionState(
   state: SessionState
 ): state is HeartbeatTerminalSessionState {
-  return HEARTBEAT_TERMINAL_SESSION_STATES.includes(
-    state as HeartbeatTerminalSessionState
-  );
+  return isStringLiteral(state, HEARTBEAT_TERMINAL_SESSION_STATES);
 }
 
 function assertHeartbeatOptions(
@@ -300,10 +299,7 @@ function assertHeartbeatOptions(
 }
 
 function assertSessionState(value: unknown): asserts value is SessionState {
-  if (
-    typeof value !== "string" ||
-    !SESSION_STATES.includes(value as SessionState)
-  ) {
+  if (typeof value !== "string" || !isStringLiteral(value, SESSION_STATES)) {
     throw new Error(`state must be one of: ${SESSION_STATES.join(", ")}`);
   }
 }
