@@ -76,6 +76,16 @@ describe("package contents verifier", () => {
       );
     });
   });
+
+  test("rejects TypeScript config files inside published roots", async () => {
+    await withPackageRoot(async (root) => {
+      await writeFile(join(root, "dist", "tsconfig.build.json"), "{}\n");
+
+      await expect(assertInstalledPackageContents(root)).rejects.toThrow(
+        "package contains private file: dist/tsconfig.build.json"
+      );
+    });
+  });
 });
 
 async function withPackageRoot(
