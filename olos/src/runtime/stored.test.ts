@@ -21,6 +21,8 @@ import {
   serveStoredCoordinatorManifest,
 } from "./stored";
 
+const MEDIA_ORIGIN = "https://media.example.com";
+
 describe("stored runtime mutations", () => {
   test("issues a slot and saves the updated coordinator state", async () => {
     const store = await createSeededStore();
@@ -261,7 +263,7 @@ describe("stored runtime mutations", () => {
     expect(result.status).toBe("committed");
 
     const response = await serveStoredCoordinatorManifest({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       partTarget: session.partTarget,
       request: "https://edge.example.com/v1/live/session_1/v1080/media.m3u8",
       segmentTarget: session.segmentTarget,
@@ -281,7 +283,7 @@ describe("stored runtime mutations", () => {
 
   test("returns manifest not found responses for missing stored manifests", async () => {
     const response = await serveStoredCoordinatorManifest({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       partTarget: session.partTarget,
       request: "https://edge.example.com/v1/live/missing/v1080/media.m3u8",
       segmentTarget: session.segmentTarget,
@@ -304,7 +306,7 @@ describe("stored runtime mutations", () => {
     });
 
     const response = await serveStoredBlockingCoordinatorManifest({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       partTarget: session.partTarget,
       request:
         "https://edge.example.com/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810",
