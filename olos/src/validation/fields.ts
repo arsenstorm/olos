@@ -109,11 +109,13 @@ export function assertOneOfField<const T extends readonly string[]>(
   allowed: T,
   name: string
 ): T[number] {
-  if (!allowed.includes(value[field] as T[number])) {
+  const fieldValue = value[field];
+
+  if (!isAllowedString(fieldValue, allowed)) {
     throw new Error(`${name}.${field} must be one of: ${allowed.join(", ")}`);
   }
 
-  return value[field] as T[number];
+  return fieldValue;
 }
 
 export function assertAbsoluteHttpUrl(value: unknown, name: string): void {
@@ -136,4 +138,11 @@ export function assertAbsoluteHttpUrl(value: unknown, name: string): void {
   if (url.search.length > 0 || url.hash.length > 0) {
     throw new Error(`${name} must not contain query strings or fragments`);
   }
+}
+
+function isAllowedString<const T extends readonly string[]>(
+  value: unknown,
+  allowed: T
+): value is T[number] {
+  return typeof value === "string" && allowed.some((entry) => entry === value);
 }

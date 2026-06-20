@@ -23,11 +23,11 @@ export function oneOfStringField<const Allowed extends readonly string[]>(
 ): Allowed[number] {
   const fieldValue = stringField(value, field);
 
-  if (!allowed.includes(fieldValue as Allowed[number])) {
+  if (!isAllowedString(fieldValue, allowed)) {
     throw new Error(`${field} must be one of: ${allowed.join(", ")}`);
   }
 
-  return fieldValue as Allowed[number];
+  return fieldValue;
 }
 
 export function optionalStringField<Field extends string>(
@@ -238,4 +238,11 @@ export function timestampMs(value: Date | string, name: string): number {
   }
 
   return timestamp;
+}
+
+function isAllowedString<const Allowed extends readonly string[]>(
+  value: string,
+  allowed: Allowed
+): value is Allowed[number] {
+  return allowed.some((entry) => entry === value);
 }
