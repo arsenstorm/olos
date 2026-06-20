@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { createCoordinatorStateWithIssuedSegment } from "../protocol/coordinator-state.test-helper";
 import { commitCoordinatorUploadFromRequest } from "./commit";
+import { assertInvalidResult } from "./test-result.test-helper";
 
 describe("runtime commit adapter", () => {
   test("commits an upload from a JSON request", async () => {
@@ -33,8 +34,7 @@ describe("runtime commit adapter", () => {
       state: createCoordinatorStateWithIssuedSegment(),
     });
 
-    expect(result.status).toBe("invalid");
-    expect(result.response.status).toBe(400);
+    assertInvalidResult(result);
   });
 
   test("returns invalid responses for unsafe JSON object keys", async () => {
@@ -53,14 +53,9 @@ describe("runtime commit adapter", () => {
         state: createCoordinatorStateWithIssuedSegment(),
       });
 
-      expect(result.status).toBe("invalid");
+      const invalidResult = assertInvalidResult(result);
 
-      if (result.status !== "invalid") {
-        throw new Error("expected invalid commit request");
-      }
-
-      expect(result.response.status).toBe(400);
-      expect(result.message).toBe(
+      expect(invalidResult.message).toBe(
         "object.objectKey must be a safe relative object key"
       );
     }
@@ -94,14 +89,9 @@ describe("runtime commit adapter", () => {
         state: createCoordinatorStateWithIssuedSegment(),
       });
 
-      expect(result.status).toBe("invalid");
+      const invalidResult = assertInvalidResult(result);
 
-      if (result.status !== "invalid") {
-        throw new Error("expected invalid commit request");
-      }
-
-      expect(result.response.status).toBe(400);
-      expect(result.message).toBe(testCase.expected);
+      expect(invalidResult.message).toBe(testCase.expected);
     }
   });
 
@@ -117,14 +107,9 @@ describe("runtime commit adapter", () => {
       state: createCoordinatorStateWithIssuedSegment(),
     });
 
-    expect(result.status).toBe("invalid");
+    const invalidResult = assertInvalidResult(result);
 
-    if (result.status !== "invalid") {
-      throw new Error("expected invalid commit request");
-    }
-
-    expect(result.response.status).toBe(400);
-    expect(result.message).toBe("size must be a positive number");
+    expect(invalidResult.message).toBe("size must be a positive number");
   });
 
   test("returns invalid responses for invalid max segment limits", async () => {
@@ -136,14 +121,11 @@ describe("runtime commit adapter", () => {
       state: createCoordinatorStateWithIssuedSegment(),
     });
 
-    expect(result.status).toBe("invalid");
+    const invalidResult = assertInvalidResult(result);
 
-    if (result.status !== "invalid") {
-      throw new Error("expected invalid commit request");
-    }
-
-    expect(result.response.status).toBe(400);
-    expect(result.message).toBe("maxSegments must be a positive integer");
+    expect(invalidResult.message).toBe(
+      "maxSegments must be a positive integer"
+    );
   });
 
   test("returns invalid responses for invalid late tolerance", async () => {
@@ -155,14 +137,9 @@ describe("runtime commit adapter", () => {
       state: createCoordinatorStateWithIssuedSegment(),
     });
 
-    expect(result.status).toBe("invalid");
+    const invalidResult = assertInvalidResult(result);
 
-    if (result.status !== "invalid") {
-      throw new Error("expected invalid commit request");
-    }
-
-    expect(result.response.status).toBe(400);
-    expect(result.message).toBe(
+    expect(invalidResult.message).toBe(
       "lateToleranceMs must be a non-negative number"
     );
   });
@@ -201,14 +178,9 @@ describe("runtime commit adapter", () => {
         state: createCoordinatorStateWithIssuedSegment(),
       });
 
-      expect(result.status).toBe("invalid");
+      const invalidResult = assertInvalidResult(result);
 
-      if (result.status !== "invalid") {
-        throw new Error("expected invalid commit request");
-      }
-
-      expect(result.response.status).toBe(400);
-      expect(result.message).toBe(testCase.expected);
+      expect(invalidResult.message).toBe(testCase.expected);
     }
   });
 
