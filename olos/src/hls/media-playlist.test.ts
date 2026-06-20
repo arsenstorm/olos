@@ -3,6 +3,8 @@ import { describe, expect, test } from "bun:test";
 import type { CommittedWindow } from "../types/committed-window";
 import { renderMediaPlaylist } from "./media-playlist";
 
+const MEDIA_ORIGIN = "https://media.example.com";
+
 const committedWindow: CommittedWindow = {
   discontinuitySequence: 0,
   epoch: 1,
@@ -93,7 +95,7 @@ describe("media playlist rendering", () => {
   test("renders deterministic LL-HLS from a committed window", () => {
     expect(
       renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partTarget: 0.5,
         renditionId: "v1080",
         segmentTarget: 2,
@@ -122,7 +124,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
   test("throws for unknown renditions", () => {
     expect(() =>
       renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partTarget: 0.5,
         renditionId: "missing",
         segmentTarget: 2,
@@ -133,7 +135,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
   test("supports explicit hold-back values", () => {
     expect(
       renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partHoldBack: 2,
         partTarget: 0.5,
         renditionId: "v1080",
@@ -146,7 +148,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
   test("rejects unrealistic part hold-back values", () => {
     expect(() =>
       renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partHoldBack: 1,
         partTarget: 0.5,
         renditionId: "v1080",
@@ -160,7 +162,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
   test("rejects invalid explicit hold-back values", () => {
     expect(() =>
       renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partHoldBack: 0,
         partTarget: 0.5,
         renditionId: "v1080",
@@ -170,7 +172,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
 
     expect(() =>
       renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partTarget: 0.5,
         renditionId: "v1080",
         segmentTarget: 2,
@@ -182,7 +184,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
   test("omits preload hints by default", () => {
     expect(
       renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partTarget: 0.5,
         renditionId: "v1080",
         segmentTarget: 2,
@@ -193,7 +195,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
   test("does not emit content steering", () => {
     expect(
       renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partTarget: 0.5,
         renditionId: "v1080",
         segmentTarget: 2,
@@ -204,7 +206,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
   test("does not emit rendition reports", () => {
     expect(
       renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partTarget: 0.5,
         renditionId: "v1080",
         segmentTarget: 2,
@@ -225,7 +227,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
           },
         },
         {
-          allowedMediaOrigins: ["https://media.example.com"],
+          allowedMediaOrigins: [MEDIA_ORIGIN],
           partTarget: 0.5,
           renditionId: "v1080",
           segmentTarget: 2,
@@ -253,7 +255,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
         },
       },
       {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [MEDIA_ORIGIN],
         partTarget: 0.5,
         renditionId: "v1080",
         segmentTarget: 2,
@@ -294,7 +296,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
           },
         },
         {
-          allowedMediaOrigins: ["https://media.example.com"],
+          allowedMediaOrigins: [MEDIA_ORIGIN],
           partTarget: 0.5,
           renditionId: "v1080",
           segmentTarget: 2,
@@ -321,7 +323,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
           },
         },
         {
-          allowedMediaOrigins: ["https://media.example.com"],
+          allowedMediaOrigins: [MEDIA_ORIGIN],
           partTarget: 0.5,
           renditionId: "v1080",
           segmentTarget: 2,
