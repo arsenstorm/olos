@@ -12,6 +12,7 @@ import {
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
+import { savedStoreResult } from "../protocol/test-store.test-helper";
 import type { S3HeadObjectClient } from "./object-observation";
 import {
   planStoredS3CoordinatorReconciliation,
@@ -23,10 +24,7 @@ describe("stored S3 upload reconciliation", () => {
   test("plans in-flight S3 slots for app-owned recovery jobs", async () => {
     const store = createMemoryCoordinatorStore();
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: stateWithSlots(),
-    });
+    await saveReconciliationState(store);
 
     const plan = await planStoredS3CoordinatorReconciliation({
       sessionId: session.sessionId,
@@ -48,10 +46,7 @@ describe("stored S3 upload reconciliation", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: stateWithSlots(),
-    });
+    await saveReconciliationState(store);
 
     const result = await reconcileStoredS3CoordinatorUploads({
       bucket: "media",
@@ -109,10 +104,7 @@ describe("stored S3 upload reconciliation", () => {
   test("honors commit policy during recovery commits", async () => {
     const store = createMemoryCoordinatorStore();
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: stateWithSlots(),
-    });
+    await saveReconciliationState(store);
 
     const result = await reconcileStoredS3CoordinatorUploads({
       bucket: "media",
@@ -184,10 +176,7 @@ describe("stored S3 upload reconciliation", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: stateWithSlots(),
-    });
+    await saveReconciliationState(store);
 
     const result = await reconcileStoredS3CoordinatorUploads({
       bucket: "media",
@@ -231,10 +220,7 @@ describe("stored S3 upload reconciliation", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: stateWithSlots(),
-    });
+    await saveReconciliationState(store);
 
     const options = {
       bucket: "media",
@@ -260,6 +246,18 @@ describe("stored S3 upload reconciliation", () => {
     expect(headObjectInputs).toEqual([]);
   });
 });
+
+async function saveReconciliationState(
+  store: ReturnType<typeof createMemoryCoordinatorStore>
+): Promise<void> {
+  savedStoreResult(
+    await store.save({
+      sessionId: session.sessionId,
+      state: stateWithSlots(),
+    }),
+    "expected reconciliation setup save"
+  );
+}
 
 function stateWithSlots(): CoordinatorPipelineState {
   let state = createEmptyCoordinatorState();
