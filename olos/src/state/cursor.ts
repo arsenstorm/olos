@@ -7,6 +7,8 @@ import type { Pathway } from "../types/pathway";
 import type { LatencyProfile, SessionState } from "../types/session";
 import { assertCursor } from "../validation/cursor";
 
+const SEGMENT_ONLY_CURSOR_PART_ORDER = -1;
+
 export interface CreateCursorOptions {
   committedWindow: CommittedWindow;
   lastPartNumber?: PartNumber;
@@ -120,8 +122,8 @@ function compareCursorPosition(first: Cursor, second: Cursor): number {
       second.window.lastMediaSequenceNumber
     ) ||
     compareNumber(
-      first.window.lastPartNumber ?? -1,
-      second.window.lastPartNumber ?? -1
+      first.window.lastPartNumber ?? SEGMENT_ONLY_CURSOR_PART_ORDER,
+      second.window.lastPartNumber ?? SEGMENT_ONLY_CURSOR_PART_ORDER
     )
   );
 }

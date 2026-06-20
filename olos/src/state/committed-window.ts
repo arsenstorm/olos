@@ -10,6 +10,8 @@ import { assertCommit } from "../validation/commit";
 import { assertCommittedWindow } from "../validation/committed-window";
 import { assertPositiveInteger } from "./integers";
 
+const SEGMENT_COMMIT_PART_ORDER = -1;
+
 export interface CreateCommittedWindowOptions {
   commits: readonly Commit[];
   discontinuitySequence?: number;
@@ -257,5 +259,8 @@ function compareCommitPosition(left: Commit, right: Commit): number {
     return left.mediaSequenceNumber - right.mediaSequenceNumber;
   }
 
-  return (left.partNumber ?? -1) - (right.partNumber ?? -1);
+  return (
+    (left.partNumber ?? SEGMENT_COMMIT_PART_ORDER) -
+    (right.partNumber ?? SEGMENT_COMMIT_PART_ORDER)
+  );
 }
