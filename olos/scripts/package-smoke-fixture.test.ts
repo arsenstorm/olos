@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import packageJson from "../package.json" with { type: "json" };
+import {
+  packageExportSpecifier,
+  packageExportSubpaths,
+} from "./package-export-map";
 import { expectedRuntimeExports } from "./package-smoke-fixture";
 
 const README_IMPORT_PATTERN =
@@ -42,9 +46,8 @@ describe("package smoke fixture", () => {
 });
 
 function packageExportSpecifiers(): string[] {
-  return Object.keys(packageJson.exports)
-    .filter((subpath) => subpath !== "./package.json")
-    .map((subpath) => (subpath === "." ? "olos" : `olos/${subpath.slice(2)}`))
+  return packageExportSubpaths(packageJson.exports)
+    .map(packageExportSpecifier)
     .sort();
 }
 

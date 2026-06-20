@@ -1,5 +1,6 @@
 import packageJson from "../package.json" with { type: "json" };
 import { isRecord } from "../src/validation/fields";
+import { packageExportSubpaths } from "./package-export-map";
 import { isCliEntry } from "./script-entry";
 import { packageRoot } from "./script-paths";
 import { runCommandAndCapture } from "./script-runner";
@@ -31,11 +32,8 @@ export function requiredDryPackFilesFromExports(
 ): string[] {
   const files = new Set<string>();
 
-  for (const [subpath, value] of Object.entries(exportsMap)) {
-    if (subpath === "./package.json") {
-      continue;
-    }
-
+  for (const subpath of packageExportSubpaths(exportsMap)) {
+    const value = exportsMap[subpath];
     addExportFile(files, value, "default");
     addExportFile(files, value, "import");
     addExportFile(files, value, "types");

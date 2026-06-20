@@ -2,6 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { access, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import packageJson from "../package.json" with { type: "json" };
+import {
+  packageExportEntrypoint,
+  packageExportSubpaths,
+} from "./package-export-map";
 import { packageRoot } from "./script-paths";
 
 describe("package exports", () => {
@@ -23,11 +27,7 @@ describe("package exports", () => {
   });
 
   test("have matching source facade files for public subpaths", async () => {
-    for (const subpath of Object.keys(packageJson.exports)) {
-      if (subpath === "./package.json") {
-        continue;
-      }
-
+    for (const subpath of packageExportSubpaths(packageJson.exports)) {
       await access(
         join(packageRoot, "src", `${packageExportEntrypoint(subpath)}.ts`)
       );
@@ -38,8 +38,7 @@ describe("package exports", () => {
     const sourceEntries = await readdir(join(packageRoot, "src"), {
       withFileTypes: true,
     });
-    const expectedFacadeEntrypoints = Object.keys(packageJson.exports)
-      .filter((subpath) => subpath !== "./package.json")
+    const expectedFacadeEntrypoints = packageExportSubpaths(packageJson.exports)
       .map(packageExportEntrypoint)
       .sort();
     const actualFacadeEntrypoints = sourceEntries
@@ -55,7 +54,3 @@ describe("package exports", () => {
     expect(actualFacadeEntrypoints).toEqual(expectedFacadeEntrypoints);
   });
 });
-
-function packageExportEntrypoint(subpath: string): string {
-  return subpath === "." ? "index" : subpath.slice("./".length);
-}
