@@ -41,10 +41,7 @@ const pathways: Pathway[] = [
 describe("runtime slot adapter", () => {
   test("issues a slot from a JSON request", async () => {
     const result = await issueCoordinatorSlotFromRequest({
-      request: new Request("https://edge.example.com/v1/live/session_1/slots", {
-        body: JSON.stringify(slotPayload()),
-        method: "POST",
-      }),
+      request: slotRequest(slotPayload()),
       state: createCoordinatorPipeline({ pathways, session }),
     });
 
@@ -62,10 +59,7 @@ describe("runtime slot adapter", () => {
 
   test("returns invalid responses for malformed JSON requests", async () => {
     const result = await issueCoordinatorSlotFromRequest({
-      request: new Request("https://edge.example.com/v1/live/session_1/slots", {
-        body: "{",
-        method: "POST",
-      }),
+      request: slotRequest("{"),
       state: createCoordinatorPipeline({ pathways, session }),
     });
 
@@ -75,22 +69,16 @@ describe("runtime slot adapter", () => {
 
   test("returns invalid responses for unsafe JSON slot paths", async () => {
     const objectKeyResult = await issueCoordinatorSlotFromRequest({
-      request: new Request("https://edge.example.com/v1/live/session_1/slots", {
-        body: JSON.stringify({
-          ...slotPayload(),
-          objectKey: "media/../secret.m4s",
-        }),
-        method: "POST",
+      request: slotRequest({
+        ...slotPayload(),
+        objectKey: "media/../secret.m4s",
       }),
       state: createCoordinatorPipeline({ pathways, session }),
     });
     const deliveryUrlResult = await issueCoordinatorSlotFromRequest({
-      request: new Request("https://edge.example.com/v1/live/session_1/slots", {
-        body: JSON.stringify({
-          ...slotPayload(),
-          deliveryUrl: "https://media.example.com/s3810.m4s?token=abc",
-        }),
-        method: "POST",
+      request: slotRequest({
+        ...slotPayload(),
+        deliveryUrl: "https://media.example.com/s3810.m4s?token=abc",
       }),
       state: createCoordinatorPipeline({ pathways, session }),
     });
@@ -131,16 +119,10 @@ describe("runtime slot adapter", () => {
 
     for (const testCase of cases) {
       const result = await issueCoordinatorSlotFromRequest({
-        request: new Request(
-          "https://edge.example.com/v1/live/session_1/slots",
-          {
-            body: JSON.stringify({
-              ...slotPayload(),
-              [testCase.field]: "../unsafe",
-            }),
-            method: "POST",
-          }
-        ),
+        request: slotRequest({
+          ...slotPayload(),
+          [testCase.field]: "../unsafe",
+        }),
         state: createCoordinatorPipeline({ pathways, session }),
       });
 
@@ -185,16 +167,10 @@ describe("runtime slot adapter", () => {
 
     for (const testCase of cases) {
       const result = await issueCoordinatorSlotFromRequest({
-        request: new Request(
-          "https://edge.example.com/v1/live/session_1/slots",
-          {
-            body: JSON.stringify({
-              ...slotPayload(),
-              [testCase.field]: testCase.value,
-            }),
-            method: "POST",
-          }
-        ),
+        request: slotRequest({
+          ...slotPayload(),
+          [testCase.field]: testCase.value,
+        }),
         state: createCoordinatorPipeline({ pathways, session }),
       });
 
@@ -210,12 +186,9 @@ describe("runtime slot adapter", () => {
 
   test("returns invalid responses for invalid JSON publication modes", async () => {
     const result = await issueCoordinatorSlotFromRequest({
-      request: new Request("https://edge.example.com/v1/live/session_1/slots", {
-        body: JSON.stringify({
-          ...slotPayload(),
-          publicationMode: "unknown",
-        }),
-        method: "POST",
+      request: slotRequest({
+        ...slotPayload(),
+        publicationMode: "unknown",
       }),
       state: createCoordinatorPipeline({ pathways, session }),
     });
@@ -233,12 +206,9 @@ describe("runtime slot adapter", () => {
 
   test("returns invalid responses for invalid JSON media object kinds", async () => {
     const result = await issueCoordinatorSlotFromRequest({
-      request: new Request("https://edge.example.com/v1/live/session_1/slots", {
-        body: JSON.stringify({
-          ...slotPayload(),
-          kind: "playlist",
-        }),
-        method: "POST",
+      request: slotRequest({
+        ...slotPayload(),
+        kind: "playlist",
       }),
       state: createCoordinatorPipeline({ pathways, session }),
     });
@@ -291,4 +261,11 @@ function slotPayload() {
     renditionId: "v1080",
     slotId: "slot_3810",
   };
+}
+
+function slotRequest(body: string | unknown): Request {
+  return new Request("https://edge.example.com/v1/live/session_1/slots", {
+    body: typeof body === "string" ? body : JSON.stringify(body),
+    method: "POST",
+  });
 }

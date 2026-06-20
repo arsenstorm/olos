@@ -47,13 +47,7 @@ const pathways: Pathway[] = [
 describe("runtime commit adapter", () => {
   test("commits an upload from a JSON request", async () => {
     const result = await commitCoordinatorUploadFromRequest({
-      request: new Request(
-        "https://edge.example.com/v1/live/session_1/commit",
-        {
-          body: JSON.stringify(commitPayload()),
-          method: "POST",
-        }
-      ),
+      request: commitRequest(commitPayload()),
       state: createReadyState(),
     });
 
@@ -76,13 +70,7 @@ describe("runtime commit adapter", () => {
 
   test("returns invalid responses for malformed JSON requests", async () => {
     const result = await commitCoordinatorUploadFromRequest({
-      request: new Request(
-        "https://edge.example.com/v1/live/session_1/commit",
-        {
-          body: "{",
-          method: "POST",
-        }
-      ),
+      request: commitRequest("{"),
       state: createReadyState(),
     });
 
@@ -96,19 +84,13 @@ describe("runtime commit adapter", () => {
       "https://publisher.example.net/injected.m4s",
     ]) {
       const result = await commitCoordinatorUploadFromRequest({
-        request: new Request(
-          "https://edge.example.com/v1/live/session_1/commit",
-          {
-            body: JSON.stringify({
-              ...commitPayload(),
-              object: {
-                ...commitPayload().object,
-                objectKey,
-              },
-            }),
-            method: "POST",
-          }
-        ),
+        request: commitRequest({
+          ...commitPayload(),
+          object: {
+            ...commitPayload().object,
+            objectKey,
+          },
+        }),
         state: createReadyState(),
       });
 
@@ -149,13 +131,7 @@ describe("runtime commit adapter", () => {
 
     for (const testCase of cases) {
       const result = await commitCoordinatorUploadFromRequest({
-        request: new Request(
-          "https://edge.example.com/v1/live/session_1/commit",
-          {
-            body: JSON.stringify(testCase.payload),
-            method: "POST",
-          }
-        ),
+        request: commitRequest(testCase.payload),
         state: createReadyState(),
       });
 
@@ -172,19 +148,13 @@ describe("runtime commit adapter", () => {
 
   test("returns invalid responses for non-positive object sizes", async () => {
     const result = await commitCoordinatorUploadFromRequest({
-      request: new Request(
-        "https://edge.example.com/v1/live/session_1/commit",
-        {
-          body: JSON.stringify({
-            ...commitPayload(),
-            object: {
-              ...commitPayload().object,
-              size: 0,
-            },
-          }),
-          method: "POST",
-        }
-      ),
+      request: commitRequest({
+        ...commitPayload(),
+        object: {
+          ...commitPayload().object,
+          size: 0,
+        },
+      }),
       state: createReadyState(),
     });
 
@@ -200,16 +170,10 @@ describe("runtime commit adapter", () => {
 
   test("returns invalid responses for invalid max segment limits", async () => {
     const result = await commitCoordinatorUploadFromRequest({
-      request: new Request(
-        "https://edge.example.com/v1/live/session_1/commit",
-        {
-          body: JSON.stringify({
-            ...commitPayload(),
-            maxSegments: 0,
-          }),
-          method: "POST",
-        }
-      ),
+      request: commitRequest({
+        ...commitPayload(),
+        maxSegments: 0,
+      }),
       state: createReadyState(),
     });
 
@@ -225,16 +189,10 @@ describe("runtime commit adapter", () => {
 
   test("returns invalid responses for invalid late tolerance", async () => {
     const result = await commitCoordinatorUploadFromRequest({
-      request: new Request(
-        "https://edge.example.com/v1/live/session_1/commit",
-        {
-          body: JSON.stringify({
-            ...commitPayload(),
-            lateToleranceMs: -1,
-          }),
-          method: "POST",
-        }
-      ),
+      request: commitRequest({
+        ...commitPayload(),
+        lateToleranceMs: -1,
+      }),
       state: createReadyState(),
     });
 
@@ -280,13 +238,7 @@ describe("runtime commit adapter", () => {
 
     for (const testCase of cases) {
       const result = await commitCoordinatorUploadFromRequest({
-        request: new Request(
-          "https://edge.example.com/v1/live/session_1/commit",
-          {
-            body: JSON.stringify(testCase.payload),
-            method: "POST",
-          }
-        ),
+        request: commitRequest(testCase.payload),
         state: createReadyState(),
       });
 
@@ -387,4 +339,11 @@ function commitPayload() {
     },
     slotId: "slot_3810",
   };
+}
+
+function commitRequest(body: string | unknown): Request {
+  return new Request("https://edge.example.com/v1/live/session_1/commit", {
+    body: typeof body === "string" ? body : JSON.stringify(body),
+    method: "POST",
+  });
 }
