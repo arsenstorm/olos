@@ -24,6 +24,10 @@ import {
   timestampField,
   urlSafeIdentifierField,
 } from "./request-fields";
+import {
+  parseRuntimeJsonRequest,
+  type RuntimeJsonRequestParse,
+} from "./request-json";
 import { jsonErrorResponse, jsonResponse } from "./response";
 
 export type RuntimeCommitRequest = Request | RuntimeCommitPayload;
@@ -72,9 +76,10 @@ type InvalidRuntimeCoordinatorUploadCommit = Extract<
   RuntimeCoordinatorUploadCommit,
   { status: "invalid" }
 >;
-type RuntimeCommitRequestParse =
-  | { status: "valid"; value: RuntimeCommitPayload }
-  | InvalidRuntimeCoordinatorUploadCommit;
+type RuntimeCommitRequestParse = RuntimeJsonRequestParse<
+  RuntimeCommitPayload,
+  InvalidRuntimeCoordinatorUploadCommit
+>;
 
 export async function commitCoordinatorUploadFromRequest(
   options: CommitCoordinatorUploadFromRequestOptions
@@ -134,15 +139,12 @@ function isRejectedCoordinatorUploadCommit(
 async function parseRequest(
   request: RuntimeCommitRequest
 ): Promise<RuntimeCommitRequestParse> {
-  if (!(request instanceof Request)) {
-    return { status: "valid", value: request };
-  }
-
-  try {
-    return { status: "valid", value: parsePayload(await request.json()) };
-  } catch (error) {
-    return invalid(errorMessage(error, "invalid commit request"));
-  }
+  return await parseRuntimeJsonRequest(
+    request,
+    parsePayload,
+    invalid,
+    "invalid commit request"
+  );
 }
 
 function parsePayload(value: unknown): RuntimeCommitPayload {

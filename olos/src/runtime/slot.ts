@@ -25,6 +25,10 @@ import {
   stringField,
   urlSafeIdentifierField,
 } from "./request-fields";
+import {
+  parseRuntimeJsonRequest,
+  type RuntimeJsonRequestParse,
+} from "./request-json";
 import { jsonErrorResponse, jsonResponse } from "./response";
 
 export type RuntimeSlotIssueRequest = Request | RuntimeSlotIssuePayload;
@@ -65,9 +69,10 @@ type InvalidRuntimeCoordinatorSlotIssue = Extract<
   RuntimeCoordinatorSlotIssue,
   { status: "invalid" }
 >;
-type RuntimeSlotIssueRequestParse =
-  | { status: "valid"; value: RuntimeSlotIssuePayload }
-  | InvalidRuntimeCoordinatorSlotIssue;
+type RuntimeSlotIssueRequestParse = RuntimeJsonRequestParse<
+  RuntimeSlotIssuePayload,
+  InvalidRuntimeCoordinatorSlotIssue
+>;
 
 export async function issueCoordinatorSlotFromRequest(
   options: IssueCoordinatorSlotFromRequestOptions
@@ -108,15 +113,12 @@ export async function issueCoordinatorSlotFromRequest(
 async function parseRequest(
   request: RuntimeSlotIssueRequest
 ): Promise<RuntimeSlotIssueRequestParse> {
-  if (!(request instanceof Request)) {
-    return { status: "valid", value: request };
-  }
-
-  try {
-    return { status: "valid", value: parsePayload(await request.json()) };
-  } catch (error) {
-    return invalid(errorMessage(error, "invalid slot issue request"));
-  }
+  return await parseRuntimeJsonRequest(
+    request,
+    parsePayload,
+    invalid,
+    "invalid slot issue request"
+  );
 }
 
 function parsePayload(value: unknown): RuntimeSlotIssuePayload {
