@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 
 import {
   commitCoordinatorUpload,
-  createCoordinatorPipeline,
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
 } from "../protocol";
@@ -11,7 +10,7 @@ import type {
   CoordinatorPipelineStore,
 } from "../protocol/coordinator";
 import {
-  testCoordinatorPathways as pathways,
+  createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import { createObservedUpload } from "../state/observed-upload";
@@ -327,7 +326,7 @@ async function createSeededStore(): Promise<CoordinatorPipelineStore> {
   const store = createMemoryCoordinatorStore();
   const saved = await store.save({
     sessionId: session.sessionId,
-    state: createCoordinatorPipeline({ pathways, session }),
+    state: createEmptyCoordinatorState(),
   });
 
   if (saved.status !== "saved") {
@@ -345,7 +344,7 @@ async function createConflictingStore(): Promise<CoordinatorPipelineStore> {
     deliveryUrl: "https://media.example.com/existing.m4s",
     objectKey: "media/existing.m4s",
     slotId: "slot_existing",
-    state: createCoordinatorPipeline({ pathways, session }),
+    state: createEmptyCoordinatorState(),
   }).state;
   let conflicted = false;
 
@@ -454,7 +453,7 @@ async function createSeededSnapshot(): Promise<CoordinatorPipelineSnapshot> {
 
 async function createReadyStore(): Promise<CoordinatorPipelineStore> {
   const store = createMemoryCoordinatorStore();
-  const state = createCoordinatorPipeline({ pathways, session });
+  const state = createEmptyCoordinatorState();
   const init = issueCoordinatorSlot({
     contentType: "video/mp4",
     deliveryUrl: "https://media.example.com/init.mp4",

@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { createMemoryCoordinatorStore } from "../protocol";
 import {
-  createCoordinatorPipeline,
-  createMemoryCoordinatorStore,
-} from "../protocol";
-import {
-  testCoordinatorPathways as pathways,
+  createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import {
@@ -298,7 +295,7 @@ async function seedSession(
 ): Promise<void> {
   const saved = await store.save({
     sessionId: session.sessionId,
-    state: createCoordinatorPipeline({ pathways, session }),
+    state: createEmptyCoordinatorState(),
   });
 
   if (saved.status !== "saved") {

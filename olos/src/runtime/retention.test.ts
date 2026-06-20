@@ -3,13 +3,12 @@ import { describe, expect, test } from "bun:test";
 import {
   type CoordinatorPipelineStore,
   commitCoordinatorUpload,
-  createCoordinatorPipeline,
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
 } from "../protocol";
 import type { CoordinatorPipelineState } from "../protocol/coordinator";
 import {
-  testCoordinatorPathways as pathways,
+  createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import { createObservedUpload } from "../state/observed-upload";
@@ -183,7 +182,7 @@ describe("stored runtime retention", () => {
 });
 
 function retentionState(): CoordinatorPipelineState {
-  let state = createCoordinatorPipeline({ pathways, session });
+  let state = createEmptyCoordinatorState();
 
   state = commitSlot(state, {
     commitId: "commit_init",
