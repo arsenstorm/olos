@@ -1,9 +1,8 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { isCliEntry } from "./script-entry";
+import { packageRoot } from "./script-paths";
 
-const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 const distRoot = join(packageRoot, "dist");
 const relativeImportPattern = /(from\s+["'])(\.[^"']+)(["'])/g;
 
