@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import {
-  type DeleteObjectCommand,
-  type DeleteObjectCommandOutput,
-  type HeadObjectCommand,
-  type HeadObjectCommandOutput,
-  S3Client,
+import type {
+  DeleteObjectCommand,
+  DeleteObjectCommandOutput,
+  HeadObjectCommand,
+  HeadObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 
 import {
@@ -29,6 +28,7 @@ import {
 } from "./http";
 import type { S3HeadObjectClient } from "./object-observation";
 import type { S3DeleteObjectClient } from "./retention";
+import { createTestS3Client } from "./test-client.test";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -68,7 +68,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const options = {
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       store: createMemoryCoordinatorStore(),
     };
@@ -121,7 +121,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -273,7 +273,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -360,7 +360,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -429,7 +429,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor({}, headObjectInputs),
@@ -487,7 +487,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       objectClient: objectClientFor({}, headObjectInputs),
       providerId: "s3_primary",
@@ -518,7 +518,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       store: createMemoryCoordinatorStore(),
     });
@@ -554,7 +554,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       store: createMemoryCoordinatorStore(),
     });
@@ -586,7 +586,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       store: createMemoryCoordinatorStore(),
     });
@@ -616,7 +616,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       store: createMemoryCoordinatorStore(),
     });
@@ -674,7 +674,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       store: createMemoryCoordinatorStore(),
     });
@@ -729,7 +729,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       store: createMemoryCoordinatorStore(),
     });
@@ -798,7 +798,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       store: createMemoryCoordinatorStore(),
     });
@@ -838,7 +838,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       store: createMemoryCoordinatorStore(),
     });
@@ -876,7 +876,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       store,
     });
@@ -918,7 +918,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -1006,7 +1006,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -1084,7 +1084,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -1146,7 +1146,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -1203,7 +1203,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       providerId: "s3_primary",
       store: createMemoryCoordinatorStore(),
@@ -1302,7 +1302,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       providerId: "s3_primary",
       store: createMemoryCoordinatorStore(),
@@ -1361,7 +1361,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       providerId: "s3_primary",
       store: createMemoryCoordinatorStore(),
@@ -1427,7 +1427,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       publicationControl: createPublicationKillSwitch("incident"),
       store,
@@ -1486,7 +1486,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       providerId: "s3_primary",
       store,
@@ -1519,7 +1519,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -1620,7 +1620,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       commitPolicy: ({ slot }) =>
         slot.kind === "init"
           ? { status: "allowed" }
@@ -1749,7 +1749,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -1895,7 +1895,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       maxAttempts: 2,
@@ -1993,7 +1993,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -2101,7 +2101,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -2182,7 +2182,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -2286,7 +2286,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -2368,7 +2368,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       commitPolicy: () => ({
         error: {
           error: {
@@ -2458,7 +2458,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       providerId: "s3_primary",
@@ -2535,7 +2535,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -2622,7 +2622,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -2964,18 +2964,6 @@ function s3EventRecord(objectKey: string, eventId: string, bucket = "media") {
       },
     },
   };
-}
-
-function createClient(): S3Client {
-  return new S3Client({
-    credentials: {
-      accessKeyId: "test-access-key",
-      secretAccessKey: "test-secret-key",
-    },
-    endpoint: "https://s3.example.com",
-    forcePathStyle: true,
-    region: "us-east-1",
-  });
 }
 
 function objectClientFor(

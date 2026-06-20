@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import {
-  type DeleteObjectCommand,
-  type DeleteObjectCommandOutput,
-  type HeadObjectCommand,
-  type HeadObjectCommandOutput,
-  S3Client,
+import type {
+  DeleteObjectCommand,
+  DeleteObjectCommandOutput,
+  HeadObjectCommand,
+  HeadObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import { createMemoryCoordinatorStore } from "../protocol";
 import { createRuntimeSession, type RuntimeFetch } from "../runtime";
@@ -23,6 +22,7 @@ import {
 import { createStoredS3CoordinatorRuntimeHandler } from "./http";
 import type { S3HeadObjectClient } from "./object-observation";
 import type { S3DeleteObjectClient } from "./retention";
+import { createTestS3Client } from "./test-client.test";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -64,7 +64,7 @@ describe("S3 runtime HTTP client", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -296,7 +296,7 @@ describe("S3 runtime HTTP client", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -415,7 +415,7 @@ describe("S3 runtime HTTP client", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       objectClient: objectClientFor(
@@ -535,18 +535,6 @@ describe("S3 runtime HTTP client", () => {
     ]);
   });
 });
-
-function createClient(): S3Client {
-  return new S3Client({
-    credentials: {
-      accessKeyId: "test-access-key",
-      secretAccessKey: "test-secret-key",
-    },
-    endpoint: "https://s3.example.com",
-    forcePathStyle: true,
-    region: "us-east-1",
-  });
-}
 
 function objectClientFor(
   sizes: Record<string, number>,

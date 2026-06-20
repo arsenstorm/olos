@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import {
-  type HeadObjectCommand,
-  type HeadObjectCommandOutput,
-  S3Client,
+import type {
+  HeadObjectCommand,
+  HeadObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import {
   createCoordinatorPipeline,
@@ -28,6 +27,7 @@ import {
   runStoredS3PublisherUploadStep,
   summarizeStoredS3PublisherUploadStep,
 } from "./publisher";
+import { createTestS3Client } from "./test-client.test";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -75,7 +75,7 @@ describe("stored S3 publisher upload step", () => {
 
     const step = await runPlannedStoredS3PublisherUploadStep({
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
       headObjectClient: clientFor(
         "media/v1080/s3810/segment-slot_01JZ.m4s",
@@ -150,7 +150,7 @@ describe("stored S3 publisher upload step", () => {
     const step = await runNextStoredS3PublisherUploadStep({
       baseUrl: "https://media.example.com",
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
       defaults: objectDefaults,
       headObjectClient: clientFor(
@@ -389,7 +389,7 @@ describe("stored S3 publisher upload step", () => {
 
     const step = await runPlannedStoredS3PublisherUploadStep({
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
       commitPolicy: () => ({
         error: {
@@ -447,7 +447,7 @@ describe("stored S3 publisher upload step", () => {
 
     const step = await runPlannedStoredS3PublisherUploadStep({
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
       now: "2026-01-01T00:00:00.000Z",
       plan: {
@@ -519,7 +519,7 @@ describe("stored S3 publisher upload step", () => {
       issueGrant: () =>
         issueStoredS3CoordinatorUploadGrant({
           bucket: "media",
-          client: createClient(),
+          client: createTestS3Client(),
           contentType: "video/mp4",
           deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
           duration: 2,
@@ -638,7 +638,7 @@ describe("stored S3 publisher upload step", () => {
       issueGrant: () =>
         issueStoredS3CoordinatorUploadGrant({
           bucket: "media",
-          client: createClient(),
+          client: createTestS3Client(),
           contentType: "video/mp4",
           deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
           duration: 2,
@@ -694,7 +694,7 @@ function nextStepOptions(options: {
   return {
     baseUrl: "https://media.example.com",
     bucket: "media",
-    client: createClient(),
+    client: createTestS3Client(),
     committedAt: "2026-01-01T00:00:02.000Z",
     defaults: objectDefaults,
     headObjectClient: clientFor(
@@ -735,16 +735,4 @@ function clientFor(
       });
     },
   };
-}
-
-function createClient(): S3Client {
-  return new S3Client({
-    credentials: {
-      accessKeyId: "test-access-key",
-      secretAccessKey: "test-secret-key",
-    },
-    endpoint: "https://s3.example.com",
-    forcePathStyle: true,
-    region: "us-east-1",
-  });
 }

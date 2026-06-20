@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { S3Client } from "@aws-sdk/client-s3";
+import type { S3Client } from "@aws-sdk/client-s3";
 import type { UploadSlot } from "../types/upload-slot";
+import { createTestS3Client } from "./test-client.test";
 import {
   createPresignedS3UploadGrant,
   createS3UploadGrant,
@@ -41,7 +42,7 @@ describe("s3 upload grants", () => {
   test("creates an upload grant with an SDK-presigned PUT URL", async () => {
     const grant = await createPresignedS3UploadGrant({
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       now: "2026-01-01T00:00:00.000Z",
       slot,
@@ -72,7 +73,7 @@ describe("s3 upload grants", () => {
         "x-amz-checksum-sha256": "abc123",
       },
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       now: "2026-01-01T00:00:00.000Z",
       slot,
@@ -95,7 +96,7 @@ describe("s3 upload grants", () => {
     await expect(
       createPresignedS3UploadGrant({
         bucket: "media",
-        client: createClient(),
+        client: createTestS3Client(),
         expiresInSeconds: 6,
         now: "2026-01-01T00:00:00.000Z",
         slot,
@@ -121,7 +122,7 @@ describe("s3 upload grants", () => {
     await expect(
       createPresignedS3UploadGrant({
         bucket: "",
-        client: createClient(),
+        client: createTestS3Client(),
         expiresInSeconds: 3,
         slot,
       })
@@ -129,7 +130,7 @@ describe("s3 upload grants", () => {
     await expect(
       createPresignedS3UploadGrant({
         bucket: "media/live",
-        client: createClient(),
+        client: createTestS3Client(),
         expiresInSeconds: 3,
         slot,
       })
@@ -137,7 +138,7 @@ describe("s3 upload grants", () => {
     await expect(
       createPresignedS3UploadGrant({
         bucket: "media",
-        client: createClient(),
+        client: createTestS3Client(),
         expiresInSeconds: 0,
         slot,
       })
@@ -145,7 +146,7 @@ describe("s3 upload grants", () => {
     await expect(
       createPresignedS3UploadGrant({
         bucket: "media",
-        client: createClient(),
+        client: createTestS3Client(),
         expiresInSeconds: 3,
         now: "soon",
         slot,
@@ -157,7 +158,7 @@ describe("s3 upload grants", () => {
           "x-provider-checksum": 123,
         } as unknown as Record<string, string>,
         bucket: "media",
-        client: createClient(),
+        client: createTestS3Client(),
         expiresInSeconds: 3,
         now: "2026-01-01T00:00:00.000Z",
         slot,
@@ -339,15 +340,3 @@ describe("s3 upload grants", () => {
     ).toThrow("additionalHeaders must be a string map");
   });
 });
-
-function createClient(): S3Client {
-  return new S3Client({
-    credentials: {
-      accessKeyId: "test-access-key",
-      secretAccessKey: "test-secret-key",
-    },
-    endpoint: "https://s3.example.com",
-    forcePathStyle: true,
-    region: "us-east-1",
-  });
-}

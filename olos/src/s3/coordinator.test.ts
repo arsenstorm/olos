@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import {
-  type HeadObjectCommand,
-  type HeadObjectCommandOutput,
-  S3Client,
+import type {
+  HeadObjectCommand,
+  HeadObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import {
   type CoordinatorPipelineStore,
@@ -30,6 +29,7 @@ import {
   routeStoredS3CoordinatorUploadEvent,
 } from "./coordinator";
 import type { S3HeadObjectClient } from "./object-observation";
+import { createTestS3Client } from "./test-client.test";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -78,7 +78,7 @@ describe("s3 coordinator uploads", () => {
 
     const issue = await issueStoredS3CoordinatorUploadGrant({
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       contentType: "video/mp4",
       deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
       duration: 2,
@@ -146,7 +146,7 @@ describe("s3 coordinator uploads", () => {
     });
     const issue = await issueStoredS3CoordinatorUploadGrant({
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       expiresInSeconds: expiry.ttlSeconds,
       now: publishNow,
       sessionId: session.sessionId,
@@ -176,7 +176,7 @@ describe("s3 coordinator uploads", () => {
   test("does not sign stored S3 grants for missing coordinator sessions", async () => {
     const result = await issueStoredS3CoordinatorUploadGrant({
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       contentType: "video/mp4",
       deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
       duration: 2,
@@ -208,7 +208,7 @@ describe("s3 coordinator uploads", () => {
 
     const result = await issueStoredS3CoordinatorUploadGrant({
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       contentType: "video/mp4",
       deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
       duration: 2,
@@ -249,7 +249,7 @@ describe("s3 coordinator uploads", () => {
     const state = createCoordinatorPipeline({ pathways, session });
     const issue = await issueS3CoordinatorUploadGrant({
       bucket: "media",
-      client: createClient(),
+      client: createTestS3Client(),
       contentType: "video/mp4",
       deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
       duration: 2,
@@ -1557,16 +1557,4 @@ function clientFor(
       });
     },
   };
-}
-
-function createClient(): S3Client {
-  return new S3Client({
-    credentials: {
-      accessKeyId: "test-access-key",
-      secretAccessKey: "test-secret-key",
-    },
-    endpoint: "https://s3.example.com",
-    forcePathStyle: true,
-    region: "us-east-1",
-  });
 }
