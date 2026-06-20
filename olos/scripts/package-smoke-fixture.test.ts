@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import packageJson from "../package.json" with { type: "json" };
 import { expectedRuntimeExports } from "./package-smoke-fixture";
 
 const README_IMPORT_PATTERN =
@@ -32,7 +33,20 @@ describe("package smoke fixture", () => {
 
     expect(Object.fromEntries(missing)).toEqual({});
   });
+
+  test("keeps runtime smoke specifiers aligned with package exports", () => {
+    expect(Object.keys(expectedRuntimeExports).sort()).toEqual(
+      packageExportSpecifiers()
+    );
+  });
 });
+
+function packageExportSpecifiers(): string[] {
+  return Object.keys(packageJson.exports)
+    .filter((subpath) => subpath !== "./package.json")
+    .map((subpath) => (subpath === "." ? "olos" : `olos/${subpath.slice(2)}`))
+    .sort();
+}
 
 function readmeRuntimeImports(): Map<string, string[]> {
   const readme = readmeSource();
