@@ -1,7 +1,7 @@
-import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import packageJson from "../package.json" with { type: "json" };
 import { packageRoot } from "./script-paths";
+import { runCommandAndCapture } from "./script-runner";
 
 const requiredDryPackFiles = requiredDryPackFilesFromExports(
   packageJson.exports
@@ -9,7 +9,9 @@ const requiredDryPackFiles = requiredDryPackFilesFromExports(
 
 if (fileURLToPath(import.meta.url) === process.argv[1]) {
   assertDryPackIncludesRequiredFiles(
-    await run("bun", ["pm", "pack", "--dry-run"])
+    await runCommandAndCapture("bun", ["pm", "pack", "--dry-run"], {
+      cwd: packageRoot,
+    })
   );
 }
 
@@ -55,37 +57,6 @@ function addExportFile(
   if (typeof path === "string" && path.startsWith("./dist/")) {
     files.add(path.slice(2));
   }
-}
-
-async function run(command: string, args: readonly string[]): Promise<string> {
-  const child = spawn(command, args, {
-    cwd: packageRoot,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  let stdout = "";
-  let stderr = "";
-
-  child.stdout.on("data", (chunk: Buffer) => {
-    const text = chunk.toString();
-    stdout += text;
-    process.stdout.write(text);
-  });
-  child.stderr.on("data", (chunk: Buffer) => {
-    const text = chunk.toString();
-    stderr += text;
-    process.stderr.write(text);
-  });
-
-  const exitCode = await new Promise<number | null>((resolve, reject) => {
-    child.on("error", reject);
-    child.on("exit", resolve);
-  });
-
-  if (exitCode !== 0) {
-    throw new Error(`${command} ${args.join(" ")} exited with ${exitCode}`);
-  }
-
-  return `${stdout}\n${stderr}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import packageJson from "../package.json" with { type: "json" };
@@ -6,12 +5,19 @@ import { assertInstalledPackageContents } from "./package-contents";
 import { writePackageSmokeFile } from "./package-smoke-fixture";
 import { assertPublishedPackageVersion } from "./published-package";
 import { packageRoot, repoRoot } from "./script-paths";
+import { runCommand } from "./script-runner";
 
 const workRoot = join(repoRoot, "out", "published-package-smoke");
 const consumerRoot = join(workRoot, "consumer");
 const tempRoot = join(workRoot, "tmp");
 const tsc = join(packageRoot, "node_modules", ".bin", "tsc");
 const version = process.argv[2] ?? packageJson.version;
+const smokeEnv = {
+  ...process.env,
+  TEMP: tempRoot,
+  TMP: tempRoot,
+  TMPDIR: tempRoot,
+};
 
 assertPublishedPackageVersion(version);
 
@@ -64,29 +70,14 @@ async function runWithRetries(
   }
 }
 
-async function run(
+function run(
   command: string,
   args: readonly string[],
   options: { cwd?: string; reject?: boolean } = {}
 ): Promise<number | null> {
-  const child = spawn(command, args, {
+  return runCommand(command, args, {
     cwd: options.cwd ?? packageRoot,
-    env: {
-      ...process.env,
-      TEMP: tempRoot,
-      TMP: tempRoot,
-      TMPDIR: tempRoot,
-    },
-    stdio: "inherit",
+    env: smokeEnv,
+    reject: options.reject,
   });
-  const exitCode = await new Promise<number | null>((resolve, reject) => {
-    child.on("error", reject);
-    child.on("exit", resolve);
-  });
-
-  if (options.reject !== false && exitCode !== 0) {
-    throw new Error(`${command} ${args.join(" ")} exited with ${exitCode}`);
-  }
-
-  return exitCode;
 }
