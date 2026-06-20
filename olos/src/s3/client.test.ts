@@ -24,6 +24,12 @@ import type { S3HeadObjectClient } from "./object-observation";
 import { createTestS3Client } from "./test-client.test-helper";
 import { createTestS3DeleteObjectClient } from "./test-delete-client.test-helper";
 
+const MEDIA_ORIGIN = "https://media.example.com";
+const RUNTIME_BASE_URL = "https://edge.example.com";
+const S3_BUCKET = "media";
+const S3_GRANT_NOW = "2026-01-01T00:00:00.000Z";
+const S3_GRANT_TTL_SECONDS = 3;
+
 describe("S3 runtime HTTP client", () => {
   test("issues S3 grants and completes uploads through the HTTP runtime", async () => {
     const headObjectInputs: unknown[] = [];
@@ -37,7 +43,7 @@ describe("S3 runtime HTTP client", () => {
     });
 
     const issued = await issueS3RuntimeUploadGrant({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
@@ -56,7 +62,7 @@ describe("S3 runtime HTTP client", () => {
       sessionId: session.sessionId,
     });
     const segment = await issueS3RuntimeUploadGrant({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
@@ -75,7 +81,7 @@ describe("S3 runtime HTTP client", () => {
       sessionId: session.sessionId,
     });
     const committed = await commitS3RuntimeUpload({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       payload: {
         commitId: "commit_init",
@@ -86,7 +92,7 @@ describe("S3 runtime HTTP client", () => {
       sessionId: session.sessionId,
     });
     const completed = await completeS3RuntimeUpload({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       payload: {
         committedAt: "2026-01-01T00:00:03.000Z",
@@ -116,11 +122,11 @@ describe("S3 runtime HTTP client", () => {
     });
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/init.mp4",
       },
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -136,7 +142,7 @@ describe("S3 runtime HTTP client", () => {
       );
 
     const grantError = issueS3RuntimeUploadGrant({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
@@ -164,7 +170,7 @@ describe("S3 runtime HTTP client", () => {
 
     await expect(
       commitS3RuntimeUpload({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         payload: {
           commitId: "commit_init",
@@ -177,7 +183,7 @@ describe("S3 runtime HTTP client", () => {
 
     await expect(
       planS3RuntimeReconciliation({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         sessionId: session.sessionId,
       })
@@ -185,7 +191,7 @@ describe("S3 runtime HTTP client", () => {
 
     await expect(
       reconcileS3RuntimeUploads({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         payload: {
           committedAt: "2026-01-01T00:00:02.000Z",
@@ -196,7 +202,7 @@ describe("S3 runtime HTTP client", () => {
 
     await expect(
       applyS3RuntimeRetention({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         payload: {
           now: "2026-01-01T00:00:06.000Z",
@@ -207,7 +213,7 @@ describe("S3 runtime HTTP client", () => {
 
     await expect(
       completeS3RuntimeUpload({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         sessionId: session.sessionId,
         slotId: "slot_init",
@@ -222,7 +228,7 @@ describe("S3 runtime HTTP client", () => {
       return Promise.resolve(new Response("{}", { status: 200 }));
     };
     const options = {
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       sessionId: "../session",
     };
@@ -252,7 +258,7 @@ describe("S3 runtime HTTP client", () => {
     });
 
     await issueS3RuntimeUploadGrant({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
@@ -271,7 +277,7 @@ describe("S3 runtime HTTP client", () => {
       sessionId: session.sessionId,
     });
     await issueS3RuntimeUploadGrant({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
@@ -291,7 +297,7 @@ describe("S3 runtime HTTP client", () => {
     });
 
     const plan = await planS3RuntimeReconciliation({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       payload: {
         slotIds: ["slot_3810"],
@@ -299,7 +305,7 @@ describe("S3 runtime HTTP client", () => {
       sessionId: session.sessionId,
     });
     const reconciled = await reconcileS3RuntimeUploads({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       payload: {
         committedAt: "2026-01-01T00:00:02.000Z",
@@ -332,11 +338,11 @@ describe("S3 runtime HTTP client", () => {
     ]);
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/init.mp4",
       },
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -383,7 +389,7 @@ describe("S3 runtime HTTP client", () => {
       },
     ]) {
       await issueS3RuntimeUploadGrant({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         payload: {
           contentType: "video/mp4",
@@ -402,7 +408,7 @@ describe("S3 runtime HTTP client", () => {
         sessionId: session.sessionId,
       });
       await commitS3RuntimeUpload({
-        baseUrl: "https://edge.example.com",
+        baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
         payload: {
           commitId: object.commitId,
@@ -418,7 +424,7 @@ describe("S3 runtime HTTP client", () => {
     }
 
     const retained = await applyS3RuntimeRetention({
-      baseUrl: "https://edge.example.com",
+      baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       payload: {
         now: "2026-01-01T00:00:06.000Z",
@@ -444,7 +450,7 @@ describe("S3 runtime HTTP client", () => {
     });
     expect(deleteInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -459,11 +465,11 @@ async function createS3RuntimeClientHarness(options: {
 }): Promise<{ clientFetch: RuntimeFetch }> {
   const store = createMemoryCoordinatorStore();
   const handle = createStoredS3CoordinatorRuntimeHandler({
-    allowedMediaOrigins: ["https://media.example.com"],
-    bucket: "media",
+    allowedMediaOrigins: [MEDIA_ORIGIN],
+    bucket: S3_BUCKET,
     client: createTestS3Client(),
-    expiresInSeconds: 3,
-    grantNow: () => "2026-01-01T00:00:00.000Z",
+    expiresInSeconds: S3_GRANT_TTL_SECONDS,
+    grantNow: () => S3_GRANT_NOW,
     objectClient: objectClientFor(
       options.objectSizes,
       options.headObjectInputs ?? []
@@ -481,7 +487,7 @@ async function createS3RuntimeClientHarness(options: {
   const clientFetch = runtimeFetchFor(handle);
 
   await createRuntimeSession({
-    baseUrl: "https://edge.example.com",
+    baseUrl: RUNTIME_BASE_URL,
     fetch: clientFetch,
     pathways,
     session,
