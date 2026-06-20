@@ -2,6 +2,8 @@ import type { HlsCursorWaitContext } from "../hls";
 import type { Cursor } from "../types/cursor";
 import { assertCursor } from "../validation/cursor";
 
+const SEGMENT_ONLY_CURSOR_PART_ORDER = -1;
+
 export interface RuntimeCursorNotifier {
   notify(cursor: Cursor): void;
   waitForCursor(context: HlsCursorWaitContext): Promise<Cursor | undefined>;
@@ -109,5 +111,5 @@ function isCursorAfter(cursor: Cursor, after: Cursor): boolean {
 }
 
 function lastPartNumber(cursor: Cursor): number {
-  return cursor.window.lastPartNumber ?? -1;
+  return cursor.window.lastPartNumber ?? SEGMENT_ONLY_CURSOR_PART_ORDER;
 }
