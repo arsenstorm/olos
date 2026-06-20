@@ -139,6 +139,15 @@ export interface StoredS3CoordinatorUploadReconciliationSummary {
   status: StoredS3CoordinatorUploadReconciliation["status"];
 }
 
+type MutableStoredS3CoordinatorUploadReconciliationSummary = Omit<
+  StoredS3CoordinatorUploadReconciliationSummary,
+  "ok" | "planned" | "status"
+> & {
+  failedErrorCodes: OlosErrorCode[];
+  failedSlotIds: OlosId[];
+  slotIds: OlosId[];
+};
+
 export async function reconcileStoredS3CoordinatorUploads(
   options: ReconcileStoredS3CoordinatorUploadsOptions
 ): Promise<StoredS3CoordinatorUploadReconciliation> {
@@ -186,13 +195,13 @@ export function summarizeStoredS3CoordinatorUploadReconciliation(
     };
   }
 
-  const summary = {
+  const summary: MutableStoredS3CoordinatorUploadReconciliationSummary = {
     committed: 0,
     failed: 0,
-    failedErrorCodes: [] as OlosErrorCode[],
-    failedSlotIds: [] as OlosId[],
+    failedErrorCodes: [],
+    failedSlotIds: [],
     idempotent: 0,
-    slotIds: [] as OlosId[],
+    slotIds: [],
   };
 
   for (const entry of result.results) {
