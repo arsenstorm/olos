@@ -28,7 +28,7 @@ type IssuedUploadSlot = UploadSlot & { state: "issued" };
 export function selectExpiredUploadSlots(
   options: SelectExpiredUploadSlotsOptions
 ): UploadSlot[] {
-  const now = timestampMs(options.now, "now");
+  const now = isoTimestampMs(options.now, "now");
 
   return options.slots.filter((slot) => {
     assertUploadSlot(slot);
@@ -43,7 +43,7 @@ function isExpiredIssuedUploadSlot(
 ): slot is IssuedUploadSlot {
   return (
     isIssuedUploadSlot(slot) &&
-    timestampMs(slot.expiresAt, "uploadSlot.expiresAt") <= now
+    isoTimestampMs(slot.expiresAt, "uploadSlot.expiresAt") <= now
   );
 }
 
@@ -92,7 +92,7 @@ function addSegmentSlotIds(
   }
 }
 
-function timestampMs(value: string, name: string): number {
+function isoTimestampMs(value: string, name: string): number {
   try {
     return validTimestampMs(value, name);
   } catch {
