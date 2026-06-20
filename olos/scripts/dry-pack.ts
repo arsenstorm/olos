@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import packageJson from "../package.json" with { type: "json" };
+import { isRecord } from "../src/validation/fields";
 import { packageRoot } from "./script-paths";
 import { runCommandAndCapture } from "./script-runner";
 
@@ -57,8 +58,4 @@ function addExportFile(
   if (typeof path === "string" && path.startsWith("./dist/")) {
     files.add(path.slice(2));
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
