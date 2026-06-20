@@ -8,6 +8,7 @@ import {
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
+import { savedStoreResult } from "../protocol/test-store.test-helper";
 import {
   createRuntimePublisherLease,
   heartbeatStoredCoordinatorPublisher,
@@ -36,10 +37,7 @@ describe("stored S3 publisher upload step", () => {
     const uploadedUrls: string[] = [];
     const store = createMemoryCoordinatorStore();
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: createEmptyCoordinatorState(),
-    });
+    await savePublisherState(store);
 
     const step = await runPlannedStoredS3PublisherUploadStep({
       bucket: "media",
@@ -110,10 +108,7 @@ describe("stored S3 publisher upload step", () => {
     const uploadedUrls: string[] = [];
     const store = createMemoryCoordinatorStore();
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: createEmptyCoordinatorState(),
-    });
+    await savePublisherState(store);
 
     const step = await runNextStoredS3PublisherUploadStep({
       baseUrl: "https://media.example.com",
@@ -195,10 +190,7 @@ describe("stored S3 publisher upload step", () => {
       throw new Error("expected retry decision");
     }
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: createEmptyCoordinatorState(),
-    });
+    await savePublisherState(store);
 
     attempt = decision.nextAttempt;
     step = await runNextStoredS3PublisherUploadStep({
@@ -235,10 +227,7 @@ describe("stored S3 publisher upload step", () => {
       ttlMs: 3000,
     });
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: createEmptyCoordinatorState(),
-    });
+    await savePublisherState(store);
 
     const step = await runNextStoredS3PublisherUploadStep({
       ...nextStepOptions({
@@ -283,10 +272,7 @@ describe("stored S3 publisher upload step", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: createEmptyCoordinatorState(),
-    });
+    await savePublisherState(store);
 
     const step = await runNextStoredS3PublisherUploadStep({
       ...nextStepOptions({
@@ -350,10 +336,7 @@ describe("stored S3 publisher upload step", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: createEmptyCoordinatorState(),
-    });
+    await savePublisherState(store);
 
     const step = await runPlannedStoredS3PublisherUploadStep({
       bucket: "media",
@@ -408,10 +391,7 @@ describe("stored S3 publisher upload step", () => {
   test("keeps planned context when upload fails", async () => {
     const store = createMemoryCoordinatorStore();
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: createEmptyCoordinatorState(),
-    });
+    await savePublisherState(store);
 
     const step = await runPlannedStoredS3PublisherUploadStep({
       bucket: "media",
@@ -466,10 +446,7 @@ describe("stored S3 publisher upload step", () => {
     const uploadedUrls: string[] = [];
     const store = createMemoryCoordinatorStore();
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: createEmptyCoordinatorState(),
-    });
+    await savePublisherState(store);
 
     const step = await runStoredS3PublisherUploadStep({
       commit: (slot) =>
@@ -527,10 +504,7 @@ describe("stored S3 publisher upload step", () => {
     const events: string[] = [];
     const store = createMemoryCoordinatorStore();
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: createEmptyCoordinatorState(),
-    });
+    await savePublisherState(store);
 
     const step = await runNextStoredS3PublisherUploadStep({
       ...nextStepOptions({
@@ -596,10 +570,7 @@ describe("stored S3 publisher upload step", () => {
   test("stops before commit when app upload fails", async () => {
     const store = createMemoryCoordinatorStore();
 
-    await store.save({
-      sessionId: session.sessionId,
-      state: createEmptyCoordinatorState(),
-    });
+    await savePublisherState(store);
 
     const step = await runStoredS3PublisherUploadStep({
       commit: () => Promise.resolve({ status: "not_found" }),
@@ -654,6 +625,18 @@ const objectDefaults = {
     maxBytes: 100_000,
   },
 } as const;
+
+async function savePublisherState(
+  store: ReturnType<typeof createMemoryCoordinatorStore>
+): Promise<void> {
+  savedStoreResult(
+    await store.save({
+      sessionId: session.sessionId,
+      state: createEmptyCoordinatorState(),
+    }),
+    "expected S3 publisher setup save"
+  );
+}
 
 function nextStepOptions(options: {
   headObjectInputs: unknown[];
