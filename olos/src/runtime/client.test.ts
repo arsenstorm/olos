@@ -16,6 +16,7 @@ import {
   transitionRuntimeSession,
 } from "./client";
 import { createStoredCoordinatorRuntimeHandler } from "./http";
+import { runtimeFetchFor } from "./test-fetch.test";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -392,12 +393,3 @@ describe("runtime HTTP client", () => {
     ).rejects.toThrow("media playlist failed with status 404");
   });
 });
-
-function runtimeFetchFor(
-  handle: (request: Request) => Promise<Response>
-): RuntimeFetch {
-  return (request, init) =>
-    handle(
-      request instanceof Request ? request : new Request(String(request), init)
-    );
-}

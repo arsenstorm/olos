@@ -8,6 +8,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { createMemoryCoordinatorStore } from "../protocol";
 import { createRuntimeSession, type RuntimeFetch } from "../runtime";
+import { runtimeFetchFor } from "../runtime/test-fetch.test";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
@@ -534,15 +535,6 @@ describe("S3 runtime HTTP client", () => {
     ]);
   });
 });
-
-function runtimeFetchFor(
-  handle: (request: Request) => Promise<Response>
-): RuntimeFetch {
-  return (request, init) =>
-    handle(
-      request instanceof Request ? request : new Request(String(request), init)
-    );
-}
 
 function createClient(): S3Client {
   return new S3Client({
