@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { recordValue } from "../validation/fields";
 import { parseRuntimeJsonRequest } from "./request-json";
 
 describe("parseRuntimeJsonRequest", () => {
@@ -69,15 +70,13 @@ describe("parseRuntimeJsonRequest", () => {
 });
 
 function parseObject(value: unknown): Record<string, unknown> {
-  if (!isRecord(value)) {
+  const record = recordValue(value);
+
+  if (record === undefined) {
     throw new Error("payload must be an object");
   }
 
-  return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return record;
 }
 
 function invalidParse(message: string): { message: string; status: "invalid" } {
