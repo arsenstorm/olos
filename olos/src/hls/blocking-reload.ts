@@ -5,6 +5,7 @@ import { HLS_RELATIVE_REQUEST_BASE_URL } from "./uri";
 
 const HLS_MSN = "_HLS_msn";
 const HLS_PART = "_HLS_part";
+const SEGMENT_ONLY_LIVE_EDGE_PART = Number.MAX_SAFE_INTEGER;
 
 export interface HlsBlockingReloadRequest {
   mediaSequenceNumber?: MediaSequenceNumber;
@@ -165,7 +166,8 @@ function resolveLiveEdgePartStatus(
   cursor: Cursor,
   request: HlsBlockingReloadRequest
 ): "block" | "ready" {
-  const liveEdgePart = cursor.window.lastPartNumber ?? Number.MAX_SAFE_INTEGER;
+  const liveEdgePart =
+    cursor.window.lastPartNumber ?? SEGMENT_ONLY_LIVE_EDGE_PART;
 
   return request.partNumber !== undefined && request.partNumber > liveEdgePart
     ? "block"
