@@ -516,8 +516,9 @@ const s3RuntimeCommitPayload = {
   objectKey: slot.objectKey,
   slotId: slot.slotId,
 } satisfies S3RuntimeCommitPayload;
+const runtimeBaseUrl = "https://edge.example.com";
 const s3RuntimeGrantOptions = {
-  baseUrl: "https://edge.example.com",
+  baseUrl: runtimeBaseUrl,
   payload: {
     contentType: slot.contentType,
     deliveryUrl: slot.deliveryUrl,
@@ -535,13 +536,13 @@ const s3RuntimeGrantOptions = {
   sessionId: slot.sessionId,
 } satisfies S3RuntimeIssueUploadGrantOptions;
 const s3RuntimeCompletionOptions = {
-  baseUrl: "https://edge.example.com",
+  baseUrl: runtimeBaseUrl,
   payload: s3CompletionHint,
   sessionId: slot.sessionId,
   slotId: slot.slotId,
 } satisfies S3RuntimeCompleteUploadOptions;
 const s3RuntimeCommitOptions = {
-  baseUrl: "https://edge.example.com",
+  baseUrl: runtimeBaseUrl,
   payload: s3RuntimeCommitPayload,
   sessionId: slot.sessionId,
 } satisfies S3RuntimeCommitUploadOptions;
@@ -553,12 +554,12 @@ const s3RuntimeReconciliationPayload = {
   slotIds: [slot.slotId],
 } satisfies S3RuntimeReconciliationPayload;
 const s3RuntimeReconciliationPlanOptions = {
-  baseUrl: "https://edge.example.com",
+  baseUrl: runtimeBaseUrl,
   payload: s3RuntimeReconciliationPlanPayload,
   sessionId: slot.sessionId,
 } satisfies S3RuntimePlanReconciliationOptions;
 const s3RuntimeReconciliationOptions = {
-  baseUrl: "https://edge.example.com",
+  baseUrl: runtimeBaseUrl,
   payload: s3RuntimeReconciliationPayload,
   sessionId: slot.sessionId,
 } satisfies S3RuntimeReconcileUploadsOptions;
@@ -566,7 +567,7 @@ const s3RuntimeRetentionPayload = {
   now: "2026-01-01T00:00:06.000Z",
 } satisfies S3RuntimeRetentionPayload;
 const s3RuntimeRetentionOptions = {
-  baseUrl: "https://edge.example.com",
+  baseUrl: runtimeBaseUrl,
   payload: s3RuntimeRetentionPayload,
   sessionId: slot.sessionId,
 } satisfies S3RuntimeApplyRetentionOptions;
