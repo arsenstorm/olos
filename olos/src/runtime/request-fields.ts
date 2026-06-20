@@ -16,6 +16,20 @@ export function stringField(
   return value[field];
 }
 
+export function oneOfStringField<const Allowed extends readonly string[]>(
+  value: Record<string, unknown>,
+  field: string,
+  allowed: Allowed
+): Allowed[number] {
+  const fieldValue = stringField(value, field);
+
+  if (!allowed.includes(fieldValue as Allowed[number])) {
+    throw new Error(`${field} must be one of: ${allowed.join(", ")}`);
+  }
+
+  return fieldValue as Allowed[number];
+}
+
 export function optionalStringField<Field extends string>(
   value: Record<string, unknown>,
   field: Field

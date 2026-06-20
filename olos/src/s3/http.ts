@@ -17,6 +17,7 @@ import { rejectionStatusCode } from "../runtime/rejection-status";
 import {
   isRecord,
   nonNegativeIntegerField,
+  oneOfStringField,
   optionalBooleanField,
   optionalNonNegativeIntegerField,
   optionalNonNegativeNumberField,
@@ -35,9 +36,8 @@ import { routeParts } from "../runtime/route";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosErrorCode } from "../types/errors";
-import type { MediaObjectKind } from "../types/media-object";
 import type { UploadGrant } from "../types/upload-grant";
-import type { PublicationMode, UploadSlot } from "../types/upload-slot";
+import type { UploadSlot } from "../types/upload-slot";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import {
@@ -654,7 +654,7 @@ async function parseJsonRequest(
 }
 
 function parsePayload(value: Record<string, unknown>): RuntimeSlotIssuePayload {
-  const kind = mediaObjectKindField(value);
+  const kind = oneOfStringField(value, "kind", MEDIA_OBJECT_KINDS);
   const deliveryUrl = stringField(value, "deliveryUrl");
   const objectKey = stringField(value, "objectKey");
 
@@ -670,7 +670,11 @@ function parsePayload(value: Record<string, unknown>): RuntimeSlotIssuePayload {
     maxBytes: positiveNumberField(value, "maxBytes"),
     mediaSequenceNumber: nonNegativeIntegerField(value, "mediaSequenceNumber"),
     objectKey,
-    publicationMode: publicationModeField(value),
+    publicationMode: oneOfStringField(
+      value,
+      "publicationMode",
+      PUBLICATION_MODES
+    ),
     publisherInstanceId: urlSafeIdentifierField(value, "publisherInstanceId"),
     renditionId: urlSafeIdentifierField(value, "renditionId"),
     slotId: urlSafeIdentifierField(value, "slotId"),
@@ -1015,28 +1019,6 @@ function optionalCursorResponse(
   cursor: Cursor | undefined
 ): Pick<StoredS3CoordinatorCommitResponse, "cursor"> | Record<string, never> {
   return cursor === undefined ? {} : { cursor };
-}
-
-function mediaObjectKindField(value: Record<string, unknown>): MediaObjectKind {
-  const kind = stringField(value, "kind");
-
-  if (!MEDIA_OBJECT_KINDS.includes(kind as MediaObjectKind)) {
-    throw new Error(`kind must be one of: ${MEDIA_OBJECT_KINDS.join(", ")}`);
-  }
-
-  return kind as MediaObjectKind;
-}
-
-function publicationModeField(value: Record<string, unknown>): PublicationMode {
-  const publicationMode = stringField(value, "publicationMode");
-
-  if (!PUBLICATION_MODES.includes(publicationMode as PublicationMode)) {
-    throw new Error(
-      `publicationMode must be one of: ${PUBLICATION_MODES.join(", ")}`
-    );
-  }
-
-  return publicationMode as PublicationMode;
 }
 
 function optionalObjectKeyField(

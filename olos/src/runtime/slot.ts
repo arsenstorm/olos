@@ -11,8 +11,7 @@ import {
   resolvePublicationControl,
 } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
-import type { MediaObjectKind } from "../types/media-object";
-import type { PublicationMode, UploadSlot } from "../types/upload-slot";
+import type { UploadSlot } from "../types/upload-slot";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import { assertSafeMediaObjectKey } from "../validation/object-key";
 import { errorMessage } from "./errors";
@@ -20,6 +19,7 @@ import { rejectionStatus } from "./rejection-status";
 import {
   isRecord,
   nonNegativeIntegerField,
+  oneOfStringField,
   optionalNonNegativeIntegerField,
   positiveNumberField,
   stringField,
@@ -124,7 +124,7 @@ function parsePayload(value: unknown): RuntimeSlotIssuePayload {
     throw new Error("slot issue request must be a JSON object");
   }
 
-  const kind = mediaObjectKindField(value);
+  const kind = oneOfStringField(value, "kind", MEDIA_OBJECT_KINDS);
   const deliveryUrl = stringField(value, "deliveryUrl");
   const objectKey = stringField(value, "objectKey");
 
@@ -140,7 +140,11 @@ function parsePayload(value: unknown): RuntimeSlotIssuePayload {
     maxBytes: positiveNumberField(value, "maxBytes"),
     mediaSequenceNumber: nonNegativeIntegerField(value, "mediaSequenceNumber"),
     objectKey,
-    publicationMode: publicationModeField(value),
+    publicationMode: oneOfStringField(
+      value,
+      "publicationMode",
+      PUBLICATION_MODES
+    ),
     publisherInstanceId: urlSafeIdentifierField(value, "publisherInstanceId"),
     renditionId: urlSafeIdentifierField(value, "renditionId"),
     slotId: urlSafeIdentifierField(value, "slotId"),
@@ -173,26 +177,4 @@ function rejected(
     state,
     status: "rejected",
   };
-}
-
-function mediaObjectKindField(value: Record<string, unknown>): MediaObjectKind {
-  const kind = stringField(value, "kind");
-
-  if (!MEDIA_OBJECT_KINDS.includes(kind as MediaObjectKind)) {
-    throw new Error(`kind must be one of: ${MEDIA_OBJECT_KINDS.join(", ")}`);
-  }
-
-  return kind as MediaObjectKind;
-}
-
-function publicationModeField(value: Record<string, unknown>): PublicationMode {
-  const publicationMode = stringField(value, "publicationMode");
-
-  if (!PUBLICATION_MODES.includes(publicationMode as PublicationMode)) {
-    throw new Error(
-      `publicationMode must be one of: ${PUBLICATION_MODES.join(", ")}`
-    );
-  }
-
-  return publicationMode as PublicationMode;
 }
