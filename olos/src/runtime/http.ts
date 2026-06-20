@@ -12,7 +12,6 @@ import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
 import { hasControlCharacter } from "../validation/fields";
-import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
 import { positiveAttempts } from "./attempts";
@@ -34,7 +33,7 @@ import {
 } from "./request-fields";
 import { jsonErrorResponse, jsonResponse } from "./response";
 import { planStoredCoordinatorRetention } from "./retention";
-import { routeParts } from "./route";
+import { routeIdentifierError, routeParts } from "./route";
 import {
   createStoredCoordinatorSession,
   heartbeatStoredCoordinatorPublisher,
@@ -573,11 +572,11 @@ function currentNow(options: CreateStoredCoordinatorRuntimeHandlerOptions) {
 function routeSessionIdError(
   sessionId: string | undefined
 ): string | undefined {
-  try {
-    assertUrlSafeIdentifier(sessionId, "sessionId");
-  } catch (error) {
-    return errorMessage(error, "invalid route sessionId");
-  }
+  return routeIdentifierError(
+    sessionId,
+    "sessionId",
+    "invalid route sessionId"
+  );
 }
 
 function routePublisherInstanceIdError(
@@ -587,11 +586,11 @@ function routePublisherInstanceIdError(
     return;
   }
 
-  try {
-    assertUrlSafeIdentifier(publisherInstanceId, "publisherInstanceId");
-  } catch (error) {
-    return errorMessage(error, "invalid publisherInstanceId");
-  }
+  return routeIdentifierError(
+    publisherInstanceId,
+    "publisherInstanceId",
+    "invalid publisherInstanceId"
+  );
 }
 
 function invalid(message: string): InvalidRuntimeHttpRequestParse {

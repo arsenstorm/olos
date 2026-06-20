@@ -36,7 +36,7 @@ import {
   urlSafeIdentifierField,
 } from "../runtime/request-fields";
 import { jsonErrorResponse, jsonResponse } from "../runtime/response";
-import { routeParts } from "../runtime/route";
+import { routeIdentifierError, routeParts } from "../runtime/route";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosErrorCode } from "../types/errors";
@@ -873,11 +873,11 @@ function invalid(message: string): InvalidS3HttpRequestParse {
 }
 
 function routeSessionIdError(sessionId: string): string | undefined {
-  try {
-    assertUrlSafeIdentifier(sessionId, "sessionId");
-  } catch (error) {
-    return errorMessage(error, "invalid route sessionId");
-  }
+  return routeIdentifierError(
+    sessionId,
+    "sessionId",
+    "invalid route sessionId"
+  );
 }
 
 function badRequest(message: string): Response {

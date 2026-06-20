@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { routeParts } from "./route";
+import { routeIdentifierError, routeParts } from "./route";
 
 describe("routeParts", () => {
   test("returns decoded path parts for matching routes", () => {
@@ -29,5 +29,17 @@ describe("routeParts", () => {
     expect(routeParts("/sessions/%E0%A4%A/health", "/sessions")).toBe(
       "invalid"
     );
+  });
+
+  test("formats unsafe route identifier errors", () => {
+    expect(
+      routeIdentifierError("session_1", "sessionId", "invalid route sessionId")
+    ).toBeUndefined();
+    expect(
+      routeIdentifierError(undefined, "sessionId", "invalid route sessionId")
+    ).toBe("sessionId must be a non-empty URL-safe identifier");
+    expect(
+      routeIdentifierError("../secret", "sessionId", "invalid route sessionId")
+    ).toBe("sessionId must be a non-empty URL-safe identifier");
   });
 });
