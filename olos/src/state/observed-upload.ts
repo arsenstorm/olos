@@ -85,6 +85,11 @@ export interface NormalizeUploadEventOptions {
   event: unknown;
 }
 
+type ObjectCreatedUploadEventPayload =
+  CreateObservedUploadFromObjectCreatedEventOptions;
+
+type UploadCompletionHintPayload = CreateUploadCompletionHintOptions;
+
 export type ObjectCreatedEventObservationResolution =
   | {
       event: ObservedUploadObjectCreatedEvent;
@@ -274,30 +279,16 @@ export function normalizeUploadEvent(
   try {
     if (event.eventType === OBJECT_CREATED_EVENT_TYPE) {
       return {
-        event: createObservedUploadFromObjectCreatedEvent({
-          contentType: event.contentType as string,
-          etag: event.etag as string | undefined,
-          eventId: event.eventId as string,
-          eventTime: event.eventTime as string,
-          eventType: OBJECT_CREATED_EVENT_TYPE,
-          metadata: optionalUploadEventMetadata(event.metadata),
-          objectKey: event.objectKey as string,
-          providerId: event.providerId as string,
-          size: event.size as number,
-        }),
+        event: createObservedUploadFromObjectCreatedEvent(
+          objectCreatedUploadEventPayload(event)
+        ),
         status: "object_created",
       };
     }
 
     if (event.eventType === UPLOAD_COMPLETED_HINT_TYPE) {
       return {
-        hint: createUploadCompletionHint({
-          eventId: event.eventId as string,
-          eventTime: event.eventTime as string,
-          eventType: UPLOAD_COMPLETED_HINT_TYPE,
-          objectKey: event.objectKey as string,
-          slotId: event.slotId as string,
-        }),
+        hint: createUploadCompletionHint(uploadCompletionHintPayload(event)),
         status: "upload_completed",
       };
     }
@@ -367,6 +358,52 @@ function isObjectLikeRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
 
+function objectCreatedUploadEventPayload(
+  event: Record<string, unknown>
+): ObjectCreatedUploadEventPayload {
+  assertUrlSafeIdentifier(event.eventId, "objectCreatedEvent.eventId");
+
+  const object = {
+    contentType: event.contentType,
+    etag: event.etag,
+    metadata: optionalUploadEventMetadata(event.metadata),
+    objectKey: event.objectKey,
+    observedAt: event.eventTime,
+    providerId: event.providerId,
+    size: event.size,
+  };
+
+  assertObservedUpload(object);
+
+  return {
+    contentType: object.contentType,
+    etag: object.etag,
+    eventId: event.eventId,
+    eventTime: object.observedAt,
+    eventType: OBJECT_CREATED_EVENT_TYPE,
+    metadata: object.metadata,
+    objectKey: object.objectKey,
+    providerId: object.providerId,
+    size: object.size,
+  };
+}
+
+function uploadCompletionHintPayload(
+  event: Record<string, unknown>
+): UploadCompletionHintPayload {
+  const hint = {
+    eventId: event.eventId,
+    eventTime: event.eventTime,
+    eventType: UPLOAD_COMPLETED_HINT_TYPE,
+    objectKey: event.objectKey,
+    slotId: event.slotId,
+  };
+
+  assertUploadCompletionHint(hint);
+
+  return hint;
+}
+
 function optionalUploadEventMetadata(
   value: unknown
 ): Record<string, string | undefined> | undefined {
@@ -392,13 +429,21 @@ function assertObjectCreatedEvent(
 }
 
 function assertUploadCompletionHint(
-  options: CreateUploadCompletionHintOptions
-): void {
+  options: unknown
+): asserts options is CreateUploadCompletionHintOptions {
+  if (!isObjectLikeRecord(options)) {
+    throw new Error("uploadCompletionHint must be an object");
+  }
+
   assertUrlSafeIdentifier(options.eventId, "uploadCompletionHint.eventId");
   assertUrlSafeIdentifier(options.slotId, "uploadCompletionHint.slotId");
 
   if (options.eventType !== UPLOAD_COMPLETED_HINT_TYPE) {
     throw new Error("uploadCompletionHint.eventType must be upload.completed");
+  }
+
+  if (typeof options.eventTime !== "string") {
+    throw new Error("uploadCompletionHint.eventTime must be a valid timestamp");
   }
 
   timestampMs(options.eventTime, "uploadCompletionHint.eventTime");
