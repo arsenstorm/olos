@@ -9,7 +9,6 @@ import type { RuntimeCommitPayload } from "./commit";
 import type { RuntimeLiveHealth } from "./health";
 import {
   fetchFor,
-  isRecord,
   jsonPost,
   normalizedBaseUrl,
   optionalRecordPayload,
@@ -17,6 +16,7 @@ import {
   recordPayload,
   requiredRecordField,
   requiredRecordPayload,
+  requiredStringField,
   responseBody,
 } from "./http-client";
 import { trimSlashes } from "./path";
@@ -397,31 +397,22 @@ function leasePayload(value: unknown): RuntimePublisherLease {
 }
 
 function sessionIdPayload(value: unknown, context: string): string {
-  if (!(isRecord(value) && typeof value.sessionId === "string")) {
-    throw new Error(`${context} response must include sessionId`);
-  }
-
-  return value.sessionId;
+  return requiredStringField(
+    value,
+    "sessionId",
+    `${context} response must include sessionId`
+  );
 }
 
 function transitionPayload(
   value: unknown
 ): Omit<RuntimeTransitionSessionResponse, "response"> {
-  if (
-    !(
-      isRecord(value) &&
-      typeof value.sessionId === "string" &&
-      typeof value.state === "string"
-    )
-  ) {
-    throw new Error(
-      "session transition response must include sessionId and state"
-    );
-  }
+  const message =
+    "session transition response must include sessionId and state";
 
   return {
-    sessionId: value.sessionId,
-    state: value.state as SessionState,
+    sessionId: requiredStringField(value, "sessionId", message),
+    state: requiredStringField(value, "state", message) as SessionState,
   };
 }
 

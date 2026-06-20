@@ -45,6 +45,19 @@ export function requiredRecordField(
   return record;
 }
 
+export function requiredRecord(
+  value: unknown,
+  message: string
+): Record<string, unknown> {
+  const record = recordValue(value);
+
+  if (record === undefined) {
+    throw new Error(message);
+  }
+
+  return record;
+}
+
 export function requiredRecordPayload<T>(
   value: unknown,
   field: string,
@@ -53,11 +66,39 @@ export function requiredRecordPayload<T>(
   return recordPayload<T>(requiredRecordField(value, field, message));
 }
 
+export function requiredArrayField(
+  value: unknown,
+  field: string,
+  message: string
+): unknown[] {
+  const fieldValue = recordValue(value)?.[field];
+
+  if (!Array.isArray(fieldValue)) {
+    throw new Error(message);
+  }
+
+  return fieldValue;
+}
+
 export function optionalRecordField(
   value: unknown,
   field: string
 ): Record<string, unknown> | undefined {
   return recordValue(recordValue(value)?.[field]);
+}
+
+export function requiredStringField(
+  value: unknown,
+  field: string,
+  message: string
+): string {
+  const fieldValue = recordValue(value)?.[field];
+
+  if (typeof fieldValue !== "string") {
+    throw new Error(message);
+  }
+
+  return fieldValue;
 }
 
 export function optionalRecordPayload<Field extends string, T>(

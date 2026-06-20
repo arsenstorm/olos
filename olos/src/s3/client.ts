@@ -1,12 +1,14 @@
 import type { RuntimeFetch } from "../runtime/client";
 import {
   fetchFor,
-  isRecord,
   jsonPost,
   normalizedBaseUrl,
   optionalRecordPayload,
   recordPayload,
+  requiredArrayField,
+  requiredRecord,
   requiredRecordField,
+  requiredStringField,
   responseBody,
 } from "../runtime/http-client";
 import type { RuntimeSlotIssuePayload } from "../runtime/slot";
@@ -344,40 +346,55 @@ function optionalCursorPayload(
 function reconciliationPlanPayload(
   value: unknown
 ): StoredS3CoordinatorReconciliationPlan {
-  if (!(isRecord(value) && typeof value.status === "string")) {
-    throw new Error("S3 reconciliation plan response must include status");
-  }
+  const record = requiredRecord(
+    value,
+    "S3 reconciliation plan response must include status"
+  );
 
-  return recordPayload<StoredS3CoordinatorReconciliationPlan>(value);
+  requiredStringField(
+    record,
+    "status",
+    "S3 reconciliation plan response must include status"
+  );
+
+  return recordPayload<StoredS3CoordinatorReconciliationPlan>(record);
 }
 
 function reconciliationPayload(
   value: unknown
 ): StoredS3CoordinatorReconciliationResponse {
-  if (!(isRecord(value) && Array.isArray(value.results))) {
-    throw new Error("S3 reconciliation response must include results");
-  }
+  const record = requiredRecord(
+    value,
+    "S3 reconciliation response must include results"
+  );
 
-  return recordPayload<StoredS3CoordinatorReconciliationResponse>(value);
+  requiredArrayField(
+    record,
+    "results",
+    "S3 reconciliation response must include results"
+  );
+
+  return recordPayload<StoredS3CoordinatorReconciliationResponse>(record);
 }
 
 function retentionPayload(
   value: unknown
 ): StoredS3CoordinatorRetentionResponse {
-  if (!isRecord(value)) {
-    throw new Error("S3 retention response must include plan and summary");
-  }
+  const record = requiredRecord(
+    value,
+    "S3 retention response must include plan and summary"
+  );
 
   requiredRecordField(
-    value,
+    record,
     "plan",
     "S3 retention response must include plan and summary"
   );
   requiredRecordField(
-    value,
+    record,
     "summary",
     "S3 retention response must include plan and summary"
   );
 
-  return recordPayload<StoredS3CoordinatorRetentionResponse>(value);
+  return recordPayload<StoredS3CoordinatorRetentionResponse>(record);
 }

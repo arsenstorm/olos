@@ -4,7 +4,10 @@ import {
   normalizedBaseUrl,
   optionalRecordField,
   optionalRecordPayload,
+  requiredArrayField,
+  requiredRecord,
   requiredRecordField,
+  requiredStringField,
   responseBody,
 } from "./http-client";
 
@@ -44,9 +47,33 @@ describe("runtime HTTP client helpers", () => {
     expect(requiredRecordField(value, "cursor", "missing cursor")).toEqual({
       sessionId: "session_1",
     });
+    expect(requiredRecord(value, "missing record")).toBe(value);
     expect(() =>
       requiredRecordField(value, "missing", "missing cursor")
     ).toThrow("missing cursor");
+    expect(() => requiredRecord(null, "missing record")).toThrow(
+      "missing record"
+    );
+  });
+
+  test("required field helpers extract scalar and array fields", () => {
+    const value = {
+      results: [{ status: "committed" }],
+      status: "planned",
+    };
+
+    expect(requiredStringField(value, "status", "missing status")).toBe(
+      "planned"
+    );
+    expect(requiredArrayField(value, "results", "missing results")).toEqual([
+      { status: "committed" },
+    ]);
+    expect(() =>
+      requiredStringField(value, "results", "missing status")
+    ).toThrow("missing status");
+    expect(() =>
+      requiredArrayField(value, "status", "missing results")
+    ).toThrow("missing results");
   });
 
   test("responseBody parses JSON, text, and empty responses", async () => {
