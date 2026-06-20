@@ -1,54 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  commitCoordinatorUpload,
-  createCoordinatorPipeline,
-  issueCoordinatorSlot,
-} from "../protocol";
-import type { CoordinatorPipelineState } from "../protocol/coordinator";
-import { createObservedUpload } from "../state/observed-upload";
-import type { Pathway } from "../types/pathway";
-import type { Session } from "../types/session";
 import { commitCoordinatorUploadFromRequest } from "./commit";
-
-const session: Session = {
-  createdAt: "2026-01-01T00:00:00.000Z",
-  epoch: 1,
-  latencyProfile: "object-ll",
-  olos: "1.0",
-  partTarget: 0.5,
-  renditions: [
-    {
-      bitrate: 5_000_000,
-      codec: "avc1.640028",
-      frameRate: 30,
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
-    },
-  ],
-  segmentTarget: 2,
-  sessionId: "session_1",
-  state: "live",
-  tenantId: "tenant_1",
-};
-
-const pathways: Pathway[] = [
-  {
-    baseUrl: "https://media.example.com",
-    pathwayId: "primary",
-    priority: 0,
-    providerId: "s3_primary",
-    state: "active",
-  },
-];
+import { createCoordinatorStateWithIssuedSegment } from "./coordinator-state.test-helper";
 
 describe("runtime commit adapter", () => {
   test("commits an upload from a JSON request", async () => {
     const result = await commitCoordinatorUploadFromRequest({
       request: commitRequest(commitPayload()),
-      state: createReadyState(),
+      state: createCoordinatorStateWithIssuedSegment(),
     });
 
     expect(result.status).toBe("committed");
@@ -71,7 +30,7 @@ describe("runtime commit adapter", () => {
   test("returns invalid responses for malformed JSON requests", async () => {
     const result = await commitCoordinatorUploadFromRequest({
       request: commitRequest("{"),
-      state: createReadyState(),
+      state: createCoordinatorStateWithIssuedSegment(),
     });
 
     expect(result.status).toBe("invalid");
@@ -91,7 +50,7 @@ describe("runtime commit adapter", () => {
             objectKey,
           },
         }),
-        state: createReadyState(),
+        state: createCoordinatorStateWithIssuedSegment(),
       });
 
       expect(result.status).toBe("invalid");
@@ -132,7 +91,7 @@ describe("runtime commit adapter", () => {
     for (const testCase of cases) {
       const result = await commitCoordinatorUploadFromRequest({
         request: commitRequest(testCase.payload),
-        state: createReadyState(),
+        state: createCoordinatorStateWithIssuedSegment(),
       });
 
       expect(result.status).toBe("invalid");
@@ -155,7 +114,7 @@ describe("runtime commit adapter", () => {
           size: 0,
         },
       }),
-      state: createReadyState(),
+      state: createCoordinatorStateWithIssuedSegment(),
     });
 
     expect(result.status).toBe("invalid");
@@ -174,7 +133,7 @@ describe("runtime commit adapter", () => {
         ...commitPayload(),
         maxSegments: 0,
       }),
-      state: createReadyState(),
+      state: createCoordinatorStateWithIssuedSegment(),
     });
 
     expect(result.status).toBe("invalid");
@@ -193,7 +152,7 @@ describe("runtime commit adapter", () => {
         ...commitPayload(),
         lateToleranceMs: -1,
       }),
-      state: createReadyState(),
+      state: createCoordinatorStateWithIssuedSegment(),
     });
 
     expect(result.status).toBe("invalid");
@@ -239,7 +198,7 @@ describe("runtime commit adapter", () => {
     for (const testCase of cases) {
       const result = await commitCoordinatorUploadFromRequest({
         request: commitRequest(testCase.payload),
-        state: createReadyState(),
+        state: createCoordinatorStateWithIssuedSegment(),
       });
 
       expect(result.status).toBe("invalid");
@@ -259,7 +218,7 @@ describe("runtime commit adapter", () => {
         ...commitPayload(),
         slotId: "missing",
       },
-      state: createReadyState(),
+      state: createCoordinatorStateWithIssuedSegment(),
     });
 
     expect(result.status).toBe("rejected");
@@ -272,58 +231,6 @@ describe("runtime commit adapter", () => {
     expect(result.response.status).toBe(404);
   });
 });
-
-function createReadyState(): CoordinatorPipelineState {
-  const state = createCoordinatorPipeline({ pathways, session });
-  const init = issueCoordinatorSlot({
-    contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/init.mp4",
-    duration: 1,
-    expiresAt: "2026-01-01T00:00:05.000Z",
-    kind: "init",
-    maxBytes: 2048,
-    mediaSequenceNumber: 0,
-    objectKey: "media/init.mp4",
-    publicationMode: "direct-public",
-    publisherInstanceId: "pub_1",
-    renditionId: "v1080",
-    slotId: "slot_init",
-    state,
-  });
-  const committedInit = commitCoordinatorUpload({
-    commitId: "commit_init",
-    committedAt: "2026-01-01T00:00:02.000Z",
-    object: createObservedUpload({
-      contentType: "video/mp4",
-      objectKey: "media/init.mp4",
-      observedAt: "2026-01-01T00:00:02.000Z",
-      providerId: "s3_primary",
-      size: 1024,
-    }),
-    slotId: "slot_init",
-    state: init.state,
-  });
-
-  if (committedInit.status !== "committed") {
-    throw new Error("expected committed init");
-  }
-
-  return issueCoordinatorSlot({
-    contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/s3810.m4s",
-    duration: 2,
-    expiresAt: "2026-01-01T00:00:05.000Z",
-    kind: "segment",
-    maxBytes: 100_000,
-    mediaSequenceNumber: 3810,
-    objectKey: "media/s3810.m4s",
-    publicationMode: "direct-public",
-    publisherInstanceId: "pub_1",
-    renditionId: "v1080",
-    slotId: "slot_3810",
-    state: committedInit.state,
-  }).state;
-}
 
 function commitPayload() {
   return {
