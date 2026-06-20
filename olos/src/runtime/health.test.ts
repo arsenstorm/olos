@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { createCoordinatorPipeline } from "../protocol";
+import {
+  createEmptyCoordinatorState,
+  testCoordinatorPathways as pathways,
+} from "../protocol/coordinator-state.test-helper";
 import type { Cursor } from "../types/cursor";
-import type { Pathway } from "../types/pathway";
-import type { Session } from "../types/session";
 import {
   resolveRuntimeLiveHealth,
   resolveRuntimeLiveHealthFromState,
@@ -76,7 +77,7 @@ describe("runtime live health", () => {
         maxCursorAgeMs: 3000,
         now: "2026-01-01T00:00:02.000Z",
         state: {
-          ...createCoordinatorPipeline({ pathways, session }),
+          ...createEmptyCoordinatorState(),
           cursor: cursor(),
           publisherLeases: [
             lease("publisher_1", "2026-01-01T00:00:00.000Z"),
@@ -100,7 +101,7 @@ describe("runtime live health", () => {
         now: "2026-01-01T00:00:05.001Z",
         publisherInstanceId: "publisher_1",
         state: {
-          ...createCoordinatorPipeline({ pathways, session }),
+          ...createEmptyCoordinatorState(),
           cursor: cursor("2026-01-01T00:00:05.000Z"),
           publisherLeases: [
             lease("publisher_1", "2026-01-01T00:00:00.000Z"),
@@ -123,7 +124,7 @@ describe("runtime live health", () => {
         now: "2026-01-01T00:00:02.000Z",
         publisherInstanceId: "publisher_missing",
         state: {
-          ...createCoordinatorPipeline({ pathways, session }),
+          ...createEmptyCoordinatorState(),
           cursor: cursor(),
           publisherLeases: [lease()],
         },
@@ -161,39 +162,6 @@ describe("runtime live health", () => {
     ).toThrow("now must be after or equal to cursor.updatedAt");
   });
 });
-
-const session: Session = {
-  createdAt: "2026-01-01T00:00:00.000Z",
-  epoch: 1,
-  latencyProfile: "object-ll",
-  olos: "1.0",
-  partTarget: 0.5,
-  renditions: [
-    {
-      bitrate: 5_000_000,
-      codec: "avc1.640028",
-      frameRate: 30,
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
-    },
-  ],
-  segmentTarget: 2,
-  sessionId: "session_1",
-  state: "live",
-  tenantId: "tenant_1",
-};
-
-const pathways: Pathway[] = [
-  {
-    baseUrl: "https://media.example.com",
-    pathwayId: "primary",
-    priority: 0,
-    providerId: "s3_primary",
-    state: "active",
-  },
-];
 
 function lease(
   publisherInstanceId = "publisher_1",

@@ -1,48 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-import { createCoordinatorPipeline } from "../protocol";
-import type { Pathway } from "../types/pathway";
-import type { Session } from "../types/session";
+import { createEmptyCoordinatorState } from "../protocol/coordinator-state.test-helper";
 import { issueCoordinatorSlotFromRequest } from "./slot";
-
-const session: Session = {
-  createdAt: "2026-01-01T00:00:00.000Z",
-  epoch: 1,
-  latencyProfile: "object-ll",
-  olos: "1.0",
-  partTarget: 0.5,
-  renditions: [
-    {
-      bitrate: 5_000_000,
-      codec: "avc1.640028",
-      frameRate: 30,
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
-    },
-  ],
-  segmentTarget: 2,
-  sessionId: "session_1",
-  state: "live",
-  tenantId: "tenant_1",
-};
-
-const pathways: Pathway[] = [
-  {
-    baseUrl: "https://media.example.com",
-    pathwayId: "primary",
-    priority: 0,
-    providerId: "s3_primary",
-    state: "active",
-  },
-];
 
 describe("runtime slot adapter", () => {
   test("issues a slot from a JSON request", async () => {
     const result = await issueCoordinatorSlotFromRequest({
       request: slotRequest(slotPayload()),
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     expect(result.status).toBe("issued");
@@ -60,7 +25,7 @@ describe("runtime slot adapter", () => {
   test("returns invalid responses for malformed JSON requests", async () => {
     const result = await issueCoordinatorSlotFromRequest({
       request: slotRequest("{"),
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     expect(result.status).toBe("invalid");
@@ -73,14 +38,14 @@ describe("runtime slot adapter", () => {
         ...slotPayload(),
         objectKey: "media/../secret.m4s",
       }),
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
     const deliveryUrlResult = await issueCoordinatorSlotFromRequest({
       request: slotRequest({
         ...slotPayload(),
         deliveryUrl: "https://media.example.com/s3810.m4s?token=abc",
       }),
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     expect(objectKeyResult.status).toBe("invalid");
@@ -123,7 +88,7 @@ describe("runtime slot adapter", () => {
           ...slotPayload(),
           [testCase.field]: "../unsafe",
         }),
-        state: createCoordinatorPipeline({ pathways, session }),
+        state: createEmptyCoordinatorState(),
       });
 
       expect(result.status).toBe("invalid");
@@ -171,7 +136,7 @@ describe("runtime slot adapter", () => {
           ...slotPayload(),
           [testCase.field]: testCase.value,
         }),
-        state: createCoordinatorPipeline({ pathways, session }),
+        state: createEmptyCoordinatorState(),
       });
 
       expect(result.status).toBe("invalid");
@@ -190,7 +155,7 @@ describe("runtime slot adapter", () => {
         ...slotPayload(),
         publicationMode: "unknown",
       }),
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     expect(result.status).toBe("invalid");
@@ -210,7 +175,7 @@ describe("runtime slot adapter", () => {
         ...slotPayload(),
         kind: "playlist",
       }),
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     expect(result.status).toBe("invalid");
@@ -230,7 +195,7 @@ describe("runtime slot adapter", () => {
         ...slotPayload(),
         renditionId: "missing",
       },
-      state: createCoordinatorPipeline({ pathways, session }),
+      state: createEmptyCoordinatorState(),
     });
 
     expect(result.status).toBe("invalid");
