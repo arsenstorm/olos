@@ -22,6 +22,8 @@ import {
   testCoordinatorSession as session,
 } from "./coordinator-state.test-helper";
 
+const mediaOrigin = "https://media.example.com";
+
 describe("coordinator pipeline", () => {
   test("saves and loads coordinator state snapshots", async () => {
     const store = createMemoryCoordinatorStore();
@@ -570,7 +572,7 @@ describe("coordinator pipeline", () => {
     expect(revoked.state.cursor).toBeUndefined();
     expect(
       createCoordinatorManifestArtifacts({
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [mediaOrigin],
         partTarget: session.partTarget,
         segmentTarget: session.segmentTarget,
         state: revoked.state,
@@ -693,7 +695,7 @@ describe("coordinator pipeline", () => {
     });
 
     const playlist = renderMediaPlaylist(cursor.committedWindow, {
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [mediaOrigin],
       partTarget: session.partTarget,
       renditionId: "v1080",
       segmentTarget: session.segmentTarget,
@@ -731,7 +733,7 @@ describe("coordinator pipeline", () => {
 
     expect(
       createCoordinatorManifestArtifacts({
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedMediaOrigins: [mediaOrigin],
         partTarget: session.partTarget,
         segmentTarget: session.segmentTarget,
         state,
@@ -752,7 +754,7 @@ describe("coordinator pipeline", () => {
     });
 
     const manifests = createCoordinatorManifestArtifacts({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [mediaOrigin],
       partTarget: session.partTarget,
       segmentTarget: session.segmentTarget,
       state,
