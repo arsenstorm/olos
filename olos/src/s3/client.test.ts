@@ -27,30 +27,13 @@ import { createTestS3DeleteObjectClient } from "./test-delete-client.test-helper
 describe("S3 runtime HTTP client", () => {
   test("issues S3 grants and completes uploads through the HTTP runtime", async () => {
     const headObjectInputs: unknown[] = [];
-    const store = createMemoryCoordinatorStore();
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
-      client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: objectClientFor(
-        {
-          "live/session/v1080/3810.m4s": 98_304,
-          "live/session/v1080/init.mp4": 1024,
-        },
-        headObjectInputs
-      ),
+    const { clientFetch } = await createS3RuntimeClientHarness({
+      headObjectInputs,
+      objectSizes: {
+        "live/session/v1080/3810.m4s": 98_304,
+        "live/session/v1080/init.mp4": 1024,
+      },
       providerId: "s3_primary",
-      store,
-    });
-    const clientFetch = runtimeFetchFor(handle);
-
-    await createRuntimeSession({
-      baseUrl: "https://edge.example.com",
-      fetch: clientFetch,
-      pathways,
-      session,
     });
 
     const issued = await issueS3RuntimeUploadGrant({
@@ -259,30 +242,13 @@ describe("S3 runtime HTTP client", () => {
 
   test("plans and reconciles missed S3 uploads through the HTTP runtime", async () => {
     const headObjectInputs: unknown[] = [];
-    const store = createMemoryCoordinatorStore();
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
-      client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: objectClientFor(
-        {
-          "live/session/v1080/3810.m4s": 98_304,
-          "live/session/v1080/init.mp4": 1024,
-        },
-        headObjectInputs
-      ),
+    const { clientFetch } = await createS3RuntimeClientHarness({
+      headObjectInputs,
+      objectSizes: {
+        "live/session/v1080/3810.m4s": 98_304,
+        "live/session/v1080/init.mp4": 1024,
+      },
       providerId: "s3_primary",
-      store,
-    });
-    const clientFetch = runtimeFetchFor(handle);
-
-    await createRuntimeSession({
-      baseUrl: "https://edge.example.com",
-      fetch: clientFetch,
-      pathways,
-      session,
     });
 
     await issueS3RuntimeUploadGrant({
@@ -378,31 +344,13 @@ describe("S3 runtime HTTP client", () => {
 
   test("applies S3 retention through the HTTP runtime", async () => {
     const deleteInputs: unknown[] = [];
-    const store = createMemoryCoordinatorStore();
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
-      client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: objectClientFor(
-        {
-          "live/session/v1080/3810.m4s": 98_304,
-          "live/session/v1080/3811.m4s": 98_304,
-          "live/session/v1080/init.mp4": 1024,
-        },
-        []
-      ),
-      retentionClient: createTestS3DeleteObjectClient(deleteInputs),
-      store,
-    });
-    const clientFetch = runtimeFetchFor(handle);
-
-    await createRuntimeSession({
-      baseUrl: "https://edge.example.com",
-      fetch: clientFetch,
-      pathways,
-      session,
+    const { clientFetch } = await createS3RuntimeClientHarness({
+      deleteInputs,
+      objectSizes: {
+        "live/session/v1080/3810.m4s": 98_304,
+        "live/session/v1080/3811.m4s": 98_304,
+        "live/session/v1080/init.mp4": 1024,
+      },
     });
 
     for (const object of [
@@ -502,6 +450,45 @@ describe("S3 runtime HTTP client", () => {
     ]);
   });
 });
+
+async function createS3RuntimeClientHarness(options: {
+  deleteInputs?: unknown[];
+  headObjectInputs?: unknown[];
+  objectSizes: Record<string, number>;
+  providerId?: string;
+}): Promise<{ clientFetch: RuntimeFetch }> {
+  const store = createMemoryCoordinatorStore();
+  const handle = createStoredS3CoordinatorRuntimeHandler({
+    allowedMediaOrigins: ["https://media.example.com"],
+    bucket: "media",
+    client: createTestS3Client(),
+    expiresInSeconds: 3,
+    grantNow: () => "2026-01-01T00:00:00.000Z",
+    objectClient: objectClientFor(
+      options.objectSizes,
+      options.headObjectInputs ?? []
+    ),
+    ...(options.providerId === undefined
+      ? {}
+      : { providerId: options.providerId }),
+    ...(options.deleteInputs === undefined
+      ? {}
+      : {
+          retentionClient: createTestS3DeleteObjectClient(options.deleteInputs),
+        }),
+    store,
+  });
+  const clientFetch = runtimeFetchFor(handle);
+
+  await createRuntimeSession({
+    baseUrl: "https://edge.example.com",
+    fetch: clientFetch,
+    pathways,
+    session,
+  });
+
+  return { clientFetch };
+}
 
 function objectClientFor(
   sizes: Record<string, number>,
