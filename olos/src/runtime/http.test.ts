@@ -10,10 +10,12 @@ import type { Cursor } from "../types/cursor";
 import { createMemoryRuntimeCursorNotifier } from "./cursor-notifier";
 import { createStoredCoordinatorRuntimeHandler } from "./http";
 
+const MEDIA_ORIGIN = "https://media.example.com";
+
 describe("stored coordinator runtime handler", () => {
   test("rejects invalid runtime handler options", () => {
     const options = {
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       store: createMemoryCoordinatorStore(),
     };
 
@@ -85,7 +87,7 @@ describe("stored coordinator runtime handler", () => {
   test("runs stored coordinator routes through Request and Response", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       now: () => "2026-01-01T00:00:06.000Z",
       store,
     });
@@ -215,7 +217,7 @@ describe("stored coordinator runtime handler", () => {
   test("commits late uploads within configured route tolerance", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       store,
     });
 
@@ -293,7 +295,7 @@ describe("stored coordinator runtime handler", () => {
 
   test("returns route errors for unsupported requests", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       store: createMemoryCoordinatorStore(),
     });
 
@@ -309,7 +311,7 @@ describe("stored coordinator runtime handler", () => {
 
   test("returns specific errors for missing runtime sessions", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       store: createMemoryCoordinatorStore(),
     });
 
@@ -334,7 +336,7 @@ describe("stored coordinator runtime handler", () => {
 
   test("rejects unsafe route session identifiers", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       store: createMemoryCoordinatorStore(),
     });
 
@@ -361,7 +363,7 @@ describe("stored coordinator runtime handler", () => {
 
   test("rejects malformed route percent encoding", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       store: createMemoryCoordinatorStore(),
     });
 
@@ -377,7 +379,7 @@ describe("stored coordinator runtime handler", () => {
 
   test("returns invalid responses for invalid session creation payloads", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       store: createMemoryCoordinatorStore(),
     });
 
@@ -412,7 +414,7 @@ describe("stored coordinator runtime handler", () => {
 
   test("returns invalid responses for invalid session transition states", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       store: createMemoryCoordinatorStore(),
     });
 
@@ -441,11 +443,11 @@ describe("stored coordinator runtime handler", () => {
   test("applies publication control to slot issuance", async () => {
     const store = createMemoryCoordinatorStore();
     const setup = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       store,
     });
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       publicationControl: createPublicationKillSwitch("incident"),
       store,
     });
@@ -490,7 +492,7 @@ describe("stored coordinator runtime handler", () => {
   test("stores publisher heartbeats through the session route", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       now: () => "2026-01-01T00:00:02.000Z",
       publisherLeaseTtlMs: 3000,
       store,
@@ -541,7 +543,7 @@ describe("stored coordinator runtime handler", () => {
     await seedRuntimeStore(store, 3810);
 
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       now: () => "2026-01-01T00:00:06.500Z",
       store,
     });
@@ -562,7 +564,7 @@ describe("stored coordinator runtime handler", () => {
 
   test("rejects invalid heartbeat publisher identifiers", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       store: createMemoryCoordinatorStore(),
     });
 
@@ -589,7 +591,7 @@ describe("stored coordinator runtime handler", () => {
 
   test("rejects invalid health publisher query identifiers", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       store: createMemoryCoordinatorStore(),
     });
 
@@ -623,7 +625,7 @@ describe("stored coordinator runtime handler", () => {
     let waits = 0;
 
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       blockingReload: {
         timeoutMs: 100,
         waitForCursor: () => {
@@ -652,7 +654,7 @@ describe("stored coordinator runtime handler", () => {
     const notifier = createMemoryRuntimeCursorNotifier();
     let waits = 0;
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       blockingReload: {
         timeoutMs: 1000,
         waitForCursor: (context) => {
@@ -715,7 +717,7 @@ describe("stored coordinator runtime handler", () => {
     await seedRuntimeStore(store, 3810);
 
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedMediaOrigins: [MEDIA_ORIGIN],
       commitPolicy: () => ({
         error: {
           error: {
@@ -838,7 +840,7 @@ async function seedRuntimeStore(
   through: 3810 | 3811
 ): Promise<Cursor> {
   const handle = createStoredCoordinatorRuntimeHandler({
-    allowedMediaOrigins: ["https://media.example.com"],
+    allowedMediaOrigins: [MEDIA_ORIGIN],
     store,
   });
 
