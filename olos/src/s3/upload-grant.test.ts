@@ -38,13 +38,17 @@ const requiredOlosS3Headers = {
   "x-amz-meta-olos-slot-id": "slot_1",
 };
 
+const S3_BUCKET = "media";
+const S3_GRANT_NOW = "2026-01-01T00:00:00.000Z";
+const S3_GRANT_TTL_SECONDS = 3;
+
 describe("s3 upload grants", () => {
   test("creates an upload grant with an SDK-presigned PUT URL", async () => {
     const grant = await createPresignedS3UploadGrant({
-      bucket: "media",
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      now: "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      now: S3_GRANT_NOW,
       slot,
     });
     const url = new URL(grant.url);
@@ -72,10 +76,10 @@ describe("s3 upload grants", () => {
       additionalHeaders: {
         "x-amz-checksum-sha256": "abc123",
       },
-      bucket: "media",
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      now: "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      now: S3_GRANT_NOW,
       slot,
     });
     const url = new URL(grant.url);
@@ -95,10 +99,10 @@ describe("s3 upload grants", () => {
   test("rejects SDK-presigned grants that outlive the slot", async () => {
     await expect(
       createPresignedS3UploadGrant({
-        bucket: "media",
+        bucket: S3_BUCKET,
         client: createTestS3Client(),
         expiresInSeconds: 6,
-        now: "2026-01-01T00:00:00.000Z",
+        now: S3_GRANT_NOW,
         slot,
       })
     ).rejects.toThrow(
@@ -109,10 +113,10 @@ describe("s3 upload grants", () => {
   test("validates SDK-presigned slots before signing", async () => {
     await expect(
       createPresignedS3UploadGrant({
-        bucket: "media",
+        bucket: S3_BUCKET,
         client: null as unknown as S3Client,
-        expiresInSeconds: 3,
-        now: "2026-01-01T00:00:00.000Z",
+        expiresInSeconds: S3_GRANT_TTL_SECONDS,
+        now: S3_GRANT_NOW,
         slot: { ...slot, state: "expired" },
       })
     ).rejects.toThrow("uploadSlot.state must be issued");
@@ -123,7 +127,7 @@ describe("s3 upload grants", () => {
       createPresignedS3UploadGrant({
         bucket: "",
         client: createTestS3Client(),
-        expiresInSeconds: 3,
+        expiresInSeconds: S3_GRANT_TTL_SECONDS,
         slot,
       })
     ).rejects.toThrow("bucket must be a non-empty string");
@@ -131,13 +135,13 @@ describe("s3 upload grants", () => {
       createPresignedS3UploadGrant({
         bucket: "media/live",
         client: createTestS3Client(),
-        expiresInSeconds: 3,
+        expiresInSeconds: S3_GRANT_TTL_SECONDS,
         slot,
       })
     ).rejects.toThrow("bucket must not contain path separators");
     await expect(
       createPresignedS3UploadGrant({
-        bucket: "media",
+        bucket: S3_BUCKET,
         client: createTestS3Client(),
         expiresInSeconds: 0,
         slot,
@@ -145,9 +149,9 @@ describe("s3 upload grants", () => {
     ).rejects.toThrow("expiresInSeconds must be a positive number");
     await expect(
       createPresignedS3UploadGrant({
-        bucket: "media",
+        bucket: S3_BUCKET,
         client: createTestS3Client(),
-        expiresInSeconds: 3,
+        expiresInSeconds: S3_GRANT_TTL_SECONDS,
         now: "soon",
         slot,
       })
@@ -157,10 +161,10 @@ describe("s3 upload grants", () => {
         additionalHeaders: {
           "x-provider-checksum": 123,
         } as unknown as Record<string, string>,
-        bucket: "media",
+        bucket: S3_BUCKET,
         client: createTestS3Client(),
-        expiresInSeconds: 3,
-        now: "2026-01-01T00:00:00.000Z",
+        expiresInSeconds: S3_GRANT_TTL_SECONDS,
+        now: S3_GRANT_NOW,
         slot,
       })
     ).rejects.toThrow("additionalHeaders must be a string map");
