@@ -28,6 +28,8 @@ import {
 } from "./publisher";
 import { createTestS3Client } from "./test-client.test-helper";
 
+const manualGrantTtlSeconds = 3;
+
 describe("stored S3 publisher upload step", () => {
   test("plans, grants, uploads, and commits one S3 object", async () => {
     const headObjectInputs: unknown[] = [];
@@ -490,7 +492,7 @@ describe("stored S3 publisher upload step", () => {
           deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
           duration: 2,
           expiresAt: "2026-01-01T00:00:05.000Z",
-          expiresInSeconds: 3,
+          expiresInSeconds: manualGrantTtlSeconds,
           kind: "segment",
           maxBytes: 100_000,
           mediaSequenceNumber: 3810,
@@ -609,7 +611,7 @@ describe("stored S3 publisher upload step", () => {
           deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
           duration: 2,
           expiresAt: "2026-01-01T00:00:05.000Z",
-          expiresInSeconds: 3,
+          expiresInSeconds: manualGrantTtlSeconds,
           kind: "segment",
           maxBytes: 100_000,
           mediaSequenceNumber: 3810,
