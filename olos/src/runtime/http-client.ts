@@ -1,3 +1,4 @@
+import { optionalField } from "./optional-field";
 import { isRecord as requestFieldIsRecord } from "./request-fields";
 
 export const isRecord = requestFieldIsRecord;
@@ -68,7 +69,7 @@ export function optionalRecordPayload<Field extends string, T>(
 
   return record === undefined
     ? {}
-    : ({ [field]: recordPayload<T>(record) } as Partial<Record<Field, T>>);
+    : optionalField(field, recordPayload<T>(record));
 }
 
 export function recordPayload<T>(value: Record<string, unknown>): T {
