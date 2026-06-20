@@ -300,26 +300,35 @@ async function s3RuntimeHttpError(
 function grantPayload(
   value: unknown
 ): Omit<S3RuntimeIssueUploadGrantResponse, "response"> {
-  if (!(isRecord(value) && isRecord(value.grant) && isRecord(value.slot))) {
-    throw new Error("S3 upload grant response must include grant and slot");
-  }
+  const grant = requiredRecordField(
+    value,
+    "grant",
+    "S3 upload grant response must include grant and slot"
+  );
+  const slot = requiredRecordField(
+    value,
+    "slot",
+    "S3 upload grant response must include grant and slot"
+  );
 
   return {
-    grant: value.grant as unknown as UploadGrant,
-    slot: value.slot as unknown as UploadSlot,
+    grant: grant as unknown as UploadGrant,
+    slot: slot as unknown as UploadSlot,
   };
 }
 
 function commitPayload(
   value: unknown
 ): Omit<S3RuntimeCompleteUploadResponse, "response"> {
-  if (!(isRecord(value) && isRecord(value.commit))) {
-    throw new Error("S3 upload completion response must include a commit");
-  }
+  const commit = requiredRecordField(
+    value,
+    "commit",
+    "S3 upload completion response must include a commit"
+  );
 
   return {
-    commit: value.commit as unknown as Commit,
-    ...optionalCursorPayload(value.cursor),
+    commit: commit as unknown as Commit,
+    ...optionalCursorPayload(isRecord(value) ? value.cursor : undefined),
   };
 }
 
@@ -352,9 +361,28 @@ function reconciliationPayload(
 function retentionPayload(
   value: unknown
 ): StoredS3CoordinatorRetentionResponse {
-  if (!(isRecord(value) && isRecord(value.plan) && isRecord(value.summary))) {
-    throw new Error("S3 retention response must include plan and summary");
-  }
+  requiredRecordField(
+    value,
+    "plan",
+    "S3 retention response must include plan and summary"
+  );
+  requiredRecordField(
+    value,
+    "summary",
+    "S3 retention response must include plan and summary"
+  );
 
   return value as unknown as StoredS3CoordinatorRetentionResponse;
+}
+
+function requiredRecordField(
+  value: unknown,
+  field: string,
+  message: string
+): Record<string, unknown> {
+  if (!(isRecord(value) && isRecord(value[field]))) {
+    throw new Error(message);
+  }
+
+  return value[field];
 }
