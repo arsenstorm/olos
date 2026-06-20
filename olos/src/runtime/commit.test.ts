@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { createCoordinatorStateWithIssuedSegment } from "../protocol/coordinator-state.test-helper";
 import { commitCoordinatorUploadFromRequest } from "./commit";
+import { rawOrJsonPostRequest } from "./test-http.test-helper";
 import { assertInvalidResult } from "./test-result.test-helper";
 
 describe("runtime commit adapter", () => {
@@ -221,8 +222,8 @@ function commitPayload() {
 }
 
 function commitRequest(body: string | unknown): Request {
-  return new Request("https://edge.example.com/v1/live/session_1/commit", {
-    body: typeof body === "string" ? body : JSON.stringify(body),
-    method: "POST",
-  });
+  return rawOrJsonPostRequest(
+    "https://edge.example.com/v1/live/session_1/commit",
+    body
+  );
 }

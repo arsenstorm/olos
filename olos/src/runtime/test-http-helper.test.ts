@@ -3,6 +3,7 @@ import {
   jsonErrorTestResponse,
   jsonPostRequest,
   jsonResponseBody,
+  rawOrJsonPostRequest,
 } from "./test-http.test-helper";
 
 describe("test HTTP helpers", () => {
@@ -14,6 +15,21 @@ describe("test HTTP helpers", () => {
     expect(request.method).toBe("POST");
     expect(request.headers.get("content-type")).toBe("application/json");
     expect(await request.json()).toEqual({ ok: true });
+  });
+
+  test("creates raw or JSON POST requests", async () => {
+    const rawRequest = rawOrJsonPostRequest(
+      "https://edge.example.com/slots",
+      "{"
+    );
+    const jsonRequest = rawOrJsonPostRequest("https://edge.example.com/slots", {
+      ok: true,
+    });
+
+    expect(rawRequest.method).toBe("POST");
+    expect(await rawRequest.text()).toBe("{");
+    expect(jsonRequest.method).toBe("POST");
+    expect(await jsonRequest.json()).toEqual({ ok: true });
   });
 
   test("creates JSON error responses", async () => {

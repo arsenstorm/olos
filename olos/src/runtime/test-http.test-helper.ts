@@ -6,6 +6,16 @@ export function jsonPostRequest(url: string, body: unknown): Request {
   });
 }
 
+export function rawOrJsonPostRequest(
+  url: string,
+  body: string | unknown
+): Request {
+  return new Request(url, {
+    body: typeof body === "string" ? body : JSON.stringify(body),
+    method: "POST",
+  });
+}
+
 export function jsonErrorTestResponse(
   message: string,
   status: number

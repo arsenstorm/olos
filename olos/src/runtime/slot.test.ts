@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { createEmptyCoordinatorState } from "../protocol/coordinator-state.test-helper";
 import { issueCoordinatorSlotFromRequest } from "./slot";
+import { rawOrJsonPostRequest } from "./test-http.test-helper";
 import { assertInvalidResult } from "./test-result.test-helper";
 
 describe("runtime slot adapter", () => {
@@ -201,8 +202,8 @@ function slotPayload() {
 }
 
 function slotRequest(body: string | unknown): Request {
-  return new Request("https://edge.example.com/v1/live/session_1/slots", {
-    body: typeof body === "string" ? body : JSON.stringify(body),
-    method: "POST",
-  });
+  return rawOrJsonPostRequest(
+    "https://edge.example.com/v1/live/session_1/slots",
+    body
+  );
 }
