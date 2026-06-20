@@ -4,7 +4,10 @@ import {
   nonNegativeNumber as validationNonNegativeNumber,
   positiveNumber as validationPositiveNumber,
 } from "../validation/fields";
-import { assertUrlSafeIdentifier } from "../validation/ids";
+import {
+  assertNonNegativeInteger,
+  assertUrlSafeIdentifier,
+} from "../validation/ids";
 import { optionalField } from "./optional-field";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -145,10 +148,7 @@ export function optionalNonNegativeIntegerField<Field extends string>(
 }
 
 export function nonNegativeInteger(value: number, name: string): number {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`${name} must be a non-negative integer`);
-  }
-
+  assertNonNegativeInteger(value, name);
   return value;
 }
 
