@@ -30,13 +30,18 @@ import type { S3HeadObjectClient } from "./object-observation";
 import { createTestS3Client } from "./test-client.test-helper";
 import { createTestS3DeleteObjectClient } from "./test-delete-client.test-helper";
 
+const MEDIA_ORIGIN = "https://media.example.com";
+const S3_BUCKET = "media";
+const S3_GRANT_NOW = "2026-01-01T00:00:00.000Z";
+const S3_GRANT_TTL_SECONDS = 3;
+
 describe("stored S3 coordinator runtime handler", () => {
   test("rejects invalid S3 handler options", () => {
     const options = {
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       store: createMemoryCoordinatorStore(),
     };
 
@@ -86,11 +91,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const notifiedCursors: Cursor[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
@@ -225,11 +230,11 @@ describe("stored S3 coordinator runtime handler", () => {
     );
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/init.mp4",
       },
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -238,11 +243,11 @@ describe("stored S3 coordinator runtime handler", () => {
   test("commits late S3 uploads within configured route tolerance", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
@@ -325,11 +330,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
@@ -384,7 +389,7 @@ describe("stored S3 coordinator runtime handler", () => {
     });
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -394,11 +399,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor({}, headObjectInputs),
       providerId: "s3_primary",
       store,
@@ -452,10 +457,10 @@ describe("stored S3 coordinator runtime handler", () => {
   test("rejects publisher media URLs in S3 completion hints", async () => {
     const headObjectInputs: unknown[] = [];
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       objectClient: objectClientFor({}, headObjectInputs),
       providerId: "s3_primary",
       store: createMemoryCoordinatorStore(),
@@ -483,10 +488,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
   test("returns S3 route errors without swallowing base routes", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       store: createMemoryCoordinatorStore(),
     });
 
@@ -519,10 +524,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
   test("rejects unsafe S3 route session identifiers", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       store: createMemoryCoordinatorStore(),
     });
 
@@ -551,10 +556,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
   test("rejects malformed S3 route percent encoding", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       store: createMemoryCoordinatorStore(),
     });
 
@@ -581,10 +586,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
   test("rejects unsafe S3 slot payload paths", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       store: createMemoryCoordinatorStore(),
     });
 
@@ -639,10 +644,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
   test("rejects unsafe S3 slot payload identifiers", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       store: createMemoryCoordinatorStore(),
     });
 
@@ -694,10 +699,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
   test("rejects invalid S3 slot payload numbers", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       store: createMemoryCoordinatorStore(),
     });
 
@@ -763,10 +768,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
   test("rejects invalid S3 slot publication modes", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       store: createMemoryCoordinatorStore(),
     });
 
@@ -803,10 +808,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
   test("rejects invalid S3 slot media object kinds", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       store: createMemoryCoordinatorStore(),
     });
 
@@ -841,10 +846,10 @@ describe("stored S3 coordinator runtime handler", () => {
   test("rejects playlist-like S3 uploads before issuing grants", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       store,
     });
 
@@ -883,11 +888,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 100_001,
@@ -961,7 +966,7 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -971,11 +976,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
@@ -1039,7 +1044,7 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(stored?.state.cursor).toBeUndefined();
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -1049,11 +1054,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
@@ -1101,7 +1106,7 @@ describe("stored S3 coordinator runtime handler", () => {
     });
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -1111,11 +1116,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
@@ -1168,10 +1173,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
   test("rejects unsafe S3 commit and reconciliation identifiers", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       providerId: "s3_primary",
       store: createMemoryCoordinatorStore(),
     });
@@ -1267,10 +1272,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
   test("rejects invalid S3 commit and reconciliation numbers", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       providerId: "s3_primary",
       store: createMemoryCoordinatorStore(),
     });
@@ -1326,10 +1331,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
   test("rejects invalid S3 timestamp inputs", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       providerId: "s3_primary",
       store: createMemoryCoordinatorStore(),
     });
@@ -1392,10 +1397,10 @@ describe("stored S3 coordinator runtime handler", () => {
     });
 
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       publicationControl: createPublicationKillSwitch("incident"),
       store,
     });
@@ -1451,10 +1456,10 @@ describe("stored S3 coordinator runtime handler", () => {
   test("rejects S3 event payloads for unexpected buckets", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
       providerId: "s3_primary",
       store,
     });
@@ -1484,11 +1489,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
@@ -1570,11 +1575,11 @@ describe("stored S3 coordinator runtime handler", () => {
     });
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/init.mp4",
       },
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -1585,8 +1590,8 @@ describe("stored S3 coordinator runtime handler", () => {
     const notifiedCursors: Cursor[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
       commitPolicy: ({ slot }) =>
         slot.kind === "init"
@@ -1608,8 +1613,8 @@ describe("stored S3 coordinator runtime handler", () => {
         waitForCursor: () =>
           Promise.reject(new Error("waiter should not be called")),
       },
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
@@ -1700,11 +1705,11 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(notifiedCursors).toEqual([]);
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/init.mp4",
       },
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -1714,11 +1719,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
@@ -1824,15 +1829,15 @@ describe("stored S3 coordinator runtime handler", () => {
     });
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/init.mp4",
       },
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -1860,11 +1865,11 @@ describe("stored S3 coordinator runtime handler", () => {
       },
     };
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       maxAttempts: 2,
       objectClient: objectClientFor(
         {
@@ -1958,11 +1963,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const notifiedCursors: Cursor[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
@@ -2066,11 +2071,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const notifiedCursors: Cursor[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
@@ -2136,7 +2141,7 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -2147,11 +2152,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const notifiedCursors: Cursor[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/init.mp4": 1024,
@@ -2237,11 +2242,11 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(notifiedCursors).toEqual([]);
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/init.mp4",
       },
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -2251,11 +2256,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
@@ -2322,7 +2327,7 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(stored?.state.cursor).toBeUndefined();
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -2333,8 +2338,8 @@ describe("stored S3 coordinator runtime handler", () => {
     const notifiedCursors: Cursor[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
       commitPolicy: () => ({
         error: {
@@ -2350,8 +2355,8 @@ describe("stored S3 coordinator runtime handler", () => {
         waitForCursor: () =>
           Promise.reject(new Error("waiter should not be called")),
       },
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
@@ -2414,7 +2419,7 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(notifiedCursors).toEqual([]);
     expect(headObjectInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -2423,11 +2428,11 @@ describe("stored S3 coordinator runtime handler", () => {
   test("plans S3 reconciliation candidates through the runtime route", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       providerId: "s3_primary",
       store,
     });
@@ -2500,11 +2505,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const deleteInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/init.mp4": 1024,
@@ -2558,7 +2563,7 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(response.status).toBe(202);
     expect(deleteInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
@@ -2587,11 +2592,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const deleteInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: objectClientFor(
         {
           "live/session/v1080/init.mp4": 1024,
@@ -2650,7 +2655,7 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(response.status).toBe(202);
     expect(deleteInputs).toEqual([
       {
-        Bucket: "media",
+        Bucket: S3_BUCKET,
         Key: "live/session/v1080/3810.m4s",
       },
     ]);
