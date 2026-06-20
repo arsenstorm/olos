@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { access } from "node:fs/promises";
+import { access, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import packageJson from "../package.json" with { type: "json" };
 import { packageRoot } from "./script-paths";
@@ -32,6 +32,27 @@ describe("package exports", () => {
         join(packageRoot, "src", `${packageExportEntrypoint(subpath)}.ts`)
       );
     }
+  });
+
+  test("only have source facade files for public subpaths", async () => {
+    const sourceEntries = await readdir(join(packageRoot, "src"), {
+      withFileTypes: true,
+    });
+    const expectedFacadeEntrypoints = Object.keys(packageJson.exports)
+      .filter((subpath) => subpath !== "./package.json")
+      .map(packageExportEntrypoint)
+      .sort();
+    const actualFacadeEntrypoints = sourceEntries
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          entry.name.endsWith(".ts") &&
+          !entry.name.endsWith(".test.ts")
+      )
+      .map((entry) => entry.name.slice(0, -".ts".length))
+      .sort();
+
+    expect(actualFacadeEntrypoints).toEqual(expectedFacadeEntrypoints);
   });
 });
 
