@@ -15,3 +15,7 @@ export function jsonErrorTestResponse(
     status,
   });
 }
+
+export async function jsonResponseBody<T>(response: Response): Promise<T> {
+  return (await response.json()) as T;
+}

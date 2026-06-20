@@ -16,7 +16,10 @@ import {
   testCoordinatorPathways as pathways,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
-import { jsonPostRequest } from "../runtime/test-http.test-helper";
+import {
+  jsonPostRequest,
+  jsonResponseBody,
+} from "../runtime/test-http.test-helper";
 import { createObservedUpload, createPublicationKillSwitch } from "../state";
 import type { Cursor } from "../types/cursor";
 import {
@@ -379,7 +382,8 @@ describe("stored S3 coordinator runtime handler", () => {
         }
       )
     );
-    const body = (await response.json()) as StoredS3CoordinatorCommitResponse;
+    const body =
+      await jsonResponseBody<StoredS3CoordinatorCommitResponse>(response);
 
     expect(response.status).toBe(201);
     expect(body.commit).toMatchObject({
@@ -932,7 +936,7 @@ describe("stored S3 coordinator runtime handler", () => {
         slotId: "slot_3810",
       })
     );
-    const body = (await response.json()) as {
+    const body = await jsonResponseBody<{
       auditEvent: {
         eventType: string;
         maxBytes: number;
@@ -944,7 +948,7 @@ describe("stored S3 coordinator runtime handler", () => {
       error: {
         code: string;
       };
-    };
+    }>(response);
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(409);
@@ -1023,12 +1027,12 @@ describe("stored S3 coordinator runtime handler", () => {
         slotId: "slot_3810",
       })
     );
-    const body = (await response.json()) as {
+    const body = await jsonResponseBody<{
       error: {
         code: string;
         details: Record<string, unknown>;
       };
-    };
+    }>(response);
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(409);
@@ -1098,7 +1102,8 @@ describe("stored S3 coordinator runtime handler", () => {
         slotId: "slot_3810",
       })
     );
-    const body = (await response.json()) as StoredS3CoordinatorCommitResponse;
+    const body =
+      await jsonResponseBody<StoredS3CoordinatorCommitResponse>(response);
 
     expect(response.status).toBe(201);
     expect(body.commit).toMatchObject({
@@ -1159,11 +1164,11 @@ describe("stored S3 coordinator runtime handler", () => {
         slotId: "slot_3810",
       })
     );
-    const body = (await response.json()) as {
+    const body = await jsonResponseBody<{
       error: {
         message: string;
       };
-    };
+    }>(response);
 
     expect(response.status).toBe(400);
     expect(body.error.message).toBe(
@@ -1426,12 +1431,12 @@ describe("stored S3 coordinator runtime handler", () => {
     const after = await handle(
       new Request("https://edge.example.com/v1/live/session_1/v1080/media.m3u8")
     );
-    const body = (await response.json()) as {
+    const body = await jsonResponseBody<{
       error: {
         code: string;
         details: Record<string, unknown>;
       };
-    };
+    }>(response);
     const stored = await store.load(session.sessionId);
     const beforeBody = await before.text();
     const afterBody = await after.text();
@@ -1472,7 +1477,7 @@ describe("stored S3 coordinator runtime handler", () => {
       )
     );
     const body =
-      (await response.json()) as StoredS3CoordinatorEventRouteResponse;
+      await jsonResponseBody<StoredS3CoordinatorEventRouteResponse>(response);
 
     expect(response.status).toBe(202);
     expect(body.results).toEqual([
@@ -1557,7 +1562,7 @@ describe("stored S3 coordinator runtime handler", () => {
       )
     );
     const body =
-      (await response.json()) as StoredS3CoordinatorEventRouteResponse;
+      await jsonResponseBody<StoredS3CoordinatorEventRouteResponse>(response);
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -1678,7 +1683,7 @@ describe("stored S3 coordinator runtime handler", () => {
       )
     );
     const body =
-      (await response.json()) as StoredS3CoordinatorEventRouteResponse;
+      await jsonResponseBody<StoredS3CoordinatorEventRouteResponse>(response);
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -1790,7 +1795,7 @@ describe("stored S3 coordinator runtime handler", () => {
       })
     );
     const body =
-      (await response.json()) as StoredS3CoordinatorEventRouteResponse;
+      await jsonResponseBody<StoredS3CoordinatorEventRouteResponse>(response);
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -1936,7 +1941,7 @@ describe("stored S3 coordinator runtime handler", () => {
       )
     );
     const body =
-      (await response.json()) as StoredS3CoordinatorEventRouteResponse;
+      await jsonResponseBody<StoredS3CoordinatorEventRouteResponse>(response);
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -2026,7 +2031,9 @@ describe("stored S3 coordinator runtime handler", () => {
       })
     );
     const body =
-      (await response.json()) as StoredS3CoordinatorReconciliationResponse;
+      await jsonResponseBody<StoredS3CoordinatorReconciliationResponse>(
+        response
+      );
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -2104,7 +2111,9 @@ describe("stored S3 coordinator runtime handler", () => {
       })
     );
     const body =
-      (await response.json()) as StoredS3CoordinatorReconciliationResponse;
+      await jsonResponseBody<StoredS3CoordinatorReconciliationResponse>(
+        response
+      );
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -2214,7 +2223,9 @@ describe("stored S3 coordinator runtime handler", () => {
       })
     );
     const body =
-      (await response.json()) as StoredS3CoordinatorReconciliationResponse;
+      await jsonResponseBody<StoredS3CoordinatorReconciliationResponse>(
+        response
+      );
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -2299,7 +2310,9 @@ describe("stored S3 coordinator runtime handler", () => {
       })
     );
     const body =
-      (await response.json()) as StoredS3CoordinatorReconciliationResponse;
+      await jsonResponseBody<StoredS3CoordinatorReconciliationResponse>(
+        response
+      );
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -2395,7 +2408,9 @@ describe("stored S3 coordinator runtime handler", () => {
       })
     );
     const body =
-      (await response.json()) as StoredS3CoordinatorReconciliationResponse;
+      await jsonResponseBody<StoredS3CoordinatorReconciliationResponse>(
+        response
+      );
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
@@ -2481,11 +2496,11 @@ describe("stored S3 coordinator runtime handler", () => {
         }
       )
     );
-    const body = (await response.json()) as {
+    const body = await jsonResponseBody<{
       slotIds: string[];
       slots: { objectKey: string; slotId: string }[];
       status: string;
-    };
+    }>(response);
     const stored = await store.load(session.sessionId);
 
     expect(response.status).toBe(200);
@@ -2559,7 +2574,7 @@ describe("stored S3 coordinator runtime handler", () => {
       })
     );
     const body =
-      (await response.json()) as StoredS3CoordinatorRetentionResponse;
+      await jsonResponseBody<StoredS3CoordinatorRetentionResponse>(response);
 
     expect(response.status).toBe(202);
     expect(deleteInputs).toEqual([
@@ -2650,7 +2665,7 @@ describe("stored S3 coordinator runtime handler", () => {
       })
     );
     const body =
-      (await response.json()) as StoredS3CoordinatorRetentionResponse;
+      await jsonResponseBody<StoredS3CoordinatorRetentionResponse>(response);
     const after = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
