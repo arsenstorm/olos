@@ -79,7 +79,7 @@ export function assertProviderCapabilityDocument(
     assertEvents(value.events);
   }
 
-  assertCapabilityPreconditions(value as unknown as ProviderCapabilityDocument);
+  assertCapabilityPreconditions(value);
 }
 
 function assertApi(value: unknown): void {
@@ -190,40 +190,54 @@ function assertEvents(value: unknown): void {
   }
 }
 
-function assertCapabilityPreconditions(
-  value: ProviderCapabilityDocument
-): void {
+function assertCapabilityPreconditions(value: Record<string, unknown>): void {
   if (!usesDirectObjectPublication(value)) {
     return;
   }
 
-  if (value.publication.manifestGatedPublication !== true) {
+  const consistency = providerCapabilityRecordField(value, "consistency");
+  const delivery = providerCapabilityRecordField(value, "delivery");
+  const publication = providerCapabilityRecordField(value, "publication");
+
+  if (publication.manifestGatedPublication !== true) {
     throw new Error(
       "providerCapability.publication.manifestGatedPublication must be true for direct object publication"
     );
   }
 
-  if (value.consistency.headAfterCreate !== "strong") {
+  if (consistency.headAfterCreate !== "strong") {
     throw new Error(
       "providerCapability.consistency.headAfterCreate must be strong for direct object publication"
     );
   }
 
-  if (value.publication.overwritesAllowed === true) {
+  if (publication.overwritesAllowed === true) {
     throw new Error(
       "providerCapability.publication.overwritesAllowed must not be true for direct object publication"
     );
   }
 
-  if (value.delivery.negativeCachingPolicyDeclared !== true) {
+  if (delivery.negativeCachingPolicyDeclared !== true) {
     throw new Error(
       "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct object publication"
     );
   }
 }
 
-function usesDirectObjectPublication(
-  value: ProviderCapabilityDocument
-): boolean {
-  return value.publication.directObjectPublication;
+function usesDirectObjectPublication(value: Record<string, unknown>): boolean {
+  return (
+    isRecord(value.publication) &&
+    value.publication.directObjectPublication === true
+  );
+}
+
+function providerCapabilityRecordField(
+  value: Record<string, unknown>,
+  field: "consistency" | "delivery" | "publication"
+): Record<string, unknown> {
+  if (!isRecord(value[field])) {
+    throw new Error(`providerCapability.${field} must be an object`);
+  }
+
+  return value[field];
 }
