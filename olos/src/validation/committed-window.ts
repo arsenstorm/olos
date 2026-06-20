@@ -13,6 +13,7 @@ import {
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
+  nonEmptyArray,
 } from "./fields";
 import { assertSafeObjectKey } from "./object-key";
 
@@ -88,11 +89,10 @@ function assertRenditionWindow(value: unknown, key: string): void {
 
   assertCommittedObject(value.init, `${name}.init`);
 
-  if (!Array.isArray(value.segments) || value.segments.length === 0) {
-    throw new Error(`${name}.segments must be a non-empty array`);
-  }
-
-  assertMonotonicSegments(value.segments, name);
+  assertMonotonicSegments(
+    nonEmptyArray<CommittedSegment>(value.segments, `${name}.segments`),
+    name
+  );
 }
 
 function assertMonotonicSegments(
@@ -157,14 +157,12 @@ function assertCommittedSegment(
 }
 
 function assertCommittedParts(value: unknown, segmentName: string): void {
-  if (!Array.isArray(value) || value.length === 0) {
-    throw new Error(`${segmentName}.parts must be a non-empty array`);
-  }
+  const parts = nonEmptyArray<CommittedPart>(value, `${segmentName}.parts`);
 
   let previousPart = -1;
   const seenParts = new Map<number, string>();
 
-  for (const part of value) {
+  for (const part of parts) {
     assertCommittedPart(part, segmentName);
 
     const existingUrl = seenParts.get(part.partNumber);

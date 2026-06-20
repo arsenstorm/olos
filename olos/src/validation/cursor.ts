@@ -11,6 +11,7 @@ import {
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
+  nonEmptyArray,
 } from "./fields";
 import { assertPathway } from "./pathway";
 
@@ -100,13 +101,11 @@ function assertCursorWindowSequence(value: Record<string, unknown>): void {
 }
 
 function assertPathways(value: unknown): asserts value is Pathway[] {
-  if (!Array.isArray(value) || value.length === 0) {
-    throw new Error("cursor.pathways must be a non-empty array");
-  }
+  const pathways = nonEmptyArray<Pathway>(value, "cursor.pathways");
 
   const seenPathways = new Set<string>();
 
-  for (const pathway of value) {
+  for (const pathway of pathways) {
     assertPathway(pathway);
 
     if (seenPathways.has(pathway.pathwayId)) {

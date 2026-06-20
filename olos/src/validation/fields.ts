@@ -14,6 +14,14 @@ export function recordValue(
   return isRecord(value) ? value : undefined;
 }
 
+export function nonEmptyArray<T = unknown>(value: unknown, name: string): T[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`${name} must be a non-empty array`);
+  }
+
+  return value as T[];
+}
+
 export function assertUrlSafeField(
   value: Record<string, unknown>,
   field: string,

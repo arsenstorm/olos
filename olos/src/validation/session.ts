@@ -14,6 +14,7 @@ import {
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
+  nonEmptyArray,
 } from "./fields";
 
 const OPTIONAL_RENDITION_INTEGER_FIELDS = [
@@ -54,13 +55,11 @@ export function assertSession(value: unknown): asserts value is Session {
 }
 
 function assertRenditions(value: unknown): void {
-  if (!Array.isArray(value) || value.length === 0) {
-    throw new Error("session.renditions must be a non-empty array");
-  }
+  const renditions = nonEmptyArray<Rendition>(value, "session.renditions");
 
   const seenRenditions = new Set<string>();
 
-  for (const rendition of value) {
+  for (const rendition of renditions) {
     assertRendition(rendition);
 
     if (seenRenditions.has(rendition.renditionId)) {

@@ -11,6 +11,7 @@ import {
   assertUrlSafeField,
   hasControlCharacter,
   isRecord,
+  nonEmptyArray,
   nonNegativeNumber,
   positiveNumber,
   recordValue,
@@ -93,6 +94,16 @@ describe("validation field helpers", () => {
     );
     expect(() => nonNegativeNumber(-1, "duration")).toThrow(
       "duration must be a non-negative number"
+    );
+  });
+
+  test("nonEmptyArray returns arrays and rejects empty or non-array values", () => {
+    expect(nonEmptyArray(["v1080"], "renditions")).toEqual(["v1080"]);
+    expect(() => nonEmptyArray([], "renditions")).toThrow(
+      "renditions must be a non-empty array"
+    );
+    expect(() => nonEmptyArray("v1080", "renditions")).toThrow(
+      "renditions must be a non-empty array"
     );
   });
 
