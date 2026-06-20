@@ -1,11 +1,12 @@
+import {
+  assertNonNegativeInteger as assertValidatedNonNegativeInteger,
+  assertPositiveInteger as assertValidatedPositiveInteger,
+} from "../validation/ids";
+
 export function assertPositiveInteger(value: number, name: string): void {
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new Error(`${name} must be a positive integer`);
-  }
+  assertValidatedPositiveInteger(value, name);
 }
 
 export function assertNonNegativeInteger(value: number, name: string): void {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`${name} must be a non-negative integer`);
-  }
+  assertValidatedNonNegativeInteger(value, name);
 }

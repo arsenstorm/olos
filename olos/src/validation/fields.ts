@@ -1,4 +1,8 @@
-import { isNonNegativeInteger, isUrlSafeIdentifier } from "./ids";
+import {
+  assertPositiveInteger,
+  isNonNegativeInteger,
+  isUrlSafeIdentifier,
+} from "./ids";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -29,9 +33,7 @@ export function assertPositiveIntegerField(
   field: string,
   name: string
 ): void {
-  if (!Number.isInteger(value[field]) || Number(value[field]) <= 0) {
-    throw new Error(`${name}.${field} must be a positive integer`);
-  }
+  assertPositiveInteger(value[field], `${name}.${field}`);
 }
 
 export function assertPositiveNumberField(

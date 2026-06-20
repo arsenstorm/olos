@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 
 import {
   assertNonNegativeInteger,
+  assertPositiveInteger,
   assertUrlSafeIdentifier,
   isNonNegativeInteger,
+  isPositiveInteger,
   isUrlSafeIdentifier,
 } from "./ids";
 
@@ -11,17 +13,25 @@ describe("identifier validation", () => {
   test("accepts non-negative integers", () => {
     expect(isNonNegativeInteger(0)).toBe(true);
     expect(isNonNegativeInteger(3812)).toBe(true);
+    expect(isPositiveInteger(1)).toBe(true);
+    expect(isPositiveInteger(3812)).toBe(true);
   });
 
   test("rejects invalid non-negative integers", () => {
     expect(isNonNegativeInteger(-1)).toBe(false);
     expect(isNonNegativeInteger(1.5)).toBe(false);
     expect(isNonNegativeInteger("1")).toBe(false);
+    expect(isPositiveInteger(0)).toBe(false);
+    expect(isPositiveInteger(1.5)).toBe(false);
+    expect(isPositiveInteger("1")).toBe(false);
   });
 
   test("throws for invalid non-negative integers", () => {
     expect(() => assertNonNegativeInteger(-1, "partNumber")).toThrow(
       "partNumber must be a non-negative integer"
+    );
+    expect(() => assertPositiveInteger(0, "count")).toThrow(
+      "count must be a positive integer"
     );
   });
 

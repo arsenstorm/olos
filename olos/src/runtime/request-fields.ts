@@ -6,6 +6,7 @@ import {
 } from "../validation/fields";
 import {
   assertNonNegativeInteger,
+  assertPositiveInteger,
   assertUrlSafeIdentifier,
 } from "../validation/ids";
 import { optionalField } from "./optional-field";
@@ -173,10 +174,7 @@ export function optionalPositiveIntegerField<Field extends string>(
 }
 
 export function positiveInteger(value: number, name: string): number {
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new Error(`${name} must be a positive integer`);
-  }
-
+  assertPositiveInteger(value, name);
   return value;
 }
 

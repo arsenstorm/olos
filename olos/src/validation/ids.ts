@@ -4,6 +4,10 @@ export function isNonNegativeInteger(value: unknown): value is number {
   return Number.isInteger(value) && Number(value) >= 0;
 }
 
+export function isPositiveInteger(value: unknown): value is number {
+  return Number.isInteger(value) && Number(value) > 0;
+}
+
 export function assertNonNegativeInteger(
   value: unknown,
   name: string
@@ -13,6 +17,17 @@ export function assertNonNegativeInteger(
   }
 
   throw new Error(`${name} must be a non-negative integer`);
+}
+
+export function assertPositiveInteger(
+  value: unknown,
+  name: string
+): asserts value is number {
+  if (isPositiveInteger(value)) {
+    return;
+  }
+
+  throw new Error(`${name} must be a positive integer`);
 }
 
 export function isUrlSafeIdentifier(value: unknown): value is string {
