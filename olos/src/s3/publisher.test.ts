@@ -27,7 +27,7 @@ import {
   runStoredS3PublisherUploadStep,
   summarizeStoredS3PublisherUploadStep,
 } from "./publisher";
-import { createTestS3Client } from "./test-client.test";
+import { createTestS3Client } from "./test-client.test-helper";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",

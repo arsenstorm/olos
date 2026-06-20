@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { createTestS3DeleteObjectClient } from "./test-delete-client.test";
+import { createTestS3DeleteObjectClient } from "./test-delete-client.test-helper";
 
 describe("createTestS3DeleteObjectClient", () => {
   test("records delete command inputs", async () => {

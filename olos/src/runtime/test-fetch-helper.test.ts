@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { runtimeFetchFor } from "./test-fetch.test";
+import { runtimeFetchFor } from "./test-fetch.test-helper";
 
 describe("runtimeFetchFor", () => {
   test("passes Request instances through to handlers", async () => {

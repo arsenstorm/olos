@@ -5,7 +5,7 @@ import type {
 } from "@aws-sdk/client-s3";
 import { createMemoryCoordinatorStore } from "../protocol";
 import { createRuntimeSession, type RuntimeFetch } from "../runtime";
-import { runtimeFetchFor } from "../runtime/test-fetch.test";
+import { runtimeFetchFor } from "../runtime/test-fetch.test-helper";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
@@ -19,8 +19,8 @@ import {
 } from "./client";
 import { createStoredS3CoordinatorRuntimeHandler } from "./http";
 import type { S3HeadObjectClient } from "./object-observation";
-import { createTestS3Client } from "./test-client.test";
-import { createTestS3DeleteObjectClient } from "./test-delete-client.test";
+import { createTestS3Client } from "./test-client.test-helper";
+import { createTestS3DeleteObjectClient } from "./test-delete-client.test-helper";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",

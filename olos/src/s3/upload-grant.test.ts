@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { S3Client } from "@aws-sdk/client-s3";
 import type { UploadSlot } from "../types/upload-slot";
-import { createTestS3Client } from "./test-client.test";
+import { createTestS3Client } from "./test-client.test-helper";
 import {
   createPresignedS3UploadGrant,
   createS3UploadGrant,

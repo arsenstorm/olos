@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { deleteRetiredS3CoordinatorObjects } from "./retention";
-import { createTestS3DeleteObjectClient } from "./test-delete-client.test";
+import { createTestS3DeleteObjectClient } from "./test-delete-client.test-helper";
 
 describe("S3 retention", () => {
   test("deletes retired coordinator objects from S3", async () => {

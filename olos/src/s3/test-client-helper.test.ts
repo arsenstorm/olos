@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { S3Client } from "@aws-sdk/client-s3";
-import { createTestS3Client } from "./test-client.test";
+import { createTestS3Client } from "./test-client.test-helper";
 
 describe("createTestS3Client", () => {
   test("creates a deterministic S3 client for tests", async () => {
