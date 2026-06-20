@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { assertCoordinatorPipelineStoreConformance } from "../conformance";
-import type { Pathway } from "../types/pathway";
-import type { Session } from "../types/session";
 import { createCoordinatorPipeline, issueCoordinatorSlot } from "./coordinator";
+import {
+  testCoordinatorPathways as pathways,
+  testCoordinatorSession as session,
+} from "./coordinator-state.test-helper";
 import {
   assertSerializedCoordinatorStoreBackendConformance,
   createMemorySerializedCoordinatorStoreBackend,
@@ -10,39 +12,6 @@ import {
   type SerializedCoordinatorStoreBackend,
   type SerializedCoordinatorStoreRecord,
 } from "./serialized-store";
-
-const session: Session = {
-  createdAt: "2026-01-01T00:00:00.000Z",
-  epoch: 1,
-  latencyProfile: "object-ll",
-  olos: "1.0",
-  partTarget: 0.5,
-  renditions: [
-    {
-      bitrate: 5_000_000,
-      codec: "avc1.640028",
-      frameRate: 30,
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
-    },
-  ],
-  segmentTarget: 2,
-  sessionId: "session_1",
-  state: "live",
-  tenantId: "tenant_1",
-};
-
-const pathways: Pathway[] = [
-  {
-    baseUrl: "https://media.example.com",
-    pathwayId: "primary",
-    priority: 0,
-    providerId: "s3_primary",
-    state: "active",
-  },
-];
 
 describe("serialized coordinator store", () => {
   test("adapts serialized snapshot storage to the coordinator store contract", async () => {
