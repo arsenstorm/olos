@@ -108,10 +108,12 @@ export function assertOneOfField<const T extends readonly string[]>(
   field: string,
   allowed: T,
   name: string
-): void {
+): T[number] {
   if (!allowed.includes(value[field] as T[number])) {
     throw new Error(`${name}.${field} must be one of: ${allowed.join(", ")}`);
   }
+
+  return value[field] as T[number];
 }
 
 export function assertAbsoluteHttpUrl(value: unknown, name: string): void {

@@ -53,11 +53,10 @@ export function assertObservedUpload(
 ): asserts value is ObservedUpload {
   assertMediaObject(value);
 
-  const observed = value as MediaObject & { metadata?: unknown };
-
   if (
-    observed.metadata !== undefined &&
-    !isOptionalHttpHeaderStringMap(observed.metadata)
+    "metadata" in value &&
+    value.metadata !== undefined &&
+    !isOptionalHttpHeaderStringMap(value.metadata)
   ) {
     throw new Error("observedUpload.metadata must be a string map");
   }

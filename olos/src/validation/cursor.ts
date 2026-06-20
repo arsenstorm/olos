@@ -2,6 +2,7 @@ import { LATENCY_PROFILES, SESSION_STATES } from "../config/session";
 import { OLOS_WIRE_VERSION } from "../index";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor, CursorWindow } from "../types/cursor";
+import type { Pathway } from "../types/pathway";
 import { assertCommittedWindow } from "./committed-window";
 import {
   assertIsoDateField,
@@ -98,7 +99,7 @@ function assertCursorWindowSequence(value: Record<string, unknown>): void {
   }
 }
 
-function assertPathways(value: unknown): void {
+function assertPathways(value: unknown): asserts value is Pathway[] {
   if (!Array.isArray(value) || value.length === 0) {
     throw new Error("cursor.pathways must be a non-empty array");
   }
@@ -108,10 +109,10 @@ function assertPathways(value: unknown): void {
   for (const pathway of value) {
     assertPathway(pathway);
 
-    if (seenPathways.has(pathway.pathwayId as string)) {
+    if (seenPathways.has(pathway.pathwayId)) {
       throw new Error("cursor.pathways must not contain duplicate pathway IDs");
     }
 
-    seenPathways.add(pathway.pathwayId as string);
+    seenPathways.add(pathway.pathwayId);
   }
 }

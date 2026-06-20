@@ -1,7 +1,6 @@
 import { MEDIA_OBJECT_KINDS } from "../config/media-object";
 import { PUBLICATION_MODES } from "../config/publication";
 import { UPLOAD_SLOT_STATES } from "../config/upload-slot";
-import type { MediaObjectKind } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertContentType } from "./content-type";
 import { assertSafeDeliveryUrl } from "./delivery-url";
@@ -56,12 +55,13 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
     }
   }
 
-  assertOneOfField(value, "kind", MEDIA_OBJECT_KINDS, "uploadSlot");
-  assertSafeMediaObjectKey(
-    value.objectKey,
-    value.kind as MediaObjectKind,
-    "uploadSlot.objectKey"
+  const kind = assertOneOfField(
+    value,
+    "kind",
+    MEDIA_OBJECT_KINDS,
+    "uploadSlot"
   );
+  assertSafeMediaObjectKey(value.objectKey, kind, "uploadSlot.objectKey");
   assertSafeDeliveryUrl(value.deliveryUrl, "uploadSlot.deliveryUrl");
   assertContentType(value.contentType, "uploadSlot.contentType");
 
