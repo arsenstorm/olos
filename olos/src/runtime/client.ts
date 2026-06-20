@@ -144,13 +144,9 @@ export async function sendRuntimePublisherHeartbeat(
 ): Promise<RuntimePublisherHeartbeatResponse> {
   const response = await fetchFor(options)(
     sessionUrl(options.baseUrl, options.sessionId, "heartbeat"),
-    {
-      body: JSON.stringify({
-        publisherInstanceId: options.publisherInstanceId,
-      }),
-      headers: { "content-type": "application/json" },
-      method: "POST",
-    }
+    jsonPost({
+      publisherInstanceId: options.publisherInstanceId,
+    })
   );
 
   if (!response.ok) {
@@ -166,14 +162,13 @@ export async function sendRuntimePublisherHeartbeat(
 export async function createRuntimeSession(
   options: RuntimeCreateSessionOptions
 ): Promise<RuntimeCreateSessionResponse> {
-  const response = await fetchFor(options)(sessionsUrl(options.baseUrl), {
-    body: JSON.stringify({
+  const response = await fetchFor(options)(
+    sessionsUrl(options.baseUrl),
+    jsonPost({
       pathways: options.pathways,
       session: options.session,
-    }),
-    headers: { "content-type": "application/json" },
-    method: "POST",
-  });
+    })
+  );
 
   if (!response.ok) {
     throw await runtimeHttpError("session create", response);
@@ -190,11 +185,7 @@ export async function transitionRuntimeSession(
 ): Promise<RuntimeTransitionSessionResponse> {
   const response = await fetchFor(options)(
     sessionUrl(options.baseUrl, options.sessionId, "transition"),
-    {
-      body: JSON.stringify({ state: options.state }),
-      headers: { "content-type": "application/json" },
-      method: "POST",
-    }
+    jsonPost({ state: options.state })
   );
 
   if (!response.ok) {
