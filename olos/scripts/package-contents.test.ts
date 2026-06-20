@@ -47,6 +47,26 @@ describe("package contents verifier", () => {
     });
   });
 
+  test("rejects test helper files inside published roots", async () => {
+    await withPackageRoot(async (root) => {
+      await writeFile(join(root, "dist", "test-client.test-helper.js"), "");
+
+      await expect(assertInstalledPackageContents(root)).rejects.toThrow(
+        "package contains private file: dist/test-client.test-helper.js"
+      );
+    });
+  });
+
+  test("rejects test helper declarations inside published roots", async () => {
+    await withPackageRoot(async (root) => {
+      await writeFile(join(root, "dist", "test-client.test-helper.d.ts"), "");
+
+      await expect(assertInstalledPackageContents(root)).rejects.toThrow(
+        "package contains private file: dist/test-client.test-helper.d.ts"
+      );
+    });
+  });
+
   test("rejects spec files inside published roots", async () => {
     await withPackageRoot(async (root) => {
       await writeFile(join(root, "dist", "index.spec.js"), "");
