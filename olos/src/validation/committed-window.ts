@@ -3,7 +3,6 @@ import type {
   CommittedPart,
   CommittedSegment,
   CommittedWindow,
-  RenditionWindow,
 } from "../types/committed-window";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
@@ -93,17 +92,17 @@ function assertRenditionWindow(value: unknown, key: string): void {
     throw new Error(`${name}.segments must be a non-empty array`);
   }
 
-  assertMonotonicSegments(value as unknown as RenditionWindow, name);
+  assertMonotonicSegments(value.segments, name);
 }
 
 function assertMonotonicSegments(
-  rendition: RenditionWindow,
+  segments: readonly unknown[],
   name: string
 ): void {
   let previousSequence = -1;
   const seenSegments = new Set<number>();
 
-  for (const segment of rendition.segments) {
+  for (const segment of segments) {
     assertCommittedSegment(segment, name);
 
     if (seenSegments.has(segment.mediaSequenceNumber)) {
