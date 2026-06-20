@@ -2714,6 +2714,16 @@ interface SlotPayloadOptions {
   slotId: string;
 }
 
+interface CommittedSlotFixtureOptions extends SlotPayloadOptions {
+  commitId: string;
+  committedAt: string;
+  expectedMessage: string;
+  independent?: boolean;
+  size: number;
+  state: CoordinatorPipelineState;
+  versionEtag?: string;
+}
+
 function slotPayload(options: SlotPayloadOptions) {
   return {
     contentType: "video/mp4",
@@ -2736,142 +2746,110 @@ function slotPayload(options: SlotPayloadOptions) {
 }
 
 function committedSegmentState(): CoordinatorPipelineState {
-  const initIssued = issueCoordinatorSlot({
-    ...slotPayload({
-      deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
-      duration: 1,
-      kind: "init",
-      maxBytes: 2048,
-      mediaSequenceNumber: 0,
-      objectKey: "live/session/v1080/init.mp4",
-      slotId: "slot_init",
-    }),
-    state: createEmptyCoordinatorState(),
-  });
-  const initCommitted = commitCoordinatorUpload({
+  const initState = committedSlotFixture({
     commitId: "commit_init",
     committedAt: "2026-01-01T00:00:01.000Z",
-    object: createObservedUpload({
-      contentType: "video/mp4",
-      objectKey: "live/session/v1080/init.mp4",
-      observedAt: "2026-01-01T00:00:01.000Z",
-      providerId: "s3_primary",
-      size: 1024,
-    }),
+    deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
+    duration: 1,
+    expectedMessage: "expected committed init fixture",
+    kind: "init",
+    maxBytes: 2048,
+    mediaSequenceNumber: 0,
+    objectKey: "live/session/v1080/init.mp4",
+    size: 1024,
     slotId: "slot_init",
-    state: initIssued.state,
+    state: createEmptyCoordinatorState(),
   });
 
-  if (initCommitted.status !== "committed") {
-    throw new Error("expected committed init fixture");
-  }
-
-  const segmentIssued = issueCoordinatorSlot({
-    ...slotPayload({
-      deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
-      duration: 2,
-      kind: "segment",
-      maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      objectKey: "live/session/v1080/3810.m4s",
-      slotId: "slot_3810",
-    }),
-    state: initCommitted.state,
-  });
-  const segmentCommitted = commitCoordinatorUpload({
+  return committedSlotFixture({
     commitId: "commit_3810",
     committedAt: "2026-01-01T00:00:02.000Z",
+    deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+    duration: 2,
+    expectedMessage: "expected committed segment fixture",
     independent: true,
-    object: createObservedUpload({
-      contentType: "video/mp4",
-      objectKey: "live/session/v1080/3810.m4s",
-      observedAt: "2026-01-01T00:00:02.000Z",
-      providerId: "s3_primary",
-      size: 98_304,
-    }),
+    kind: "segment",
+    maxBytes: 100_000,
+    mediaSequenceNumber: 3810,
+    objectKey: "live/session/v1080/3810.m4s",
+    size: 98_304,
     slotId: "slot_3810",
-    state: segmentIssued.state,
+    state: initState,
   });
-
-  if (segmentCommitted.status !== "committed") {
-    throw new Error("expected committed segment fixture");
-  }
-
-  return segmentCommitted.state;
 }
 
 function inconsistentReconciliationState(): CoordinatorPipelineState {
-  const initIssued = issueCoordinatorSlot({
-    ...slotPayload({
-      deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
-      duration: 1,
-      kind: "init",
-      maxBytes: 2048,
-      mediaSequenceNumber: 0,
-      objectKey: "live/session/v1080/init.mp4",
-      slotId: "slot_init",
-    }),
-    state: createEmptyCoordinatorState(),
-  });
-  const initCommitted = commitCoordinatorUpload({
+  const initState = committedSlotFixture({
     commitId: "reconcile_slot_init",
     committedAt: "2026-01-01T00:00:01.000Z",
-    object: createObservedUpload({
-      contentType: "video/mp4",
-      etag: '"live/session/v1080/init.mp4"',
-      objectKey: "live/session/v1080/init.mp4",
-      observedAt: "2026-01-01T00:00:01.000Z",
-      providerId: "s3_primary",
-      size: 1024,
-    }),
+    deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
+    duration: 1,
+    expectedMessage: "expected committed init reconciliation fixture",
+    kind: "init",
+    maxBytes: 2048,
+    mediaSequenceNumber: 0,
+    objectKey: "live/session/v1080/init.mp4",
+    size: 1024,
     slotId: "slot_init",
-    state: initIssued.state,
+    state: createEmptyCoordinatorState(),
+    versionEtag: '"live/session/v1080/init.mp4"',
   });
 
-  if (initCommitted.status !== "committed") {
-    throw new Error("expected committed init reconciliation fixture");
-  }
-
-  const issued = issueCoordinatorSlot({
-    ...slotPayload({
-      deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
-      duration: 2,
-      kind: "segment",
-      maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      objectKey: "live/session/v1080/3810.m4s",
-      slotId: "slot_3810",
-    }),
-    state: initCommitted.state,
-  });
-  const committed = commitCoordinatorUpload({
+  const state = committedSlotFixture({
     commitId: "reconcile_slot_3810",
     committedAt: "2026-01-01T00:00:02.000Z",
+    deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+    duration: 2,
+    expectedMessage: "expected committed reconciliation fixture",
     independent: true,
-    object: createObservedUpload({
-      contentType: "video/mp4",
-      etag: '"live/session/v1080/3810.m4s"',
-      objectKey: "live/session/v1080/3810.m4s",
-      observedAt: "2026-01-01T00:00:02.000Z",
-      providerId: "s3_primary",
-      size: 98_304,
-    }),
+    kind: "segment",
+    maxBytes: 100_000,
+    mediaSequenceNumber: 3810,
+    objectKey: "live/session/v1080/3810.m4s",
+    size: 98_304,
     slotId: "slot_3810",
-    state: issued.state,
+    state: initState,
+    versionEtag: '"live/session/v1080/3810.m4s"',
   });
 
-  if (committed.status !== "committed") {
-    throw new Error("expected committed reconciliation fixture");
-  }
-
   return {
-    ...committed.state,
-    slots: committed.state.slots.map((slot) =>
+    ...state,
+    slots: state.slots.map((slot) =>
       slot.slotId === "slot_3810"
         ? { ...slot, state: "upload_observed" as const }
         : slot
     ),
   };
+}
+
+function committedSlotFixture(
+  options: CommittedSlotFixtureOptions
+): CoordinatorPipelineState {
+  const issued = issueCoordinatorSlot({
+    ...slotPayload(options),
+    state: options.state,
+  });
+  const committed = commitCoordinatorUpload({
+    commitId: options.commitId,
+    committedAt: options.committedAt,
+    independent: options.independent,
+    object: createObservedUpload({
+      contentType: "video/mp4",
+      etag: options.versionEtag,
+      objectKey: options.objectKey,
+      observedAt: options.committedAt,
+      providerId: "s3_primary",
+      size: options.size,
+    }),
+    slotId: options.slotId,
+    state: issued.state,
+  });
+
+  if (committed.status !== "committed") {
+    throw new Error(options.expectedMessage);
+  }
+
+  return committed.state;
 }
 
 function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
