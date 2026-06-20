@@ -1,5 +1,11 @@
 import { OLOS_WIRE_VERSION } from "../index";
-import type { CommittedWindow } from "../types/committed-window";
+import type {
+  CommittedObject,
+  CommittedPart,
+  CommittedSegment,
+  CommittedWindow,
+  RenditionWindow,
+} from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
 import type { OlosError } from "../types/errors";
 import type { PartNumber } from "../types/ids";
@@ -133,8 +139,138 @@ function compareNumber(first: number, second: number): number {
 }
 
 function sameCommittedWindow(first: Cursor, second: Cursor): boolean {
+  const firstWindow = first.committedWindow;
+  const secondWindow = second.committedWindow;
+
   return (
-    JSON.stringify(first.committedWindow) ===
-    JSON.stringify(second.committedWindow)
+    firstWindow.discontinuitySequence === secondWindow.discontinuitySequence &&
+    firstWindow.epoch === secondWindow.epoch &&
+    firstWindow.firstMediaSequenceNumber ===
+      secondWindow.firstMediaSequenceNumber &&
+    firstWindow.lastMediaSequenceNumber ===
+      secondWindow.lastMediaSequenceNumber &&
+    sameRenditions(firstWindow.renditions, secondWindow.renditions)
+  );
+}
+
+function sameRenditions(
+  first: Record<string, RenditionWindow>,
+  second: Record<string, RenditionWindow>
+): boolean {
+  const firstRenditionIds = Object.keys(first);
+
+  if (firstRenditionIds.length !== Object.keys(second).length) {
+    return false;
+  }
+
+  for (const renditionId of firstRenditionIds) {
+    const firstRendition = first[renditionId];
+    const secondRendition = second[renditionId];
+
+    if (
+      firstRendition === undefined ||
+      secondRendition === undefined ||
+      !sameRendition(firstRendition, secondRendition)
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function sameRendition(
+  first: RenditionWindow,
+  second: RenditionWindow
+): boolean {
+  return (
+    first.renditionId === second.renditionId &&
+    sameCommittedObject(first.init, second.init) &&
+    sameSegments(first.segments, second.segments)
+  );
+}
+
+function sameSegments(
+  first: readonly CommittedSegment[],
+  second: readonly CommittedSegment[]
+): boolean {
+  if (first.length !== second.length) {
+    return false;
+  }
+
+  return first.every((segment, index) => {
+    const other = second[index];
+
+    return other !== undefined && sameSegment(segment, other);
+  });
+}
+
+function sameSegment(
+  first: CommittedSegment,
+  second: CommittedSegment
+): boolean {
+  return (
+    first.discontinuityBefore === second.discontinuityBefore &&
+    first.duration === second.duration &&
+    first.independent === second.independent &&
+    first.mediaSequenceNumber === second.mediaSequenceNumber &&
+    first.programDateTime === second.programDateTime &&
+    sameOptionalCommittedObject(first.segment, second.segment) &&
+    sameParts(first.parts, second.parts)
+  );
+}
+
+function sameParts(
+  first: readonly CommittedPart[] | undefined,
+  second: readonly CommittedPart[] | undefined
+): boolean {
+  if (first === undefined || second === undefined) {
+    return first === second;
+  }
+
+  if (first.length !== second.length) {
+    return false;
+  }
+
+  return first.every((part, index) => {
+    const other = second[index];
+
+    return other !== undefined && samePart(part, other);
+  });
+}
+
+function samePart(first: CommittedPart, second: CommittedPart): boolean {
+  return (
+    first.duration === second.duration &&
+    first.independent === second.independent &&
+    first.partNumber === second.partNumber &&
+    first.programDateTime === second.programDateTime &&
+    sameCommittedObject(first, second)
+  );
+}
+
+function sameOptionalCommittedObject(
+  first: CommittedObject | undefined,
+  second: CommittedObject | undefined
+): boolean {
+  if (first === undefined || second === undefined) {
+    return first === second;
+  }
+
+  return sameCommittedObject(first, second);
+}
+
+function sameCommittedObject(
+  first: CommittedObject,
+  second: CommittedObject
+): boolean {
+  return (
+    first.commitId === second.commitId &&
+    first.contentType === second.contentType &&
+    first.deliveryUrl === second.deliveryUrl &&
+    first.duration === second.duration &&
+    first.etag === second.etag &&
+    first.objectKey === second.objectKey &&
+    first.slotId === second.slotId
   );
 }

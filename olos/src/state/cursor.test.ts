@@ -78,6 +78,28 @@ if (firstSegment === undefined) {
   throw new Error("missing first segment fixture");
 }
 
+const alternateRendition: CommittedWindow["renditions"][string] = {
+  init: {
+    commitId: "commit_v720_init",
+    deliveryUrl: "/media/v720/init.mp4",
+    objectKey: "tenant/session/v720/init.mp4",
+    slotId: "slot_v720_init",
+  },
+  renditionId: "v720",
+  segments: [
+    {
+      duration: 1,
+      mediaSequenceNumber: 3810,
+      segment: {
+        commitId: "commit_v720_3810",
+        deliveryUrl: "/media/v720/3810.m4s",
+        objectKey: "tenant/session/v720/3810.m4s",
+        slotId: "slot_v720_3810",
+      },
+    },
+  ],
+};
+
 describe("cursor builder", () => {
   test("derives a valid cursor from a committed window", () => {
     expect(createCursor(options)).toEqual({
@@ -170,6 +192,42 @@ describe("cursor update resolution", () => {
     });
   });
 
+  test("treats equivalent committed windows as idempotent regardless of rendition key order", () => {
+    const firstWindow: CommittedWindow = {
+      ...committedWindow,
+      renditions: {
+        v1080,
+        v720: alternateRendition,
+      },
+    };
+    const secondWindow: CommittedWindow = {
+      ...committedWindow,
+      renditions: {
+        v720: alternateRendition,
+        v1080,
+      },
+    };
+    const currentCursor = createCursor({
+      ...options,
+      committedWindow: firstWindow,
+    });
+    const candidateCursor = createCursor({
+      ...options,
+      committedWindow: secondWindow,
+      updatedAt: "2026-06-08T12:00:02.820Z",
+    });
+
+    expect(
+      resolveCursorUpdate({
+        candidateCursor,
+        currentCursor,
+      })
+    ).toEqual({
+      cursor: currentCursor,
+      status: "idempotent",
+    });
+  });
+
   test("accepts same-position candidates with expanded committed windows", () => {
     const candidateCursor = createCursor({
       ...options,
@@ -177,27 +235,7 @@ describe("cursor update resolution", () => {
         ...committedWindow,
         renditions: {
           ...committedWindow.renditions,
-          v720: {
-            init: {
-              commitId: "commit_v720_init",
-              deliveryUrl: "/media/v720/init.mp4",
-              objectKey: "tenant/session/v720/init.mp4",
-              slotId: "slot_v720_init",
-            },
-            renditionId: "v720",
-            segments: [
-              {
-                duration: 1,
-                mediaSequenceNumber: 3810,
-                segment: {
-                  commitId: "commit_v720_3810",
-                  deliveryUrl: "/media/v720/3810.m4s",
-                  objectKey: "tenant/session/v720/3810.m4s",
-                  slotId: "slot_v720_3810",
-                },
-              },
-            ],
-          },
+          v720: alternateRendition,
         },
       },
     });
