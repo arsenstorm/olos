@@ -1,5 +1,7 @@
 import { hasControlCharacter } from "../validation/fields";
 
+export const HLS_RELATIVE_REQUEST_BASE_URL = "https://olos.local";
+
 export interface MediaUriPolicy {
   allowedMediaOrigins?: readonly string[];
 }

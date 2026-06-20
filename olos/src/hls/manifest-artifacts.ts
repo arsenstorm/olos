@@ -19,7 +19,7 @@ import {
   type RenderMediaPlaylistOptions,
   renderMediaPlaylist,
 } from "./media-playlist";
-import { assertSafeRelativePath } from "./uri";
+import { assertSafeRelativePath, HLS_RELATIVE_REQUEST_BASE_URL } from "./uri";
 
 const HLS_CONTENT_TYPE = "application/vnd.apple.mpegurl";
 
@@ -288,7 +288,7 @@ function defaultMediaPlaylistPath(
 
 function parseRequestPath(value: string): string | undefined {
   if (value.startsWith("/")) {
-    return new URL(value, "https://olos.local").pathname;
+    return new URL(value, HLS_RELATIVE_REQUEST_BASE_URL).pathname;
   }
 
   try {

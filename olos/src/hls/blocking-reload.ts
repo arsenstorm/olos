@@ -1,6 +1,7 @@
 import type { Cursor } from "../types/cursor";
 import type { MediaSequenceNumber, PartNumber } from "../types/ids";
 import { assertCursor } from "../validation/cursor";
+import { HLS_RELATIVE_REQUEST_BASE_URL } from "./uri";
 
 const HLS_MSN = "_HLS_msn";
 const HLS_PART = "_HLS_part";
@@ -66,7 +67,7 @@ export function parseHlsBlockingReloadRequest(
   requestUrl: string
 ): HlsBlockingReloadRequest {
   const url = requestUrl.startsWith("/")
-    ? new URL(requestUrl, "https://olos.local")
+    ? new URL(requestUrl, HLS_RELATIVE_REQUEST_BASE_URL)
     : new URL(requestUrl);
 
   return {
