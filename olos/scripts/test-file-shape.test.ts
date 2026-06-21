@@ -21,6 +21,22 @@ describe("test file shape", () => {
 
     expect(helperOnlyTestFiles).toEqual([]);
   });
+
+  test("keeps helper test files in canonical naming", async () => {
+    const testFiles = await listTestFiles(packageRoot);
+    const badHelperTestFiles: string[] = [];
+
+    for (const file of testFiles) {
+      if (
+        file.endsWith("-helper.test.ts") &&
+        !file.endsWith(".test-helper.test.ts")
+      ) {
+        badHelperTestFiles.push(relative(packageRoot, file));
+      }
+    }
+
+    expect(badHelperTestFiles).toEqual([]);
+  });
 });
 
 async function listTestFiles(root: string): Promise<string[]> {
