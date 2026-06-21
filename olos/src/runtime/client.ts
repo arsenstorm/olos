@@ -6,15 +6,18 @@ import type { Session, SessionState } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertCommit, assertUploadSlot } from "../validation";
 import { assertCursor } from "../validation/cursor";
+import { assertUrlSafeIdentifier } from "../validation/ids";
 import type { RuntimeCommitPayload } from "./commit";
 import type { RuntimeLiveHealth } from "./health";
 import {
   fetchFor,
+  isRecord,
   jsonPost,
   normalizedBaseUrl,
   optionalRecordPayload,
   type RuntimeHttpFetch,
   recordPayload,
+  requiredArrayField,
   requiredRecordField,
   requiredRecordPayload,
   requiredStringField,
@@ -422,7 +425,8 @@ function healthPayload(value: unknown): RuntimeLiveHealth {
   return requiredRecordPayload<RuntimeLiveHealth>(
     value,
     "health",
-    "session health response must include health"
+    "session health response must include health",
+    assertRuntimeLiveHealth
   );
 }
 
@@ -430,6 +434,139 @@ function retentionPayload(value: unknown): CoordinatorRetentionPlan {
   return requiredRecordPayload<CoordinatorRetentionPlan>(
     value,
     "plan",
-    "session retention response must include a plan"
+    "session retention response must include a plan",
+    assertCoordinatorRetentionPlan
   );
+}
+
+function assertCoordinatorRetentionPlan(
+  value: unknown
+): asserts value is CoordinatorRetentionPlan {
+  if (!isRecord(value)) {
+    throw new Error("runtime session retention plan must be an object");
+  }
+
+  const expiredSlots = requiredArrayField(
+    value,
+    "expiredSlots",
+    "runtime session retention plan must include expiredSlots"
+  );
+
+  expiredSlots.forEach((slot, index) => {
+    if (!isRecord(slot)) {
+      throw new Error(
+        `runtime session retention plan expiredSlots[${index}] must be an object`
+      );
+    }
+
+    try {
+      assertUploadSlot(slot);
+    } catch (error) {
+      throw new Error(
+        `runtime session retention plan expiredSlots[${index}] must be valid: ${
+          (error as Error).message
+        }`
+      );
+    }
+  });
+
+  const retiredObjects = requiredArrayField(
+    value,
+    "retiredObjects",
+    "runtime session retention plan must include retiredObjects"
+  );
+  retiredObjects.forEach((retiredObject, index) => {
+    if (!isRecord(retiredObject)) {
+      throw new Error(
+        `runtime session retention plan retiredObjects[${index}] must be an object`
+      );
+    }
+
+    requiredStringField(
+      retiredObject,
+      "commitId",
+      `runtime session retention plan retiredObjects[${index}].commitId must be set`
+    );
+    requiredStringField(
+      retiredObject,
+      "objectKey",
+      `runtime session retention plan retiredObjects[${index}].objectKey must be set`
+    );
+    requiredStringField(
+      retiredObject,
+      "slotId",
+      `runtime session retention plan retiredObjects[${index}].slotId must be set`
+    );
+  });
+
+  if (value.cursor !== undefined) {
+    if (!isRecord(value.cursor)) {
+      throw new Error(
+        "runtime session retention plan cursor must be an object"
+      );
+    }
+
+    assertCursor(value.cursor);
+  }
+}
+
+function assertRuntimeLiveHealth(
+  value: unknown
+): asserts value is RuntimeLiveHealth {
+  if (!isRecord(value)) {
+    throw new Error("runtime live health must be an object");
+  }
+
+  const cursorFreshness = requiredStringField(
+    value,
+    "cursorFreshness",
+    "session health response health must include cursorFreshness"
+  );
+  if (
+    cursorFreshness !== "fresh" &&
+    cursorFreshness !== "stale" &&
+    cursorFreshness !== "missing"
+  ) {
+    throw new Error(
+      "session health response health.cursorFreshness must be fresh, stale, or missing"
+    );
+  }
+
+  const status = requiredStringField(
+    value,
+    "status",
+    "session health response health must include status"
+  );
+  if (status !== "active" && status !== "stale" && status !== "starting") {
+    throw new Error(
+      "session health response health.status must be active, stale, or starting"
+    );
+  }
+
+  if (
+    value.leaseStatus !== undefined &&
+    value.leaseStatus !== "active" &&
+    value.leaseStatus !== "stale"
+  ) {
+    throw new Error(
+      "session health response health.leaseStatus must be active or stale"
+    );
+  }
+
+  if (
+    value.cursorAgeMs !== undefined &&
+    (typeof value.cursorAgeMs !== "number" ||
+      !Number.isFinite(value.cursorAgeMs))
+  ) {
+    throw new Error(
+      "session health response health.cursorAgeMs must be a finite number"
+    );
+  }
+
+  if (value.publisherInstanceId !== undefined) {
+    assertUrlSafeIdentifier(
+      value.publisherInstanceId,
+      "session health response health.publisherInstanceId"
+    );
+  }
 }

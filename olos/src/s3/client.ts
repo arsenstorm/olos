@@ -1,9 +1,9 @@
 import type { RuntimeFetch } from "../runtime/client";
 import {
   fetchFor,
+  isRecord,
   jsonPost,
   normalizedBaseUrl,
-  optionalRecordField,
   optionalRecordPayload,
   recordPayload,
   requiredArrayField,
@@ -483,7 +483,7 @@ function reconciliationPayload(
   return recordPayload<StoredS3CoordinatorReconciliationResponse>({
     ...record,
     results: validResults,
-    summary,
+    summary: summaryPayload(summary),
   });
 }
 
@@ -498,87 +498,308 @@ function retentionPayload(
   const plan = requiredRecordField(
     record,
     "plan",
-    "S3 retention response must include plan and summary"
+    "S3 retention response must include plan"
+  );
+  const result = requiredRecordField(
+    record,
+    "result",
+    "S3 retention response must include result"
   );
   const summary = requiredRecordField(
     record,
     "summary",
-    "S3 retention response must include plan and summary"
+    "S3 retention response must include summary"
   );
+  return {
+    plan: assertCoordinatorRetentionPlan(plan),
+    result: retentionResult(result),
+    summary: retentionSummary(summary),
+  };
+}
+
+function assertCoordinatorRetentionPlan(
+  value: unknown
+): StoredS3CoordinatorRetentionResponse["plan"] {
+  if (!isRecord(value)) {
+    throw new Error("S3 retention response plan must be an object");
+  }
 
   const expiredSlots = requiredArrayField(
-    plan,
+    value,
     "expiredSlots",
     "S3 retention response plan must include expiredSlots"
   );
-  for (const slot of expiredSlots) {
-    assertUploadSlot(slot);
+  for (const [index, slot] of expiredSlots.entries()) {
+    if (!isRecord(slot)) {
+      throw new Error(
+        `S3 retention response plan.expiredSlots[${index}] must be an object`
+      );
+    }
+
+    try {
+      assertUploadSlot(slot);
+    } catch (error) {
+      throw new Error(
+        `S3 retention response plan.expiredSlots[${index}] must be valid: ${
+          (error as Error).message
+        }`
+      );
+    }
   }
 
   const retiredObjects = requiredArrayField(
-    plan,
+    value,
     "retiredObjects",
     "S3 retention response plan must include retiredObjects"
   );
-
   for (const [index, retiredObject] of retiredObjects.entries()) {
-    const retired = requiredRecord(
+    assertRetiredObject(
       retiredObject,
-      `S3 retention response plan.retiredObjects[${index}] must be an object`
-    );
-
-    requiredStringField(
-      retired,
-      "commitId",
-      `S3 retention response plan.retiredObjects[${index}].commitId must be set`
-    );
-    requiredStringField(
-      retired,
-      "objectKey",
-      `S3 retention response plan.retiredObjects[${index}].objectKey must be set`
-    );
-    requiredStringField(
-      retired,
-      "slotId",
-      `S3 retention response plan.retiredObjects[${index}].slotId must be set`
+      `S3 retention response plan.retiredObjects[${index}]`
     );
   }
 
-  const planCursor = optionalRecordField(plan, "cursor");
-  if (planCursor !== undefined) {
-    assertCursor(planCursor);
+  if (value.cursor !== undefined) {
+    if (!isRecord(value.cursor)) {
+      throw new Error("S3 retention response plan cursor must be an object");
+    }
+
+    assertCursor(value.cursor);
   }
 
-  const summaryRecord = requiredRecord(
-    summary,
-    "S3 retention response summary must be an object"
+  return value as StoredS3CoordinatorRetentionResponse["plan"];
+}
+
+function retentionResult(
+  value: unknown
+): StoredS3CoordinatorRetentionResponse["result"] {
+  const record = requiredRecord(
+    value,
+    "S3 retention response must include result and summary"
   );
-  requiredArrayField(
-    summaryRecord,
-    "failedSlotIds",
-    "S3 retention response summary must include failedSlotIds"
+  const deletedObjects = requiredArrayField(
+    record,
+    "deletedObjects",
+    "S3 retention response result must include deletedObjects"
   );
-  requiredArrayField(
-    summaryRecord,
+  const failedObjects = requiredArrayField(
+    record,
+    "failedObjects",
+    "S3 retention response result must include failedObjects"
+  );
+
+  const parsedDeletedObjects = deletedObjects.map((entry, index) =>
+    assertRetiredObject(
+      entry,
+      `S3 retention response result.deletedObjects[${index}]`
+    )
+  );
+
+  const parsedFailedObjects = failedObjects.map((entry, index) => {
+    const failure = requiredRecord(
+      entry,
+      `S3 retention response result.failedObjects[${index}] must be an object`
+    );
+
+    const object = assertRetiredObject(
+      failure.object,
+      `S3 retention response result.failedObjects[${index}].object`
+    );
+
+    return {
+      error: requiredStringField(
+        failure,
+        "error",
+        `S3 retention response result.failedObjects[${index}].error must be set`
+      ),
+      object,
+    };
+  });
+
+  return {
+    deletedObjects: parsedDeletedObjects,
+    failedObjects: parsedFailedObjects,
+  };
+}
+
+function retentionSummary(
+  value: Record<string, unknown>
+): StoredS3CoordinatorRetentionResponse["summary"] {
+  const deleted = requiredSummaryNumber(
+    value,
+    "deleted",
+    "S3 retention response summary must include deleted"
+  );
+  const failed = requiredSummaryNumber(
+    value,
+    "failed",
+    "S3 retention response summary must include failed"
+  );
+  const planned = requiredSummaryNumber(
+    value,
+    "planned",
+    "S3 retention response summary must include planned"
+  );
+  const failedObjectKeys = stringArrayField(
+    value,
     "failedObjectKeys",
     "S3 retention response summary must include failedObjectKeys"
   );
-
-  if (typeof summaryRecord.planned !== "number") {
-    throw new Error("S3 retention response summary must include planned");
-  }
-  if (typeof summaryRecord.deleted !== "number") {
-    throw new Error("S3 retention response summary must include deleted");
-  }
-  if (typeof summaryRecord.failed !== "number") {
-    throw new Error("S3 retention response summary must include failed");
-  }
-
-  if (typeof summaryRecord.ok !== "boolean") {
-    throw new Error("S3 retention response summary must include ok");
-  }
+  const failedSlotIds = stringArrayField(
+    value,
+    "failedSlotIds",
+    "S3 retention response summary must include failedSlotIds"
+  );
+  const ok = requiredSummaryBoolean(
+    value,
+    "ok",
+    "S3 retention response summary must include ok"
+  );
 
   return {
-    ...recordPayload<StoredS3CoordinatorRetentionResponse>(record),
+    deleted,
+    failed,
+    failedObjectKeys,
+    failedSlotIds,
+    ok,
+    planned,
   };
+}
+
+function summaryPayload(
+  value: Record<string, unknown>
+): StoredS3CoordinatorReconciliationResponse["summary"] {
+  const committed = requiredSummaryNumber(
+    value,
+    "committed",
+    "S3 reconciliation response summary must include committed"
+  );
+  const failed = requiredSummaryNumber(
+    value,
+    "failed",
+    "S3 reconciliation response summary must include failed"
+  );
+  const idempotent = requiredSummaryNumber(
+    value,
+    "idempotent",
+    "S3 reconciliation response summary must include idempotent"
+  );
+  const planned = requiredSummaryNumber(
+    value,
+    "planned",
+    "S3 reconciliation response summary must include planned"
+  );
+  const status = requiredStringField(
+    value,
+    "status",
+    "S3 reconciliation response summary must include status"
+  );
+
+  if (status !== "reconciled") {
+    throw new Error(
+      "S3 reconciliation response summary status must be reconciled"
+    );
+  }
+
+  const failedErrorCodes = stringArrayField(
+    value,
+    "failedErrorCodes",
+    "S3 reconciliation response summary must include failedErrorCodes"
+  );
+  const failedSlotIds = stringArrayField(
+    value,
+    "failedSlotIds",
+    "S3 reconciliation response summary must include failedSlotIds"
+  );
+  const slotIds = stringArrayField(
+    value,
+    "slotIds",
+    "S3 reconciliation response summary must include slotIds"
+  );
+  const ok = requiredSummaryBoolean(
+    value,
+    "ok",
+    "S3 reconciliation response summary must include ok"
+  );
+
+  return {
+    committed,
+    failed,
+    failedErrorCodes,
+    failedSlotIds,
+    idempotent,
+    ok,
+    planned,
+    slotIds,
+    status,
+  };
+}
+
+function assertRetiredObject(
+  value: unknown,
+  context: string
+): {
+  commitId: string;
+  objectKey: string;
+  slotId: string;
+} {
+  const retired = requiredRecord(value, `${context} must be an object`);
+
+  return {
+    commitId: requiredStringField(
+      retired,
+      "commitId",
+      `${context}.commitId must be set`
+    ),
+    objectKey: requiredStringField(
+      retired,
+      "objectKey",
+      `${context}.objectKey must be set`
+    ),
+    slotId: requiredStringField(
+      retired,
+      "slotId",
+      `${context}.slotId must be set`
+    ),
+  };
+}
+
+function requiredSummaryBoolean(
+  value: Record<string, unknown>,
+  field: string,
+  message: string
+): boolean {
+  if (typeof value[field] !== "boolean") {
+    throw new Error(message);
+  }
+
+  return value[field];
+}
+
+function requiredSummaryNumber(
+  value: Record<string, unknown>,
+  field: string,
+  message: string
+): number {
+  if (typeof value[field] !== "number") {
+    throw new Error(message);
+  }
+
+  return value[field];
+}
+
+function stringArrayField(
+  value: Record<string, unknown>,
+  field: string,
+  message: string
+): readonly string[] {
+  const values = requiredArrayField(value, field, message);
+
+  for (const [index, item] of values.entries()) {
+    if (typeof item !== "string") {
+      throw new Error(`${message}[${index}] must be a string`);
+    }
+  }
+
+  return values;
 }

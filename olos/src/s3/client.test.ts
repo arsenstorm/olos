@@ -519,6 +519,79 @@ describe("S3 runtime HTTP client", () => {
       },
     ]);
   });
+
+  test("validates malformed reconciliation response payloads", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            results: [],
+            summary: {
+              failedErrorCodes: [],
+              failedSlotIds: [],
+              idempotent: 0,
+              ok: true,
+              planned: 0,
+              slotIds: [],
+              status: "reconciled",
+            },
+          }),
+          { status: 202 }
+        )
+      );
+
+    await expect(
+      reconcileS3RuntimeUploads({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        payload: {
+          committedAt: "2026-01-01T00:00:02.000Z",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow(
+      "S3 reconciliation response summary must include committed"
+    );
+  });
+
+  test("validates malformed retention response payloads", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            plan: {
+              expiredSlots: [],
+              retiredObjects: [],
+            },
+            result: {
+              deletedObjects: [],
+              failedObjects: [],
+            },
+            summary: {
+              deleted: 1,
+              failed: 0,
+              failedSlotIds: [],
+              ok: true,
+              planned: 1,
+            },
+          }),
+          { status: 202 }
+        )
+      );
+
+    await expect(
+      applyS3RuntimeRetention({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        payload: {
+          now: "2026-01-01T00:00:06.000Z",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow(
+      "S3 retention response summary must include failedObjectKeys"
+    );
+  });
 });
 
 async function createS3RuntimeClientHarness(options: {

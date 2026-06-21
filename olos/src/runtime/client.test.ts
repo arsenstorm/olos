@@ -432,4 +432,54 @@ describe("runtime HTTP client", () => {
       })
     ).rejects.toThrow("commitId");
   });
+
+  test("validates session health response payloads", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            health: {
+              cursorFreshness: "missing",
+              status: "bad",
+            },
+          }),
+          { status: 200 }
+        )
+      );
+
+    await expect(
+      getRuntimeSessionHealth({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("session health response health.status");
+  });
+
+  test("validates session retention response payloads", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            plan: {
+              expiredSlots: [
+                {
+                  slotId: "slot_init",
+                },
+              ],
+              retiredObjects: [],
+            },
+          }),
+          { status: 200 }
+        )
+      );
+
+    await expect(
+      getRuntimeSessionRetentionPlan({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("uploadSlot");
+  });
 });
