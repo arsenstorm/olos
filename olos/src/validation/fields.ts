@@ -134,7 +134,15 @@ export function assertOneOfField<const T extends readonly string[]>(
   return fieldValue;
 }
 
-export function assertAbsoluteHttpUrl(value: unknown, name: string): void {
+interface AbsoluteHttpUrlOptions {
+  allowQueryOrFragment?: boolean;
+}
+
+export function assertAbsoluteHttpUrl(
+  value: unknown,
+  name: string,
+  options: AbsoluteHttpUrlOptions = {}
+): void {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`${name} must be an absolute HTTP(S) URL`);
   }
@@ -151,7 +159,10 @@ export function assertAbsoluteHttpUrl(value: unknown, name: string): void {
     throw new Error(`${name} must be an absolute HTTP(S) URL`);
   }
 
-  if (url.search.length > 0 || url.hash.length > 0) {
+  if (
+    !options.allowQueryOrFragment &&
+    (url.search.length > 0 || url.hash.length > 0)
+  ) {
     throw new Error(`${name} must not contain query strings or fragments`);
   }
 }

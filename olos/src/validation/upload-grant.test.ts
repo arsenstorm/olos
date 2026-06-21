@@ -19,6 +19,16 @@ describe("upload grant validation", () => {
     expect(isUploadGrant(validUploadGrant)).toBe(true);
   });
 
+  test("accepts upload grant URLs with query strings and fragments", () => {
+    const uploadGrant = {
+      ...validUploadGrant,
+      url: "https://upload.example.com/session/slot?signature=abc#part",
+    };
+
+    expect(() => assertUploadGrant(uploadGrant)).not.toThrow();
+    expect(isUploadGrant(uploadGrant)).toBe(true);
+  });
+
   test("accepts grants without required headers", () => {
     const { requiredHeaders, ...grant } = validUploadGrant;
 
