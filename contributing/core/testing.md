@@ -97,15 +97,31 @@ bun run build
   and `OLOS/*` so they validate installed-package contracts:
   `OLOS` APIs, configuration, runtime adapters, and user-facing runtime
   behavior.
+- Practical rule:
+  - Import public subpaths such as `olos`, `olos/runtime`, `olos/s3`,
+    `olos/protocol`, and `olos/types` in `olos/e2e/*.test.ts`.
+  - Do not import from `olos/src/*` directly in E2E tests.
+  - If a test scenario needs behavior not exposed publicly, first expand the
+    public API before switching E2E tests to internal imports.
 - Unit tests under `olos/src` should remain close to implementation details and
   may import internal modules when directly exercising state transitions,
   parser behavior, and low-level protocol invariants.
+- Practical rule:
+  - Use local modules for one-off helpers and shared helpers only when reused
+    inside the same layer.
+  - For reusable unit helpers, keep files near the consuming layer, such as
+    `*/test-*.test-helper.ts` or `*/*-fixtures.ts`.
 - Keep helpers in the same test scope as the behavior they support; avoid moving
   source helpers into `olos/src` when the helper only exists for a single
   suite.
 - Promote reusable test fixtures only after they are needed in at least two suites
   from the same layer (`src` tests together, or E2E tests together), and keep
   the import path explicit about that scope.
+- Documented exceptions:
+  - E2E tests may import local `./` fixture modules (`./fake-s3-clients.ts`,
+    `./wait-for.ts`) only.
+  - `src` tests may import a test helper from another `src` suite when deduping
+    clear repeated logic.
 
 ## Conformance
 
