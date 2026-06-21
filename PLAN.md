@@ -20,7 +20,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
 
 ## Checklist
 
-- [ ] Split the protocol coordinator into smaller modules.
+- [x] Split the protocol coordinator into smaller modules.
   - Locations: `olos/src/protocol/coordinator.ts:251`, `:270`, `:376`, `:487`, `:847`, `:970`.
   - Issue: this 1,014-line file owns state creation, in-memory storage, optimistic mutation, commit orchestration, manifest artifacts, retention planning, serialization, cloning, and partial snapshot validation.
   - Suggestion: extract internal modules for state/store, mutation, commit, retention/manifest, and snapshot serialization; keep `protocol/coordinator.ts` as the export facade.

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { renderMediaPlaylist } from "../hls/media-playlist";
 import { createObservedUpload } from "../state/observed-upload";
 import { createPublicationKillSwitch } from "../state/publication-control";
@@ -30,6 +31,24 @@ import {
 const mediaOrigin = "https://media.example.com";
 
 describe("coordinator pipeline", () => {
+  test("keeps the coordinator module as a facade over concern modules", () => {
+    const source = readFileSync(
+      new URL("./coordinator.ts", import.meta.url),
+      "utf8"
+    );
+
+    expect(source).toContain("./coordinator-commit");
+    expect(source).toContain("./coordinator-lifecycle");
+    expect(source).toContain("./coordinator-memory-store");
+    expect(source).toContain("./coordinator-mutation");
+    expect(source).toContain("./coordinator-slot");
+    expect(source).toContain("./coordinator-snapshot");
+    expect(source).toContain("commitCoordinatorUploadInternal(...args)");
+    expect(source).toContain(
+      "parseCoordinatorPipelineSnapshotFromStore(value)"
+    );
+  });
+
   test("saves and loads coordinator state snapshots", async () => {
     const store = createMemoryCoordinatorStore();
     const state = createEmptyCoordinatorState();
