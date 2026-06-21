@@ -67,35 +67,33 @@ function assertCursorCommittedWindow(
   }
 }
 
-function assertCursorWindow(value: unknown): asserts value is CursorWindow {
+export function assertCursorWindow(
+  value: unknown,
+  name = "cursor.window"
+): asserts value is CursorWindow {
   if (!isRecord(value)) {
-    throw new Error("cursor.window must be an object");
+    throw new Error(`${name} must be an object`);
   }
 
-  assertNonNegativeIntegerField(
-    value,
-    "firstMediaSequenceNumber",
-    "cursor.window"
-  );
-  assertNonNegativeIntegerField(
-    value,
-    "lastMediaSequenceNumber",
-    "cursor.window"
-  );
-  assertCursorWindowSequence(value);
+  assertNonNegativeIntegerField(value, "firstMediaSequenceNumber", name);
+  assertNonNegativeIntegerField(value, "lastMediaSequenceNumber", name);
+  assertCursorWindowSequence(value, name);
 
   if (value.lastPartNumber !== undefined) {
-    assertNonNegativeIntegerField(value, "lastPartNumber", "cursor.window");
+    assertNonNegativeIntegerField(value, "lastPartNumber", name);
   }
 }
 
-function assertCursorWindowSequence(value: Record<string, unknown>): void {
+function assertCursorWindowSequence(
+  value: Record<string, unknown>,
+  name: string
+): void {
   if (
     Number(value.firstMediaSequenceNumber) >
     Number(value.lastMediaSequenceNumber)
   ) {
     throw new Error(
-      "cursor.window.firstMediaSequenceNumber must be less than or equal to lastMediaSequenceNumber"
+      `${name}.firstMediaSequenceNumber must be less than or equal to lastMediaSequenceNumber`
     );
   }
 }

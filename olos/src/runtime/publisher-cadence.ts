@@ -1,5 +1,6 @@
 import type { CursorWindow } from "../types/cursor";
 import type { PublicationMode } from "../types/upload-slot";
+import { assertCursorWindow } from "../validation/cursor";
 import { assertNonNegativeInteger } from "../validation/ids";
 import { optionalField } from "./optional-field";
 import {
@@ -79,7 +80,9 @@ export function resolveRuntimePublisherNextObjectPosition(
     startMediaSequenceNumber,
     "startMediaSequenceNumber"
   );
-  assertCursorWindow(options.cursorWindow);
+  if (options.cursorWindow !== undefined) {
+    assertCursorWindow(options.cursorWindow, "cursorWindow");
+  }
 
   if (options.initPublished === false) {
     return {
@@ -105,36 +108,6 @@ export function resolveRuntimePublisherNextObjectPosition(
     cursorWindow: options.cursorWindow,
     startMediaSequenceNumber,
   });
-}
-
-function assertCursorWindow(cursorWindow: CursorWindow | undefined): void {
-  if (cursorWindow === undefined) {
-    return;
-  }
-
-  assertNonNegativeInteger(
-    cursorWindow.firstMediaSequenceNumber,
-    "cursorWindow.firstMediaSequenceNumber"
-  );
-  assertNonNegativeInteger(
-    cursorWindow.lastMediaSequenceNumber,
-    "cursorWindow.lastMediaSequenceNumber"
-  );
-
-  if (
-    cursorWindow.firstMediaSequenceNumber > cursorWindow.lastMediaSequenceNumber
-  ) {
-    throw new Error(
-      "cursorWindow.firstMediaSequenceNumber must be less than or equal to lastMediaSequenceNumber"
-    );
-  }
-
-  if (cursorWindow.lastPartNumber !== undefined) {
-    assertNonNegativeInteger(
-      cursorWindow.lastPartNumber,
-      "cursorWindow.lastPartNumber"
-    );
-  }
 }
 
 export function createRuntimePublisherObjectPlanInput(
