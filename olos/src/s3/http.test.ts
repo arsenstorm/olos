@@ -472,6 +472,77 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
   });
 
+  test("supports completionHintClock option for completion hint defaults", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const completionHintClock = () => "2026-01-01T00:00:03.000Z";
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
+      client: createTestS3Client(),
+      completionHintClock,
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
+      objectClient: objectClientFor(
+        {
+          "live/session/v1080/3810.m4s": 98_304,
+        },
+        headObjectInputs
+      ),
+      providerId: "s3_primary",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const response = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
+        {
+          etag: '"publisher-hint"',
+          independent: true,
+          objectKey: "live/session/v1080/3810.m4s",
+          size: 1,
+        }
+      )
+    );
+    const body =
+      await jsonResponseBody<StoredS3CoordinatorCommitResponse>(response);
+
+    expect(response.status).toBe(201);
+    expect(body.commit).toMatchObject({
+      commitId: "complete_slot_3810",
+      committedAt: completionHintClock(),
+      objectKey: "live/session/v1080/3810.m4s",
+      slotId: "slot_3810",
+    });
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: S3_BUCKET,
+        Key: "live/session/v1080/3810.m4s",
+      },
+    ]);
+  });
+
   test("rejects mismatched object keys in S3 completion hints", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();

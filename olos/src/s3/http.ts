@@ -79,6 +79,7 @@ export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
   additionalHeaders?: Record<string, string>;
   bucket: string;
   client: S3Client;
+  completionHintClock?: () => Date | string;
   completionHintNow?: () => Date | string;
   expiresInSeconds: number;
   grantNow?: () => Date | string;
@@ -736,10 +737,9 @@ function parseCompletionHintPayload(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
   slotId: string
 ): S3CommitPayload {
+  const defaults = createCompletionHintDefaults(options);
   const base = parseProviderResolvedCommitPayload(value, options, (payload) =>
-    parseCommitTimestampOrNow(payload, "committedAt", () =>
-      completionHintTimestamp(options.completionHintNow)
-    )
+    parseCommitTimestampOrNow(payload, "committedAt", defaults.committedAt)
   );
   assertNoCompletionHintDeliveryUrl(value);
   optionalStringField(value, "etag");
@@ -748,7 +748,7 @@ function parseCompletionHintPayload(
   return {
     commitId:
       optionalUrlSafeIdentifierValueField(value, "commitId") ??
-      completionHintCommitId(slotId),
+      defaults.commitId(slotId),
     ...base,
     slotId,
     ...parseOptionalSafeObjectKeyField(value, "objectKey"),
@@ -939,6 +939,36 @@ function optionalCursorResponse(
 }
 
 const DEFAULT_COMPLETION_HINT_COMMIT_ID_PREFIX = "complete_";
+const DEFAULT_COMPLETION_HINT_NOW = (): Date | string => new Date();
+
+interface CompletionHintDefaults {
+  commitId: (slotId: string) => string;
+  committedAt: () => string;
+}
+
+function createCompletionHintDefaults(
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): CompletionHintDefaults {
+  return {
+    committedAt: () =>
+      completionHintTimestamp(resolveCompletionHintNow(options)),
+    commitId: completionHintCommitId,
+  };
+}
+
+function resolveCompletionHintNow(
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): () => Date | string {
+  if (options.completionHintClock !== undefined) {
+    return options.completionHintClock;
+  }
+
+  if (options.completionHintNow !== undefined) {
+    return options.completionHintNow;
+  }
+
+  return DEFAULT_COMPLETION_HINT_NOW;
+}
 
 function completionHintCommitId(slotId: string): string {
   return `${DEFAULT_COMPLETION_HINT_COMMIT_ID_PREFIX}${slotId}`;
