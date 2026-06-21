@@ -1,3 +1,4 @@
+import { nonNegativeNumber } from "../runtime/request-fields";
 import type { Cursor } from "../types/cursor";
 import type { MediaSequenceNumber, PartNumber } from "../types/ids";
 import { assertCursor } from "../validation/cursor";
@@ -82,7 +83,7 @@ export async function waitForHlsBlockingReload(
   options: WaitForHlsBlockingReloadOptions
 ): Promise<WaitForHlsBlockingReloadResult> {
   assertCursor(options.cursor);
-  assertTimeout(options.timeoutMs);
+  nonNegativeNumber(options.timeoutMs, "options.timeoutMs");
 
   const deadline = Date.now() + options.timeoutMs;
   let cursor = options.cursor;
@@ -232,11 +233,5 @@ async function waitForNextCursor(
     }
 
     controller.abort();
-  }
-}
-
-function assertTimeout(value: number): void {
-  if (!Number.isFinite(value) || value < 0) {
-    throw new Error("options.timeoutMs must be a non-negative number");
   }
 }
