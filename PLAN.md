@@ -116,7 +116,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: introduce one internal public-surface manifest that tests compare against `package.json` and smoke expectations.
   - Verify: scripts tests and package smoke.
 
-- [ ] Replace the Unix-specific build cleanup command.
+- [x] Replace the Unix-specific build cleanup command.
   - Location: `olos/package.json` script `build`.
   - Issue: `rm -rf dist && ...` is shell-specific and embeds a destructive command in package metadata.
   - Suggestion: add a small Bun script to remove `dist`, then run TypeScript and declaration import fixing.
