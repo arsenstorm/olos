@@ -54,6 +54,30 @@ export function assertPositiveNumberField(
   positiveNumber(value[field], `${name}.${field}`);
 }
 
+export function stringValue(value: unknown, name: string): string {
+  if (typeof value !== "string") {
+    throw new Error(`${name} must be a string`);
+  }
+
+  return value;
+}
+
+export function booleanValue(value: unknown, name: string): boolean {
+  if (typeof value !== "boolean") {
+    throw new Error(`${name} must be a boolean`);
+  }
+
+  return value;
+}
+
+export function finiteNumber(value: unknown, name: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${name} must be a finite number`);
+  }
+
+  return value;
+}
+
 export function positiveNumber(value: unknown, name: string): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     throw new Error(`${name} must be a positive number`);
@@ -68,6 +92,16 @@ export function nonNegativeNumber(value: number, name: string): number {
   }
 
   return value;
+}
+
+export function timestampString(value: unknown, name: string): string {
+  const timestamp = stringValue(value, name);
+
+  if (Number.isNaN(Date.parse(timestamp))) {
+    throw new Error(`${name} must be a valid timestamp`);
+  }
+
+  return timestamp;
 }
 
 export function hasControlCharacter(value: string): boolean {
@@ -97,9 +131,7 @@ export function assertBooleanField(
   field: string,
   name: string
 ): void {
-  if (typeof value[field] !== "boolean") {
-    throw new Error(`${name}.${field} must be a boolean`);
-  }
+  booleanValue(value[field], `${name}.${field}`);
 }
 
 export function assertIsoDateField(
@@ -107,12 +139,7 @@ export function assertIsoDateField(
   field: string,
   name: string
 ): void {
-  if (
-    typeof value[field] !== "string" ||
-    Number.isNaN(Date.parse(value[field]))
-  ) {
-    throw new Error(`${name}.${field} must be a valid timestamp`);
-  }
+  timestampString(value[field], `${name}.${field}`);
 }
 
 export function assertOneOfField<const T extends readonly string[]>(

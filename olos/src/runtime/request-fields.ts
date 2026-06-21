@@ -1,6 +1,10 @@
 import {
+  booleanValue,
+  finiteNumber,
   isAllowedString,
   isRecord as isValidationRecord,
+  stringValue,
+  timestampString,
   nonNegativeNumber as validationNonNegativeNumber,
   positiveNumber as validationPositiveNumber,
   recordValue as validationRecordValue,
@@ -28,11 +32,7 @@ export function stringField(
   value: Record<string, unknown>,
   field: string
 ): string {
-  if (typeof value[field] !== "string") {
-    throw new Error(`${field} must be a string`);
-  }
-
-  return value[field];
+  return stringValue(value[field], field);
 }
 
 export function oneOfStringField<const Allowed extends readonly string[]>(
@@ -84,22 +84,14 @@ export function numberField(
   value: Record<string, unknown>,
   field: string
 ): number {
-  if (typeof value[field] !== "number" || !Number.isFinite(value[field])) {
-    throw new Error(`${field} must be a finite number`);
-  }
-
-  return value[field];
+  return finiteNumber(value[field], field);
 }
 
 export function booleanField(
   value: Record<string, unknown>,
   field: string
 ): boolean {
-  if (typeof value[field] !== "boolean") {
-    throw new Error(`${field} must be a boolean`);
-  }
-
-  return value[field];
+  return booleanValue(value[field], field);
 }
 
 export function optionalBooleanField<Field extends string>(
@@ -214,13 +206,7 @@ export function timestampField(
   value: Record<string, unknown>,
   field: string
 ): string {
-  const timestamp = stringField(value, field);
-
-  if (Number.isNaN(Date.parse(timestamp))) {
-    throw new Error(`${field} must be a valid timestamp`);
-  }
-
-  return timestamp;
+  return timestampString(value[field], field);
 }
 
 export function optionalTimestampField<Field extends string>(

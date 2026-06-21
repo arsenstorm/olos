@@ -9,12 +9,16 @@ import {
   assertPositiveIntegerField,
   assertPositiveNumberField,
   assertUrlSafeField,
+  booleanValue,
+  finiteNumber,
   hasControlCharacter,
   isRecord,
   nonEmptyArray,
   nonNegativeNumber,
   positiveNumber,
   recordValue,
+  stringValue,
+  timestampString,
 } from "./fields";
 
 describe("validation field helpers", () => {
@@ -89,11 +93,30 @@ describe("validation field helpers", () => {
   test("numeric helpers return valid values and reject invalid values", () => {
     expect(positiveNumber(1, "duration")).toBe(1);
     expect(nonNegativeNumber(0, "duration")).toBe(0);
+    expect(finiteNumber(0, "duration")).toBe(0);
     expect(() => positiveNumber(0, "duration")).toThrow(
       "duration must be a positive number"
     );
     expect(() => nonNegativeNumber(-1, "duration")).toThrow(
       "duration must be a non-negative number"
+    );
+    expect(() => finiteNumber(Number.POSITIVE_INFINITY, "duration")).toThrow(
+      "duration must be a finite number"
+    );
+  });
+
+  test("scalar helpers return valid values and reject invalid values", () => {
+    expect(stringValue("live", "state")).toBe("live");
+    expect(booleanValue(false, "active")).toBe(false);
+    expect(timestampString("2026-01-01T00:00:00.000Z", "updatedAt")).toBe(
+      "2026-01-01T00:00:00.000Z"
+    );
+    expect(() => stringValue(1, "state")).toThrow("state must be a string");
+    expect(() => booleanValue("false", "active")).toThrow(
+      "active must be a boolean"
+    );
+    expect(() => timestampString("later", "updatedAt")).toThrow(
+      "updatedAt must be a valid timestamp"
     );
   });
 

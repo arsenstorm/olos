@@ -152,7 +152,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: colocate public-surface intent with package content rules so new exports and private-file exclusions are reviewed together.
   - Verify: scripts tests and pack smoke.
 
-- [ ] Reduce duplicated request-field helpers.
+- [x] Reduce duplicated request-field helpers.
   - Locations: `olos/src/validation/fields.ts:7`, `olos/src/runtime/request-fields.ts:18`, `:200`, `:213`.
   - Issue: runtime request parsing wraps validation helpers but also redefines adjacent concepts such as optional fields, numeric fields, timestamps, and record handling.
   - Suggestion: document the boundary or move truly shared primitives into one internal module.
