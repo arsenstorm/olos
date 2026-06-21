@@ -266,7 +266,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: add a reporting script or docs guidance for files above a threshold. Keep it advisory at first.
   - Verify: script test if implemented.
 
-- [ ] Preserve conformance-store adapter checks during store refactors.
+- [x] Preserve conformance-store adapter checks during store refactors.
   - Locations: `olos/src/conformance.ts:915`, `olos/src/protocol/serialized-store.test.ts`, `olos/src/protocol/sqlite-store.test.ts`, `contributing/core/store-adapters.md`.
   - Issue: store conformance is a key adapter contract and should remain the acceptance boundary.
   - Suggestion: keep or expand checks for cloning, conflict current snapshots, missing updates, duplicate inserts, and conditional saves.

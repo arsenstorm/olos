@@ -167,6 +167,24 @@ describe("conformance manifest", () => {
       })
     ).resolves.toBeUndefined();
   });
+
+  test("documents store adapter conformance as the refactor boundary", () => {
+    const guide = readFileSync(
+      new URL("../../contributing/core/store-adapters.md", import.meta.url),
+      "utf8"
+    );
+
+    expect(guide).toContain(
+      "assertSerializedCoordinatorStoreBackendConformance"
+    );
+    expect(guide).toContain("Missing row, no `expectedEtag`");
+    expect(guide).toContain("Existing row, no `expectedEtag`");
+    expect(guide).toContain("Existing row, matching `expectedEtag`");
+    expect(guide).toContain("Missing or stale `expectedEtag`");
+    expect(guide).toContain(
+      "Conflict reads return the current row when possible"
+    );
+  });
 });
 
 function isCoveredTestFile(value: string): boolean {
