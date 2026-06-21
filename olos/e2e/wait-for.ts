@@ -13,15 +13,15 @@ export async function waitFor(
     intervalMs = 1,
     message = "condition was not met",
   } = options;
-  let attempt = 0;
-
-  while (attempt < attempts && !condition()) {
-    attempt += 1;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    if (condition()) {
+      return;
+    }
 
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
 
-  if (!condition()) {
-    throw new Error(message);
-  }
+  throw new Error(
+    `${message} after ${attempts} attempts at ${intervalMs}ms intervals`
+  );
 }

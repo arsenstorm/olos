@@ -224,7 +224,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: add small immutable fixture builders with clear overrides.
   - Verify: tests for each migrated area.
 
-- [ ] Standardize async wait helpers in tests.
+- [x] Standardize async wait helpers in tests.
   - Locations: `olos/e2e/runtime-client-flow.test.ts:468`, `olos/e2e/s3-http-pipeline.test.ts:1311`, `olos/e2e/object-store-flow.test.ts:820`.
   - Issue: local polling helpers use hardcoded timeouts and inconsistent failure messages.
   - Suggestion: add one test helper for polling with timeout, interval, and contextual error messages.
