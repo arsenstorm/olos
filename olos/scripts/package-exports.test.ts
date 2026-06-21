@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { access, readdir } from "node:fs/promises";
+import { access, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import packageJson from "../package.json" with { type: "json" };
 import {
@@ -7,6 +7,8 @@ import {
   packageExportSubpaths,
 } from "./package-export-map";
 import { packageRoot } from "./script-paths";
+
+const EXPORT_SOURCE_PATTERN = /from\s+"([^"]+)";/g;
 
 describe("package exports", () => {
   test("map package subpaths to matching dist entrypoints", () => {
@@ -52,5 +54,20 @@ describe("package exports", () => {
       .sort();
 
     expect(actualFacadeEntrypoints).toEqual(expectedFacadeEntrypoints);
+  });
+
+  test("keep public facade export blocks grouped by source module", async () => {
+    for (const subpath of packageExportSubpaths(packageJson.exports)) {
+      const entrypoint = packageExportEntrypoint(subpath);
+      const source = await readFile(
+        join(packageRoot, "src", `${entrypoint}.ts`),
+        "utf8"
+      );
+      const exportSources = [...source.matchAll(EXPORT_SOURCE_PATTERN)].map(
+        (match) => match[1]
+      );
+
+      expect(exportSources).toEqual([...exportSources].sort());
+    }
   });
 });

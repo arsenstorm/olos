@@ -200,7 +200,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: make `createRuntimeObjectLowLatencyProfile` or an internal defaults module the obvious source of truth.
   - Verify: latency profile, runtime HTTP, publisher expiry, and publisher lease tests.
 
-- [ ] Keep facade export organization deliberate.
+- [x] Keep facade export organization deliberate.
   - Locations: `olos/src/runtime.ts:1`, `olos/src/s3.ts:1`, `olos/src/protocol.ts:1`, `olos/src/state.ts:1`, `olos/src/hls.ts:1`, `olos/src/validation.ts:1`, `olos/src/config.ts:1`.
   - Issue: barrel files are intentional public facades with Biome ignores. As exports grow, grouping matters.
   - Suggestion: preserve facades, group exports by concern, and update package smoke coverage when moving internals.
