@@ -1,4 +1,5 @@
 import type { OlosError } from "../types/errors";
+import { createOlosError } from "../types/errors";
 import type { UploadSlot } from "../types/upload-slot";
 import { isOptionalHttpHeaderStringMap } from "../validation/http-header";
 import { assertUrlSafeIdentifier } from "../validation/ids";
@@ -228,18 +229,16 @@ export function resolveUploadEvidence(
   if (options.object !== undefined && options.hint !== undefined) {
     if (options.object.objectKey !== options.hint.objectKey) {
       return {
-        error: {
-          error: {
-            code: "olos.key_mismatch",
-            details: {
-              hintEventId: options.hint.eventId,
-              hintObjectKey: options.hint.objectKey,
-              objectKey: options.object.objectKey,
-              slotId: options.hint.slotId,
-            },
-            message: "upload hint does not match observed object",
-          },
-        },
+        error: createOlosError(
+          "olos.key_mismatch",
+          "upload hint does not match observed object",
+          {
+            hintEventId: options.hint.eventId,
+            hintObjectKey: options.hint.objectKey,
+            objectKey: options.object.objectKey,
+            slotId: options.hint.slotId,
+          }
+        ),
         status: "conflict",
       };
     }
@@ -313,35 +312,28 @@ export function resolveObjectCreatedEventSlot(
   }
 
   return {
-    error: {
-      error: {
-        code: "olos.unknown_slot",
-        details: {
-          eventId: options.event.eventId,
-          objectKey: options.event.object.objectKey,
-          providerId: options.event.object.providerId,
-          ...(options.slot === undefined
-            ? {}
-            : {
-                slotId: options.slot.slotId,
-                slotObjectKey: options.slot.objectKey,
-              }),
-        },
-        message: "object-created event does not match a known slot",
-      },
-    },
+    error: createOlosError(
+      "olos.unknown_slot",
+      "object-created event does not match a known slot",
+      {
+        eventId: options.event.eventId,
+        objectKey: options.event.object.objectKey,
+        providerId: options.event.object.providerId,
+        ...(options.slot === undefined
+          ? {}
+          : {
+              slotId: options.slot.slotId,
+              slotObjectKey: options.slot.objectKey,
+            }),
+      }
+    ),
     status: "unknown_object_key",
   };
 }
 
 function invalidUploadEvent(message: string): UploadEventNormalization {
   return {
-    error: {
-      error: {
-        code: "olos.invalid_state",
-        message,
-      },
-    },
+    error: createOlosError("olos.invalid_state", message),
     status: "invalid_event",
   };
 }

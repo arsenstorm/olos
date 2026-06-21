@@ -1,15 +1,8 @@
 import type { OlosError } from "../types/errors";
+import { createOlosError } from "../types/errors";
 
-export function coordinatorError(
+export const coordinatorError: (
   code: OlosError["error"]["code"],
   message: string,
-  details: Record<string, unknown>
-): OlosError {
-  return {
-    error: {
-      code,
-      details,
-      message,
-    },
-  };
-}
+  details?: Record<string, unknown>
+) => OlosError = createOlosError;

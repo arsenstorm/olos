@@ -1,5 +1,6 @@
 import type { UploadEventNormalization } from "../state/observed-upload";
 import { normalizeUploadEvent } from "../state/observed-upload";
+import { createOlosError } from "../types/errors";
 import { recordValue } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
@@ -174,12 +175,7 @@ function stringValue(value: unknown): string | undefined {
 
 function invalidS3Event(message: string): UploadEventNormalization {
   return {
-    error: {
-      error: {
-        code: "olos.invalid_state",
-        message,
-      },
-    },
+    error: createOlosError("olos.invalid_state", message),
     status: "invalid_event",
   };
 }

@@ -1,6 +1,7 @@
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosError } from "../types/errors";
+import { createOlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { MediaObject } from "../types/media-object";
 import type { Session } from "../types/session";
@@ -170,7 +171,7 @@ export function resolveCommitAttempt(
 ): CommitAttemptResolution {
   if (options.slot === undefined) {
     return {
-      error: commitError("olos.unknown_slot", "upload slot is unknown", {
+      error: createOlosError("olos.unknown_slot", "upload slot is unknown", {
         slotId: options.slotId,
       }),
       status: "unknown_slot",
@@ -179,7 +180,7 @@ export function resolveCommitAttempt(
 
   if (options.session?.state === "aborted") {
     return {
-      error: commitError("olos.invalid_state", "session is aborted", {
+      error: createOlosError("olos.invalid_state", "session is aborted", {
         sessionId: options.session.sessionId,
         slotId: options.slot.slotId,
         state: options.session.state,
@@ -190,7 +191,7 @@ export function resolveCommitAttempt(
 
   if (options.objectVerified !== true) {
     return {
-      error: commitError(
+      error: createOlosError(
         "olos.invalid_state",
         "object existence is unverified",
         {
@@ -207,7 +208,7 @@ export function resolveCommitAttempt(
     isLateSlot(options.slot, options.cursor)
   ) {
     return {
-      error: commitError(
+      error: createOlosError(
         "olos.invalid_state",
         "object is behind the current cursor",
         {
@@ -225,7 +226,7 @@ export function resolveCommitAttempt(
 
   if (options.mediaObject.objectKey !== options.slot.objectKey) {
     return {
-      error: commitError(
+      error: createOlosError(
         "olos.key_mismatch",
         "object key does not match slot",
         {
@@ -240,7 +241,7 @@ export function resolveCommitAttempt(
 
   if (options.mediaObject.contentType !== options.slot.contentType) {
     return {
-      error: commitError(
+      error: createOlosError(
         "olos.content_type_mismatch",
         "object content type does not match slot",
         {
@@ -256,12 +257,16 @@ export function resolveCommitAttempt(
 
   if (options.mediaObject.size > options.slot.maxBytes) {
     return {
-      error: commitError("olos.object_too_large", "object exceeds slot limit", {
-        maxBytes: options.slot.maxBytes,
-        objectKey: options.mediaObject.objectKey,
-        size: options.mediaObject.size,
-        slotId: options.slot.slotId,
-      }),
+      error: createOlosError(
+        "olos.object_too_large",
+        "object exceeds slot limit",
+        {
+          maxBytes: options.slot.maxBytes,
+          objectKey: options.mediaObject.objectKey,
+          size: options.mediaObject.size,
+          slotId: options.slot.slotId,
+        }
+      ),
       status: "object_too_large",
     };
   }
@@ -271,7 +276,7 @@ export function resolveCommitAttempt(
     options.mediaObject.size < options.slot.minBytes
   ) {
     return {
-      error: commitError(
+      error: createOlosError(
         "olos.object_too_small",
         "mediaObject.size must be at least minBytes",
         {
@@ -301,20 +306,6 @@ export function resolveCommitAttempt(
   };
 }
 
-function commitError(
-  code: OlosError["error"]["code"],
-  message: string,
-  details?: Record<string, unknown>
-): OlosError {
-  return {
-    error: {
-      code,
-      ...(details === undefined ? {} : { details }),
-      message,
-    },
-  };
-}
-
 export function resolveDuplicateCommit(
   options: ResolveDuplicateCommitOptions
 ): DuplicateCommitResolution {
@@ -329,17 +320,15 @@ export function resolveDuplicateCommit(
   }
 
   return {
-    error: {
-      error: {
-        code: "olos.duplicate_commit_conflict",
-        details: {
-          candidateCommitId: options.candidateCommit.commitId,
-          existingCommitId: options.existingCommit.commitId,
-          slotId: options.existingCommit.slotId,
-        },
-        message: "duplicate commit conflicts with the existing commit",
-      },
-    },
+    error: createOlosError(
+      "olos.duplicate_commit_conflict",
+      "duplicate commit conflicts with the existing commit",
+      {
+        candidateCommitId: options.candidateCommit.commitId,
+        existingCommitId: options.existingCommit.commitId,
+        slotId: options.existingCommit.slotId,
+      }
+    ),
     status: "conflict",
   };
 }

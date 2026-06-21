@@ -9,3 +9,17 @@ export interface OlosError {
     message: string;
   };
 }
+
+export function createOlosError(
+  code: OlosErrorCode,
+  message: string,
+  details?: Record<string, unknown>
+): OlosError {
+  return {
+    error: {
+      code,
+      ...(details === undefined ? {} : { details }),
+      message,
+    },
+  };
+}

@@ -28,6 +28,7 @@ import {
   resolvePublicationControl,
 } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
+import { createOlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
@@ -330,7 +331,7 @@ export async function commitS3CoordinatorUpload(
 
   if (slot === undefined) {
     return {
-      error: coordinatorError("olos.unknown_slot", "upload slot is unknown", {
+      error: createOlosError("olos.unknown_slot", "upload slot is unknown", {
         slotId: options.slotId,
       }),
       state: options.state,
@@ -464,7 +465,7 @@ export async function completeStoredS3CoordinatorUpload(
 
   if (slot === undefined) {
     return {
-      error: coordinatorError("olos.unknown_slot", "upload slot is unknown", {
+      error: createOlosError("olos.unknown_slot", "upload slot is unknown", {
         slotId: options.slotId,
       }),
       state: snapshot.state,
@@ -474,7 +475,7 @@ export async function completeStoredS3CoordinatorUpload(
 
   if (slot.objectKey !== objectKey) {
     return {
-      error: coordinatorError(
+      error: createOlosError(
         "olos.key_mismatch",
         "object key mismatches slot",
         {
@@ -505,7 +506,7 @@ export async function completeStoredS3CoordinatorUploadByObjectKey(
 
   if (slot === undefined) {
     return {
-      error: coordinatorError("olos.unknown_slot", "upload slot is unknown", {
+      error: createOlosError("olos.unknown_slot", "upload slot is unknown", {
         objectKey: options.objectKey,
       }),
       state: snapshot.state,
@@ -683,18 +684,4 @@ function missingStoredS3CoordinatorUploadCommit(): MissingStoredS3CoordinatorUpl
 
 function missingStoredS3CoordinatorUploadGrantIssue(): MissingStoredS3CoordinatorUploadGrantIssue {
   return { status: "not_found" };
-}
-
-function coordinatorError(
-  code: OlosError["error"]["code"],
-  message: string,
-  details?: Record<string, unknown>
-): OlosError {
-  return {
-    error: {
-      code,
-      ...(details === undefined ? {} : { details }),
-      message,
-    },
-  };
 }

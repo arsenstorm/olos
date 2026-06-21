@@ -80,7 +80,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: add internal constants/builders for session, live, S3 action, and completion-hint routes.
   - Verify: route, runtime client, S3 client, runtime HTTP, and S3 HTTP tests.
 
-- [ ] Introduce a typed OLOS error builder.
+- [x] Introduce a typed OLOS error builder.
   - Locations: `olos/src/protocol/coordinator.ts:833`, `olos/src/state/commit.ts:285`, `olos/src/state/observed-upload.ts:337`, `olos/src/s3/coordinator.ts:724`, `olos/src/s3/event.ts:138`.
   - Issue: OLOS error objects are assembled ad hoc across modules.
   - Suggestion: create an internal `createOlosError(code, message, details?)` helper and migrate one area at a time.
