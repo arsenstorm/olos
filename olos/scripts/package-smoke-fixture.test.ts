@@ -6,10 +6,8 @@ import {
   packageExportSpecifier,
   packageExportSubpaths,
 } from "./package-export-map";
-import {
-  expectedRuntimeExports,
-  writePackageSmokeFile,
-} from "./package-smoke-fixture";
+import { writePackageSmokeFile } from "./package-smoke-fixture";
+import { expectedRuntimeExports } from "./public-surface";
 import { withTemporaryDirectory } from "./test-temp-dir";
 
 const README_IMPORT_PATTERN =

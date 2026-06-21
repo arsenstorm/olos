@@ -8,7 +8,7 @@ import {
   packagePublicRootEntries,
 } from "./package-contents";
 import { packageExportSubpaths } from "./package-export-map";
-import { expectedRuntimeExports } from "./package-smoke-fixture";
+import { expectedRuntimeExports } from "./public-surface";
 import { withTemporaryDirectory } from "./test-temp-dir";
 
 describe("package contents verifier", () => {

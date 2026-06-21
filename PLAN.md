@@ -110,7 +110,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: move expected public exports to a public-surface manifest and split runtime smoke and type smoke builders into separate modules.
   - Verify: package smoke fixture tests, package exports tests, and `bun --filter olos pack:smoke`.
 
-- [ ] Unify public export expectations.
+- [x] Unify public export expectations.
   - Locations: `olos/package.json`, `olos/scripts/package-export-map.ts:1`, `olos/scripts/package-smoke-fixture.ts:4`, `olos/scripts/package-exports.test.ts`, `olos/README.md`.
   - Issue: public subpaths are defined in `package.json`, facade files, smoke fixtures, and docs.
   - Suggestion: introduce one internal public-surface manifest that tests compare against `package.json` and smoke expectations.
