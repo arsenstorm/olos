@@ -9,11 +9,17 @@ import {
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
 import {
+  parseCommitTimestamp,
+  parseCommitTimestampOrNow,
+  parseOptionalSafeObjectKeyField,
+  parseOptionalUrlSafeIdentifierArrayField,
+  parseProviderId,
+} from "../runtime/commit-payload-parser";
+import {
   isSuccessfulCommitStatus,
   type SuccessfulCommitStatus,
 } from "../runtime/commit-status";
 import { errorMessage } from "../runtime/errors";
-import { optionalField } from "../runtime/optional-field";
 import { rejectionStatusCode } from "../runtime/rejection-status";
 import {
   isRecord,
@@ -22,9 +28,7 @@ import {
   optionalPositiveIntegerField,
   optionalStringField,
   optionalTimestampField,
-  optionalTimestampValueField,
   optionalUrlSafeIdentifierValueField,
-  stringField,
   timestampField,
   urlSafeIdentifierField,
 } from "../runtime/request-fields";
@@ -45,7 +49,6 @@ import type { OlosErrorCode } from "../types/errors";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertUrlSafeIdentifier } from "../validation/ids";
-import { assertSafeObjectKey } from "../validation/object-key";
 import { assertS3BucketName } from "./bucket";
 import {
   completeStoredS3CoordinatorUpload,
@@ -729,9 +732,13 @@ function parseCompletionHintPayload(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
   slotId: string
 ): S3CommitPayload {
-  const providerId = providerIdField(value, options);
+  const providerId = parseProviderId(
+    value,
+    options,
+    "providerId",
+    "providerId must be configured or provided"
+  );
   assertNoCompletionHintDeliveryUrl(value);
-  const objectKey = optionalObjectKeyField(value);
   optionalStringField(value, "etag");
   optionalNonNegativeNumberField(value, "size");
 
@@ -739,15 +746,15 @@ function parseCompletionHintPayload(
     commitId:
       optionalUrlSafeIdentifierValueField(value, "commitId") ??
       `complete_${slotId}`,
-    committedAt:
-      optionalTimestampValueField(value, "committedAt") ??
-      new Date().toISOString(),
+    committedAt: parseCommitTimestampOrNow(value, "committedAt", () =>
+      new Date().toISOString()
+    ),
     providerId,
     slotId,
     ...optionalBooleanField(value, "independent"),
     ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
-    ...objectKey,
+    ...parseOptionalSafeObjectKeyField(value, "objectKey"),
     ...optionalTimestampField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
   };
@@ -765,18 +772,22 @@ function parseCommitPayload(
   value: Record<string, unknown>,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): S3CommitPayload {
-  const providerId = providerIdField(value, options);
-  const objectKey = optionalObjectKeyField(value);
+  const providerId = parseProviderId(
+    value,
+    options,
+    "providerId",
+    "providerId must be configured or provided"
+  );
 
   return {
     commitId: urlSafeIdentifierField(value, "commitId"),
-    committedAt: timestampField(value, "committedAt"),
+    committedAt: parseCommitTimestamp(value, "committedAt"),
     providerId,
     slotId: urlSafeIdentifierField(value, "slotId"),
     ...optionalBooleanField(value, "independent"),
     ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
-    ...objectKey,
+    ...parseOptionalSafeObjectKeyField(value, "objectKey"),
     ...optionalTimestampField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
   };
@@ -790,7 +801,7 @@ async function parseS3ReconciliationPlanRequest(
     "S3 reconciliation plan request",
     "invalid S3 reconciliation plan request",
     (payload) => ({
-      ...optionalUrlSafeIdentifierArrayField(payload, "slotIds"),
+      ...parseOptionalUrlSafeIdentifierArrayField(payload, "slotIds"),
     })
   );
 }
@@ -824,17 +835,22 @@ function parseReconciliationPayload(
   value: Record<string, unknown>,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): S3ReconciliationPayload {
-  const providerId = providerIdField(value, options);
+  const providerId = parseProviderId(
+    value,
+    options,
+    "providerId",
+    "providerId must be configured or provided"
+  );
 
   return {
-    committedAt: timestampField(value, "committedAt"),
+    committedAt: parseCommitTimestamp(value, "committedAt"),
     providerId,
     ...optionalBooleanField(value, "independent"),
     ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
     ...optionalTimestampField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
-    ...optionalUrlSafeIdentifierArrayField(value, "slotIds"),
+    ...parseOptionalUrlSafeIdentifierArrayField(value, "slotIds"),
   };
 }
 
@@ -945,70 +961,4 @@ function optionalCursorResponse(
   cursor: Cursor | undefined
 ): Pick<StoredS3CoordinatorCommitResponse, "cursor"> | Record<string, never> {
   return cursor === undefined ? {} : { cursor };
-}
-
-function optionalObjectKeyField(
-  value: Record<string, unknown>
-): Partial<Pick<S3CommitPayload, "objectKey">> {
-  if (value.objectKey === undefined) {
-    return {};
-  }
-
-  const objectKey = stringField(value, "objectKey");
-  assertSafeObjectKey(objectKey, "objectKey");
-
-  return optionalField("objectKey", objectKey);
-}
-
-function optionalStringArrayField(
-  value: Record<string, unknown>,
-  field: "slotIds"
-): Partial<Pick<S3ReconciliationPayload, "slotIds">> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  const fieldValue = value[field];
-
-  if (!isStringArray(fieldValue)) {
-    throw new Error(`${field} must be a string array`);
-  }
-
-  return optionalField(field, fieldValue);
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return (
-    Array.isArray(value) && value.every((entry) => typeof entry === "string")
-  );
-}
-
-function optionalUrlSafeIdentifierArrayField(
-  value: Record<string, unknown>,
-  field: "slotIds"
-): Partial<Pick<S3ReconciliationPayload, "slotIds">> {
-  const result = optionalStringArrayField(value, field);
-
-  for (const entry of result[field] ?? []) {
-    assertUrlSafeIdentifier(entry, field);
-  }
-
-  return result;
-}
-
-function providerIdField(
-  value: Record<string, unknown>,
-  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
-): string {
-  if (value.providerId !== undefined) {
-    return urlSafeIdentifierField(value, "providerId");
-  }
-
-  if (options.providerId !== undefined) {
-    assertUrlSafeIdentifier(options.providerId, "providerId");
-
-    return options.providerId;
-  }
-
-  throw new Error("providerId must be configured or provided");
 }

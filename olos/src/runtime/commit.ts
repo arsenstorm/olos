@@ -8,8 +8,11 @@ import type { CoordinatorPipelineState } from "../protocol/coordinator";
 import { createObservedUpload } from "../state/observed-upload";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
-import { assertSafeObjectKey } from "../validation/object-key";
 import type { ObservedUpload } from "../validation/observed-upload";
+import {
+  parseCommitTimestamp,
+  parseSafeObjectKeyField,
+} from "./commit-payload-parser";
 import { errorMessage } from "./errors";
 import { rejectionStatus } from "./rejection-status";
 import {
@@ -154,7 +157,7 @@ function parsePayload(value: unknown): RuntimeCommitPayload {
 
   return {
     commitId: urlSafeIdentifierField(value, "commitId"),
-    committedAt: timestampField(value, "committedAt"),
+    committedAt: parseCommitTimestamp(value, "committedAt"),
     object: parseObjectPayload(value.object),
     slotId: urlSafeIdentifierField(value, "slotId"),
     ...optionalBooleanField(value, "independent"),
@@ -169,9 +172,11 @@ function parseObjectPayload(value: unknown): RuntimeObservedUploadPayload {
     throw new Error("object must be a JSON object");
   }
 
-  const objectKey = stringField(value, "objectKey");
-
-  assertSafeObjectKey(objectKey, "object.objectKey");
+  const objectKey = parseSafeObjectKeyField(
+    value,
+    "objectKey",
+    "object.objectKey"
+  );
 
   return {
     contentType: stringField(value, "contentType"),
