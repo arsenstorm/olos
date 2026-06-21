@@ -1,5 +1,4 @@
 import {
-  type CommitCoordinatorUploadOptions,
   type CoordinatorCommitPolicy,
   type CoordinatorUploadCommit,
   commitCoordinatorUpload,
@@ -8,31 +7,16 @@ import type { CoordinatorPipelineState } from "../protocol/coordinator";
 import { createObservedUpload } from "../state/observed-upload";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
-import type { ObservedUpload } from "../validation/observed-upload";
 import {
-  parseCommitRequestPayload,
-  parseObservedUploadPayload,
+  parseRuntimeCommitPayloadRequest,
+  type RuntimeCommitPayload,
 } from "./commit-payload-parser";
 import { errorMessage } from "./errors";
 import { rejectionStatus } from "./rejection-status";
-import { isRecord } from "./request-fields";
-import {
-  parseRuntimeJsonRequest,
-  type RuntimeJsonRequestParse,
-} from "./request-json";
+import type { RuntimeJsonRequestParse } from "./request-json";
 import { jsonErrorResponse, jsonResponse } from "./response";
 
 export type RuntimeCommitRequest = Request | RuntimeCommitPayload;
-
-export interface RuntimeObservedUploadPayload
-  extends Omit<ObservedUpload, "metadata"> {
-  metadata?: Record<string, string | undefined>;
-}
-
-export interface RuntimeCommitPayload
-  extends Omit<CommitCoordinatorUploadOptions, "object" | "state"> {
-  object: RuntimeObservedUploadPayload;
-}
 
 export interface CommitCoordinatorUploadFromRequestOptions {
   commitPolicy?: CoordinatorCommitPolicy;
@@ -131,27 +115,11 @@ function isRejectedCoordinatorUploadCommit(
 async function parseRequest(
   request: RuntimeCommitRequest
 ): Promise<RuntimeCommitRequestParse> {
-  return await parseRuntimeJsonRequest(
+  return await parseRuntimeCommitPayloadRequest(
     request,
-    parsePayload,
     invalid,
     "invalid commit request"
   );
-}
-
-function parsePayload(value: unknown): RuntimeCommitPayload {
-  if (!isRecord(value)) {
-    throw new Error("commit request must be a JSON object");
-  }
-
-  return {
-    ...parseCommitRequestPayload(value),
-    object: parseObjectPayload(value.object),
-  };
-}
-
-function parseObjectPayload(value: unknown): RuntimeObservedUploadPayload {
-  return parseObservedUploadPayload(value);
 }
 
 function invalid(message: string): InvalidRuntimeCoordinatorUploadCommit {

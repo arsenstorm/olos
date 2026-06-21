@@ -32,6 +32,29 @@ describe("runtime commit adapter", () => {
     });
   });
 
+  test("commits an upload from a direct payload object", async () => {
+    const result = await commitCoordinatorUploadFromRequest({
+      request: commitPayload(),
+      state: createCoordinatorStateWithIssuedSegment(),
+    });
+
+    expect(result.status).toBe("committed");
+
+    if (result.status !== "committed") {
+      throw new Error("expected committed upload");
+    }
+
+    expect(result.response.status).toBe(201);
+    expect(result.state.commits).toHaveLength(1);
+    expect(result.state.cursor?.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3810,
+    });
+    expect(await result.response.json()).toMatchObject({
+      commit: { commitId: "commit_3810" },
+    });
+  });
+
   test("returns invalid responses for malformed JSON requests", async () => {
     const result = await commitCoordinatorUploadFromRequest({
       request: commitRequest("{"),

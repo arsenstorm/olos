@@ -11,10 +11,12 @@ import {
 import {
   type ParsedS3CommitPayload,
   type ParsedS3ReconciliationPayload,
+  parseCommitTimestamp,
   parseCommitTimestampOrNow,
   parseOptionalUrlSafeIdentifierArrayField,
   parseS3CommitPayload,
-  parseS3ReconciliationPayload,
+  parseS3CommitPayloadRequest,
+  parseS3ReconciliationPayloadRequest,
 } from "../runtime/commit-payload-parser";
 import {
   isSuccessfulCommitStatus,
@@ -694,12 +696,19 @@ async function parseS3CommitRequest(
   request: Request,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): Promise<S3HttpRequestParse<S3CommitPayload>> {
-  return await parseRecordRequest(
+  const parsed = await parseS3CommitPayloadRequest(
     request,
-    "S3 commit request",
+    invalid,
     "invalid S3 slot grant request",
-    (payload) => parseCommitPayload(payload, options)
+    options,
+    parseCommitTimestamp,
+    {},
+    "S3 commit request"
   );
+
+  return parsed.status === "invalid"
+    ? parsed
+    : { payload: parsed.value, status: "valid" };
 }
 
 function parseCompletionHintPayload(
@@ -733,20 +742,6 @@ function assertNoCompletionHintDeliveryUrl(
   }
 }
 
-function parseCommitPayload(
-  value: Record<string, unknown>,
-  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
-): S3CommitPayload {
-  return parseS3CommitPayload(value, options);
-}
-
-function parseReconciliationPayload(
-  value: Record<string, unknown>,
-  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
-): S3ReconciliationPayload {
-  return parseS3ReconciliationPayload(value, options);
-}
-
 async function parseS3ReconciliationPlanRequest(
   request: Request
 ): Promise<S3HttpRequestParse<S3ReconciliationPlanPayload>> {
@@ -764,12 +759,18 @@ async function parseS3ReconciliationRequest(
   request: Request,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): Promise<S3HttpRequestParse<S3ReconciliationPayload>> {
-  return await parseRecordRequest(
+  const parsed = await parseS3ReconciliationPayloadRequest(
     request,
-    "S3 reconciliation request",
+    invalid,
     "invalid S3 reconciliation request",
-    (payload) => parseReconciliationPayload(payload, options)
+    options,
+    parseCommitTimestamp,
+    "S3 reconciliation request"
   );
+
+  return parsed.status === "invalid"
+    ? parsed
+    : { payload: parsed.value, status: "valid" };
 }
 
 async function parseS3RetentionRequest(

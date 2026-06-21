@@ -14,6 +14,10 @@ import {
   timestampField,
   urlSafeIdentifierField,
 } from "./request-fields";
+import {
+  parseRuntimeJsonRequest,
+  type RuntimeJsonRequestParse,
+} from "./request-json";
 
 export type ParseTimestampField = (
   value: Record<string, unknown>,
@@ -76,6 +80,23 @@ export interface ParsedS3ReconciliationPayload
   versionId?: string;
 }
 
+export interface RuntimeCommitPayload extends ParsedCommitPayload {
+  object: ParsedObservedUploadPayload;
+}
+
+export type RuntimeCommitRequestParse<Invalid> = RuntimeJsonRequestParse<
+  RuntimeCommitPayload,
+  Invalid
+>;
+
+export type S3CommitPayloadRequestParse<Invalid> = RuntimeJsonRequestParse<
+  ParsedS3CommitPayload,
+  Invalid
+>;
+
+export type S3ReconciliationPayloadRequestParse<Invalid> =
+  RuntimeJsonRequestParse<ParsedS3ReconciliationPayload, Invalid>;
+
 export function parseObservedUploadPayload(
   value: unknown,
   objectField = "object"
@@ -97,6 +118,107 @@ export function parseObservedUploadPayload(
     size: positiveNumberField(value, "size"),
     ...optionalMetadataField(value, `${objectField}.metadata`),
   };
+}
+
+export async function parseRuntimeCommitPayloadRequest<Invalid>(
+  request: Request | RuntimeCommitPayload,
+  invalid: (message: string) => Invalid,
+  fallbackMessage: string,
+  payloadName = "commit request"
+): Promise<RuntimeCommitRequestParse<Invalid>> {
+  return await parseRuntimeJsonRequest(
+    request,
+    (value) => parseRuntimeCommitPayload(value, payloadName),
+    invalid,
+    fallbackMessage
+  );
+}
+
+export async function parseS3CommitPayloadRequest<Invalid>(
+  request: Request | ParsedS3CommitPayload,
+  invalid: (message: string) => Invalid,
+  fallbackMessage: string,
+  options: ProviderIdOptions,
+  parseCommittedAt: ParseTimestampField = parseCommitTimestamp,
+  overrides: S3CommitPayloadParseOverrides = {},
+  payloadName = "S3 commit request"
+): Promise<S3CommitPayloadRequestParse<Invalid>> {
+  return await parseRuntimeJsonRequest(
+    request,
+    (value) =>
+      parseS3CommitPayloadPayload(
+        value,
+        options,
+        parseCommittedAt,
+        overrides,
+        payloadName
+      ),
+    invalid,
+    fallbackMessage
+  );
+}
+
+export async function parseS3ReconciliationPayloadRequest<Invalid>(
+  request: Request | ParsedS3ReconciliationPayload,
+  invalid: (message: string) => Invalid,
+  fallbackMessage: string,
+  options: ProviderIdOptions,
+  parseCommittedAt: ParseTimestampField = parseCommitTimestamp,
+  payloadName = "S3 reconciliation request"
+): Promise<S3ReconciliationPayloadRequestParse<Invalid>> {
+  return await parseRuntimeJsonRequest(
+    request,
+    (value) =>
+      parseS3ReconciliationPayloadPayload(
+        value,
+        options,
+        parseCommittedAt,
+        payloadName
+      ),
+    invalid,
+    fallbackMessage
+  );
+}
+
+function parseRuntimeCommitPayload(
+  value: unknown,
+  payloadName: string
+): RuntimeCommitPayload {
+  if (!isRecord(value)) {
+    throw new Error(`${payloadName} must be a JSON object`);
+  }
+
+  return {
+    ...parseCommitRequestPayload(value),
+    object: parseObservedUploadPayload(value.object, "object"),
+  };
+}
+
+function parseS3CommitPayloadPayload(
+  value: unknown,
+  options: ProviderIdOptions,
+  parseCommittedAt: ParseTimestampField,
+  overrides: S3CommitPayloadParseOverrides,
+  payloadName: string
+): ParsedS3CommitPayload {
+  if (!isRecord(value)) {
+    throw new Error(`${payloadName} must be a JSON object`);
+  }
+
+  return parseS3CommitPayload(value, options, parseCommittedAt, overrides);
+}
+
+function parseS3ReconciliationPayloadPayload(
+  value: unknown,
+  options: ProviderIdOptions,
+  parseCommittedAt: ParseTimestampField,
+  payloadName: string
+): ParsedS3ReconciliationPayload {
+  if (!isRecord(value)) {
+    throw new Error(`${payloadName} must be a JSON object`);
+  }
+
+  return parseS3ReconciliationPayload(value, options, parseCommittedAt);
 }
 
 export function parseCommitTimestamp(

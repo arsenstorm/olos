@@ -50,7 +50,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: move the parser to one internal module and use it from both callers.
   - Verify: `src/runtime/slot.test.ts` and `src/s3/http.test.ts`.
 
-- [ ] Share commit and reconciliation payload parsing helpers.
+- [x] Share commit and reconciliation payload parsing helpers.
   - Locations: `olos/src/runtime/commit.ts:150`, `olos/src/s3/http.ts:764`, `:801`, `:860`, `:987`, `:1036`.
   - Issue: timestamp, provider ID, optional object key, late tolerance, max segment, slot ID, and slot ID array parsing are repeated.
   - Suggestion: add focused helpers for common commit timing fields, provider ID resolution, optional object key parsing, and URL-safe string arrays.
