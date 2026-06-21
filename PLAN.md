@@ -254,7 +254,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: update README and smoke fixture together when public APIs change.
   - Verify: package smoke fixture tests and README fence tests.
 
-- [ ] Add a code-structure guide.
+- [x] Add a code-structure guide.
   - Locations: `contributing/core/`, `olos/src/`.
   - Issue: the layer order is discoverable but not documented: `config/types` -> `validation` -> `state` -> `protocol` -> `runtime` -> `s3`/`hls` -> clients/scripts.
   - Suggestion: add `contributing/core/code-structure.md` or extend an existing guide with layer ownership and allowed dependency directions.
