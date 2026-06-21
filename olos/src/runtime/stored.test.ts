@@ -147,6 +147,47 @@ describe("stored runtime mutations", () => {
     expect(snapshot?.state.slots.at(-1)?.state).toBe("issued");
   });
 
+  test("returns structured too-small commit rejections without saving", async () => {
+    const store = await createSeededStore();
+
+    await issueStoredCoordinatorSlotFromRequest({
+      request: { ...slotPayload(), minBytes: 100_000 },
+      sessionId: session.sessionId,
+      store,
+    });
+
+    const result = await commitStoredCoordinatorUploadFromRequest({
+      request: {
+        ...commitPayload(),
+        object: { ...commitPayload().object, size: 50 },
+      },
+      sessionId: session.sessionId,
+      store,
+    });
+    const snapshot = await store.load(session.sessionId);
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected commit");
+    }
+
+    expect(result.response.status).toBe(409);
+    expect(await result.response.json()).toEqual({
+      error: {
+        code: "olos.object_too_small",
+        details: {
+          minBytes: 100_000,
+          objectKey: "media/s3810.m4s",
+          size: 50,
+          slotId: "slot_3810",
+        },
+        message: "mediaObject.size must be at least minBytes",
+      },
+    });
+    expect(snapshot?.state.commits).toHaveLength(0);
+    expect(snapshot?.state.slots.at(-1)?.state).toBe("issued");
+  });
+
   test("returns not found responses for missing coordinator sessions", async () => {
     const result = await issueStoredCoordinatorSlotFromRequest({
       request: slotPayload(),

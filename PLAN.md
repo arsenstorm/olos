@@ -170,7 +170,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: centralize shared observed-object-versus-slot rejection logic in state, and let coordinator handle policy context.
   - Verify: state commit and coordinator tests.
 
-- [ ] Clarify min-byte enforcement.
+- [x] Clarify min-byte enforcement.
   - Locations: `olos/src/state/commit.ts:227`, `olos/src/protocol/coordinator.ts:626`, `olos/src/state/commit.test.ts:220`.
   - Issue: `createCommit` enforces `slot.minBytes`, but earlier structured rejection helpers do not expose a dedicated structured error for too-small objects.
   - Suggestion: decide whether this should become a structured `OlosError` in `resolveCommitAttempt`, then add tests if changed.
