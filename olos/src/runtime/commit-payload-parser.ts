@@ -2,11 +2,38 @@ import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import { optionalField } from "./optional-field";
 import {
+  optionalBooleanField,
+  optionalNonNegativeNumberField,
+  optionalPositiveIntegerField,
+  optionalTimestampField,
   optionalTimestampValueField,
   stringField,
   timestampField,
   urlSafeIdentifierField,
 } from "./request-fields";
+
+export type ParseTimestampField = (
+  value: Record<string, unknown>,
+  field: string
+) => string;
+
+export interface CommitPayloadTiming {
+  independent?: boolean;
+  lateToleranceMs?: number;
+  maxSegments?: number;
+  programDateTime?: string;
+}
+
+export interface ParsedCommitPayload extends CommitPayloadTiming {
+  commitId: string;
+  committedAt: string;
+  slotId: string;
+}
+
+export interface ProviderResolvedCommitPayload extends CommitPayloadTiming {
+  committedAt: string;
+  providerId: string;
+}
 
 export interface ProviderIdOptions {
   providerId?: string;
@@ -55,6 +82,43 @@ export function parseSafeObjectKeyField(
   assertSafeObjectKey(objectKey, errorField);
 
   return objectKey;
+}
+
+export function parseCommitPayloadTiming(
+  value: Record<string, unknown>
+): CommitPayloadTiming {
+  return {
+    ...optionalBooleanField(value, "independent"),
+    ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
+    ...optionalPositiveIntegerField(value, "maxSegments"),
+    ...optionalTimestampField(value, "programDateTime"),
+  };
+}
+
+export function parseCommitRequestPayload(
+  value: Record<string, unknown>,
+  parseCommittedAt: ParseTimestampField = parseCommitTimestamp
+): ParsedCommitPayload {
+  return {
+    commitId: urlSafeIdentifierField(value, "commitId"),
+    committedAt: parseCommittedAt(value, "committedAt"),
+    slotId: urlSafeIdentifierField(value, "slotId"),
+    ...parseCommitPayloadTiming(value),
+  };
+}
+
+export function parseProviderResolvedCommitPayload(
+  value: Record<string, unknown>,
+  options: ProviderIdOptions,
+  parseCommittedAt: ParseTimestampField = parseCommitTimestamp,
+  field = "providerId",
+  missingError = `${field} must be configured or provided`
+): ProviderResolvedCommitPayload {
+  return {
+    committedAt: parseCommittedAt(value, "committedAt"),
+    providerId: parseProviderId(value, options, field, missingError),
+    ...parseCommitPayloadTiming(value),
+  };
 }
 
 export function parseOptionalSafeObjectKeyField<const Field extends string>(

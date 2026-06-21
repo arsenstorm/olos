@@ -10,18 +10,14 @@ import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
 import type { ObservedUpload } from "../validation/observed-upload";
 import {
-  parseCommitTimestamp,
+  parseCommitRequestPayload,
   parseSafeObjectKeyField,
 } from "./commit-payload-parser";
 import { errorMessage } from "./errors";
 import { rejectionStatus } from "./rejection-status";
 import {
   isRecord,
-  optionalBooleanField,
-  optionalNonNegativeNumberField,
-  optionalPositiveIntegerField,
   optionalStringField,
-  optionalTimestampField,
   positiveNumberField,
   stringField,
   timestampField,
@@ -156,14 +152,8 @@ function parsePayload(value: unknown): RuntimeCommitPayload {
   }
 
   return {
-    commitId: urlSafeIdentifierField(value, "commitId"),
-    committedAt: parseCommitTimestamp(value, "committedAt"),
+    ...parseCommitRequestPayload(value),
     object: parseObjectPayload(value.object),
-    slotId: urlSafeIdentifierField(value, "slotId"),
-    ...optionalBooleanField(value, "independent"),
-    ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
-    ...optionalPositiveIntegerField(value, "maxSegments"),
-    ...optionalTimestampField(value, "programDateTime"),
   };
 }
 

@@ -9,11 +9,11 @@ import {
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
 import {
-  parseCommitTimestamp,
+  parseCommitRequestPayload,
   parseCommitTimestampOrNow,
   parseOptionalSafeObjectKeyField,
   parseOptionalUrlSafeIdentifierArrayField,
-  parseProviderId,
+  parseProviderResolvedCommitPayload,
 } from "../runtime/commit-payload-parser";
 import {
   isSuccessfulCommitStatus,
@@ -23,14 +23,10 @@ import { errorMessage } from "../runtime/errors";
 import { rejectionStatusCode } from "../runtime/rejection-status";
 import {
   isRecord,
-  optionalBooleanField,
   optionalNonNegativeNumberField,
-  optionalPositiveIntegerField,
   optionalStringField,
-  optionalTimestampField,
   optionalUrlSafeIdentifierValueField,
   timestampField,
-  urlSafeIdentifierField,
 } from "../runtime/request-fields";
 import {
   jsonBadRequestResponse,
@@ -740,11 +736,10 @@ function parseCompletionHintPayload(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
   slotId: string
 ): S3CommitPayload {
-  const providerId = parseProviderId(
-    value,
-    options,
-    "providerId",
-    "providerId must be configured or provided"
+  const base = parseProviderResolvedCommitPayload(value, options, (payload) =>
+    parseCommitTimestampOrNow(payload, "committedAt", () =>
+      completionHintTimestamp(options.completionHintNow)
+    )
   );
   assertNoCompletionHintDeliveryUrl(value);
   optionalStringField(value, "etag");
@@ -754,16 +749,9 @@ function parseCompletionHintPayload(
     commitId:
       optionalUrlSafeIdentifierValueField(value, "commitId") ??
       completionHintCommitId(slotId),
-    committedAt: parseCommitTimestampOrNow(value, "committedAt", () =>
-      completionHintTimestamp(options.completionHintNow)
-    ),
-    providerId,
+    ...base,
     slotId,
-    ...optionalBooleanField(value, "independent"),
-    ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
-    ...optionalPositiveIntegerField(value, "maxSegments"),
     ...parseOptionalSafeObjectKeyField(value, "objectKey"),
-    ...optionalTimestampField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
   };
 }
@@ -780,24 +768,26 @@ function parseCommitPayload(
   value: Record<string, unknown>,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): S3CommitPayload {
-  const providerId = parseProviderId(
-    value,
-    options,
-    "providerId",
-    "providerId must be configured or provided"
-  );
+  const providerResolved = parseProviderResolvedCommitPayload(value, options);
 
   return {
-    commitId: urlSafeIdentifierField(value, "commitId"),
-    committedAt: parseCommitTimestamp(value, "committedAt"),
-    providerId,
-    slotId: urlSafeIdentifierField(value, "slotId"),
-    ...optionalBooleanField(value, "independent"),
-    ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
-    ...optionalPositiveIntegerField(value, "maxSegments"),
+    ...parseCommitRequestPayload(value),
+    providerId: providerResolved.providerId,
     ...parseOptionalSafeObjectKeyField(value, "objectKey"),
-    ...optionalTimestampField(value, "programDateTime"),
     ...optionalStringField(value, "versionId"),
+  };
+}
+
+function parseReconciliationPayload(
+  value: Record<string, unknown>,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): S3ReconciliationPayload {
+  const providerResolved = parseProviderResolvedCommitPayload(value, options);
+
+  return {
+    ...providerResolved,
+    ...optionalStringField(value, "versionId"),
+    ...parseOptionalUrlSafeIdentifierArrayField(value, "slotIds"),
   };
 }
 
@@ -837,29 +827,6 @@ async function parseS3RetentionRequest(
       now: timestampField(payload, "now"),
     })
   );
-}
-
-function parseReconciliationPayload(
-  value: Record<string, unknown>,
-  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
-): S3ReconciliationPayload {
-  const providerId = parseProviderId(
-    value,
-    options,
-    "providerId",
-    "providerId must be configured or provided"
-  );
-
-  return {
-    committedAt: parseCommitTimestamp(value, "committedAt"),
-    providerId,
-    ...optionalBooleanField(value, "independent"),
-    ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
-    ...optionalPositiveIntegerField(value, "maxSegments"),
-    ...optionalTimestampField(value, "programDateTime"),
-    ...optionalStringField(value, "versionId"),
-    ...parseOptionalUrlSafeIdentifierArrayField(value, "slotIds"),
-  };
 }
 
 function invalid(message: string): InvalidS3HttpRequestParse {

@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  parseCommitRequestPayload,
   parseCommitTimestamp,
   parseCommitTimestampOrNow,
   parseOptionalSafeObjectKeyField,
   parseOptionalUrlSafeIdentifierArrayField,
   parseProviderId,
+  parseProviderResolvedCommitPayload,
   parseSafeObjectKeyField,
 } from "./commit-payload-parser";
 
@@ -66,6 +68,58 @@ describe("commit payload parser", () => {
         "objectKey"
       )
     ).toEqual({ objectKey: "live/session/3810.m4s" });
+  });
+
+  test("parses shared commit request fields", () => {
+    expect(
+      parseCommitRequestPayload({
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        independent: true,
+        lateToleranceMs: 123,
+        maxSegments: 7,
+        programDateTime: "2026-01-01T00:00:03.000Z",
+        slotId: "slot_3810",
+      })
+    ).toEqual({
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      lateToleranceMs: 123,
+      maxSegments: 7,
+      programDateTime: "2026-01-01T00:00:03.000Z",
+      slotId: "slot_3810",
+    });
+  });
+
+  test("applies a custom committedAt parser when needed", () => {
+    expect(
+      parseCommitRequestPayload(
+        {
+          commitId: "commit_3810",
+          slotId: "slot_3810",
+        } as Record<string, unknown>,
+        () => "2026-01-01T00:00:02.000Z"
+      )
+    ).toEqual({
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      slotId: "slot_3810",
+    });
+  });
+
+  test("parses shared provider-resolved commit payload", () => {
+    expect(
+      parseProviderResolvedCommitPayload(
+        {
+          committedAt: "2026-01-01T00:00:02.000Z",
+        },
+        { providerId: "provider_1" }
+      )
+    ).toEqual({
+      committedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "provider_1",
+    });
   });
 
   test("parses required safe object key fields with an explicit field name", () => {
