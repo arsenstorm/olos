@@ -12,7 +12,7 @@ import { rejectionStatus } from "./rejection-status";
 import { jsonErrorResponse, jsonResponse } from "./response";
 import type { RuntimeSlotIssuePayload } from "./slot-issue-payload";
 import {
-  parseSlotIssueRequest,
+  parseRuntimeSlotIssuePayloadRequest,
   type SlotIssueRequestParse,
 } from "./slot-issue-request-parser";
 export type RuntimeSlotIssueRequest = Request | RuntimeSlotIssuePayload;
@@ -92,7 +92,7 @@ export async function issueCoordinatorSlotFromRequest(
 async function parseRequest(
   request: RuntimeSlotIssueRequest
 ): Promise<RuntimeSlotIssueRequestParse> {
-  return await parseSlotIssueRequest(
+  return await parseRuntimeSlotIssuePayloadRequest(
     request,
     invalid,
     "invalid slot issue request"

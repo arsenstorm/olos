@@ -13,6 +13,20 @@ export type SlotIssueRequestParse<Invalid> = RuntimeJsonRequestParse<
   Invalid
 >;
 
+export async function parseRuntimeSlotIssuePayloadRequest<Invalid>(
+  request: Request | RuntimeSlotIssuePayload,
+  invalid: (message: string) => Invalid,
+  fallbackMessage: string,
+  payloadName = "slot issue request"
+): Promise<SlotIssueRequestParse<Invalid>> {
+  return await parseSlotIssueRequest(
+    request,
+    invalid,
+    fallbackMessage,
+    payloadName
+  );
+}
+
 export async function parseSlotIssueRequest<Invalid>(
   request: Request | RuntimeSlotIssuePayload,
   invalid: (message: string) => Invalid,

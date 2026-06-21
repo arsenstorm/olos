@@ -44,7 +44,7 @@ import {
   sessionRootPath,
 } from "../runtime/route";
 import type { RuntimeSlotIssuePayload } from "../runtime/slot-issue-payload";
-import { parseSlotIssueRequest } from "../runtime/slot-issue-request-parser";
+import { parseRuntimeSlotIssuePayloadRequest } from "../runtime/slot-issue-request-parser";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosErrorCode } from "../types/errors";
@@ -628,7 +628,7 @@ function invalidS3Route(message: string): InvalidS3Route {
 async function parseS3SlotGrantRequest(
   request: Request
 ): Promise<S3HttpRequestParse<RuntimeSlotIssuePayload>> {
-  const parsed = await parseSlotIssueRequest(
+  const parsed = await parseRuntimeSlotIssuePayloadRequest(
     request,
     invalid,
     "invalid S3 slot grant request",
