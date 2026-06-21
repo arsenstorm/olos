@@ -92,7 +92,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: add tests that run canonical valid and invalid payloads through both schema expectations and runtime validators. Consider schema-builder helpers for repeated primitives.
   - Verify: `bun --filter olos test src/schema.test.ts src/validation`.
 
-- [ ] Break conformance metadata away from executable store checks.
+- [x] Break conformance metadata away from executable store checks.
   - Locations: `olos/src/conformance.ts:10`, `:154`, `:901`, `:915`.
   - Issue: assertion IDs, coverage rows, lookup helpers, and store adapter conformance live in a 1,113-line public file.
   - Suggestion: extract internal coverage data and store checks, then preserve current public exports through `src/conformance.ts`.

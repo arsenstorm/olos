@@ -14,6 +14,14 @@ const ASSERTION_ID_PATTERN = /^(CORE|OBJ|HLS|SEC)-[A-Z]+-\d{3}$/;
 const DOCUMENTED_ASSERTION_ID_PATTERN = /`([A-Z]+(?:-[A-Z]+)*-\d{3})`/g;
 
 describe("conformance manifest", () => {
+  test("keeps public metadata exports on the conformance facade", () => {
+    expect(OLOS_CONFORMANCE_ASSERTION_IDS).toHaveLength(124);
+    expect(OLOS_CONFORMANCE_COVERAGE).toHaveLength(124);
+    expect(getOlosConformanceCoverage("CORE-STORE-001")?.testFile).toBe(
+      "src/conformance.test.ts"
+    );
+  });
+
   test("uses stable assertion identifiers", () => {
     for (const id of OLOS_CONFORMANCE_ASSERTION_IDS) {
       expect(id).toMatch(ASSERTION_ID_PATTERN);
