@@ -7,7 +7,9 @@ import {
 } from "../validation/fields";
 import {
   assertNonNegativeInteger,
+  assertNonNegativeSafeInteger,
   assertPositiveInteger,
+  assertPositiveSafeInteger,
   assertUrlSafeIdentifier,
 } from "../validation/ids";
 import { optionalField } from "./optional-field";
@@ -160,6 +162,11 @@ export function nonNegativeInteger(value: number, name: string): number {
   return value;
 }
 
+export function nonNegativeSafeInteger(value: number, name: string): number {
+  assertNonNegativeSafeInteger(value, name);
+  return value;
+}
+
 export function positiveIntegerField(
   value: Record<string, unknown>,
   field: string
@@ -182,6 +189,11 @@ export function optionalPositiveIntegerField<Field extends string>(
 
 export function positiveInteger(value: number, name: string): number {
   assertPositiveInteger(value, name);
+  return value;
+}
+
+export function positiveSafeInteger(value: number, name: string): number {
+  assertPositiveSafeInteger(value, name);
   return value;
 }
 

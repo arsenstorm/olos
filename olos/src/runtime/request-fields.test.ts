@@ -6,6 +6,7 @@ import {
   nonNegativeIntegerField,
   nonNegativeNumber,
   nonNegativeNumberField,
+  nonNegativeSafeInteger,
   numberField,
   oneOfStringField,
   optionalBooleanField,
@@ -20,6 +21,7 @@ import {
   positiveIntegerField,
   positiveNumber,
   positiveNumberField,
+  positiveSafeInteger,
   stringField,
   timestampField,
   timestampMs,
@@ -78,6 +80,12 @@ describe("runtime request field helpers", () => {
     expect(positiveNumber(0.5, "latency")).toBe(0.5);
     expect(nonNegativeInteger(0, "count")).toBe(0);
     expect(positiveInteger(1, "count")).toBe(1);
+    expect(nonNegativeSafeInteger(Number.MAX_SAFE_INTEGER, "count")).toBe(
+      Number.MAX_SAFE_INTEGER
+    );
+    expect(positiveSafeInteger(Number.MAX_SAFE_INTEGER, "count")).toBe(
+      Number.MAX_SAFE_INTEGER
+    );
     expect(nonNegativeNumberField({ value: 0 }, "value")).toBe(0);
     expect(positiveNumberField({ value: 1 }, "value")).toBe(1);
     expect(nonNegativeIntegerField({ value: 0 }, "value")).toBe(0);
@@ -97,6 +105,12 @@ describe("runtime request field helpers", () => {
     expect(() => positiveInteger(0, "count")).toThrow(
       "count must be a positive integer"
     );
+    expect(() =>
+      nonNegativeSafeInteger(Number.MAX_SAFE_INTEGER + 1, "count")
+    ).toThrow("count must be a non-negative integer");
+    expect(() =>
+      positiveSafeInteger(Number.MAX_SAFE_INTEGER + 1, "count")
+    ).toThrow("count must be a positive integer");
   });
 
   test("optional helpers include defined valid fields and omit missing fields", () => {

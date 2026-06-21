@@ -1,14 +1,11 @@
 import type { UploadSlot } from "../types/upload-slot";
-import {
-  assertNonNegativeSafeInteger,
-  assertPositiveSafeInteger,
-} from "../validation/ids";
 import type {
   RuntimeCommitPayload,
   RuntimeObservedUploadPayload,
 } from "./commit";
 import { errorMessage } from "./errors";
 import { optionalField } from "./optional-field";
+import { nonNegativeSafeInteger, positiveSafeInteger } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
 import { isStringLiteral } from "./string-literals";
 
@@ -329,8 +326,8 @@ function heartbeatResult(
 export function resolveRuntimePublisherLoopDecision(
   options: ResolveRuntimePublisherLoopDecisionOptions
 ): RuntimePublisherLoopDecision {
-  const attempt = nonNegativeInteger(options.attempt, "attempt");
-  const maxAttempts = positiveInteger(options.maxAttempts, "maxAttempts");
+  const attempt = nonNegativeSafeInteger(options.attempt, "attempt");
+  const maxAttempts = positiveSafeInteger(options.maxAttempts, "maxAttempts");
   assertPublisherStepStatus(options.step.status);
 
   if (isSuccessfulPublisherStepStatus(options.step.status)) {
@@ -370,14 +367,4 @@ function isIssuedRuntimePublisherIssueResult(
   result: RuntimePublisherIssueResult
 ): result is IssuedRuntimePublisherIssueResult {
   return result.status === "issued" && result.slot !== undefined;
-}
-
-function nonNegativeInteger(value: number, name: string): number {
-  assertNonNegativeSafeInteger(value, name);
-  return value;
-}
-
-function positiveInteger(value: number, name: string): number {
-  assertPositiveSafeInteger(value, name);
-  return value;
 }
