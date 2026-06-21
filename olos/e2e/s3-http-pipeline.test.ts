@@ -22,6 +22,7 @@ import {
 } from "olos/s3";
 import type { Pathway, Session } from "olos/types";
 import { describe, expect, test } from "vitest";
+import { waitFor } from "./wait-for";
 
 const latency = createRuntimeObjectLowLatencyProfile();
 const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(latency);
@@ -1306,16 +1307,4 @@ function createS3Client(): S3Client {
     forcePathStyle: true,
     region: "us-east-1",
   });
-}
-
-async function waitFor(predicate: () => boolean): Promise<void> {
-  const startedAt = Date.now();
-
-  while (!predicate()) {
-    if (Date.now() - startedAt > 1000) {
-      throw new Error("condition was not met before timeout");
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 1));
-  }
 }

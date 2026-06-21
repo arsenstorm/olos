@@ -17,6 +17,7 @@ import {
 } from "olos/runtime";
 import type { Pathway, Session } from "olos/types";
 import { describe, expect, test } from "vitest";
+import { waitFor } from "./wait-for";
 
 const latency = createRuntimeObjectLowLatencyProfile();
 
@@ -354,7 +355,7 @@ describe("runtime public client flow", () => {
       sessionId: session.sessionId,
     });
 
-    await waitFor(() => waits === 1);
+    await waitFor(() => waits === 1, { attempts: 20, intervalMs: 0 });
 
     await publishObject(fetch, {
       commitId: "commit_3811",
@@ -463,16 +464,4 @@ function runtimeFetchFor(
     handle(
       request instanceof Request ? request : new Request(String(request), init)
     );
-}
-
-async function waitFor(condition: () => boolean): Promise<void> {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    if (condition()) {
-      return;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  }
-
-  throw new Error("condition was not met");
 }
