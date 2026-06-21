@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   type CoordinatorPipelineState,
   type CoordinatorPipelineStore,
@@ -73,6 +74,17 @@ function createS3HttpTestHarness(options: S3HttpTestHarnessOptions = {}) {
 }
 
 describe("stored S3 coordinator runtime handler", () => {
+  test("keeps the S3 HTTP handler split across concern modules", () => {
+    const source = readFileSync(new URL("./http.ts", import.meta.url), "utf8");
+
+    expect(source).toContain("./http-request-parser");
+    expect(source).toContain("./http-response");
+    expect(source).toContain("./http-route");
+    expect(source).toContain("parseS3CommitRequest");
+    expect(source).toContain("s3CommitResponse");
+    expect(source).toContain("s3Route(request, options)");
+  });
+
   test("creates S3 HTTP test harnesses with captured fake clients", async () => {
     const { deleteInputs, handle, headObjectInputs, store } =
       createS3HttpTestHarness();

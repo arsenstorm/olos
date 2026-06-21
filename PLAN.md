@@ -38,7 +38,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: create one internal mutation helper with adapters for terminal results and response mapping. Keep public result unions unchanged.
   - Verify: stored runtime, S3 coordinator, serialized store, SQLite store, and conformance tests.
 
-- [ ] Split the S3 HTTP handler by concern.
+- [x] Split the S3 HTTP handler by concern.
   - Locations: `olos/src/s3/http.ts:163`, `:233`, `:371`, `:445`, `:548`, `:677`, `:945`.
   - Issue: this 1,051-line file mixes route matching, request parsing, command execution, cursor notification, response DTO shaping, and reconciliation summaries.
   - Suggestion: extract internal route, parse, and response modules while keeping `createStoredS3CoordinatorRuntimeHandler` stable.

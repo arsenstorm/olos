@@ -21,9 +21,14 @@ export function createTestHeadObjectClient(
 }
 
 export function createTestHeadObjectClientFor(
-  inputs: unknown[],
-  sizes: Record<string, number> | ObjectSizeResolver
+  first: unknown[] | Record<string, number> | ObjectSizeResolver,
+  second: unknown[] | Record<string, number> | ObjectSizeResolver
 ): S3HeadObjectClient {
+  const inputs = Array.isArray(first) ? first : (second as unknown[]);
+  const sizes = Array.isArray(first)
+    ? (second as Record<string, number> | ObjectSizeResolver)
+    : (first as Record<string, number> | ObjectSizeResolver);
+
   return createSourceTestHeadObjectClientFor(inputs, sizes);
 }
 
