@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { assertCoordinatorPipelineStoreConformance } from "../conformance";
 import { issueCoordinatorSlot } from "./coordinator";
 import {
+  createCoordinatorStateWithCommittedSegment,
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "./coordinator-state.test-helper";
@@ -222,6 +223,30 @@ describe("serialized coordinator store", () => {
 
     await expect(store.load(session.sessionId)).rejects.toThrow(
       "serialized coordinator record etag must match snapshot"
+    );
+  });
+
+  test("rejects serialized records with malformed snapshots", async () => {
+    const backend = createBackend();
+    const store = createSerializedCoordinatorStore(backend);
+    const state = createCoordinatorStateWithCommittedSegment();
+
+    backend.records.set(session.sessionId, {
+      etag: "1",
+      snapshot: JSON.stringify({
+        etag: "1",
+        state: {
+          ...state,
+          cursor: {
+            ...state.cursor,
+            epoch: 9,
+          },
+        },
+      }),
+    });
+
+    await expect(store.load(session.sessionId)).rejects.toThrow(
+      "cursor.epoch must match committedWindow.epoch"
     );
   });
 });

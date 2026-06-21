@@ -18,6 +18,7 @@ import {
   serializeCoordinatorPipelineSnapshot,
 } from "./coordinator";
 import {
+  createCoordinatorStateWithCommittedSegment,
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "./coordinator-state.test-helper";
@@ -196,6 +197,8 @@ describe("coordinator pipeline", () => {
   });
 
   test("rejects malformed stored coordinator snapshots", () => {
+    const stateWithCursor = createCoordinatorStateWithCommittedSegment();
+
     expect(() =>
       parseCoordinatorPipelineSnapshot({
         etag: "",
@@ -279,13 +282,26 @@ describe("coordinator pipeline", () => {
       parseCoordinatorPipelineSnapshot({
         etag: "1",
         state: {
+          ...stateWithCursor,
+          cursor: {
+            ...stateWithCursor.cursor,
+            epoch: 9,
+          },
+        },
+      })
+    ).toThrow("cursor.epoch must match committedWindow.epoch");
+
+    expect(() =>
+      parseCoordinatorPipelineSnapshot({
+        etag: "1",
+        state: {
           ...createEmptyCoordinatorState(),
           publisherLeases: [
             {
               expiresAt: "not-a-date",
               issuedAt: "2026-01-01T00:00:00.000Z",
               lastSeenAt: "2026-01-01T00:00:00.000Z",
-              publisherInstanceId: "pub_1",
+              publisherInstanceId: "not_a_lease",
               sessionId: "session_1",
               tenantId: "tenant_1",
             },
@@ -294,6 +310,27 @@ describe("coordinator pipeline", () => {
       })
     ).toThrow(
       "coordinator pipeline publisher lease.expiresAt must be a valid timestamp"
+    );
+
+    expect(() =>
+      parseCoordinatorPipelineSnapshot({
+        etag: "1",
+        state: {
+          ...createEmptyCoordinatorState(),
+          publisherLeases: [
+            {
+              expiresAt: "2026-01-01T00:00:00.000Z",
+              issuedAt: "2026-01-01T00:00:00.000Z",
+              lastSeenAt: "2026-01-01T00:00:00.000Z",
+              publisherInstanceId: "pub_1",
+              sessionId: "session 1",
+              tenantId: "tenant_1",
+            },
+          ],
+        },
+      })
+    ).toThrow(
+      "coordinator pipeline publisher lease.sessionId must be a non-empty URL-safe identifier"
     );
   });
 
