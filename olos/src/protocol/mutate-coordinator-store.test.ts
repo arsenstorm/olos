@@ -6,8 +6,10 @@ import {
   createEmptyCoordinatorState,
 } from "./coordinator-state.test-helper";
 import {
+  positiveMutationAttempts,
   runStoredCoordinatorMutation,
   runStoredCoordinatorMutationWithAdapters,
+  runStoredCoordinatorMutationWithAdaptersAndConflict,
 } from "./mutate-coordinator-store";
 
 interface Attempt {
@@ -19,6 +21,14 @@ interface StoredMutationResult {
 }
 
 describe("runStoredCoordinatorMutation", () => {
+  test("accepts shared default and validation for max attempts", () => {
+    expect(positiveMutationAttempts(undefined)).toBe(2);
+    expect(positiveMutationAttempts(3)).toBe(3);
+    expect(() => positiveMutationAttempts(0)).toThrow(
+      "maxAttempts must be a positive integer"
+    );
+  });
+
   test("returns missing when the session is not found", async () => {
     const store: CoordinatorPipelineStore = {
       load: async () => undefined,
@@ -362,5 +372,104 @@ describe("runStoredCoordinatorMutation", () => {
 
     expect(result).toEqual({ outcome: "saved:2" });
     expect(savedMapCalls).toBe(1);
+  });
+
+  test("shares conflict handling between conflict and exhaustion paths", async () => {
+    const snapshot = {
+      etag: "1",
+      state: createEmptyCoordinatorState(),
+    };
+    const conflictStore: CoordinatorPipelineStore = {
+      load: async () => snapshot,
+      save: async () => ({
+        status: "conflict",
+      }),
+    };
+    const exhaustionStore: CoordinatorPipelineStore = {
+      load: async () => snapshot,
+      save: async () => ({
+        status: "conflict",
+        current: snapshot,
+      }),
+    };
+
+    let conflictCalls = 0;
+    let exhaustedCalls = 0;
+
+    const sharedHandler = (
+      snapshotValue: CoordinatorPipelineSnapshot | undefined,
+      attempt?: Attempt | undefined
+    ): StoredMutationResult => {
+      if (attempt === undefined) {
+        expect(snapshotValue?.etag).toBe("1");
+        exhaustedCalls += 1;
+
+        return {
+          outcome: "exhausted",
+        };
+      }
+
+      expect(snapshotValue).toBeUndefined();
+      conflictCalls += 1;
+
+      return {
+        outcome: "conflict",
+      };
+    };
+
+    const conflictResult =
+      await runStoredCoordinatorMutationWithAdaptersAndConflict<
+        Attempt,
+        Attempt,
+        StoredMutationResult
+      >({
+        attempts: 2,
+        mutate: () => ({
+          state: "retrying",
+        }),
+        sessionId: "session_1",
+        store: conflictStore,
+        decide: () => ({
+          status: "save",
+          state: "retrying",
+        }),
+        mapSaved: () => ({
+          outcome: "unexpected-saved",
+        }),
+        onMissing: () => ({
+          outcome: "not_found",
+        }),
+        onConflictOrExhausted: sharedHandler,
+      });
+
+    const exhaustedResult =
+      await runStoredCoordinatorMutationWithAdaptersAndConflict<
+        Attempt,
+        Attempt,
+        StoredMutationResult
+      >({
+        attempts: 2,
+        mutate: () => ({
+          state: "retrying",
+        }),
+        sessionId: "session_1",
+        store: exhaustionStore,
+        decide: () => ({
+          status: "save",
+          state: "retrying",
+        }),
+        mapSaved: () => ({
+          outcome: "unexpected-saved",
+        }),
+        onMissing: () => ({
+          outcome: "not_found",
+        }),
+        onConflictOrExhausted: sharedHandler,
+      });
+
+    expect(conflictResult).toEqual({ outcome: "conflict" });
+    expect(exhaustedResult).toEqual({ outcome: "exhausted" });
+    expect(conflictCalls).toBe(1);
+    expect(exhaustedCalls).toBe(1);
   });
 });

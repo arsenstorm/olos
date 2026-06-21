@@ -1,4 +1,5 @@
 import type { OlosId } from "../types/ids";
+import { assertPositiveInteger } from "../validation/ids";
 import type {
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineState,
@@ -86,6 +87,27 @@ export interface RunStoredMutationAdapterOptions<
   store: CoordinatorPipelineStore;
 }
 
+export interface RunStoredMutationAdapterWithConflictResultOptions<
+  TAttempt,
+  TDecisionResult,
+  TResult,
+> extends Omit<
+    RunStoredMutationAdapterOptions<TAttempt, TDecisionResult, TResult>,
+    "onConflict" | "onExhausted"
+  > {
+  onConflictOrExhausted(
+    current: CoordinatorPipelineSnapshot | undefined,
+    attempt: TAttempt | undefined
+  ): Promise<TResult> | TResult;
+}
+
+export function positiveMutationAttempts(value: number | undefined): number {
+  const attempts = value ?? 2;
+
+  assertPositiveInteger(attempts, "maxAttempts");
+  return attempts;
+}
+
 export async function runStoredCoordinatorMutation<TAttempt, TResult>(
   options: RunStoredMutationOptions<TAttempt, TResult>
 ): Promise<TResult> {
@@ -165,6 +187,37 @@ export async function runStoredCoordinatorMutationWithAdapters<
   });
 
   return result;
+}
+
+export function runStoredCoordinatorMutationWithAdaptersAndConflict<
+  TAttempt,
+  TDecisionResult,
+  TResult,
+>(
+  options: RunStoredMutationAdapterWithConflictResultOptions<
+    TAttempt,
+    TDecisionResult,
+    TResult
+  >
+): Promise<TResult> {
+  return runStoredCoordinatorMutationWithAdapters<
+    TAttempt,
+    TDecisionResult,
+    TResult
+  >({
+    attempts: options.attempts,
+    decide: options.decide,
+    mapSaved: options.mapSaved,
+    mapTerminal: options.mapTerminal,
+    mutate: options.mutate,
+    onConflict: (current, attempt) =>
+      options.onConflictOrExhausted(current, attempt),
+    onExhausted: (snapshot) =>
+      options.onConflictOrExhausted(snapshot, undefined),
+    onMissing: options.onMissing,
+    sessionId: options.sessionId,
+    store: options.store,
+  });
 }
 
 function isSavedCoordinatorPipelineMutationResult(

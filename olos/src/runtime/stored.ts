@@ -3,10 +3,12 @@ import type {
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineStore,
 } from "../protocol";
-import { runStoredCoordinatorMutationWithAdapters } from "../protocol/mutate-coordinator-store";
+import {
+  positiveMutationAttempts,
+  runStoredCoordinatorMutationWithAdaptersAndConflict,
+} from "../protocol/mutate-coordinator-store";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosId } from "../types/ids";
-import { positiveAttempts } from "./attempts";
 import {
   commitCoordinatorUploadFromRequest,
   type RuntimeCommitRequest,
@@ -144,9 +146,9 @@ export async function serveStoredBlockingCoordinatorManifest(
 export async function issueStoredCoordinatorSlotFromRequest(
   options: IssueStoredCoordinatorSlotFromRequestOptions
 ): Promise<StoredRuntimeSlotIssue> {
-  const attempts = positiveAttempts(options.maxAttempts);
+  const attempts = positiveMutationAttempts(options.maxAttempts);
 
-  return await runStoredCoordinatorMutationWithAdapters({
+  return await runStoredCoordinatorMutationWithAdaptersAndConflict({
     attempts,
     mutate: async (state) =>
       await issueCoordinatorSlotFromRequest({
@@ -167,17 +169,16 @@ export async function issueStoredCoordinatorSlotFromRequest(
       etag: saved.etag,
       state: saved.state,
     }),
-    onConflict: (current) => conflict(current),
-    onExhausted: (snapshot) => conflict(snapshot),
+    onConflictOrExhausted: (snapshot) => conflict(snapshot),
   });
 }
 
 export async function commitStoredCoordinatorUploadFromRequest(
   options: CommitStoredCoordinatorUploadFromRequestOptions
 ): Promise<StoredRuntimeUploadCommit> {
-  const attempts = positiveAttempts(options.maxAttempts);
+  const attempts = positiveMutationAttempts(options.maxAttempts);
 
-  return await runStoredCoordinatorMutationWithAdapters({
+  return await runStoredCoordinatorMutationWithAdaptersAndConflict({
     attempts,
     mutate: async (state) =>
       await commitCoordinatorUploadFromRequest({
@@ -213,8 +214,7 @@ export async function commitStoredCoordinatorUploadFromRequest(
       etag: saved.etag,
       state: saved.state,
     }),
-    onConflict: (current) => conflict(current),
-    onExhausted: (snapshot) => conflict(snapshot),
+    onConflictOrExhausted: (snapshot) => conflict(snapshot),
   });
 }
 

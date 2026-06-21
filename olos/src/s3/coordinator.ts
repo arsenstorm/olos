@@ -20,8 +20,10 @@ import type {
   CoordinatorPipelineState,
   IssueCoordinatorSlotOptions,
 } from "../protocol/coordinator";
-import { runStoredCoordinatorMutationWithAdapters } from "../protocol/mutate-coordinator-store";
-import { positiveAttempts } from "../runtime/attempts";
+import {
+  positiveMutationAttempts,
+  runStoredCoordinatorMutationWithAdaptersAndConflict,
+} from "../protocol/mutate-coordinator-store";
 import type { UploadEventNormalization } from "../state/observed-upload";
 import {
   type PublicationControlPolicy,
@@ -259,7 +261,7 @@ export async function issueStoredS3CoordinatorUploadGrant(
     operation: "issue_slot",
     policy: slotOptions.publicationControl,
   });
-  const attempts = positiveAttempts(maxAttempts);
+  const attempts = positiveMutationAttempts(maxAttempts);
 
   if (isBlockedPublicationControl(publication)) {
     const snapshot = await store.load(sessionId);
@@ -275,7 +277,7 @@ export async function issueStoredS3CoordinatorUploadGrant(
     };
   }
 
-  return runStoredCoordinatorMutationWithAdapters({
+  return runStoredCoordinatorMutationWithAdaptersAndConflict({
     attempts,
     mutate: async (state) =>
       issueCoordinatorSlot({
@@ -307,8 +309,7 @@ export async function issueStoredS3CoordinatorUploadGrant(
         status: "saved",
       };
     },
-    onConflict: (current) => conflict(current),
-    onExhausted: (snapshot) => conflict(snapshot),
+    onConflictOrExhausted: (snapshot) => conflict(snapshot),
   });
 }
 
@@ -370,9 +371,9 @@ export async function commitStoredS3CoordinatorUpload(
   options: CommitStoredS3CoordinatorUploadOptions
 ): Promise<StoredS3CoordinatorUploadCommit> {
   const { manifest, maxAttempts, sessionId, store, ...commitOptions } = options;
-  const attempts = positiveAttempts(maxAttempts);
+  const attempts = positiveMutationAttempts(maxAttempts);
 
-  return await runStoredCoordinatorMutationWithAdapters({
+  return await runStoredCoordinatorMutationWithAdaptersAndConflict({
     attempts,
     mutate: async (state) =>
       await commitS3CoordinatorUpload({
@@ -418,8 +419,7 @@ export async function commitStoredS3CoordinatorUpload(
         },
         manifest
       ),
-    onConflict: (current) => conflict(current),
-    onExhausted: (snapshot) => conflict(snapshot),
+    onConflictOrExhausted: (snapshot) => conflict(snapshot),
   });
 }
 

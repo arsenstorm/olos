@@ -1,11 +1,13 @@
-import { assertPositiveInteger } from "../validation/ids";
 import type {
   CoordinatorPipelineMutation,
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineState,
   MutateCoordinatorPipelineOptions,
 } from "./coordinator";
-import { runStoredCoordinatorMutationWithAdapters } from "./mutate-coordinator-store";
+import {
+  positiveMutationAttempts,
+  runStoredCoordinatorMutationWithAdapters,
+} from "./mutate-coordinator-store";
 
 export async function mutateCoordinatorPipeline(
   options: MutateCoordinatorPipelineOptions
@@ -48,11 +50,4 @@ function conflictingCoordinatorPipelineMutation(
     current,
     status: "conflict",
   };
-}
-
-function positiveMutationAttempts(value: number | undefined): number {
-  const attempts = value ?? 2;
-
-  assertPositiveInteger(attempts, "maxAttempts");
-  return attempts;
 }
