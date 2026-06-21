@@ -26,6 +26,7 @@ export interface CreatePresignedS3UploadGrantOptions {
   additionalHeaders?: Record<string, string>;
   bucket: string;
   client: S3Client;
+  clock?: () => Date | string;
   expiresInSeconds: number;
   now?: Date | string;
   slot: UploadSlot;
@@ -131,7 +132,7 @@ function assertPresignedS3UploadGrantOptions(
 
   assertPositiveExpiresInSeconds(options.expiresInSeconds);
 
-  const nowMs = timestampMsValue(options.now);
+  const nowMs = resolveNowTimestampMs(options.now, options.clock);
 
   if (options.slot.state !== "issued") {
     throw new Error("uploadSlot.state must be issued");
@@ -207,13 +208,19 @@ function assertDoesNotOverrideS3Metadata(
 }
 
 function expiresAt(options: CreatePresignedS3UploadGrantOptions): string {
-  const nowMs = timestampMsValue(options.now);
+  const nowMs = resolveNowTimestampMs(options.now, options.clock);
 
   return new Date(nowMs + options.expiresInSeconds * 1000).toISOString();
 }
 
-function timestampMsValue(now: Date | string | undefined): number {
-  return timestampMs(now ?? new Date(), "now");
+function resolveNowTimestampMs(
+  now: Date | string | undefined,
+  clock: (() => Date | string) | undefined
+): number {
+  return timestampMs(
+    now ?? (clock === undefined ? new Date() : clock()),
+    "now"
+  );
 }
 
 function isHeaderRequest(

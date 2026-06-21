@@ -72,6 +72,18 @@ describe("s3 upload grants", () => {
     );
   });
 
+  test("uses injected clock when no now is provided", async () => {
+    const grant = await createPresignedS3UploadGrant({
+      bucket: S3_BUCKET,
+      client: createTestS3Client(),
+      clock: () => "2026-01-01T00:00:01.000Z",
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      slot,
+    });
+
+    expect(grant.expiresAt).toBe("2026-01-01T00:00:04.000Z");
+  });
+
   test("creates an SDK-presigned grant with provider-specific signed headers", async () => {
     const grant = await createPresignedS3UploadGrant({
       additionalHeaders: {

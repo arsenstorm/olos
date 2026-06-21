@@ -16,6 +16,7 @@ export interface S3HeadObjectClient {
 export interface ObserveS3ObjectOptions {
   bucket: string;
   client: S3HeadObjectClient;
+  clock?: () => Date | string;
   now?: Date | string;
   objectKey: string;
   observedAt?: Date | string;
@@ -24,6 +25,7 @@ export interface ObserveS3ObjectOptions {
 }
 
 export interface CreateObservedUploadFromS3HeadObjectOptions {
+  clock?: () => Date | string;
   now?: Date | string;
   objectKey: string;
   observedAt?: Date | string;
@@ -130,5 +132,15 @@ function observedAt(
     return new Date(timestampMs(options.now, "now")).toISOString();
   }
 
-  return new Date().toISOString();
+  return new Date(observedAtNow(options)).toISOString();
+}
+
+function observedAtNow(options: {
+  now?: Date | string;
+  clock?: () => Date | string;
+}): number {
+  return timestampMs(
+    options.now ?? (options.clock === undefined ? new Date() : options.clock()),
+    "now"
+  );
 }

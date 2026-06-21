@@ -297,4 +297,32 @@ describe("HLS blocking reload", () => {
       status: "timeout",
     });
   });
+
+  test("uses injected clock when direct now callback is omitted", async () => {
+    let clockCalls = 0;
+
+    const result = await waitForHlsBlockingReload({
+      cursor,
+      request: {
+        mediaSequenceNumber: 3813,
+      },
+      timeoutMs: 100,
+      clock: () => {
+        clockCalls += 1;
+
+        return clockCalls === 1 ? 1000 : 2000;
+      },
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(clockCalls).toBe(2);
+    expect(result).toEqual({
+      cursor,
+      request: {
+        mediaSequenceNumber: 3813,
+      },
+      status: "timeout",
+    });
+  });
 });

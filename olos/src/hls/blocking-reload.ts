@@ -41,6 +41,7 @@ export interface HlsCursorWaitContext {
 }
 
 export interface WaitForHlsBlockingReloadOptions {
+  clock?: () => number;
   cursor: Cursor;
   now?: () => number;
   request: HlsBlockingReloadRequest;
@@ -238,5 +239,13 @@ async function waitForNextCursor(
 }
 
 function nowMs(options: WaitForHlsBlockingReloadOptions): number {
-  return options.now === undefined ? Date.now() : options.now();
+  if (options.now !== undefined) {
+    return options.now();
+  }
+
+  if (options.clock === undefined) {
+    return Date.now();
+  }
+
+  return options.clock();
 }
