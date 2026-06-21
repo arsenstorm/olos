@@ -248,7 +248,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: centralize package version, release tag, artifact name, and package root reads.
   - Verify: release script tests.
 
-- [ ] Keep README examples and smoke fixtures aligned.
+- [x] Keep README examples and smoke fixtures aligned.
   - Locations: `olos/README.md`, `olos/scripts/package-smoke-fixture.ts:187`, `olos/scripts/package-smoke-fixture.test.ts`.
   - Issue: README examples and smoke type fixtures both describe public APIs but can drift.
   - Suggestion: update README and smoke fixture together when public APIs change.
