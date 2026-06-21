@@ -85,6 +85,7 @@ export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
   additionalHeaders?: Record<string, string>;
   bucket: string;
   client: S3Client;
+  completionHintNow?: () => Date | string;
   expiresInSeconds: number;
   grantNow?: () => Date | string;
   lateToleranceMs?: number;
@@ -745,9 +746,9 @@ function parseCompletionHintPayload(
   return {
     commitId:
       optionalUrlSafeIdentifierValueField(value, "commitId") ??
-      `complete_${slotId}`,
+      completionHintCommitId(slotId),
     committedAt: parseCommitTimestampOrNow(value, "committedAt", () =>
-      new Date().toISOString()
+      completionHintTimestamp(options.completionHintNow)
     ),
     providerId,
     slotId,
@@ -961,4 +962,22 @@ function optionalCursorResponse(
   cursor: Cursor | undefined
 ): Pick<StoredS3CoordinatorCommitResponse, "cursor"> | Record<string, never> {
   return cursor === undefined ? {} : { cursor };
+}
+
+const DEFAULT_COMPLETION_HINT_COMMIT_ID_PREFIX = "complete_";
+
+function completionHintCommitId(slotId: string): string {
+  return `${DEFAULT_COMPLETION_HINT_COMMIT_ID_PREFIX}${slotId}`;
+}
+
+function completionHintTimestamp(
+  now: (() => Date | string) | undefined
+): string {
+  if (now === undefined) {
+    return new Date().toISOString();
+  }
+
+  const next = now();
+
+  return next instanceof Date ? next.toISOString() : next;
 }
