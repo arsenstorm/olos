@@ -91,6 +91,22 @@ bun run build
 - Include negative tests for hostile-publisher and malformed-state cases when a
   change touches security-sensitive publication paths.
 
+## Test module boundaries
+
+- E2E tests should drive behavior through public package entrypoints in `OLOS`
+  and `OLOS/*` so they validate installed-package contracts:
+  `OLOS` APIs, configuration, runtime adapters, and user-facing runtime
+  behavior.
+- Unit tests under `olos/src` should remain close to implementation details and
+  may import internal modules when directly exercising state transitions,
+  parser behavior, and low-level protocol invariants.
+- Keep helpers in the same test scope as the behavior they support; avoid moving
+  source helpers into `olos/src` when the helper only exists for a single
+  suite.
+- Promote reusable test fixtures only after they are needed in at least two suites
+  from the same layer (`src` tests together, or E2E tests together), and keep
+  the import path explicit about that scope.
+
 ## Conformance
 
 - [Conformance progress](./conformance.md)
