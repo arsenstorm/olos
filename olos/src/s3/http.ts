@@ -1,6 +1,4 @@
 import type { S3Client } from "@aws-sdk/client-s3";
-import { MEDIA_OBJECT_KINDS } from "../config/media-object";
-import { PUBLICATION_MODES } from "../config/publication";
 import type { CoordinatorRetentionPlan } from "../protocol";
 import {
   type CreateStoredCoordinatorRuntimeHandlerOptions,
@@ -8,7 +6,6 @@ import {
   planStoredCoordinatorRetention,
   type RetiredCoordinatorObjectDeletionResult,
   type RetiredCoordinatorObjectDeletionSummary,
-  type RuntimeSlotIssuePayload,
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
 import {
@@ -20,17 +17,13 @@ import { optionalField } from "../runtime/optional-field";
 import { rejectionStatusCode } from "../runtime/rejection-status";
 import {
   isRecord,
-  nonNegativeIntegerField,
-  oneOfStringField,
   optionalBooleanField,
-  optionalNonNegativeIntegerField,
   optionalNonNegativeNumberField,
   optionalPositiveIntegerField,
   optionalStringField,
   optionalTimestampField,
   optionalTimestampValueField,
   optionalUrlSafeIdentifierValueField,
-  positiveNumberField,
   stringField,
   timestampField,
   urlSafeIdentifierField,
@@ -42,17 +35,17 @@ import {
   jsonResponse,
 } from "../runtime/response";
 import { routeIdentifierError, routeParts } from "../runtime/route";
+import {
+  parseRuntimeSlotIssuePayload,
+  type RuntimeSlotIssuePayload,
+} from "../runtime/slot-issue-payload";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosErrorCode } from "../types/errors";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
-import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import { assertUrlSafeIdentifier } from "../validation/ids";
-import {
-  assertSafeMediaObjectKey,
-  assertSafeObjectKey,
-} from "../validation/object-key";
+import { assertSafeObjectKey } from "../validation/object-key";
 import { assertS3BucketName } from "./bucket";
 import {
   completeStoredS3CoordinatorUpload,
@@ -634,7 +627,7 @@ async function parseS3SlotGrantRequest(
     request,
     "S3 slot grant request",
     "invalid S3 slot grant request",
-    parsePayload
+    parseRuntimeSlotIssuePayload
   );
 }
 
@@ -672,36 +665,6 @@ async function parseJsonRequest(
   } catch (error) {
     return invalid(errorMessage(error, `invalid ${name}`));
   }
-}
-
-function parsePayload(value: Record<string, unknown>): RuntimeSlotIssuePayload {
-  const kind = oneOfStringField(value, "kind", MEDIA_OBJECT_KINDS);
-  const deliveryUrl = stringField(value, "deliveryUrl");
-  const objectKey = stringField(value, "objectKey");
-
-  assertSafeDeliveryUrl(deliveryUrl, "deliveryUrl");
-  assertSafeMediaObjectKey(objectKey, kind, "objectKey");
-
-  return {
-    contentType: stringField(value, "contentType"),
-    deliveryUrl,
-    duration: positiveNumberField(value, "duration"),
-    expiresAt: stringField(value, "expiresAt"),
-    kind,
-    maxBytes: positiveNumberField(value, "maxBytes"),
-    mediaSequenceNumber: nonNegativeIntegerField(value, "mediaSequenceNumber"),
-    objectKey,
-    publicationMode: oneOfStringField(
-      value,
-      "publicationMode",
-      PUBLICATION_MODES
-    ),
-    publisherInstanceId: urlSafeIdentifierField(value, "publisherInstanceId"),
-    renditionId: urlSafeIdentifierField(value, "renditionId"),
-    slotId: urlSafeIdentifierField(value, "slotId"),
-    ...optionalNonNegativeIntegerField(value, "minBytes"),
-    ...optionalNonNegativeIntegerField(value, "partNumber"),
-  };
 }
 
 interface S3CommitPayload {
