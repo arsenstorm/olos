@@ -11,18 +11,11 @@ import type { OlosError } from "../types/errors";
 import type { ObservedUpload } from "../validation/observed-upload";
 import {
   parseCommitRequestPayload,
-  parseSafeObjectKeyField,
+  parseObservedUploadPayload,
 } from "./commit-payload-parser";
 import { errorMessage } from "./errors";
 import { rejectionStatus } from "./rejection-status";
-import {
-  isRecord,
-  optionalStringField,
-  positiveNumberField,
-  stringField,
-  timestampField,
-  urlSafeIdentifierField,
-} from "./request-fields";
+import { isRecord } from "./request-fields";
 import {
   parseRuntimeJsonRequest,
   type RuntimeJsonRequestParse,
@@ -158,25 +151,7 @@ function parsePayload(value: unknown): RuntimeCommitPayload {
 }
 
 function parseObjectPayload(value: unknown): RuntimeObservedUploadPayload {
-  if (!isRecord(value)) {
-    throw new Error("object must be a JSON object");
-  }
-
-  const objectKey = parseSafeObjectKeyField(
-    value,
-    "objectKey",
-    "object.objectKey"
-  );
-
-  return {
-    contentType: stringField(value, "contentType"),
-    objectKey,
-    observedAt: timestampField(value, "observedAt"),
-    providerId: urlSafeIdentifierField(value, "providerId"),
-    size: positiveNumberField(value, "size"),
-    ...optionalStringField(value, "etag"),
-    ...optionalMetadataField(value),
-  };
+  return parseObservedUploadPayload(value);
 }
 
 function invalid(message: string): InvalidRuntimeCoordinatorUploadCommit {
@@ -185,29 +160,4 @@ function invalid(message: string): InvalidRuntimeCoordinatorUploadCommit {
     response: jsonErrorResponse(message, 400),
     status: "invalid",
   };
-}
-
-function optionalMetadataField(
-  value: Record<string, unknown>
-): Pick<RuntimeObservedUploadPayload, "metadata"> | Record<string, never> {
-  if (value.metadata === undefined) {
-    return {};
-  }
-
-  if (!isMetadata(value.metadata)) {
-    throw new Error("object.metadata must be a string map");
-  }
-
-  return { metadata: value.metadata };
-}
-
-function isMetadata(
-  value: unknown
-): value is Record<string, string | undefined> {
-  return (
-    isRecord(value) &&
-    Object.values(value).every(
-      (entry) => typeof entry === "string" || entry === undefined
-    )
-  );
 }

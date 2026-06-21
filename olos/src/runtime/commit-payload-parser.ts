@@ -2,11 +2,14 @@ import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import { optionalField } from "./optional-field";
 import {
+  isRecord,
   optionalBooleanField,
   optionalNonNegativeNumberField,
   optionalPositiveIntegerField,
+  optionalStringField,
   optionalTimestampField,
   optionalTimestampValueField,
+  positiveNumberField,
   stringField,
   timestampField,
   urlSafeIdentifierField,
@@ -37,6 +40,63 @@ export interface ProviderResolvedCommitPayload extends CommitPayloadTiming {
 
 export interface ProviderIdOptions {
   providerId?: string;
+}
+
+export interface ParsedObservedUploadPayload {
+  contentType: string;
+  etag?: string;
+  metadata?: Record<string, string | undefined>;
+  objectKey: string;
+  observedAt: string;
+  providerId: string;
+  size: number;
+}
+
+export interface S3CommitPayloadParseOverrides {
+  commitId?: string;
+  slotId?: string;
+}
+
+export interface ParsedS3CommitPayload {
+  commitId: string;
+  committedAt: string;
+  independent?: boolean;
+  lateToleranceMs?: number;
+  maxSegments?: number;
+  objectKey?: string;
+  programDateTime?: string;
+  providerId: string;
+  slotId: string;
+  versionId?: string;
+}
+
+export interface ParsedS3ReconciliationPayload
+  extends ProviderResolvedCommitPayload {
+  slotIds?: readonly string[];
+  versionId?: string;
+}
+
+export function parseObservedUploadPayload(
+  value: unknown,
+  objectField = "object"
+): ParsedObservedUploadPayload {
+  if (!isRecord(value)) {
+    throw new Error(`${objectField} must be a JSON object`);
+  }
+
+  return {
+    contentType: stringField(value, "contentType"),
+    ...optionalStringField(value, "etag"),
+    objectKey: parseSafeObjectKeyField(
+      value,
+      "objectKey",
+      `${objectField}.objectKey`
+    ),
+    observedAt: timestampField(value, "observedAt"),
+    providerId: urlSafeIdentifierField(value, "providerId"),
+    size: positiveNumberField(value, "size"),
+    ...optionalMetadataField(value, `${objectField}.metadata`),
+  };
 }
 
 export function parseCommitTimestamp(
@@ -121,6 +181,33 @@ export function parseProviderResolvedCommitPayload(
   };
 }
 
+export function parseS3CommitPayload(
+  value: Record<string, unknown>,
+  options: ProviderIdOptions,
+  parseCommittedAt: ParseTimestampField = parseCommitTimestamp,
+  overrides: S3CommitPayloadParseOverrides = {}
+): ParsedS3CommitPayload {
+  return {
+    ...parseProviderResolvedCommitPayload(value, options, parseCommittedAt),
+    commitId: overrides.commitId ?? urlSafeIdentifierField(value, "commitId"),
+    slotId: overrides.slotId ?? urlSafeIdentifierField(value, "slotId"),
+    ...parseOptionalSafeObjectKeyField(value, "objectKey"),
+    ...optionalStringField(value, "versionId"),
+  };
+}
+
+export function parseS3ReconciliationPayload(
+  value: Record<string, unknown>,
+  options: ProviderIdOptions,
+  parseCommittedAt: ParseTimestampField = parseCommitTimestamp
+): ParsedS3ReconciliationPayload {
+  return {
+    ...parseProviderResolvedCommitPayload(value, options, parseCommittedAt),
+    ...optionalStringField(value, "versionId"),
+    ...parseOptionalUrlSafeIdentifierArrayField(value, "slotIds"),
+  };
+}
+
 export function parseOptionalSafeObjectKeyField<const Field extends string>(
   value: Record<string, unknown>,
   field: Field
@@ -168,4 +255,30 @@ function isStringArray(value: unknown): value is string[] {
   return (
     Array.isArray(value) && value.every((entry) => typeof entry === "string")
   );
+}
+
+function isMetadata(
+  value: unknown
+): value is Record<string, string | undefined> {
+  return (
+    isRecord(value) &&
+    Object.values(value).every(
+      (entry) => typeof entry === "string" || entry === undefined
+    )
+  );
+}
+
+function optionalMetadataField(
+  value: Record<string, unknown>,
+  metadataField: string
+): Pick<ParsedObservedUploadPayload, "metadata"> | Record<string, never> {
+  if (value.metadata === undefined) {
+    return {};
+  }
+
+  if (!isMetadata(value.metadata)) {
+    throw new Error(`${metadataField} must be a string map`);
+  }
+
+  return { metadata: value.metadata };
 }

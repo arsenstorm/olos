@@ -4,10 +4,13 @@ import {
   parseCommitRequestPayload,
   parseCommitTimestamp,
   parseCommitTimestampOrNow,
+  parseObservedUploadPayload,
   parseOptionalSafeObjectKeyField,
   parseOptionalUrlSafeIdentifierArrayField,
   parseProviderId,
   parseProviderResolvedCommitPayload,
+  parseS3CommitPayload,
+  parseS3ReconciliationPayload,
   parseSafeObjectKeyField,
 } from "./commit-payload-parser";
 
@@ -165,5 +168,105 @@ describe("commit payload parser", () => {
         "slotIds"
       )
     ).toThrow("slotIds must be a string array");
+  });
+
+  test("parses observed upload payloads and validates metadata", () => {
+    expect(
+      parseObservedUploadPayload({
+        contentType: "video/mp4",
+        etag: '"publisher-hint"',
+        objectKey: "media/session_1.m4s",
+        observedAt: "2026-01-01T00:00:00.000Z",
+        providerId: "provider",
+        size: 1024,
+        metadata: {
+          "x-olos-slot-id": "slot_1",
+        },
+      })
+    ).toMatchObject({
+      contentType: "video/mp4",
+      etag: '"publisher-hint"',
+      objectKey: "media/session_1.m4s",
+      observedAt: "2026-01-01T00:00:00.000Z",
+      providerId: "provider",
+      size: 1024,
+      metadata: { "x-olos-slot-id": "slot_1" },
+    });
+
+    expect(() =>
+      parseObservedUploadPayload({
+        contentType: "video/mp4",
+        objectKey: "media/session_1.m4s",
+        observedAt: "2026-01-01T00:00:00.000Z",
+        providerId: "provider",
+        size: 1024,
+        metadata: { "x-olos-slot-id": 4 },
+      } as Record<string, unknown>)
+    ).toThrow("object.metadata must be a string map");
+  });
+
+  test("parses shared S3 commit payloads", () => {
+    expect(
+      parseS3CommitPayload(
+        {
+          committedAt: "2026-01-01T00:00:02.000Z",
+          commitId: "commit_3810",
+          slotId: "slot_3810",
+          objectKey: "live/session/3810.m4s",
+          versionId: "v1",
+          independent: true,
+        },
+        { providerId: "provider_1" }
+      )
+    ).toMatchObject({
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      providerId: "provider_1",
+      slotId: "slot_3810",
+      objectKey: "live/session/3810.m4s",
+      versionId: "v1",
+    });
+  });
+
+  test("accepts custom committedAt parsing for shared S3 commit helpers", () => {
+    expect(
+      parseS3CommitPayload(
+        {
+          commitId: "commit_3810",
+          slotId: "slot_3810",
+          objectKey: "live/session/3810.m4s",
+        },
+        { providerId: "provider_1" },
+        () => "2026-01-01T00:00:02.000Z"
+      )
+    ).toMatchObject({
+      committedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "provider_1",
+      commitId: "commit_3810",
+      slotId: "slot_3810",
+    });
+  });
+
+  test("parses shared S3 reconciliation payloads", () => {
+    expect(
+      parseS3ReconciliationPayload(
+        {
+          committedAt: "2026-01-01T00:00:02.000Z",
+          slotIds: ["slot_init", "slot_3810"],
+          versionId: "v1",
+          independent: true,
+        },
+        {
+          providerId: "provider_fallback",
+        }
+      )
+    ).toMatchObject({
+      providerId: "provider_fallback",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      slotIds: ["slot_init", "slot_3810"],
+      versionId: "v1",
+      independent: true,
+    });
   });
 });

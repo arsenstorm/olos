@@ -9,11 +9,12 @@ import {
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime";
 import {
-  parseCommitRequestPayload,
+  type ParsedS3CommitPayload,
+  type ParsedS3ReconciliationPayload,
   parseCommitTimestampOrNow,
-  parseOptionalSafeObjectKeyField,
   parseOptionalUrlSafeIdentifierArrayField,
-  parseProviderResolvedCommitPayload,
+  parseS3CommitPayload,
+  parseS3ReconciliationPayload,
 } from "../runtime/commit-payload-parser";
 import {
   isSuccessfulCommitStatus,
@@ -25,7 +26,6 @@ import {
   isRecord,
   optionalNonNegativeNumberField,
   optionalStringField,
-  optionalUrlSafeIdentifierValueField,
   timestampField,
 } from "../runtime/request-fields";
 import {
@@ -681,29 +681,8 @@ async function parseJsonRequest(
   }
 }
 
-interface S3CommitPayload {
-  commitId: string;
-  committedAt: string;
-  independent?: boolean;
-  lateToleranceMs?: number;
-  maxSegments?: number;
-  objectKey?: string;
-  programDateTime?: string;
-  providerId: string;
-  slotId: string;
-  versionId?: string;
-}
-
-interface S3ReconciliationPayload {
-  committedAt: string;
-  independent?: boolean;
-  lateToleranceMs?: number;
-  maxSegments?: number;
-  programDateTime?: string;
-  providerId: string;
-  slotIds?: readonly string[];
-  versionId?: string;
-}
+type S3CommitPayload = ParsedS3CommitPayload;
+type S3ReconciliationPayload = ParsedS3ReconciliationPayload;
 
 interface S3ReconciliationPlanPayload {
   slotIds?: readonly string[];
@@ -744,22 +723,21 @@ function parseCompletionHintPayload(
   slotId: string
 ): S3CommitPayload {
   const defaults = createCompletionHintDefaults(options);
-  const base = parseProviderResolvedCommitPayload(value, options, (payload) =>
-    parseCommitTimestampOrNow(payload, "committedAt", defaults.committedAt)
+  const base = parseS3CommitPayload(
+    value,
+    options,
+    (payload) =>
+      parseCommitTimestampOrNow(payload, "committedAt", defaults.committedAt),
+    {
+      commitId: defaults.commitId(slotId),
+      slotId,
+    }
   );
   assertNoCompletionHintDeliveryUrl(value);
   optionalStringField(value, "etag");
   optionalNonNegativeNumberField(value, "size");
 
-  return {
-    commitId:
-      optionalUrlSafeIdentifierValueField(value, "commitId") ??
-      defaults.commitId(slotId),
-    ...base,
-    slotId,
-    ...parseOptionalSafeObjectKeyField(value, "objectKey"),
-    ...optionalStringField(value, "versionId"),
-  };
+  return base;
 }
 
 function assertNoCompletionHintDeliveryUrl(
@@ -774,27 +752,14 @@ function parseCommitPayload(
   value: Record<string, unknown>,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): S3CommitPayload {
-  const providerResolved = parseProviderResolvedCommitPayload(value, options);
-
-  return {
-    ...parseCommitRequestPayload(value),
-    providerId: providerResolved.providerId,
-    ...parseOptionalSafeObjectKeyField(value, "objectKey"),
-    ...optionalStringField(value, "versionId"),
-  };
+  return parseS3CommitPayload(value, options);
 }
 
 function parseReconciliationPayload(
   value: Record<string, unknown>,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): S3ReconciliationPayload {
-  const providerResolved = parseProviderResolvedCommitPayload(value, options);
-
-  return {
-    ...providerResolved,
-    ...optionalStringField(value, "versionId"),
-    ...parseOptionalUrlSafeIdentifierArrayField(value, "slotIds"),
-  };
+  return parseS3ReconciliationPayload(value, options);
 }
 
 async function parseS3ReconciliationPlanRequest(
