@@ -236,7 +236,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: preserve opt-in behavior and document that ordinary maintainability work should not run live S3 tests.
   - Verify: do not run live S3 unless requested.
 
-- [ ] Improve script runner diagnostics.
+- [x] Improve script runner diagnostics.
   - Locations: `olos/scripts/script-runner.ts:11`, `:29`, `:91`.
   - Issue: captured command failures do not include a useful stderr/stdout tail in thrown errors when output forwarding is disabled.
   - Suggestion: include a concise captured-output tail for `runCommandAndCapture` failures.
