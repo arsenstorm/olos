@@ -98,7 +98,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: extract internal coverage data and store checks, then preserve current public exports through `src/conformance.ts`.
   - Verify: conformance tests, report tests, and `conformance:check`.
 
-- [ ] Derive or strongly validate conformance assertion IDs.
+- [x] Derive or strongly validate conformance assertion IDs.
   - Locations: `olos/src/conformance.ts:10`, `:154`, `olos/src/conformance.test.ts:27`, `:51`, `olos/scripts/write-conformance-report.ts:41`.
   - Issue: assertion IDs and coverage rows are two hand-maintained lists.
   - Suggestion: derive IDs from a registry or add a `defineConformanceCoverage` helper that enforces uniqueness and completeness.

@@ -151,7 +151,40 @@ export interface AssertCoordinatorPipelineStoreConformanceOptions {
   createStore(): CoordinatorPipelineStore | Promise<CoordinatorPipelineStore>;
 }
 
-export const OLOS_CONFORMANCE_COVERAGE = [
+function defineConformanceCoverage<
+  const T extends readonly OlosConformanceCoverage[],
+>(coverage: T): T {
+  const known = new Set<string>(OLOS_CONFORMANCE_ASSERTION_IDS);
+  const mapped = new Set<string>();
+
+  for (const entry of coverage) {
+    if (!known.has(entry.id)) {
+      throw new Error(`unknown conformance assertion coverage id: ${entry.id}`);
+    }
+
+    if (mapped.has(entry.id)) {
+      throw new Error(
+        `duplicate conformance assertion coverage id: ${entry.id}`
+      );
+    }
+
+    mapped.add(entry.id);
+  }
+
+  const missing = OLOS_CONFORMANCE_ASSERTION_IDS.filter(
+    (id) => !mapped.has(id)
+  );
+
+  if (missing.length > 0) {
+    throw new Error(
+      `missing conformance assertion coverage ids: ${missing.join(", ")}`
+    );
+  }
+
+  return coverage;
+}
+
+export const OLOS_CONFORMANCE_COVERAGE = defineConformanceCoverage([
   {
     id: "CORE-STORE-001",
     level: "core",
@@ -896,7 +929,7 @@ export const OLOS_CONFORMANCE_COVERAGE = [
     status: "covered",
     testFile: "src/s3/http.test.ts",
   },
-] as const satisfies readonly OlosConformanceCoverage[];
+] as const satisfies readonly OlosConformanceCoverage[]);
 
 export function getOlosConformanceCoverage(
   id: OlosConformanceAssertionId

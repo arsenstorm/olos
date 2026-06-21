@@ -38,6 +38,18 @@ describe("conformance manifest", () => {
     }
   });
 
+  test("defines one coverage row for every assertion identifier", () => {
+    const covered = new Set(OLOS_CONFORMANCE_COVERAGE.map((entry) => entry.id));
+    const known = new Set(OLOS_CONFORMANCE_ASSERTION_IDS);
+
+    expect(
+      OLOS_CONFORMANCE_ASSERTION_IDS.filter((id) => !covered.has(id))
+    ).toEqual([]);
+    expect(
+      OLOS_CONFORMANCE_COVERAGE.filter((entry) => !known.has(entry.id))
+    ).toEqual([]);
+  });
+
   test("maps covered assertions to existing test files", () => {
     for (const entry of OLOS_CONFORMANCE_COVERAGE) {
       expect(coverageTestFileExists(entry.testFile)).toBe(true);
