@@ -707,6 +707,79 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(headObjectInputs).toEqual([]);
   });
 
+  test("rejects direct-public completion-hint payload fields", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
+      client: createTestS3Client(),
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
+      providerId: "s3_primary",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "live/session/v1080/3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const completionHintUrl =
+      "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete";
+
+    const unsafeObjectKey = await handle(
+      jsonRequest(completionHintUrl, {
+        objectKey: "../live/session/v1080/3810.m4s",
+      })
+    );
+
+    await expect(jsonResponseStatusAndBody(unsafeObjectKey)).resolves.toEqual({
+      body: {
+        error: {
+          message: "objectKey must be a safe relative object key",
+        },
+      },
+      status: 400,
+    });
+
+    const unsafeRouteSlotId = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/upload-slots/bad%20slot/complete",
+        {
+          objectKey: "live/session/v1080/3810.m4s",
+          committedAt: "2026-01-01T00:00:02.000Z",
+        }
+      )
+    );
+
+    await expect(jsonResponseStatusAndBody(unsafeRouteSlotId)).resolves.toEqual(
+      {
+        body: {
+          error: {
+            message: "slotId must be a non-empty URL-safe identifier",
+          },
+        },
+        status: 400,
+      }
+    );
+  });
+
   test("returns S3 route errors without swallowing base routes", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: [MEDIA_ORIGIN],
