@@ -74,7 +74,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: validate nested `UploadSlot`, `Commit`, `Cursor`, `UploadGrant`, and response summaries with existing validators where practical.
   - Verify: malformed response tests in runtime and S3 client suites.
 
-- [ ] Centralize route defaults and route construction.
+- [x] Centralize route defaults and route construction.
   - Locations: `olos/src/runtime/http.ts:53`, `:57`, `olos/src/s3/http.ts:76`, `olos/src/runtime/client.ts:327`, `:331`, `:338`, `olos/src/s3/client.ts:269`, `:278`.
   - Issue: server and client route strings are duplicated across runtime and S3 modules.
   - Suggestion: add internal constants/builders for session, live, S3 action, and completion-hint routes.
