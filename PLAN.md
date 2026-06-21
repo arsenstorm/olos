@@ -44,7 +44,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: extract internal route, parse, and response modules while keeping `createStoredS3CoordinatorRuntimeHandler` stable.
   - Verify: `bun --filter olos test src/s3/http.test.ts e2e/s3-http-pipeline.test.ts`.
 
-- [ ] Share slot issue payload parsing.
+- [x] Share slot issue payload parsing.
   - Locations: `olos/src/runtime/slot.ts:124`, `olos/src/s3/http.ts:677`.
   - Issue: runtime and S3 routes independently parse the same `RuntimeSlotIssuePayload`.
   - Suggestion: move the parser to one internal module and use it from both callers.

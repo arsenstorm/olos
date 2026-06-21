@@ -88,6 +88,34 @@ describe("stored S3 coordinator runtime handler", () => {
     ).toThrow("lateToleranceMs must be a non-negative number");
   });
 
+  test("rejects non-object S3 slot payloads", async () => {
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      bucket: S3_BUCKET,
+      client: createTestS3Client(),
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      store: createMemoryCoordinatorStore(),
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", 123)
+    );
+
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: { message: "S3 slot grant request must be a JSON object" },
+      },
+      status: 400,
+    });
+  });
+
   test("delegates runtime routes and issues S3 upload grants", async () => {
     const headObjectInputs: unknown[] = [];
     const notifiedCursors: Cursor[] = [];

@@ -43,8 +43,7 @@ import {
   S3_SESSION_ROUTE_SEGMENT,
   sessionRootPath,
 } from "../runtime/route";
-import type { RuntimeSlotIssuePayload } from "../runtime/slot-issue-payload";
-import { parseRuntimeSlotIssuePayloadRequest } from "../runtime/slot-issue-request-parser";
+import { parseSlotIssueRequest } from "../runtime/slot-issue-request-parser";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosErrorCode } from "../types/errors";
@@ -234,14 +233,19 @@ async function handleS3SlotGrant(
   sessionId: string,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
-  const parsed = await parseS3SlotGrantRequest(request);
+  const parsed = await parseSlotIssueRequest(
+    request,
+    invalid,
+    "invalid S3 slot grant request",
+    "S3 slot grant request"
+  );
 
   if (parsed.status === "invalid") {
     return jsonBadRequestResponse(parsed.message);
   }
 
   const result = await issueStoredS3CoordinatorUploadGrant({
-    ...parsed.payload,
+    ...parsed.value,
     additionalHeaders: options.additionalHeaders,
     bucket: options.bucket,
     client: options.client,
@@ -624,26 +628,6 @@ function s3Route(
 
 function invalidS3Route(message: string): InvalidS3Route {
   return { message, status: "invalid" };
-}
-
-async function parseS3SlotGrantRequest(
-  request: Request
-): Promise<S3HttpRequestParse<RuntimeSlotIssuePayload>> {
-  const parsed = await parseRuntimeSlotIssuePayloadRequest(
-    request,
-    invalid,
-    "invalid S3 slot grant request",
-    "S3 slot grant request"
-  );
-
-  if (parsed.status === "invalid") {
-    return parsed;
-  }
-
-  return {
-    payload: parsed.value,
-    status: "valid",
-  };
 }
 
 async function parseRecordRequest<Payload>(

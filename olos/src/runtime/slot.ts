@@ -11,10 +11,7 @@ import { errorMessage } from "./errors";
 import { rejectionStatus } from "./rejection-status";
 import { jsonErrorResponse, jsonResponse } from "./response";
 import type { RuntimeSlotIssuePayload } from "./slot-issue-payload";
-import {
-  parseRuntimeSlotIssuePayloadRequest,
-  type SlotIssueRequestParse,
-} from "./slot-issue-request-parser";
+import { parseSlotIssueRequest } from "./slot-issue-request-parser";
 export type RuntimeSlotIssueRequest = Request | RuntimeSlotIssuePayload;
 
 export interface IssueCoordinatorSlotFromRequestOptions {
@@ -50,13 +47,14 @@ type InvalidRuntimeCoordinatorSlotIssue = Extract<
   RuntimeCoordinatorSlotIssue,
   { status: "invalid" }
 >;
-type RuntimeSlotIssueRequestParse =
-  SlotIssueRequestParse<InvalidRuntimeCoordinatorSlotIssue>;
-
 export async function issueCoordinatorSlotFromRequest(
   options: IssueCoordinatorSlotFromRequestOptions
 ): Promise<RuntimeCoordinatorSlotIssue> {
-  const payload = await parseRequest(options.request);
+  const payload = await parseSlotIssueRequest(
+    options.request,
+    invalid,
+    "invalid slot issue request"
+  );
 
   if (payload.status === "invalid") {
     return payload;
@@ -87,16 +85,6 @@ export async function issueCoordinatorSlotFromRequest(
   } catch (error) {
     return invalid(errorMessage(error, "invalid slot issue request"));
   }
-}
-
-async function parseRequest(
-  request: RuntimeSlotIssueRequest
-): Promise<RuntimeSlotIssueRequestParse> {
-  return await parseRuntimeSlotIssuePayloadRequest(
-    request,
-    invalid,
-    "invalid slot issue request"
-  );
 }
 
 function invalid(message: string): InvalidRuntimeCoordinatorSlotIssue {

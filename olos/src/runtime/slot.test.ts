@@ -27,6 +27,22 @@ describe("runtime slot adapter", () => {
     expect(await result.response.json()).toEqual({ slot: result.slot });
   });
 
+  test("issues a slot from a direct payload object", async () => {
+    const result = await issueCoordinatorSlotFromRequest({
+      request: slotPayload(),
+      state: createEmptyCoordinatorState(),
+    });
+
+    expect(result.status).toBe("issued");
+
+    if (result.status !== "issued") {
+      throw new Error("expected issued slot");
+    }
+
+    expect(result.slot.slotId).toBe("slot_3810");
+    expect(result.state.slots).toHaveLength(1);
+  });
+
   test("returns invalid responses for malformed JSON requests", async () => {
     const result = await issueCoordinatorSlotFromRequest({
       request: slotRequest("{"),
