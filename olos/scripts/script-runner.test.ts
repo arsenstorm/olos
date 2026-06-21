@@ -57,3 +57,14 @@ test("runCommandAndCapture includes captured output in failure message", async (
     )
   ).rejects.toThrow("captured-stdout");
 });
+
+test("runCommandAndCapture truncates captured output in failure message", async () => {
+  const longOutput =
+    'process.stdout.write("a".repeat(2000)); process.stderr.write("b".repeat(2000)); process.exit(7);';
+
+  await expect(
+    runCommandAndCapture(process.execPath, ["--eval", longOutput], {
+      forwardOutput: false,
+    })
+  ).rejects.toThrow("output truncated to the last 1024 characters");
+});

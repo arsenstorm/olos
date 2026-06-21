@@ -99,8 +99,8 @@ function commandExitMessage(
 ): string {
   const base = `${command} ${args.join(" ")} exited with ${exitCode}`;
   const details = [
-    stdout && `stdout:\n${truncateCommandOutput(stdout)}`,
-    stderr && `stderr:\n${truncateCommandOutput(stderr)}`,
+    stdout && `stdout (tail):\n${truncateCommandOutput(stdout, "stdout")}`,
+    stderr && `stderr (tail):\n${truncateCommandOutput(stderr, "stderr")}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -108,7 +108,12 @@ function commandExitMessage(
   return `${base}${details ? `\n${details}` : ""}`;
 }
 
-function truncateCommandOutput(value: string): string {
+function truncateCommandOutput(value: string, streamName: string): string {
   const maxTailLength = 1024;
-  return value.length <= maxTailLength ? value : value.slice(-maxTailLength);
+  if (value.length <= maxTailLength) {
+    return value;
+  }
+
+  const marker = `${streamName} output truncated to the last ${maxTailLength} characters`;
+  return `${marker}\n${value.slice(-maxTailLength)}`;
 }
