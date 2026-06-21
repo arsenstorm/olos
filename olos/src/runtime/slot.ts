@@ -9,16 +9,12 @@ import type { OlosError } from "../types/errors";
 import type { UploadSlot } from "../types/upload-slot";
 import { errorMessage } from "./errors";
 import { rejectionStatus } from "./rejection-status";
-import { isRecord } from "./request-fields";
-import {
-  parseRuntimeJsonRequest,
-  type RuntimeJsonRequestParse,
-} from "./request-json";
 import { jsonErrorResponse, jsonResponse } from "./response";
+import type { RuntimeSlotIssuePayload } from "./slot-issue-payload";
 import {
-  parseRuntimeSlotIssuePayload,
-  type RuntimeSlotIssuePayload,
-} from "./slot-issue-payload";
+  parseSlotIssueRequest,
+  type SlotIssueRequestParse,
+} from "./slot-issue-request-parser";
 export type RuntimeSlotIssueRequest = Request | RuntimeSlotIssuePayload;
 
 export interface IssueCoordinatorSlotFromRequestOptions {
@@ -54,10 +50,8 @@ type InvalidRuntimeCoordinatorSlotIssue = Extract<
   RuntimeCoordinatorSlotIssue,
   { status: "invalid" }
 >;
-type RuntimeSlotIssueRequestParse = RuntimeJsonRequestParse<
-  RuntimeSlotIssuePayload,
-  InvalidRuntimeCoordinatorSlotIssue
->;
+type RuntimeSlotIssueRequestParse =
+  SlotIssueRequestParse<InvalidRuntimeCoordinatorSlotIssue>;
 
 export async function issueCoordinatorSlotFromRequest(
   options: IssueCoordinatorSlotFromRequestOptions
@@ -98,19 +92,11 @@ export async function issueCoordinatorSlotFromRequest(
 async function parseRequest(
   request: RuntimeSlotIssueRequest
 ): Promise<RuntimeSlotIssueRequestParse> {
-  return await parseRuntimeJsonRequest(
+  return await parseSlotIssueRequest(
     request,
-    parsePayload,
     invalid,
     "invalid slot issue request"
   );
-}
-
-function parsePayload(value: unknown): RuntimeSlotIssuePayload {
-  if (!isRecord(value)) {
-    throw new Error("slot issue request must be a JSON object");
-  }
-  return parseRuntimeSlotIssuePayload(value);
 }
 
 function invalid(message: string): InvalidRuntimeCoordinatorSlotIssue {
