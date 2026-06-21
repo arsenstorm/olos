@@ -86,7 +86,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: create an internal `createOlosError(code, message, details?)` helper and migrate one area at a time.
   - Verify: tests that assert rejection body shapes.
 
-- [ ] Reduce schema and validator drift.
+- [x] Reduce schema and validator drift.
   - Locations: `olos/src/schema.ts:212`, `:266`, `:311`, `:352`, `:367`, `:383`, `:398`, `:482`, `:506`, `olos/src/validation/**`.
   - Issue: JSON Schemas and runtime validators encode the same wire contracts independently.
   - Suggestion: add tests that run canonical valid and invalid payloads through both schema expectations and runtime validators. Consider schema-builder helpers for repeated primitives.

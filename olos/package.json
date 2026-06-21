@@ -98,6 +98,7 @@
     "prepublishOnly": "bun run publish:check"
   },
   "devDependencies": {
+    "ajv": "^8.17.1",
     "vitest": "^4.1.8"
   },
   "dependencies": {
