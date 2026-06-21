@@ -36,21 +36,18 @@ import type { OlosId } from "../types/ids";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
-import { assertCommit } from "../validation/commit";
-import { assertCursor } from "../validation/cursor";
-import {
-  assertIsoDateField,
-  assertUrlSafeField,
-  isRecord,
-} from "../validation/fields";
 import {
   assertNonNegativeSafeInteger,
   assertPositiveInteger,
 } from "../validation/ids";
 import type { ObservedUpload } from "../validation/observed-upload";
-import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
-import { assertUploadSlot } from "../validation/upload-slot";
+import {
+  cloneCoordinatorPipelineSnapshot as cloneCoordinatorPipelineSnapshotFromStore,
+  cloneCoordinatorPipelineState as cloneCoordinatorPipelineStateFromStore,
+  parseCoordinatorPipelineSnapshot as parseCoordinatorPipelineSnapshotFromStore,
+  serializeCoordinatorPipelineSnapshot as serializeCoordinatorPipelineSnapshotFromStore,
+} from "./coordinator-snapshot";
 import { runStoredCoordinatorMutationWithAdapters } from "./mutate-coordinator-store";
 
 export interface CoordinatorPublisherLease {
@@ -271,6 +268,30 @@ export function createCoordinatorPipeline(
   };
 }
 
+export function cloneCoordinatorPipelineSnapshot(
+  snapshot: CoordinatorPipelineSnapshot
+): CoordinatorPipelineSnapshot {
+  return cloneCoordinatorPipelineSnapshotFromStore(snapshot);
+}
+
+export function cloneCoordinatorPipelineState(
+  state: CoordinatorPipelineState
+): CoordinatorPipelineState {
+  return cloneCoordinatorPipelineStateFromStore(state);
+}
+
+export function parseCoordinatorPipelineSnapshot(
+  value: unknown
+): CoordinatorPipelineSnapshot {
+  return parseCoordinatorPipelineSnapshotFromStore(value);
+}
+
+export function serializeCoordinatorPipelineSnapshot(
+  snapshot: CoordinatorPipelineSnapshot
+): string {
+  return serializeCoordinatorPipelineSnapshotFromStore(snapshot);
+}
+
 export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
   const entries = new Map<string, CoordinatorPipelineSnapshot>();
 
@@ -279,7 +300,9 @@ export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
       const snapshot = entries.get(sessionId);
 
       return Promise.resolve(
-        snapshot === undefined ? undefined : cloneSnapshot(snapshot)
+        snapshot === undefined
+          ? undefined
+          : cloneCoordinatorPipelineSnapshotFromStore(snapshot)
       );
     },
     save(options) {
@@ -291,60 +314,31 @@ export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
 
       if (current !== undefined && options.expectedEtag === undefined) {
         return Promise.resolve(
-          conflictingCoordinatorStoreSave(cloneSnapshot(current))
+          conflictingCoordinatorStoreSave(
+            cloneCoordinatorPipelineSnapshotFromStore(current)
+          )
         );
       }
 
       if (current !== undefined && current.etag !== options.expectedEtag) {
         return Promise.resolve(
-          conflictingCoordinatorStoreSave(cloneSnapshot(current))
+          conflictingCoordinatorStoreSave(
+            cloneCoordinatorPipelineSnapshotFromStore(current)
+          )
         );
       }
 
       const snapshot = {
         etag: nextEtag(current),
-        state: cloneState(options.state),
+        state: cloneCoordinatorPipelineStateFromStore(options.state),
       };
       entries.set(options.sessionId, snapshot);
 
       return Promise.resolve({
         etag: snapshot.etag,
-        state: cloneState(snapshot.state),
+        state: cloneCoordinatorPipelineStateFromStore(snapshot.state),
         status: "saved" as const,
       });
-    },
-  };
-}
-
-export function cloneCoordinatorPipelineSnapshot(
-  snapshot: CoordinatorPipelineSnapshot
-): CoordinatorPipelineSnapshot {
-  return {
-    etag: snapshot.etag,
-    state: cloneCoordinatorPipelineState(snapshot.state),
-  };
-}
-
-export function cloneCoordinatorPipelineState(
-  state: CoordinatorPipelineState
-): CoordinatorPipelineState {
-  return {
-    ...state,
-    commits: state.commits.map((commit) => ({ ...commit })),
-    initCommits: state.initCommits.map((commit) => ({ ...commit })),
-    pathways: state.pathways.map((pathway) => ({ ...pathway })),
-    publisherLeases: (state.publisherLeases ?? []).map((lease) => ({
-      ...lease,
-    })),
-    slots: state.slots.map((slot) => ({ ...slot })),
-    ...(state.cursor === undefined
-      ? {}
-      : { cursor: cloneCursor(state.cursor) }),
-    session: {
-      ...state.session,
-      renditions: state.session.renditions.map((rendition) => ({
-        ...rendition,
-      })),
     },
   };
 }
@@ -359,22 +353,6 @@ export function createNextCoordinatorPipelineEtag(current?: string): string {
   assertNonNegativeSafeInteger(value, "coordinator pipeline etag");
 
   return String(value + 1);
-}
-
-export function serializeCoordinatorPipelineSnapshot(
-  snapshot: CoordinatorPipelineSnapshot
-): string {
-  return JSON.stringify(cloneCoordinatorPipelineSnapshot(snapshot));
-}
-
-export function parseCoordinatorPipelineSnapshot(
-  value: unknown
-): CoordinatorPipelineSnapshot {
-  const parsed = typeof value === "string" ? JSON.parse(value) : value;
-
-  assertCoordinatorPipelineSnapshot(parsed);
-
-  return cloneCoordinatorPipelineSnapshot(parsed);
 }
 
 export async function mutateCoordinatorPipeline(
@@ -960,161 +938,4 @@ function lastPartNumber(commits: readonly Commit[]): number | undefined {
 
 function nextEtag(current: CoordinatorPipelineSnapshot | undefined): string {
   return createNextCoordinatorPipelineEtag(current?.etag);
-}
-
-function cloneSnapshot(
-  snapshot: CoordinatorPipelineSnapshot
-): CoordinatorPipelineSnapshot {
-  return cloneCoordinatorPipelineSnapshot(snapshot);
-}
-
-function cloneState(state: CoordinatorPipelineState): CoordinatorPipelineState {
-  return cloneCoordinatorPipelineState(state);
-}
-
-function cloneCursor(cursor: Cursor): Cursor {
-  return {
-    ...cursor,
-    pathways: cursor.pathways.map((pathway) => ({ ...pathway })),
-  };
-}
-
-function assertCoordinatorPipelineSnapshot(
-  value: unknown
-): asserts value is CoordinatorPipelineSnapshot {
-  if (!isRecord(value)) {
-    throw new Error("coordinator pipeline snapshot must be an object");
-  }
-
-  if (typeof value.etag !== "string" || value.etag.length === 0) {
-    throw new Error(
-      "coordinator pipeline snapshot etag must be a non-empty string"
-    );
-  }
-
-  assertCoordinatorPipelineState(value.state);
-}
-
-function assertCoordinatorPipelineState(
-  value: unknown
-): asserts value is CoordinatorPipelineState {
-  if (!isRecord(value)) {
-    throw new Error("coordinator pipeline state must be an object");
-  }
-
-  assertSession(value.session);
-  assertPathways(value.pathways);
-  assertUploadSlots(value.slots);
-  assertCommits(value.initCommits, "coordinator pipeline state initCommits");
-  assertCommits(value.commits, "coordinator pipeline state commits");
-  if (value.publisherLeases !== undefined) {
-    assertPublisherLeases(value.publisherLeases);
-  }
-
-  if (value.cursor !== undefined && !isRecord(value.cursor)) {
-    throw new Error("coordinator pipeline state cursor must be an object");
-  }
-
-  if (value.cursor !== undefined) {
-    assertCursor(value.cursor);
-  }
-}
-
-function assertCommits(
-  value: unknown,
-  name: string
-): asserts value is readonly Commit[] {
-  assertArray(value, name);
-  value.forEach((entry, index) => {
-    try {
-      assertCommit(entry);
-    } catch (error) {
-      throw new Error(
-        `${name} must contain valid commit at index ${index}: ${
-          (error as Error).message
-        }`
-      );
-    }
-  });
-}
-
-function assertPathways(value: unknown): void {
-  assertArray(value, "coordinator pipeline state pathways");
-  value.forEach((pathway, index) => {
-    try {
-      assertPathway(pathway);
-    } catch (error) {
-      throw new Error(
-        `coordinator pipeline state pathways must contain valid pathway at index ${index}: ${
-          (error as Error).message
-        }`
-      );
-    }
-  });
-}
-
-function assertUploadSlots(value: unknown): void {
-  assertArray(value, "coordinator pipeline state slots");
-  value.forEach((slot, index) => {
-    try {
-      assertUploadSlot(slot);
-    } catch (error) {
-      throw new Error(
-        `coordinator pipeline state slots must contain valid uploadSlot at index ${index}: ${
-          (error as Error).message
-        }`
-      );
-    }
-  });
-}
-
-function assertPublisherLeases(
-  value: unknown
-): asserts value is readonly CoordinatorPublisherLease[] {
-  assertArray(value, "coordinator pipeline state publisherLeases");
-
-  value.forEach((entry, index) => {
-    if (!isRecord(entry)) {
-      throw new Error(
-        `coordinator pipeline state publisherLeases must contain an object at index ${index}`
-      );
-    }
-
-    assertIsoDateField(
-      entry,
-      "expiresAt",
-      "coordinator pipeline publisher lease"
-    );
-    assertIsoDateField(
-      entry,
-      "issuedAt",
-      "coordinator pipeline publisher lease"
-    );
-    assertIsoDateField(
-      entry,
-      "lastSeenAt",
-      "coordinator pipeline publisher lease"
-    );
-    assertUrlSafeField(
-      entry,
-      "publisherInstanceId",
-      "coordinator pipeline publisher lease"
-    );
-    assertUrlSafeField(
-      entry,
-      "sessionId",
-      "coordinator pipeline publisher lease"
-    );
-    assertUrlSafeField(
-      entry,
-      "tenantId",
-      "coordinator pipeline publisher lease"
-    );
-  });
-}
-
-function assertArray(value: unknown, name: string): void {
-  if (!Array.isArray(value)) {
-    throw new Error(`${name} must be an array`);
-  }
 }
