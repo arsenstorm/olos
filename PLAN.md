@@ -206,7 +206,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: preserve facades, group exports by concern, and update package smoke coverage when moving internals.
   - Verify: package export and smoke tests.
 
-- [ ] Document module-boundary expectations for tests.
+- [x] Document module-boundary expectations for tests.
   - Locations: `olos/e2e/**`, `olos/src/**`, `contributing/core/testing.md`.
   - Issue: E2E tests mostly use public `olos/*` imports while unit tests use internals, but the rule is implicit.
   - Suggestion: document when to use public subpaths versus internals.
