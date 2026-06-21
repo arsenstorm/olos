@@ -143,6 +143,14 @@ export function assertAbsoluteHttpUrl(
   name: string,
   options: AbsoluteHttpUrlOptions = {}
 ): void {
+  parseAbsoluteHttpUrl(value, name, options);
+}
+
+export function parseAbsoluteHttpUrl(
+  value: unknown,
+  name: string,
+  options: AbsoluteHttpUrlOptions = {}
+): URL {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`${name} must be an absolute HTTP(S) URL`);
   }
@@ -165,6 +173,8 @@ export function assertAbsoluteHttpUrl(
   ) {
     throw new Error(`${name} must not contain query strings or fragments`);
   }
+
+  return url;
 }
 
 export function isAllowedString<const T extends readonly string[]>(

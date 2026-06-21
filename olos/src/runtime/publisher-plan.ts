@@ -1,6 +1,7 @@
 import { PUBLICATION_MODES } from "../config/publication";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
+import { parseAbsoluteHttpUrl } from "../validation/fields";
 import {
   assertUrlSafeIdentifier,
   isNonNegativeInteger,
@@ -221,25 +222,15 @@ function isSegmentPublisherObjectPlan(
 }
 
 function createDeliveryUrl(baseUrl: string, objectKey: string): string {
-  const url = baseHttpUrl(baseUrl);
-
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("baseUrl must be an absolute HTTP(S) URL");
-  }
+  const url = parseAbsoluteHttpUrl(baseUrl, "baseUrl", {
+    allowQueryOrFragment: true,
+  });
 
   url.pathname = `${trimTrailingSlash(url.pathname)}/${objectKey}`;
   url.search = "";
   url.hash = "";
 
   return url.toString();
-}
-
-function baseHttpUrl(value: string): URL {
-  try {
-    return new URL(value);
-  } catch {
-    throw new Error("baseUrl must be an absolute HTTP(S) URL");
-  }
 }
 
 function assertOptionalUrlSafeIdentifier(
