@@ -26,7 +26,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: extract internal modules for state/store, mutation, commit, retention/manifest, and snapshot serialization; keep `protocol/coordinator.ts` as the export facade.
   - Verify: `bun --filter olos test src/protocol src/runtime src/s3` and `bun --filter olos conformance:check`.
 
-- [ ] Strengthen coordinator snapshot validation.
+- [x] Strengthen coordinator snapshot validation.
   - Locations: `olos/src/protocol/coordinator.ts:366`, `:970`, `:986`, `:1010`.
   - Issue: persisted snapshots validate array shape but not full contents of `pathways`, `slots`, `initCommits`, `commits`, `publisherLeases`, or `cursor`.
   - Suggestion: reuse validators such as `assertPathway`, `assertUploadSlot`, `assertCommit`, and `assertCursor` before cloning loaded state.
