@@ -3,6 +3,83 @@ import { assertUrlSafeIdentifier } from "../validation/ids";
 import { errorMessage } from "./errors";
 import { trimSlashes } from "./path";
 
+export const DEFAULT_LIVE_PATH = "/v1/live";
+export const DEFAULT_SESSION_PATH = "/sessions";
+
+export const SESSION_ROUTE_ACTIONS = {
+  commits: "commits",
+  health: "health",
+  heartbeat: "heartbeat",
+  retention: "retention",
+  slots: "slots",
+  transition: "transition",
+} as const;
+
+export const S3_ROUTE_ACTIONS = {
+  completionHint: "upload-slots",
+  commits: "commits",
+  events: "events",
+  reconcile: "reconcile",
+  reconcilePlan: "reconcile-plan",
+  retention: "retention",
+  slots: "slots",
+} as const;
+
+export const S3_SESSION_ROUTE_SEGMENT = "s3";
+const LIVE_MASTER_PLAYLIST_PATH = "master.m3u8";
+const LIVE_MEDIA_PLAYLIST_PATH = "media.m3u8";
+export const S3_COMPLETION_HINT_ACTION = "complete";
+
+export function sessionRootPath(sessionPath: string): string {
+  return normalizePath(sessionPath);
+}
+
+export function sessionRoutePath(
+  sessionPath: string,
+  sessionId: string,
+  action: string
+): string {
+  return `${sessionRootPath(sessionPath)}/${encodeURIComponent(sessionId)}/${action}`;
+}
+
+export function s3RoutePath(
+  sessionPath: string,
+  sessionId: string,
+  action: string
+): string {
+  return sessionRoutePath(
+    sessionPath,
+    sessionId,
+    `${S3_SESSION_ROUTE_SEGMENT}/${action}`
+  );
+}
+
+export function s3CompletionHintRoutePath(
+  sessionPath: string,
+  sessionId: string,
+  slotId: string
+): string {
+  return `${sessionRoutePath(sessionPath, sessionId, S3_ROUTE_ACTIONS.completionHint)}/${encodeURIComponent(
+    slotId
+  )}/${S3_COMPLETION_HINT_ACTION}`;
+}
+
+export function liveMasterPath(livePath: string, sessionId: string): string {
+  return `${sessionRootPath(livePath)}/${encodeURIComponent(
+    sessionId
+  )}/${LIVE_MASTER_PLAYLIST_PATH}`;
+}
+
+export function liveMediaPath(
+  livePath: string,
+  sessionId: string,
+  renditionId: string
+): string {
+  return `${sessionRootPath(livePath)}/${encodeURIComponent(
+    sessionId
+  )}/${encodeURIComponent(renditionId)}/${LIVE_MEDIA_PLAYLIST_PATH}`;
+}
+
 export function routeParts(
   pathname: string,
   routePath: string

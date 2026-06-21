@@ -34,7 +34,15 @@ import {
   jsonMethodNotAllowedResponse,
   jsonResponse,
 } from "../runtime/response";
-import { routeIdentifierError, routeParts } from "../runtime/route";
+import {
+  DEFAULT_SESSION_PATH,
+  routeIdentifierError,
+  routeParts,
+  S3_COMPLETION_HINT_ACTION,
+  S3_ROUTE_ACTIONS,
+  S3_SESSION_ROUTE_SEGMENT,
+  sessionRootPath,
+} from "../runtime/route";
 import type { RuntimeSlotIssuePayload } from "../runtime/slot-issue-payload";
 import { parseSlotIssueRequest } from "../runtime/slot-issue-request-parser";
 import type { Commit } from "../types/commit";
@@ -62,8 +70,6 @@ import {
   deleteRetiredS3CoordinatorObjects,
   type S3DeleteObjectClient,
 } from "./retention";
-
-const DEFAULT_SESSION_PATH = "/sessions";
 
 interface InvalidS3HttpRequestParse {
   message: string;
@@ -174,11 +180,11 @@ export function createStoredS3CoordinatorRuntimeHandler(
       return jsonBadRequestResponse(route.message);
     }
 
-    if (route.action === "slots") {
+    if (route.action === S3_ROUTE_ACTIONS.slots) {
       return await handleS3SlotGrant(request, route.sessionId, options);
     }
 
-    if (route.action === "commits") {
+    if (route.action === S3_ROUTE_ACTIONS.commits) {
       return await handleS3Commit(request, route.sessionId, options);
     }
 
@@ -191,11 +197,11 @@ export function createStoredS3CoordinatorRuntimeHandler(
       );
     }
 
-    if (route.action === "events") {
+    if (route.action === S3_ROUTE_ACTIONS.events) {
       return await handleS3Events(request, route.sessionId, options);
     }
 
-    if (route.action === "reconcile-plan") {
+    if (route.action === S3_ROUTE_ACTIONS.reconcilePlan) {
       return await handleS3ReconciliationPlan(
         request,
         route.sessionId,
@@ -203,7 +209,7 @@ export function createStoredS3CoordinatorRuntimeHandler(
       );
     }
 
-    if (route.action === "retention") {
+    if (route.action === S3_ROUTE_ACTIONS.retention) {
       return await handleS3Retention(request, route.sessionId, options);
     }
 
@@ -544,7 +550,7 @@ function s3Route(
   const url = new URL(request.url);
   const parts = routeParts(
     url.pathname,
-    options.sessionPath ?? DEFAULT_SESSION_PATH
+    sessionRootPath(options.sessionPath ?? DEFAULT_SESSION_PATH)
   );
 
   if (parts === undefined) {
@@ -555,13 +561,13 @@ function s3Route(
     return invalidS3Route("route path contains invalid percent encoding");
   }
 
-  const [sessionId, provider, action] = parts;
+  const [sessionId, provider, action, completion] = parts;
 
   if (
     sessionId !== undefined &&
-    provider === "upload-slots" &&
+    provider === S3_ROUTE_ACTIONS.completionHint &&
     action !== undefined &&
-    parts[3] === "complete" &&
+    completion === S3_COMPLETION_HINT_ACTION &&
     parts.length === 4
   ) {
     if (request.method !== "POST") {
@@ -590,13 +596,13 @@ function s3Route(
 
   if (
     sessionId === undefined ||
-    provider !== "s3" ||
-    (action !== "slots" &&
-      action !== "commits" &&
-      action !== "events" &&
-      action !== "reconcile-plan" &&
-      action !== "retention" &&
-      action !== "reconcile") ||
+    provider !== S3_SESSION_ROUTE_SEGMENT ||
+    (action !== S3_ROUTE_ACTIONS.slots &&
+      action !== S3_ROUTE_ACTIONS.commits &&
+      action !== S3_ROUTE_ACTIONS.events &&
+      action !== S3_ROUTE_ACTIONS.reconcilePlan &&
+      action !== S3_ROUTE_ACTIONS.retention &&
+      action !== S3_ROUTE_ACTIONS.reconcile) ||
     parts.length !== 3
   ) {
     return { status: "not_s3" };

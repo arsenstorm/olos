@@ -29,6 +29,14 @@ import {
   type RuntimePublisherLease,
 } from "./publisher-lease";
 import { nonNegativeInteger } from "./request-fields";
+import {
+  DEFAULT_LIVE_PATH,
+  DEFAULT_SESSION_PATH,
+  liveMasterPath,
+  liveMediaPath,
+  sessionRootPath,
+  sessionRoutePath,
+} from "./route";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
 export type RuntimeFetch = RuntimeHttpFetch;
@@ -286,9 +294,7 @@ export async function getRuntimeSessionRetentionPlan(
 export async function getRuntimeMasterPlaylist(
   options: RuntimeMasterPlaylistOptions
 ): Promise<RuntimePlaylistResponse> {
-  const response = await fetchFor(options)(
-    liveUrl(options, `${encodeURIComponent(options.sessionId)}/master.m3u8`)
-  );
+  const response = await fetchFor(options)(liveUrl(options));
 
   if (!response.ok) {
     throw await runtimeHttpError("master playlist", response);
@@ -303,12 +309,7 @@ export async function getRuntimeMasterPlaylist(
 export async function getRuntimeMediaPlaylist(
   options: RuntimeMediaPlaylistOptions
 ): Promise<RuntimePlaylistResponse> {
-  const url = liveUrl(
-    options,
-    `${encodeURIComponent(options.sessionId)}/${encodeURIComponent(
-      options.renditionId
-    )}/media.m3u8`
-  );
+  const url = liveUrl(options, options.renditionId);
 
   if (options.hlsMsn !== undefined) {
     nonNegativeInteger(options.hlsMsn, "hlsMsn");
@@ -333,22 +334,36 @@ export async function getRuntimeMediaPlaylist(
 }
 
 function sessionsUrl(baseUrl: string): URL {
-  return new URL("sessions", normalizedBaseUrl(baseUrl));
-}
-
-function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
   return new URL(
-    `sessions/${encodeURIComponent(sessionId)}/${action}`,
+    sessionRootPath(DEFAULT_SESSION_PATH),
     normalizedBaseUrl(baseUrl)
   );
 }
 
-function liveUrl(options: RuntimeMasterPlaylistOptions, path: string): URL {
+function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
+  return new URL(
+    sessionRoutePath(DEFAULT_SESSION_PATH, sessionId, action),
+    normalizedBaseUrl(baseUrl)
+  );
+}
+
+function liveUrl(
+  options: RuntimeMasterPlaylistOptions,
+  renditionId?: string
+): URL {
   const livePath = normalizedSafeRelativePath(
-    options.livePath ?? "v1/live",
+    options.livePath ?? DEFAULT_LIVE_PATH.slice(1),
     "livePath"
   );
-  return new URL(`${livePath}/${path}`, normalizedBaseUrl(options.baseUrl));
+
+  const relativePath =
+    renditionId === undefined
+      ? liveMasterPath(livePath, options.sessionId)
+      : liveMediaPath(livePath, options.sessionId, renditionId);
+  const requestPath =
+    relativePath[0] === "/" ? relativePath.slice(1) : relativePath;
+
+  return new URL(requestPath, normalizedBaseUrl(options.baseUrl));
 }
 
 async function runtimeHttpError(

@@ -12,6 +12,12 @@ import {
   requiredStringField,
   responseBody,
 } from "../runtime/http-client";
+import {
+  DEFAULT_SESSION_PATH,
+  S3_ROUTE_ACTIONS,
+  s3CompletionHintRoutePath,
+  s3RoutePath,
+} from "../runtime/route";
 import type { RuntimeSlotIssuePayload } from "../runtime/slot";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
@@ -169,7 +175,7 @@ export async function issueS3RuntimeUploadGrant(
   options: S3RuntimeIssueUploadGrantOptions
 ): Promise<S3RuntimeIssueUploadGrantResponse> {
   const response = await fetchFor(options)(
-    sessionUrl(options.baseUrl, options.sessionId, "s3/slots"),
+    sessionUrl(options.baseUrl, options.sessionId, `${S3_ROUTE_ACTIONS.slots}`),
     jsonPost(options.payload)
   );
 
@@ -205,7 +211,7 @@ export async function commitS3RuntimeUpload(
   options: S3RuntimeCommitUploadOptions
 ): Promise<S3RuntimeCommitUploadResponse> {
   const response = await fetchFor(options)(
-    sessionUrl(options.baseUrl, options.sessionId, "s3/commits"),
+    sessionUrl(options.baseUrl, options.sessionId, S3_ROUTE_ACTIONS.commits),
     jsonPost(options.payload)
   );
 
@@ -223,7 +229,11 @@ export async function planS3RuntimeReconciliation(
   options: S3RuntimePlanReconciliationOptions
 ): Promise<S3RuntimeReconciliationPlanResponse> {
   const response = await fetchFor(options)(
-    sessionUrl(options.baseUrl, options.sessionId, "s3/reconcile-plan"),
+    sessionUrl(
+      options.baseUrl,
+      options.sessionId,
+      S3_ROUTE_ACTIONS.reconcilePlan
+    ),
     jsonPost(options.payload ?? {})
   );
 
@@ -241,7 +251,7 @@ export async function reconcileS3RuntimeUploads(
   options: S3RuntimeReconcileUploadsOptions
 ): Promise<S3RuntimeReconcileUploadsResponse> {
   const response = await fetchFor(options)(
-    sessionUrl(options.baseUrl, options.sessionId, "s3/reconcile"),
+    sessionUrl(options.baseUrl, options.sessionId, S3_ROUTE_ACTIONS.reconcile),
     jsonPost(options.payload)
   );
 
@@ -259,7 +269,7 @@ export async function applyS3RuntimeRetention(
   options: S3RuntimeApplyRetentionOptions
 ): Promise<S3RuntimeApplyRetentionResponse> {
   const response = await fetchFor(options)(
-    sessionUrl(options.baseUrl, options.sessionId, "s3/retention"),
+    sessionUrl(options.baseUrl, options.sessionId, S3_ROUTE_ACTIONS.retention),
     jsonPost(options.payload)
   );
 
@@ -277,7 +287,7 @@ function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
   assertUrlSafeIdentifier(sessionId, "sessionId");
 
   return new URL(
-    `sessions/${encodeURIComponent(sessionId)}/${action}`,
+    s3RoutePath(DEFAULT_SESSION_PATH, sessionId, action),
     normalizedBaseUrl(baseUrl)
   );
 }
@@ -291,9 +301,7 @@ function completionUrl(
   assertUrlSafeIdentifier(slotId, "slotId");
 
   return new URL(
-    `sessions/${encodeURIComponent(sessionId)}/upload-slots/${encodeURIComponent(
-      slotId
-    )}/complete`,
+    s3CompletionHintRoutePath(DEFAULT_SESSION_PATH, sessionId, slotId),
     normalizedBaseUrl(baseUrl)
   );
 }

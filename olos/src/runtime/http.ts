@@ -36,7 +36,15 @@ import {
   jsonResponse,
 } from "./response";
 import { planStoredCoordinatorRetention } from "./retention";
-import { assertRoutePath, routeIdentifierError, routeParts } from "./route";
+import {
+  assertRoutePath,
+  DEFAULT_LIVE_PATH,
+  DEFAULT_SESSION_PATH,
+  routeIdentifierError,
+  routeParts,
+  SESSION_ROUTE_ACTIONS,
+  sessionRootPath,
+} from "./route";
 import {
   createStoredCoordinatorSession,
   heartbeatStoredCoordinatorPublisher,
@@ -50,11 +58,9 @@ import {
 } from "./stored";
 import { isStringLiteral } from "./string-literals";
 
-const DEFAULT_LIVE_PATH = "/v1/live";
 const DEFAULT_MAX_HEALTH_CURSOR_AGE_MS =
   createRuntimeObjectLowLatencyProfile().cursorMaxAgeMs;
 const DEFAULT_PUBLISHER_LEASE_TTL_MS = 3000;
-const DEFAULT_SESSION_PATH = "/sessions";
 const DEFAULT_TARGET_LATENCY = 3;
 const defaultRuntimeNow = () => new Date().toISOString();
 
@@ -158,7 +164,7 @@ async function handleStoredRuntimeRequest(
   const url = new URL(request.url);
   const sessionParts = routeParts(
     url.pathname,
-    options.sessionPath ?? DEFAULT_SESSION_PATH
+    sessionRootPath(options.sessionPath ?? DEFAULT_SESSION_PATH)
   );
 
   if (sessionParts === "invalid") {
@@ -173,7 +179,7 @@ async function handleStoredRuntimeRequest(
 
   const liveParts = routeParts(
     url.pathname,
-    options.livePath ?? DEFAULT_LIVE_PATH
+    sessionRootPath(options.livePath ?? DEFAULT_LIVE_PATH)
   );
 
   if (liveParts === "invalid") {
@@ -258,7 +264,7 @@ async function handlePostSessionActionRoute(
   action: string,
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
-  if (action === "slots") {
+  if (action === SESSION_ROUTE_ACTIONS.slots) {
     return (
       await issueStoredCoordinatorSlotFromRequest({
         maxAttempts: options.maxAttempts,
@@ -270,7 +276,7 @@ async function handlePostSessionActionRoute(
     ).response;
   }
 
-  if (action === "commits") {
+  if (action === SESSION_ROUTE_ACTIONS.commits) {
     const result = await commitStoredCoordinatorUploadFromRequest({
       commitPolicy: options.commitPolicy,
       lateToleranceMs: options.lateToleranceMs,
@@ -288,7 +294,7 @@ async function handlePostSessionActionRoute(
     return result.response;
   }
 
-  if (action === "transition") {
+  if (action === SESSION_ROUTE_ACTIONS.transition) {
     const parsed = await parseTransitionRequest(request);
 
     if (parsed.status === "invalid") {
@@ -305,7 +311,7 @@ async function handlePostSessionActionRoute(
     ).response;
   }
 
-  if (action === "heartbeat") {
+  if (action === SESSION_ROUTE_ACTIONS.heartbeat) {
     const parsed = await parseHeartbeatRequest(request);
 
     if (parsed.status === "invalid") {
@@ -333,7 +339,7 @@ async function handleGetSessionActionRoute(
   action: string,
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
-  if (action === "retention") {
+  if (action === SESSION_ROUTE_ACTIONS.retention) {
     return (
       await planStoredCoordinatorRetention({
         now: retentionNow(request, options),
@@ -343,7 +349,7 @@ async function handleGetSessionActionRoute(
     ).response;
   }
 
-  if (action === "health") {
+  if (action === SESSION_ROUTE_ACTIONS.health) {
     const snapshot = await options.store.load(sessionId);
 
     if (snapshot === undefined) {
