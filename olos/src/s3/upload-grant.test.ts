@@ -298,6 +298,18 @@ describe("s3 upload grants", () => {
     });
   });
 
+  test("accepts presigned URL fragments when matching slot paths", () => {
+    const presignedUrl =
+      "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc#upload";
+
+    const grant = createS3UploadGrant({
+      presignedUrl,
+      slot,
+    });
+
+    expect(grant.url).toBe(presignedUrl);
+  });
+
   test("rejects non-issued slots", () => {
     expect(() =>
       createS3UploadGrant({

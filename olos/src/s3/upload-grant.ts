@@ -7,6 +7,7 @@ import {
 } from "../state/upload-grant";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
+import { parseAbsoluteHttpUrl } from "../validation/fields";
 import { assertUploadSlot } from "../validation/upload-slot";
 import { assertS3BucketName } from "./bucket";
 import { assertPositiveExpiresInSeconds } from "./options";
@@ -51,7 +52,9 @@ function assertPresignedUrlMatchesSlot(
   options: CreateS3UploadGrantOptions
 ): void {
   const pathSegments = pathParts(
-    presignedHttpUrl(options.presignedUrl).pathname
+    parseAbsoluteHttpUrl(options.presignedUrl, "presignedUrl", {
+      allowQueryOrFragment: true,
+    }).pathname
   );
   const keySegments = pathParts(options.slot.objectKey);
 
@@ -65,22 +68,6 @@ function assertPresignedUrlMatchesSlot(
   }
 
   throw new Error("presignedUrl path must match uploadSlot.objectKey");
-}
-
-function presignedHttpUrl(value: string): URL {
-  let url: URL;
-
-  try {
-    url = new URL(value);
-  } catch {
-    throw new Error("presignedUrl must be an absolute HTTP(S) URL");
-  }
-
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("presignedUrl must be an absolute HTTP(S) URL");
-  }
-
-  return url;
 }
 
 function pathParts(value: string): string[] {
