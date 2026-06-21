@@ -58,10 +58,13 @@ import {
 } from "./stored";
 import { isStringLiteral } from "./string-literals";
 
+const DEFAULT_RUNTIME_OBJECT_LOW_LATENCY =
+  createRuntimeObjectLowLatencyProfile();
 const DEFAULT_MAX_HEALTH_CURSOR_AGE_MS =
-  createRuntimeObjectLowLatencyProfile().cursorMaxAgeMs;
-const DEFAULT_PUBLISHER_LEASE_TTL_MS = 3000;
-const DEFAULT_TARGET_LATENCY = 3;
+  DEFAULT_RUNTIME_OBJECT_LOW_LATENCY.cursorMaxAgeMs;
+const DEFAULT_PUBLISHER_LEASE_TTL_MS =
+  DEFAULT_RUNTIME_OBJECT_LOW_LATENCY.publisherLeaseTtlMs;
+const DEFAULT_TARGET_LATENCY = DEFAULT_RUNTIME_OBJECT_LOW_LATENCY.targetLatency;
 const defaultRuntimeNow = () => new Date().toISOString();
 
 interface InvalidRuntimeHttpRequestParse {
