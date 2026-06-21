@@ -134,7 +134,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: confirm whether tooling or future workspace packages require these settings. If not, remove or move them to a more specific config.
   - Verify: root and package type checks.
 
-- [ ] Extract shared large-test harnesses.
+- [x] Extract shared large-test harnesses.
   - Locations: `olos/src/s3/http.test.ts:1`, `:807`, `olos/src/s3/coordinator.test.ts:1`, `olos/e2e/s3-http-pipeline.test.ts:78`, `olos/e2e/object-store-flow.test.ts:116`, `olos/e2e/runtime-client-flow.test.ts:56`.
   - Issue: several important tests exceed 1,000 lines and define similar fake clients, payload builders, setup flows, and wait helpers.
   - Suggestion: create narrow helpers for S3 HTTP harnesses, object-store flow setup, fake S3 clients, and common payload builders. Keep assertions visible in tests.

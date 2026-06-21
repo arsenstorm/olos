@@ -36,8 +36,55 @@ const MEDIA_ORIGIN = "https://media.example.com";
 const S3_BUCKET = "media";
 const S3_GRANT_NOW = "2026-01-01T00:00:00.000Z";
 const S3_GRANT_TTL_SECONDS = 3;
+const RETENTION_OBJECT_SIZES = {
+  "live/session/v1080/3810.m4s": 98_304,
+  "live/session/v1080/3811.m4s": 98_304,
+  "live/session/v1080/3812.m4s": 98_304,
+  "live/session/v1080/init.mp4": 1024,
+} as const;
+
+interface S3HttpTestHarnessOptions {
+  failingDeleteKey?: string;
+  objectSizes?: Record<string, number>;
+}
+
+function createS3HttpTestHarness(options: S3HttpTestHarnessOptions = {}) {
+  const deleteInputs: unknown[] = [];
+  const headObjectInputs: unknown[] = [];
+  const store = createMemoryCoordinatorStore();
+  const handle = createStoredS3CoordinatorRuntimeHandler({
+    allowedMediaOrigins: [MEDIA_ORIGIN],
+    bucket: S3_BUCKET,
+    client: createTestS3Client(),
+    expiresInSeconds: S3_GRANT_TTL_SECONDS,
+    grantNow: () => S3_GRANT_NOW,
+    objectClient: createTestHeadObjectClient(
+      options.objectSizes ?? RETENTION_OBJECT_SIZES,
+      headObjectInputs
+    ),
+    retentionClient: createTestS3DeleteObjectClient(
+      deleteInputs,
+      options.failingDeleteKey
+    ),
+    store,
+  });
+
+  return { deleteInputs, handle, headObjectInputs, store };
+}
 
 describe("stored S3 coordinator runtime handler", () => {
+  test("creates S3 HTTP test harnesses with captured fake clients", async () => {
+    const { deleteInputs, handle, headObjectInputs, store } =
+      createS3HttpTestHarness();
+
+    expect(await store.load(session.sessionId)).toBeUndefined();
+    expect(deleteInputs).toEqual([]);
+    expect(headObjectInputs).toEqual([]);
+    expect(
+      await handle(new Request("https://edge.example.com/unknown"))
+    ).toBeInstanceOf(Response);
+  });
+
   test("rejects invalid S3 handler options", () => {
     const options = {
       allowedMediaOrigins: [MEDIA_ORIGIN],
@@ -3024,26 +3071,7 @@ describe("stored S3 coordinator runtime handler", () => {
   });
 
   test("executes S3 retention through the runtime route", async () => {
-    const deleteInputs: unknown[] = [];
-    const store = createMemoryCoordinatorStore();
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      bucket: S3_BUCKET,
-      client: createTestS3Client(),
-      expiresInSeconds: S3_GRANT_TTL_SECONDS,
-      grantNow: () => S3_GRANT_NOW,
-      objectClient: createTestHeadObjectClient(
-        {
-          "live/session/v1080/init.mp4": 1024,
-          "live/session/v1080/3810.m4s": 98_304,
-          "live/session/v1080/3811.m4s": 98_304,
-          "live/session/v1080/3812.m4s": 98_304,
-        },
-        []
-      ),
-      retentionClient: createTestS3DeleteObjectClient(deleteInputs),
-      store,
-    });
+    const { deleteInputs, handle } = createS3HttpTestHarness();
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
@@ -3111,28 +3139,8 @@ describe("stored S3 coordinator runtime handler", () => {
   });
 
   test("reports failed S3 retention deletes through the runtime route", async () => {
-    const deleteInputs: unknown[] = [];
-    const store = createMemoryCoordinatorStore();
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      bucket: S3_BUCKET,
-      client: createTestS3Client(),
-      expiresInSeconds: S3_GRANT_TTL_SECONDS,
-      grantNow: () => S3_GRANT_NOW,
-      objectClient: createTestHeadObjectClient(
-        {
-          "live/session/v1080/init.mp4": 1024,
-          "live/session/v1080/3810.m4s": 98_304,
-          "live/session/v1080/3811.m4s": 98_304,
-          "live/session/v1080/3812.m4s": 98_304,
-        },
-        []
-      ),
-      retentionClient: createTestS3DeleteObjectClient(
-        deleteInputs,
-        "live/session/v1080/3810.m4s"
-      ),
-      store,
+    const { deleteInputs, handle, store } = createS3HttpTestHarness({
+      failingDeleteKey: "live/session/v1080/3810.m4s",
     });
 
     await handle(
