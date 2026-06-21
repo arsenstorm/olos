@@ -19,6 +19,11 @@ import type { RuntimeSlotIssuePayload } from "./slot";
 
 const LEADING_DOTS_PATTERN = /^\.+/;
 
+// Publisher plan policies define where runtime-generated object keys and delivery
+// URLs are constructed. This is an internal generation boundary, distinct from
+// inbound public validation: we normalize prefixes/segments and build safe keys
+// from trusted publisher inputs.
+
 export interface CreateRuntimePublisherObjectPlanOptions {
   baseUrl: string;
   commitIdPrefix?: string;

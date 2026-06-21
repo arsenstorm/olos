@@ -1,6 +1,9 @@
 import type { MediaObjectKind } from "../types/media-object";
 import { hasControlCharacter } from "./fields";
 
+// Object-key policy for payload fields that identify S3/object storage locations.
+// These are treated as internal object names, so we reject traversal, query/frag,
+// control chars, and unsafe absolute/empty keys before any storage use.
 export function isSafeObjectKey(value: unknown): value is string {
   return typeof value === "string" && safeObjectKeyError(value) === undefined;
 }

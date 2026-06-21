@@ -8,6 +8,10 @@ import { assertS3BucketName } from "./bucket";
 
 const DEFAULT_S3_EVENT_CONTENT_TYPE = "application/octet-stream";
 
+// S3 event policy is the ingress boundary for external provider payloads. We
+// only trust normalized, decoded object keys and strict provider/bucket fields
+// before turning events into internal upload-normalization records.
+
 export interface NormalizeS3ObjectCreatedEventRecordOptions {
   contentType?: string;
   expectedBucket?: string;

@@ -1,5 +1,8 @@
 import { hasControlCharacter } from "./fields";
 
+// Delivery URL policy for externally visible manifest and media references.
+// The project permits only absolute HTTP(S) URLs or safe relative paths,
+// and forbids query strings, fragments, and control characters.
 export function assertSafeDeliveryUrl(value: unknown, name: string): void {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`${name} must be a non-empty string`);

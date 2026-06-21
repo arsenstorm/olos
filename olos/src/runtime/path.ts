@@ -1,5 +1,8 @@
 import { hasControlCharacter } from "../validation/fields";
 
+// Route/path policy is for URI/path parameters used by runtime and tests.
+// It rejects traversal and malformed segments; this is separate from storage
+// object-key validation.
 const URL_SCHEME_PREFIX = /^[A-Za-z][A-Za-z\d+.-]*:/;
 
 export function trimSlashes(value: string): string {
