@@ -86,6 +86,7 @@ export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
   bucket: string;
   client: S3Client;
   completionHintClock?: () => Date | string;
+  completionHintCommitId?: (slotId: string) => string;
   completionHintNow?: () => Date | string;
   expiresInSeconds: number;
   grantNow?: () => Date | string;
@@ -923,8 +924,18 @@ function createCompletionHintDefaults(
   return {
     committedAt: () =>
       completionHintTimestamp(resolveCompletionHintNow(options)),
-    commitId: completionHintCommitId,
+    commitId: resolveCompletionHintCommitId(options),
   };
+}
+
+function resolveCompletionHintCommitId(
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): (slotId: string) => string {
+  if (options.completionHintCommitId !== undefined) {
+    return options.completionHintCommitId;
+  }
+
+  return completionHintCommitId;
 }
 
 function resolveCompletionHintNow(
