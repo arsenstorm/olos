@@ -112,10 +112,21 @@ function assertRuntimeHandlerOptions(
 
   positiveAttempts(options.maxAttempts);
 
-  assertPositiveOption(options.targetLatency, "targetLatency");
-  assertPositiveOption(options.maxHealthCursorAgeMs, "maxHealthCursorAgeMs");
-  assertPositiveOption(options.publisherLeaseTtlMs, "publisherLeaseTtlMs");
-  assertNonNegativeOption(options.lateToleranceMs, "lateToleranceMs");
+  if (options.targetLatency !== undefined) {
+    positiveNumber(options.targetLatency, "targetLatency");
+  }
+
+  if (options.maxHealthCursorAgeMs !== undefined) {
+    positiveNumber(options.maxHealthCursorAgeMs, "maxHealthCursorAgeMs");
+  }
+
+  if (options.publisherLeaseTtlMs !== undefined) {
+    positiveNumber(options.publisherLeaseTtlMs, "publisherLeaseTtlMs");
+  }
+
+  if (options.lateToleranceMs !== undefined) {
+    nonNegativeNumber(options.lateToleranceMs, "lateToleranceMs");
+  }
 
   if (options.blockingReload !== undefined) {
     nonNegativeNumber(
@@ -157,21 +168,6 @@ function assertRoutePath(value: string, name: string): void {
 
   if (trimSlashes(value).split("/").some(isUnsafeRouteSegment)) {
     throw new Error(`${name} must be a safe route path`);
-  }
-}
-
-function assertPositiveOption(value: number | undefined, name: string): void {
-  if (value !== undefined) {
-    positiveNumber(value, name);
-  }
-}
-
-function assertNonNegativeOption(
-  value: number | undefined,
-  name: string
-): void {
-  if (value !== undefined) {
-    nonNegativeNumber(value, name);
   }
 }
 
