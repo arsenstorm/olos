@@ -178,7 +178,10 @@ export async function heartbeatStoredCoordinatorPublisher(
   options: HeartbeatStoredCoordinatorPublisherOptions
 ): Promise<StoredRuntimePublisherHeartbeat> {
   try {
-    assertHeartbeatOptions(options);
+    assertUrlSafeIdentifier(options.sessionId, "sessionId");
+    assertUrlSafeIdentifier(options.publisherInstanceId, "publisherInstanceId");
+    timestampMs(options.now, "now");
+    positiveNumber(options.ttlMs, "ttlMs");
 
     let lease: CoordinatorPublisherLease | undefined;
     const result = await mutateCoordinatorPipeline({
@@ -286,16 +289,6 @@ function isHeartbeatTerminalSessionState(
   state: SessionState
 ): state is HeartbeatTerminalSessionState {
   return isStringLiteral(state, HEARTBEAT_TERMINAL_SESSION_STATES);
-}
-
-function assertHeartbeatOptions(
-  options: HeartbeatStoredCoordinatorPublisherOptions
-): void {
-  assertUrlSafeIdentifier(options.sessionId, "sessionId");
-  assertUrlSafeIdentifier(options.publisherInstanceId, "publisherInstanceId");
-  timestampMs(options.now, "now");
-
-  positiveNumber(options.ttlMs, "ttlMs");
 }
 
 function assertSessionState(value: unknown): asserts value is SessionState {
