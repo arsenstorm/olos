@@ -5,6 +5,7 @@ import type {
   CoordinatorPipelineState,
   CoordinatorPipelineStore,
 } from "./coordinator";
+import { parseCoordinatorPipelineSnapshot } from "./coordinator-snapshot";
 
 type CoordinatorPipelineMutationResult = Awaited<
   ReturnType<CoordinatorPipelineStore["save"]>
@@ -113,6 +114,10 @@ export async function runStoredCoordinatorMutation<TAttempt, TResult>(
 ): Promise<TResult> {
   let snapshot = await options.store.load(options.sessionId);
 
+  if (snapshot !== undefined) {
+    snapshot = parseCoordinatorPipelineSnapshot(snapshot);
+  }
+
   if (snapshot === undefined) {
     return options.onMissing();
   }
@@ -143,7 +148,7 @@ export async function runStoredCoordinatorMutation<TAttempt, TResult>(
       return options.onConflict(undefined, attemptResult);
     }
 
-    snapshot = saved.current;
+    snapshot = parseCoordinatorPipelineSnapshot(saved.current);
   }
 
   return options.onExhausted(snapshot);

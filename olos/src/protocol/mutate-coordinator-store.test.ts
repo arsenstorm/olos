@@ -70,6 +70,99 @@ describe("runStoredCoordinatorMutation", () => {
     expect(result).toEqual({ outcome: "not_found" });
   });
 
+  test("rejects malformed current snapshots before mutating", async () => {
+    const store: CoordinatorPipelineStore = {
+      load: async () => ({
+        etag: "1",
+        state: {
+          ...createEmptyCoordinatorState(),
+          commits: [{}],
+        },
+      }),
+      save: async () => ({
+        status: "conflict",
+      }),
+    };
+
+    await expect(
+      runStoredCoordinatorMutation<Attempt, StoredMutationResult>({
+        attempts: 1,
+        mutate: () => ({
+          state: "invalid",
+        }),
+        sessionId: "session_1",
+        store,
+        decide: () => ({
+          status: "terminal",
+          result: {
+            outcome: "should-not-save",
+          },
+        }),
+        onMissing: () => ({
+          outcome: "not_found",
+        }),
+        onSaved: () => ({
+          outcome: "saved",
+        }),
+        onConflict: () => ({
+          outcome: "conflict",
+        }),
+        onExhausted: () => ({
+          outcome: "exhausted",
+        }),
+      })
+    ).rejects.toThrow(
+      "coordinator pipeline state commits must contain valid commit at index 0"
+    );
+  });
+
+  test("rejects malformed conflict snapshots before retrying", async () => {
+    const snapshot = {
+      etag: "1",
+      state: createEmptyCoordinatorState(),
+    };
+    const store: CoordinatorPipelineStore = {
+      load: async () => snapshot,
+      save: async () => ({
+        status: "conflict",
+        current: {
+          etag: "2",
+          state: {
+            ...createEmptyCoordinatorState(),
+            cursor: "not-a-cursor",
+          },
+        },
+      }),
+    };
+
+    await expect(
+      runStoredCoordinatorMutation<Attempt, StoredMutationResult>({
+        attempts: 2,
+        mutate: () => ({
+          state: "retrying",
+        }),
+        sessionId: "session_1",
+        store,
+        decide: () => ({
+          status: "save",
+          state: "retrying",
+        }),
+        onMissing: () => ({
+          outcome: "not_found",
+        }),
+        onSaved: () => ({
+          outcome: "saved",
+        }),
+        onConflict: () => ({
+          outcome: "conflict",
+        }),
+        onExhausted: () => ({
+          outcome: "exhausted",
+        }),
+      })
+    ).rejects.toThrow("coordinator pipeline state cursor must be an object");
+  });
+
   test("returns terminal attempt result without saving", async () => {
     const store = createMemoryCoordinatorStore();
     const saved = await store.save({
