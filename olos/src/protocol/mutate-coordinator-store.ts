@@ -23,7 +23,7 @@ type StoredMutationDecision<TResult> =
     }
   | {
       status: "terminal";
-      result: TResult;
+      result: Promise<TResult> | TResult;
     };
 
 export type MutationDecisionFunction<TAttempt, TResult> = (
@@ -146,7 +146,7 @@ export async function runStoredCoordinatorMutation<TAttempt, TResult>(
     const decision = options.decide(attemptResult, snapshot);
 
     if (decision.status === "terminal") {
-      return decision.result;
+      return await decision.result;
     }
 
     const saved = await options.store.save({
@@ -188,7 +188,9 @@ export async function runStoredCoordinatorMutationWithAdapters<
 
         return {
           status: "terminal",
-          result: options.mapTerminal(decision.result, attempt, snapshot),
+          result: Promise.resolve(decision.result).then((result) =>
+            options.mapTerminal?.(result, attempt, snapshot)
+          ) as Promise<TResult>,
         };
       }
 

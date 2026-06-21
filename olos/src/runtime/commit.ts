@@ -20,6 +20,10 @@ import { errorMessage } from "./errors";
 import type { RuntimeJsonRequestParse } from "./request-json";
 
 export type RuntimeCommitRequest = Request | RuntimeCommitPayload;
+export type {
+  ParsedObservedUploadPayload as RuntimeObservedUploadPayload,
+  RuntimeCommitPayload,
+} from "./commit-payload-parser";
 
 export interface CommitCoordinatorUploadFromRequestOptions {
   commitPolicy?: CoordinatorCommitPolicy;

@@ -107,7 +107,9 @@ describe("runStoredCoordinatorMutation", () => {
       throw new Error("expected maxAttempts validation failure");
     } catch (error) {
       expect(error).toBeInstanceOf(Error);
-      expect(error.message).toBe("maxAttempts must be a positive integer");
+      expect((error as Error).message).toBe(
+        "maxAttempts must be a positive integer"
+      );
     }
   });
 
@@ -159,7 +161,7 @@ describe("runStoredCoordinatorMutation", () => {
         state: {
           ...createEmptyCoordinatorState(),
           commits: [{}],
-        },
+        } as unknown as CoordinatorPipelineState,
       }),
       save: async () => ({
         status: "conflict",
@@ -212,7 +214,7 @@ describe("runStoredCoordinatorMutation", () => {
           state: {
             ...createEmptyCoordinatorState(),
             cursor: "not-a-cursor",
-          },
+          } as unknown as CoordinatorPipelineState,
         },
       }),
     };
@@ -227,7 +229,7 @@ describe("runStoredCoordinatorMutation", () => {
         store,
         decide: () => ({
           status: "save",
-          state: "retrying",
+          state: createEmptyCoordinatorState(),
         }),
         onMissing: () => ({
           outcome: "not_found",
@@ -299,20 +301,20 @@ describe("runStoredCoordinatorMutation", () => {
       }),
       save: (options) => {
         if (options.expectedEtag === "1") {
-          return {
+          return Promise.resolve({
             status: "conflict",
             current: {
               etag: "2",
               state: alternate,
             },
-          };
+          });
         }
 
-        return {
+        return Promise.resolve({
           etag: "3",
           state: options.state,
           status: "saved",
-        };
+        });
       },
     };
 
@@ -329,9 +331,9 @@ describe("runStoredCoordinatorMutation", () => {
           state: mutations === 1 ? "initial" : "after-conflict",
         };
       },
-      decide: (attempt) => ({
+      decide: () => ({
         status: "save",
-        state: attempt.state,
+        state: createEmptyCoordinatorState(),
       }),
       onConflict: () => ({
         outcome: "conflict",
@@ -379,7 +381,7 @@ describe("runStoredCoordinatorMutation", () => {
       store,
       decide: () => ({
         status: "save",
-        state: "retrying",
+        state: createEmptyCoordinatorState(),
       }),
       onMissing: () => ({
         outcome: "not_found",
@@ -428,7 +430,7 @@ describe("runStoredCoordinatorMutation", () => {
       store,
       decide: () => ({
         status: "save",
-        state: "retrying",
+        state: createEmptyCoordinatorState(),
       }),
       onMissing: () => ({
         outcome: "not_found",
@@ -513,7 +515,7 @@ describe("runStoredCoordinatorMutation", () => {
 
     let savedMapCalls = 0;
     const result = await runStoredCoordinatorMutationWithAdapters<
-      Attempt,
+      { readonly state: CoordinatorPipelineState },
       never,
       StoredMutationResult
     >({
@@ -606,7 +608,7 @@ describe("runStoredCoordinatorMutation", () => {
         store: conflictStore,
         decide: () => ({
           status: "save",
-          state: "retrying",
+          state: createEmptyCoordinatorState(),
         }),
         mapSaved: () => ({
           outcome: "unexpected-saved",
@@ -631,7 +633,7 @@ describe("runStoredCoordinatorMutation", () => {
         store: exhaustionStore,
         decide: () => ({
           status: "save",
-          state: "retrying",
+          state: createEmptyCoordinatorState(),
         }),
         mapSaved: () => ({
           outcome: "unexpected-saved",

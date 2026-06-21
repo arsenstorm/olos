@@ -90,6 +90,9 @@ type TerminalRuntimeCoordinatorUploadCommit = Extract<
   RuntimeCoordinatorUploadCommit,
   { status: "invalid" | "rejected" }
 >;
+type TerminalStoredRuntimeUploadCommit =
+  | TerminalRuntimeCoordinatorUploadCommit
+  | (IdempotentRuntimeCoordinatorUploadCommit & { etag: string });
 
 const TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES = [
   "invalid",
@@ -143,7 +146,11 @@ export async function serveStoredBlockingCoordinatorManifest(
 export async function issueStoredCoordinatorSlotFromRequest(
   options: IssueStoredCoordinatorSlotFromRequestOptions
 ): Promise<StoredRuntimeSlotIssue> {
-  return await runStoredCoordinatorMutationWithAdaptersAndResponse({
+  return await runStoredCoordinatorMutationWithAdaptersAndResponse<
+    RuntimeCoordinatorSlotIssue,
+    Exclude<RuntimeCoordinatorSlotIssue, { status: "issued" }>,
+    StoredRuntimeSlotIssue
+  >({
     maxAttempts: options.maxAttempts,
     mutate: async (state) =>
       await issueCoordinatorSlotFromRequest({
@@ -171,7 +178,11 @@ export async function issueStoredCoordinatorSlotFromRequest(
 export async function commitStoredCoordinatorUploadFromRequest(
   options: CommitStoredCoordinatorUploadFromRequestOptions
 ): Promise<StoredRuntimeUploadCommit> {
-  return await runStoredCoordinatorMutationWithAdaptersAndResponse({
+  return await runStoredCoordinatorMutationWithAdaptersAndResponse<
+    RuntimeCoordinatorUploadCommit,
+    TerminalStoredRuntimeUploadCommit,
+    StoredRuntimeUploadCommit
+  >({
     maxAttempts: options.maxAttempts,
     mutate: async (state) =>
       await commitCoordinatorUploadFromRequest({

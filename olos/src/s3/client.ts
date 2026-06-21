@@ -17,9 +17,10 @@ import {
   s3CompletionHintRoutePathFromOptions,
   s3RoutePathFromOptions,
 } from "../runtime/route";
-import type { RuntimeSlotIssuePayload } from "../runtime/slot";
+import type { RuntimeSlotIssuePayload } from "../runtime/slot-issue-payload";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
+import type { OlosErrorCode } from "../types/errors";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
 import {
@@ -486,10 +487,16 @@ function reconciliationPayload(
         };
       }
 
-      return {
-        slotId,
-        status,
-      };
+      if (status === "failed") {
+        return {
+          slotId,
+          status,
+        };
+      }
+
+      throw new Error(
+        `S3 reconciliation response results[${index}] status must be committed, idempotent, or failed`
+      );
     });
 
   const summary = requiredRecordField(
@@ -727,7 +734,7 @@ function summaryPayload(
     value,
     "failedErrorCodes",
     "S3 reconciliation response summary must include failedErrorCodes"
-  );
+  ) as readonly OlosErrorCode[];
   const failedSlotIds = stringArrayField(
     value,
     "failedSlotIds",
@@ -823,5 +830,5 @@ function stringArrayField(
     }
   }
 
-  return values;
+  return values as readonly OlosErrorCode[];
 }

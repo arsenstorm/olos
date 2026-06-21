@@ -22,8 +22,10 @@ const slot: UploadSlot = {
   publicationMode: "direct-public",
   publisherInstanceId: "pub_1",
   renditionId: "v1080",
+  sessionId: "session_1",
   slotId: "slot_3810",
   state: "issued",
+  tenantId: "tenant_1",
 };
 
 describe("runtime command response helpers", () => {
@@ -48,16 +50,16 @@ describe("runtime command response helpers", () => {
       commit: {
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
-        contentType: "video/mp4",
         deliveryUrl: "https://media.example.com/s3810.m4s",
         duration: 2,
         epoch: 0,
         independent: true,
-        kind: "segment",
         mediaSequenceNumber: 3810,
         objectKey: "media/s3810.m4s",
         providerId: "s3_primary",
+        publicationMode: "direct-public",
         renditionId: "v1080",
+        sessionId: "session_1",
         size: 98_304,
         slotId: "slot_3810",
       },

@@ -204,7 +204,7 @@ function assertPublisherLeases(
   });
 }
 
-function assertArray(value: unknown, name: string): void {
+function assertArray(value: unknown, name: string): asserts value is unknown[] {
   if (!Array.isArray(value)) {
     throw new Error(`${name} must be an array`);
   }

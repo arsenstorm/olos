@@ -1,3 +1,4 @@
+import { expect, test } from "bun:test";
 import { createCompletionHintDefaults } from "./completion-hint";
 
 test("uses the default completion-hint commitId prefix", () => {

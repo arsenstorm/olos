@@ -43,7 +43,10 @@ export function eventRouteResult(result: {
   error?: { error: StoredS3CoordinatorRouteError };
   auditEvent?: unknown;
 }): StoredS3CoordinatorEventRouteResponseResult {
-  if (isSuccessfulS3MutationResult(result)) {
+  if (
+    (result.status === "committed" || result.status === "idempotent") &&
+    result.commit !== undefined
+  ) {
     return {
       commit: result.commit,
       status: result.status,
@@ -58,9 +61,21 @@ export function eventRouteResult(result: {
   }
 
   if (result.status === "rejected") {
+    if (result.error === undefined) {
+      return {
+        error: { message: "S3 route rejected without error details" },
+        status: "rejected",
+      };
+    }
+
+    const rejected = {
+      auditEvent: result.auditEvent,
+      error: result.error,
+    };
+
     return {
-      ...rejectionBody(result),
-      error: result.error?.error as StoredS3CoordinatorRouteError,
+      ...rejectionBody(rejected),
+      error: result.error.error,
       status: "rejected",
     };
   }
@@ -69,7 +84,7 @@ export function eventRouteResult(result: {
 }
 
 export function rejectionBody(
-  result: { error: { error: Record<string, unknown> } } & {
+  result: { error: { error: StoredS3CoordinatorRouteError } } & {
     auditEvent?: unknown;
   }
 ): Record<string, unknown> {
@@ -82,7 +97,7 @@ export function rejectionBody(
 }
 
 export function summarizeReconciliationResult(result: {
-  status: "failed" | "succeeded";
+  status: "not_found" | "reconciled";
   results: StoredS3CoordinatorUploadReconciliationResult[];
 }): StoredS3CoordinatorReconciliationResponse["summary"] {
   return summarizeStoredS3CoordinatorUploadReconciliation(result);

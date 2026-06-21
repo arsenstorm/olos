@@ -6,6 +6,10 @@ import {
 import { createTestS3DeleteObjectClient } from "../src/s3/test-delete-client.test-helper";
 
 type ObjectSizeResolver = (objectKey: string) => number | undefined;
+type ObjectSizeFixtures =
+  | ReadonlyMap<string, number>
+  | Record<string, number>
+  | ObjectSizeResolver;
 
 export function createTestS3Client(): ReturnType<
   typeof createSourceTestS3Client
@@ -21,15 +25,27 @@ export function createTestHeadObjectClient(
 }
 
 export function createTestHeadObjectClientFor(
-  first: unknown[] | Record<string, number> | ObjectSizeResolver,
-  second: unknown[] | Record<string, number> | ObjectSizeResolver
+  first: unknown[] | ObjectSizeFixtures,
+  second: unknown[] | ObjectSizeFixtures
 ): S3HeadObjectClient {
   const inputs = Array.isArray(first) ? first : (second as unknown[]);
   const sizes = Array.isArray(first)
-    ? (second as Record<string, number> | ObjectSizeResolver)
-    : (first as Record<string, number> | ObjectSizeResolver);
+    ? toObjectSizeResolver(second as ObjectSizeFixtures)
+    : toObjectSizeResolver(first as ObjectSizeFixtures);
 
   return createSourceTestHeadObjectClientFor(inputs, sizes);
+}
+
+function toObjectSizeResolver(sizes: ObjectSizeFixtures): ObjectSizeResolver {
+  if (typeof sizes === "function") {
+    return sizes;
+  }
+
+  if (sizes instanceof Map) {
+    return (objectKey) => sizes.get(objectKey);
+  }
+
+  return (objectKey) => sizes[objectKey];
 }
 
 export function createTestDeleteObjectClient(

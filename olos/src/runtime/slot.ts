@@ -16,6 +16,7 @@ import { errorMessage } from "./errors";
 import type { RuntimeSlotIssuePayload } from "./slot-issue-payload";
 import { parseSlotIssueRequest } from "./slot-issue-request-parser";
 export type RuntimeSlotIssueRequest = Request | RuntimeSlotIssuePayload;
+export type { RuntimeSlotIssuePayload } from "./slot-issue-payload";
 
 export interface IssueCoordinatorSlotFromRequestOptions {
   publicationControl?: PublicationControlPolicy;

@@ -10,6 +10,7 @@ import {
   type CoordinatorManifestArtifacts,
   type CoordinatorPipelineSnapshot,
   type CoordinatorPipelineStore,
+  type CoordinatorSlotIssue,
   type CoordinatorUploadCommit,
   type CreateCoordinatorManifestArtifactsOptions,
   commitCoordinatorUpload,
@@ -273,7 +274,11 @@ export async function issueStoredS3CoordinatorUploadGrant(
     };
   }
 
-  return runStoredCoordinatorMutationWithAdaptersAndResponse({
+  return runStoredCoordinatorMutationWithAdaptersAndResponse<
+    CoordinatorSlotIssue,
+    never,
+    StoredS3CoordinatorUploadGrantIssue
+  >({
     maxAttempts,
     mutate: async (state) =>
       issueCoordinatorSlot({
@@ -367,7 +372,11 @@ export async function commitStoredS3CoordinatorUpload(
   options: CommitStoredS3CoordinatorUploadOptions
 ): Promise<StoredS3CoordinatorUploadCommit> {
   const { manifest, maxAttempts, sessionId, store, ...commitOptions } = options;
-  return await runStoredCoordinatorMutationWithAdaptersAndResponse({
+  return await runStoredCoordinatorMutationWithAdaptersAndResponse<
+    CoordinatorUploadCommit,
+    StoredS3CoordinatorUploadCommit,
+    StoredS3CoordinatorUploadCommit
+  >({
     maxAttempts,
     mutate: async (state) =>
       await commitS3CoordinatorUpload({
