@@ -140,7 +140,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: create narrow helpers for S3 HTTP harnesses, object-store flow setup, fake S3 clients, and common payload builders. Keep assertions visible in tests.
   - Verify: migrate one suite at a time and run it before broad E2E.
 
-- [ ] Normalize test-helper naming and discovery.
+- [x] Normalize test-helper naming and discovery.
   - Locations: `olos/src/s3/test-client.test-helper.ts`, `olos/src/s3/test-client-helper.test.ts`, `olos/src/s3/test-delete-client.test-helper.ts`, `olos/src/s3/test-delete-client-helper.test.ts`, `olos/src/runtime/test-fetch.test-helper.ts`, `olos/src/runtime/test-fetch-helper.test.ts`, `olos/scripts/test-file-shape.test.ts:9`.
   - Issue: helper modules and companion tests are easy to confuse.
   - Suggestion: document the pattern or move helpers into a clear test-helper directory with matching discovery rules.

@@ -37,16 +37,33 @@ describe("test file shape", () => {
 
     expect(badHelperTestFiles).toEqual([]);
   });
+
+  test("keeps test helper modules out of test discovery", async () => {
+    const sourceFiles = await listSourceFiles(packageRoot);
+    const badHelperModules = sourceFiles
+      .filter(
+        (file) =>
+          file.endsWith(".test-helper.ts") &&
+          !file.endsWith(".test-helper.test.ts")
+      )
+      .filter((file) => file.endsWith(".test.ts"));
+
+    expect(badHelperModules).toEqual([]);
+  });
 });
 
 async function listTestFiles(root: string): Promise<string[]> {
+  const sourceFiles = await listSourceFiles(root);
+
+  return sourceFiles.filter((file) => file.endsWith(".test.ts"));
+}
+
+async function listSourceFiles(root: string): Promise<string[]> {
   const roots = [join(root, "scripts"), join(root, "src")];
   const testFiles = await Promise.all(
     roots.map(async (directory) =>
       (await listDirectoryEntries(directory))
-        .filter(
-          (entry) => entry.isFile && entry.relativePath.endsWith(".test.ts")
-        )
+        .filter((entry) => entry.isFile && entry.relativePath.endsWith(".ts"))
         .map((entry) => entry.absolutePath)
     )
   );

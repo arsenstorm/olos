@@ -113,8 +113,12 @@ bun run build
 - Practical rule:
   - Use local modules for one-off helpers and shared helpers only when reused
     inside the same layer.
-  - For reusable unit helpers, keep files near the consuming layer, such as
-    `*/test-*.test-helper.ts` or `*/*-fixtures.ts`.
+  - Name reusable unit helper modules `*.test-helper.ts`.
+  - Name companion tests for those helpers `*.test-helper.test.ts`.
+  - Avoid names like `*-helper.test.ts`, which look like helper modules but are
+    discovered as tests.
+  - For reusable fixtures that are not helper modules, use explicit names such
+    as `*/*-fixtures.ts`.
 - Keep helpers in the same test scope as the behavior they support; avoid moving
   source helpers into `olos/src` when the helper only exists for a single
   suite.
