@@ -182,7 +182,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: add a focused test for unsafe delivery URL, unsafe object key, completion-hint URL rejection, and committed delivery URL provenance.
   - Verify: S3 HTTP and direct-public policy tests.
 
-- [ ] Clarify object key, delivery URL, media URI, and route path policies.
+- [x] Clarify object key, delivery URL, media URI, and route path policies.
   - Locations: `olos/src/validation/object-key.ts`, `olos/src/validation/delivery-url.ts`, `olos/src/hls/uri.ts`, `olos/src/runtime/path.ts`, `olos/src/runtime/publisher-plan.ts`, `olos/src/s3/event.ts:111`.
   - Issue: these policies are distinct and security-sensitive, but the distinction is mostly implicit in tests and names.
   - Suggestion: add brief module-level comments or a contributing guide section describing each policy boundary.
