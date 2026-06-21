@@ -1,8 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import type { CoordinatorPipelineStore } from "./coordinator";
 import { createMemoryCoordinatorStore } from "./coordinator";
-import { createEmptyCoordinatorState } from "./coordinator-state.test-helper";
-import { runStoredCoordinatorMutation } from "./mutate-coordinator-store";
+import {
+  createCoordinatorStateWithIssuedSegment,
+  createEmptyCoordinatorState,
+} from "./coordinator-state.test-helper";
+import {
+  runStoredCoordinatorMutation,
+  runStoredCoordinatorMutationWithAdapters,
+} from "./mutate-coordinator-store";
 
 interface Attempt {
   readonly state: string;
@@ -259,5 +265,102 @@ describe("runStoredCoordinatorMutation", () => {
 
     expect(result).toEqual({ outcome: "conflict" });
     expect(conflictCalls).toBe(1);
+  });
+
+  test("maps terminal results through adapter helper", async () => {
+    const store = createMemoryCoordinatorStore();
+    const saved = await store.save({
+      sessionId: "session_1",
+      state: createEmptyCoordinatorState(),
+    });
+
+    expect(saved.status).toBe("saved");
+
+    let terminalMapCalls = 0;
+    const result = await runStoredCoordinatorMutationWithAdapters<
+      Attempt,
+      Attempt,
+      StoredMutationResult
+    >({
+      attempts: 3,
+      mutate: () => ({
+        state: "terminal",
+      }),
+      sessionId: "session_1",
+      store,
+      decide: (attempt) => ({
+        status: "terminal",
+        result: attempt,
+      }),
+      mapTerminal: (attempt) => {
+        terminalMapCalls += 1;
+
+        return {
+          outcome: `terminal:${attempt.state}`,
+        };
+      },
+      onMissing: () => ({
+        outcome: "not_found",
+      }),
+      mapSaved: () => ({
+        outcome: "unexpected-saved",
+      }),
+      onConflict: () => ({
+        outcome: "conflict",
+      }),
+      onExhausted: () => ({
+        outcome: "exhausted",
+      }),
+    });
+
+    expect(result).toEqual({ outcome: "terminal:terminal" });
+    expect(terminalMapCalls).toBe(1);
+  });
+
+  test("maps saved attempts through adapter helper", async () => {
+    const store = createMemoryCoordinatorStore();
+    const saved = await store.save({
+      sessionId: "session_1",
+      state: createCoordinatorStateWithIssuedSegment(),
+    });
+
+    expect(saved.status).toBe("saved");
+
+    let savedMapCalls = 0;
+    const result = await runStoredCoordinatorMutationWithAdapters<
+      Attempt,
+      never,
+      StoredMutationResult
+    >({
+      attempts: 2,
+      mutate: () => ({
+        state: createCoordinatorStateWithIssuedSegment(),
+      }),
+      sessionId: "session_1",
+      store,
+      decide: (attempt) => ({
+        status: "save",
+        state: attempt.state,
+      }),
+      mapSaved: (savedAttempt) => {
+        savedMapCalls += 1;
+
+        return {
+          outcome: `saved:${savedAttempt.etag}`,
+        };
+      },
+      onMissing: () => ({
+        outcome: "not_found",
+      }),
+      onConflict: () => ({
+        outcome: "conflict",
+      }),
+      onExhausted: () => ({
+        outcome: "exhausted",
+      }),
+    });
+
+    expect(result).toEqual({ outcome: "saved:2" });
+    expect(savedMapCalls).toBe(1);
   });
 });

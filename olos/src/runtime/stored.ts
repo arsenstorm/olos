@@ -3,7 +3,7 @@ import type {
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineStore,
 } from "../protocol";
-import { runStoredCoordinatorMutation } from "../protocol/mutate-coordinator-store";
+import { runStoredCoordinatorMutationWithAdapters } from "../protocol/mutate-coordinator-store";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosId } from "../types/ids";
 import { positiveAttempts } from "./attempts";
@@ -146,7 +146,7 @@ export async function issueStoredCoordinatorSlotFromRequest(
 ): Promise<StoredRuntimeSlotIssue> {
   const attempts = positiveAttempts(options.maxAttempts);
 
-  return await runStoredCoordinatorMutation({
+  return await runStoredCoordinatorMutationWithAdapters({
     attempts,
     mutate: async (state) =>
       await issueCoordinatorSlotFromRequest({
@@ -160,8 +160,9 @@ export async function issueStoredCoordinatorSlotFromRequest(
       isIssuedRuntimeCoordinatorSlotIssue(issued)
         ? { status: "save", state: issued.state }
         : { status: "terminal", result: issued },
+    mapTerminal: (issued) => issued,
     onMissing: () => notFound(),
-    onSaved: (saved, attempt) => ({
+    mapSaved: (saved, attempt) => ({
       ...(attempt as IssuedRuntimeCoordinatorSlotIssue),
       etag: saved.etag,
       state: saved.state,
@@ -176,7 +177,7 @@ export async function commitStoredCoordinatorUploadFromRequest(
 ): Promise<StoredRuntimeUploadCommit> {
   const attempts = positiveAttempts(options.maxAttempts);
 
-  return await runStoredCoordinatorMutation({
+  return await runStoredCoordinatorMutationWithAdapters({
     attempts,
     mutate: async (state) =>
       await commitCoordinatorUploadFromRequest({
@@ -205,8 +206,9 @@ export async function commitStoredCoordinatorUploadFromRequest(
 
       return { status: "save", state: committed.state };
     },
+    mapTerminal: (committed) => committed,
     onMissing: () => notFound(),
-    onSaved: (saved, attempt) => ({
+    mapSaved: (saved, attempt) => ({
       ...(attempt as RuntimeCoordinatorUploadCommit),
       etag: saved.etag,
       state: saved.state,

@@ -20,7 +20,7 @@ import type {
   CoordinatorPipelineState,
   IssueCoordinatorSlotOptions,
 } from "../protocol/coordinator";
-import { runStoredCoordinatorMutation } from "../protocol/mutate-coordinator-store";
+import { runStoredCoordinatorMutationWithAdapters } from "../protocol/mutate-coordinator-store";
 import { positiveAttempts } from "../runtime/attempts";
 import type { UploadEventNormalization } from "../state/observed-upload";
 import {
@@ -275,7 +275,7 @@ export async function issueStoredS3CoordinatorUploadGrant(
     };
   }
 
-  return runStoredCoordinatorMutation({
+  return runStoredCoordinatorMutationWithAdapters({
     attempts,
     mutate: async (state) =>
       issueCoordinatorSlot({
@@ -289,7 +289,7 @@ export async function issueStoredS3CoordinatorUploadGrant(
     sessionId,
     store,
     onMissing: () => missingStoredS3CoordinatorUploadGrantIssue(),
-    onSaved: async (saved, attempt) => {
+    mapSaved: async (saved, attempt) => {
       const grant = await createPresignedS3UploadGrant({
         additionalHeaders,
         bucket,
@@ -372,7 +372,7 @@ export async function commitStoredS3CoordinatorUpload(
   const { manifest, maxAttempts, sessionId, store, ...commitOptions } = options;
   const attempts = positiveAttempts(maxAttempts);
 
-  return await runStoredCoordinatorMutation({
+  return await runStoredCoordinatorMutationWithAdapters({
     attempts,
     mutate: async (state) =>
       await commitS3CoordinatorUpload({
@@ -405,7 +405,8 @@ export async function commitStoredS3CoordinatorUpload(
       return { status: "save", state: commit.state };
     },
     onMissing: () => missingStoredS3CoordinatorUploadCommit(),
-    onSaved: (saved, commit) =>
+    mapTerminal: (commit) => commit,
+    mapSaved: (saved, commit) =>
       withManifest(
         {
           ...commit,

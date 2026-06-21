@@ -51,7 +51,7 @@ import type { ObservedUpload } from "../validation/observed-upload";
 import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
 import { assertUploadSlot } from "../validation/upload-slot";
-import { runStoredCoordinatorMutation } from "./mutate-coordinator-store";
+import { runStoredCoordinatorMutationWithAdapters } from "./mutate-coordinator-store";
 
 export interface CoordinatorPublisherLease {
   expiresAt: string;
@@ -377,29 +377,33 @@ export function parseCoordinatorPipelineSnapshot(
   return cloneCoordinatorPipelineSnapshot(parsed);
 }
 
-export function mutateCoordinatorPipeline(
+export async function mutateCoordinatorPipeline(
   options: MutateCoordinatorPipelineOptions
 ): Promise<CoordinatorPipelineMutation> {
   const attempts = positiveMutationAttempts(options.maxAttempts);
 
-  return runStoredCoordinatorMutation({
+  const result = await runStoredCoordinatorMutationWithAdapters<
+    { state: CoordinatorPipelineState },
+    never,
+    CoordinatorPipelineMutation
+  >({
     attempts,
     mutate: async (state) => ({
       state: await options.mutate(state),
     }),
     sessionId: options.sessionId,
     store: options.store,
-    decide(attempt) {
-      return { state: attempt.state, status: "save" };
-    },
+    decide: (attempt) => ({ status: "save", state: attempt.state }),
     onMissing: () => missingCoordinatorPipelineMutation(),
-    onSaved: (saved) => saved,
+    mapSaved: (saved) => saved,
     onConflict: (current) =>
       current === undefined
         ? { status: "conflict" }
         : conflictingCoordinatorPipelineMutation(current),
     onExhausted: (snapshot) => conflictingCoordinatorPipelineMutation(snapshot),
   });
+
+  return result;
 }
 
 function conflictingCoordinatorStoreSave(
