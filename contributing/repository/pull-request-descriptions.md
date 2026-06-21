@@ -55,6 +55,14 @@ bun run build
 Use Notes for rollout order, follow-ups, API compatibility concerns, generated
 fixture updates, or anything else a reviewer should know.
 
+For public-facing cleanup, state the compatibility intent explicitly:
+
+- Write `Public behavior unchanged` when the change preserves public APIs, wire
+  formats, package exports, conformance assertion IDs, security behavior, and
+  README examples.
+- If public behavior changes, describe the compatibility impact and link the
+  matching README, changelog, release-note, or migration update.
+
 ## Title format
 
 Use:

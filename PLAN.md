@@ -272,7 +272,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: keep or expand checks for cloning, conflict current snapshots, missing updates, duplicate inserts, and conditional saves.
   - Verify: serialized-store, SQLite-store, and conformance tests.
 
-- [ ] Record compatibility intent for every public-facing cleanup.
+- [x] Record compatibility intent for every public-facing cleanup.
   - Locations: `CHANGELOG.md`, `olos/README.md`, `contributing/repository/releases.md`.
   - Issue: most maintainability work should be behavior-preserving, but any behavior change must be explicit.
   - Suggestion: in commits/PRs, state whether public behavior is unchanged. Update docs/changelog when behavior changes.

@@ -108,6 +108,10 @@ Every release should include notes that cover:
 
 Keep release notes focused on user-visible behavior. Internal refactors only
 need mention when they affect package users, conformance, or deployment.
+Behavior-preserving public-facing cleanups can stay out of the changelog only
+when their pull request or commit explicitly states `Public behavior unchanged`.
+Any cleanup that changes public behavior must update the README, changelog, or
+release notes before release.
 
 Do not publish from the repository root. It is a private workspace wrapper, not
 the package.

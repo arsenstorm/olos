@@ -78,4 +78,25 @@ describe("release documentation", () => {
       "Pass the npm package version, not the git tag name"
     );
   });
+
+  test("documents compatibility intent for public-facing cleanup", () => {
+    const pullRequests = readFileSync(
+      new URL(
+        "../../contributing/repository/pull-request-descriptions.md",
+        import.meta.url
+      ),
+      "utf8"
+    );
+    const releases = readFileSync(
+      new URL("../../contributing/repository/releases.md", import.meta.url),
+      "utf8"
+    );
+
+    expect(pullRequests).toContain("state the compatibility intent explicitly");
+    expect(pullRequests).toContain("Public behavior unchanged");
+    expect(releases).toContain(
+      "Behavior-preserving public-facing cleanups can stay out of the changelog"
+    );
+    expect(releases).toContain("Any cleanup that changes public behavior");
+  });
 });
