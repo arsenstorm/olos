@@ -325,4 +325,35 @@ describe("HLS blocking reload", () => {
       status: "timeout",
     });
   });
+
+  test("uses injected sleep for blocking wait timeout", async () => {
+    let sleepCalls = 0;
+
+    const result = await waitForHlsBlockingReload({
+      cursor,
+      request: {
+        mediaSequenceNumber: 3813,
+      },
+      timeoutMs: 100,
+      sleep: (durationMs, signal) => {
+        sleepCalls += 1;
+
+        expect(durationMs).toBe(100);
+        expect(signal).toBeInstanceOf(AbortSignal);
+        expect(signal.aborted).toBe(false);
+
+        return Promise.resolve();
+      },
+      waitForCursor: () => Promise.resolve(undefined),
+    });
+
+    expect(sleepCalls).toBe(1);
+    expect(result).toEqual({
+      cursor,
+      request: {
+        mediaSequenceNumber: 3813,
+      },
+      status: "timeout",
+    });
+  });
 });

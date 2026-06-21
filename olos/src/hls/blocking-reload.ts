@@ -45,6 +45,7 @@ export interface WaitForHlsBlockingReloadOptions {
   cursor: Cursor;
   now?: () => number;
   request: HlsBlockingReloadRequest;
+  sleep?: (durationMs: number, signal: AbortSignal) => Promise<void>;
   timeoutMs: number;
   waitForCursor: (context: HlsCursorWaitContext) => Promise<Cursor | undefined>;
 }
@@ -213,7 +214,7 @@ async function waitForNextCursor(
   timeoutMs: number
 ): Promise<Cursor | undefined> {
   const controller = new AbortController();
-  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const sleep = options.sleep ?? sleepWithAbort;
 
   try {
     return await Promise.race([
@@ -222,20 +223,45 @@ async function waitForNextCursor(
         request: options.request,
         signal: controller.signal,
       }),
-      new Promise<undefined>((resolve) => {
-        timeout = setTimeout(() => {
-          controller.abort();
-          resolve(undefined);
-        }, timeoutMs);
-      }),
+      sleep(timeoutMs, controller.signal).then(() => undefined),
     ]);
   } finally {
-    if (timeout !== undefined) {
-      clearTimeout(timeout);
-    }
-
     controller.abort();
   }
+}
+
+function sleepWithAbort(timeoutMs: number, signal: AbortSignal): Promise<void> {
+  if (timeoutMs <= 0) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let resolved = false;
+
+    const finish = () => {
+      if (resolved) {
+        return;
+      }
+
+      resolved = true;
+      signal.removeEventListener("abort", finish);
+
+      if (timer !== undefined) {
+        clearTimeout(timer);
+      }
+
+      resolve();
+    };
+
+    if (signal.aborted) {
+      finish();
+      return;
+    }
+
+    timer = setTimeout(finish, timeoutMs);
+    signal.addEventListener("abort", finish, { once: true });
+  });
 }
 
 function nowMs(options: WaitForHlsBlockingReloadOptions): number {
