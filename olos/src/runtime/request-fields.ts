@@ -157,12 +157,12 @@ export function optionalNonNegativeIntegerField<Field extends string>(
   return optionalField(field, nonNegativeIntegerField(value, field));
 }
 
-export function nonNegativeInteger(value: number, name: string): number {
+export function nonNegativeInteger(value: unknown, name: string): number {
   assertNonNegativeInteger(value, name);
   return value;
 }
 
-export function nonNegativeSafeInteger(value: number, name: string): number {
+export function nonNegativeSafeInteger(value: unknown, name: string): number {
   assertNonNegativeSafeInteger(value, name);
   return value;
 }
@@ -187,12 +187,12 @@ export function optionalPositiveIntegerField<Field extends string>(
   return optionalField(field, positiveIntegerField(value, field));
 }
 
-export function positiveInteger(value: number, name: string): number {
+export function positiveInteger(value: unknown, name: string): number {
   assertPositiveInteger(value, name);
   return value;
 }
 
-export function positiveSafeInteger(value: number, name: string): number {
+export function positiveSafeInteger(value: unknown, name: string): number {
   assertPositiveSafeInteger(value, name);
   return value;
 }

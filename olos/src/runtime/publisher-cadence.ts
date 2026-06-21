@@ -1,9 +1,6 @@
 import type { CursorWindow } from "../types/cursor";
 import type { PublicationMode } from "../types/upload-slot";
-import {
-  assertNonNegativeInteger,
-  assertPositiveInteger,
-} from "../validation/ids";
+import { assertNonNegativeInteger } from "../validation/ids";
 import { optionalField } from "./optional-field";
 import {
   type ResolveRuntimePublisherObjectExpiryOptions,
@@ -16,6 +13,7 @@ import type {
   RuntimePublisherPlannedObjectKind,
 } from "./publisher-plan";
 import { createRuntimePublisherObjectPlan } from "./publisher-plan";
+import { positiveInteger } from "./request-fields";
 
 export type RuntimePublisherCadenceMode = "part" | "segment";
 
@@ -232,9 +230,4 @@ function nextPartPosition(options: {
     mediaSequenceNumber: cursorWindow.lastMediaSequenceNumber + 1,
     partNumber: 0,
   };
-}
-
-function positiveInteger(value: number | undefined, name: string): number {
-  assertPositiveInteger(value, name);
-  return value;
 }
