@@ -128,7 +128,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: measure violations first, then enable one flag at a time only if cleanup is focused.
   - Verify: `bun --filter olos check-types`.
 
-- [ ] Review root `allowJs` and JSX settings.
+- [x] Review root `allowJs` and JSX settings.
   - Locations: `tsconfig.json:6`, `:9`.
   - Issue: this package is TypeScript-only and does not use React JSX, but root compiler options enable both.
   - Suggestion: confirm whether tooling or future workspace packages require these settings. If not, remove or move them to a more specific config.
