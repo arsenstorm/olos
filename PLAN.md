@@ -242,7 +242,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: include a concise captured-output tail for `runCommandAndCapture` failures.
   - Verify: `olos/scripts/script-runner.test.ts`.
 
-- [ ] Share release/package metadata helpers.
+- [x] Share release/package metadata helpers.
   - Locations: `olos/scripts/verify-release-changelog.ts`, `olos/scripts/verify-published-package.ts`, `olos/scripts/verify-release-tag.ts`, `olos/scripts/write-release-notes.ts`, `olos/scripts/create-package-artifact.ts`.
   - Issue: release scripts import package metadata and derive version/tag/artifact details separately.
   - Suggestion: centralize package version, release tag, artifact name, and package root reads.

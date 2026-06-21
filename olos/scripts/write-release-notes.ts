@@ -1,11 +1,10 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import packageJson from "../package.json" with { type: "json" };
 import { releaseNotes } from "./changelog";
+import { releaseVersionFromCli } from "./release-metadata";
 import { repoRoot } from "./script-paths";
 
-const version =
-  process.argv[2] ?? process.env.OLOS_RELEASE_VERSION ?? packageJson.version;
+const version = releaseVersionFromCli();
 const notesRoot = join(repoRoot, "out", "release");
 const notesPath = join(notesRoot, "notes.md");
 const changelog = await readFile(join(repoRoot, "CHANGELOG.md"), "utf8");

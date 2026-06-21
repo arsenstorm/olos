@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import packageJson from "../package.json" with { type: "json" };
 import { hasVersionHeading } from "./changelog";
+import { releaseVersionFromEnv } from "./release-metadata";
 import { repoRoot } from "./script-paths";
 
-const version = process.env.OLOS_RELEASE_VERSION ?? packageJson.version;
+const version = releaseVersionFromEnv();
 
 if (version !== "0.0.0") {
   const changelogPath = join(repoRoot, "CHANGELOG.md");

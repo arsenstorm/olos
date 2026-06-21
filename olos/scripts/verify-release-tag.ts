@@ -1,7 +1,7 @@
-import packageJson from "../package.json" with { type: "json" };
+import { packageReleaseTag } from "./release-metadata";
 import { assertReleaseTag } from "./release-tag";
 
 const tag = process.argv[2] ?? process.env.GITHUB_REF_NAME;
-const expected = `olos-v${packageJson.version}`;
+const expected = packageReleaseTag();
 
 assertReleaseTag(tag, expected);
