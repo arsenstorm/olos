@@ -57,7 +57,9 @@ export async function runCommandAndCapture(
   const exitCode = await waitForExit(child);
 
   if (options.reject !== false && exitCode !== 0) {
-    throw new Error(commandExitMessage(command, args, exitCode));
+    throw new Error(
+      commandExitMessage(command, args, exitCode, stdout, stderr)
+    );
   }
 
   return `${stdout}\n${stderr}`;
@@ -91,7 +93,22 @@ function waitForExit(child: ReturnType<typeof spawn>): Promise<number | null> {
 function commandExitMessage(
   command: string,
   args: readonly string[],
-  exitCode: number | null
+  exitCode: number | null,
+  stdout = "",
+  stderr = ""
 ): string {
-  return `${command} ${args.join(" ")} exited with ${exitCode}`;
+  const base = `${command} ${args.join(" ")} exited with ${exitCode}`;
+  const details = [
+    stdout && `stdout:\n${truncateCommandOutput(stdout)}`,
+    stderr && `stderr:\n${truncateCommandOutput(stderr)}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return `${base}${details ? `\n${details}` : ""}`;
+}
+
+function truncateCommandOutput(value: string): string {
+  const maxTailLength = 1024;
+  return value.length <= maxTailLength ? value : value.slice(-maxTailLength);
 }
