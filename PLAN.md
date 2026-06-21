@@ -122,7 +122,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: add a small Bun script to remove `dist`, then run TypeScript and declaration import fixing.
   - Verify: `bun --filter olos build`.
 
-- [ ] Tighten TypeScript strictness incrementally.
+- [x] Tighten TypeScript strictness incrementally.
   - Locations: `tsconfig.json:21`, `:22`, `:23`, `:24`.
   - Issue: unused local/parameter checks and `noPropertyAccessFromIndexSignature` are disabled.
   - Suggestion: measure violations first, then enable one flag at a time only if cleanup is focused.

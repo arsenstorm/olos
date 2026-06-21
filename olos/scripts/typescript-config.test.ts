@@ -10,4 +10,12 @@ describe("TypeScript config", () => {
     expect(config).not.toContain('"allowJs"');
     expect(config).not.toContain('"jsx"');
   });
+
+  test("enables focused unused-code checks before index-signature cleanup", async () => {
+    const config = await readFile(join(repoRoot, "tsconfig.json"), "utf8");
+
+    expect(config).toContain('"noUnusedLocals": true');
+    expect(config).toContain('"noUnusedParameters": true');
+    expect(config).toContain('"noPropertyAccessFromIndexSignature": false');
+  });
 });
