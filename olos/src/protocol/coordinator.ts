@@ -664,6 +664,23 @@ function rejectInvalidObservedUpload(options: {
     };
   }
 
+  if (slot.minBytes !== undefined && object.size < slot.minBytes) {
+    return {
+      error: coordinatorError(
+        "olos.object_too_small",
+        "mediaObject.size must be at least minBytes",
+        {
+          minBytes: slot.minBytes,
+          objectKey: object.objectKey,
+          size: object.size,
+          slotId: slot.slotId,
+        }
+      ),
+      state: options.state,
+      status: "rejected",
+    };
+  }
+
   if (object.size <= slot.maxBytes) {
     return;
   }

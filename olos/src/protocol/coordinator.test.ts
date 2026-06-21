@@ -965,6 +965,55 @@ describe("coordinator pipeline", () => {
     expect(result.error.error.code).toBe("olos.unknown_slot");
   });
 
+  test("rejects uploads smaller than slot minimum bytes", () => {
+    const state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      minBytes: 100_000,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state: createEmptyCoordinatorState(),
+    }).state;
+
+    const result = commitCoordinatorUpload({
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "media/s3810.m4s",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        size: 50,
+      }),
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected upload");
+    }
+
+    expect(result.error.error).toEqual({
+      code: "olos.object_too_small",
+      details: {
+        minBytes: 100_000,
+        objectKey: "media/s3810.m4s",
+        size: 50,
+        slotId: "slot_3810",
+      },
+      message: "mediaObject.size must be at least minBytes",
+    });
+  });
+
   test("applies app-owned commit policy before new commits", () => {
     const state = issueCoordinatorSlot({
       contentType: "video/mp4",

@@ -52,6 +52,7 @@ export type CommitAttemptResolution =
         | "invalid_state"
         | "key_mismatch"
         | "late_object"
+        | "object_too_small"
         | "object_too_large"
         | "unverified_object"
         | "unknown_slot";
@@ -262,6 +263,25 @@ export function resolveCommitAttempt(
         slotId: options.slot.slotId,
       }),
       status: "object_too_large",
+    };
+  }
+
+  if (
+    options.slot.minBytes !== undefined &&
+    options.mediaObject.size < options.slot.minBytes
+  ) {
+    return {
+      error: commitError(
+        "olos.object_too_small",
+        "mediaObject.size must be at least minBytes",
+        {
+          minBytes: options.slot.minBytes,
+          objectKey: options.mediaObject.objectKey,
+          size: options.mediaObject.size,
+          slotId: options.slot.slotId,
+        }
+      ),
+      status: "object_too_small",
     };
   }
 

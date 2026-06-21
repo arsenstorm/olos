@@ -6,6 +6,7 @@ export const OLOS_ERROR_CODES = [
   "olos.key_mismatch",
   "olos.content_type_mismatch",
   "olos.object_too_large",
+  "olos.object_too_small",
   "olos.duplicate_commit_conflict",
   "olos.cursor_regression",
   "olos.provider_unavailable",
