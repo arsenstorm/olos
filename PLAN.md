@@ -56,7 +56,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: add focused helpers for common commit timing fields, provider ID resolution, optional object key parsing, and URL-safe string arrays.
   - Verify: runtime commit, S3 HTTP, and S3 reconciliation tests.
 
-- [ ] Make completion-hint defaults explicit and injectable.
+- [x] Make completion-hint defaults explicit and injectable.
   - Locations: `olos/src/s3/http.ts:764`, `:781`, `olos/src/s3/coordinator.ts:608`.
   - Issue: completion hints default `commitId` to `complete_${slotId}` and `committedAt` to current time inside parsing code.
   - Suggestion: move those policy choices into a named helper and add optional clock injection through handler options if it stays backward-compatible.
