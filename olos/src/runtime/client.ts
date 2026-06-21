@@ -32,11 +32,10 @@ import {
 import { nonNegativeInteger } from "./request-fields";
 import {
   DEFAULT_LIVE_PATH,
-  DEFAULT_SESSION_PATH,
   liveMasterPath,
   liveMediaPath,
-  sessionRootPath,
-  sessionRoutePath,
+  sessionRootPathFromOptions,
+  sessionRoutePathFromOptions,
 } from "./route";
 import type { RuntimeSlotIssuePayload } from "./slot";
 import { isStringLiteral } from "./string-literals";
@@ -336,15 +335,12 @@ export async function getRuntimeMediaPlaylist(
 }
 
 function sessionsUrl(baseUrl: string): URL {
-  return new URL(
-    sessionRootPath(DEFAULT_SESSION_PATH),
-    normalizedBaseUrl(baseUrl)
-  );
+  return new URL(sessionRootPathFromOptions(), normalizedBaseUrl(baseUrl));
 }
 
 function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
   return new URL(
-    sessionRoutePath(DEFAULT_SESSION_PATH, sessionId, action),
+    sessionRoutePathFromOptions(sessionId, action, {}),
     normalizedBaseUrl(baseUrl)
   );
 }

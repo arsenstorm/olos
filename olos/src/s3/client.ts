@@ -13,10 +13,9 @@ import {
   responseBody,
 } from "../runtime/http-client";
 import {
-  DEFAULT_SESSION_PATH,
   S3_ROUTE_ACTIONS,
-  s3CompletionHintRoutePath,
-  s3RoutePath,
+  s3CompletionHintRoutePathFromOptions,
+  s3RoutePathFromOptions,
 } from "../runtime/route";
 import type { RuntimeSlotIssuePayload } from "../runtime/slot";
 import type { Commit } from "../types/commit";
@@ -287,7 +286,7 @@ function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
   assertUrlSafeIdentifier(sessionId, "sessionId");
 
   return new URL(
-    s3RoutePath(DEFAULT_SESSION_PATH, sessionId, action),
+    s3RoutePathFromOptions(sessionId, action, {}),
     normalizedBaseUrl(baseUrl)
   );
 }
@@ -301,7 +300,7 @@ function completionUrl(
   assertUrlSafeIdentifier(slotId, "slotId");
 
   return new URL(
-    s3CompletionHintRoutePath(DEFAULT_SESSION_PATH, sessionId, slotId),
+    s3CompletionHintRoutePathFromOptions(sessionId, slotId, {}),
     normalizedBaseUrl(baseUrl)
   );
 }

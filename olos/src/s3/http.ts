@@ -37,13 +37,11 @@ import {
   jsonResponse,
 } from "../runtime/response";
 import {
-  DEFAULT_SESSION_PATH,
   routeIdentifierError,
-  routeParts,
   S3_COMPLETION_HINT_ACTION,
   S3_ROUTE_ACTIONS,
   S3_SESSION_ROUTE_SEGMENT,
-  sessionRootPath,
+  s3RouteParts,
 } from "../runtime/route";
 import { parseSlotIssueRequest } from "../runtime/slot-issue-request-parser";
 import type { Commit } from "../types/commit";
@@ -555,10 +553,7 @@ function s3Route(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): S3Route {
   const url = new URL(request.url);
-  const parts = routeParts(
-    url.pathname,
-    sessionRootPath(options.sessionPath ?? DEFAULT_SESSION_PATH)
-  );
+  const parts = s3RouteParts(url.pathname, options);
 
   if (parts === undefined) {
     return { status: "not_s3" };

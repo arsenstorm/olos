@@ -42,6 +42,18 @@ export function sessionRoutePath(
   return `${sessionRootPath(sessionPath)}/${encodeURIComponent(sessionId)}/${action}`;
 }
 
+export function sessionRoutePathFromOptions(
+  sessionId: string,
+  action: string,
+  options: { sessionPath?: string } = {}
+): string {
+  return sessionRoutePath(
+    sessionRootPathFromOptions(options),
+    sessionId,
+    action
+  );
+}
+
 export function s3RoutePath(
   sessionPath: string,
   sessionId: string,
@@ -54,6 +66,14 @@ export function s3RoutePath(
   );
 }
 
+export function s3RoutePathFromOptions(
+  sessionId: string,
+  action: string,
+  options: { sessionPath?: string } = {}
+): string {
+  return s3RoutePath(sessionRootPathFromOptions(options), sessionId, action);
+}
+
 export function s3CompletionHintRoutePath(
   sessionPath: string,
   sessionId: string,
@@ -62,6 +82,51 @@ export function s3CompletionHintRoutePath(
   return `${sessionRoutePath(sessionPath, sessionId, S3_ROUTE_ACTIONS.completionHint)}/${encodeURIComponent(
     slotId
   )}/${S3_COMPLETION_HINT_ACTION}`;
+}
+
+export function s3CompletionHintRoutePathFromOptions(
+  sessionId: string,
+  slotId: string,
+  options: { sessionPath?: string } = {}
+): string {
+  return s3CompletionHintRoutePath(
+    sessionRootPathFromOptions(options),
+    sessionId,
+    slotId
+  );
+}
+
+export function sessionRootPathFromOptions(
+  options: { sessionPath?: string } = {}
+): string {
+  return sessionRootPath(options.sessionPath ?? DEFAULT_SESSION_PATH);
+}
+
+export function liveRootPathFromOptions(
+  options: { livePath?: string } = {}
+): string {
+  return sessionRootPath(options.livePath ?? DEFAULT_LIVE_PATH);
+}
+
+export function sessionRouteParts(
+  pathname: string,
+  options: { sessionPath?: string } = {}
+): "invalid" | readonly string[] | undefined {
+  return routeParts(pathname, sessionRootPathFromOptions(options));
+}
+
+export function s3RouteParts(
+  pathname: string,
+  options: { sessionPath?: string } = {}
+): "invalid" | readonly string[] | undefined {
+  return sessionRouteParts(pathname, options);
+}
+
+export function liveRouteParts(
+  pathname: string,
+  options: { livePath?: string } = {}
+): "invalid" | readonly string[] | undefined {
+  return routeParts(pathname, liveRootPathFromOptions(options));
 }
 
 export function liveMasterPath(livePath: string, sessionId: string): string {

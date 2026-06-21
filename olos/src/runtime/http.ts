@@ -40,10 +40,10 @@ import {
   assertRoutePath,
   DEFAULT_LIVE_PATH,
   DEFAULT_SESSION_PATH,
+  liveRouteParts,
   routeIdentifierError,
-  routeParts,
   SESSION_ROUTE_ACTIONS,
-  sessionRootPath,
+  sessionRouteParts,
 } from "./route";
 import {
   createStoredCoordinatorSession,
@@ -165,10 +165,7 @@ async function handleStoredRuntimeRequest(
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
   const url = new URL(request.url);
-  const sessionParts = routeParts(
-    url.pathname,
-    sessionRootPath(options.sessionPath ?? DEFAULT_SESSION_PATH)
-  );
+  const sessionParts = sessionRouteParts(url.pathname, options);
 
   if (sessionParts === "invalid") {
     return jsonBadRequestResponse(
@@ -180,10 +177,7 @@ async function handleStoredRuntimeRequest(
     return await handleSessionRoute(request, sessionParts, options);
   }
 
-  const liveParts = routeParts(
-    url.pathname,
-    sessionRootPath(options.livePath ?? DEFAULT_LIVE_PATH)
-  );
+  const liveParts = liveRouteParts(url.pathname, options);
 
   if (liveParts === "invalid") {
     return jsonBadRequestResponse(
