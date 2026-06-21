@@ -11,7 +11,6 @@ import type { PublicationControlPolicy } from "../state";
 import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
-import { hasControlCharacter } from "../validation/fields";
 import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
 import { positiveAttempts } from "./attempts";
@@ -23,7 +22,6 @@ import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { errorMessage } from "./errors";
 import { resolveRuntimeLiveHealthFromState } from "./health";
 import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
-import { trimSlashes } from "./path";
 import {
   isRecord,
   nonNegativeNumber,
@@ -38,7 +36,7 @@ import {
   jsonResponse,
 } from "./response";
 import { planStoredCoordinatorRetention } from "./retention";
-import { routeIdentifierError, routeParts } from "./route";
+import { assertRoutePath, routeIdentifierError, routeParts } from "./route";
 import {
   createStoredCoordinatorSession,
   heartbeatStoredCoordinatorPublisher,
@@ -150,29 +148,6 @@ function assertAllowedMediaOrigins(origins: readonly string[]): void {
       throw new Error("allowedMediaOrigins must contain HTTPS origins");
     }
   }
-}
-
-function assertRoutePath(value: string, name: string): void {
-  if (
-    value.length === 0 ||
-    !value.startsWith("/") ||
-    value.startsWith("//") ||
-    hasControlCharacter(value)
-  ) {
-    throw new Error(`${name} must be a safe route path`);
-  }
-
-  if (value.includes("?") || value.includes("#")) {
-    throw new Error(`${name} must not contain query strings or fragments`);
-  }
-
-  if (trimSlashes(value).split("/").some(isUnsafeRouteSegment)) {
-    throw new Error(`${name} must be a safe route path`);
-  }
-}
-
-function isUnsafeRouteSegment(segment: string): boolean {
-  return segment === "." || segment === "..";
 }
 
 async function handleStoredRuntimeRequest(

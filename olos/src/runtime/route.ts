@@ -1,5 +1,7 @@
+import { hasControlCharacter } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { errorMessage } from "./errors";
+import { trimSlashes } from "./path";
 
 export function routeParts(
   pathname: string,
@@ -32,6 +34,29 @@ export function routeIdentifierError(
   } catch (error) {
     return errorMessage(error, fallbackMessage);
   }
+}
+
+export function assertRoutePath(value: string, name: string): void {
+  if (
+    value.length === 0 ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    hasControlCharacter(value)
+  ) {
+    throw new Error(`${name} must be a safe route path`);
+  }
+
+  if (value.includes("?") || value.includes("#")) {
+    throw new Error(`${name} must not contain query strings or fragments`);
+  }
+
+  if (trimSlashes(value).split("/").some(isUnsafeRouteSegment)) {
+    throw new Error(`${name} must be a safe route path`);
+  }
+}
+
+function isUnsafeRouteSegment(segment: string): boolean {
+  return segment === "." || segment === "..";
 }
 
 function normalizePath(path: string): string {
