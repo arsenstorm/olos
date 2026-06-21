@@ -26,6 +26,10 @@ Run the optional live S3-compatible provider check:
 bun run test:live-s3
 ```
 
+Do not run live S3 checks for routine maintainability work unless the task
+explicitly asks for real provider validation. The live suite is opt-in because
+it can use real credentials, real time, provider state, and object deletion.
+
 Without `OLOS_LIVE_S3=1`, the live S3 test only verifies that the optional
 surface is wired and reports the provider test as skipped. To run against a
 provider, set:

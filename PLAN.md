@@ -230,7 +230,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: add one test helper for polling with timeout, interval, and contextual error messages.
   - Verify: affected E2E tests.
 
-- [ ] Keep live S3 tests explicitly isolated.
+- [x] Keep live S3 tests explicitly isolated.
   - Locations: `olos/live/s3-config.ts:16`, `olos/live/s3.test.ts:142`, `olos/package.json` script `test:live-s3`.
   - Issue: live tests are properly separate, but they use real time and credentials.
   - Suggestion: preserve opt-in behavior and document that ordinary maintainability work should not run live S3 tests.
