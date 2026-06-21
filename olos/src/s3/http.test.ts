@@ -1,9 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  HeadObjectCommand,
-  HeadObjectCommandOutput,
-} from "@aws-sdk/client-s3";
-
 import {
   type CoordinatorPipelineState,
   type CoordinatorPipelineStore,
@@ -31,8 +26,10 @@ import {
   type StoredS3CoordinatorRetentionResponse,
   type StoredS3CoordinatorSlotGrantResponse,
 } from "./http";
-import type { S3HeadObjectClient } from "./object-observation";
-import { createTestS3Client } from "./test-client.test-helper";
+import {
+  createTestHeadObjectClient,
+  createTestS3Client,
+} from "./test-client.test-helper";
 import { createTestS3DeleteObjectClient } from "./test-delete-client.test-helper";
 
 const MEDIA_ORIGIN = "https://media.example.com";
@@ -101,7 +98,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
           "live/session/v1080/init.mp4": 1024,
@@ -253,7 +250,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
           "live/session/v1080/init.mp4": 1024,
@@ -340,7 +337,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
         },
@@ -412,7 +409,7 @@ describe("stored S3 coordinator runtime handler", () => {
       completionHintNow: () => completionHintNow,
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
         },
@@ -483,7 +480,7 @@ describe("stored S3 coordinator runtime handler", () => {
       completionHintClock,
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
         },
@@ -555,7 +552,7 @@ describe("stored S3 coordinator runtime handler", () => {
       completionHintCommitId: (slotId) => `completion_${slotId}`,
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
         },
@@ -624,7 +621,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor({}, headObjectInputs),
+      objectClient: createTestHeadObjectClient({}, headObjectInputs),
       providerId: "s3_primary",
       store,
     });
@@ -683,7 +680,7 @@ describe("stored S3 coordinator runtime handler", () => {
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
-      objectClient: objectClientFor({}, headObjectInputs),
+      objectClient: createTestHeadObjectClient({}, headObjectInputs),
       providerId: "s3_primary",
       store: createMemoryCoordinatorStore(),
     });
@@ -1137,7 +1134,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 100_001,
         },
@@ -1225,7 +1222,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
         },
@@ -1303,7 +1300,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
         },
@@ -1366,7 +1363,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
         },
@@ -1753,7 +1750,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
           "live/session/v1080/init.mp4": 1024,
@@ -1874,7 +1871,7 @@ describe("stored S3 coordinator runtime handler", () => {
       },
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
           "live/session/v1080/init.mp4": 1024,
@@ -1983,7 +1980,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
           "live/session/v1080/init.mp4": 1024,
@@ -2130,7 +2127,7 @@ describe("stored S3 coordinator runtime handler", () => {
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
       maxAttempts: 2,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
           "live/session/v1080/init.mp4": 1024,
@@ -2227,7 +2224,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
           "live/session/v1080/init.mp4": 1024,
@@ -2337,7 +2334,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
         },
@@ -2420,7 +2417,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/init.mp4": 1024,
         },
@@ -2526,7 +2523,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
         },
@@ -2624,7 +2621,7 @@ describe("stored S3 coordinator runtime handler", () => {
       },
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/3810.m4s": 98_304,
         },
@@ -2779,7 +2776,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/init.mp4": 1024,
           "live/session/v1080/3810.m4s": 98_304,
@@ -2866,7 +2863,7 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClient(
         {
           "live/session/v1080/init.mp4": 1024,
           "live/session/v1080/3810.m4s": 98_304,
@@ -3177,36 +3174,6 @@ function s3EventRecord(objectKey: string, eventId: string, bucket = "media") {
         key: encodeURIComponent(objectKey),
         size: 98_304,
       },
-    },
-  };
-}
-
-function objectClientFor(
-  sizes: Record<string, number>,
-  inputs: unknown[],
-  contentTypes: Record<string, string> = {},
-  lastModified: Record<string, string> = {}
-): S3HeadObjectClient {
-  return {
-    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
-      inputs.push(command.input);
-
-      const objectKey = String(command.input.Key);
-      const size = sizes[objectKey];
-
-      if (size === undefined) {
-        throw new Error(`unexpected object key: ${objectKey}`);
-      }
-
-      return Promise.resolve({
-        $metadata: {},
-        ContentLength: size,
-        ContentType: contentTypes[objectKey] ?? "video/mp4",
-        ETag: `"${objectKey}"`,
-        LastModified: new Date(
-          lastModified[objectKey] ?? "2026-01-01T00:00:01.000Z"
-        ),
-      });
     },
   };
 }

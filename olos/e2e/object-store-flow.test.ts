@@ -1,11 +1,4 @@
 import {
-  type DeleteObjectCommand,
-  type DeleteObjectCommandOutput,
-  type HeadObjectCommand,
-  type HeadObjectCommandOutput,
-  S3Client,
-} from "@aws-sdk/client-s3";
-import {
   renderMediaPlaylist,
   resolveBlockingHlsManifestArtifactResponse,
   resolveHlsManifestArtifactResponse,
@@ -34,8 +27,6 @@ import {
   reconcileStoredS3CoordinatorUploads,
   routeStoredS3CoordinatorUploadEvent,
   runNextStoredS3PublisherUploadStep,
-  type S3DeleteObjectClient,
-  type S3HeadObjectClient,
   type StoredS3PublisherUploadStepSummary,
   summarizeStoredS3CoordinatorUploadReconciliation,
   summarizeStoredS3PublisherUploadStep,
@@ -44,6 +35,12 @@ import { normalizeUploadEvent } from "olos/state";
 import type { Pathway, Session } from "olos/types";
 import { assertCursor } from "olos/validation";
 import { describe, expect, test } from "vitest";
+import {
+  createTestDeleteObjectClient,
+  createTestHeadObjectClient,
+  createTestHeadObjectClientFor,
+  createTestS3Client,
+} from "./fake-s3-clients";
 
 const latency = createRuntimeObjectLowLatencyProfile();
 const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(latency);
@@ -124,7 +121,7 @@ describe("object-store flow", () => {
 
     const initCommit = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: headObjectClient(headObjectInputs, 1024),
+      client: createTestHeadObjectClient(headObjectInputs, 1024),
       commitId: issued.initPlan.commitId,
       committedAt: "2026-01-01T00:00:01.000Z",
       providerId: "s3_primary",
@@ -134,7 +131,7 @@ describe("object-store flow", () => {
     });
     const segmentCommit = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: headObjectClient(headObjectInputs, 98_304),
+      client: createTestHeadObjectClient(headObjectInputs, 98_304),
       commitId: issued.segmentPlan.commitId,
       committedAt: "2026-01-01T00:00:02.000Z",
       independent: true,
@@ -241,7 +238,7 @@ describe("object-store flow", () => {
 
     await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: headObjectClient(headObjectInputs, 1024),
+      client: createTestHeadObjectClient(headObjectInputs, 1024),
       commitId: initPlan.commitId,
       committedAt: "2026-01-01T00:00:01.000Z",
       providerId: "s3_primary",
@@ -255,11 +252,11 @@ describe("object-store flow", () => {
     const step = await runNextStoredS3PublisherUploadStep({
       baseUrl: "https://media.example.com",
       bucket: "media",
-      client: createS3Client(),
+      client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
       cursorWindow: storedBeforeStep?.state.cursor?.window,
       defaults: publisherDefaults,
-      headObjectClient: headObjectClient(headObjectInputs, 98_304),
+      headObjectClient: createTestHeadObjectClient(headObjectInputs, 98_304),
       independent: true,
       manifest: {
         allowedMediaOrigins: ["https://media.example.com"],
@@ -502,7 +499,7 @@ describe("object-store flow", () => {
 
     const recovered = await reconcileStoredS3CoordinatorUploads({
       bucket: "media",
-      client: headObjectClientFor(
+      client: createTestHeadObjectClientFor(
         new Map([
           [issued.initPlan.slot.objectKey, 1024],
           [issued.segmentPlan.slot.objectKey, 98_304],
@@ -571,7 +568,7 @@ describe("object-store flow", () => {
 
     const deleted = await deleteRetiredS3CoordinatorObjects({
       bucket: "media",
-      client: deleteObjectClient(deletedObjects),
+      client: createTestDeleteObjectClient(deletedObjects),
       objects: retention.plan.retiredObjects,
     });
 
@@ -620,7 +617,7 @@ describe("object-store flow", () => {
 
     await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: headObjectClient(headObjectInputs, 1024),
+      client: createTestHeadObjectClient(headObjectInputs, 1024),
       commitId: issued.initPlan.commitId,
       committedAt: "2026-01-01T00:00:01.000Z",
       providerId: "s3_primary",
@@ -664,7 +661,10 @@ describe("object-store flow", () => {
 
     const segmentCommit = await routeStoredS3CoordinatorUploadEvent({
       bucket: "media",
-      client: headObjectClient(headObjectInputs, event.event.object.size),
+      client: createTestHeadObjectClient(
+        headObjectInputs,
+        event.event.object.size
+      ),
       event,
       independent: true,
       manifest: {
@@ -731,7 +731,7 @@ describe("object-store flow", () => {
 
     await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: headObjectClient(headObjectInputs, 1024),
+      client: createTestHeadObjectClient(headObjectInputs, 1024),
       commitId: issued.initPlan.commitId,
       committedAt: "2026-01-01T00:00:01.000Z",
       providerId: "s3_primary",
@@ -828,7 +828,7 @@ describe("object-store flow", () => {
 
     await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: headObjectClient(headObjectInputs, 1024),
+      client: createTestHeadObjectClient(headObjectInputs, 1024),
       commitId: issued.initPlan.commitId,
       committedAt: "2026-01-01T00:00:01.000Z",
       providerId: "s3_primary",
@@ -933,7 +933,7 @@ describe("object-store flow", () => {
 
     await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: headObjectClient(headObjectInputs, 1024),
+      client: createTestHeadObjectClient(headObjectInputs, 1024),
       commitId: issued.v1080InitPlan.commitId,
       committedAt: "2026-01-01T00:00:01.000Z",
       providerId: "s3_primary",
@@ -943,7 +943,7 @@ describe("object-store flow", () => {
     });
     await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: headObjectClient(headObjectInputs, 768),
+      client: createTestHeadObjectClient(headObjectInputs, 768),
       commitId: issued.v720InitPlan.commitId,
       committedAt: "2026-01-01T00:00:01.000Z",
       providerId: "s3_primary",
@@ -953,7 +953,7 @@ describe("object-store flow", () => {
     });
     await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: headObjectClient(headObjectInputs, 98_304),
+      client: createTestHeadObjectClient(headObjectInputs, 98_304),
       commitId: issued.v1080SegmentPlan.commitId,
       committedAt: "2026-01-01T00:00:02.000Z",
       independent: true,
@@ -964,7 +964,7 @@ describe("object-store flow", () => {
     });
     const segmentCommit = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: headObjectClient(headObjectInputs, 64_000),
+      client: createTestHeadObjectClient(headObjectInputs, 64_000),
       commitId: issued.v720SegmentPlan.commitId,
       committedAt: "2026-01-01T00:00:02.000Z",
       independent: true,
@@ -1237,7 +1237,7 @@ function issuePlannedUploadGrant(options: {
 
   return issueStoredS3CoordinatorUploadGrant({
     bucket: "media",
-    client: createS3Client(),
+    client: createTestS3Client(),
     expiresInSeconds: expiry.ttlSeconds,
     now: publishNow,
     sessionId: options.sessionId ?? session.sessionId,
@@ -1255,9 +1255,12 @@ function publisherLoopOptions(options: {
   return {
     baseUrl: "https://media.example.com",
     bucket: "media",
-    client: createS3Client(),
+    client: createTestS3Client(),
     defaults: publisherDefaults,
-    headObjectClient: headObjectClient(options.headObjectInputs, options.size),
+    headObjectClient: createTestHeadObjectClient(
+      options.headObjectInputs,
+      options.size
+    ),
     independent: true,
     manifest: {
       allowedMediaOrigins: ["https://media.example.com"],
@@ -1306,7 +1309,7 @@ async function routeUploadEvent(options: {
   });
   const result = await routeStoredS3CoordinatorUploadEvent({
     bucket: "media",
-    client: headObjectClient(options.headObjectInputs, options.size),
+    client: createTestHeadObjectClient(options.headObjectInputs, options.size),
     event,
     independent: options.independent,
     providerId: "s3_primary",
@@ -1319,68 +1322,4 @@ async function routeUploadEvent(options: {
   }
 
   return result;
-}
-
-function headObjectClientFor(
-  sizes: ReadonlyMap<string, number>,
-  inputs: unknown[]
-): S3HeadObjectClient {
-  return {
-    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
-      inputs.push(command.input);
-
-      const objectKey = String(command.input.Key);
-      const size = sizes.get(objectKey);
-
-      if (size === undefined) {
-        return Promise.reject(new Error(`missing object: ${objectKey}`));
-      }
-
-      return Promise.resolve({
-        $metadata: {},
-        ContentLength: size,
-        ContentType: "video/mp4",
-        ETag: `"${objectKey}"`,
-        LastModified: new Date("2026-01-01T00:00:01.000Z"),
-      });
-    },
-  };
-}
-
-function deleteObjectClient(inputs: unknown[]): S3DeleteObjectClient {
-  return {
-    send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput> {
-      inputs.push(command.input);
-
-      return Promise.resolve({ $metadata: {} });
-    },
-  };
-}
-
-function createS3Client(): S3Client {
-  return new S3Client({
-    credentials: {
-      accessKeyId: "test-access-key",
-      secretAccessKey: "test-secret-key",
-    },
-    endpoint: "https://s3.example.com",
-    forcePathStyle: true,
-    region: "us-east-1",
-  });
-}
-
-function headObjectClient(inputs: unknown[], size: number): S3HeadObjectClient {
-  return {
-    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
-      inputs.push(command.input);
-
-      return Promise.resolve({
-        $metadata: {},
-        ContentLength: size,
-        ContentType: "video/mp4",
-        ETag: `"${command.input.Key}"`,
-        LastModified: new Date("2026-01-01T00:00:01.000Z"),
-      });
-    },
-  };
 }

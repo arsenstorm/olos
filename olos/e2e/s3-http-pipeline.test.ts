@@ -1,10 +1,3 @@
-import {
-  type DeleteObjectCommand,
-  type DeleteObjectCommandOutput,
-  type HeadObjectCommand,
-  type HeadObjectCommandOutput,
-  S3Client,
-} from "@aws-sdk/client-s3";
 import { createMemoryCoordinatorStore } from "olos/protocol";
 import {
   createMemoryRuntimeCursorNotifier,
@@ -17,11 +10,14 @@ import {
   completeS3RuntimeUpload,
   createStoredS3CoordinatorRuntimeHandler,
   issueS3RuntimeUploadGrant,
-  type S3DeleteObjectClient,
-  type S3HeadObjectClient,
 } from "olos/s3";
 import type { Pathway, Session } from "olos/types";
 import { describe, expect, test } from "vitest";
+import {
+  createTestDeleteObjectClient,
+  createTestHeadObjectClientFor,
+  createTestS3Client,
+} from "./fake-s3-clients";
 import { waitFor } from "./wait-for";
 
 const latency = createRuntimeObjectLowLatencyProfile();
@@ -92,11 +88,11 @@ describe("S3 HTTP pipeline", () => {
         },
       },
       bucket: "media",
-      client: createS3Client(),
+      client: createTestS3Client(),
       cursorNotifier: notifier,
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClientFor(
         {
           "media/v1080/3810.m4s": 98_304,
           "media/v1080/3811.m4s": 98_304,
@@ -258,11 +254,11 @@ describe("S3 HTTP pipeline", () => {
         },
       },
       bucket: "media",
-      client: createS3Client(),
+      client: createTestS3Client(),
       cursorNotifier: notifier,
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClientFor(
         {
           "media/v1080/3810.m4s": 98_304,
           "media/v1080/3811.m4s": 98_304,
@@ -406,10 +402,10 @@ describe("S3 HTTP pipeline", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createS3Client(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClientFor(
         {
           "media/v1080/3810.m4s": 98_304,
           "media/v1080/init.mp4": 1024,
@@ -494,7 +490,7 @@ describe("S3 HTTP pipeline", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createS3Client(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
       providerId: "s3_primary",
@@ -554,10 +550,10 @@ describe("S3 HTTP pipeline", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createS3Client(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClientFor(
         {
           "media/v1080/3810.m4s": 98_304,
           "media/v1080/wrong.m4s": 98_304,
@@ -628,10 +624,10 @@ describe("S3 HTTP pipeline", () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
       bucket: "media",
-      client: createS3Client(),
+      client: createTestS3Client(),
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClientFor(
         {
           "media/v1080/3810.m4s": 100_001,
         },
@@ -718,11 +714,11 @@ describe("S3 HTTP pipeline", () => {
         },
       },
       bucket: "media",
-      client: createS3Client(),
+      client: createTestS3Client(),
       cursorNotifier: notifier,
       expiresInSeconds: 3,
       grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClientFor(
         {
           "media/v1080/3810.m4s": 98_304,
           "media/v1080/3811.m4s": 98_304,
@@ -1232,10 +1228,10 @@ function createRetentionPipeline(options: { failingDeleteKey?: string } = {}) {
   const handle = createStoredS3CoordinatorRuntimeHandler({
     allowedMediaOrigins: ["https://media.example.com"],
     bucket: "media",
-    client: createS3Client(),
+    client: createTestS3Client(),
     expiresInSeconds: 3,
     grantNow: () => "2026-01-01T00:00:00.000Z",
-    objectClient: objectClientFor(
+    objectClient: createTestHeadObjectClientFor(
       {
         "media/v1080/3810.m4s": 98_304,
         "media/v1080/3811.m4s": 98_304,
@@ -1246,65 +1242,13 @@ function createRetentionPipeline(options: { failingDeleteKey?: string } = {}) {
     ),
     providerId: "s3_primary",
     response: manifestOptions.response,
-    retentionClient: deleteClientFor(deleteInputs, options.failingDeleteKey),
+    retentionClient: createTestDeleteObjectClient(
+      deleteInputs,
+      options.failingDeleteKey
+    ),
     store,
     ...manifestOptions.manifest,
   });
 
   return { deleteInputs, handle, store };
-}
-
-function objectClientFor(
-  sizes: Record<string, number>,
-  inputs: unknown[]
-): S3HeadObjectClient {
-  return {
-    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
-      inputs.push(command.input);
-
-      const objectKey = String(command.input.Key);
-      const size = sizes[objectKey];
-
-      if (size === undefined) {
-        throw new Error(`unexpected object key: ${objectKey}`);
-      }
-
-      return Promise.resolve({
-        $metadata: {},
-        ContentLength: size,
-        ContentType: "video/mp4",
-        ETag: `"${objectKey}"`,
-        LastModified: new Date("2026-01-01T00:00:01.000Z"),
-      });
-    },
-  };
-}
-
-function deleteClientFor(
-  inputs: unknown[],
-  failingKey?: string
-): S3DeleteObjectClient {
-  return {
-    send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput> {
-      inputs.push(command.input);
-
-      if (command.input.Key === failingKey) {
-        throw new Error("delete failed");
-      }
-
-      return Promise.resolve({ $metadata: {} });
-    },
-  };
-}
-
-function createS3Client(): S3Client {
-  return new S3Client({
-    credentials: {
-      accessKeyId: "test-access-key",
-      secretAccessKey: "test-secret-key",
-    },
-    endpoint: "https://s3.example.com",
-    forcePathStyle: true,
-    region: "us-east-1",
-  });
 }

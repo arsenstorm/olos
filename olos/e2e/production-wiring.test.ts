@@ -1,23 +1,17 @@
-import {
-  type DeleteObjectCommand,
-  type DeleteObjectCommandOutput,
-  type HeadObjectCommand,
-  type HeadObjectCommandOutput,
-  S3Client,
-} from "@aws-sdk/client-s3";
 import { createMemoryCoordinatorStore } from "olos/protocol";
 import {
   createMemoryRuntimeCursorNotifier,
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
 } from "olos/runtime";
-import {
-  createStoredS3CoordinatorRuntimeHandler,
-  type S3DeleteObjectClient,
-  type S3HeadObjectClient,
-} from "olos/s3";
+import { createStoredS3CoordinatorRuntimeHandler } from "olos/s3";
 import type { Pathway, Session } from "olos/types";
 import { describe, expect, test } from "vitest";
+import {
+  createTestDeleteObjectClient,
+  createTestHeadObjectClientFor,
+  createTestS3Client,
+} from "./fake-s3-clients";
 
 const latency = createRuntimeObjectLowLatencyProfile();
 const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(latency);
@@ -36,12 +30,12 @@ describe("production object pipeline wiring", () => {
         waitForCursor: (context) => notifier.waitForCursor(context),
       },
       bucket: "media",
-      client: createS3Client(),
+      client: createTestS3Client(),
       cursorNotifier: notifier,
       expiresInSeconds: 3,
       grantNow: () => now,
       now: () => now,
-      objectClient: objectClientFor(
+      objectClient: createTestHeadObjectClientFor(
         {
           "live/session/v1080/3810.m4s": 98_304,
           "live/session/v1080/3811.m4s": 98_304,
@@ -51,7 +45,7 @@ describe("production object pipeline wiring", () => {
       ),
       providerId: "s3_primary",
       response: manifestOptions.response,
-      retentionClient: deleteClientFor(deleteInputs),
+      retentionClient: createTestDeleteObjectClient(deleteInputs),
       store,
       ...manifestOptions.manifest,
     });
@@ -309,53 +303,5 @@ function jsonRequest(url: string, body: unknown): Request {
       "content-type": "application/json",
     },
     method: "POST",
-  });
-}
-
-function objectClientFor(
-  sizes: Record<string, number>,
-  inputs: unknown[]
-): S3HeadObjectClient {
-  return {
-    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
-      inputs.push(command.input);
-
-      const objectKey = String(command.input.Key);
-      const size = sizes[objectKey];
-
-      if (size === undefined) {
-        throw new Error(`unexpected object key: ${objectKey}`);
-      }
-
-      return Promise.resolve({
-        $metadata: {},
-        ContentLength: size,
-        ContentType: "video/mp4",
-        ETag: `"${objectKey}"`,
-        LastModified: new Date("2026-01-01T00:00:01.000Z"),
-      });
-    },
-  };
-}
-
-function deleteClientFor(inputs: unknown[]): S3DeleteObjectClient {
-  return {
-    send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput> {
-      inputs.push(command.input);
-
-      return Promise.resolve({ $metadata: {} });
-    },
-  };
-}
-
-function createS3Client(): S3Client {
-  return new S3Client({
-    credentials: {
-      accessKeyId: "test-access-key",
-      secretAccessKey: "test-secret-key",
-    },
-    endpoint: "https://s3.example.com",
-    forcePathStyle: true,
-    region: "us-east-1",
   });
 }

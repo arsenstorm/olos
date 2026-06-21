@@ -1,9 +1,11 @@
-import type {
-  HeadObjectCommand,
-  HeadObjectCommandOutput,
+import {
+  type DeleteObjectCommand,
+  type DeleteObjectCommandOutput,
+  type HeadObjectCommand,
+  type HeadObjectCommandOutput,
+  S3Client,
 } from "@aws-sdk/client-s3";
-import { S3Client } from "@aws-sdk/client-s3";
-import type { S3HeadObjectClient } from "./object-observation";
+import type { S3DeleteObjectClient, S3HeadObjectClient } from "olos/s3";
 
 type ObjectSizeResolver = (objectKey: string) => number | undefined;
 
@@ -20,24 +22,15 @@ export function createTestS3Client(): S3Client {
 }
 
 export function createTestHeadObjectClient(
-  sizes: Record<string, number> | ObjectSizeResolver,
   inputs: unknown[],
-  contentTypes: Record<string, string> = {},
-  lastModified: Record<string, string> = {}
+  size: number
 ): S3HeadObjectClient {
-  return createTestHeadObjectClientFor(
-    inputs,
-    sizes,
-    contentTypes,
-    lastModified
-  );
+  return createTestHeadObjectClientFor(inputs, () => size);
 }
 
 export function createTestHeadObjectClientFor(
   inputs: unknown[],
-  sizes: Record<string, number> | ObjectSizeResolver,
-  contentTypes: Record<string, string> = {},
-  lastModified: Record<string, string> = {}
+  sizes: Record<string, number> | ObjectSizeResolver
 ): S3HeadObjectClient {
   const resolveSize =
     typeof sizes === "function"
@@ -49,21 +42,36 @@ export function createTestHeadObjectClientFor(
       inputs.push(command.input);
 
       const objectKey = String(command.input.Key);
-      const size = resolveSize(objectKey);
+      const resolvedSize = resolveSize(objectKey);
 
-      if (size === undefined) {
+      if (resolvedSize === undefined) {
         return Promise.reject(new Error(`unexpected object key: ${objectKey}`));
       }
 
       return Promise.resolve({
         $metadata: {},
-        ContentLength: size,
-        ContentType: contentTypes[objectKey] ?? "video/mp4",
+        ContentLength: resolvedSize,
+        ContentType: "video/mp4",
         ETag: `"${objectKey}"`,
-        LastModified: new Date(
-          lastModified[objectKey] ?? "2026-01-01T00:00:01.000Z"
-        ),
+        LastModified: new Date("2026-01-01T00:00:01.000Z"),
       });
+    },
+  };
+}
+
+export function createTestDeleteObjectClient(
+  inputs: unknown[],
+  failingKey?: string
+): S3DeleteObjectClient {
+  return {
+    send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput> {
+      inputs.push(command.input);
+
+      if (command.input.Key === failingKey) {
+        throw new Error("delete failed");
+      }
+
+      return Promise.resolve({ $metadata: {} });
     },
   };
 }
