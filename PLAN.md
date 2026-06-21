@@ -176,7 +176,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: decide whether this should become a structured `OlosError` in `resolveCommitAttempt`, then add tests if changed.
   - Verify: state, runtime commit, and coordinator tests.
 
-- [ ] Add focused direct-public S3 HTTP security tests.
+- [x] Add focused direct-public S3 HTTP security tests.
   - Locations: `olos/src/state/direct-public-security-policy.ts`, `olos/src/s3/http.ts:677`, `olos/src/s3/http.test.ts`.
   - Issue: direct-public safety is covered across validators and route cases, but there is no single route-level boundary test that captures the whole policy surface.
   - Suggestion: add a focused test for unsafe delivery URL, unsafe object key, completion-hint URL rejection, and committed delivery URL provenance.
