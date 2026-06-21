@@ -4,6 +4,8 @@ import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
+import { assertCommit, assertUploadSlot } from "../validation";
+import { assertCursor } from "../validation/cursor";
 import type { RuntimeCommitPayload } from "./commit";
 import type { RuntimeLiveHealth } from "./health";
 import {
@@ -19,7 +21,10 @@ import {
   responseBody,
 } from "./http-client";
 import { normalizedSafeRelativePath } from "./path";
-import type { RuntimePublisherLease } from "./publisher-lease";
+import {
+  assertRuntimePublisherLease,
+  type RuntimePublisherLease,
+} from "./publisher-lease";
 import { nonNegativeInteger } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
@@ -358,7 +363,8 @@ function leasePayload(value: unknown): RuntimePublisherLease {
   return requiredRecordPayload<RuntimePublisherLease>(
     value,
     "lease",
-    "publisher heartbeat response must include a lease"
+    "publisher heartbeat response must include a lease",
+    assertRuntimePublisherLease
   );
 }
 
@@ -386,7 +392,8 @@ function slotPayload(value: unknown): UploadSlot {
   return requiredRecordPayload<UploadSlot>(
     value,
     "slot",
-    "slot issue response must include a slot"
+    "slot issue response must include a slot",
+    assertUploadSlot
   );
 }
 
@@ -400,7 +407,7 @@ function commitPayload(
   );
 
   return {
-    commit: recordPayload<Commit>(commit),
+    commit: recordPayload<Commit>(commit, assertCommit),
     ...optionalCursorPayload(value),
   };
 }
@@ -408,7 +415,7 @@ function commitPayload(
 function optionalCursorPayload(
   value: unknown
 ): Pick<RuntimeCommitUploadResponse, "cursor"> | Record<string, never> {
-  return optionalRecordPayload<"cursor", Cursor>(value, "cursor");
+  return optionalRecordPayload<"cursor", Cursor>(value, "cursor", assertCursor);
 }
 
 function healthPayload(value: unknown): RuntimeLiveHealth {

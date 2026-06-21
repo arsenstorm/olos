@@ -217,6 +217,74 @@ describe("S3 runtime HTTP client", () => {
     ).rejects.toThrow("S3 upload completion failed with status 404");
   });
 
+  test("validates malformed grant responses", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            grant: {
+              method: "PUT",
+              url: "https://example.com/upload",
+              expiresAt: "2026-01-01T00:00:00.000Z",
+            },
+            slot: {
+              slotId: "slot_init",
+            },
+          }),
+          { status: 201 }
+        )
+      );
+
+    await expect(
+      issueS3RuntimeUploadGrant({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        payload: {
+          contentType: "video/mp4",
+          deliveryUrl: "https://media.example.com/init.mp4",
+          duration: 1,
+          expiresAt: "2026-01-01T00:00:05.000Z",
+          kind: "init",
+          maxBytes: 2048,
+          mediaSequenceNumber: 0,
+          objectKey: "media/init-slot_1.mp4",
+          publicationMode: "direct-public",
+          publisherInstanceId: "publisher_1",
+          renditionId: "v1080",
+          slotId: "slot_init",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("uploadGrant.slotId");
+  });
+
+  test("validates malformed commit responses", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            commit: {
+              status: "committed",
+            },
+          }),
+          { status: 201 }
+        )
+      );
+
+    await expect(
+      commitS3RuntimeUpload({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        payload: {
+          commitId: "commit_init",
+          committedAt: "2026-01-01T00:00:02.000Z",
+          slotId: "slot_init",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("commitId");
+  });
+
   test("rejects unsafe S3 runtime route identifiers before fetch", async () => {
     let requests = 0;
     const clientFetch: RuntimeFetch = () => {

@@ -3,6 +3,7 @@ import {
   fetchFor,
   jsonPost,
   normalizedBaseUrl,
+  optionalRecordField,
   optionalRecordPayload,
   recordPayload,
   requiredArrayField,
@@ -16,6 +17,12 @@ import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
+import {
+  assertCommit,
+  assertUploadGrant,
+  assertUploadSlot,
+} from "../validation";
+import { assertCursor } from "../validation/cursor";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import type {
   StoredS3CoordinatorReconciliationResponse,
@@ -317,8 +324,8 @@ function grantPayload(
   );
 
   return {
-    grant: recordPayload<UploadGrant>(grant),
-    slot: recordPayload<UploadSlot>(slot),
+    grant: recordPayload<UploadGrant>(grant, assertUploadGrant),
+    slot: recordPayload<UploadSlot>(slot, assertUploadSlot),
   };
 }
 
@@ -332,7 +339,7 @@ function commitPayload(
   );
 
   return {
-    commit: recordPayload<Commit>(commit),
+    commit: recordPayload<Commit>(commit, assertCommit),
     ...optionalCursorPayload(value),
   };
 }
@@ -340,7 +347,7 @@ function commitPayload(
 function optionalCursorPayload(
   value: unknown
 ): Pick<S3RuntimeCompleteUploadResponse, "cursor"> | Record<string, never> {
-  return optionalRecordPayload<"cursor", Cursor>(value, "cursor");
+  return optionalRecordPayload<"cursor", Cursor>(value, "cursor", assertCursor);
 }
 
 function reconciliationPlanPayload(
@@ -350,14 +357,52 @@ function reconciliationPlanPayload(
     value,
     "S3 reconciliation plan response must include status"
   );
-
-  requiredStringField(
+  const status = requiredStringField(
     record,
     "status",
     "S3 reconciliation plan response must include status"
   );
 
-  return recordPayload<StoredS3CoordinatorReconciliationPlan>(record);
+  if (status !== "planned" && status !== "not_found") {
+    throw new Error(
+      "S3 reconciliation plan response status must be planned or not_found"
+    );
+  }
+
+  if (status === "not_found") {
+    return { status: "not_found" };
+  }
+
+  const slotIds = requiredArrayField(
+    record,
+    "slotIds",
+    "S3 reconciliation plan response must include planned slotIds"
+  );
+  const slots = requiredArrayField(
+    record,
+    "slots",
+    "S3 reconciliation plan response must include planned slots"
+  );
+
+  const validSlotIds = slotIds.map((slotId, index) => {
+    if (typeof slotId !== "string") {
+      throw new Error(
+        `S3 reconciliation plan slotIds[${index}] must be a string`
+      );
+    }
+
+    return slotId;
+  });
+
+  for (const slot of slots) {
+    assertUploadSlot(slot);
+  }
+
+  return {
+    status: "planned",
+    slotIds: validSlotIds,
+    slots: slots as readonly UploadSlot[],
+  };
 }
 
 function reconciliationPayload(
@@ -368,13 +413,78 @@ function reconciliationPayload(
     "S3 reconciliation response must include results"
   );
 
-  requiredArrayField(
+  const results = requiredArrayField(
     record,
     "results",
     "S3 reconciliation response must include results"
   );
+  const validResults = results.map((result, index) => {
+    const resultRecord = requiredRecord(
+      result,
+      `S3 reconciliation response results[${index}] must be an object`
+    );
+    const status = requiredStringField(
+      resultRecord,
+      "status",
+      `S3 reconciliation response results[${index}] must include status`
+    );
 
-  return recordPayload<StoredS3CoordinatorReconciliationResponse>(record);
+    if (
+      status !== "failed" &&
+      status !== "conflict" &&
+      status !== "not_found" &&
+      status !== "committed" &&
+      status !== "idempotent"
+    ) {
+      throw new Error(
+        `S3 reconciliation response results[${index}] status must be committed, idempotent, failed, conflict, or not_found`
+      );
+    }
+
+    const slotId = requiredStringField(
+      resultRecord,
+      "slotId",
+      `S3 reconciliation response results[${index}] must include slotId`
+    );
+
+    if (status === "committed" || status === "idempotent") {
+      const commit = requiredRecordField(
+        resultRecord,
+        "commit",
+        `S3 reconciliation response results[${index}] must include commit`
+      );
+
+      assertCommit(commit);
+
+      return {
+        commit,
+        slotId,
+        status,
+        ...optionalRecordPayload<"cursor", Cursor>(
+          resultRecord,
+          "cursor",
+          assertCursor
+        ),
+      };
+    }
+
+    return {
+      slotId,
+      status,
+    };
+  });
+
+  const summary = requiredRecordField(
+    record,
+    "summary",
+    "S3 reconciliation response must include summary"
+  );
+
+  return recordPayload<StoredS3CoordinatorReconciliationResponse>({
+    ...record,
+    results: validResults,
+    summary,
+  });
 }
 
 function retentionPayload(
@@ -385,16 +495,90 @@ function retentionPayload(
     "S3 retention response must include plan and summary"
   );
 
-  requiredRecordField(
+  const plan = requiredRecordField(
     record,
     "plan",
     "S3 retention response must include plan and summary"
   );
-  requiredRecordField(
+  const summary = requiredRecordField(
     record,
     "summary",
     "S3 retention response must include plan and summary"
   );
 
-  return recordPayload<StoredS3CoordinatorRetentionResponse>(record);
+  const expiredSlots = requiredArrayField(
+    plan,
+    "expiredSlots",
+    "S3 retention response plan must include expiredSlots"
+  );
+  for (const slot of expiredSlots) {
+    assertUploadSlot(slot);
+  }
+
+  const retiredObjects = requiredArrayField(
+    plan,
+    "retiredObjects",
+    "S3 retention response plan must include retiredObjects"
+  );
+
+  for (const [index, retiredObject] of retiredObjects.entries()) {
+    const retired = requiredRecord(
+      retiredObject,
+      `S3 retention response plan.retiredObjects[${index}] must be an object`
+    );
+
+    requiredStringField(
+      retired,
+      "commitId",
+      `S3 retention response plan.retiredObjects[${index}].commitId must be set`
+    );
+    requiredStringField(
+      retired,
+      "objectKey",
+      `S3 retention response plan.retiredObjects[${index}].objectKey must be set`
+    );
+    requiredStringField(
+      retired,
+      "slotId",
+      `S3 retention response plan.retiredObjects[${index}].slotId must be set`
+    );
+  }
+
+  const planCursor = optionalRecordField(plan, "cursor");
+  if (planCursor !== undefined) {
+    assertCursor(planCursor);
+  }
+
+  const summaryRecord = requiredRecord(
+    summary,
+    "S3 retention response summary must be an object"
+  );
+  requiredArrayField(
+    summaryRecord,
+    "failedSlotIds",
+    "S3 retention response summary must include failedSlotIds"
+  );
+  requiredArrayField(
+    summaryRecord,
+    "failedObjectKeys",
+    "S3 retention response summary must include failedObjectKeys"
+  );
+
+  if (typeof summaryRecord.planned !== "number") {
+    throw new Error("S3 retention response summary must include planned");
+  }
+  if (typeof summaryRecord.deleted !== "number") {
+    throw new Error("S3 retention response summary must include deleted");
+  }
+  if (typeof summaryRecord.failed !== "number") {
+    throw new Error("S3 retention response summary must include failed");
+  }
+
+  if (typeof summaryRecord.ok !== "boolean") {
+    throw new Error("S3 retention response summary must include ok");
+  }
+
+  return {
+    ...recordPayload<StoredS3CoordinatorRetentionResponse>(record),
+  };
 }

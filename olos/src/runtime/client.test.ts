@@ -362,4 +362,74 @@ describe("runtime HTTP client", () => {
       })
     ).rejects.toThrow("media playlist failed with status 404");
   });
+
+  test("validates slot issue response payloads", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            slot: {
+              slotId: "slot_init",
+            },
+          }),
+          { status: 201 }
+        )
+      );
+
+    await expect(
+      issueRuntimeSlot({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        payload: {
+          contentType: "video/mp4",
+          deliveryUrl: "https://media.example.com/init.mp4",
+          duration: 1,
+          expiresAt: "2026-01-01T00:00:05.000Z",
+          kind: "init",
+          maxBytes: 2048,
+          mediaSequenceNumber: 0,
+          objectKey: "media/init-slot_1.mp4",
+          publicationMode: "direct-public",
+          publisherInstanceId: "publisher_1",
+          renditionId: "v1080",
+          slotId: "slot_init",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("uploadSlot");
+  });
+
+  test("validates commit response payloads", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            commit: {
+              status: "committed",
+            },
+          }),
+          { status: 201 }
+        )
+      );
+
+    await expect(
+      commitRuntimeUpload({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        payload: {
+          commitId: "commit_init",
+          committedAt: "2026-01-01T00:00:02.000Z",
+          object: {
+            contentType: "video/mp4",
+            objectKey: "media/init-slot_1.mp4",
+            observedAt: "2026-01-01T00:00:02.000Z",
+            providerId: "s3_primary",
+            size: 1024,
+          },
+          slotId: "slot_init",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("commitId");
+  });
 });
