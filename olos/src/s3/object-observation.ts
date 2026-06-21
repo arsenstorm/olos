@@ -16,6 +16,7 @@ export interface S3HeadObjectClient {
 export interface ObserveS3ObjectOptions {
   bucket: string;
   client: S3HeadObjectClient;
+  now?: Date | string;
   objectKey: string;
   observedAt?: Date | string;
   providerId: string;
@@ -23,6 +24,7 @@ export interface ObserveS3ObjectOptions {
 }
 
 export interface CreateObservedUploadFromS3HeadObjectOptions {
+  now?: Date | string;
   objectKey: string;
   observedAt?: Date | string;
   output: HeadObjectCommandOutput;
@@ -47,6 +49,7 @@ export async function observeS3Object(
   return createObservedUploadFromS3HeadObject({
     objectKey: options.objectKey,
     observedAt: options.observedAt,
+    now: options.now,
     output,
     providerId: options.providerId,
   });
@@ -59,6 +62,10 @@ function assertObserveS3ObjectOptions(options: ObserveS3ObjectOptions): void {
 
   if (options.observedAt !== undefined) {
     timestampMs(options.observedAt, "observedAt");
+  }
+
+  if (options.now !== undefined) {
+    timestampMs(options.now, "now");
   }
 }
 
@@ -117,6 +124,10 @@ function observedAt(
 
   if (options.output.LastModified !== undefined) {
     return options.output.LastModified.toISOString();
+  }
+
+  if (options.now !== undefined) {
+    return new Date(timestampMs(options.now, "now")).toISOString();
   }
 
   return new Date().toISOString();

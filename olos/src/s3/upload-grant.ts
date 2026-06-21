@@ -131,15 +131,13 @@ function assertPresignedS3UploadGrantOptions(
 
   assertPositiveExpiresInSeconds(options.expiresInSeconds);
 
-  timestampMs(options.now ?? new Date(), "now");
+  const nowMs = timestampMsValue(options.now);
 
   if (options.slot.state !== "issued") {
     throw new Error("uploadSlot.state must be issued");
   }
 
-  const grantExpiresAt =
-    timestampMs(options.now ?? new Date(), "now") +
-    options.expiresInSeconds * 1000;
+  const grantExpiresAt = nowMs + options.expiresInSeconds * 1000;
   const slotExpiresAt = timestampMs(
     options.slot.expiresAt,
     "uploadSlot.expiresAt"
@@ -209,9 +207,13 @@ function assertDoesNotOverrideS3Metadata(
 }
 
 function expiresAt(options: CreatePresignedS3UploadGrantOptions): string {
-  const nowMs = timestampMs(options.now ?? new Date(), "now");
+  const nowMs = timestampMsValue(options.now);
 
   return new Date(nowMs + options.expiresInSeconds * 1000).toISOString();
+}
+
+function timestampMsValue(now: Date | string | undefined): number {
+  return timestampMs(now ?? new Date(), "now");
 }
 
 function isHeaderRequest(

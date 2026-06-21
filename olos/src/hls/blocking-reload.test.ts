@@ -269,4 +269,32 @@ describe("HLS blocking reload", () => {
       status: "timeout",
     });
   });
+
+  test("uses injected clock for timeout calculations", async () => {
+    let nowCalls = 0;
+
+    const result = await waitForHlsBlockingReload({
+      cursor,
+      request: {
+        mediaSequenceNumber: 3813,
+      },
+      timeoutMs: 100,
+      now: () => {
+        nowCalls += 1;
+
+        return nowCalls === 1 ? 1000 : 2000;
+      },
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(nowCalls).toBe(2);
+    expect(result).toEqual({
+      cursor,
+      request: {
+        mediaSequenceNumber: 3813,
+      },
+      status: "timeout",
+    });
+  });
 });

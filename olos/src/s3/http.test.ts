@@ -404,7 +404,7 @@ describe("stored S3 coordinator runtime handler", () => {
   test("uses injected completion hint timestamp when committedAt is omitted", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    const completionHintNow = "2026-01-01T00:00:10.000Z";
+    const completionHintNow = "2026-01-01T00:00:01.000Z";
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: [MEDIA_ORIGIN],
       bucket: S3_BUCKET,

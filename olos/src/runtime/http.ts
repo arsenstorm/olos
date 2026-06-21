@@ -56,6 +56,7 @@ const DEFAULT_MAX_HEALTH_CURSOR_AGE_MS =
 const DEFAULT_PUBLISHER_LEASE_TTL_MS = 3000;
 const DEFAULT_SESSION_PATH = "/sessions";
 const DEFAULT_TARGET_LATENCY = 3;
+const defaultRuntimeNow = () => new Date().toISOString();
 
 interface InvalidRuntimeHttpRequestParse {
   message: string;
@@ -546,7 +547,7 @@ function retentionNow(
 }
 
 function currentNow(options: CreateStoredCoordinatorRuntimeHandlerOptions) {
-  return options.now?.() ?? new Date().toISOString();
+  return options.now?.() ?? defaultRuntimeNow();
 }
 
 function routeSessionIdError(
