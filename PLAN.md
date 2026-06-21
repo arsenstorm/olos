@@ -212,7 +212,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: document when to use public subpaths versus internals.
   - Verify: docs-only unless scripts are added.
 
-- [ ] Reduce repeated fake S3 clients.
+- [x] Reduce repeated fake S3 clients.
   - Locations: `olos/src/s3/test-client.test-helper.ts`, `olos/src/s3/test-delete-client.test-helper.ts`, `olos/src/s3/http.test.ts:2992`, `olos/e2e/s3-http-pipeline.test.ts:1256`, `olos/e2e/object-store-flow.test.ts:1324`, `olos/e2e/production-wiring.test.ts:315`.
   - Issue: fake S3 head and delete clients are implemented or adapted in multiple files.
   - Suggestion: create configurable fake object and delete clients with explicit fixtures.
