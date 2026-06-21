@@ -188,7 +188,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: add brief module-level comments or a contributing guide section describing each policy boundary.
   - Verify: validation, HLS URI, runtime path, and S3 event tests if code changes.
 
-- [ ] Make HLS blocking reload time behavior easier to test.
+- [x] Make HLS blocking reload time behavior easier to test.
   - Locations: `olos/src/hls/blocking-reload.ts:88`, `:106`, `:174`.
   - Issue: blocking reload uses real `Date.now()` and `setTimeout`.
   - Suggestion: add a small internal clock/sleep abstraction or expose pure deadline calculation.
