@@ -1,3 +1,4 @@
+import { SESSION_STATES } from "../config/session";
 import type { CoordinatorRetentionPlan } from "../protocol";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
@@ -38,6 +39,7 @@ import {
   sessionRoutePath,
 } from "./route";
 import type { RuntimeSlotIssuePayload } from "./slot";
+import { isStringLiteral } from "./string-literals";
 
 export type RuntimeFetch = RuntimeHttpFetch;
 
@@ -399,10 +401,11 @@ function transitionPayload(
 ): Omit<RuntimeTransitionSessionResponse, "response"> {
   const message =
     "session transition response must include sessionId and state";
+  const state = requiredStringField(value, "state", message);
 
   return {
     sessionId: requiredStringField(value, "sessionId", message),
-    state: requiredStringField(value, "state", message) as SessionState,
+    state: assertSessionState(state),
   };
 }
 
@@ -584,4 +587,14 @@ function assertRuntimeLiveHealth(
       "session health response health.publisherInstanceId"
     );
   }
+}
+
+function assertSessionState(value: string): SessionState {
+  if (!isStringLiteral(value, SESSION_STATES)) {
+    throw new Error(
+      `session transition response state must be one of: ${SESSION_STATES.join(", ")}`
+    );
+  }
+
+  return value;
 }

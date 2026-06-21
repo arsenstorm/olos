@@ -552,6 +552,47 @@ describe("S3 runtime HTTP client", () => {
     );
   });
 
+  test("validates malformed reconciliation response result payloads", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            results: [
+              {
+                slotId: "slot_init",
+                status: "bad_status",
+              },
+            ],
+            summary: {
+              committed: 0,
+              failed: 1,
+              failedErrorCodes: ["unknown_status"],
+              failedSlotIds: ["slot_init"],
+              idempotent: 0,
+              ok: false,
+              planned: 1,
+              slotIds: [],
+              status: "reconciled",
+            },
+          }),
+          { status: 202 }
+        )
+      );
+
+    await expect(
+      reconcileS3RuntimeUploads({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        payload: {
+          committedAt: "2026-01-01T00:00:02.000Z",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow(
+      "S3 reconciliation response results[0] status must be committed, idempotent, failed, conflict, or not_found"
+    );
+  });
+
   test("validates malformed retention response payloads", async () => {
     const clientFetch: RuntimeFetch = () =>
       Promise.resolve(

@@ -456,6 +456,28 @@ describe("runtime HTTP client", () => {
     ).rejects.toThrow("session health response health.status");
   });
 
+  test("validates transition response payload state", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            sessionId: session.sessionId,
+            state: "bad",
+          }),
+          { status: 200 }
+        )
+      );
+
+    await expect(
+      transitionRuntimeSession({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        sessionId: session.sessionId,
+        state: "live",
+      })
+    ).rejects.toThrow("session transition response state must be one of:");
+  });
+
   test("validates session retention response payloads", async () => {
     const clientFetch: RuntimeFetch = () =>
       Promise.resolve(

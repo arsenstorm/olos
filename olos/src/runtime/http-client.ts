@@ -64,7 +64,7 @@ export function requiredRecordPayload<T>(
   value: unknown,
   field: string,
   message: string,
-  assert?: RecordPayloadAssertion<T>
+  assert: RecordPayloadAssertion<T>
 ): T {
   return recordPayload<T>(requiredRecordField(value, field, message), assert);
 }
@@ -107,7 +107,7 @@ export function requiredStringField(
 export function optionalRecordPayload<Field extends string, T>(
   value: unknown,
   field: Field,
-  assert?: RecordPayloadAssertion<T>
+  assert: RecordPayloadAssertion<T>
 ): Partial<Record<Field, T>> {
   const record = optionalRecordField(value, field);
 
@@ -118,13 +118,10 @@ export function optionalRecordPayload<Field extends string, T>(
 
 export function recordPayload<T>(
   value: Record<string, unknown>,
-  assert?: RecordPayloadAssertion<T>
+  assert: RecordPayloadAssertion<T>
 ): T {
-  if (assert !== undefined) {
-    assert(value);
-  }
-
-  return value as unknown as T;
+  assert(value);
+  return value;
 }
 
 export async function responseBody(response: Response): Promise<unknown> {

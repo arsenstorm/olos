@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  isRecord,
   jsonPost,
   normalizedBaseUrl,
   optionalRecordField,
@@ -34,13 +35,28 @@ describe("runtime HTTP client helpers", () => {
       cursor: { sessionId: "session_1" },
       text: "not an object",
     };
+    const assertCursorRecord = (
+      value: unknown
+    ): asserts value is { sessionId: string } => {
+      if (!isRecord(value)) {
+        throw new Error("cursor must be an object");
+      }
+
+      if (typeof value.sessionId !== "string") {
+        throw new Error("cursor.sessionId must be a string");
+      }
+    };
 
     expect(optionalRecordField(value, "cursor")).toEqual({
       sessionId: "session_1",
     });
     expect(optionalRecordField(value, "text")).toBeUndefined();
     expect(
-      optionalRecordPayload<"cursor", { sessionId: string }>(value, "cursor")
+      optionalRecordPayload<"cursor", { sessionId: string }>(
+        value,
+        "cursor",
+        assertCursorRecord
+      )
     ).toEqual({
       cursor: { sessionId: "session_1" },
     });

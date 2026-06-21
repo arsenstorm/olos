@@ -402,14 +402,24 @@ function reconciliationPlanPayload(
     return slotId;
   });
 
-  for (const slot of slots) {
-    assertUploadSlot(slot);
-  }
+  const parsedSlots = slots.map((slot, index) => {
+    try {
+      assertUploadSlot(slot);
+    } catch (error) {
+      throw new Error(
+        `S3 reconciliation plan slots[${index}] must be valid: ${
+          (error as Error).message
+        }`
+      );
+    }
+
+    return slot;
+  });
 
   return {
     status: "planned",
     slotIds: validSlotIds,
-    slots: slots as readonly UploadSlot[],
+    slots: parsedSlots,
   };
 }
 
@@ -426,61 +436,62 @@ function reconciliationPayload(
     "results",
     "S3 reconciliation response must include results"
   );
-  const validResults = results.map((result, index) => {
-    const resultRecord = requiredRecord(
-      result,
-      `S3 reconciliation response results[${index}] must be an object`
-    );
-    const status = requiredStringField(
-      resultRecord,
-      "status",
-      `S3 reconciliation response results[${index}] must include status`
-    );
-
-    if (
-      status !== "failed" &&
-      status !== "conflict" &&
-      status !== "not_found" &&
-      status !== "committed" &&
-      status !== "idempotent"
-    ) {
-      throw new Error(
-        `S3 reconciliation response results[${index}] status must be committed, idempotent, failed, conflict, or not_found`
+  const validResults: StoredS3CoordinatorReconciliationResponse["results"] =
+    results.map((result, index) => {
+      const resultRecord = requiredRecord(
+        result,
+        `S3 reconciliation response results[${index}] must be an object`
       );
-    }
-
-    const slotId = requiredStringField(
-      resultRecord,
-      "slotId",
-      `S3 reconciliation response results[${index}] must include slotId`
-    );
-
-    if (status === "committed" || status === "idempotent") {
-      const commit = requiredRecordField(
+      const status = requiredStringField(
         resultRecord,
-        "commit",
-        `S3 reconciliation response results[${index}] must include commit`
+        "status",
+        `S3 reconciliation response results[${index}] must include status`
       );
 
-      assertCommit(commit);
+      if (
+        status !== "failed" &&
+        status !== "conflict" &&
+        status !== "not_found" &&
+        status !== "committed" &&
+        status !== "idempotent"
+      ) {
+        throw new Error(
+          `S3 reconciliation response results[${index}] status must be committed, idempotent, failed, conflict, or not_found`
+        );
+      }
+
+      const slotId = requiredStringField(
+        resultRecord,
+        "slotId",
+        `S3 reconciliation response results[${index}] must include slotId`
+      );
+
+      if (status === "committed" || status === "idempotent") {
+        const commit = requiredRecordField(
+          resultRecord,
+          "commit",
+          `S3 reconciliation response results[${index}] must include commit`
+        );
+
+        assertCommit(commit);
+
+        return {
+          commit,
+          slotId,
+          status,
+          ...optionalRecordPayload<"cursor", Cursor>(
+            resultRecord,
+            "cursor",
+            assertCursor
+          ),
+        };
+      }
 
       return {
-        commit,
         slotId,
         status,
-        ...optionalRecordPayload<"cursor", Cursor>(
-          resultRecord,
-          "cursor",
-          assertCursor
-        ),
       };
-    }
-
-    return {
-      slotId,
-      status,
-    };
-  });
+    });
 
   const summary = requiredRecordField(
     record,
@@ -488,11 +499,10 @@ function reconciliationPayload(
     "S3 reconciliation response must include summary"
   );
 
-  return recordPayload<StoredS3CoordinatorReconciliationResponse>({
-    ...record,
+  return {
     results: validResults,
     summary: summaryPayload(summary),
-  });
+  };
 }
 
 function retentionPayload(
@@ -537,7 +547,7 @@ function assertCoordinatorRetentionPlan(
     "expiredSlots",
     "S3 retention response plan must include expiredSlots"
   );
-  for (const [index, slot] of expiredSlots.entries()) {
+  const parsedExpiredSlots = expiredSlots.map((slot, index) => {
     if (!isRecord(slot)) {
       throw new Error(
         `S3 retention response plan.expiredSlots[${index}] must be an object`
@@ -553,19 +563,20 @@ function assertCoordinatorRetentionPlan(
         }`
       );
     }
-  }
 
-  const retiredObjects = requiredArrayField(
+    return slot;
+  });
+
+  const parsedRetiredObjects = requiredArrayField(
     value,
     "retiredObjects",
     "S3 retention response plan must include retiredObjects"
-  );
-  for (const [index, retiredObject] of retiredObjects.entries()) {
+  ).map((retiredObject, index) =>
     assertRetiredObject(
       retiredObject,
       `S3 retention response plan.retiredObjects[${index}]`
-    );
-  }
+    )
+  );
 
   if (value.cursor !== undefined) {
     if (!isRecord(value.cursor)) {
@@ -575,7 +586,11 @@ function assertCoordinatorRetentionPlan(
     assertCursor(value.cursor);
   }
 
-  return value as StoredS3CoordinatorRetentionResponse["plan"];
+  return {
+    expiredSlots: parsedExpiredSlots,
+    retiredObjects: parsedRetiredObjects,
+    ...(value.cursor === undefined ? {} : { cursor: value.cursor }),
+  };
 }
 
 function retentionResult(
