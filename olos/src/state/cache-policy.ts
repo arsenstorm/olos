@@ -3,8 +3,11 @@ import type {
   DeliveryCacheTarget,
 } from "../types/cache-policy";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
+import {
+  assertNonNegativeInteger,
+  assertPositiveInteger,
+} from "../validation/ids";
 import { assertProviderCapabilityDocument } from "../validation/provider-capability";
-import { assertNonNegativeInteger, assertPositiveInteger } from "./integers";
 
 export interface CreateDeliveryCachePolicyOptions {
   capability?: ProviderCapabilityDocument;

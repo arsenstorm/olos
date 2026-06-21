@@ -8,7 +8,7 @@ import type {
 } from "../types/committed-window";
 import { assertCommit } from "../validation/commit";
 import { assertCommittedWindow } from "../validation/committed-window";
-import { assertPositiveInteger } from "./integers";
+import { assertPositiveInteger } from "../validation/ids";
 
 const SEGMENT_COMMIT_PART_ORDER = -1;
 
