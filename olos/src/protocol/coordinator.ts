@@ -36,13 +36,21 @@ import type { OlosId } from "../types/ids";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
-import { isRecord } from "../validation/fields";
+import { assertCommit } from "../validation/commit";
+import { assertCursor } from "../validation/cursor";
+import {
+  assertIsoDateField,
+  assertUrlSafeField,
+  isRecord,
+} from "../validation/fields";
 import {
   assertNonNegativeSafeInteger,
   assertPositiveInteger,
 } from "../validation/ids";
 import type { ObservedUpload } from "../validation/observed-upload";
+import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
+import { assertUploadSlot } from "../validation/upload-slot";
 
 export interface CoordinatorPublisherLease {
   expiresAt: string;
@@ -991,20 +999,114 @@ function assertCoordinatorPipelineState(
   }
 
   assertSession(value.session);
-  assertArray(value.pathways, "coordinator pipeline state pathways");
-  assertArray(value.slots, "coordinator pipeline state slots");
-  assertArray(value.initCommits, "coordinator pipeline state initCommits");
-  assertArray(value.commits, "coordinator pipeline state commits");
+  assertPathways(value.pathways);
+  assertUploadSlots(value.slots);
+  assertCommits(value.initCommits, "coordinator pipeline state initCommits");
+  assertCommits(value.commits, "coordinator pipeline state commits");
   if (value.publisherLeases !== undefined) {
-    assertArray(
-      value.publisherLeases,
-      "coordinator pipeline state publisherLeases"
-    );
+    assertPublisherLeases(value.publisherLeases);
   }
 
   if (value.cursor !== undefined && !isRecord(value.cursor)) {
     throw new Error("coordinator pipeline state cursor must be an object");
   }
+
+  if (value.cursor !== undefined) {
+    assertCursor(value.cursor);
+  }
+}
+
+function assertCommits(
+  value: unknown,
+  name: string
+): asserts value is readonly Commit[] {
+  assertArray(value, name);
+  value.forEach((entry, index) => {
+    try {
+      assertCommit(entry);
+    } catch (error) {
+      throw new Error(
+        `${name} must contain valid commit at index ${index}: ${
+          (error as Error).message
+        }`
+      );
+    }
+  });
+}
+
+function assertPathways(value: unknown): void {
+  assertArray(value, "coordinator pipeline state pathways");
+  value.forEach((pathway, index) => {
+    try {
+      assertPathway(pathway);
+    } catch (error) {
+      throw new Error(
+        `coordinator pipeline state pathways must contain valid pathway at index ${index}: ${
+          (error as Error).message
+        }`
+      );
+    }
+  });
+}
+
+function assertUploadSlots(value: unknown): void {
+  assertArray(value, "coordinator pipeline state slots");
+  value.forEach((slot, index) => {
+    try {
+      assertUploadSlot(slot);
+    } catch (error) {
+      throw new Error(
+        `coordinator pipeline state slots must contain valid uploadSlot at index ${index}: ${
+          (error as Error).message
+        }`
+      );
+    }
+  });
+}
+
+function assertPublisherLeases(
+  value: unknown
+): asserts value is readonly CoordinatorPublisherLease[] {
+  assertArray(value, "coordinator pipeline state publisherLeases");
+
+  value.forEach((entry, index) => {
+    if (!isRecord(entry)) {
+      throw new Error(
+        `coordinator pipeline state publisherLeases must contain an object at index ${index}`
+      );
+    }
+
+    assertIsoDateField(
+      entry,
+      "expiresAt",
+      "coordinator pipeline publisher lease"
+    );
+    assertIsoDateField(
+      entry,
+      "issuedAt",
+      "coordinator pipeline publisher lease"
+    );
+    assertIsoDateField(
+      entry,
+      "lastSeenAt",
+      "coordinator pipeline publisher lease"
+    );
+    assertUrlSafeField(
+      entry,
+      "publisherInstanceId",
+      "coordinator pipeline publisher lease"
+    );
+    assertUrlSafeField(
+      entry,
+      "sessionId",
+      "coordinator pipeline publisher lease"
+    );
+    assertUrlSafeField(
+      entry,
+      "tenantId",
+      "coordinator pipeline publisher lease"
+    );
+  });
 }
 
 function assertArray(value: unknown, name: string): void {

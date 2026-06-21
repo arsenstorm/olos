@@ -211,6 +211,90 @@ describe("coordinator pipeline", () => {
         },
       })
     ).toThrow("coordinator pipeline state commits must be an array");
+    expect(() =>
+      parseCoordinatorPipelineSnapshot({
+        etag: "1",
+        state: {
+          ...createEmptyCoordinatorState(),
+          pathways: ["not-a-pathway"],
+        },
+      })
+    ).toThrow(
+      "coordinator pipeline state pathways must contain valid pathway at index 0"
+    );
+    expect(() =>
+      parseCoordinatorPipelineSnapshot({
+        etag: "1",
+        state: {
+          ...createEmptyCoordinatorState(),
+          initCommits: [{}],
+        },
+      })
+    ).toThrow(
+      "coordinator pipeline state initCommits must contain valid commit at index 0"
+    );
+    expect(() =>
+      parseCoordinatorPipelineSnapshot({
+        etag: "1",
+        state: {
+          ...createEmptyCoordinatorState(),
+          commits: [{}],
+        },
+      })
+    ).toThrow(
+      "coordinator pipeline state commits must contain valid commit at index 0"
+    );
+    expect(() =>
+      parseCoordinatorPipelineSnapshot({
+        etag: "1",
+        state: {
+          ...createEmptyCoordinatorState(),
+          slots: ["not-a-slot"],
+        },
+      })
+    ).toThrow(
+      "coordinator pipeline state slots must contain valid uploadSlot at index 0"
+    );
+    expect(() =>
+      parseCoordinatorPipelineSnapshot({
+        etag: "1",
+        state: {
+          ...createEmptyCoordinatorState(),
+          cursor: "not-a-cursor",
+        },
+      })
+    ).toThrow("coordinator pipeline state cursor must be an object");
+    expect(() =>
+      parseCoordinatorPipelineSnapshot({
+        etag: "1",
+        state: {
+          ...createEmptyCoordinatorState(),
+          publisherLeases: [""],
+        },
+      })
+    ).toThrow(
+      "coordinator pipeline state publisherLeases must contain an object at index 0"
+    );
+    expect(() =>
+      parseCoordinatorPipelineSnapshot({
+        etag: "1",
+        state: {
+          ...createEmptyCoordinatorState(),
+          publisherLeases: [
+            {
+              expiresAt: "not-a-date",
+              issuedAt: "2026-01-01T00:00:00.000Z",
+              lastSeenAt: "2026-01-01T00:00:00.000Z",
+              publisherInstanceId: "pub_1",
+              sessionId: "session_1",
+              tenantId: "tenant_1",
+            },
+          ],
+        },
+      })
+    ).toThrow(
+      "coordinator pipeline publisher lease.expiresAt must be a valid timestamp"
+    );
   });
 
   test("creates monotonic coordinator etags", () => {
