@@ -15,6 +15,7 @@ import {
   optionalStringField,
   timestampField,
 } from "../runtime/request-fields";
+import { createCompletionHintDefaults } from "./completion-hint";
 import type { CreateStoredS3CoordinatorRuntimeHandlerOptions } from "./http";
 
 interface InvalidS3HttpRequestParse {
@@ -182,64 +183,6 @@ function assertNoCompletionHintDeliveryUrl(
   if (value.deliveryUrl !== undefined) {
     throw new Error("completion hint must not include deliveryUrl");
   }
-}
-
-const DEFAULT_COMPLETION_HINT_COMMIT_ID_PREFIX = "complete_";
-const DEFAULT_COMPLETION_HINT_NOW = (): Date | string => new Date();
-
-interface CompletionHintDefaults {
-  commitId: (slotId: string) => string;
-  committedAt: () => string;
-}
-
-function createCompletionHintDefaults(
-  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
-): CompletionHintDefaults {
-  return {
-    committedAt: () =>
-      completionHintTimestamp(resolveCompletionHintNow(options)),
-    commitId: resolveCompletionHintCommitId(options),
-  };
-}
-
-function resolveCompletionHintCommitId(
-  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
-): (slotId: string) => string {
-  if (options.completionHintCommitId !== undefined) {
-    return options.completionHintCommitId;
-  }
-
-  return completionHintCommitId;
-}
-
-function resolveCompletionHintNow(
-  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
-): () => Date | string {
-  if (options.completionHintClock !== undefined) {
-    return options.completionHintClock;
-  }
-
-  if (options.completionHintNow !== undefined) {
-    return options.completionHintNow;
-  }
-
-  return DEFAULT_COMPLETION_HINT_NOW;
-}
-
-function completionHintCommitId(slotId: string): string {
-  return `${DEFAULT_COMPLETION_HINT_COMMIT_ID_PREFIX}${slotId}`;
-}
-
-function completionHintTimestamp(
-  now: (() => Date | string) | undefined
-): string {
-  if (now === undefined) {
-    return new Date().toISOString();
-  }
-
-  const next = now();
-
-  return next instanceof Date ? next.toISOString() : next;
 }
 
 export type { S3HttpRequestParse };
