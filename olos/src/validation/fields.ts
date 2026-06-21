@@ -1,7 +1,7 @@
 import {
+  assertNonNegativeInteger,
   assertPositiveInteger,
   assertUrlSafeIdentifier,
-  isNonNegativeInteger,
 } from "./ids";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -35,9 +35,7 @@ export function assertNonNegativeIntegerField(
   field: string,
   name: string
 ): void {
-  if (!isNonNegativeInteger(value[field])) {
-    throw new Error(`${name}.${field} must be a non-negative integer`);
-  }
+  assertNonNegativeInteger(value[field], `${name}.${field}`);
 }
 
 export function assertPositiveIntegerField(
