@@ -1,14 +1,23 @@
 import { readdir } from "node:fs/promises";
 import { listDirectoryEntries } from "./directory-walk";
 
-const expectedRootEntries = ["LICENSE", "README.md", "dist", "package.json"];
+export const packagePublicRootEntries = [
+  "LICENSE",
+  "README.md",
+  "dist",
+  "package.json",
+] as const;
+
+export const packagePrivateRootEntries = [
+  "e2e",
+  "fixtures",
+  "live",
+  "scripts",
+  "src",
+] as const;
 
 const forbiddenPackagePaths = [
-  /^e2e(?:\/|$)/,
-  /^fixtures(?:\/|$)/,
-  /^live(?:\/|$)/,
-  /^scripts(?:\/|$)/,
-  /^src(?:\/|$)/,
+  ...packagePrivateRootEntries.map((entry) => new RegExp(`^${entry}(?:/|$)`)),
   /(?:^|\/)[^/]+\.(?:test|spec|test-helper)(?:\.d)?\.[cm]?[jt]s$/,
   /(?:^|\/)tsconfig(?:\.[^.]+)?\.json$/,
 ] as const;
@@ -20,7 +29,7 @@ export async function assertInstalledPackageContents(
     .map((entry) => entry.name)
     .sort();
 
-  assertList("package root entries", rootEntries, expectedRootEntries);
+  assertList("package root entries", rootEntries, packagePublicRootEntries);
 
   for (const entry of await listDirectoryEntries(packageRoot)) {
     if (

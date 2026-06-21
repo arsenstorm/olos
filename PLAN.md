@@ -146,7 +146,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: document the pattern or move helpers into a clear test-helper directory with matching discovery rules.
   - Verify: test-file-shape and affected helper tests.
 
-- [ ] Strengthen package content checks around accidental private exports.
+- [x] Strengthen package content checks around accidental private exports.
   - Locations: `olos/scripts/package-contents.ts:8`, `olos/scripts/package-contents.test.ts:54`, `olos/scripts/package-smoke-fixture.ts:4`.
   - Issue: package content and smoke checks are good but spread across several scripts.
   - Suggestion: colocate public-surface intent with package content rules so new exports and private-file exclusions are reviewed together.

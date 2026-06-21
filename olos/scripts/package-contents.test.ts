@@ -1,12 +1,30 @@
 import { describe, expect, test } from "bun:test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { assertInstalledPackageContents } from "./package-contents";
+import packageJson from "../package.json" with { type: "json" };
+import {
+  assertInstalledPackageContents,
+  packagePrivateRootEntries,
+  packagePublicRootEntries,
+} from "./package-contents";
+import { packageExportSubpaths } from "./package-export-map";
+import { expectedRuntimeExports } from "./package-smoke-fixture";
 import { withTemporaryDirectory } from "./test-temp-dir";
 
-const privatePackageRoots = ["e2e", "fixtures", "live", "scripts", "src"];
-
 describe("package contents verifier", () => {
+  test("keeps public package roots aligned with export and smoke coverage", () => {
+    expect([...packagePublicRootEntries].sort()).toEqual([
+      "LICENSE",
+      "README.md",
+      "dist",
+      "package.json",
+    ]);
+    expect(packageExportSubpaths(packageJson.exports)).not.toContain(
+      "./scripts"
+    );
+    expect(Object.keys(expectedRuntimeExports)).not.toContain("olos/scripts");
+  });
+
   test("accepts the intended package root", async () => {
     await withPackageRoot(async (root) => {
       await writeFile(join(root, "dist", "index.js"), "");
@@ -18,7 +36,7 @@ describe("package contents verifier", () => {
     });
   });
 
-  for (const privateRoot of privatePackageRoots) {
+  for (const privateRoot of packagePrivateRootEntries) {
     test(`rejects private ${privateRoot} roots`, async () => {
       await withPackageRoot(async (root) => {
         await mkdir(join(root, privateRoot));
