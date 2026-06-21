@@ -1,7 +1,7 @@
 import {
   assertPositiveInteger,
+  assertUrlSafeIdentifier,
   isNonNegativeInteger,
-  isUrlSafeIdentifier,
 } from "./ids";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -27,9 +27,7 @@ export function assertUrlSafeField(
   field: string,
   name: string
 ): void {
-  if (!isUrlSafeIdentifier(value[field])) {
-    throw new Error(`${name}.${field} must be a non-empty URL-safe identifier`);
-  }
+  assertUrlSafeIdentifier(value[field], `${name}.${field}`);
 }
 
 export function assertNonNegativeIntegerField(
