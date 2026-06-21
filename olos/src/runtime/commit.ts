@@ -8,13 +8,16 @@ import { createObservedUpload } from "../state/observed-upload";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
 import {
+  committedUploadRuntimeCommandResponse,
+  invalidRuntimeCommandResponse,
+  rejectedRuntimeCommandResult,
+} from "./command-response";
+import {
   parseRuntimeCommitPayloadRequest,
   type RuntimeCommitPayload,
 } from "./commit-payload-parser";
 import { errorMessage } from "./errors";
-import { rejectionStatus } from "./rejection-status";
 import type { RuntimeJsonRequestParse } from "./request-json";
-import { jsonErrorResponse, jsonResponse } from "./response";
 
 export type RuntimeCommitRequest = Request | RuntimeCommitPayload;
 
@@ -77,27 +80,11 @@ export async function commitCoordinatorUploadFromRequest(
     });
 
     if (isRejectedCoordinatorUploadCommit(committed)) {
-      return {
-        error: committed.error,
-        response: jsonResponse(
-          committed.error,
-          rejectionStatus(committed.error)
-        ),
-        state: committed.state,
-        status: "rejected",
-      };
+      return rejectedRuntimeCommandResult(committed.error, committed.state);
     }
 
     return {
-      response: jsonResponse(
-        {
-          commit: committed.commit,
-          ...(committed.cursor === undefined
-            ? {}
-            : { cursor: committed.cursor }),
-        },
-        committed.status === "committed" ? 201 : 200
-      ),
+      response: committedUploadRuntimeCommandResponse(committed),
       state: committed.state,
       status: committed.status,
     };
@@ -125,7 +112,7 @@ async function parseRequest(
 function invalid(message: string): InvalidRuntimeCoordinatorUploadCommit {
   return {
     message,
-    response: jsonErrorResponse(message, 400),
+    response: invalidRuntimeCommandResponse(message),
     status: "invalid",
   };
 }

@@ -7,9 +7,12 @@ import {
 } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
 import type { UploadSlot } from "../types/upload-slot";
+import {
+  invalidRuntimeCommandResponse,
+  issuedSlotRuntimeCommandResponse,
+  rejectedRuntimeCommandResult,
+} from "./command-response";
 import { errorMessage } from "./errors";
-import { rejectionStatus } from "./rejection-status";
-import { jsonErrorResponse, jsonResponse } from "./response";
 import type { RuntimeSlotIssuePayload } from "./slot-issue-payload";
 import { parseSlotIssueRequest } from "./slot-issue-request-parser";
 export type RuntimeSlotIssueRequest = Request | RuntimeSlotIssuePayload;
@@ -66,7 +69,7 @@ export async function issueCoordinatorSlotFromRequest(
   });
 
   if (isBlockedPublicationControl(publication)) {
-    return rejected(publication.error, options.state);
+    return rejectedRuntimeCommandResult(publication.error, options.state);
   }
 
   try {
@@ -77,7 +80,7 @@ export async function issueCoordinatorSlotFromRequest(
     });
 
     return {
-      response: jsonResponse({ slot: issued.slot }, 201),
+      response: issuedSlotRuntimeCommandResponse(issued.slot),
       slot: issued.slot,
       state: issued.state,
       status: "issued",
@@ -90,7 +93,7 @@ export async function issueCoordinatorSlotFromRequest(
 function invalid(message: string): InvalidRuntimeCoordinatorSlotIssue {
   return {
     message,
-    response: jsonErrorResponse(message, 400),
+    response: invalidRuntimeCommandResponse(message),
     status: "invalid",
   };
 }
@@ -99,16 +102,4 @@ function isBlockedPublicationControl(
   result: PublicationControlResolution
 ): result is BlockedPublicationControl {
   return result.status === "blocked";
-}
-
-function rejected(
-  error: OlosError,
-  state: CoordinatorPipelineState
-): Extract<RuntimeCoordinatorSlotIssue, { status: "rejected" }> {
-  return {
-    error,
-    response: jsonResponse(error, rejectionStatus(error)),
-    state,
-    status: "rejected",
-  };
 }

@@ -158,7 +158,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: document the boundary or move truly shared primitives into one internal module.
   - Verify: validation and runtime request field tests.
 
-- [ ] Isolate HTTP response formatting from command logic.
+- [x] Isolate HTTP response formatting from command logic.
   - Locations: `olos/src/runtime/commit.ts:81`, `olos/src/runtime/slot.ts:91`, `olos/src/runtime/stored.ts:288`, `olos/src/s3/http.ts:331`, `:904`, `:945`.
   - Issue: response status and JSON body construction are embedded in business action functions.
   - Suggestion: create response mapper helpers for runtime slots, runtime commits, S3 commits, S3 events, and S3 reconciliation.
