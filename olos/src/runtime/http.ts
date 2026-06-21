@@ -84,6 +84,7 @@ export interface CreateStoredCoordinatorRuntimeHandlerOptions {
       context: HlsCursorWaitContext
     ) => Promise<HlsCursorWaitContext["cursor"] | undefined>;
   };
+  clock?: () => string;
   commitPolicy?: CoordinatorCommitPolicy;
   cursorNotifier?: RuntimeCursorNotifier;
   lateToleranceMs?: number;
@@ -550,7 +551,15 @@ function retentionNow(
 }
 
 function currentNow(options: CreateStoredCoordinatorRuntimeHandlerOptions) {
-  return options.now?.() ?? defaultRuntimeNow();
+  if (options.now !== undefined) {
+    return options.now();
+  }
+
+  if (options.clock !== undefined) {
+    return options.clock();
+  }
+
+  return defaultRuntimeNow();
 }
 
 function routeSessionIdError(

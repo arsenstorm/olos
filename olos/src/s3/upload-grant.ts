@@ -13,6 +13,7 @@ import { assertS3BucketName } from "./bucket";
 import { assertPositiveExpiresInSeconds } from "./options";
 
 const S3_METADATA_HEADER_PREFIX = "x-amz-meta-olos-";
+const DEFAULT_UPLOAD_GRANT_NOW = () => new Date();
 
 export interface CreateS3UploadGrantOptions {
   additionalHeaders?: Record<string, string>;
@@ -217,10 +218,14 @@ function resolveNowTimestampMs(
   now: Date | string | undefined,
   clock: (() => Date | string) | undefined
 ): number {
-  return timestampMs(
-    now ?? (clock === undefined ? new Date() : clock()),
-    "now"
-  );
+  return timestampMs(resolveNow(now, clock), "now");
+}
+
+function resolveNow(
+  now: Date | string | undefined,
+  clock: (() => Date | string) | undefined
+): Date | string {
+  return now ?? (clock === undefined ? DEFAULT_UPLOAD_GRANT_NOW() : clock());
 }
 
 function isHeaderRequest(

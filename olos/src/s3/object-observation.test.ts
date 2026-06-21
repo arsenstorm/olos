@@ -105,6 +105,22 @@ describe("s3 object observation", () => {
     ).toBe("2026-01-01T00:00:04.000Z");
   });
 
+  test("prefers injected now over injected clock", () => {
+    expect(
+      createObservedUploadFromS3HeadObject({
+        objectKey: "live/session/v1080/3810.m4s",
+        clock: () => "2026-01-01T00:00:05.000Z",
+        now: "2026-01-01T00:00:04.000Z",
+        output: {
+          $metadata: {},
+          ContentLength: 98_304,
+          ContentType: "video/mp4",
+        },
+        providerId: "s3_primary",
+      }).observedAt
+    ).toBe("2026-01-01T00:00:04.000Z");
+  });
+
   test("heads the exact S3 object key", async () => {
     const client: S3HeadObjectClient = {
       send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {

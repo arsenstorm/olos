@@ -9,6 +9,8 @@ import { assertSafeObjectKey } from "../validation/object-key";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { assertS3BucketName } from "./bucket";
 
+const DEFAULT_OBJECT_OBSERVATION_NOW = () => new Date();
+
 export interface S3HeadObjectClient {
   send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput>;
 }
@@ -128,19 +130,24 @@ function observedAt(
     return options.output.LastModified.toISOString();
   }
 
-  if (options.now !== undefined) {
-    return new Date(timestampMs(options.now, "now")).toISOString();
-  }
-
-  return new Date(observedAtNow(options)).toISOString();
+  return new Date(observedAtNowMs(options)).toISOString();
 }
 
-function observedAtNow(options: {
-  now?: Date | string;
+function observedAtNowMs(options: {
   clock?: () => Date | string;
+  now?: Date | string;
 }): number {
-  return timestampMs(
-    options.now ?? (options.clock === undefined ? new Date() : options.clock()),
-    "now"
+  return timestampMs(resolveObservedAtNow(options), "now");
+}
+
+function resolveObservedAtNow(options: {
+  clock?: () => Date | string;
+  now?: Date | string;
+}): Date | string {
+  return (
+    options.now ??
+    (options.clock === undefined
+      ? DEFAULT_OBJECT_OBSERVATION_NOW()
+      : options.clock())
   );
 }

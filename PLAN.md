@@ -62,7 +62,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: move those policy choices into a named helper and add optional clock injection through handler options if it stays backward-compatible.
   - Verify: tests for default commit ID and timestamp.
 
-- [ ] Make clock usage consistently injectable.
+- [x] Make clock usage consistently injectable.
   - Locations: `olos/src/runtime/http.ts:548`, `olos/src/s3/http.ts:781`, `olos/src/s3/upload-grant.ts:134`, `:141`, `:212`, `olos/src/s3/object-observation.ts:122`, `olos/src/hls/blocking-reload.ts:88`, `:106`.
   - Issue: production paths mix explicit timestamps, `now` callbacks, `Date.now()`, and `new Date()`.
   - Suggestion: introduce minimal `now` or clock options at boundaries that need determinism. Preserve defaults.
