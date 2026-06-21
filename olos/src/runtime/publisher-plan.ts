@@ -8,7 +8,12 @@ import {
 } from "../validation/ids";
 import { assertSupportedMediaExtension } from "../validation/object-key";
 import { optionalField } from "./optional-field";
-import { trimSlashes, trimTrailingSlash } from "./path";
+import {
+  assertSafePath,
+  assertSafePathSegment,
+  trimSlashes,
+  trimTrailingSlash,
+} from "./path";
 import { positiveNumber, timestampMs } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
@@ -239,34 +244,5 @@ function assertOptionalUrlSafeIdentifier(
 ): void {
   if (value !== undefined) {
     assertUrlSafeIdentifier(value, name);
-  }
-}
-
-function assertSafePath(value: string, name: string): void {
-  if (value.includes("?") || value.includes("#")) {
-    throw new Error(`${name} must not contain query strings or fragments`);
-  }
-
-  if (
-    value.length === 0 ||
-    value.startsWith("/") ||
-    value.endsWith("/") ||
-    value
-      .split("/")
-      .some((part) => part === "" || part === "." || part === "..")
-  ) {
-    throw new Error(`${name} must be a safe relative path`);
-  }
-}
-
-function assertSafePathSegment(value: string, name: string): void {
-  if (
-    value.length === 0 ||
-    value.includes("/") ||
-    value.includes(".") ||
-    value === "." ||
-    value === ".."
-  ) {
-    throw new Error(`${name} must be a safe path segment without dots`);
   }
 }

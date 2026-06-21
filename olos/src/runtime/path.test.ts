@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  assertSafePath,
+  assertSafePathSegment,
   normalizedSafeRelativePath,
   trimSlashes,
   trimTrailingSlash,
@@ -41,5 +43,35 @@ describe("runtime path helpers", () => {
         "path must be a safe relative path"
       );
     }
+  });
+
+  test("assertSafePath rejects unsafe values", () => {
+    expect(() => assertSafePath("", "path")).toThrow(
+      "path must be a safe relative path"
+    );
+    expect(() => assertSafePath("/v1/live", "path")).toThrow(
+      "path must be a safe relative path"
+    );
+    expect(() => assertSafePath("v1/live/", "path")).toThrow(
+      "path must be a safe relative path"
+    );
+    expect(() => assertSafePath("../live", "path")).toThrow(
+      "path must be a safe relative path"
+    );
+    expect(() => assertSafePath("v1/live?x=1", "path")).toThrow(
+      "path must not contain query strings or fragments"
+    );
+  });
+
+  test("assertSafePathSegment rejects unsafe values", () => {
+    expect(() => assertSafePathSegment("", "segment")).toThrow(
+      "segment must be a safe path segment without dots"
+    );
+    expect(() => assertSafePathSegment("foo/bar", "segment")).toThrow(
+      "segment must be a safe path segment without dots"
+    );
+    expect(() => assertSafePathSegment("foo.bar", "segment")).toThrow(
+      "segment must be a safe path segment without dots"
+    );
   });
 });

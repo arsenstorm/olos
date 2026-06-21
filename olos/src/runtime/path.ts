@@ -37,3 +37,32 @@ export function normalizedSafeRelativePath(
 
   return path;
 }
+
+export function assertSafePath(value: string, name: string): void {
+  if (value.includes("?") || value.includes("#")) {
+    throw new Error(`${name} must not contain query strings or fragments`);
+  }
+
+  if (
+    value.length === 0 ||
+    value.startsWith("/") ||
+    value.endsWith("/") ||
+    value
+      .split("/")
+      .some((segment) => segment === "" || segment === "." || segment === "..")
+  ) {
+    throw new Error(`${name} must be a safe relative path`);
+  }
+}
+
+export function assertSafePathSegment(value: string, name: string): void {
+  if (
+    value.length === 0 ||
+    value.includes("/") ||
+    value.includes(".") ||
+    value === "." ||
+    value === ".."
+  ) {
+    throw new Error(`${name} must be a safe path segment without dots`);
+  }
+}
