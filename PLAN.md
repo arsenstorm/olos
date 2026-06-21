@@ -32,7 +32,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: reuse validators such as `assertPathway`, `assertUploadSlot`, `assertCommit`, and `assertCursor` before cloning loaded state.
   - Verify: add malformed snapshot tests and run protocol store tests.
 
-- [ ] Consolidate optimistic stored-mutation retry loops.
+- [x] Consolidate optimistic stored-mutation retry loops.
   - Locations: `olos/src/protocol/coordinator.ts:376`, `olos/src/runtime/stored.ts:152`, `:197`, `olos/src/s3/coordinator.ts:262`, `:388`.
   - Issue: load, mutate, save, retry, conflict, and not-found handling is repeated with slight variations.
   - Suggestion: create one internal mutation helper with adapters for terminal results and response mapping. Keep public result unions unchanged.

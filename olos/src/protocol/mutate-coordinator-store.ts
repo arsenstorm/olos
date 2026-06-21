@@ -102,6 +102,21 @@ export interface RunStoredMutationAdapterWithConflictResultOptions<
   ): Promise<TResult> | TResult;
 }
 
+export interface RunStoredMutationAdapterWithResponseOptions<
+  TAttempt,
+  TDecisionResult,
+  TResult,
+> extends Omit<
+    RunStoredMutationAdapterWithConflictResultOptions<
+      TAttempt,
+      TDecisionResult,
+      TResult
+    >,
+    "attempts"
+  > {
+  maxAttempts?: number;
+}
+
 export function positiveMutationAttempts(value: number | undefined): number {
   const attempts = value ?? 2;
 
@@ -219,6 +234,34 @@ export function runStoredCoordinatorMutationWithAdaptersAndConflict<
       options.onConflictOrExhausted(current, attempt),
     onExhausted: (snapshot) =>
       options.onConflictOrExhausted(snapshot, undefined),
+    onMissing: options.onMissing,
+    sessionId: options.sessionId,
+    store: options.store,
+  });
+}
+
+export function runStoredCoordinatorMutationWithAdaptersAndResponse<
+  TAttempt,
+  TDecisionResult,
+  TResult,
+>(
+  options: RunStoredMutationAdapterWithResponseOptions<
+    TAttempt,
+    TDecisionResult,
+    TResult
+  >
+): Promise<TResult> {
+  return runStoredCoordinatorMutationWithAdaptersAndConflict<
+    TAttempt,
+    TDecisionResult,
+    TResult
+  >({
+    attempts: positiveMutationAttempts(options.maxAttempts),
+    decide: options.decide,
+    mapSaved: options.mapSaved,
+    mapTerminal: options.mapTerminal,
+    mutate: options.mutate,
+    onConflictOrExhausted: options.onConflictOrExhausted,
     onMissing: options.onMissing,
     sessionId: options.sessionId,
     store: options.store,

@@ -20,10 +20,7 @@ import type {
   CoordinatorPipelineState,
   IssueCoordinatorSlotOptions,
 } from "../protocol/coordinator";
-import {
-  positiveMutationAttempts,
-  runStoredCoordinatorMutationWithAdaptersAndConflict,
-} from "../protocol/mutate-coordinator-store";
+import { runStoredCoordinatorMutationWithAdaptersAndResponse } from "../protocol/mutate-coordinator-store";
 import type { UploadEventNormalization } from "../state/observed-upload";
 import {
   type PublicationControlPolicy,
@@ -261,8 +258,6 @@ export async function issueStoredS3CoordinatorUploadGrant(
     operation: "issue_slot",
     policy: slotOptions.publicationControl,
   });
-  const attempts = positiveMutationAttempts(maxAttempts);
-
   if (isBlockedPublicationControl(publication)) {
     const snapshot = await store.load(sessionId);
 
@@ -277,8 +272,8 @@ export async function issueStoredS3CoordinatorUploadGrant(
     };
   }
 
-  return runStoredCoordinatorMutationWithAdaptersAndConflict({
-    attempts,
+  return runStoredCoordinatorMutationWithAdaptersAndResponse({
+    maxAttempts,
     mutate: async (state) =>
       issueCoordinatorSlot({
         ...slotOptions,
@@ -371,10 +366,8 @@ export async function commitStoredS3CoordinatorUpload(
   options: CommitStoredS3CoordinatorUploadOptions
 ): Promise<StoredS3CoordinatorUploadCommit> {
   const { manifest, maxAttempts, sessionId, store, ...commitOptions } = options;
-  const attempts = positiveMutationAttempts(maxAttempts);
-
-  return await runStoredCoordinatorMutationWithAdaptersAndConflict({
-    attempts,
+  return await runStoredCoordinatorMutationWithAdaptersAndResponse({
+    maxAttempts,
     mutate: async (state) =>
       await commitS3CoordinatorUpload({
         ...commitOptions,

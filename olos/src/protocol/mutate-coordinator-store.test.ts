@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import type { CoordinatorPipelineStore } from "./coordinator";
+import type {
+  CoordinatorPipelineSnapshot,
+  CoordinatorPipelineState,
+  CoordinatorPipelineStore,
+} from "./coordinator";
 import { createMemoryCoordinatorStore } from "./coordinator";
 import {
   createCoordinatorStateWithIssuedSegment,
@@ -10,6 +14,7 @@ import {
   runStoredCoordinatorMutation,
   runStoredCoordinatorMutationWithAdapters,
   runStoredCoordinatorMutationWithAdaptersAndConflict,
+  runStoredCoordinatorMutationWithAdaptersAndResponse,
 } from "./mutate-coordinator-store";
 
 interface Attempt {
@@ -27,6 +32,83 @@ describe("runStoredCoordinatorMutation", () => {
     expect(() => positiveMutationAttempts(0)).toThrow(
       "maxAttempts must be a positive integer"
     );
+  });
+
+  test("supports maxAttempts via stored response mutation helper", async () => {
+    const store = createMemoryCoordinatorStore();
+    const saved = await store.save({
+      sessionId: "session_1",
+      state: createEmptyCoordinatorState(),
+    });
+
+    expect(saved.status).toBe("saved");
+
+    const result = await runStoredCoordinatorMutationWithAdaptersAndResponse<
+      Attempt,
+      CoordinatorPipelineState,
+      StoredMutationResult
+    >({
+      maxAttempts: undefined,
+      sessionId: "session_1",
+      store,
+      decide: (_attempt) => ({
+        status: "save",
+        state: createEmptyCoordinatorState(),
+      }),
+      mutate: () => ({
+        state: "terminal",
+      }),
+      mapSaved: (savedAttempt) => ({
+        outcome: `saved:${savedAttempt.etag}`,
+      }),
+      onConflictOrExhausted: () => ({
+        outcome: "conflict",
+      }),
+      onMissing: () => ({
+        outcome: "not_found",
+      }),
+    });
+
+    expect(result).toEqual({ outcome: "saved:2" });
+  });
+
+  test("validates maxAttempts in stored response mutation helper", async () => {
+    try {
+      await runStoredCoordinatorMutationWithAdaptersAndResponse<
+        Attempt,
+        CoordinatorPipelineState,
+        StoredMutationResult
+      >({
+        maxAttempts: 0,
+        sessionId: "missing",
+        store: {
+          load: async () => undefined,
+          save: async () => ({
+            status: "conflict",
+          }),
+        },
+        decide: () => ({
+          status: "terminal",
+          result: createEmptyCoordinatorState(),
+        }),
+        mutate: () => ({
+          state: "unused",
+        }),
+        mapSaved: () => ({
+          outcome: "unexpected-saved",
+        }),
+        onConflictOrExhausted: () => ({
+          outcome: "conflict",
+        }),
+        onMissing: () => ({
+          outcome: "not_found",
+        }),
+      });
+      throw new Error("expected maxAttempts validation failure");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toBe("maxAttempts must be a positive integer");
+    }
   });
 
   test("returns missing when the session is not found", async () => {

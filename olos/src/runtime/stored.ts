@@ -3,10 +3,7 @@ import type {
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineStore,
 } from "../protocol";
-import {
-  positiveMutationAttempts,
-  runStoredCoordinatorMutationWithAdaptersAndConflict,
-} from "../protocol/mutate-coordinator-store";
+import { runStoredCoordinatorMutationWithAdaptersAndResponse } from "../protocol/mutate-coordinator-store";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosId } from "../types/ids";
 import {
@@ -146,10 +143,8 @@ export async function serveStoredBlockingCoordinatorManifest(
 export async function issueStoredCoordinatorSlotFromRequest(
   options: IssueStoredCoordinatorSlotFromRequestOptions
 ): Promise<StoredRuntimeSlotIssue> {
-  const attempts = positiveMutationAttempts(options.maxAttempts);
-
-  return await runStoredCoordinatorMutationWithAdaptersAndConflict({
-    attempts,
+  return await runStoredCoordinatorMutationWithAdaptersAndResponse({
+    maxAttempts: options.maxAttempts,
     mutate: async (state) =>
       await issueCoordinatorSlotFromRequest({
         publicationControl: options.publicationControl,
@@ -176,10 +171,8 @@ export async function issueStoredCoordinatorSlotFromRequest(
 export async function commitStoredCoordinatorUploadFromRequest(
   options: CommitStoredCoordinatorUploadFromRequestOptions
 ): Promise<StoredRuntimeUploadCommit> {
-  const attempts = positiveMutationAttempts(options.maxAttempts);
-
-  return await runStoredCoordinatorMutationWithAdaptersAndConflict({
-    attempts,
+  return await runStoredCoordinatorMutationWithAdaptersAndResponse({
+    maxAttempts: options.maxAttempts,
     mutate: async (state) =>
       await commitCoordinatorUploadFromRequest({
         commitPolicy: options.commitPolicy,
