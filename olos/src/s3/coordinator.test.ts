@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  HeadObjectCommand,
-  HeadObjectCommandOutput,
-} from "@aws-sdk/client-s3";
+import type { HeadObjectCommandOutput } from "@aws-sdk/client-s3";
 import {
   type CoordinatorPipelineStore,
   createMemoryCoordinatorStore,
@@ -27,7 +24,10 @@ import {
   routeStoredS3CoordinatorUploadEvent,
 } from "./coordinator";
 import type { S3HeadObjectClient } from "./object-observation";
-import { createTestS3Client } from "./test-client.test-helper";
+import {
+  createTestHeadObjectClientForSingle,
+  createTestS3Client,
+} from "./test-client.test-helper";
 
 const publishNow = "2026-01-01T00:00:00.000Z";
 const mediaOrigin = "https://media.example.com";
@@ -1521,18 +1521,11 @@ function clientFor(
   contentType = "video/mp4",
   metadata?: Record<string, string>
 ): S3HeadObjectClient {
-  return {
-    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
-      inputs.push(command.input);
-
-      return Promise.resolve({
-        $metadata: {},
-        ContentLength: size,
-        ContentType: contentType,
-        ETag: `"${objectKey}"`,
-        LastModified: new Date("2026-01-01T00:00:01.000Z"),
-        ...(metadata === undefined ? {} : { Metadata: metadata }),
-      });
-    },
-  };
+  return createTestHeadObjectClientForSingle(
+    objectKey,
+    size,
+    inputs,
+    contentType,
+    metadata
+  );
 }

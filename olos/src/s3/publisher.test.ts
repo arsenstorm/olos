@@ -1,8 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  HeadObjectCommand,
-  HeadObjectCommandOutput,
-} from "@aws-sdk/client-s3";
 import { createMemoryCoordinatorStore } from "../protocol";
 import {
   createEmptyCoordinatorState,
@@ -20,14 +16,16 @@ import {
   commitStoredS3CoordinatorUpload,
   issueStoredS3CoordinatorUploadGrant,
 } from "./coordinator";
-import type { S3HeadObjectClient } from "./object-observation";
 import {
   runNextStoredS3PublisherUploadStep,
   runPlannedStoredS3PublisherUploadStep,
   runStoredS3PublisherUploadStep,
   summarizeStoredS3PublisherUploadStep,
 } from "./publisher";
-import { createTestS3Client } from "./test-client.test-helper";
+import {
+  createTestHeadObjectClientForSingle,
+  createTestS3Client,
+} from "./test-client.test-helper";
 
 const manualGrantTtlSeconds = 3;
 
@@ -43,7 +41,7 @@ describe("stored S3 publisher upload step", () => {
       bucket: "media",
       client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
-      headObjectClient: clientFor(
+      headObjectClient: createTestHeadObjectClientForSingle(
         "media/v1080/s3810/segment-slot_01JZ.m4s",
         98_304,
         headObjectInputs
@@ -116,7 +114,7 @@ describe("stored S3 publisher upload step", () => {
       client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
       defaults: objectDefaults,
-      headObjectClient: clientFor(
+      headObjectClient: createTestHeadObjectClientForSingle(
         "media/v1080/s3810/segment-slot_01K0.m4s",
         98_304,
         headObjectInputs
@@ -351,7 +349,7 @@ describe("stored S3 publisher upload step", () => {
         },
         status: "rejected",
       }),
-      headObjectClient: clientFor(
+      headObjectClient: createTestHeadObjectClientForSingle(
         "media/v1080/s3810/segment-slot_01K1.m4s",
         98_304,
         headObjectInputs
@@ -452,7 +450,11 @@ describe("stored S3 publisher upload step", () => {
       commit: (slot) =>
         commitStoredS3CoordinatorUpload({
           bucket: "media",
-          client: clientFor(slot.objectKey, 98_304, headObjectInputs),
+          client: createTestHeadObjectClientForSingle(
+            slot.objectKey,
+            98_304,
+            headObjectInputs
+          ),
           commitId: "commit_3810",
           committedAt: "2026-01-01T00:00:02.000Z",
           independent: true,
@@ -648,7 +650,7 @@ function nextStepOptions(options: {
     client: createTestS3Client(),
     committedAt: "2026-01-01T00:00:02.000Z",
     defaults: objectDefaults,
-    headObjectClient: clientFor(
+    headObjectClient: createTestHeadObjectClientForSingle(
       "media/v1080/s3810/segment-slot_01L0.m4s",
       98_304,
       options.headObjectInputs
@@ -665,25 +667,5 @@ function nextStepOptions(options: {
     startMediaSequenceNumber: 3810,
     store: options.store,
     targetLatency: 3,
-  };
-}
-
-function clientFor(
-  objectKey: string,
-  size: number,
-  inputs: unknown[]
-): S3HeadObjectClient {
-  return {
-    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
-      inputs.push(command.input);
-
-      return Promise.resolve({
-        $metadata: {},
-        ContentLength: size,
-        ContentType: "video/mp4",
-        ETag: `"${objectKey}"`,
-        LastModified: new Date("2026-01-01T00:00:01.000Z"),
-      });
-    },
   };
 }

@@ -1,8 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  HeadObjectCommand,
-  HeadObjectCommandOutput,
-} from "@aws-sdk/client-s3";
 import {
   createMemoryCoordinatorStore,
   issueCoordinatorSlot,
@@ -19,6 +15,7 @@ import {
   reconcileStoredS3CoordinatorUploads,
   summarizeStoredS3CoordinatorUploadReconciliation,
 } from "./reconciliation";
+import { createTestHeadObjectClientFor } from "./test-client.test-helper";
 
 describe("stored S3 upload reconciliation", () => {
   test("plans in-flight S3 slots for app-owned recovery jobs", async () => {
@@ -299,24 +296,13 @@ function clientFor(
   objects: ReadonlyMap<string, number>,
   inputs: unknown[]
 ): S3HeadObjectClient {
-  return {
-    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
-      inputs.push(command.input);
-
-      const objectKey = String(command.input.Key);
-      const size = objects.get(objectKey);
-
-      if (size === undefined) {
-        return Promise.reject(new Error(`missing object: ${objectKey}`));
-      }
-
-      return Promise.resolve({
-        $metadata: {},
-        ContentLength: size,
-        ContentType: "video/mp4",
-        ETag: `"${objectKey}"`,
-        LastModified: new Date("2026-01-01T00:00:01.000Z"),
-      });
-    },
-  };
+  return createTestHeadObjectClientFor(
+    inputs,
+    (objectKey) => objects.get(objectKey),
+    {},
+    {},
+    {
+      missingObjectError: (objectKey) => `missing object: ${objectKey}`,
+    }
+  );
 }

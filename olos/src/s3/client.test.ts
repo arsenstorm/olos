@@ -1,8 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  HeadObjectCommand,
-  HeadObjectCommandOutput,
-} from "@aws-sdk/client-s3";
 import { createMemoryCoordinatorStore } from "../protocol";
 import {
   testCoordinatorPathways as pathways,
@@ -21,8 +17,10 @@ import {
   S3RuntimeHttpError,
 } from "./client";
 import { createStoredS3CoordinatorRuntimeHandler } from "./http";
-import type { S3HeadObjectClient } from "./object-observation";
-import { createTestS3Client } from "./test-client.test-helper";
+import {
+  createTestHeadObjectClientFor,
+  createTestS3Client,
+} from "./test-client.test-helper";
 import { createTestS3DeleteObjectClient } from "./test-delete-client.test-helper";
 
 const MEDIA_ORIGIN = "https://media.example.com";
@@ -607,9 +605,9 @@ async function createS3RuntimeClientHarness(options: {
     client: createTestS3Client(),
     expiresInSeconds: S3_GRANT_TTL_SECONDS,
     grantNow: () => S3_GRANT_NOW,
-    objectClient: objectClientFor(
-      options.objectSizes,
-      options.headObjectInputs ?? []
+    objectClient: createTestHeadObjectClientFor(
+      options.headObjectInputs ?? [],
+      options.objectSizes
     ),
     ...(options.providerId === undefined
       ? {}
@@ -631,30 +629,4 @@ async function createS3RuntimeClientHarness(options: {
   });
 
   return { clientFetch };
-}
-
-function objectClientFor(
-  sizes: Record<string, number>,
-  inputs: unknown[]
-): S3HeadObjectClient {
-  return {
-    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
-      inputs.push(command.input);
-
-      const objectKey = String(command.input.Key);
-      const size = sizes[objectKey];
-
-      if (size === undefined) {
-        throw new Error(`unexpected object key: ${objectKey}`);
-      }
-
-      return Promise.resolve({
-        $metadata: {},
-        ContentLength: size,
-        ContentType: "video/mp4",
-        ETag: `"${objectKey}"`,
-        LastModified: new Date("2026-01-01T00:00:01.000Z"),
-      });
-    },
-  };
 }
