@@ -9,6 +9,7 @@ import {
   createCommit,
   resolveCommitAttempt,
   resolveDuplicateCommit,
+  resolveObjectSlotMismatch,
   resolveUploadCommit,
 } from "./commit";
 
@@ -440,6 +441,22 @@ describe("commit attempt resolution", () => {
       },
       status: "content_type_mismatch",
     });
+  });
+
+  test("shares object-slot mismatch checks without forcing key validation", () => {
+    expect(
+      resolveObjectSlotMismatch({
+        mediaObject: { ...mediaObject, objectKey: "other.m4s" },
+        slot,
+      })
+    ).toBeUndefined();
+    expect(
+      resolveObjectSlotMismatch({
+        includeKeyMismatch: true,
+        mediaObject: { ...mediaObject, objectKey: "other.m4s" },
+        slot,
+      })?.status
+    ).toBe("key_mismatch");
   });
 
   test("returns an object too large error for oversized objects", () => {

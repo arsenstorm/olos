@@ -2,6 +2,7 @@ import {
   createCommit,
   resolveCommitAttempt,
   resolveDuplicateCommit,
+  resolveObjectSlotMismatch,
 } from "../state/commit";
 import { createCommittedWindow } from "../state/committed-window";
 import { createCursor, resolveCursorUpdate } from "../state/cursor";
@@ -187,23 +188,6 @@ function rejectInvalidObservedUpload(options: {
     return;
   }
 
-  if (object.contentType !== slot.contentType) {
-    return {
-      error: coordinatorError(
-        "olos.content_type_mismatch",
-        "object content type does not match slot",
-        {
-          contentType: object.contentType,
-          objectKey: object.objectKey,
-          slotContentType: slot.contentType,
-          slotId: slot.slotId,
-        }
-      ),
-      state: options.state,
-      status: "rejected",
-    };
-  }
-
   const observedSlotId = object.metadata?.["x-olos-slot-id"];
 
   if (observedSlotId !== undefined && observedSlotId !== slot.slotId) {
@@ -222,41 +206,18 @@ function rejectInvalidObservedUpload(options: {
     };
   }
 
-  if (slot.minBytes !== undefined && object.size < slot.minBytes) {
-    return {
-      error: coordinatorError(
-        "olos.object_too_small",
-        "mediaObject.size must be at least minBytes",
-        {
-          minBytes: slot.minBytes,
-          objectKey: object.objectKey,
-          size: object.size,
-          slotId: slot.slotId,
-        }
-      ),
-      state: options.state,
-      status: "rejected",
-    };
-  }
+  const mismatch = resolveObjectSlotMismatch({
+    mediaObject: object,
+    slot,
+  });
 
-  if (object.size <= slot.maxBytes) {
-    return;
-  }
-
-  return {
-    error: coordinatorError(
-      "olos.object_too_large",
-      "object exceeds slot limit",
-      {
-        maxBytes: slot.maxBytes,
-        objectKey: object.objectKey,
-        size: object.size,
-        slotId: slot.slotId,
-      }
-    ),
-    state: options.state,
-    status: "rejected",
-  };
+  return mismatch === undefined
+    ? undefined
+    : {
+        error: mismatch.error,
+        state: options.state,
+        status: "rejected",
+      };
 }
 
 function commitIntoState(options: {

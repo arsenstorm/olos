@@ -59,6 +59,23 @@ export type CommitAttemptResolution =
         | "unknown_slot";
     };
 
+type ObjectSlotMismatchStatus =
+  | "content_type_mismatch"
+  | "key_mismatch"
+  | "object_too_large"
+  | "object_too_small";
+
+export interface ResolveObjectSlotMismatchOptions {
+  includeKeyMismatch?: boolean;
+  mediaObject: MediaObject;
+  slot: UploadSlot;
+}
+
+export interface ObjectSlotMismatchResolution {
+  error: OlosError;
+  status: ObjectSlotMismatchStatus;
+}
+
 export interface CommitObservedUploadOptions {
   commitId: OlosId;
   committedAt: string;
@@ -224,7 +241,39 @@ export function resolveCommitAttempt(
     };
   }
 
-  if (options.mediaObject.objectKey !== options.slot.objectKey) {
+  const mismatch = resolveObjectSlotMismatch({
+    includeKeyMismatch: true,
+    mediaObject: options.mediaObject,
+    slot: options.slot,
+  });
+
+  if (mismatch !== undefined) {
+    return mismatch;
+  }
+
+  const result = resolveUploadCommit({
+    commitId: options.commitId,
+    committedAt: options.committedAt,
+    independent: options.independent,
+    lateToleranceMs: options.lateToleranceMs,
+    mediaObject: options.mediaObject,
+    programDateTime: options.programDateTime,
+    slot: options.slot,
+  });
+
+  return {
+    ...result,
+    status: "committed",
+  };
+}
+
+export function resolveObjectSlotMismatch(
+  options: ResolveObjectSlotMismatchOptions
+): ObjectSlotMismatchResolution | undefined {
+  if (
+    options.includeKeyMismatch === true &&
+    options.mediaObject.objectKey !== options.slot.objectKey
+  ) {
     return {
       error: createOlosError(
         "olos.key_mismatch",
@@ -289,21 +338,6 @@ export function resolveCommitAttempt(
       status: "object_too_small",
     };
   }
-
-  const result = resolveUploadCommit({
-    commitId: options.commitId,
-    committedAt: options.committedAt,
-    independent: options.independent,
-    lateToleranceMs: options.lateToleranceMs,
-    mediaObject: options.mediaObject,
-    programDateTime: options.programDateTime,
-    slot: options.slot,
-  });
-
-  return {
-    ...result,
-    status: "committed",
-  };
 }
 
 export function resolveDuplicateCommit(

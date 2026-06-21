@@ -164,7 +164,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: create response mapper helpers for runtime slots, runtime commits, S3 commits, S3 events, and S3 reconciliation.
   - Verify: HTTP and client tests.
 
-- [ ] Review commit validation duplication.
+- [x] Review commit validation duplication.
   - Locations: `olos/src/protocol/coordinator.ts:626`, `olos/src/state/commit.ts:186`, `:217`, `:235`.
   - Issue: object key, content type, and size checks exist in both coordinator and state commit paths.
   - Suggestion: centralize shared observed-object-versus-slot rejection logic in state, and let coordinator handle policy context.
