@@ -21,6 +21,7 @@ import type {
   CoordinatorPipelineState,
   IssueCoordinatorSlotOptions,
 } from "../protocol/coordinator";
+import { runStoredCoordinatorMutation } from "../protocol/mutate-coordinator-store";
 import { positiveAttempts } from "../runtime/attempts";
 import type { UploadEventNormalization } from "../state/observed-upload";
 import {
@@ -132,15 +133,6 @@ type RejectedS3CoordinatorUploadCommit = Extract<
 type BlockedPublicationControl = Extract<
   PublicationControlResolution,
   { status: "blocked" }
->;
-
-type CoordinatorStoreSaveResult = Awaited<
-  ReturnType<CoordinatorPipelineStore["save"]>
->;
-
-type SavedCoordinatorStoreResult = Extract<
-  CoordinatorStoreSaveResult,
-  { status: "saved" }
 >;
 
 type CoordinatorPipelineMutationResult = Awaited<
@@ -385,45 +377,47 @@ export async function commitS3CoordinatorUpload(
   });
 }
 
-export async function commitStoredS3CoordinatorUpload(
+export function commitStoredS3CoordinatorUpload(
   options: CommitStoredS3CoordinatorUploadOptions
 ): Promise<StoredS3CoordinatorUploadCommit> {
   const { manifest, maxAttempts, sessionId, store, ...commitOptions } = options;
   const attempts = positiveAttempts(maxAttempts);
-  let snapshot = await store.load(sessionId);
 
-  if (snapshot === undefined) {
-    return missingStoredS3CoordinatorUploadCommit();
-  }
+  return runStoredCoordinatorMutation({
+    attempts,
+    mutate: async (state) =>
+      await commitS3CoordinatorUpload({
+        ...commitOptions,
+        state,
+      }),
+    sessionId,
+    store,
+    decide: (commit, snapshot) => {
+      if (isRejectedS3CoordinatorUploadCommit(commit)) {
+        return {
+          status: "terminal",
+          result: withAuditEvent(commit, commitOptions.committedAt),
+        };
+      }
 
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const commit = await commitS3CoordinatorUpload({
-      ...commitOptions,
-      state: snapshot.state,
-    });
+      if (isIdempotentS3CoordinatorUploadCommit(commit)) {
+        return {
+          status: "terminal",
+          result: withManifest(
+            {
+              ...commit,
+              etag: snapshot.etag,
+            },
+            manifest
+          ),
+        };
+      }
 
-    if (isRejectedS3CoordinatorUploadCommit(commit)) {
-      return withAuditEvent(commit, commitOptions.committedAt);
-    }
-
-    if (isIdempotentS3CoordinatorUploadCommit(commit)) {
-      return withManifest(
-        {
-          ...commit,
-          etag: snapshot.etag,
-        },
-        manifest
-      );
-    }
-
-    const saved = await store.save({
-      expectedEtag: snapshot.etag,
-      sessionId,
-      state: commit.state,
-    });
-
-    if (isSavedCoordinatorStoreResult(saved)) {
-      return withManifest(
+      return { status: "save", state: commit.state };
+    },
+    onMissing: () => missingStoredS3CoordinatorUploadCommit(),
+    onSaved: (saved, commit) =>
+      withManifest(
         {
           ...commit,
           etag: saved.etag,
@@ -433,26 +427,19 @@ export async function commitStoredS3CoordinatorUpload(
           state: saved.state,
         },
         manifest
-      );
-    }
-
-    if (saved.current === undefined) {
-      return saved;
-    }
-
-    snapshot = saved.current;
-  }
-
-  return {
-    current: snapshot,
-    status: "conflict",
-  };
-}
-
-function isSavedCoordinatorStoreResult(
-  result: CoordinatorStoreSaveResult
-): result is SavedCoordinatorStoreResult {
-  return result.status === "saved";
+      ),
+    onConflict: (current) =>
+      current === undefined
+        ? { status: "conflict" }
+        : {
+            current,
+            status: "conflict",
+          },
+    onExhausted: (snapshot) => ({
+      current: snapshot,
+      status: "conflict",
+    }),
+  });
 }
 
 function isSavedCoordinatorPipelineMutation(

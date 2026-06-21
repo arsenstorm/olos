@@ -3,6 +3,7 @@ import type {
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineStore,
 } from "../protocol";
+import { runStoredCoordinatorMutation } from "../protocol/mutate-coordinator-store";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosId } from "../types/ids";
 import { positiveAttempts } from "./attempts";
@@ -91,15 +92,6 @@ type TerminalRuntimeCoordinatorUploadCommit = Extract<
   { status: "invalid" | "rejected" }
 >;
 
-type CoordinatorStoreSaveResult = Awaited<
-  ReturnType<CoordinatorPipelineStore["save"]>
->;
-
-type SavedCoordinatorStoreResult = Extract<
-  CoordinatorStoreSaveResult,
-  { status: "saved" }
->;
-
 const TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES = [
   "invalid",
   "rejected",
@@ -149,103 +141,79 @@ export async function serveStoredBlockingCoordinatorManifest(
   });
 }
 
-export async function issueStoredCoordinatorSlotFromRequest(
+export function issueStoredCoordinatorSlotFromRequest(
   options: IssueStoredCoordinatorSlotFromRequestOptions
 ): Promise<StoredRuntimeSlotIssue> {
   const attempts = positiveAttempts(options.maxAttempts);
-  let snapshot = await options.store.load(options.sessionId);
 
-  if (snapshot === undefined) {
-    return notFound();
-  }
-
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const issued = await issueCoordinatorSlotFromRequest({
-      publicationControl: options.publicationControl,
-      request: requestForAttempt(options.request),
-      state: snapshot.state,
-    });
-
-    if (!isIssuedRuntimeCoordinatorSlotIssue(issued)) {
-      return issued;
-    }
-
-    const saved = await options.store.save({
-      expectedEtag: snapshot.etag,
-      sessionId: options.sessionId,
-      state: issued.state,
-    });
-
-    if (isSavedCoordinatorStoreResult(saved)) {
-      return {
-        ...issued,
-        etag: saved.etag,
-        state: saved.state,
-      };
-    }
-
-    if (saved.current === undefined) {
-      return conflict(saved.current);
-    }
-
-    snapshot = saved.current;
-  }
-
-  return conflict(snapshot);
+  return runStoredCoordinatorMutation({
+    attempts,
+    mutate: async (state) =>
+      await issueCoordinatorSlotFromRequest({
+        publicationControl: options.publicationControl,
+        request: requestForAttempt(options.request),
+        state,
+      }),
+    sessionId: options.sessionId,
+    store: options.store,
+    decide: (issued) =>
+      isIssuedRuntimeCoordinatorSlotIssue(issued)
+        ? { status: "save", state: issued.state }
+        : { status: "terminal", result: issued },
+    onMissing: () => notFound(),
+    onSaved: (saved, attempt) => ({
+      ...(attempt as IssuedRuntimeCoordinatorSlotIssue),
+      etag: saved.etag,
+      state: saved.state,
+    }),
+    onConflict: (current) => conflict(current),
+    onExhausted: (snapshot) => conflict(snapshot),
+  });
 }
 
-export async function commitStoredCoordinatorUploadFromRequest(
+export function commitStoredCoordinatorUploadFromRequest(
   options: CommitStoredCoordinatorUploadFromRequestOptions
 ): Promise<StoredRuntimeUploadCommit> {
   const attempts = positiveAttempts(options.maxAttempts);
-  let snapshot = await options.store.load(options.sessionId);
 
-  if (snapshot === undefined) {
-    return notFound();
-  }
+  return runStoredCoordinatorMutation({
+    attempts,
+    mutate: async (state) =>
+      await commitCoordinatorUploadFromRequest({
+        commitPolicy: options.commitPolicy,
+        lateToleranceMs: options.lateToleranceMs,
+        publicationControl: options.publicationControl,
+        request: requestForAttempt(options.request),
+        state,
+      }),
+    sessionId: options.sessionId,
+    store: options.store,
+    decide: (committed, snapshot) => {
+      if (isTerminalRuntimeCoordinatorUploadCommit(committed)) {
+        return { status: "terminal", result: committed };
+      }
 
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const committed = await commitCoordinatorUploadFromRequest({
-      commitPolicy: options.commitPolicy,
-      lateToleranceMs: options.lateToleranceMs,
-      publicationControl: options.publicationControl,
-      request: requestForAttempt(options.request),
-      state: snapshot.state,
-    });
+      if (isIdempotentRuntimeCoordinatorUploadCommit(committed)) {
+        return {
+          status: "terminal",
+          result: {
+            ...committed,
+            etag: snapshot.etag,
+          },
+        };
+      }
 
-    if (isTerminalRuntimeCoordinatorUploadCommit(committed)) {
-      return committed;
-    }
-
-    if (isIdempotentRuntimeCoordinatorUploadCommit(committed)) {
-      return {
-        ...committed,
-        etag: snapshot.etag,
-      };
-    }
-
-    const saved = await options.store.save({
-      expectedEtag: snapshot.etag,
-      sessionId: options.sessionId,
-      state: committed.state,
-    });
-
-    if (isSavedCoordinatorStoreResult(saved)) {
-      return {
-        ...committed,
-        etag: saved.etag,
-        state: saved.state,
-      };
-    }
-
-    if (saved.current === undefined) {
-      return conflict(saved.current);
-    }
-
-    snapshot = saved.current;
-  }
-
-  return conflict(snapshot);
+      return { status: "save", state: committed.state };
+    },
+    onMissing: () => notFound(),
+    onSaved: (saved, attempt) => ({
+      ...(attempt as RuntimeCoordinatorUploadCommit),
+      etag: saved.etag,
+      state: saved.state,
+    }),
+    onConflict: (current) => conflict(current),
+    onExhausted: (snapshot) => conflict(snapshot),
+  });
 }
 
 function isTerminalRuntimeCoordinatorUploadCommit(
@@ -267,12 +235,6 @@ function isIdempotentRuntimeCoordinatorUploadCommit(
   result: RuntimeCoordinatorUploadCommit
 ): result is IdempotentRuntimeCoordinatorUploadCommit {
   return result.status === "idempotent";
-}
-
-function isSavedCoordinatorStoreResult(
-  result: CoordinatorStoreSaveResult
-): result is SavedCoordinatorStoreResult {
-  return result.status === "saved";
 }
 
 function requestForAttempt(request: RuntimeCommitRequest): RuntimeCommitRequest;

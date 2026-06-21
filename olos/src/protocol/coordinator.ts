@@ -51,6 +51,7 @@ import type { ObservedUpload } from "../validation/observed-upload";
 import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
 import { assertUploadSlot } from "../validation/upload-slot";
+import { runStoredCoordinatorMutation } from "./mutate-coordinator-store";
 
 export interface CoordinatorPublisherLease {
   expiresAt: string;
@@ -102,11 +103,6 @@ export type CoordinatorStoreSave =
       current?: CoordinatorPipelineSnapshot;
       status: "conflict";
     };
-
-type SavedCoordinatorStoreSave = Extract<
-  CoordinatorStoreSave,
-  { status: "saved" }
->;
 
 type ConflictingCoordinatorStoreSave = Extract<
   CoordinatorStoreSave,
@@ -381,36 +377,29 @@ export function parseCoordinatorPipelineSnapshot(
   return cloneCoordinatorPipelineSnapshot(parsed);
 }
 
-export async function mutateCoordinatorPipeline(
+export function mutateCoordinatorPipeline(
   options: MutateCoordinatorPipelineOptions
 ): Promise<CoordinatorPipelineMutation> {
-  const maxAttempts = positiveMutationAttempts(options.maxAttempts);
-  let snapshot = await options.store.load(options.sessionId);
+  const attempts = positiveMutationAttempts(options.maxAttempts);
 
-  if (snapshot === undefined) {
-    return missingCoordinatorPipelineMutation();
-  }
-
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const state = await options.mutate(snapshot.state);
-    const saved = await options.store.save({
-      expectedEtag: snapshot.etag,
-      sessionId: options.sessionId,
-      state,
-    });
-
-    if (isSavedCoordinatorStoreSave(saved)) {
-      return saved;
-    }
-
-    if (saved.current === undefined) {
-      return saved;
-    }
-
-    snapshot = saved.current;
-  }
-
-  return conflictingCoordinatorPipelineMutation(snapshot);
+  return runStoredCoordinatorMutation({
+    attempts,
+    mutate: async (state) => ({
+      state: await options.mutate(state),
+    }),
+    sessionId: options.sessionId,
+    store: options.store,
+    decide(attempt) {
+      return { state: attempt.state, status: "save" };
+    },
+    onMissing: () => missingCoordinatorPipelineMutation(),
+    onSaved: (saved) => saved,
+    onConflict: (current) =>
+      current === undefined
+        ? { status: "conflict" }
+        : conflictingCoordinatorPipelineMutation(current),
+    onExhausted: (snapshot) => conflictingCoordinatorPipelineMutation(snapshot),
+  });
 }
 
 function conflictingCoordinatorStoreSave(
@@ -440,12 +429,6 @@ function positiveMutationAttempts(value: number | undefined): number {
 
   assertPositiveInteger(attempts, "maxAttempts");
   return attempts;
-}
-
-function isSavedCoordinatorStoreSave(
-  result: CoordinatorStoreSave
-): result is SavedCoordinatorStoreSave {
-  return result.status === "saved";
 }
 
 function isConflictingDuplicateCommit(
