@@ -218,7 +218,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: create configurable fake object and delete clients with explicit fixtures.
   - Verify: migrate and test one suite at a time.
 
-- [ ] Extract common protocol fixtures.
+- [x] Extract common protocol fixtures.
   - Locations: `olos/src/protocol/coordinator-state.test-helper.ts`, `olos/e2e/conformance-fixtures.ts`, repeated session/pathway/slot fixtures across runtime and S3 tests.
   - Issue: many tests repeat protocol-ready sessions, pathways, slots, and commits.
   - Suggestion: add small immutable fixture builders with clear overrides.
