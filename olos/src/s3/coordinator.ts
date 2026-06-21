@@ -15,7 +15,6 @@ import {
   commitCoordinatorUpload,
   createCoordinatorManifestArtifacts,
   issueCoordinatorSlot,
-  mutateCoordinatorPipeline,
 } from "../protocol";
 import type {
   CoordinatorPipelineState,
@@ -133,15 +132,6 @@ type RejectedS3CoordinatorUploadCommit = Extract<
 type BlockedPublicationControl = Extract<
   PublicationControlResolution,
   { status: "blocked" }
->;
-
-type CoordinatorPipelineMutationResult = Awaited<
-  ReturnType<typeof mutateCoordinatorPipeline>
->;
-
-type SavedCoordinatorPipelineMutation = Extract<
-  CoordinatorPipelineMutationResult,
-  { status: "saved" }
 >;
 
 type MissingStoredS3CoordinatorUploadCommit = Extract<
@@ -269,6 +259,7 @@ export async function issueStoredS3CoordinatorUploadGrant(
     operation: "issue_slot",
     policy: slotOptions.publicationControl,
   });
+  const attempts = positiveAttempts(maxAttempts);
 
   if (isBlockedPublicationControl(publication)) {
     const snapshot = await store.load(sessionId);
@@ -284,43 +275,41 @@ export async function issueStoredS3CoordinatorUploadGrant(
     };
   }
 
-  let slot: UploadSlot | undefined;
-  const mutation = await mutateCoordinatorPipeline({
-    maxAttempts,
-    mutate: (state) => {
-      const issued = issueCoordinatorSlot({ ...slotOptions, state });
-      slot = issued.slot;
-
-      return issued.state;
-    },
+  return runStoredCoordinatorMutation({
+    attempts,
+    mutate: async (state) =>
+      issueCoordinatorSlot({
+        ...slotOptions,
+        state,
+      }),
+    decide: (issue) => ({
+      status: "save",
+      state: issue.state,
+    }),
     sessionId,
     store,
+    onMissing: () => missingStoredS3CoordinatorUploadGrantIssue(),
+    onSaved: async (saved, attempt) => {
+      const grant = await createPresignedS3UploadGrant({
+        additionalHeaders,
+        bucket,
+        client,
+        expiresInSeconds,
+        now,
+        slot: attempt.slot,
+      });
+
+      return {
+        etag: saved.etag,
+        grant,
+        slot: attempt.slot,
+        state: saved.state,
+        status: "saved",
+      };
+    },
+    onConflict: (current) => conflict(current),
+    onExhausted: (snapshot) => conflict(snapshot),
   });
-
-  if (!isSavedCoordinatorPipelineMutation(mutation)) {
-    return mutation;
-  }
-
-  if (slot === undefined) {
-    throw new Error("stored S3 upload grant mutation did not issue a slot");
-  }
-
-  const grant = await createPresignedS3UploadGrant({
-    additionalHeaders,
-    bucket,
-    client,
-    expiresInSeconds,
-    now,
-    slot,
-  });
-
-  return {
-    etag: mutation.etag,
-    grant,
-    slot,
-    state: mutation.state,
-    status: "saved",
-  };
 }
 
 export async function commitS3CoordinatorUpload(
@@ -377,13 +366,13 @@ export async function commitS3CoordinatorUpload(
   });
 }
 
-export function commitStoredS3CoordinatorUpload(
+export async function commitStoredS3CoordinatorUpload(
   options: CommitStoredS3CoordinatorUploadOptions
 ): Promise<StoredS3CoordinatorUploadCommit> {
   const { manifest, maxAttempts, sessionId, store, ...commitOptions } = options;
   const attempts = positiveAttempts(maxAttempts);
 
-  return runStoredCoordinatorMutation({
+  return await runStoredCoordinatorMutation({
     attempts,
     mutate: async (state) =>
       await commitS3CoordinatorUpload({
@@ -428,24 +417,18 @@ export function commitStoredS3CoordinatorUpload(
         },
         manifest
       ),
-    onConflict: (current) =>
-      current === undefined
-        ? { status: "conflict" }
-        : {
-            current,
-            status: "conflict",
-          },
-    onExhausted: (snapshot) => ({
-      current: snapshot,
-      status: "conflict",
-    }),
+    onConflict: (current) => conflict(current),
+    onExhausted: (snapshot) => conflict(snapshot),
   });
 }
 
-function isSavedCoordinatorPipelineMutation(
-  result: CoordinatorPipelineMutationResult
-): result is SavedCoordinatorPipelineMutation {
-  return result.status === "saved";
+function conflict(current?: CoordinatorPipelineSnapshot): {
+  current?: CoordinatorPipelineSnapshot;
+  status: "conflict";
+} {
+  return current === undefined
+    ? { status: "conflict" }
+    : { current, status: "conflict" };
 }
 
 function isIdempotentS3CoordinatorUploadCommit(

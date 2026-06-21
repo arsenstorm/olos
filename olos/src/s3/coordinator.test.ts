@@ -82,6 +82,57 @@ describe("s3 coordinator uploads", () => {
     expect(stored?.state.slots).toEqual([issue.slot]);
   });
 
+  test("retries stored grant issues after save conflicts", async () => {
+    const baseStore = createMemoryCoordinatorStore();
+    let saves = 0;
+    const store: CoordinatorPipelineStore = {
+      load: baseStore.load,
+      save: async (options) => {
+        saves += 1;
+        if (saves === 1) {
+          const current = await baseStore.load(options.sessionId);
+
+          return {
+            status: "conflict",
+            ...(current === undefined ? {} : { current }),
+          };
+        }
+
+        return baseStore.save(options);
+      },
+    };
+
+    await baseStore.save({
+      sessionId: session.sessionId,
+      state: createEmptyCoordinatorState(),
+    });
+
+    const issue = await issueStoredS3CoordinatorUploadGrant({
+      bucket: "media",
+      client: createTestS3Client(),
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      expiresInSeconds: s3GrantTtlSeconds,
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      now: publishNow,
+      objectKey: "live/session/v1080/3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      sessionId: session.sessionId,
+      slotId: "slot_3810",
+      maxAttempts: 2,
+      store,
+    });
+
+    expect(saves).toBe(2);
+    expect(issue.status).toBe("saved");
+  });
+
   test("issues planned part objects through stored S3 grants", async () => {
     const store = createMemoryCoordinatorStore();
     const state = createEmptyCoordinatorState();

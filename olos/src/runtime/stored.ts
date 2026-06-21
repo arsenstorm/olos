@@ -141,12 +141,12 @@ export async function serveStoredBlockingCoordinatorManifest(
   });
 }
 
-export function issueStoredCoordinatorSlotFromRequest(
+export async function issueStoredCoordinatorSlotFromRequest(
   options: IssueStoredCoordinatorSlotFromRequestOptions
 ): Promise<StoredRuntimeSlotIssue> {
   const attempts = positiveAttempts(options.maxAttempts);
 
-  return runStoredCoordinatorMutation({
+  return await runStoredCoordinatorMutation({
     attempts,
     mutate: async (state) =>
       await issueCoordinatorSlotFromRequest({
@@ -171,12 +171,12 @@ export function issueStoredCoordinatorSlotFromRequest(
   });
 }
 
-export function commitStoredCoordinatorUploadFromRequest(
+export async function commitStoredCoordinatorUploadFromRequest(
   options: CommitStoredCoordinatorUploadFromRequestOptions
 ): Promise<StoredRuntimeUploadCommit> {
   const attempts = positiveAttempts(options.maxAttempts);
 
-  return runStoredCoordinatorMutation({
+  return await runStoredCoordinatorMutation({
     attempts,
     mutate: async (state) =>
       await commitCoordinatorUploadFromRequest({
