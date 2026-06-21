@@ -1,0 +1,107 @@
+import { readFile } from "node:fs/promises";
+import { relative } from "node:path";
+import { listDirectoryEntries } from "./directory-walk";
+
+const DEFAULT_EXCLUDED_PREFIXES = [
+  "dist/",
+  "node_modules/",
+  "out/",
+  "coverage/",
+] as const;
+const DEFAULT_INCLUDED_EXTENSIONS = [
+  ".md",
+  ".ts",
+  ".tsx",
+  ".js",
+  ".mjs",
+  ".json",
+] as const;
+
+export interface FileSizeReportOptions {
+  excludedPrefixes?: readonly string[];
+  includedExtensions?: readonly string[];
+  maxLines: number;
+  root: string;
+}
+
+export interface LargeFileReportEntry {
+  lines: number;
+  relativePath: string;
+}
+
+export async function largeFileReport(
+  options: FileSizeReportOptions
+): Promise<LargeFileReportEntry[]> {
+  const excludedPrefixes =
+    options.excludedPrefixes ?? DEFAULT_EXCLUDED_PREFIXES;
+  const includedExtensions =
+    options.includedExtensions ?? DEFAULT_INCLUDED_EXTENSIONS;
+  const report: LargeFileReportEntry[] = [];
+
+  for (const entry of await listDirectoryEntries(options.root)) {
+    if (
+      !entry.isFile ||
+      shouldSkipFile(entry.relativePath, excludedPrefixes, includedExtensions)
+    ) {
+      continue;
+    }
+
+    const lines = countLines(await readFile(entry.absolutePath, "utf8"));
+
+    if (lines > options.maxLines) {
+      report.push({
+        lines,
+        relativePath: relative(options.root, entry.absolutePath),
+      });
+    }
+  }
+
+  return report.sort((left, right) => {
+    if (right.lines !== left.lines) {
+      return right.lines - left.lines;
+    }
+
+    return left.relativePath.localeCompare(right.relativePath);
+  });
+}
+
+export function formatLargeFileReport(
+  entries: readonly LargeFileReportEntry[],
+  maxLines: number
+): string {
+  if (entries.length === 0) {
+    return `No source files exceed ${maxLines} lines.`;
+  }
+
+  const lines = [
+    `Advisory: ${entries.length} source files exceed ${maxLines} lines.`,
+    "Consider splitting these when touching related code:",
+  ];
+
+  for (const entry of entries) {
+    lines.push(`- ${entry.relativePath}: ${entry.lines} lines`);
+  }
+
+  return lines.join("\n");
+}
+
+function shouldSkipFile(
+  relativePath: string,
+  excludedPrefixes: readonly string[],
+  includedExtensions: readonly string[]
+): boolean {
+  return (
+    excludedPrefixes.some((prefix) => relativePath.startsWith(prefix)) ||
+    !includedExtensions.some((extension) => relativePath.endsWith(extension))
+  );
+}
+
+function countLines(source: string): number {
+  if (source.length === 0) {
+    return 0;
+  }
+
+  return source.endsWith("\n")
+    ? source.slice(0, -1).split("\n").length
+    : source.split("\n").length;
+}

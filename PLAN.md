@@ -260,7 +260,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: add `contributing/core/code-structure.md` or extend an existing guide with layer ownership and allowed dependency directions.
   - Verify: docs-only unless adding a docs test.
 
-- [ ] Add soft file-size guardrails.
+- [x] Add soft file-size guardrails.
   - Locations: largest files include `olos/src/s3/http.test.ts`, `olos/e2e/object-store-flow.test.ts`, `olos/e2e/s3-http-pipeline.test.ts`, `olos/src/s3/coordinator.test.ts`, `olos/src/conformance.ts`, `olos/src/protocol/coordinator.ts`, `olos/src/s3/http.ts`, `olos/scripts/package-smoke-fixture.ts`.
   - Issue: future changes may continue to accumulate in already-large files.
   - Suggestion: add a reporting script or docs guidance for files above a threshold. Keep it advisory at first.
