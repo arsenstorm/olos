@@ -104,7 +104,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: derive IDs from a registry or add a `defineConformanceCoverage` helper that enforces uniqueness and completeness.
   - Verify: conformance tests and report script tests.
 
-- [ ] Split the package smoke fixture.
+- [x] Split the package smoke fixture.
   - Locations: `olos/scripts/package-smoke-fixture.ts:4`, `:140`, `:187`, `:747`.
   - Issue: this 762-line script combines expected runtime exports and large generated JS/TS smoke files.
   - Suggestion: move expected public exports to a public-surface manifest and split runtime smoke and type smoke builders into separate modules.
