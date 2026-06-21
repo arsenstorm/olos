@@ -194,7 +194,7 @@ Useful checks: `bun --filter olos check-types`, `bun --filter olos test`, `bun -
   - Suggestion: add a small internal clock/sleep abstraction or expose pure deadline calculation.
   - Verify: HLS blocking reload and runtime HTTP tests.
 
-- [ ] Keep low-latency defaults in one visible place.
+- [x] Keep low-latency defaults in one visible place.
   - Locations: `olos/src/runtime/http.ts:54`, `:56`, `:58`, `olos/src/runtime/latency-profile.ts:65`, `olos/src/runtime/publisher-expiry.ts:3`.
   - Issue: related timing defaults are spread across modules.
   - Suggestion: make `createRuntimeObjectLowLatencyProfile` or an internal defaults module the obvious source of truth.

@@ -7,6 +7,7 @@ import {
   createRuntimeObjectLowLatencyProfile,
   createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
+  DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE,
 } from "./latency-profile";
 
 const mediaOrigin = "https://media.example.com";
@@ -43,7 +44,7 @@ const committedWindow: CommittedWindow = {
 
 describe("runtime latency profile", () => {
   test("creates object low-latency runtime defaults", () => {
-    expect(createRuntimeObjectLowLatencyProfile()).toEqual({
+    expect(DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE).toEqual({
       blockingReloadTimeoutMs: 3000,
       cursorMaxAgeMs: 5000,
       latencyProfile: "object-ll",
@@ -55,6 +56,21 @@ describe("runtime latency profile", () => {
       segmentTarget: 2,
       targetLatency: 3,
     });
+    expect(createRuntimeObjectLowLatencyProfile()).toEqual(
+      DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE
+    );
+  });
+
+  test("returns a fresh mutable copy of object low-latency defaults", () => {
+    const first = createRuntimeObjectLowLatencyProfile();
+    const second = createRuntimeObjectLowLatencyProfile();
+
+    first.targetLatency = 4;
+
+    expect(second.targetLatency).toBe(
+      DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE.targetLatency
+    );
+    expect(DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE.targetLatency).toBe(3);
   });
 
   test("keeps object low-latency defaults inside the realtime budget", () => {

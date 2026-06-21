@@ -1,8 +1,8 @@
-import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
+import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "./latency-profile";
 import { positiveNumber, timestampMs } from "./request-fields";
 
 const DEFAULT_MIN_TTL_SECONDS =
-  createRuntimeObjectLowLatencyProfile().minUploadTtlSeconds;
+  DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE.minUploadTtlSeconds;
 const MILLISECONDS_PER_SECOND = 1000;
 
 export interface ResolveRuntimePublisherObjectExpiryOptions {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
+import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "./latency-profile";
 import { resolveRuntimePublisherObjectExpiry } from "./publisher-expiry";
 
 describe("runtime publisher object expiry", () => {
@@ -44,15 +44,13 @@ describe("runtime publisher object expiry", () => {
   });
 
   test("defaults minimum ttl to low-latency profile setting", () => {
-    const profile = createRuntimeObjectLowLatencyProfile();
-
     expect(
       resolveRuntimePublisherObjectExpiry({
         duration: 0.001,
         now: "2026-01-01T00:00:00.000Z",
         targetLatency: 0.001,
       }).ttlSeconds
-    ).toBe(profile.minUploadTtlSeconds);
+    ).toBe(DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE.minUploadTtlSeconds);
   });
 
   test("rejects invalid expiry inputs", () => {

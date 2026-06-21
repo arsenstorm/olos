@@ -21,7 +21,7 @@ import {
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { errorMessage } from "./errors";
 import { resolveRuntimeLiveHealthFromState } from "./health";
-import { createRuntimeObjectLowLatencyProfile } from "./latency-profile";
+import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "./latency-profile";
 import {
   isRecord,
   nonNegativeNumber,
@@ -59,7 +59,7 @@ import {
 import { isStringLiteral } from "./string-literals";
 
 const DEFAULT_RUNTIME_OBJECT_LOW_LATENCY =
-  createRuntimeObjectLowLatencyProfile();
+  DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE;
 const DEFAULT_MAX_HEALTH_CURSOR_AGE_MS =
   DEFAULT_RUNTIME_OBJECT_LOW_LATENCY.cursorMaxAgeMs;
 const DEFAULT_PUBLISHER_LEASE_TTL_MS =

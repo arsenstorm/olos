@@ -62,8 +62,8 @@ export interface RuntimeObjectLowLatencyPublisherObjectOptions {
   minBytes?: number;
 }
 
-export function createRuntimeObjectLowLatencyProfile(): RuntimeObjectLowLatencyProfile {
-  return {
+export const DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE: Readonly<RuntimeObjectLowLatencyProfile> =
+  {
     blockingReloadTimeoutMs: 3000,
     cursorMaxAgeMs: 5000,
     latencyProfile: "object-ll",
@@ -75,6 +75,9 @@ export function createRuntimeObjectLowLatencyProfile(): RuntimeObjectLowLatencyP
     segmentTarget: 2,
     targetLatency: 3,
   };
+
+export function createRuntimeObjectLowLatencyProfile(): RuntimeObjectLowLatencyProfile {
+  return { ...DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE };
 }
 
 export function createRuntimeObjectLowLatencyManifestOptions(
