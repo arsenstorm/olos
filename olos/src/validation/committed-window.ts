@@ -165,26 +165,41 @@ function assertCommittedParts(value: unknown, segmentName: string): void {
   for (const part of parts) {
     assertCommittedPart(part, segmentName);
 
-    const existingUrl = seenParts.get(part.partNumber);
-
-    if (existingUrl !== undefined && existingUrl !== part.deliveryUrl) {
-      throw new Error(
-        `${segmentName}.parts must not contain duplicate positions with different URLs`
-      );
-    }
-
-    if (existingUrl !== undefined) {
-      throw new Error(
-        `${segmentName}.parts must not contain duplicate positions`
-      );
-    }
-
-    if (part.partNumber <= previousPart) {
-      throw new Error(`${segmentName}.parts must have monotonic part numbers`);
-    }
+    assertUniquePartPosition(part, seenParts, segmentName);
+    assertMonotonicPartNumber(part, previousPart, segmentName);
 
     seenParts.set(part.partNumber, part.deliveryUrl);
     previousPart = part.partNumber;
+  }
+}
+
+function assertUniquePartPosition(
+  part: CommittedPart,
+  seenParts: ReadonlyMap<number, string>,
+  segmentName: string
+): void {
+  const existingUrl = seenParts.get(part.partNumber);
+
+  if (existingUrl !== undefined && existingUrl !== part.deliveryUrl) {
+    throw new Error(
+      `${segmentName}.parts must not contain duplicate positions with different URLs`
+    );
+  }
+
+  if (existingUrl !== undefined) {
+    throw new Error(
+      `${segmentName}.parts must not contain duplicate positions`
+    );
+  }
+}
+
+function assertMonotonicPartNumber(
+  part: CommittedPart,
+  previousPart: number,
+  segmentName: string
+): void {
+  if (part.partNumber <= previousPart) {
+    throw new Error(`${segmentName}.parts must have monotonic part numbers`);
   }
 }
 

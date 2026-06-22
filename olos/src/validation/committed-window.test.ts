@@ -416,6 +416,30 @@ describe("committed window validation", () => {
     );
   });
 
+  test("rejects duplicate part positions with the same URL", () => {
+    const liveSegment = validSegment(2);
+    const firstPart = validPart(0);
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [
+              {
+                ...liveSegment,
+                parts: [firstPart, firstPart],
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.segments[].parts must not contain duplicate positions"
+    );
+  });
+
   test("rejects missing segment duration", () => {
     const firstSegment = validSegment(0);
 
