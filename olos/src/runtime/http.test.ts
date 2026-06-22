@@ -311,6 +311,11 @@ describe("stored coordinator runtime handler", () => {
         new Request("https://edge.example.com/sessions/session_1/slots")
       )
     ).toHaveProperty("status", 405);
+    expect(
+      await handle(
+        jsonRequest("https://edge.example.com/sessions/session_1/unknown", {})
+      )
+    ).toHaveProperty("status", 405);
   });
 
   test("returns specific errors for missing runtime sessions", async () => {

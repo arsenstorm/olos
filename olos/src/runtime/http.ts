@@ -263,72 +263,104 @@ async function handlePostSessionActionRoute(
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
   if (action === SESSION_ROUTE_ACTIONS.slots) {
-    return (
-      await issueStoredCoordinatorSlotFromRequest({
-        maxAttempts: options.maxAttempts,
-        publicationControl: options.publicationControl,
-        request,
-        sessionId,
-        store: options.store,
-      })
-    ).response;
+    return await handlePostSlotRoute(request, sessionId, options);
   }
 
   if (action === SESSION_ROUTE_ACTIONS.commits) {
-    const result = await commitStoredCoordinatorUploadFromRequest({
-      commitPolicy: options.commitPolicy,
-      lateToleranceMs: options.lateToleranceMs,
+    return await handlePostCommitRoute(request, sessionId, options);
+  }
+
+  if (action === SESSION_ROUTE_ACTIONS.transition) {
+    return await handlePostTransitionRoute(request, sessionId, options);
+  }
+
+  if (action === SESSION_ROUTE_ACTIONS.heartbeat) {
+    return await handlePostHeartbeatRoute(request, sessionId, options);
+  }
+
+  return jsonMethodNotAllowedResponse();
+}
+
+async function handlePostSlotRoute(
+  request: Request,
+  sessionId: string,
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  return (
+    await issueStoredCoordinatorSlotFromRequest({
       maxAttempts: options.maxAttempts,
       publicationControl: options.publicationControl,
       request,
       sessionId,
       store: options.store,
-    });
+    })
+  ).response;
+}
 
-    if (isSuccessfulRuntimeCommitResult(result)) {
-      notifyCursor(options.cursorNotifier, result.state.cursor);
-    }
+async function handlePostCommitRoute(
+  request: Request,
+  sessionId: string,
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  const result = await commitStoredCoordinatorUploadFromRequest({
+    commitPolicy: options.commitPolicy,
+    lateToleranceMs: options.lateToleranceMs,
+    maxAttempts: options.maxAttempts,
+    publicationControl: options.publicationControl,
+    request,
+    sessionId,
+    store: options.store,
+  });
 
-    return result.response;
+  if (isSuccessfulRuntimeCommitResult(result)) {
+    notifyCursor(options.cursorNotifier, result.state.cursor);
   }
 
-  if (action === SESSION_ROUTE_ACTIONS.transition) {
-    const parsed = await parseTransitionRequest(request);
+  return result.response;
+}
 
-    if (parsed.status === "invalid") {
-      return jsonBadRequestResponse(parsed.message);
-    }
+async function handlePostTransitionRoute(
+  request: Request,
+  sessionId: string,
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  const parsed = await parseTransitionRequest(request);
 
-    return (
-      await transitionStoredCoordinatorSession({
-        maxAttempts: options.maxAttempts,
-        sessionId,
-        state: parsed.state,
-        store: options.store,
-      })
-    ).response;
+  if (parsed.status === "invalid") {
+    return jsonBadRequestResponse(parsed.message);
   }
 
-  if (action === SESSION_ROUTE_ACTIONS.heartbeat) {
-    const parsed = await parseHeartbeatRequest(request);
+  return (
+    await transitionStoredCoordinatorSession({
+      maxAttempts: options.maxAttempts,
+      sessionId,
+      state: parsed.state,
+      store: options.store,
+    })
+  ).response;
+}
 
-    if (parsed.status === "invalid") {
-      return jsonBadRequestResponse(parsed.message);
-    }
+async function handlePostHeartbeatRoute(
+  request: Request,
+  sessionId: string,
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  const parsed = await parseHeartbeatRequest(request);
 
-    return (
-      await heartbeatStoredCoordinatorPublisher({
-        maxAttempts: options.maxAttempts,
-        now: currentNow(options),
-        publisherInstanceId: parsed.publisherInstanceId,
-        sessionId,
-        store: options.store,
-        ttlMs: options.publisherLeaseTtlMs ?? DEFAULT_PUBLISHER_LEASE_TTL_MS,
-      })
-    ).response;
+  if (parsed.status === "invalid") {
+    return jsonBadRequestResponse(parsed.message);
   }
 
-  return jsonMethodNotAllowedResponse();
+  return (
+    await heartbeatStoredCoordinatorPublisher({
+      maxAttempts: options.maxAttempts,
+      now: currentNow(options),
+      publisherInstanceId: parsed.publisherInstanceId,
+      sessionId,
+      store: options.store,
+      ttlMs: options.publisherLeaseTtlMs ?? DEFAULT_PUBLISHER_LEASE_TTL_MS,
+    })
+  ).response;
 }
 
 async function handleGetSessionActionRoute(
