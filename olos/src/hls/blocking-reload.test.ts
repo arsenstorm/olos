@@ -356,4 +356,31 @@ describe("HLS blocking reload", () => {
       status: "timeout",
     });
   });
+
+  test("uses the remaining deadline for blocking wait timeout", async () => {
+    let nowCalls = 0;
+    let sleepDurationMs: number | undefined;
+
+    const result = await waitForHlsBlockingReload({
+      cursor,
+      request: {
+        mediaSequenceNumber: 3813,
+      },
+      timeoutMs: 100,
+      now: () => {
+        nowCalls += 1;
+
+        return nowCalls === 1 ? 1000 : 1025;
+      },
+      sleep: (durationMs) => {
+        sleepDurationMs = durationMs;
+
+        return Promise.resolve();
+      },
+      waitForCursor: () => Promise.resolve(undefined),
+    });
+
+    expect(sleepDurationMs).toBe(75);
+    expect(result.status).toBe("timeout");
+  });
 });

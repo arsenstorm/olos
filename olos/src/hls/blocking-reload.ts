@@ -51,6 +51,10 @@ export interface WaitForHlsBlockingReloadOptions {
   waitForCursor: (context: HlsCursorWaitContext) => Promise<Cursor | undefined>;
 }
 
+interface HlsBlockingReloadDeadline {
+  readonly expiresAtMs: number;
+}
+
 export type WaitForHlsBlockingReloadResult =
   | {
       cursor: Cursor;
@@ -89,7 +93,7 @@ export async function waitForHlsBlockingReload(
   assertCursor(options.cursor);
   nonNegativeNumber(options.timeoutMs, "options.timeoutMs");
 
-  const deadline = nowMs(options) + options.timeoutMs;
+  const deadline = createHlsBlockingReloadDeadline(options);
   let cursor = options.cursor;
 
   for (;;) {
@@ -107,7 +111,7 @@ export async function waitForHlsBlockingReload(
       };
     }
 
-    const remainingMs = deadline - nowMs(options);
+    const remainingMs = remainingHlsBlockingReloadMs(deadline, options);
 
     if (remainingMs <= 0) {
       return timeoutHlsBlockingReloadResult(cursor, options.request);
@@ -121,6 +125,21 @@ export async function waitForHlsBlockingReload(
 
     cursor = nextCursor;
   }
+}
+
+function createHlsBlockingReloadDeadline(
+  options: WaitForHlsBlockingReloadOptions
+): HlsBlockingReloadDeadline {
+  return {
+    expiresAtMs: nowMs(options) + options.timeoutMs,
+  };
+}
+
+function remainingHlsBlockingReloadMs(
+  deadline: HlsBlockingReloadDeadline,
+  options: WaitForHlsBlockingReloadOptions
+): number {
+  return deadline.expiresAtMs - nowMs(options);
 }
 
 export function resolveHlsBlockingReload(
