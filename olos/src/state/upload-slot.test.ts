@@ -310,6 +310,20 @@ describe("expire upload", () => {
     });
   });
 
+  test("keeps expired slots idempotent before checking the expiry time", () => {
+    const expiredSlot: UploadSlot = { ...slot, state: "expired" };
+
+    expect(
+      resolveUploadExpiry({
+        now: "2026-01-01T00:00:04.999Z",
+        slot: expiredSlot,
+      })
+    ).toEqual({
+      slot: expiredSlot,
+      status: "already_expired",
+    });
+  });
+
   test("rejects premature expiry", () => {
     expect(() =>
       expireUpload({

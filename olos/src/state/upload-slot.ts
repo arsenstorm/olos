@@ -73,9 +73,25 @@ export interface UploadRevocationResult {
 
 type IssuedUploadSlot = UploadSlot & { state: "issued" };
 type ObservedUploadSlot = UploadSlot & { state: "upload_observed" };
-type ExpiredUploadSlot = UploadSlot & { state: "expired" };
-type RejectedUploadSlot = UploadSlot & { state: "rejected" };
-type RevokedUploadSlot = UploadSlot & { state: "revoked" };
+
+interface TerminalUploadTransitionOptions<
+  TStatus extends string,
+  TAlreadyStatus extends string,
+> {
+  alreadyStatus: TAlreadyStatus;
+  slot: UploadSlot;
+  status: TStatus;
+  targetState: UploadSlotState;
+  validate?: () => void;
+}
+
+interface TerminalUploadTransitionResult<
+  TStatus extends string,
+  TAlreadyStatus extends string,
+> {
+  slot: UploadSlot;
+  status: TStatus | TAlreadyStatus;
+}
 
 export function createIssuedUploadSlot(
   options: CreateIssuedUploadSlotOptions
@@ -186,31 +202,20 @@ export function expireUpload(options: ResolveUploadExpiryOptions): UploadSlot {
 export function resolveUploadExpiry(
   options: ResolveUploadExpiryOptions
 ): UploadExpiryResult {
-  assertUploadSlot(options.slot);
-
-  if (isExpiredUploadSlot(options.slot)) {
-    return {
-      slot: options.slot,
-      status: "already_expired",
-    };
-  }
-
-  assertUploadSlotTransition(options.slot.state, "expired");
-
-  if (
-    timestampMs(options.now, "now") <
-    timestampMs(options.slot.expiresAt, "uploadSlot.expiresAt")
-  ) {
-    throw new Error("now must be after or equal to uploadSlot.expiresAt");
-  }
-
-  return {
-    slot: {
-      ...options.slot,
-      state: "expired",
-    },
+  return resolveTerminalUploadTransition({
+    alreadyStatus: "already_expired",
+    slot: options.slot,
     status: "expired",
-  };
+    targetState: "expired",
+    validate: () => {
+      if (
+        timestampMs(options.now, "now") <
+        timestampMs(options.slot.expiresAt, "uploadSlot.expiresAt")
+      ) {
+        throw new Error("now must be after or equal to uploadSlot.expiresAt");
+      }
+    },
+  });
 }
 
 export function rejectUpload(
@@ -222,24 +227,12 @@ export function rejectUpload(
 export function resolveUploadRejection(
   options: ResolveUploadRejectionOptions
 ): UploadRejectionResult {
-  assertUploadSlot(options.slot);
-
-  if (isRejectedUploadSlot(options.slot)) {
-    return {
-      slot: options.slot,
-      status: "already_rejected",
-    };
-  }
-
-  assertUploadSlotTransition(options.slot.state, "rejected");
-
-  return {
-    slot: {
-      ...options.slot,
-      state: "rejected",
-    },
+  return resolveTerminalUploadTransition({
+    alreadyStatus: "already_rejected",
+    slot: options.slot,
     status: "rejected",
-  };
+    targetState: "rejected",
+  });
 }
 
 export function revokeUpload(
@@ -251,36 +244,39 @@ export function revokeUpload(
 export function resolveUploadRevocation(
   options: ResolveUploadRevocationOptions
 ): UploadRevocationResult {
+  return resolveTerminalUploadTransition({
+    alreadyStatus: "already_revoked",
+    slot: options.slot,
+    status: "revoked",
+    targetState: "revoked",
+  });
+}
+
+function resolveTerminalUploadTransition<
+  TStatus extends string,
+  TAlreadyStatus extends string,
+>(
+  options: TerminalUploadTransitionOptions<TStatus, TAlreadyStatus>
+): TerminalUploadTransitionResult<TStatus, TAlreadyStatus> {
   assertUploadSlot(options.slot);
 
-  if (isRevokedUploadSlot(options.slot)) {
+  if (options.slot.state === options.targetState) {
     return {
       slot: options.slot,
-      status: "already_revoked",
+      status: options.alreadyStatus,
     };
   }
 
-  assertUploadSlotTransition(options.slot.state, "revoked");
+  assertUploadSlotTransition(options.slot.state, options.targetState);
+  options.validate?.();
 
   return {
     slot: {
       ...options.slot,
-      state: "revoked",
+      state: options.targetState,
     },
-    status: "revoked",
+    status: options.status,
   };
-}
-
-function isExpiredUploadSlot(slot: UploadSlot): slot is ExpiredUploadSlot {
-  return slot.state === "expired";
-}
-
-function isRejectedUploadSlot(slot: UploadSlot): slot is RejectedUploadSlot {
-  return slot.state === "rejected";
-}
-
-function isRevokedUploadSlot(slot: UploadSlot): slot is RevokedUploadSlot {
-  return slot.state === "revoked";
 }
 
 export function canTransitionUploadSlot(
