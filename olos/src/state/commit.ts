@@ -65,6 +65,15 @@ type ObjectSlotMismatchStatus =
   | "object_too_large"
   | "object_too_small";
 
+type CommitAttemptRejection = Exclude<
+  CommitAttemptResolution,
+  { status: "committed" }
+>;
+
+type CommitAttemptOptionsWithSlot = ResolveCommitAttemptOptions & {
+  slot: UploadSlot;
+};
+
 export interface ResolveObjectSlotMismatchOptions {
   includeKeyMismatch?: boolean;
   mediaObject: MediaObject;
@@ -186,65 +195,25 @@ export function resolveUploadCommit(
 export function resolveCommitAttempt(
   options: ResolveCommitAttemptOptions
 ): CommitAttemptResolution {
-  if (options.slot === undefined) {
-    return {
-      error: createOlosError("olos.unknown_slot", "upload slot is unknown", {
-        slotId: options.slotId,
-      }),
-      status: "unknown_slot",
-    };
+  const slot = options.slot;
+
+  if (slot === undefined) {
+    return unknownSlotCommitAttempt(options.slotId);
   }
 
-  if (options.session?.state === "aborted") {
-    return {
-      error: createOlosError("olos.invalid_state", "session is aborted", {
-        sessionId: options.session.sessionId,
-        slotId: options.slot.slotId,
-        state: options.session.state,
-      }),
-      status: "invalid_state",
-    };
-  }
+  const precondition = resolveCommitAttemptPrecondition({
+    ...options,
+    slot,
+  });
 
-  if (options.objectVerified !== true) {
-    return {
-      error: createOlosError(
-        "olos.invalid_state",
-        "object existence is unverified",
-        {
-          objectKey: options.mediaObject.objectKey,
-          slotId: options.slot.slotId,
-        }
-      ),
-      status: "unverified_object",
-    };
-  }
-
-  if (
-    options.cursor !== undefined &&
-    isLateSlot(options.slot, options.cursor)
-  ) {
-    return {
-      error: createOlosError(
-        "olos.invalid_state",
-        "object is behind the current cursor",
-        {
-          cursorLastMediaSequenceNumber:
-            options.cursor.window.lastMediaSequenceNumber,
-          cursorLastPartNumber: options.cursor.window.lastPartNumber,
-          mediaSequenceNumber: options.slot.mediaSequenceNumber,
-          partNumber: options.slot.partNumber,
-          slotId: options.slot.slotId,
-        }
-      ),
-      status: "late_object",
-    };
+  if (precondition !== undefined) {
+    return precondition;
   }
 
   const mismatch = resolveObjectSlotMismatch({
     includeKeyMismatch: true,
     mediaObject: options.mediaObject,
-    slot: options.slot,
+    slot,
   });
 
   if (mismatch !== undefined) {
@@ -258,12 +227,89 @@ export function resolveCommitAttempt(
     lateToleranceMs: options.lateToleranceMs,
     mediaObject: options.mediaObject,
     programDateTime: options.programDateTime,
-    slot: options.slot,
+    slot,
   });
 
   return {
     ...result,
     status: "committed",
+  };
+}
+
+function unknownSlotCommitAttempt(slotId: OlosId): CommitAttemptRejection {
+  return {
+    error: createOlosError("olos.unknown_slot", "upload slot is unknown", {
+      slotId,
+    }),
+    status: "unknown_slot",
+  };
+}
+
+function resolveCommitAttemptPrecondition(
+  options: CommitAttemptOptionsWithSlot
+): CommitAttemptRejection | undefined {
+  if (options.session?.state === "aborted") {
+    return abortedSessionCommitAttempt(options);
+  }
+
+  if (options.objectVerified !== true) {
+    return unverifiedObjectCommitAttempt(options);
+  }
+
+  if (
+    options.cursor !== undefined &&
+    isLateSlot(options.slot, options.cursor)
+  ) {
+    return lateObjectCommitAttempt(options);
+  }
+}
+
+function abortedSessionCommitAttempt(
+  options: CommitAttemptOptionsWithSlot
+): CommitAttemptRejection {
+  return {
+    error: createOlosError("olos.invalid_state", "session is aborted", {
+      sessionId: options.session?.sessionId,
+      slotId: options.slot.slotId,
+      state: options.session?.state,
+    }),
+    status: "invalid_state",
+  };
+}
+
+function unverifiedObjectCommitAttempt(
+  options: CommitAttemptOptionsWithSlot
+): CommitAttemptRejection {
+  return {
+    error: createOlosError(
+      "olos.invalid_state",
+      "object existence is unverified",
+      {
+        objectKey: options.mediaObject.objectKey,
+        slotId: options.slot.slotId,
+      }
+    ),
+    status: "unverified_object",
+  };
+}
+
+function lateObjectCommitAttempt(
+  options: CommitAttemptOptionsWithSlot
+): CommitAttemptRejection {
+  return {
+    error: createOlosError(
+      "olos.invalid_state",
+      "object is behind the current cursor",
+      {
+        cursorLastMediaSequenceNumber:
+          options.cursor?.window.lastMediaSequenceNumber,
+        cursorLastPartNumber: options.cursor?.window.lastPartNumber,
+        mediaSequenceNumber: options.slot.mediaSequenceNumber,
+        partNumber: options.slot.partNumber,
+        slotId: options.slot.slotId,
+      }
+    ),
+    status: "late_object",
   };
 }
 

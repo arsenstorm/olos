@@ -542,6 +542,20 @@ describe("commit attempt resolution", () => {
     });
   });
 
+  test("returns late object errors before object-slot mismatch errors", () => {
+    expect(
+      resolveCommitAttempt({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        cursor,
+        mediaObject: { ...mediaObject, objectKey: "other.m4s" },
+        objectVerified: true,
+        slot,
+        slotId: "slot_1",
+      }).status
+    ).toBe("late_object");
+  });
+
   test("rejects parts already published by the current cursor", () => {
     const partSlot = {
       ...slot,
