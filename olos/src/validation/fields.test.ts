@@ -91,6 +91,14 @@ describe("validation field helpers", () => {
     ).toThrow("session.mode must be one of: live");
   });
 
+  test("field assertions preserve nested field names in error messages", () => {
+    expect(() =>
+      assertUrlSafeField({ id: "bad id" }, "id", "session.renditions[]")
+    ).toThrow(
+      "session.renditions[].id must be a non-empty URL-safe identifier"
+    );
+  });
+
   test("numeric helpers return valid values and reject invalid values", () => {
     expect(positiveNumber(1, "duration")).toBe(1);
     expect(nonNegativeNumber(0, "duration")).toBe(0);

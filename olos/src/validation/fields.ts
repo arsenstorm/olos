@@ -27,7 +27,7 @@ export function assertUrlSafeField(
   field: string,
   name: string
 ): void {
-  assertUrlSafeIdentifier(value[field], `${name}.${field}`);
+  assertUrlSafeIdentifier(value[field], fieldName(name, field));
 }
 
 export function assertNonNegativeIntegerField(
@@ -35,7 +35,7 @@ export function assertNonNegativeIntegerField(
   field: string,
   name: string
 ): void {
-  assertNonNegativeInteger(value[field], `${name}.${field}`);
+  assertNonNegativeInteger(value[field], fieldName(name, field));
 }
 
 export function assertPositiveIntegerField(
@@ -43,7 +43,7 @@ export function assertPositiveIntegerField(
   field: string,
   name: string
 ): void {
-  assertPositiveInteger(value[field], `${name}.${field}`);
+  assertPositiveInteger(value[field], fieldName(name, field));
 }
 
 export function assertPositiveNumberField(
@@ -51,7 +51,7 @@ export function assertPositiveNumberField(
   field: string,
   name: string
 ): void {
-  positiveNumber(value[field], `${name}.${field}`);
+  positiveNumber(value[field], fieldName(name, field));
 }
 
 export function stringValue(value: unknown, name: string): string {
@@ -122,7 +122,7 @@ export function assertNonEmptyStringField(
   name: string
 ): void {
   if (typeof value[field] !== "string" || value[field].length === 0) {
-    throw new Error(`${name}.${field} must be a non-empty string`);
+    throw new Error(`${fieldName(name, field)} must be a non-empty string`);
   }
 }
 
@@ -131,7 +131,7 @@ export function assertBooleanField(
   field: string,
   name: string
 ): void {
-  booleanValue(value[field], `${name}.${field}`);
+  booleanValue(value[field], fieldName(name, field));
 }
 
 export function assertIsoDateField(
@@ -139,7 +139,7 @@ export function assertIsoDateField(
   field: string,
   name: string
 ): void {
-  timestampString(value[field], `${name}.${field}`);
+  timestampString(value[field], fieldName(name, field));
 }
 
 export function assertOneOfField<const T extends readonly string[]>(
@@ -151,10 +151,16 @@ export function assertOneOfField<const T extends readonly string[]>(
   const fieldValue = value[field];
 
   if (!isAllowedString(fieldValue, allowed)) {
-    throw new Error(`${name}.${field} must be one of: ${allowed.join(", ")}`);
+    throw new Error(
+      `${fieldName(name, field)} must be one of: ${allowed.join(", ")}`
+    );
   }
 
   return fieldValue;
+}
+
+function fieldName(name: string, field: string): string {
+  return `${name}.${field}`;
 }
 
 interface AbsoluteHttpUrlOptions {
