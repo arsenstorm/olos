@@ -33,6 +33,16 @@ export function assertCursor(value: unknown): asserts value is Cursor {
     throw new Error(`cursor.olos must be ${OLOS_WIRE_VERSION}`);
   }
 
+  assertCursorFields(value);
+  assertPathways(value.pathways);
+
+  const cursorWindow = value.window;
+  assertCursorWindow(cursorWindow);
+  assertCommittedWindow(value.committedWindow);
+  assertCursorCommittedWindow(value, cursorWindow, value.committedWindow);
+}
+
+function assertCursorFields(value: Record<string, unknown>): void {
   assertUrlSafeField(value, "tenantId", "cursor");
   assertUrlSafeField(value, "sessionId", "cursor");
   assertOneOfField(value, "state", SESSION_STATES, "cursor");
@@ -41,11 +51,6 @@ export function assertCursor(value: unknown): asserts value is Cursor {
   assertPositiveNumberField(value, "segmentTarget", "cursor");
   assertPositiveNumberField(value, "partTarget", "cursor");
   assertIsoDateField(value, "updatedAt", "cursor");
-  assertPathways(value.pathways);
-  const cursorWindow = value.window;
-  assertCursorWindow(cursorWindow);
-  assertCommittedWindow(value.committedWindow);
-  assertCursorCommittedWindow(value, cursorWindow, value.committedWindow);
 }
 
 function assertCursorCommittedWindow(

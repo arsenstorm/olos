@@ -145,6 +145,18 @@ describe("cursor validation", () => {
     );
   });
 
+  test("rejects invalid cursor part numbers", () => {
+    expect(() =>
+      assertCursor({
+        ...validCursor,
+        window: {
+          ...validCursor.window,
+          lastPartNumber: -1,
+        },
+      })
+    ).toThrow("cursor.window.lastPartNumber must be a non-negative integer");
+  });
+
   test("rejects cursor epoch mismatches", () => {
     expect(() => assertCursor({ ...validCursor, epoch: 5 })).toThrow(
       "cursor.epoch must match committedWindow.epoch"
