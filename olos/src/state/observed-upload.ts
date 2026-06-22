@@ -227,26 +227,7 @@ export function resolveUploadEvidence(
   options: ResolveUploadEvidenceOptions
 ): UploadEvidenceResolution {
   if (options.object !== undefined && options.hint !== undefined) {
-    if (options.object.objectKey !== options.hint.objectKey) {
-      return {
-        error: createOlosError(
-          "olos.key_mismatch",
-          "upload hint does not match observed object",
-          {
-            hintEventId: options.hint.eventId,
-            hintObjectKey: options.hint.objectKey,
-            objectKey: options.object.objectKey,
-            slotId: options.hint.slotId,
-          }
-        ),
-        status: "conflict",
-      };
-    }
-
-    return {
-      object: options.object,
-      status: "object_observed",
-    };
+    return resolveCompleteUploadEvidence(options.object, options.hint);
   }
 
   if (options.object !== undefined) {
@@ -264,6 +245,45 @@ export function resolveUploadEvidence(
   }
 
   return { status: "idle" };
+}
+
+function resolveCompleteUploadEvidence(
+  object: ObservedUpload,
+  hint: UploadCompletionHint
+): UploadEvidenceResolution {
+  if (object.objectKey !== hint.objectKey) {
+    return conflictingUploadEvidence(object, hint);
+  }
+
+  return observedUploadEvidence(object);
+}
+
+function observedUploadEvidence(
+  object: ObservedUpload
+): UploadEvidenceResolution {
+  return {
+    object,
+    status: "object_observed",
+  };
+}
+
+function conflictingUploadEvidence(
+  object: ObservedUpload,
+  hint: UploadCompletionHint
+): UploadEvidenceResolution {
+  return {
+    error: createOlosError(
+      "olos.key_mismatch",
+      "upload hint does not match observed object",
+      {
+        hintEventId: hint.eventId,
+        hintObjectKey: hint.objectKey,
+        objectKey: object.objectKey,
+        slotId: hint.slotId,
+      }
+    ),
+    status: "conflict",
+  };
 }
 
 export function normalizeUploadEvent(

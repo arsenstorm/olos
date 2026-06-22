@@ -455,6 +455,21 @@ describe("object created event normalization", () => {
     });
   });
 
+  test("matches upload evidence by object key", () => {
+    expect(
+      resolveUploadEvidence({
+        hint: {
+          ...uploadCompletionHint,
+          slotId: "slot_retry",
+        },
+        object: objectCreatedEvent.object,
+      })
+    ).toEqual({
+      object: objectCreatedEvent.object,
+      status: "object_observed",
+    });
+  });
+
   test("rejects conflicting client hints and object proof", () => {
     expect(
       resolveUploadEvidence({
