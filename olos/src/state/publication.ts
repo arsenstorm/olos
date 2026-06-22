@@ -39,40 +39,56 @@ function deliveryUrlForPublication(
   const { capability, commit } = options;
 
   if (isDirectPublicCommit(commit)) {
-    if (capability.publication.directObjectPublication !== true) {
-      throw new Error(
-        "providerCapability.publication.directObjectPublication must be true for direct-public commits"
-      );
-    }
-
-    if (capability.publication.manifestGatedPublication !== true) {
-      throw new Error(
-        "providerCapability.publication.manifestGatedPublication must be true for direct-public commits"
-      );
-    }
+    assertDirectPublicPublicationSupport(capability);
 
     return publicObjectUrl(capability.delivery.publicBaseUrl, commit.objectKey);
   }
 
-  if (
-    isReadGatedCommit(commit) &&
-    capability.publication.readGateAvailable !== true
-  ) {
+  if (isReadGatedCommit(commit)) {
+    assertReadGatedPublicationSupport(capability);
+  }
+
+  if (isPrivatePromotionCommit(commit)) {
+    assertPrivatePromotionPublicationSupport(capability);
+  }
+
+  return commit.deliveryUrl;
+}
+
+function assertDirectPublicPublicationSupport(
+  capability: ProviderCapabilityDocument
+): void {
+  if (capability.publication.directObjectPublication !== true) {
+    throw new Error(
+      "providerCapability.publication.directObjectPublication must be true for direct-public commits"
+    );
+  }
+
+  if (capability.publication.manifestGatedPublication !== true) {
+    throw new Error(
+      "providerCapability.publication.manifestGatedPublication must be true for direct-public commits"
+    );
+  }
+}
+
+function assertReadGatedPublicationSupport(
+  capability: ProviderCapabilityDocument
+): void {
+  if (capability.publication.readGateAvailable !== true) {
     throw new Error(
       "providerCapability.publication.readGateAvailable must be true for read-gated commits"
     );
   }
+}
 
-  if (
-    isPrivatePromotionCommit(commit) &&
-    capability.publication.privateUploadPublicPromotion !== true
-  ) {
+function assertPrivatePromotionPublicationSupport(
+  capability: ProviderCapabilityDocument
+): void {
+  if (capability.publication.privateUploadPublicPromotion !== true) {
     throw new Error(
       "providerCapability.publication.privateUploadPublicPromotion must be true for private-upload-public-promotion commits"
     );
   }
-
-  return commit.deliveryUrl;
 }
 
 function isDirectPublicCommit(commit: Commit): commit is DirectPublicCommit {

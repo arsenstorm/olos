@@ -94,6 +94,23 @@ describe("object publication", () => {
     );
   });
 
+  test("rejects direct-public commits when the provider cannot gate manifests", () => {
+    expect(() =>
+      createObjectPublication({
+        capability: {
+          ...capability,
+          publication: {
+            ...capability.publication,
+            manifestGatedPublication: false,
+          },
+        },
+        commit,
+      })
+    ).toThrow(
+      "providerCapability.publication.manifestGatedPublication must be true for direct object publication"
+    );
+  });
+
   test("rejects unsafe direct-public object keys", () => {
     const unsafeKeys = [
       "/tenant/session/v1080/3810.m4s",
