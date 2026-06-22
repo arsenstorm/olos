@@ -52,7 +52,10 @@ export function assertObservedUpload(
   value: unknown
 ): asserts value is ObservedUpload {
   assertMediaObject(value);
+  assertOptionalObservedUploadMetadata(value);
+}
 
+function assertOptionalObservedUploadMetadata(value: MediaObject): void {
   if (
     "metadata" in value &&
     value.metadata !== undefined &&

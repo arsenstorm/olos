@@ -163,6 +163,16 @@ describe("observed upload validation", () => {
       assertObservedUploadMatchesSlot({
         object: {
           ...object,
+          metadata: null as never,
+        },
+        slot,
+      })
+    ).toThrow("observedUpload.metadata must be a string map");
+
+    expect(() =>
+      assertObservedUploadMatchesSlot({
+        object: {
+          ...object,
           metadata: invalidStringMapFixture({
             checksum: 123,
           }),
