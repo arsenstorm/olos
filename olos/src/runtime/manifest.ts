@@ -34,16 +34,11 @@ export function serveCoordinatorManifest(
   const { request, response, ...manifestOptions } = options;
   const manifest = createCoordinatorManifestArtifacts(manifestOptions);
   const resolved = resolveHlsManifestArtifactResponse(
-    manifest.artifacts.map((artifact) => ({
-      ...artifact,
-      response: createHlsManifestArtifactResponse(artifact, response),
-    })),
+    manifestArtifactResponses(manifest.artifacts, response),
     requestUrl(request)
   );
 
-  return resolved === undefined
-    ? createHlsManifestErrorWebResponse({ status: "not_found" })
-    : createHlsManifestWebResponse(resolved);
+  return optionalManifestResponse(resolved);
 }
 
 export async function serveBlockingCoordinatorManifest(
@@ -53,7 +48,7 @@ export async function serveBlockingCoordinatorManifest(
     options;
 
   if (state.cursor === undefined) {
-    return createHlsManifestErrorWebResponse({ status: "not_found" });
+    return manifestNotFoundResponse();
   }
 
   const resolved = await resolveBlockingHlsManifestArtifactResponse({
@@ -71,6 +66,28 @@ export async function serveBlockingCoordinatorManifest(
   }
 
   return createHlsManifestWebResponse(resolved.response);
+}
+
+function manifestArtifactResponses(
+  artifacts: ReturnType<typeof createCoordinatorManifestArtifacts>["artifacts"],
+  response: CreateHlsManifestArtifactResponseOptions | undefined
+) {
+  return artifacts.map((artifact) => ({
+    ...artifact,
+    response: createHlsManifestArtifactResponse(artifact, response),
+  }));
+}
+
+function optionalManifestResponse(
+  resolved: ReturnType<typeof resolveHlsManifestArtifactResponse>
+): Response {
+  return resolved === undefined
+    ? manifestNotFoundResponse()
+    : createHlsManifestWebResponse(resolved);
+}
+
+function manifestNotFoundResponse(): Response {
+  return createHlsManifestErrorWebResponse({ status: "not_found" });
 }
 
 function requestUrl(request: RuntimeManifestRequest): string {

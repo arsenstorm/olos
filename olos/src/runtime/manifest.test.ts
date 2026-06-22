@@ -60,4 +60,20 @@ describe("runtime manifest adapter", () => {
     expect(response.status).toBe(200);
     expect(await response.text()).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
   });
+
+  test("returns not found for blocking reloads before the coordinator has a cursor", async () => {
+    const response = await serveBlockingCoordinatorManifest({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: testCoordinatorSession.partTarget,
+      request: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810&_HLS_part=0",
+      segmentTarget: testCoordinatorSession.segmentTarget,
+      state: createEmptyCoordinatorState(),
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(response.status).toBe(404);
+    expect(await response.text()).toBe("manifest not found");
+  });
 });
