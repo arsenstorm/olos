@@ -89,19 +89,31 @@ export function resolveCursorUpdate(
   }
 
   if (comparison === 0) {
-    if (!sameCommittedWindow(options.candidateCursor, options.currentCursor)) {
-      return {
-        cursor: options.candidateCursor,
-        status: "advanced",
-      };
-    }
+    return resolveSamePositionCursorUpdate(options);
+  }
 
+  return cursorRegression(options);
+}
+
+function resolveSamePositionCursorUpdate(
+  options: ResolveCursorUpdateOptions
+): CursorUpdateResolution {
+  if (!sameCommittedWindow(options.candidateCursor, options.currentCursor)) {
     return {
-      cursor: options.currentCursor,
-      status: "idempotent",
+      cursor: options.candidateCursor,
+      status: "advanced",
     };
   }
 
+  return {
+    cursor: options.currentCursor,
+    status: "idempotent",
+  };
+}
+
+function cursorRegression(
+  options: ResolveCursorUpdateOptions
+): CursorUpdateResolution {
   return {
     error: {
       error: {

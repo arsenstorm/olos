@@ -78,6 +78,12 @@ if (firstSegment === undefined) {
   throw new Error("missing first segment fixture");
 }
 
+const secondSegment = v1080.segments[1];
+
+if (secondSegment === undefined) {
+  throw new Error("missing second segment fixture");
+}
+
 const alternateRendition: CommittedWindow["renditions"][string] = {
   init: {
     commitId: "commit_v720_init",
@@ -236,6 +242,42 @@ describe("cursor update resolution", () => {
         renditions: {
           ...committedWindow.renditions,
           v720: alternateRendition,
+        },
+      },
+    });
+
+    expect(
+      resolveCursorUpdate({
+        candidateCursor,
+        currentCursor,
+      })
+    ).toEqual({
+      cursor: candidateCursor,
+      status: "advanced",
+    });
+  });
+
+  test("accepts same-position candidates with changed committed objects", () => {
+    const candidateCursor = createCursor({
+      ...options,
+      committedWindow: {
+        ...committedWindow,
+        renditions: {
+          v1080: {
+            ...v1080,
+            segments: [
+              {
+                ...firstSegment,
+                segment: {
+                  commitId: "commit_3810_retry",
+                  deliveryUrl: "/media/3810.m4s",
+                  objectKey: "tenant/session/v1080/3810.m4s",
+                  slotId: "slot_3810",
+                },
+              },
+              secondSegment,
+            ],
+          },
         },
       },
     });
