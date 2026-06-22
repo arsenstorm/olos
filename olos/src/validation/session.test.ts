@@ -137,5 +137,17 @@ describe("session validation", () => {
         ],
       })
     ).toThrow("session.renditions[] must define width and height together");
+
+    expect(() =>
+      assertSession({
+        ...validSession,
+        renditions: [
+          {
+            ...validSession.renditions[0],
+            width: undefined,
+          },
+        ],
+      })
+    ).toThrow("session.renditions[] must define width and height together");
   });
 });

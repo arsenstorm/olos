@@ -79,18 +79,27 @@ function assertRendition(value: unknown): asserts value is Rendition {
   assertOneOfField(value, "kind", RENDITION_KINDS, "session.renditions[]");
   assertNonEmptyStringField(value, "codec", "session.renditions[]");
 
-  for (const field of OPTIONAL_RENDITION_INTEGER_FIELDS) {
+  assertOptionalPositiveIntegerFields(value, OPTIONAL_RENDITION_INTEGER_FIELDS);
+  assertOptionalPositiveIntegerFields(value, RENDITION_DIMENSION_FIELDS);
+  assertRenditionDimensions(value);
+
+  if (value.frameRate !== undefined) {
+    assertPositiveNumberField(value, "frameRate", "session.renditions[]");
+  }
+}
+
+function assertOptionalPositiveIntegerFields(
+  value: Record<string, unknown>,
+  fields: readonly string[]
+): void {
+  for (const field of fields) {
     if (value[field] !== undefined) {
       assertPositiveIntegerField(value, field, "session.renditions[]");
     }
   }
+}
 
-  for (const field of RENDITION_DIMENSION_FIELDS) {
-    if (value[field] !== undefined) {
-      assertPositiveIntegerField(value, field, "session.renditions[]");
-    }
-  }
-
+function assertRenditionDimensions(value: Record<string, unknown>): void {
   if (
     (value.width === undefined && value.height !== undefined) ||
     (value.width !== undefined && value.height === undefined)
@@ -98,9 +107,5 @@ function assertRendition(value: unknown): asserts value is Rendition {
     throw new Error(
       "session.renditions[] must define width and height together"
     );
-  }
-
-  if (value.frameRate !== undefined) {
-    assertPositiveNumberField(value, "frameRate", "session.renditions[]");
   }
 }
