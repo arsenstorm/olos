@@ -27,26 +27,40 @@ export function assertCommit(value: unknown): asserts value is Commit {
     throw new Error("commit must be an object");
   }
 
+  assertCommitIdentifiers(value);
+  assertCommitSequenceFields(value);
+  assertCommitObjectFields(value);
+  assertCommitOptionalFields(value);
+  assertOneOfField(value, "publicationMode", PUBLICATION_MODES, "commit");
+}
+
+function assertCommitIdentifiers(value: Record<string, unknown>): void {
   assertUrlSafeField(value, "commitId", "commit");
   assertUrlSafeField(value, "slotId", "commit");
   assertUrlSafeField(value, "sessionId", "commit");
   assertUrlSafeField(value, "renditionId", "commit");
   assertUrlSafeField(value, "providerId", "commit");
+}
 
+function assertCommitSequenceFields(value: Record<string, unknown>): void {
   assertNonNegativeIntegerField(value, "epoch", "commit");
   assertNonNegativeIntegerField(value, "mediaSequenceNumber", "commit");
 
   if (value.partNumber !== undefined) {
     assertNonNegativeIntegerField(value, "partNumber", "commit");
   }
+}
 
+function assertCommitObjectFields(value: Record<string, unknown>): void {
   assertPositiveNumberField(value, "duration", "commit");
   assertPositiveNumberField(value, "size", "commit");
 
   assertSafeObjectKey(value.objectKey, "commit.objectKey");
   assertSafeDeliveryUrl(value.deliveryUrl, "commit.deliveryUrl");
   assertIsoDateField(value, "committedAt", "commit");
+}
 
+function assertCommitOptionalFields(value: Record<string, unknown>): void {
   if (value.etag !== undefined) {
     assertNonEmptyStringField(value, "etag", "commit");
   }
@@ -58,6 +72,4 @@ export function assertCommit(value: unknown): asserts value is Commit {
   if (value.independent !== undefined) {
     assertBooleanField(value, "independent", "commit");
   }
-
-  assertOneOfField(value, "publicationMode", PUBLICATION_MODES, "commit");
 }

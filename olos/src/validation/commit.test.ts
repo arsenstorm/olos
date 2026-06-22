@@ -45,6 +45,9 @@ describe("commit validation", () => {
     expect(() =>
       assertCommit({ ...validCommit, mediaSequenceNumber: -1 })
     ).toThrow("commit.mediaSequenceNumber must be a non-negative integer");
+    expect(() => assertCommit({ ...validCommit, partNumber: -1 })).toThrow(
+      "commit.partNumber must be a non-negative integer"
+    );
   });
 
   test("rejects unsafe object keys", () => {
