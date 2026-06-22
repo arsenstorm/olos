@@ -42,20 +42,32 @@ export function normalizedSafeRelativePath(
 }
 
 export function assertSafePath(value: string, name: string): void {
+  assertNoQueryOrFragment(value, name);
+
+  if (isUnsafeRelativePath(value)) {
+    throw new Error(`${name} must be a safe relative path`);
+  }
+}
+
+function assertNoQueryOrFragment(value: string, name: string): void {
   if (value.includes("?") || value.includes("#")) {
     throw new Error(`${name} must not contain query strings or fragments`);
   }
+}
 
-  if (
+function isUnsafeRelativePath(value: string): boolean {
+  return (
     value.length === 0 ||
     value.startsWith("/") ||
     value.endsWith("/") ||
-    value
-      .split("/")
-      .some((segment) => segment === "" || segment === "." || segment === "..")
-  ) {
-    throw new Error(`${name} must be a safe relative path`);
-  }
+    hasUnsafePathSegment(value)
+  );
+}
+
+function hasUnsafePathSegment(value: string): boolean {
+  return value
+    .split("/")
+    .some((segment) => segment === "" || segment === "." || segment === "..");
 }
 
 export function assertSafePathSegment(value: string, name: string): void {

@@ -55,6 +55,9 @@ describe("runtime path helpers", () => {
     expect(() => assertSafePath("v1/live/", "path")).toThrow(
       "path must be a safe relative path"
     );
+    expect(() => assertSafePath("v1//live", "path")).toThrow(
+      "path must be a safe relative path"
+    );
     expect(() => assertSafePath("../live", "path")).toThrow(
       "path must be a safe relative path"
     );
