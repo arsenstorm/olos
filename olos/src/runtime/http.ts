@@ -76,6 +76,16 @@ type RuntimeHttpRequestParse<Valid extends object> =
   | (Valid & { status: "valid" })
   | InvalidRuntimeHttpRequestParse;
 
+type RuntimeLiveManifestRoute =
+  | {
+      kind: "master";
+      sessionId: string;
+    }
+  | {
+      kind: "media";
+      sessionId: string;
+    };
+
 export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   allowedMediaOrigins: readonly string[];
   blockingReload?: {
@@ -453,39 +463,32 @@ async function handleLiveRoute(
     return jsonMethodNotAllowedResponse();
   }
 
-  const [sessionId, first, second] = parts;
-  const isMaster = sessionId !== undefined && first === "master.m3u8";
-  const isMedia =
-    sessionId !== undefined && first !== undefined && second === "media.m3u8";
+  const route = liveManifestRoute(parts);
 
-  if (!(isMaster || isMedia)) {
+  if (route === undefined) {
     return notFound();
   }
 
-  const sessionIdError = routeSessionIdError(sessionId);
+  const sessionIdError = routeSessionIdError(route.sessionId);
 
   if (sessionIdError !== undefined) {
     return jsonBadRequestResponse(sessionIdError);
   }
 
-  const snapshot = await options.store.load(sessionId);
+  const snapshot = await options.store.load(route.sessionId);
 
   if (snapshot === undefined) {
     return sessionNotFound();
   }
 
-  const manifest = {
-    allowedMediaOrigins: options.allowedMediaOrigins,
-    partTarget: snapshot.state.session.partTarget,
+  const manifest = liveManifestOptions(
     request,
-    response: options.response,
-    segmentTarget: snapshot.state.session.segmentTarget,
-    sessionId,
-    store: options.store,
-    targetLatency: options.targetLatency ?? DEFAULT_TARGET_LATENCY,
-  };
+    route.sessionId,
+    snapshot.state.session,
+    options
+  );
 
-  if (isMedia && options.blockingReload !== undefined) {
+  if (route.kind === "media" && options.blockingReload !== undefined) {
     return await serveStoredBlockingCoordinatorManifest({
       ...manifest,
       timeoutMs: options.blockingReload.timeoutMs,
@@ -494,6 +497,44 @@ async function handleLiveRoute(
   }
 
   return await serveStoredCoordinatorManifest(manifest);
+}
+
+function liveManifestRoute(
+  parts: readonly string[]
+): RuntimeLiveManifestRoute | undefined {
+  const [sessionId, first, second] = parts;
+
+  if (sessionId !== undefined && first === "master.m3u8") {
+    return { kind: "master", sessionId };
+  }
+
+  if (
+    sessionId !== undefined &&
+    first !== undefined &&
+    second === "media.m3u8"
+  ) {
+    return { kind: "media", sessionId };
+  }
+
+  return;
+}
+
+function liveManifestOptions(
+  request: Request,
+  sessionId: string,
+  session: Session,
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
+) {
+  return {
+    allowedMediaOrigins: options.allowedMediaOrigins,
+    partTarget: session.partTarget,
+    request,
+    response: options.response,
+    segmentTarget: session.segmentTarget,
+    sessionId,
+    store: options.store,
+    targetLatency: options.targetLatency ?? DEFAULT_TARGET_LATENCY,
+  };
 }
 
 async function parseSessionCreateRequest(request: Request): Promise<
