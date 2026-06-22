@@ -80,16 +80,7 @@ function createRenditions(
   mediaCommits: readonly Commit[],
   options: CreateCommittedWindowOptions
 ): Record<string, RenditionWindow> {
-  const initByRendition = new Map<string, Commit>();
-
-  for (const commit of initCommits) {
-    if (initByRendition.has(commit.renditionId)) {
-      throw new Error("initCommits must not contain duplicate rendition IDs");
-    }
-
-    initByRendition.set(commit.renditionId, commit);
-  }
-
+  const initByRendition = createInitCommitsByRendition(initCommits);
   const commitsByRendition = groupByRendition(mediaCommits);
   const renditions: Record<string, RenditionWindow> = {};
 
@@ -100,14 +91,49 @@ function createRenditions(
       throw new Error(`missing init commit for rendition: ${renditionId}`);
     }
 
-    renditions[renditionId] = {
-      init: committedObject(init),
+    renditions[renditionId] = createRenditionWindow({
+      commits,
+      init,
+      maxSegments: options.maxSegments,
       renditionId,
-      segments: createSegments(commits, options.maxSegments),
-    };
+    });
   }
 
   return renditions;
+}
+
+function createInitCommitsByRendition(
+  initCommits: readonly Commit[]
+): Map<string, Commit> {
+  const initByRendition = new Map<string, Commit>();
+
+  for (const commit of initCommits) {
+    if (initByRendition.has(commit.renditionId)) {
+      throw new Error("initCommits must not contain duplicate rendition IDs");
+    }
+
+    initByRendition.set(commit.renditionId, commit);
+  }
+
+  return initByRendition;
+}
+
+function createRenditionWindow({
+  commits,
+  init,
+  maxSegments,
+  renditionId,
+}: {
+  commits: readonly Commit[];
+  init: Commit;
+  maxSegments?: number;
+  renditionId: string;
+}): RenditionWindow {
+  return {
+    init: committedObject(init),
+    renditionId,
+    segments: createSegments(commits, maxSegments),
+  };
 }
 
 function groupByRendition(commits: readonly Commit[]): Map<string, Commit[]> {

@@ -220,6 +220,24 @@ describe("committed window builder", () => {
     ).toThrow("missing init commit for rendition: v720");
   });
 
+  test("rejects duplicate init commits for one rendition", () => {
+    expect(() =>
+      createCommittedWindow({
+        commits: [segmentCommit],
+        epoch: 1,
+        initCommits: [
+          initCommit,
+          {
+            ...initCommit,
+            commitId: "commit_init_retry",
+            slotId: "slot_init_retry",
+          },
+        ],
+        sessionId: "session_1",
+      })
+    ).toThrow("initCommits must not contain duplicate rendition IDs");
+  });
+
   test("rejects duplicate segment commits", () => {
     expect(() =>
       createCommittedWindow({
