@@ -49,6 +49,9 @@ describe("HLS URI helpers", () => {
     expect(() =>
       assertSafeMediaUri("https://other.example.com/live/3810.m4s", {}, "uri")
     ).toThrow("uri origin is not allowed");
+    expect(() =>
+      assertSafeMediaUri("//media.example.com/live.m4s", {}, "uri")
+    ).toThrow("uri must be a safe relative path");
     expect(() => assertSafeMediaUri("s3://bucket/key", {}, "uri")).toThrow(
       "uri must be a safe relative path or allowed absolute URL"
     );

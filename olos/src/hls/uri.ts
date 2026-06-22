@@ -30,19 +30,40 @@ export function assertSafeMediaUri(
   policy: MediaUriPolicy,
   name: string
 ): void {
+  const mediaUri = mediaUriString(value, name);
+
+  assertMediaUriHasNoControlCharacters(mediaUri, name);
+
+  if (mediaUri.startsWith("/")) {
+    assertSafeRelativePath(mediaUri, name);
+    return;
+  }
+
+  assertAllowedAbsoluteMediaUri(mediaUri, policy, name);
+}
+
+function mediaUriString(value: unknown, name: string): string {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`${name} must be a non-empty string`);
   }
 
+  return value;
+}
+
+function assertMediaUriHasNoControlCharacters(
+  value: string,
+  name: string
+): void {
   if (hasControlCharacter(value)) {
     throw new Error(`${name} must not contain control characters`);
   }
+}
 
-  if (value.startsWith("/")) {
-    assertSafeRelativePath(value, name);
-    return;
-  }
-
+function assertAllowedAbsoluteMediaUri(
+  value: string,
+  policy: MediaUriPolicy,
+  name: string
+): void {
   const url = parseAbsoluteUrl(value);
 
   if (!url) {
