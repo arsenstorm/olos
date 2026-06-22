@@ -96,6 +96,11 @@ type StoredSessionConflictSource = Extract<
   { status: "conflict" }
 >;
 
+type HandledStoredSessionMutation = Extract<
+  CoordinatorPipelineMutation,
+  { status: "conflict" | "not_found" }
+>;
+
 const HEARTBEAT_TERMINAL_SESSION_STATES = [
   "aborted",
   "ended",
@@ -149,12 +154,8 @@ export async function transitionStoredCoordinatorSession(
       store: options.store,
     });
 
-    if (result.status === "not_found") {
-      return notFound();
-    }
-
-    if (isStoredSessionConflictSource(result)) {
-      return conflict(result.current);
+    if (isHandledStoredSessionMutation(result)) {
+      return handledStoredSessionMutation(result);
     }
 
     return {
@@ -196,12 +197,8 @@ export async function heartbeatStoredCoordinatorPublisher(
       store: options.store,
     });
 
-    if (result.status === "not_found") {
-      return notFound();
-    }
-
-    if (isStoredSessionConflictSource(result)) {
-      return conflict(result.current);
+    if (isHandledStoredSessionMutation(result)) {
+      return handledStoredSessionMutation(result);
     }
 
     if (lease === undefined) {
@@ -332,6 +329,18 @@ function isStoredSessionConflictSource(
   result: CoordinatorPipelineMutation | CoordinatorStoreSave
 ): result is StoredSessionConflictSource {
   return result.status === "conflict";
+}
+
+function isHandledStoredSessionMutation(
+  result: CoordinatorPipelineMutation
+): result is HandledStoredSessionMutation {
+  return result.status === "not_found" || isStoredSessionConflictSource(result);
+}
+
+function handledStoredSessionMutation(
+  result: HandledStoredSessionMutation
+): StoredRuntimeSessionMutation {
+  return result.status === "not_found" ? notFound() : conflict(result.current);
 }
 
 function notFound(): StoredRuntimeSessionMutation {

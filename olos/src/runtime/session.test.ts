@@ -275,6 +275,19 @@ describe("stored session runtime", () => {
     expect(result.response.status).toBe(404);
   });
 
+  test("returns not found for missing publisher heartbeat sessions", async () => {
+    const result = await heartbeatStoredCoordinatorPublisher({
+      now: "2026-01-01T00:00:01.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: "missing",
+      store: createMemoryCoordinatorStore(),
+      ttlMs: 3000,
+    });
+
+    expect(result.status).toBe("not_found");
+    expect(result.response.status).toBe(404);
+  });
+
   test("rejects invalid publisher heartbeat options", async () => {
     const store = createMemoryCoordinatorStore();
 
