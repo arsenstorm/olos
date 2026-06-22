@@ -33,29 +33,39 @@ export function createUploadGrant(
 function createRequiredHeaders(
   options: CreateUploadGrantOptions
 ): Record<string, string> {
-  const headers = {
-    "Content-Type": options.slot.contentType,
-    "If-None-Match": "*",
-    "x-olos-slot-id": options.slot.slotId,
-  };
+  const headers = createBaseRequiredHeaders(options.slot);
 
   if (options.additionalHeaders === undefined) {
     return headers;
   }
 
   assertAdditionalUploadHeaders(options.additionalHeaders);
+  assertNoReservedAdditionalHeaders(options.additionalHeaders, headers);
 
+  return { ...headers, ...options.additionalHeaders };
+}
+
+function createBaseRequiredHeaders(slot: UploadSlot): Record<string, string> {
+  return {
+    "Content-Type": slot.contentType,
+    "If-None-Match": "*",
+    "x-olos-slot-id": slot.slotId,
+  };
+}
+
+function assertNoReservedAdditionalHeaders(
+  additionalHeaders: Record<string, string>,
+  reservedHeaders: Record<string, string>
+): void {
   const reserved = new Set(
-    Object.keys(headers).map((header) => header.toLowerCase())
+    Object.keys(reservedHeaders).map((header) => header.toLowerCase())
   );
 
-  for (const header of Object.keys(options.additionalHeaders)) {
+  for (const header of Object.keys(additionalHeaders)) {
     if (reserved.has(header.toLowerCase())) {
       throw new Error(`additionalHeaders must not override ${header}`);
     }
   }
-
-  return { ...headers, ...options.additionalHeaders };
 }
 
 export function assertAdditionalUploadHeaders(

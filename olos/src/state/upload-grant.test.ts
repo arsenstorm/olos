@@ -94,6 +94,15 @@ describe("upload grant builder", () => {
         url: "https://storage.example.com/upload/signed",
       })
     ).toThrow("additionalHeaders must not override content-type");
+    expect(() =>
+      createUploadGrant({
+        additionalHeaders: {
+          "IF-NONE-MATCH": "etag",
+        },
+        slot,
+        url: "https://storage.example.com/upload/signed",
+      })
+    ).toThrow("additionalHeaders must not override IF-NONE-MATCH");
   });
 
   test("rejects malformed additional headers", () => {
