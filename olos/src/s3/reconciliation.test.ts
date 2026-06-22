@@ -170,6 +170,38 @@ describe("stored S3 upload reconciliation", () => {
     expect(snapshot?.state.cursor).toBeUndefined();
   });
 
+  test("resolves slot-derived commit identifiers during recovery", async () => {
+    const store = createMemoryCoordinatorStore();
+
+    await saveReconciliationState(store);
+
+    const result = await reconcileStoredS3CoordinatorUploads({
+      bucket: "media",
+      client: clientFor(new Map([["media/v1080/3810.m4s", 98_304]]), []),
+      commitId: (slot) => `custom_${slot.slotId}`,
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      slotIds: ["slot_3810"],
+      store,
+    });
+
+    expect(result.status).toBe("reconciled");
+    if (result.status !== "reconciled") {
+      throw new Error("expected reconciliation result");
+    }
+
+    expect(result.results[0]).toMatchObject({
+      commit: {
+        commit: {
+          commitId: "custom_slot_3810",
+        },
+      },
+      status: "committed",
+    });
+  });
+
   test("reports failed slots without stopping reconciliation", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();

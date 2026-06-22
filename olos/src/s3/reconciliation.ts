@@ -14,6 +14,7 @@ import type { UploadSlot } from "../types/upload-slot";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertS3BucketName } from "./bucket";
 import {
+  type CommitStoredS3CoordinatorUploadOptions,
   commitStoredS3CoordinatorUpload,
   type StoredS3CoordinatorManifestOptions,
   type StoredS3CoordinatorUploadCommit,
@@ -297,25 +298,9 @@ async function reconcileSlot(
   options: ReconcileStoredS3CoordinatorUploadsOptions
 ): Promise<StoredS3CoordinatorUploadReconciliationResult> {
   try {
-    const result = await commitStoredS3CoordinatorUpload({
-      bucket: options.bucket,
-      client: options.client,
-      commitId: resolveSlotValue(options.commitId, slot) ?? commitId(slot),
-      committedAt: resolveRequiredSlotValue(options.committedAt, slot),
-      commitPolicy: options.commitPolicy,
-      providerId: options.providerId,
-      sessionId: options.sessionId,
-      slotId: slot.slotId,
-      store: options.store,
-      ...optionalSlotValue("independent", options.independent, slot),
-      ...optionalSlotValue("lateToleranceMs", options.lateToleranceMs, slot),
-      ...optionalField("manifest", options.manifest),
-      ...optionalField("maxAttempts", options.maxAttempts),
-      ...optionalField("maxSegments", options.maxSegments),
-      ...optionalSlotValue("programDateTime", options.programDateTime, slot),
-      ...optionalField("publicationControl", options.publicationControl),
-      ...optionalField("versionId", options.versionId),
-    });
+    const result = await commitStoredS3CoordinatorUpload(
+      reconciliationCommitOptions(slot, options)
+    );
 
     if (isSuccessfulS3ReconciliationCommit(result)) {
       return {
@@ -329,6 +314,31 @@ async function reconcileSlot(
   } catch (error) {
     return failedStoredS3CoordinatorUploadReconciliationError(slot, error);
   }
+}
+
+function reconciliationCommitOptions(
+  slot: UploadSlot,
+  options: ReconcileStoredS3CoordinatorUploadsOptions
+): CommitStoredS3CoordinatorUploadOptions {
+  return {
+    bucket: options.bucket,
+    client: options.client,
+    commitId: resolveSlotValue(options.commitId, slot) ?? commitId(slot),
+    committedAt: resolveRequiredSlotValue(options.committedAt, slot),
+    commitPolicy: options.commitPolicy,
+    providerId: options.providerId,
+    sessionId: options.sessionId,
+    slotId: slot.slotId,
+    store: options.store,
+    ...optionalSlotValue("independent", options.independent, slot),
+    ...optionalSlotValue("lateToleranceMs", options.lateToleranceMs, slot),
+    ...optionalField("manifest", options.manifest),
+    ...optionalField("maxAttempts", options.maxAttempts),
+    ...optionalField("maxSegments", options.maxSegments),
+    ...optionalSlotValue("programDateTime", options.programDateTime, slot),
+    ...optionalField("publicationControl", options.publicationControl),
+    ...optionalField("versionId", options.versionId),
+  };
 }
 
 function missingStoredS3CoordinatorUploadReconciliation(): MissingStoredS3CoordinatorUploadReconciliation {
