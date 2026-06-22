@@ -31,6 +31,7 @@ describe("identifier validation", () => {
     expect(isPositiveInteger(1.5)).toBe(false);
     expect(isPositiveInteger("1")).toBe(false);
     expect(isNonNegativeSafeInteger(Number.MAX_SAFE_INTEGER + 1)).toBe(false);
+    expect(isPositiveSafeInteger(0)).toBe(false);
     expect(isPositiveSafeInteger(Number.MAX_SAFE_INTEGER + 1)).toBe(false);
   });
 
@@ -47,6 +48,9 @@ describe("identifier validation", () => {
     expect(() =>
       assertPositiveSafeInteger(Number.MAX_SAFE_INTEGER + 1, "count")
     ).toThrow("count must be a positive integer");
+    expect(() => assertPositiveSafeInteger(0, "count")).toThrow(
+      "count must be a positive integer"
+    );
   });
 
   test("accepts URL-safe identifiers", () => {

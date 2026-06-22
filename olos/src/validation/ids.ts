@@ -1,63 +1,72 @@
 const URL_SAFE_IDENTIFIER_PATTERN = /^[A-Za-z0-9._-]+$/;
 
 export function isNonNegativeInteger(value: unknown): value is number {
-  return Number.isInteger(value) && Number(value) >= 0;
+  return isIntegerAtLeast(value, 0);
 }
 
 export function isPositiveInteger(value: unknown): value is number {
-  return Number.isInteger(value) && Number(value) > 0;
+  return isIntegerAtLeast(value, 1);
 }
 
 export function isNonNegativeSafeInteger(value: unknown): value is number {
-  return Number.isSafeInteger(value) && Number(value) >= 0;
+  return isIntegerAtLeast(value, 0, { safe: true });
 }
 
 export function isPositiveSafeInteger(value: unknown): value is number {
-  return Number.isSafeInteger(value) && Number(value) > 0;
+  return isIntegerAtLeast(value, 1, { safe: true });
 }
 
 export function assertNonNegativeInteger(
   value: unknown,
   name: string
 ): asserts value is number {
-  if (isNonNegativeInteger(value)) {
-    return;
-  }
-
-  throw new Error(`${name} must be a non-negative integer`);
+  assertInteger(value, name, isNonNegativeInteger, "non-negative");
 }
 
 export function assertPositiveInteger(
   value: unknown,
   name: string
 ): asserts value is number {
-  if (isPositiveInteger(value)) {
-    return;
-  }
-
-  throw new Error(`${name} must be a positive integer`);
+  assertInteger(value, name, isPositiveInteger, "positive");
 }
 
 export function assertNonNegativeSafeInteger(
   value: unknown,
   name: string
 ): asserts value is number {
-  if (isNonNegativeSafeInteger(value)) {
-    return;
-  }
-
-  throw new Error(`${name} must be a non-negative integer`);
+  assertInteger(value, name, isNonNegativeSafeInteger, "non-negative");
 }
 
 export function assertPositiveSafeInteger(
   value: unknown,
   name: string
 ): asserts value is number {
-  if (isPositiveSafeInteger(value)) {
+  assertInteger(value, name, isPositiveSafeInteger, "positive");
+}
+
+function isIntegerAtLeast(
+  value: unknown,
+  minimum: number,
+  options: { safe?: boolean } = {}
+): value is number {
+  const isInteger = options.safe
+    ? Number.isSafeInteger(value)
+    : Number.isInteger(value);
+
+  return isInteger && Number(value) >= minimum;
+}
+
+function assertInteger(
+  value: unknown,
+  name: string,
+  isValid: (value: unknown) => value is number,
+  description: "non-negative" | "positive"
+): asserts value is number {
+  if (isValid(value)) {
     return;
   }
 
-  throw new Error(`${name} must be a positive integer`);
+  throw new Error(`${name} must be a ${description} integer`);
 }
 
 export function isUrlSafeIdentifier(value: unknown): value is string {
