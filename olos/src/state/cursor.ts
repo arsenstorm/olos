@@ -155,17 +155,24 @@ function sameCommittedWindow(first: Cursor, second: Cursor): boolean {
   const secondWindow = second.committedWindow;
 
   return (
-    firstWindow.discontinuitySequence === secondWindow.discontinuitySequence &&
-    firstWindow.epoch === secondWindow.epoch &&
-    firstWindow.firstMediaSequenceNumber ===
-      secondWindow.firstMediaSequenceNumber &&
-    firstWindow.lastMediaSequenceNumber ===
-      secondWindow.lastMediaSequenceNumber &&
-    sameRenditions(firstWindow.renditions, secondWindow.renditions)
+    sameCommittedWindowBounds(firstWindow, secondWindow) &&
+    sameRenditionWindows(firstWindow.renditions, secondWindow.renditions)
   );
 }
 
-function sameRenditions(
+function sameCommittedWindowBounds(
+  first: CommittedWindow,
+  second: CommittedWindow
+): boolean {
+  return (
+    first.discontinuitySequence === second.discontinuitySequence &&
+    first.epoch === second.epoch &&
+    first.firstMediaSequenceNumber === second.firstMediaSequenceNumber &&
+    first.lastMediaSequenceNumber === second.lastMediaSequenceNumber
+  );
+}
+
+function sameRenditionWindows(
   first: Record<string, RenditionWindow>,
   second: Record<string, RenditionWindow>
 ): boolean {

@@ -257,6 +257,26 @@ describe("cursor update resolution", () => {
     });
   });
 
+  test("accepts same-position candidates with changed discontinuity sequence", () => {
+    const candidateCursor = createCursor({
+      ...options,
+      committedWindow: {
+        ...committedWindow,
+        discontinuitySequence: 1,
+      },
+    });
+
+    expect(
+      resolveCursorUpdate({
+        candidateCursor,
+        currentCursor,
+      })
+    ).toEqual({
+      cursor: candidateCursor,
+      status: "advanced",
+    });
+  });
+
   test("accepts same-position candidates with changed committed objects", () => {
     const candidateCursor = createCursor({
       ...options,
