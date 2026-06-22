@@ -186,6 +186,21 @@ describe("s3 event normalization", () => {
     expect(
       normalizeS3ObjectCreatedEventRecord({
         providerId: "s3_primary",
+        record: { ...record, s3: { bucket: { name: "media" } } },
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          message: "s3 event record is invalid",
+        },
+      },
+      status: "invalid_event",
+    });
+
+    expect(
+      normalizeS3ObjectCreatedEventRecord({
+        providerId: "s3_primary",
         record: { ...record, eventName: "ObjectRemoved:Delete" },
       })
     ).toEqual({

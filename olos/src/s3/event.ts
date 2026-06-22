@@ -26,6 +26,12 @@ export interface NormalizeS3ObjectCreatedEventsOptions {
   providerId: string;
 }
 
+interface S3ObjectCreatedEventRecordParts {
+  bucket: Record<string, unknown>;
+  object: Record<string, unknown>;
+  record: Record<string, unknown>;
+}
+
 export function normalizeS3ObjectCreatedEvents(
   options: NormalizeS3ObjectCreatedEventsOptions
 ): readonly UploadEventNormalization[] {
@@ -60,32 +66,29 @@ export function normalizeS3ObjectCreatedEventRecord(
     return invalidS3Event("expectedBucket is invalid");
   }
 
-  const record = recordValue(options.record);
-  const s3 = recordValue(record?.s3);
-  const bucket = recordValue(s3?.bucket);
-  const object = recordValue(s3?.object);
+  const parts = s3ObjectCreatedEventRecordParts(options.record);
 
-  if (record === undefined || bucket === undefined || object === undefined) {
+  if (parts === undefined) {
     return invalidS3Event("s3 event record is invalid");
   }
 
-  if (!isObjectCreatedEventName(record.eventName)) {
+  if (!isObjectCreatedEventName(parts.record.eventName)) {
     return invalidS3Event("s3 event record is not object-created");
   }
 
-  if (!isS3BucketName(bucket.name)) {
+  if (!isS3BucketName(parts.bucket.name)) {
     return invalidS3Event("s3 event bucket is invalid");
   }
 
   if (
     options.expectedBucket !== undefined &&
-    bucket.name !== options.expectedBucket
+    parts.bucket.name !== options.expectedBucket
   ) {
     return invalidS3Event("s3 event bucket does not match expected bucket");
   }
 
-  const key = objectKey(object.key);
-  const id = eventId(record, object);
+  const key = objectKey(parts.object.key);
+  const id = eventId(parts.record, parts.object);
 
   if (key === undefined) {
     return invalidS3Event("s3 object key is invalid");
@@ -100,15 +103,30 @@ export function normalizeS3ObjectCreatedEventRecord(
   return normalizeUploadEvent({
     event: {
       contentType: options.contentType ?? DEFAULT_S3_EVENT_CONTENT_TYPE,
-      etag: stringValue(object.eTag),
+      etag: stringValue(parts.object.eTag),
       eventId: id,
-      eventTime: record.eventTime,
+      eventTime: parts.record.eventTime,
       eventType: "object.created",
       objectKey: key,
       providerId: options.providerId,
-      size: object.size,
+      size: parts.object.size,
     },
   });
+}
+
+function s3ObjectCreatedEventRecordParts(
+  value: unknown
+): S3ObjectCreatedEventRecordParts | undefined {
+  const record = recordValue(value);
+  const s3 = recordValue(record?.s3);
+  const bucket = recordValue(s3?.bucket);
+  const object = recordValue(s3?.object);
+
+  if (record === undefined || bucket === undefined || object === undefined) {
+    return;
+  }
+
+  return { bucket, object, record };
 }
 
 function isProviderId(value: string): boolean {
