@@ -49,6 +49,20 @@ describe("runtime publisher cadence", () => {
     });
   });
 
+  test("starts part cadence at the configured media sequence", () => {
+    expect(
+      resolveRuntimePublisherNextObjectPosition({
+        mode: "part",
+        partsPerSegment: 4,
+        startMediaSequenceNumber: 3810,
+      })
+    ).toEqual({
+      kind: "part",
+      mediaSequenceNumber: 3810,
+      partNumber: 0,
+    });
+  });
+
   test("starts the next segment after the final part", () => {
     expect(
       resolveRuntimePublisherNextObjectPosition({

@@ -179,28 +179,48 @@ function nextPartPosition(options: {
   const { cursorWindow } = options;
 
   if (cursorWindow === undefined) {
-    return {
-      kind: "part",
-      mediaSequenceNumber: options.startMediaSequenceNumber,
-      partNumber: 0,
-    };
+    return firstPartPosition(options.startMediaSequenceNumber);
   }
 
-  if (cursorWindow.lastPartNumber !== undefined) {
-    const nextPartNumber = cursorWindow.lastPartNumber + 1;
+  const nextPart = nextPartInCurrentSegment(
+    cursorWindow,
+    options.partsPerSegment
+  );
 
-    if (nextPartNumber < options.partsPerSegment) {
-      return {
-        kind: "part",
-        mediaSequenceNumber: cursorWindow.lastMediaSequenceNumber,
-        partNumber: nextPartNumber,
-      };
-    }
+  if (nextPart !== undefined) {
+    return nextPart;
+  }
+
+  return firstPartPosition(cursorWindow.lastMediaSequenceNumber + 1);
+}
+
+function nextPartInCurrentSegment(
+  cursorWindow: CursorWindow,
+  partsPerSegment: number
+): RuntimePublisherObjectPosition | undefined {
+  if (cursorWindow.lastPartNumber === undefined) {
+    return;
+  }
+
+  const nextPartNumber = cursorWindow.lastPartNumber + 1;
+
+  if (nextPartNumber >= partsPerSegment) {
+    return;
   }
 
   return {
     kind: "part",
-    mediaSequenceNumber: cursorWindow.lastMediaSequenceNumber + 1,
+    mediaSequenceNumber: cursorWindow.lastMediaSequenceNumber,
+    partNumber: nextPartNumber,
+  };
+}
+
+function firstPartPosition(
+  mediaSequenceNumber: number
+): RuntimePublisherObjectPosition {
+  return {
+    kind: "part",
+    mediaSequenceNumber,
     partNumber: 0,
   };
 }
