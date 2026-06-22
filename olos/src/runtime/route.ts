@@ -179,6 +179,12 @@ export function routeIdentifierError(
 }
 
 export function assertRoutePath(value: string, name: string): void {
+  assertRoutePathShape(value, name);
+  assertRoutePathHasNoQueryOrFragment(value, name);
+  assertRoutePathSegments(value, name);
+}
+
+function assertRoutePathShape(value: string, name: string): void {
   if (
     value.length === 0 ||
     !value.startsWith("/") ||
@@ -187,11 +193,18 @@ export function assertRoutePath(value: string, name: string): void {
   ) {
     throw new Error(`${name} must be a safe route path`);
   }
+}
 
+function assertRoutePathHasNoQueryOrFragment(
+  value: string,
+  name: string
+): void {
   if (value.includes("?") || value.includes("#")) {
     throw new Error(`${name} must not contain query strings or fragments`);
   }
+}
 
+function assertRoutePathSegments(value: string, name: string): void {
   if (trimSlashes(value).split("/").some(isUnsafeRouteSegment)) {
     throw new Error(`${name} must be a safe route path`);
   }

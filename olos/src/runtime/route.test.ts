@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  assertRoutePath,
   DEFAULT_LIVE_PATH,
   DEFAULT_SESSION_PATH,
   liveMasterPath,
@@ -149,5 +150,14 @@ describe("route path builders", () => {
 
   test("exposes S3 route segment constants", () => {
     expect(S3_SESSION_ROUTE_SEGMENT).toBe("s3");
+  });
+
+  test("rejects unsafe route path segments", () => {
+    expect(() => assertRoutePath("/sessions/.", "sessionPath")).toThrow(
+      "sessionPath must be a safe route path"
+    );
+    expect(() => assertRoutePath("/sessions/../live", "sessionPath")).toThrow(
+      "sessionPath must be a safe route path"
+    );
   });
 });
