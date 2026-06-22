@@ -144,8 +144,7 @@ export async function transitionStoredCoordinatorSession(
   options: TransitionStoredCoordinatorSessionOptions
 ): Promise<StoredRuntimeSessionTransition> {
   try {
-    assertUrlSafeIdentifier(options.sessionId, "sessionId");
-    assertSessionState(options.state);
+    assertTransitionOptions(options);
 
     const result = await mutateCoordinatorPipeline({
       maxAttempts: options.maxAttempts,
@@ -179,10 +178,7 @@ export async function heartbeatStoredCoordinatorPublisher(
   options: HeartbeatStoredCoordinatorPublisherOptions
 ): Promise<StoredRuntimePublisherHeartbeat> {
   try {
-    assertUrlSafeIdentifier(options.sessionId, "sessionId");
-    assertUrlSafeIdentifier(options.publisherInstanceId, "publisherInstanceId");
-    timestampMs(options.now, "now");
-    positiveNumber(options.ttlMs, "ttlMs");
+    assertHeartbeatOptions(options);
 
     let lease: CoordinatorPublisherLease | undefined;
     const result = await mutateCoordinatorPipeline({
@@ -215,6 +211,22 @@ export async function heartbeatStoredCoordinatorPublisher(
   } catch (error) {
     return rejectedHeartbeat(error);
   }
+}
+
+function assertTransitionOptions(
+  options: TransitionStoredCoordinatorSessionOptions
+): void {
+  assertUrlSafeIdentifier(options.sessionId, "sessionId");
+  assertSessionState(options.state);
+}
+
+function assertHeartbeatOptions(
+  options: HeartbeatStoredCoordinatorPublisherOptions
+): void {
+  assertUrlSafeIdentifier(options.sessionId, "sessionId");
+  assertUrlSafeIdentifier(options.publisherInstanceId, "publisherInstanceId");
+  timestampMs(options.now, "now");
+  positiveNumber(options.ttlMs, "ttlMs");
 }
 
 function transitionState(

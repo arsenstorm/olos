@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  type CoordinatorPipelineStore,
   createCoordinatorPipeline,
   createMemoryCoordinatorStore,
 } from "../protocol";
@@ -264,6 +265,19 @@ describe("stored session runtime", () => {
     });
   });
 
+  test("rejects invalid stored session transition options before loading state", async () => {
+    const store = countingStore();
+
+    const result = await transitionStoredCoordinatorSession({
+      sessionId: "../session",
+      state: "starting",
+      store,
+    });
+
+    expect(result.status).toBe("rejected");
+    expect(store.loads).toBe(0);
+  });
+
   test("returns not found for missing stored session transitions", async () => {
     const result = await transitionStoredCoordinatorSession({
       sessionId: "missing",
@@ -286,6 +300,21 @@ describe("stored session runtime", () => {
 
     expect(result.status).toBe("not_found");
     expect(result.response.status).toBe(404);
+  });
+
+  test("rejects invalid publisher heartbeat options before loading state", async () => {
+    const store = countingStore();
+
+    const result = await heartbeatStoredCoordinatorPublisher({
+      now: "soon",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 3000,
+    });
+
+    expect(result.status).toBe("rejected");
+    expect(store.loads).toBe(0);
   });
 
   test("rejects invalid publisher heartbeat options", async () => {
@@ -351,6 +380,25 @@ async function seedStore(
   });
 
   savedStoreResult(saved, "expected seeded coordinator state");
+}
+
+function countingStore(): CoordinatorPipelineStore & {
+  readonly loads: number;
+} {
+  let loads = 0;
+
+  return {
+    get loads() {
+      return loads;
+    },
+    load: () => {
+      loads += 1;
+      return Promise.resolve(undefined);
+    },
+    save: () => {
+      throw new Error("store save should not be called");
+    },
+  };
 }
 
 function cursor(state: Cursor["state"]): Cursor {
