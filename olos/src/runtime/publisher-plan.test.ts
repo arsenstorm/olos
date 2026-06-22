@@ -130,6 +130,16 @@ describe("runtime publisher object plan", () => {
     expect(plan.slot.slotId).toBe("slot_init_v1080");
   });
 
+  test("includes minBytes at the maxBytes boundary", () => {
+    const plan = createRuntimePublisherObjectPlan({
+      ...validSegmentPlan(),
+      minBytes: 100_000,
+    });
+
+    expect(plan.slot.minBytes).toBe(100_000);
+    expect(plan.slot.maxBytes).toBe(100_000);
+  });
+
   test("rejects unsafe plans", () => {
     expect(() =>
       createRuntimePublisherObjectPlan({

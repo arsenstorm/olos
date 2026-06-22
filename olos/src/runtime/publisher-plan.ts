@@ -119,13 +119,7 @@ function assertPlanOptions(
   assertSafePathSegment(options.extension, "extension");
   assertSupportedMediaExtension(options.extension, options.kind, "extension");
 
-  if (isPartPublisherObjectPlan(options)) {
-    if (!isNonNegativeInteger(options.partNumber)) {
-      throw new Error("partNumber must be a non-negative integer for parts");
-    }
-  } else if (options.partNumber !== undefined) {
-    throw new Error("partNumber is only valid for parts");
-  }
+  assertPlanPartNumber(options);
 
   if (!isNonNegativeInteger(options.mediaSequenceNumber)) {
     throw new Error("mediaSequenceNumber must be a non-negative integer");
@@ -135,6 +129,26 @@ function assertPlanOptions(
 
   timestampMs(options.expiresAt, "expiresAt");
 
+  assertPlanByteBounds(options);
+
+  createDeliveryUrl(options.baseUrl, "probe");
+}
+
+function assertPlanPartNumber(
+  options: CreateRuntimePublisherObjectPlanOptions
+): void {
+  if (isPartPublisherObjectPlan(options)) {
+    if (!isNonNegativeInteger(options.partNumber)) {
+      throw new Error("partNumber must be a non-negative integer for parts");
+    }
+  } else if (options.partNumber !== undefined) {
+    throw new Error("partNumber is only valid for parts");
+  }
+}
+
+function assertPlanByteBounds(
+  options: CreateRuntimePublisherObjectPlanOptions
+): void {
   positiveNumber(options.maxBytes, "maxBytes");
 
   if (
@@ -144,8 +158,6 @@ function assertPlanOptions(
   ) {
     throw new Error("minBytes must be a non-negative integer up to maxBytes");
   }
-
-  createDeliveryUrl(options.baseUrl, "probe");
 }
 
 function assertPublicationMode(value: PublicationMode): void {
