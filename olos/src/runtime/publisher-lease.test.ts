@@ -49,6 +49,24 @@ describe("runtime publisher lease", () => {
     });
   });
 
+  test("rejects refreshing a publisher lease before it was issued", () => {
+    const lease = createRuntimePublisherLease({
+      now: "2026-01-01T00:00:01.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: "session_1",
+      tenantId: "tenant_1",
+      ttlMs: 3000,
+    });
+
+    expect(() =>
+      refreshRuntimePublisherLease({
+        lease,
+        now: "2026-01-01T00:00:00.999Z",
+        ttlMs: 3000,
+      })
+    ).toThrow("now must be after or equal to publisherLease.issuedAt");
+  });
+
   test("refreshes a matching publisher heartbeat", () => {
     const lease = createRuntimePublisherLease({
       now: "2026-01-01T00:00:00.000Z",

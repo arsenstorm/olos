@@ -7,6 +7,8 @@ const LEASE_IDENTITY_FIELDS = [
   "publisherInstanceId",
 ] as const;
 
+type LeaseTimestampField = "expiresAt" | "issuedAt" | "lastSeenAt";
+
 export interface RuntimePublisherLease {
   expiresAt: string;
   issuedAt: string;
@@ -73,10 +75,7 @@ export function refreshRuntimePublisherLease(
 
   const nowMs = timestampMs(options.now, "now");
   const ttlMs = positiveNumber(options.ttlMs, "ttlMs");
-
-  if (nowMs < timestampMs(options.lease.issuedAt, "publisherLease.issuedAt")) {
-    throw new Error("now must be after or equal to publisherLease.issuedAt");
-  }
+  assertRefreshTimeNotBeforeIssuedAt(options.lease, nowMs);
 
   return {
     ...options.lease,
@@ -154,6 +153,17 @@ function assertLeaseOwner(
   }
 }
 
+function assertRefreshTimeNotBeforeIssuedAt(
+  lease: RuntimePublisherLease,
+  nowMs: number
+): void {
+  const issuedAtMs = timestampMs(lease.issuedAt, "publisherLease.issuedAt");
+
+  if (nowMs < issuedAtMs) {
+    throw new Error("now must be after or equal to publisherLease.issuedAt");
+  }
+}
+
 function assertLeaseIdentity(value: Record<string, unknown>): void {
   for (const field of LEASE_IDENTITY_FIELDS) {
     assertUrlSafeIdentifier(value[field], `publisherLease.${field}`);
@@ -162,7 +172,7 @@ function assertLeaseIdentity(value: Record<string, unknown>): void {
 
 function timestampFieldMs(
   value: Record<string, unknown>,
-  field: "expiresAt" | "issuedAt" | "lastSeenAt"
+  field: LeaseTimestampField
 ): number {
   if (typeof value[field] !== "string") {
     throw new Error(`publisherLease.${field} must be a valid timestamp`);
