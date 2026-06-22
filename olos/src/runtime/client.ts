@@ -40,6 +40,10 @@ import {
 import type { RuntimeSlotIssuePayload } from "./slot";
 import { isStringLiteral } from "./string-literals";
 
+const HEALTH_CURSOR_FRESHNESS_VALUES = ["fresh", "stale", "missing"] as const;
+const HEALTH_STATUS_VALUES = ["active", "stale", "starting"] as const;
+const HEALTH_LEASE_STATUS_VALUES = ["active", "stale"] as const;
+
 export type RuntimeFetch = RuntimeHttpFetch;
 
 export interface RuntimeHttpClientOptions {
@@ -573,57 +577,87 @@ function assertRuntimeLiveHealth(
     throw new Error("runtime live health must be an object");
   }
 
-  const cursorFreshness = requiredStringField(
+  requiredStringLiteralField(
     value,
     "cursorFreshness",
-    "session health response health must include cursorFreshness"
+    "session health response health must include cursorFreshness",
+    HEALTH_CURSOR_FRESHNESS_VALUES,
+    "session health response health.cursorFreshness must be fresh, stale, or missing"
   );
-  if (
-    cursorFreshness !== "fresh" &&
-    cursorFreshness !== "stale" &&
-    cursorFreshness !== "missing"
-  ) {
-    throw new Error(
-      "session health response health.cursorFreshness must be fresh, stale, or missing"
-    );
-  }
-
-  const status = requiredStringField(
+  requiredStringLiteralField(
     value,
     "status",
-    "session health response health must include status"
+    "session health response health must include status",
+    HEALTH_STATUS_VALUES,
+    "session health response health.status must be active, stale, or starting"
   );
-  if (status !== "active" && status !== "stale" && status !== "starting") {
-    throw new Error(
-      "session health response health.status must be active, stale, or starting"
-    );
-  }
-
-  if (
-    value.leaseStatus !== undefined &&
-    value.leaseStatus !== "active" &&
-    value.leaseStatus !== "stale"
-  ) {
-    throw new Error(
-      "session health response health.leaseStatus must be active or stale"
-    );
-  }
-
-  if (
-    value.cursorAgeMs !== undefined &&
-    (typeof value.cursorAgeMs !== "number" ||
-      !Number.isFinite(value.cursorAgeMs))
-  ) {
-    throw new Error(
-      "session health response health.cursorAgeMs must be a finite number"
-    );
-  }
+  assertOptionalStringLiteralField(
+    value,
+    "leaseStatus",
+    HEALTH_LEASE_STATUS_VALUES,
+    "session health response health.leaseStatus must be active or stale"
+  );
+  assertOptionalFiniteNumberField(
+    value,
+    "cursorAgeMs",
+    "session health response health.cursorAgeMs must be a finite number"
+  );
 
   if (value.publisherInstanceId !== undefined) {
     assertUrlSafeIdentifier(
       value.publisherInstanceId,
       "session health response health.publisherInstanceId"
     );
+  }
+}
+
+function requiredStringLiteralField<const Allowed extends readonly string[]>(
+  value: Record<string, unknown>,
+  field: string,
+  missingMessage: string,
+  allowed: Allowed,
+  invalidMessage: string
+): Allowed[number] {
+  const fieldValue = requiredStringField(value, field, missingMessage);
+
+  if (!isStringLiteral(fieldValue, allowed)) {
+    throw new Error(invalidMessage);
+  }
+
+  return fieldValue;
+}
+
+function assertOptionalStringLiteralField<
+  const Field extends string,
+  const Allowed extends readonly string[],
+>(
+  value: Record<string, unknown>,
+  field: Field,
+  allowed: Allowed,
+  invalidMessage: string
+): void {
+  const fieldValue = value[field];
+
+  if (
+    fieldValue !== undefined &&
+    (typeof fieldValue !== "string" || !isStringLiteral(fieldValue, allowed))
+  ) {
+    throw new Error(invalidMessage);
+  }
+}
+
+function assertOptionalFiniteNumberField(
+  value: Record<string, unknown>,
+  field: string,
+  invalidMessage: string
+): void {
+  const fieldValue = value[field];
+
+  if (
+    fieldValue !== undefined &&
+    (typeof fieldValue !== "number" || !Number.isFinite(fieldValue))
+  ) {
+    throw new Error(invalidMessage);
   }
 }
 

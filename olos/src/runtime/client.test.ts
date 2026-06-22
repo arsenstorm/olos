@@ -456,6 +456,54 @@ describe("runtime HTTP client", () => {
     ).rejects.toThrow("session health response health.status");
   });
 
+  test("validates optional session health response payload fields", async () => {
+    const invalidLeaseStatusFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            health: {
+              cursorFreshness: "fresh",
+              leaseStatus: "missing",
+              status: "active",
+            },
+          }),
+          { status: 200 }
+        )
+      );
+    const invalidCursorAgeFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            health: {
+              cursorAgeMs: Number.POSITIVE_INFINITY,
+              cursorFreshness: "stale",
+              status: "stale",
+            },
+          }),
+          { status: 200 }
+        )
+      );
+
+    await expect(
+      getRuntimeSessionHealth({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: invalidLeaseStatusFetch,
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow(
+      "session health response health.leaseStatus must be active or stale"
+    );
+    await expect(
+      getRuntimeSessionHealth({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: invalidCursorAgeFetch,
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow(
+      "session health response health.cursorAgeMs must be a finite number"
+    );
+  });
+
   test("validates transition response payload state", async () => {
     const clientFetch: RuntimeFetch = () =>
       Promise.resolve(
