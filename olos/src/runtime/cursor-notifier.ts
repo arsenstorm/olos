@@ -28,16 +28,8 @@ export function createMemoryRuntimeCursorNotifier(): RuntimeCursorNotifier {
         return;
       }
 
-      for (const waiter of sessionWaiters) {
-        if (isCursorAfter(cursor, waiter.after)) {
-          sessionWaiters.delete(waiter);
-          waiter.resolve(cursor);
-        }
-      }
-
-      if (sessionWaiters.size === 0) {
-        waiters.delete(cursor.sessionId);
-      }
+      resolveAdvancedWaiters(cursor, sessionWaiters);
+      deleteEmptyWaiterSet(waiters, cursor.sessionId, sessionWaiters);
     },
     waitForCursor(context) {
       assertCursor(context.cursor);
@@ -71,6 +63,28 @@ export function createMemoryRuntimeCursorNotifier(): RuntimeCursorNotifier {
       });
     },
   };
+}
+
+function resolveAdvancedWaiters(
+  cursor: Cursor,
+  sessionWaiters: Set<CursorWaiter>
+): void {
+  for (const waiter of sessionWaiters) {
+    if (isCursorAfter(cursor, waiter.after)) {
+      sessionWaiters.delete(waiter);
+      waiter.resolve(cursor);
+    }
+  }
+}
+
+function deleteEmptyWaiterSet(
+  waiters: Map<string, Set<CursorWaiter>>,
+  sessionId: string,
+  sessionWaiters: Set<CursorWaiter>
+): void {
+  if (sessionWaiters.size === 0) {
+    waiters.delete(sessionId);
+  }
 }
 
 function waitersForSession(

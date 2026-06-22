@@ -19,6 +19,23 @@ describe("runtime cursor notifier", () => {
     });
   });
 
+  test("keeps waiters pending when an equivalent cursor is notified", async () => {
+    const notifier = createMemoryRuntimeCursorNotifier();
+    const controller = new AbortController();
+    const waiting = notifier.waitForCursor({
+      cursor: cursorAt(3810),
+      request: { mediaSequenceNumber: 3811 },
+      signal: controller.signal,
+    });
+
+    notifier.notify(cursorAt(3810));
+    notifier.notify(cursorAt(3811));
+
+    await expect(waiting).resolves.toMatchObject({
+      window: { lastMediaSequenceNumber: 3811 },
+    });
+  });
+
   test("returns the latest cursor when it already advanced", async () => {
     const notifier = createMemoryRuntimeCursorNotifier();
 
