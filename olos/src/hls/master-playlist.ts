@@ -71,23 +71,28 @@ function renderStreamAttributes(
     `CODECS="${escapePlaylistValue(
       [rendition.codec, ...audioCodecs].join(",")
     )}"`,
+    ...resolutionAttributes(rendition),
   ];
-
-  if (rendition.width !== undefined || rendition.height !== undefined) {
-    if (!(rendition.width && rendition.height)) {
-      throw new Error(
-        `rendition ${rendition.renditionId} must define width and height together`
-      );
-    }
-
-    attributes.push(`RESOLUTION=${rendition.width}x${rendition.height}`);
-  }
 
   if (rendition.frameRate !== undefined) {
     attributes.push(`FRAME-RATE=${formatFrameRate(rendition.frameRate)}`);
   }
 
   return attributes.join(",");
+}
+
+function resolutionAttributes(rendition: VideoRendition): string[] {
+  if (rendition.width === undefined && rendition.height === undefined) {
+    return [];
+  }
+
+  if (rendition.width === undefined || rendition.height === undefined) {
+    throw new Error(
+      `rendition ${rendition.renditionId} must define width and height together`
+    );
+  }
+
+  return [`RESOLUTION=${rendition.width}x${rendition.height}`];
 }
 
 function isAudioRendition(rendition: Rendition): rendition is AudioRendition {
