@@ -61,6 +61,9 @@ describe("upload grant validation", () => {
     expect(() =>
       assertUploadGrant({ ...validUploadGrant, method: "POST" })
     ).toThrow("uploadGrant.method must be PUT");
+    expect(() =>
+      assertUploadGrant({ ...validUploadGrant, method: undefined })
+    ).toThrow("uploadGrant.method must be PUT");
   });
 
   test("rejects invalid upload URLs", () => {
