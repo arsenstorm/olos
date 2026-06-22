@@ -293,6 +293,46 @@ describe("cursor update resolution", () => {
     });
   });
 
+  test("accepts same-position candidates with changed committed parts", () => {
+    const candidateCursor = createCursor({
+      ...options,
+      committedWindow: {
+        ...committedWindow,
+        renditions: {
+          v1080: {
+            ...v1080,
+            segments: [
+              firstSegment,
+              {
+                ...secondSegment,
+                parts: [
+                  {
+                    commitId: "commit_3811_0_retry",
+                    deliveryUrl: "/media/3811.0.m4s",
+                    duration: 0.333,
+                    objectKey: "tenant/session/v1080/3811.0.m4s",
+                    partNumber: 0,
+                    slotId: "slot_3811_0",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(
+      resolveCursorUpdate({
+        candidateCursor,
+        currentCursor,
+      })
+    ).toEqual({
+      cursor: candidateCursor,
+      status: "advanced",
+    });
+  });
+
   test("rejects candidates behind the current media sequence", () => {
     const candidateCursor = createCursor({
       ...options,

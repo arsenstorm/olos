@@ -206,15 +206,7 @@ function sameSegments(
   first: readonly CommittedSegment[],
   second: readonly CommittedSegment[]
 ): boolean {
-  if (first.length !== second.length) {
-    return false;
-  }
-
-  return first.every((segment, index) => {
-    const other = second[index];
-
-    return other !== undefined && sameSegment(segment, other);
-  });
+  return sameOrderedItems(first, second, sameSegment);
 }
 
 function sameSegment(
@@ -240,14 +232,22 @@ function sameParts(
     return first === second;
   }
 
+  return sameOrderedItems(first, second, samePart);
+}
+
+function sameOrderedItems<TItem>(
+  first: readonly TItem[],
+  second: readonly TItem[],
+  sameItem: (first: TItem, second: TItem) => boolean
+): boolean {
   if (first.length !== second.length) {
     return false;
   }
 
-  return first.every((part, index) => {
+  return first.every((item, index) => {
     const other = second[index];
 
-    return other !== undefined && samePart(part, other);
+    return other !== undefined && sameItem(item, other);
   });
 }
 
