@@ -251,16 +251,41 @@ export function parseProviderId(
   field = "providerId",
   missingError = `${field} must be configured or provided`
 ): string {
-  if (value[field] !== undefined) {
-    return urlSafeIdentifierField(value, field);
+  const inlineProviderId = parseInlineProviderId(value, field);
+
+  if (inlineProviderId !== undefined) {
+    return inlineProviderId;
   }
 
-  if (options.providerId !== undefined) {
-    assertUrlSafeIdentifier(options.providerId, field);
-    return options.providerId;
+  const configuredProviderId = parseConfiguredProviderId(options, field);
+
+  if (configuredProviderId !== undefined) {
+    return configuredProviderId;
   }
 
   throw new Error(missingError);
+}
+
+function parseInlineProviderId(
+  value: Record<string, unknown>,
+  field: string
+): string | undefined {
+  return value[field] === undefined
+    ? undefined
+    : urlSafeIdentifierField(value, field);
+}
+
+function parseConfiguredProviderId(
+  options: ProviderIdOptions,
+  field: string
+): string | undefined {
+  if (options.providerId === undefined) {
+    return;
+  }
+
+  assertUrlSafeIdentifier(options.providerId, field);
+
+  return options.providerId;
 }
 
 export function parseSafeObjectKeyField(

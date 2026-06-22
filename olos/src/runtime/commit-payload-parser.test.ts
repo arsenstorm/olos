@@ -36,6 +36,12 @@ describe("commit payload parser", () => {
     );
   });
 
+  test("rejects unsafe default provider ids", () => {
+    expect(() => parseProviderId({}, { providerId: "../provider" })).toThrow(
+      "providerId must be a non-empty URL-safe identifier"
+    );
+  });
+
   test("falls back to default provider id for custom missing-provider errors", () => {
     expect(() => parseProviderId({}, {}, "providerId", "custom")).toThrow(
       "custom"
