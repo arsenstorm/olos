@@ -328,6 +328,26 @@ describe("object created event normalization", () => {
       },
       status: "invalid_event",
     });
+
+    expect(
+      normalizeUploadEvent({
+        event: {
+          eventId: "hint_1",
+          eventTime: "not-a-date",
+          eventType: "upload.completed",
+          objectKey: "media/session/v1080/3810.m4s",
+          slotId: "slot_1",
+        },
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          message: "uploadCompletionHint.eventTime must be a valid timestamp",
+        },
+      },
+      status: "invalid_event",
+    });
   });
 
   test("matches object-created events to known object keys", () => {

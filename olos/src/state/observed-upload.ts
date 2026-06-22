@@ -276,26 +276,44 @@ export function normalizeUploadEvent(
   const event = options.event;
 
   try {
-    if (event.eventType === OBJECT_CREATED_EVENT_TYPE) {
-      return {
-        event: createObservedUploadFromObjectCreatedEvent(
-          objectCreatedUploadEventPayload(event)
-        ),
-        status: "object_created",
-      };
-    }
-
-    if (event.eventType === UPLOAD_COMPLETED_HINT_TYPE) {
-      return {
-        hint: createUploadCompletionHint(uploadCompletionHintPayload(event)),
-        status: "upload_completed",
-      };
-    }
+    return normalizeUploadEventPayload(event);
   } catch (error) {
     return invalidUploadEvent(errorMessage(error));
   }
+}
+
+function normalizeUploadEventPayload(
+  event: Record<string, unknown>
+): UploadEventNormalization {
+  if (event.eventType === OBJECT_CREATED_EVENT_TYPE) {
+    return normalizeObjectCreatedUploadEvent(event);
+  }
+
+  if (event.eventType === UPLOAD_COMPLETED_HINT_TYPE) {
+    return normalizeUploadCompletedHintEvent(event);
+  }
 
   return invalidUploadEvent("upload event type is unsupported");
+}
+
+function normalizeObjectCreatedUploadEvent(
+  event: Record<string, unknown>
+): UploadEventNormalization {
+  return {
+    event: createObservedUploadFromObjectCreatedEvent(
+      objectCreatedUploadEventPayload(event)
+    ),
+    status: "object_created",
+  };
+}
+
+function normalizeUploadCompletedHintEvent(
+  event: Record<string, unknown>
+): UploadEventNormalization {
+  return {
+    hint: createUploadCompletionHint(uploadCompletionHintPayload(event)),
+    status: "upload_completed",
+  };
 }
 
 export function resolveObjectCreatedEventSlot(
