@@ -30,8 +30,15 @@ export function assertMediaObject(
   assertContentType(value.contentType, "mediaObject.contentType");
   assertIsoDateField(value, "observedAt", "mediaObject");
   assertPositiveNumberField(value, "size", "mediaObject");
+  assertOptionalNonEmptyStringField(value, "etag", "mediaObject");
+}
 
-  if (value.etag !== undefined) {
-    assertNonEmptyStringField(value, "etag", "mediaObject");
+function assertOptionalNonEmptyStringField(
+  value: Record<string, unknown>,
+  field: string,
+  name: string
+): void {
+  if (value[field] !== undefined) {
+    assertNonEmptyStringField(value, field, name);
   }
 }

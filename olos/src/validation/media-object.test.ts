@@ -80,6 +80,9 @@ describe("media object validation", () => {
     expect(() => assertMediaObject({ ...validMediaObject, size: 0 })).toThrow(
       "mediaObject.size must be a positive number"
     );
+    expect(() => assertMediaObject({ ...validMediaObject, size: -1 })).toThrow(
+      "mediaObject.size must be a positive number"
+    );
   });
 
   test("rejects invalid etags", () => {
