@@ -835,6 +835,68 @@ describe("coordinator pipeline", () => {
     expect(rejected.state).toBe(state);
   });
 
+  test("rejects revocation after a low-latency part reaches the trusted cursor", () => {
+    let state = createEmptyCoordinatorState();
+
+    state = commitSlot(state, {
+      commitId: "commit_init",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/init.mp4",
+      duration: 1,
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/init.mp4",
+      slotId: "slot_init",
+      size: 1024,
+    });
+    state = commitSlot(state, {
+      commitId: "commit_3810",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      independent: true,
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      slotId: "slot_3810",
+      size: 98_304,
+    });
+    state = commitSlot(state, {
+      commitId: "commit_3811_0",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3811.p0.m4s",
+      duration: 0.5,
+      independent: true,
+      kind: "part",
+      maxBytes: 25_000,
+      mediaSequenceNumber: 3811,
+      objectKey: "media/s3811.p0.m4s",
+      partNumber: 0,
+      slotId: "slot_3811_0",
+      size: 24_000,
+    });
+
+    const rejected = revokeCoordinatorUpload({
+      slotId: "slot_3811_0",
+      state,
+    });
+
+    expect(rejected.status).toBe("rejected");
+    if (rejected.status !== "rejected") {
+      throw new Error("expected rejected revocation");
+    }
+
+    expect(rejected.error.error).toEqual({
+      code: "olos.invalid_state",
+      details: {
+        slotId: "slot_3811_0",
+        state: "committed",
+      },
+      message: "announced upload slots cannot be silently revoked",
+    });
+    expect(rejected.state).toBe(state);
+  });
+
   test("publishes low-latency parts before the full segment is committed", () => {
     let state = createEmptyCoordinatorState();
 

@@ -4,6 +4,10 @@ import {
   createIssuedUploadSlot,
   revokeUpload,
 } from "../state/upload-slot";
+import type {
+  CommittedSegment,
+  RenditionWindow,
+} from "../types/committed-window";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
 import type {
@@ -116,17 +120,31 @@ function isSlotInCursor(
     return false;
   }
 
-  return Object.values(cursor.committedWindow.renditions).some((rendition) => {
-    if (rendition.init.slotId === slot.slotId) {
-      return true;
-    }
+  return Object.values(cursor.committedWindow.renditions).some((rendition) =>
+    cursorRenditionContainsSlot(rendition, slot)
+  );
+}
 
-    return rendition.segments.some(
-      (segment) =>
-        segment.segment?.slotId === slot.slotId ||
-        segment.parts?.some((part) => part.slotId === slot.slotId) === true
-    );
-  });
+function cursorRenditionContainsSlot(
+  rendition: RenditionWindow,
+  slot: UploadSlot
+): boolean {
+  return (
+    rendition.init.slotId === slot.slotId ||
+    rendition.segments.some((segment) =>
+      cursorSegmentContainsSlot(segment, slot)
+    )
+  );
+}
+
+function cursorSegmentContainsSlot(
+  segment: CommittedSegment,
+  slot: UploadSlot
+): boolean {
+  return (
+    segment.segment?.slotId === slot.slotId ||
+    segment.parts?.some((part) => part.slotId === slot.slotId) === true
+  );
 }
 
 function removeSlotCommit(options: {
