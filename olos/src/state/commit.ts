@@ -440,10 +440,24 @@ export function resolveDuplicateCommit(
 function assertCommitPreconditions(options: CreateCommitOptions): void {
   const { mediaObject, slot } = options;
 
+  assertObservedUploadSlot(slot);
+  assertMatchingCommitObject(mediaObject, slot);
+  assertCommitObjectSize(mediaObject, slot);
+  assertCommitDeadline(options);
+}
+
+function assertObservedUploadSlot(
+  slot: UploadSlot
+): asserts slot is ObservedUploadSlot {
   if (!isObservedUploadSlot(slot)) {
     throw new Error("uploadSlot.state must be upload_observed");
   }
+}
 
+function assertMatchingCommitObject(
+  mediaObject: MediaObject,
+  slot: UploadSlot
+): void {
   if (mediaObject.objectKey !== slot.objectKey) {
     throw new Error("mediaObject.objectKey must match uploadSlot.objectKey");
   }
@@ -453,7 +467,12 @@ function assertCommitPreconditions(options: CreateCommitOptions): void {
       "mediaObject.contentType must match uploadSlot.contentType"
     );
   }
+}
 
+function assertCommitObjectSize(
+  mediaObject: MediaObject,
+  slot: UploadSlot
+): void {
   if (mediaObject.size > slot.maxBytes) {
     throw new Error("mediaObject.size must be less than or equal to maxBytes");
   }
@@ -463,7 +482,10 @@ function assertCommitPreconditions(options: CreateCommitOptions): void {
       "mediaObject.size must be greater than or equal to minBytes"
     );
   }
+}
 
+function assertCommitDeadline(options: CreateCommitOptions): void {
+  const { slot } = options;
   const committedAt = timestampMs(options.committedAt, "commit.committedAt");
   const expiresAt = timestampMs(slot.expiresAt, "uploadSlot.expiresAt");
   const lateToleranceMs = nonNegativeNumber(

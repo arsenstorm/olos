@@ -252,6 +252,17 @@ describe("commit builder", () => {
     ).toBe("commit_1");
   });
 
+  test("allows commits exactly at slot expiration", () => {
+    expect(
+      createCommit({
+        commitId: "commit_1",
+        committedAt: "2026-01-01T00:00:05.000Z",
+        mediaObject,
+        slot,
+      }).commitId
+    ).toBe("commit_1");
+  });
+
   test("rejects invalid late tolerance", () => {
     expect(() =>
       createCommit({
