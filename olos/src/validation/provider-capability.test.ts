@@ -244,6 +244,18 @@ describe("provider capability validation", () => {
     );
   });
 
+  test("rejects invalid optional delivery booleans", () => {
+    expect(() =>
+      assertProviderCapabilityDocument({
+        ...capability,
+        delivery: {
+          ...capability.delivery,
+          rangeRequests: "yes",
+        },
+      })
+    ).toThrow("providerCapability.delivery.rangeRequests must be a boolean");
+  });
+
   test("accepts read-gated providers without direct object publication", () => {
     expect(() =>
       assertProviderCapabilityDocument({

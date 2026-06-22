@@ -121,12 +121,7 @@ function assertPublication(value: unknown): void {
 
   assertBooleanField(value, "directObjectPublication", name);
   assertBooleanField(value, "createIfAbsent", name);
-
-  for (const field of OPTIONAL_PUBLICATION_BOOLEAN_FIELDS) {
-    if (value[field] !== undefined) {
-      assertBooleanField(value, field, name);
-    }
-  }
+  assertOptionalBooleanFields(value, OPTIONAL_PUBLICATION_BOOLEAN_FIELDS, name);
 }
 
 function assertUploadGrants(value: unknown): void {
@@ -149,11 +144,11 @@ function assertUploadGrantBooleanFields(
     assertBooleanField(value, field, name);
   }
 
-  for (const field of OPTIONAL_UPLOAD_GRANT_BOOLEAN_FIELDS) {
-    if (value[field] !== undefined) {
-      assertBooleanField(value, field, name);
-    }
-  }
+  assertOptionalBooleanFields(
+    value,
+    OPTIONAL_UPLOAD_GRANT_BOOLEAN_FIELDS,
+    name
+  );
 }
 
 function assertUploadGrantTtl(
@@ -185,8 +180,15 @@ function assertDelivery(value: unknown): void {
 
   assertAbsoluteHttpUrl(value.publicBaseUrl, `${name}.publicBaseUrl`);
   assertBooleanField(value, "negativeCachingPolicyDeclared", name);
+  assertOptionalBooleanFields(value, OPTIONAL_DELIVERY_BOOLEAN_FIELDS, name);
+}
 
-  for (const field of OPTIONAL_DELIVERY_BOOLEAN_FIELDS) {
+function assertOptionalBooleanFields(
+  value: Record<string, unknown>,
+  fields: readonly string[],
+  name: string
+): void {
+  for (const field of fields) {
     if (value[field] !== undefined) {
       assertBooleanField(value, field, name);
     }
