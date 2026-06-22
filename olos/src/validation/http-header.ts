@@ -9,23 +9,26 @@ export function isHttpHeaderName(value: string): boolean {
 export function isHttpHeaderStringMap(
   value: unknown
 ): value is Record<string, string> {
-  return (
-    isRecord(value) &&
-    Object.entries(value).every(
-      ([key, entry]) => isHttpHeaderName(key) && typeof entry === "string"
-    )
-  );
+  return isHttpHeaderMap(value, (entry) => typeof entry === "string");
 }
 
 export function isOptionalHttpHeaderStringMap(
   value: unknown
 ): value is Record<string, string | undefined> {
+  return isHttpHeaderMap(
+    value,
+    (entry) => typeof entry === "string" || entry === undefined
+  );
+}
+
+function isHttpHeaderMap(
+  value: unknown,
+  isValidEntry: (entry: unknown) => boolean
+): boolean {
   return (
     isRecord(value) &&
     Object.entries(value).every(
-      ([key, entry]) =>
-        isHttpHeaderName(key) &&
-        (typeof entry === "string" || entry === undefined)
+      ([key, entry]) => isHttpHeaderName(key) && isValidEntry(entry)
     )
   );
 }

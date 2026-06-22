@@ -15,11 +15,13 @@ describe("HTTP header validation", () => {
 
   test("validates required string maps", () => {
     expect(isHttpHeaderStringMap({ "x-olos-slot-id": "slot_1" })).toBe(true);
+    expect(isHttpHeaderStringMap(null)).toBe(false);
     expect(isHttpHeaderStringMap({ "bad header": "slot_1" })).toBe(false);
     expect(isHttpHeaderStringMap({ "x-olos-slot-id": undefined })).toBe(false);
   });
 
   test("validates optional string maps", () => {
+    expect(isOptionalHttpHeaderStringMap(null)).toBe(false);
     expect(isOptionalHttpHeaderStringMap({ "x-olos-slot-id": undefined })).toBe(
       true
     );
