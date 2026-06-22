@@ -248,6 +248,29 @@ describe("commit payload parser", () => {
     });
   });
 
+  test("applies S3 commit id overrides before reading payload identifiers", () => {
+    expect(
+      parseS3CommitPayload(
+        {
+          committedAt: "2026-01-01T00:00:02.000Z",
+          versionId: "v1",
+        },
+        { providerId: "provider_1" },
+        parseCommitTimestamp,
+        {
+          commitId: "commit_override",
+          slotId: "slot_override",
+        }
+      )
+    ).toEqual({
+      commitId: "commit_override",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "provider_1",
+      slotId: "slot_override",
+      versionId: "v1",
+    });
+  });
+
   test("parses shared S3 reconciliation payloads", () => {
     expect(
       parseS3ReconciliationPayload(

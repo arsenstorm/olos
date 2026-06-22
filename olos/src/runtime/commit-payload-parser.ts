@@ -80,6 +80,15 @@ export interface ParsedS3ReconciliationPayload
   versionId?: string;
 }
 
+type ParsedS3CommitIdentity = Pick<
+  ParsedS3CommitPayload,
+  "commitId" | "slotId"
+>;
+
+type ParsedS3CommitObjectHints = Partial<
+  Pick<ParsedS3CommitPayload, "objectKey" | "versionId">
+>;
+
 export interface RuntimeCommitPayload extends ParsedCommitPayload {
   object: ParsedObservedUploadPayload;
 }
@@ -311,8 +320,25 @@ export function parseS3CommitPayload(
 ): ParsedS3CommitPayload {
   return {
     ...parseProviderResolvedCommitPayload(value, options, parseCommittedAt),
+    ...parseS3CommitIdentity(value, overrides),
+    ...parseS3CommitObjectHints(value),
+  };
+}
+
+function parseS3CommitIdentity(
+  value: Record<string, unknown>,
+  overrides: S3CommitPayloadParseOverrides
+): ParsedS3CommitIdentity {
+  return {
     commitId: overrides.commitId ?? urlSafeIdentifierField(value, "commitId"),
     slotId: overrides.slotId ?? urlSafeIdentifierField(value, "slotId"),
+  };
+}
+
+function parseS3CommitObjectHints(
+  value: Record<string, unknown>
+): ParsedS3CommitObjectHints {
+  return {
     ...parseOptionalSafeObjectKeyField(value, "objectKey"),
     ...optionalStringField(value, "versionId"),
   };
