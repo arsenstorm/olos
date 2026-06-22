@@ -75,6 +75,22 @@ describe("s3 object observation", () => {
     ).toBe("2026-01-01T00:00:01.500Z");
   });
 
+  test("prefers explicit observation time over LastModified", () => {
+    expect(
+      createObservedUploadFromS3HeadObject({
+        objectKey: "live/session/v1080/3810.m4s",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        output: {
+          $metadata: {},
+          ContentLength: 98_304,
+          ContentType: "video/mp4",
+          LastModified: new Date("2026-01-01T00:00:01.500Z"),
+        },
+        providerId: "s3_primary",
+      }).observedAt
+    ).toBe("2026-01-01T00:00:02.000Z");
+  });
+
   test("uses injected now when no observation time or LastModified are provided", () => {
     expect(
       createObservedUploadFromS3HeadObject({

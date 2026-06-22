@@ -121,15 +121,28 @@ function observedAt(
   options: CreateObservedUploadFromS3HeadObjectOptions
 ): string {
   if (options.observedAt !== undefined) {
-    return new Date(
-      timestampMs(options.observedAt, "observedAt")
-    ).toISOString();
+    return observedAtTimestamp(options.observedAt);
   }
 
   if (options.output.LastModified !== undefined) {
-    return options.output.LastModified.toISOString();
+    return lastModifiedTimestamp(options.output.LastModified);
   }
 
+  return fallbackObservedAtTimestamp(options);
+}
+
+function observedAtTimestamp(value: Date | string): string {
+  return new Date(timestampMs(value, "observedAt")).toISOString();
+}
+
+function lastModifiedTimestamp(value: Date): string {
+  return value.toISOString();
+}
+
+function fallbackObservedAtTimestamp(options: {
+  clock?: () => Date | string;
+  now?: Date | string;
+}): string {
   return new Date(observedAtNowMs(options)).toISOString();
 }
 
