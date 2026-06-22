@@ -320,70 +320,94 @@ export function resolveObjectSlotMismatch(
     options.includeKeyMismatch === true &&
     options.mediaObject.objectKey !== options.slot.objectKey
   ) {
-    return {
-      error: createOlosError(
-        "olos.key_mismatch",
-        "object key does not match slot",
-        {
-          objectKey: options.mediaObject.objectKey,
-          slotId: options.slot.slotId,
-          slotObjectKey: options.slot.objectKey,
-        }
-      ),
-      status: "key_mismatch",
-    };
+    return keyMismatch(options);
   }
 
   if (options.mediaObject.contentType !== options.slot.contentType) {
-    return {
-      error: createOlosError(
-        "olos.content_type_mismatch",
-        "object content type does not match slot",
-        {
-          contentType: options.mediaObject.contentType,
-          objectKey: options.mediaObject.objectKey,
-          slotContentType: options.slot.contentType,
-          slotId: options.slot.slotId,
-        }
-      ),
-      status: "content_type_mismatch",
-    };
+    return contentTypeMismatch(options);
   }
 
   if (options.mediaObject.size > options.slot.maxBytes) {
-    return {
-      error: createOlosError(
-        "olos.object_too_large",
-        "object exceeds slot limit",
-        {
-          maxBytes: options.slot.maxBytes,
-          objectKey: options.mediaObject.objectKey,
-          size: options.mediaObject.size,
-          slotId: options.slot.slotId,
-        }
-      ),
-      status: "object_too_large",
-    };
+    return objectTooLarge(options);
   }
 
   if (
     options.slot.minBytes !== undefined &&
     options.mediaObject.size < options.slot.minBytes
   ) {
-    return {
-      error: createOlosError(
-        "olos.object_too_small",
-        "mediaObject.size must be at least minBytes",
-        {
-          minBytes: options.slot.minBytes,
-          objectKey: options.mediaObject.objectKey,
-          size: options.mediaObject.size,
-          slotId: options.slot.slotId,
-        }
-      ),
-      status: "object_too_small",
-    };
+    return objectTooSmall(options);
   }
+}
+
+function keyMismatch(
+  options: ResolveObjectSlotMismatchOptions
+): ObjectSlotMismatchResolution {
+  return {
+    error: createOlosError(
+      "olos.key_mismatch",
+      "object key does not match slot",
+      {
+        objectKey: options.mediaObject.objectKey,
+        slotId: options.slot.slotId,
+        slotObjectKey: options.slot.objectKey,
+      }
+    ),
+    status: "key_mismatch",
+  };
+}
+
+function contentTypeMismatch(
+  options: ResolveObjectSlotMismatchOptions
+): ObjectSlotMismatchResolution {
+  return {
+    error: createOlosError(
+      "olos.content_type_mismatch",
+      "object content type does not match slot",
+      {
+        contentType: options.mediaObject.contentType,
+        objectKey: options.mediaObject.objectKey,
+        slotContentType: options.slot.contentType,
+        slotId: options.slot.slotId,
+      }
+    ),
+    status: "content_type_mismatch",
+  };
+}
+
+function objectTooLarge(
+  options: ResolveObjectSlotMismatchOptions
+): ObjectSlotMismatchResolution {
+  return {
+    error: createOlosError(
+      "olos.object_too_large",
+      "object exceeds slot limit",
+      {
+        maxBytes: options.slot.maxBytes,
+        objectKey: options.mediaObject.objectKey,
+        size: options.mediaObject.size,
+        slotId: options.slot.slotId,
+      }
+    ),
+    status: "object_too_large",
+  };
+}
+
+function objectTooSmall(
+  options: ResolveObjectSlotMismatchOptions
+): ObjectSlotMismatchResolution {
+  return {
+    error: createOlosError(
+      "olos.object_too_small",
+      "mediaObject.size must be at least minBytes",
+      {
+        minBytes: options.slot.minBytes,
+        objectKey: options.mediaObject.objectKey,
+        size: options.mediaObject.size,
+        slotId: options.slot.slotId,
+      }
+    ),
+    status: "object_too_small",
+  };
 }
 
 export function resolveDuplicateCommit(

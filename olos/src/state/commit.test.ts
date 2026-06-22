@@ -459,6 +459,29 @@ describe("commit attempt resolution", () => {
     ).toBe("key_mismatch");
   });
 
+  test("returns direct object-slot mismatch details for undersized objects", () => {
+    expect(
+      resolveObjectSlotMismatch({
+        mediaObject: { ...mediaObject, size: 50 },
+        slot: { ...slot, minBytes: 100_000 },
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.object_too_small",
+          details: {
+            minBytes: 100_000,
+            objectKey: "tenant/session/v1080/3810.m4s",
+            size: 50,
+            slotId: "slot_1",
+          },
+          message: "mediaObject.size must be at least minBytes",
+        },
+      },
+      status: "object_too_small",
+    });
+  });
+
   test("returns an object too large error for oversized objects", () => {
     expect(
       resolveCommitAttempt({
