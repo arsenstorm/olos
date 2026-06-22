@@ -230,6 +230,17 @@ describe("s3 upload grants", () => {
     );
   });
 
+  test("rejects path-style S3 presigned URLs with a different bucket prefix", () => {
+    expect(() =>
+      createS3UploadGrant({
+        bucket: "media",
+        presignedUrl:
+          "https://s3.example.com/archive/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+        slot,
+      })
+    ).toThrow("presignedUrl path must match uploadSlot.objectKey");
+  });
+
   test("rejects presigned URLs for a different object key", () => {
     expect(() =>
       createS3UploadGrant({

@@ -60,16 +60,41 @@ function assertPresignedUrlMatchesSlot(
   );
   const keySegments = pathParts(options.slot.objectKey);
 
-  if (
-    pathSegments.join("/") === keySegments.join("/") ||
-    (options.bucket !== undefined &&
-      pathSegments[0] === options.bucket &&
-      pathSegments.slice(1).join("/") === keySegments.join("/"))
-  ) {
+  if (presignedPathMatchesSlot(pathSegments, keySegments, options.bucket)) {
     return;
   }
 
   throw new Error("presignedUrl path must match uploadSlot.objectKey");
+}
+
+function presignedPathMatchesSlot(
+  pathSegments: readonly string[],
+  keySegments: readonly string[],
+  bucket: string | undefined
+): boolean {
+  return (
+    virtualHostedPresignedPathMatchesSlot(pathSegments, keySegments) ||
+    pathStylePresignedPathMatchesSlot(pathSegments, keySegments, bucket)
+  );
+}
+
+function virtualHostedPresignedPathMatchesSlot(
+  pathSegments: readonly string[],
+  keySegments: readonly string[]
+): boolean {
+  return pathSegments.join("/") === keySegments.join("/");
+}
+
+function pathStylePresignedPathMatchesSlot(
+  pathSegments: readonly string[],
+  keySegments: readonly string[],
+  bucket: string | undefined
+): boolean {
+  return (
+    bucket !== undefined &&
+    pathSegments[0] === bucket &&
+    pathSegments.slice(1).join("/") === keySegments.join("/")
+  );
 }
 
 function pathParts(value: string): string[] {
