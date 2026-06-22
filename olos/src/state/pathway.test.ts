@@ -99,6 +99,15 @@ describe("pathway failover", () => {
     expect(pathways).toEqual([primaryPathway, backupPathway]);
   });
 
+  test("rejects invalid pathways before resolving failover", () => {
+    expect(() =>
+      resolvePathwayFailover({
+        pathwayId: "primary",
+        pathways: [{ ...primaryPathway, baseUrl: "not a URL" }],
+      })
+    ).toThrow("pathway.baseUrl must be an absolute HTTP(S) URL");
+  });
+
   test("returns provider unavailable when no active pathway remains", () => {
     expect(
       resolvePathwayFailover({

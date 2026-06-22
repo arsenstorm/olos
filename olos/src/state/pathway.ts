@@ -23,10 +23,37 @@ export type PathwayFailoverResolution =
 
 type ActivePathway = Pathway & { state: "active" };
 
+interface AppliedPathwayFailover {
+  matched: boolean;
+  pathways: Pathway[];
+}
+
 export function resolvePathwayFailover(
   options: ResolvePathwayFailoverOptions
 ): PathwayFailoverResolution {
-  let matchedPathway = false;
+  const failover = applyPathwayFailover(options);
+
+  if (!failover.matched) {
+    return unavailable(options.pathwayId, failover.pathways);
+  }
+
+  const activePathway = nextActivePathway(failover.pathways);
+
+  if (activePathway !== undefined) {
+    return {
+      activePathway,
+      pathways: failover.pathways,
+      status: "failed_over",
+    };
+  }
+
+  return unavailable(options.pathwayId, failover.pathways);
+}
+
+function applyPathwayFailover(
+  options: ResolvePathwayFailoverOptions
+): AppliedPathwayFailover {
+  let matched = false;
 
   const pathways = options.pathways.map((pathway) => {
     assertPathway(pathway);
@@ -35,7 +62,7 @@ export function resolvePathwayFailover(
       return pathway;
     }
 
-    matchedPathway = true;
+    matched = true;
 
     return {
       ...pathway,
@@ -43,21 +70,7 @@ export function resolvePathwayFailover(
     };
   });
 
-  if (!matchedPathway) {
-    return unavailable(options.pathwayId, pathways);
-  }
-
-  const activePathway = nextActivePathway(pathways);
-
-  if (activePathway !== undefined) {
-    return {
-      activePathway,
-      pathways,
-      status: "failed_over",
-    };
-  }
-
-  return unavailable(options.pathwayId, pathways);
+  return { matched, pathways };
 }
 
 function unavailable(
