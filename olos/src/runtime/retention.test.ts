@@ -178,6 +178,50 @@ describe("stored runtime retention", () => {
       planned: 2,
     });
   });
+
+  test("keeps deleting retired coordinator objects after an async failure", async () => {
+    const result = await deleteRetiredCoordinatorObjects({
+      deleteObject: (object) => {
+        if (object.objectKey === "media/fail.m4s") {
+          return Promise.reject(new Error("async delete failed"));
+        }
+
+        return Promise.resolve();
+      },
+      objects: [
+        {
+          commitId: "commit_fail",
+          objectKey: "media/fail.m4s",
+          slotId: "slot_fail",
+        },
+        {
+          commitId: "commit_ok",
+          objectKey: "media/ok.m4s",
+          slotId: "slot_ok",
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      deletedObjects: [
+        {
+          commitId: "commit_ok",
+          objectKey: "media/ok.m4s",
+          slotId: "slot_ok",
+        },
+      ],
+      failedObjects: [
+        {
+          error: "async delete failed",
+          object: {
+            commitId: "commit_fail",
+            objectKey: "media/fail.m4s",
+            slotId: "slot_fail",
+          },
+        },
+      ],
+    });
+  });
 });
 
 function retentionState(): CoordinatorPipelineState {
