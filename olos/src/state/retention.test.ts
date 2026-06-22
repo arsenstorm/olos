@@ -128,4 +128,21 @@ describe("retention planning", () => {
       },
     ]);
   });
+
+  test("keeps retained init media out of retired committed objects", () => {
+    const retainedWindow = createCommittedWindow({
+      commits: [segmentCommit],
+      epoch: 1,
+      initCommits: [initCommit],
+      maxSegments: 2,
+      sessionId: "session_1",
+    });
+
+    expect(
+      selectRetiredCommittedObjects({
+        commits: [initCommit, segmentCommit],
+        retainedWindow,
+      })
+    ).toEqual([]);
+  });
 });

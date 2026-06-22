@@ -58,25 +58,36 @@ export function selectRetiredCommittedObjects(
 
   return options.commits
     .filter((commit) => !retainedSlotIds.has(commit.slotId))
-    .map((commit) => ({
-      commitId: commit.commitId,
-      objectKey: commit.objectKey,
-      slotId: commit.slotId,
-    }));
+    .map(retiredCommittedObject);
 }
 
 function retainedWindowSlotIds(window: CommittedWindow): Set<string> {
   const slotIds = new Set<string>();
 
   for (const rendition of Object.values(window.renditions)) {
-    slotIds.add(rendition.init.slotId);
-
-    for (const segment of rendition.segments) {
-      addSegmentSlotIds(slotIds, segment);
-    }
+    addRenditionSlotIds(slotIds, rendition);
   }
 
   return slotIds;
+}
+
+function retiredCommittedObject(commit: Commit): RetiredCommittedObject {
+  return {
+    commitId: commit.commitId,
+    objectKey: commit.objectKey,
+    slotId: commit.slotId,
+  };
+}
+
+function addRenditionSlotIds(
+  slotIds: Set<string>,
+  rendition: CommittedWindow["renditions"][string]
+): void {
+  slotIds.add(rendition.init.slotId);
+
+  for (const segment of rendition.segments) {
+    addSegmentSlotIds(slotIds, segment);
+  }
 }
 
 function addSegmentSlotIds(
