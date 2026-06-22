@@ -135,6 +135,16 @@ type BlockedPublicationControl = Extract<
   { status: "blocked" }
 >;
 
+type ObjectCreatedS3UploadEvent = Extract<
+  UploadEventNormalization,
+  { status: "object_created" }
+>;
+
+type UploadCompletedS3UploadEvent = Extract<
+  UploadEventNormalization,
+  { status: "upload_completed" }
+>;
+
 type MissingStoredS3CoordinatorUploadCommit = Extract<
   StoredS3CoordinatorUploadCommit,
   { status: "not_found" }
@@ -582,55 +592,71 @@ function stringDetail(value: unknown): string | undefined {
 export async function routeStoredS3CoordinatorUploadEvent(
   options: RouteStoredS3CoordinatorUploadEventOptions
 ): Promise<StoredS3CoordinatorUploadEventRoute> {
-  if (options.event.status === "invalid_event") {
-    return options.event;
+  const { event } = options;
+
+  if (event.status === "invalid_event") {
+    return event;
   }
 
-  if (options.event.status === "object_created") {
-    const publication = await resolveStoredProviderEventPublication(options);
-
-    if (publication !== undefined) {
-      return publication;
-    }
-
-    return await completeStoredS3CoordinatorUploadByObjectKey({
-      bucket: options.bucket,
-      client: options.client,
-      commitId: options.event.event.eventId,
-      committedAt: options.event.event.object.observedAt,
-      commitPolicy: options.commitPolicy,
-      independent: options.independent,
-      lateToleranceMs: options.lateToleranceMs,
-      manifest: options.manifest,
-      maxAttempts: options.maxAttempts,
-      maxSegments: options.maxSegments,
-      objectKey: options.event.event.object.objectKey,
-      publicationControl: options.publicationControl,
-      programDateTime: options.programDateTime,
-      providerId: options.event.event.object.providerId,
-      sessionId: options.sessionId,
-      store: options.store,
-      versionId: options.versionId,
-    });
+  if (event.status === "object_created") {
+    return await routeStoredS3CoordinatorObjectCreatedEvent(options, event);
   }
 
-  return await completeStoredS3CoordinatorUpload({
+  return await routeStoredS3CoordinatorUploadCompletedEvent(options, event);
+}
+
+async function routeStoredS3CoordinatorObjectCreatedEvent(
+  options: RouteStoredS3CoordinatorUploadEventOptions,
+  event: ObjectCreatedS3UploadEvent
+): Promise<StoredS3CoordinatorUploadCommit> {
+  const publication = await resolveStoredProviderEventPublication(options);
+
+  if (publication !== undefined) {
+    return publication;
+  }
+
+  return await completeStoredS3CoordinatorUploadByObjectKey({
     bucket: options.bucket,
     client: options.client,
-    commitId: options.event.hint.eventId,
-    committedAt: options.event.hint.eventTime,
+    commitId: event.event.eventId,
+    committedAt: event.event.object.observedAt,
     commitPolicy: options.commitPolicy,
     independent: options.independent,
     lateToleranceMs: options.lateToleranceMs,
     manifest: options.manifest,
     maxAttempts: options.maxAttempts,
     maxSegments: options.maxSegments,
-    objectKey: options.event.hint.objectKey,
+    objectKey: event.event.object.objectKey,
+    publicationControl: options.publicationControl,
+    programDateTime: options.programDateTime,
+    providerId: event.event.object.providerId,
+    sessionId: options.sessionId,
+    store: options.store,
+    versionId: options.versionId,
+  });
+}
+
+async function routeStoredS3CoordinatorUploadCompletedEvent(
+  options: RouteStoredS3CoordinatorUploadEventOptions,
+  event: UploadCompletedS3UploadEvent
+): Promise<StoredS3CoordinatorUploadCompletion> {
+  return await completeStoredS3CoordinatorUpload({
+    bucket: options.bucket,
+    client: options.client,
+    commitId: event.hint.eventId,
+    committedAt: event.hint.eventTime,
+    commitPolicy: options.commitPolicy,
+    independent: options.independent,
+    lateToleranceMs: options.lateToleranceMs,
+    manifest: options.manifest,
+    maxAttempts: options.maxAttempts,
+    maxSegments: options.maxSegments,
+    objectKey: event.hint.objectKey,
     publicationControl: options.publicationControl,
     programDateTime: options.programDateTime,
     providerId: options.providerId,
     sessionId: options.sessionId,
-    slotId: options.event.hint.slotId,
+    slotId: event.hint.slotId,
     store: options.store,
     versionId: options.versionId,
   });
