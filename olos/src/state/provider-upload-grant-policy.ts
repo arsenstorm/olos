@@ -106,27 +106,34 @@ function isReadGatedUploadSlot(slot: UploadSlot): slot is ReadGatedUploadSlot {
 function assertUploadGrantCapabilities(
   options: ProviderUploadGrantPolicyOptions
 ): void {
-  const uploadGrants = options.capability.uploadGrants;
+  assertRequiredUploadGrantCapabilities(options);
+  assertGrantTtl(options);
+}
 
-  if (options.requirePresignedPut !== false && !uploadGrants.presignedPut) {
+function assertRequiredUploadGrantCapabilities(
+  options: ProviderUploadGrantPolicyOptions
+): void {
+  const { uploadGrants } = options.capability;
+
+  if (requires(options.requirePresignedPut) && !uploadGrants.presignedPut) {
     throw new Error(
       "providerCapability.uploadGrants.presignedPut must be true"
     );
   }
 
-  if (options.requireExactKey !== false && uploadGrants.exactKey !== true) {
+  if (requires(options.requireExactKey) && uploadGrants.exactKey !== true) {
     throw new Error("providerCapability.uploadGrants.exactKey must be true");
   }
 
   if (
-    options.requireMethodBound !== false &&
+    requires(options.requireMethodBound) &&
     uploadGrants.methodBound !== true
   ) {
     throw new Error("providerCapability.uploadGrants.methodBound must be true");
   }
 
   if (
-    options.requireContentTypeBound !== false &&
+    requires(options.requireContentTypeBound) &&
     uploadGrants.contentTypeBound !== true
   ) {
     throw new Error(
@@ -135,7 +142,7 @@ function assertUploadGrantCapabilities(
   }
 
   if (
-    options.requireSignedRequiredHeaders !== false &&
+    requires(options.requireSignedRequiredHeaders) &&
     uploadGrants.requiredHeadersCanBeSigned !== true
   ) {
     throw new Error(
@@ -144,7 +151,7 @@ function assertUploadGrantCapabilities(
   }
 
   if (
-    options.requireObjectSizeObservation !== false &&
+    requires(options.requireObjectSizeObservation) &&
     uploadGrants.objectSizeCanBeObserved !== true
   ) {
     throw new Error(
@@ -153,28 +160,45 @@ function assertUploadGrantCapabilities(
   }
 
   if (
-    options.requireCreateIfAbsent !== false &&
+    requires(options.requireCreateIfAbsent) &&
     !options.capability.publication.createIfAbsent
   ) {
     throw new Error(
       "providerCapability.publication.createIfAbsent must be true"
     );
   }
+}
+
+function assertGrantTtl(options: ProviderUploadGrantPolicyOptions): void {
+  const { grantTtlSeconds } = options;
 
   if (
-    options.grantTtlSeconds !== undefined &&
-    (!Number.isFinite(options.grantTtlSeconds) || options.grantTtlSeconds <= 0)
+    grantTtlSeconds !== undefined &&
+    (!Number.isFinite(grantTtlSeconds) || grantTtlSeconds <= 0)
   ) {
     throw new Error("grantTtlSeconds must be a positive finite number");
   }
 
+  assertRecommendedGrantTtl(options);
+}
+
+function assertRecommendedGrantTtl(
+  options: ProviderUploadGrantPolicyOptions
+): void {
+  const { grantTtlSeconds } = options;
+  const { maxRecommendedTtlSeconds } = options.capability.uploadGrants;
+
   if (
-    options.grantTtlSeconds !== undefined &&
-    uploadGrants.maxRecommendedTtlSeconds !== undefined &&
-    options.grantTtlSeconds > uploadGrants.maxRecommendedTtlSeconds
+    grantTtlSeconds !== undefined &&
+    maxRecommendedTtlSeconds !== undefined &&
+    grantTtlSeconds > maxRecommendedTtlSeconds
   ) {
     throw new Error(
       "grantTtlSeconds must be less than or equal to providerCapability.uploadGrants.maxRecommendedTtlSeconds"
     );
   }
+}
+
+function requires(option: boolean | undefined): boolean {
+  return option !== false;
 }

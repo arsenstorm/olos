@@ -235,6 +235,16 @@ describe("provider upload grant policy", () => {
     );
   });
 
+  test("allows grants at the provider recommended TTL", () => {
+    expect(() =>
+      assertProviderCanIssueUploadGrant({
+        capability,
+        grantTtlSeconds: 60,
+        slot,
+      })
+    ).not.toThrow();
+  });
+
   test.each([
     0,
     -1,
