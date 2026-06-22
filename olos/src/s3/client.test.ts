@@ -593,6 +593,28 @@ describe("S3 runtime HTTP client", () => {
     );
   });
 
+  test("validates malformed reconciliation plan response payloads", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            slotIds: [123],
+            slots: [],
+            status: "planned",
+          }),
+          { status: 200 }
+        )
+      );
+
+    await expect(
+      planS3RuntimeReconciliation({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("S3 reconciliation plan slotIds[0] must be a string");
+  });
+
   test("validates malformed retention response payloads", async () => {
     const clientFetch: RuntimeFetch = () =>
       Promise.resolve(
@@ -629,6 +651,55 @@ describe("S3 runtime HTTP client", () => {
       })
     ).rejects.toThrow(
       "S3 retention response summary must include failedObjectKeys"
+    );
+  });
+
+  test("validates malformed retention response result payloads", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            plan: {
+              expiredSlots: [],
+              retiredObjects: [],
+            },
+            result: {
+              deletedObjects: [],
+              failedObjects: [
+                {
+                  error: 123,
+                  object: {
+                    commitId: "commit_3810",
+                    objectKey: "live/session/v1080/3810.m4s",
+                    slotId: "slot_3810",
+                  },
+                },
+              ],
+            },
+            summary: {
+              deleted: 0,
+              failed: 1,
+              failedObjectKeys: ["live/session/v1080/3810.m4s"],
+              failedSlotIds: ["slot_3810"],
+              ok: false,
+              planned: 1,
+            },
+          }),
+          { status: 202 }
+        )
+      );
+
+    await expect(
+      applyS3RuntimeRetention({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        payload: {
+          now: "2026-01-01T00:00:06.000Z",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow(
+      "S3 retention response result.failedObjects[0].error must be set"
     );
   });
 });
