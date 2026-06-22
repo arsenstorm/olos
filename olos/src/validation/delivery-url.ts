@@ -4,29 +4,52 @@ import { hasControlCharacter } from "./fields";
 // The project permits only absolute HTTP(S) URLs or safe relative paths,
 // and forbids query strings, fragments, and control characters.
 export function assertSafeDeliveryUrl(value: unknown, name: string): void {
+  const deliveryUrl = deliveryUrlString(value, name);
+
+  assertDeliveryUrlHasNoControlCharacters(deliveryUrl, name);
+  assertDeliveryUrlHasNoQueryOrFragment(deliveryUrl, name);
+
+  if (isAllowedDeliveryReference(deliveryUrl)) {
+    return;
+  }
+
+  throw new Error(
+    `${name} must be an absolute HTTP(S) URL or safe relative path`
+  );
+}
+
+function deliveryUrlString(value: unknown, name: string): string {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`${name} must be a non-empty string`);
   }
 
+  return value;
+}
+
+function assertDeliveryUrlHasNoControlCharacters(
+  value: string,
+  name: string
+): void {
   if (hasControlCharacter(value)) {
     throw new Error(`${name} must not contain control characters`);
   }
+}
 
+function assertDeliveryUrlHasNoQueryOrFragment(
+  value: string,
+  name: string
+): void {
   if (value.includes("?") || value.includes("#")) {
     throw new Error(`${name} must not contain query strings or fragments`);
   }
+}
 
+function isAllowedDeliveryReference(value: string): boolean {
   if (value.startsWith("/") && isSafeRelativePath(value)) {
-    return;
+    return true;
   }
 
-  const url = parseAbsoluteUrl(value);
-
-  if (!url) {
-    throw new Error(
-      `${name} must be an absolute HTTP(S) URL or safe relative path`
-    );
-  }
+  return parseAbsoluteUrl(value) !== undefined;
 }
 
 function isSafeRelativePath(value: string): boolean {
