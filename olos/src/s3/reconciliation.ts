@@ -107,16 +107,6 @@ type FailedStoredS3CoordinatorUploadReconciliationResult = Extract<
   { status: "failed" }
 >;
 
-type CommittedStoredS3CoordinatorUploadReconciliationResult = Extract<
-  StoredS3CoordinatorUploadReconciliationResult,
-  { status: "committed" }
->;
-
-type IdempotentStoredS3CoordinatorUploadReconciliationResult = Extract<
-  StoredS3CoordinatorUploadReconciliationResult,
-  { status: "idempotent" }
->;
-
 type MissingStoredS3CoordinatorUploadReconciliation = Extract<
   StoredS3CoordinatorUploadReconciliation,
   { status: "not_found" }
@@ -228,19 +218,34 @@ function summarizeStoredS3CoordinatorUploadReconciliationEntry(
 ): void {
   summary.slotIds.push(entry.slot.slotId);
 
-  if (isCommittedStoredS3CoordinatorUploadReconciliationResult(entry)) {
-    summary.committed += 1;
-    return;
+  switch (entry.status) {
+    case "committed":
+      summarizeCommittedStoredS3CoordinatorUploadReconciliationEntry(summary);
+      return;
+    case "idempotent":
+      summarizeIdempotentStoredS3CoordinatorUploadReconciliationEntry(summary);
+      return;
+    case "failed":
+      summarizeFailedStoredS3CoordinatorUploadReconciliationEntry(
+        summary,
+        entry
+      );
+      return;
+    default:
+      return;
   }
+}
 
-  if (isIdempotentStoredS3CoordinatorUploadReconciliationResult(entry)) {
-    summary.idempotent += 1;
-    return;
-  }
+function summarizeCommittedStoredS3CoordinatorUploadReconciliationEntry(
+  summary: MutableStoredS3CoordinatorUploadReconciliationSummary
+): void {
+  summary.committed += 1;
+}
 
-  if (isFailedStoredS3CoordinatorUploadReconciliationResult(entry)) {
-    summarizeFailedStoredS3CoordinatorUploadReconciliationEntry(summary, entry);
-  }
+function summarizeIdempotentStoredS3CoordinatorUploadReconciliationEntry(
+  summary: MutableStoredS3CoordinatorUploadReconciliationSummary
+): void {
+  summary.idempotent += 1;
 }
 
 function summarizeFailedStoredS3CoordinatorUploadReconciliationEntry(
@@ -368,24 +373,6 @@ function isRejectedS3CoordinatorUploadCommit(
   result: StoredS3CoordinatorUploadCommit | undefined
 ): result is RejectedS3CoordinatorUploadCommit {
   return result?.status === "rejected";
-}
-
-function isFailedStoredS3CoordinatorUploadReconciliationResult(
-  result: StoredS3CoordinatorUploadReconciliationResult
-): result is FailedStoredS3CoordinatorUploadReconciliationResult {
-  return result.status === "failed";
-}
-
-function isCommittedStoredS3CoordinatorUploadReconciliationResult(
-  result: StoredS3CoordinatorUploadReconciliationResult
-): result is CommittedStoredS3CoordinatorUploadReconciliationResult {
-  return result.status === "committed";
-}
-
-function isIdempotentStoredS3CoordinatorUploadReconciliationResult(
-  result: StoredS3CoordinatorUploadReconciliationResult
-): result is IdempotentStoredS3CoordinatorUploadReconciliationResult {
-  return result.status === "idempotent";
 }
 
 function isMissingStoredS3CoordinatorUploadReconciliation(

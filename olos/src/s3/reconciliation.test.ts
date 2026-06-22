@@ -13,6 +13,7 @@ import type { S3HeadObjectClient } from "./object-observation";
 import {
   planStoredS3CoordinatorReconciliation,
   reconcileStoredS3CoordinatorUploads,
+  type StoredS3CoordinatorUploadReconciliationCommit,
   summarizeStoredS3CoordinatorUploadReconciliation,
 } from "./reconciliation";
 import { createTestHeadObjectClientFor } from "./test-client.test-helper";
@@ -228,6 +229,39 @@ describe("stored S3 upload reconciliation", () => {
       planned: 0,
       slotIds: [],
       status: "not_found",
+    });
+  });
+
+  test("summarizes idempotent reconciliation results", () => {
+    const [slot] = stateWithSlots().slots;
+
+    if (slot === undefined) {
+      throw new Error("expected reconciliation slot fixture");
+    }
+
+    expect(
+      summarizeStoredS3CoordinatorUploadReconciliation({
+        results: [
+          {
+            commit: {
+              status: "idempotent",
+            } as StoredS3CoordinatorUploadReconciliationCommit,
+            slot,
+            status: "idempotent",
+          },
+        ],
+        status: "reconciled",
+      })
+    ).toEqual({
+      committed: 0,
+      failed: 0,
+      failedErrorCodes: [],
+      failedSlotIds: [],
+      idempotent: 1,
+      ok: true,
+      planned: 1,
+      slotIds: [slot.slotId],
+      status: "reconciled",
     });
   });
 
