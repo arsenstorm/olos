@@ -504,4 +504,60 @@ describe("runtime HTTP client", () => {
       })
     ).rejects.toThrow("uploadSlot");
   });
+
+  test("validates session retention retired object response payloads", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            plan: {
+              expiredSlots: [],
+              retiredObjects: [
+                {
+                  commitId: "commit_init",
+                  slotId: "slot_init",
+                },
+              ],
+            },
+          }),
+          { status: 200 }
+        )
+      );
+
+    await expect(
+      getRuntimeSessionRetentionPlan({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow(
+      "runtime session retention plan retiredObjects[0].objectKey must be set"
+    );
+  });
+
+  test("validates session retention cursor response payloads", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            plan: {
+              cursor: "cursor_1",
+              expiredSlots: [],
+              retiredObjects: [],
+            },
+          }),
+          { status: 200 }
+        )
+      );
+
+    await expect(
+      getRuntimeSessionRetentionPlan({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow(
+      "runtime session retention plan cursor must be an object"
+    );
+  });
 });

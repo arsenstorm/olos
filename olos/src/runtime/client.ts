@@ -460,59 +460,79 @@ function assertCoordinatorRetentionPlan(
     throw new Error("runtime session retention plan must be an object");
   }
 
+  assertRetentionPlanExpiredSlots(value);
+  assertRetentionPlanRetiredObjects(value);
+  assertOptionalRetentionPlanCursor(value);
+}
+
+function assertRetentionPlanExpiredSlots(value: Record<string, unknown>): void {
   const expiredSlots = requiredArrayField(
     value,
     "expiredSlots",
     "runtime session retention plan must include expiredSlots"
   );
 
-  expiredSlots.forEach((slot, index) => {
-    if (!isRecord(slot)) {
-      throw new Error(
-        `runtime session retention plan expiredSlots[${index}] must be an object`
-      );
-    }
+  for (const [index, slot] of expiredSlots.entries()) {
+    assertRetentionPlanExpiredSlot(slot, index);
+  }
+}
 
-    try {
-      assertUploadSlot(slot);
-    } catch (error) {
-      throw new Error(
-        `runtime session retention plan expiredSlots[${index}] must be valid: ${
-          (error as Error).message
-        }`
-      );
-    }
-  });
+function assertRetentionPlanExpiredSlot(
+  value: unknown,
+  index: number
+): asserts value is UploadSlot {
+  if (!isRecord(value)) {
+    throw new Error(retentionPlanExpiredSlotObjectMessage(index));
+  }
 
+  try {
+    assertUploadSlot(value);
+  } catch (error) {
+    throw new Error(
+      retentionPlanExpiredSlotValidMessage(index, (error as Error).message)
+    );
+  }
+}
+
+function assertRetentionPlanRetiredObjects(
+  value: Record<string, unknown>
+): void {
   const retiredObjects = requiredArrayField(
     value,
     "retiredObjects",
     "runtime session retention plan must include retiredObjects"
   );
-  retiredObjects.forEach((retiredObject, index) => {
-    if (!isRecord(retiredObject)) {
-      throw new Error(
-        `runtime session retention plan retiredObjects[${index}] must be an object`
-      );
-    }
 
-    requiredStringField(
-      retiredObject,
-      "commitId",
-      `runtime session retention plan retiredObjects[${index}].commitId must be set`
-    );
-    requiredStringField(
-      retiredObject,
-      "objectKey",
-      `runtime session retention plan retiredObjects[${index}].objectKey must be set`
-    );
-    requiredStringField(
-      retiredObject,
-      "slotId",
-      `runtime session retention plan retiredObjects[${index}].slotId must be set`
-    );
-  });
+  for (const [index, retiredObject] of retiredObjects.entries()) {
+    assertRetentionPlanRetiredObject(retiredObject, index);
+  }
+}
 
+function assertRetentionPlanRetiredObject(value: unknown, index: number): void {
+  if (!isRecord(value)) {
+    throw new Error(retentionPlanRetiredObjectObjectMessage(index));
+  }
+
+  requiredStringField(
+    value,
+    "commitId",
+    retentionPlanRetiredObjectFieldMessage(index, "commitId")
+  );
+  requiredStringField(
+    value,
+    "objectKey",
+    retentionPlanRetiredObjectFieldMessage(index, "objectKey")
+  );
+  requiredStringField(
+    value,
+    "slotId",
+    retentionPlanRetiredObjectFieldMessage(index, "slotId")
+  );
+}
+
+function assertOptionalRetentionPlanCursor(
+  value: Record<string, unknown>
+): void {
   if (value.cursor !== undefined) {
     if (!isRecord(value.cursor)) {
       throw new Error(
@@ -522,6 +542,28 @@ function assertCoordinatorRetentionPlan(
 
     assertCursor(value.cursor);
   }
+}
+
+function retentionPlanExpiredSlotObjectMessage(index: number): string {
+  return `runtime session retention plan expiredSlots[${index}] must be an object`;
+}
+
+function retentionPlanExpiredSlotValidMessage(
+  index: number,
+  message: string
+): string {
+  return `runtime session retention plan expiredSlots[${index}] must be valid: ${message}`;
+}
+
+function retentionPlanRetiredObjectObjectMessage(index: number): string {
+  return `runtime session retention plan retiredObjects[${index}] must be an object`;
+}
+
+function retentionPlanRetiredObjectFieldMessage(
+  index: number,
+  field: "commitId" | "objectKey" | "slotId"
+): string {
+  return `runtime session retention plan retiredObjects[${index}].${field} must be set`;
 }
 
 function assertRuntimeLiveHealth(
