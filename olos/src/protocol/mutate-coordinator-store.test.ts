@@ -355,6 +355,75 @@ describe("runStoredCoordinatorMutation", () => {
     expect(mutations).toBe(2);
   });
 
+  test("mutates the current conflict snapshot on retry", async () => {
+    const initialState = createEmptyCoordinatorState();
+    const currentState = createCoordinatorStateWithIssuedSegment();
+    const seenSlotCounts: number[] = [];
+    const store: CoordinatorPipelineStore = {
+      load: async () => ({
+        etag: "1",
+        state: initialState,
+      }),
+      save: (options) => {
+        if (options.expectedEtag === "1") {
+          return Promise.resolve({
+            status: "conflict",
+            current: {
+              etag: "2",
+              state: currentState,
+            },
+          });
+        }
+
+        return Promise.resolve({
+          etag: "3",
+          state: options.state,
+          status: "saved",
+        });
+      },
+    };
+
+    const result = await runStoredCoordinatorMutation<
+      Attempt,
+      StoredMutationResult
+    >({
+      attempts: 2,
+      mutate: (state) => {
+        seenSlotCounts.push(state.slots.length);
+
+        return {
+          state: `slots:${state.slots.length}`,
+        };
+      },
+      decide: () => ({
+        status: "save",
+        state: createEmptyCoordinatorState(),
+      }),
+      onConflict: () => ({
+        outcome: "conflict",
+      }),
+      onExhausted: () => ({
+        outcome: "exhausted",
+      }),
+      onMissing: () => ({
+        outcome: "not_found",
+      }),
+      onSaved: (_saved, attempt) => ({
+        outcome: `saved:${attempt.state}`,
+      }),
+      sessionId: "session_1",
+      store,
+    });
+
+    expect(result).toEqual({
+      outcome: `saved:slots:${currentState.slots.length}`,
+    });
+    expect(seenSlotCounts).toEqual([
+      initialState.slots.length,
+      currentState.slots.length,
+    ]);
+  });
+
   test("returns exhausted result when save conflicts repeat", async () => {
     const snapshot = {
       etag: "1",

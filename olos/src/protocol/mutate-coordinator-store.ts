@@ -26,6 +26,16 @@ type StoredMutationDecision<TResult> =
       result: Promise<TResult> | TResult;
     };
 
+type StoredMutationAttemptProgress<TResult> =
+  | {
+      result: TResult;
+      status: "complete";
+    }
+  | {
+      snapshot: CoordinatorPipelineSnapshot;
+      status: "retry";
+    };
+
 export type MutationDecisionFunction<TAttempt, TResult> = (
   attempt: TAttempt,
   snapshot: CoordinatorPipelineSnapshot
@@ -127,46 +137,92 @@ export function positiveMutationAttempts(value: number | undefined): number {
 export async function runStoredCoordinatorMutation<TAttempt, TResult>(
   options: RunStoredMutationOptions<TAttempt, TResult>
 ): Promise<TResult> {
-  let snapshot = await options.store.load(options.sessionId);
-
-  if (snapshot !== undefined) {
-    snapshot = parseCoordinatorPipelineSnapshot(snapshot);
-  }
+  const snapshot = await loadStoredMutationSnapshot({
+    sessionId: options.sessionId,
+    store: options.store,
+  });
 
   if (snapshot === undefined) {
     return options.onMissing();
   }
+
+  let currentSnapshot = snapshot;
 
   for (
     let attemptCount = 0;
     attemptCount < options.attempts;
     attemptCount += 1
   ) {
-    const attemptResult = await options.mutate(snapshot.state);
-    const decision = options.decide(attemptResult, snapshot);
-
-    if (decision.status === "terminal") {
-      return await decision.result;
-    }
-
-    const saved = await options.store.save({
-      expectedEtag: snapshot.etag,
-      sessionId: options.sessionId,
-      state: decision.state,
+    const attemptResult = await options.mutate(currentSnapshot.state);
+    const progress = await runStoredCoordinatorMutationAttempt({
+      attempt: attemptResult,
+      options,
+      snapshot: currentSnapshot,
     });
 
-    if (isSavedCoordinatorPipelineMutationResult(saved)) {
-      return options.onSaved(saved, attemptResult, snapshot);
+    if (progress.status === "complete") {
+      return progress.result;
     }
 
-    if (saved.current === undefined) {
-      return options.onConflict(undefined, attemptResult);
-    }
-
-    snapshot = parseCoordinatorPipelineSnapshot(saved.current);
+    currentSnapshot = progress.snapshot;
   }
 
-  return options.onExhausted(snapshot);
+  return options.onExhausted(currentSnapshot);
+}
+
+async function loadStoredMutationSnapshot(options: {
+  sessionId: OlosId;
+  store: CoordinatorPipelineStore;
+}): Promise<CoordinatorPipelineSnapshot | undefined> {
+  const snapshot = await options.store.load(options.sessionId);
+
+  return snapshot === undefined
+    ? undefined
+    : parseCoordinatorPipelineSnapshot(snapshot);
+}
+
+async function runStoredCoordinatorMutationAttempt<TAttempt, TResult>({
+  attempt,
+  options,
+  snapshot,
+}: {
+  attempt: TAttempt;
+  options: RunStoredMutationOptions<TAttempt, TResult>;
+  snapshot: CoordinatorPipelineSnapshot;
+}): Promise<StoredMutationAttemptProgress<TResult>> {
+  const decision = options.decide(attempt, snapshot);
+
+  if (decision.status === "terminal") {
+    return {
+      result: await decision.result,
+      status: "complete",
+    };
+  }
+
+  const saved = await options.store.save({
+    expectedEtag: snapshot.etag,
+    sessionId: options.sessionId,
+    state: decision.state,
+  });
+
+  if (isSavedCoordinatorPipelineMutationResult(saved)) {
+    return {
+      result: await options.onSaved(saved, attempt, snapshot),
+      status: "complete",
+    };
+  }
+
+  if (saved.current === undefined) {
+    return {
+      result: await options.onConflict(undefined, attempt),
+      status: "complete",
+    };
+  }
+
+  return {
+    snapshot: parseCoordinatorPipelineSnapshot(saved.current),
+    status: "retry",
+  };
 }
 
 export async function runStoredCoordinatorMutationWithAdapters<
