@@ -15,6 +15,7 @@ import {
   isRecord,
   nonEmptyArray,
   nonNegativeNumber,
+  parseAbsoluteHttpUrl,
   positiveNumber,
   recordValue,
   stringValue,
@@ -148,5 +149,16 @@ describe("validation field helpers", () => {
     expect(() =>
       assertAbsoluteHttpUrl("https://media.example.com/live?x=1", "baseUrl")
     ).toThrow("baseUrl must not contain query strings or fragments");
+  });
+
+  test("allows absolute HTTP URL query strings when requested", () => {
+    const url = parseAbsoluteHttpUrl(
+      "https://media.example.com/live?x=1#frag",
+      "baseUrl",
+      { allowQueryOrFragment: true }
+    );
+
+    expect(url.search).toBe("?x=1");
+    expect(url.hash).toBe("#frag");
   });
 });

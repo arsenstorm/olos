@@ -178,26 +178,39 @@ export function parseAbsoluteHttpUrl(
     throw new Error(`${name} must be an absolute HTTP(S) URL`);
   }
 
-  let url: URL;
+  const url = parseUrl(value, name);
 
+  assertHttpUrlProtocol(url, name);
+  assertUrlQueryAndFragmentPolicy(url, name, options);
+
+  return url;
+}
+
+function parseUrl(value: string, name: string): URL {
   try {
-    url = new URL(value);
+    return new URL(value);
   } catch {
     throw new Error(`${name} must be an absolute HTTP(S) URL`);
   }
+}
 
+function assertHttpUrlProtocol(url: URL, name: string): void {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error(`${name} must be an absolute HTTP(S) URL`);
   }
+}
 
+function assertUrlQueryAndFragmentPolicy(
+  url: URL,
+  name: string,
+  options: AbsoluteHttpUrlOptions
+): void {
   if (
     !options.allowQueryOrFragment &&
     (url.search.length > 0 || url.hash.length > 0)
   ) {
     throw new Error(`${name} must not contain query strings or fragments`);
   }
-
-  return url;
 }
 
 export function isAllowedString<const T extends readonly string[]>(
