@@ -213,6 +213,24 @@ describe("stored S3 upload reconciliation", () => {
     });
   });
 
+  test("summarizes missing reconciliation results", () => {
+    expect(
+      summarizeStoredS3CoordinatorUploadReconciliation({
+        status: "not_found",
+      })
+    ).toEqual({
+      committed: 0,
+      failed: 0,
+      failedErrorCodes: [],
+      failedSlotIds: [],
+      idempotent: 0,
+      ok: false,
+      planned: 0,
+      slotIds: [],
+      status: "not_found",
+    });
+  });
+
   test("rejects invalid S3 reconciliation options before object observation", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();

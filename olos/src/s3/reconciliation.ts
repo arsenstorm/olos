@@ -182,20 +182,37 @@ export function summarizeStoredS3CoordinatorUploadReconciliation(
   result: StoredS3CoordinatorUploadReconciliation
 ): StoredS3CoordinatorUploadReconciliationSummary {
   if (isMissingStoredS3CoordinatorUploadReconciliation(result)) {
-    return {
-      committed: 0,
-      failed: 0,
-      failedErrorCodes: [],
-      failedSlotIds: [],
-      idempotent: 0,
-      ok: false,
-      planned: 0,
-      slotIds: [],
-      status: "not_found",
-    };
+    return missingStoredS3CoordinatorUploadReconciliationSummary();
   }
 
-  const summary: MutableStoredS3CoordinatorUploadReconciliationSummary = {
+  const summary = initialStoredS3CoordinatorUploadReconciliationSummary();
+
+  for (const entry of result.results) {
+    summarizeStoredS3CoordinatorUploadReconciliationEntry(summary, entry);
+  }
+
+  return completedStoredS3CoordinatorUploadReconciliationSummary(
+    summary,
+    result.results.length
+  );
+}
+
+function missingStoredS3CoordinatorUploadReconciliationSummary(): StoredS3CoordinatorUploadReconciliationSummary {
+  return {
+    committed: 0,
+    failed: 0,
+    failedErrorCodes: [],
+    failedSlotIds: [],
+    idempotent: 0,
+    ok: false,
+    planned: 0,
+    slotIds: [],
+    status: "not_found",
+  };
+}
+
+function initialStoredS3CoordinatorUploadReconciliationSummary(): MutableStoredS3CoordinatorUploadReconciliationSummary {
+  return {
     committed: 0,
     failed: 0,
     failedErrorCodes: [],
@@ -203,36 +220,51 @@ export function summarizeStoredS3CoordinatorUploadReconciliation(
     idempotent: 0,
     slotIds: [],
   };
+}
 
-  for (const entry of result.results) {
-    summary.slotIds.push(entry.slot.slotId);
+function summarizeStoredS3CoordinatorUploadReconciliationEntry(
+  summary: MutableStoredS3CoordinatorUploadReconciliationSummary,
+  entry: StoredS3CoordinatorUploadReconciliationResult
+): void {
+  summary.slotIds.push(entry.slot.slotId);
 
-    if (isCommittedStoredS3CoordinatorUploadReconciliationResult(entry)) {
-      summary.committed += 1;
-      continue;
-    }
-
-    if (isIdempotentStoredS3CoordinatorUploadReconciliationResult(entry)) {
-      summary.idempotent += 1;
-      continue;
-    }
-
-    if (isFailedStoredS3CoordinatorUploadReconciliationResult(entry)) {
-      summary.failed += 1;
-      summary.failedSlotIds.push(entry.slot.slotId);
-
-      const failedResult = entry.result;
-
-      if (isRejectedS3CoordinatorUploadCommit(failedResult)) {
-        summary.failedErrorCodes.push(failedResult.error.error.code);
-      }
-    }
+  if (isCommittedStoredS3CoordinatorUploadReconciliationResult(entry)) {
+    summary.committed += 1;
+    return;
   }
 
+  if (isIdempotentStoredS3CoordinatorUploadReconciliationResult(entry)) {
+    summary.idempotent += 1;
+    return;
+  }
+
+  if (isFailedStoredS3CoordinatorUploadReconciliationResult(entry)) {
+    summarizeFailedStoredS3CoordinatorUploadReconciliationEntry(summary, entry);
+  }
+}
+
+function summarizeFailedStoredS3CoordinatorUploadReconciliationEntry(
+  summary: MutableStoredS3CoordinatorUploadReconciliationSummary,
+  entry: FailedStoredS3CoordinatorUploadReconciliationResult
+): void {
+  summary.failed += 1;
+  summary.failedSlotIds.push(entry.slot.slotId);
+
+  const failedResult = entry.result;
+
+  if (isRejectedS3CoordinatorUploadCommit(failedResult)) {
+    summary.failedErrorCodes.push(failedResult.error.error.code);
+  }
+}
+
+function completedStoredS3CoordinatorUploadReconciliationSummary(
+  summary: MutableStoredS3CoordinatorUploadReconciliationSummary,
+  planned: number
+): StoredS3CoordinatorUploadReconciliationSummary {
   return {
     ...summary,
     ok: summary.failed === 0,
-    planned: result.results.length,
+    planned,
     status: "reconciled",
   };
 }
