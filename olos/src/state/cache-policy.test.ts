@@ -88,6 +88,15 @@ describe("delivery cache policy", () => {
     );
   });
 
+  test("rejects non-positive target latency for freshness-bound policies", () => {
+    expect(() =>
+      createDeliveryCachePolicy({
+        target: "manifest",
+        targetLatencySeconds: 0,
+      })
+    ).toThrow("targetLatencySeconds must be a positive integer");
+  });
+
   test("requires declared negative object caching policy", () => {
     expect(() =>
       createDeliveryCachePolicy({
