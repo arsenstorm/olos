@@ -55,6 +55,20 @@ describe("runtime live health", () => {
     });
   });
 
+  test("treats cursor age at the configured maximum as fresh", () => {
+    expect(
+      resolveRuntimeLiveHealth({
+        cursor: cursor(),
+        maxCursorAgeMs: 3000,
+        now: "2026-01-01T00:00:03.000Z",
+      })
+    ).toEqual({
+      cursorAgeMs: 3000,
+      cursorFreshness: "fresh",
+      status: "active",
+    });
+  });
+
   test("marks stale publisher leases as stale", () => {
     expect(
       resolveRuntimeLiveHealth({

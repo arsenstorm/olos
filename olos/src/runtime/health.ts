@@ -62,24 +62,41 @@ export function resolveRuntimeLiveHealth(
 
   assertCursor(options.cursor);
 
-  const cursorAgeMs =
-    nowMs - timestampMs(options.cursor.updatedAt, "cursor.updatedAt");
-
-  if (cursorAgeMs < 0) {
-    throw new Error("now must be after or equal to cursor.updatedAt");
-  }
-
-  const cursorFreshness = cursorAgeMs <= maxCursorAgeMs ? "fresh" : "stale";
+  const cursorAgeMs = cursorAgeMsSince(options.cursor, nowMs);
+  const cursorFreshness = cursorFreshnessForAge(cursorAgeMs, maxCursorAgeMs);
 
   return {
     cursorAgeMs,
     cursorFreshness,
     ...(leaseStatus === undefined ? {} : { leaseStatus }),
-    status:
-      cursorFreshness === "fresh" && leaseStatus !== "stale"
-        ? "active"
-        : "stale",
+    status: liveHealthStatus(cursorFreshness, leaseStatus),
   };
+}
+
+function cursorAgeMsSince(cursor: Cursor, nowMs: number): number {
+  const cursorAgeMs = nowMs - timestampMs(cursor.updatedAt, "cursor.updatedAt");
+
+  if (cursorAgeMs < 0) {
+    throw new Error("now must be after or equal to cursor.updatedAt");
+  }
+
+  return cursorAgeMs;
+}
+
+function cursorFreshnessForAge(
+  cursorAgeMs: number,
+  maxCursorAgeMs: number
+): RuntimeCursorFreshness {
+  return cursorAgeMs <= maxCursorAgeMs ? "fresh" : "stale";
+}
+
+function liveHealthStatus(
+  cursorFreshness: RuntimeCursorFreshness,
+  leaseStatus: RuntimePublisherLeaseStatus | undefined
+): RuntimeLiveHealthStatus {
+  return cursorFreshness === "fresh" && leaseStatus !== "stale"
+    ? "active"
+    : "stale";
 }
 
 export function resolveRuntimeLiveHealthFromState(
