@@ -17,4 +17,11 @@ describe("object key validation", () => {
       assertSafeObjectKey("media/session/v1080/3810.m4s#part", "objectKey")
     ).toThrow("objectKey must not contain query strings or fragments");
   });
+
+  test("rejects unsafe relative object key segments", () => {
+    expect(isSafeObjectKey("media//3810.m4s")).toBe(false);
+    expect(() =>
+      assertSafeObjectKey("media/../secret.m4s", "objectKey")
+    ).toThrow("objectKey must be a safe relative object key");
+  });
 });

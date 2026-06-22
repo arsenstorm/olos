@@ -69,13 +69,17 @@ function safeObjectKeyError(value: unknown): string | undefined {
     return "must not contain query strings or fragments";
   }
 
-  if (
-    value
-      .split("/")
-      .some((segment) => segment === "" || segment === "." || segment === "..")
-  ) {
+  if (hasUnsafeObjectKeySegment(value)) {
     return "must be a safe relative object key";
   }
+}
+
+function hasUnsafeObjectKeySegment(value: string): boolean {
+  return value.split("/").some(isUnsafeObjectKeySegment);
+}
+
+function isUnsafeObjectKeySegment(segment: string): boolean {
+  return segment === "" || segment === "." || segment === "..";
 }
 
 const MEDIA_OBJECT_EXTENSIONS: Partial<
