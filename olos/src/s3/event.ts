@@ -55,15 +55,10 @@ export function normalizeS3ObjectCreatedEvents(
 export function normalizeS3ObjectCreatedEventRecord(
   options: NormalizeS3ObjectCreatedEventRecordOptions
 ): UploadEventNormalization {
-  if (!isProviderId(options.providerId)) {
-    return invalidS3Event("providerId must be a non-empty URL-safe identifier");
-  }
+  const optionsError = invalidS3EventRecordOptions(options);
 
-  if (
-    options.expectedBucket !== undefined &&
-    !isS3BucketName(options.expectedBucket)
-  ) {
-    return invalidS3Event("expectedBucket is invalid");
+  if (optionsError !== undefined) {
+    return optionsError;
   }
 
   const parts = s3ObjectCreatedEventRecordParts(options.record);
@@ -72,19 +67,13 @@ export function normalizeS3ObjectCreatedEventRecord(
     return invalidS3Event("s3 event record is invalid");
   }
 
-  if (!isObjectCreatedEventName(parts.record.eventName)) {
-    return invalidS3Event("s3 event record is not object-created");
-  }
+  const recordError = invalidS3ObjectCreatedEventRecordParts(
+    parts,
+    options.expectedBucket
+  );
 
-  if (!isS3BucketName(parts.bucket.name)) {
-    return invalidS3Event("s3 event bucket is invalid");
-  }
-
-  if (
-    options.expectedBucket !== undefined &&
-    parts.bucket.name !== options.expectedBucket
-  ) {
-    return invalidS3Event("s3 event bucket does not match expected bucket");
+  if (recordError !== undefined) {
+    return recordError;
   }
 
   const key = objectKey(parts.object.key);
@@ -112,6 +101,38 @@ export function normalizeS3ObjectCreatedEventRecord(
       size: parts.object.size,
     },
   });
+}
+
+function invalidS3EventRecordOptions(
+  options: NormalizeS3ObjectCreatedEventRecordOptions
+): UploadEventNormalization | undefined {
+  if (!isProviderId(options.providerId)) {
+    return invalidS3Event("providerId must be a non-empty URL-safe identifier");
+  }
+
+  if (
+    options.expectedBucket !== undefined &&
+    !isS3BucketName(options.expectedBucket)
+  ) {
+    return invalidS3Event("expectedBucket is invalid");
+  }
+}
+
+function invalidS3ObjectCreatedEventRecordParts(
+  parts: S3ObjectCreatedEventRecordParts,
+  expectedBucket: string | undefined
+): UploadEventNormalization | undefined {
+  if (!isObjectCreatedEventName(parts.record.eventName)) {
+    return invalidS3Event("s3 event record is not object-created");
+  }
+
+  if (!isS3BucketName(parts.bucket.name)) {
+    return invalidS3Event("s3 event bucket is invalid");
+  }
+
+  if (expectedBucket !== undefined && parts.bucket.name !== expectedBucket) {
+    return invalidS3Event("s3 event bucket does not match expected bucket");
+  }
 }
 
 function s3ObjectCreatedEventRecordParts(

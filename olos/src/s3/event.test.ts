@@ -293,5 +293,32 @@ describe("s3 event normalization", () => {
       },
       status: "invalid_event",
     });
+
+    expect(
+      normalizeS3ObjectCreatedEventRecord({
+        providerId: "s3_primary",
+        record: {
+          ...record,
+          responseElements: {},
+          s3: {
+            bucket: {
+              name: "media",
+            },
+            object: {
+              key: "media/v1080/3810.m4s",
+              size: 98_304,
+            },
+          },
+        },
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          message: "s3 event record must include a request id or sequencer",
+        },
+      },
+      status: "invalid_event",
+    });
   });
 });
