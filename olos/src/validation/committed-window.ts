@@ -130,18 +130,7 @@ function assertCommittedSegment(
 
   assertNonNegativeIntegerField(value, "mediaSequenceNumber", name);
   assertPositiveNumberField(value, "duration", name);
-
-  if (value.programDateTime !== undefined) {
-    assertIsoDateField(value, "programDateTime", name);
-  }
-
-  if (value.discontinuityBefore !== undefined) {
-    assertBooleanField(value, "discontinuityBefore", name);
-  }
-
-  if (value.independent !== undefined) {
-    assertBooleanField(value, "independent", name);
-  }
+  assertOptionalSegmentFields(value, name);
 
   if (value.segment !== undefined) {
     assertCommittedObject(value.segment, `${name}.segment`);
@@ -153,6 +142,23 @@ function assertCommittedSegment(
 
   if (value.segment === undefined && value.parts === undefined) {
     throw new Error(`${name} must contain a segment or parts`);
+  }
+}
+
+function assertOptionalSegmentFields(
+  value: Record<string, unknown>,
+  name: string
+): void {
+  if (value.programDateTime !== undefined) {
+    assertIsoDateField(value, "programDateTime", name);
+  }
+
+  if (value.discontinuityBefore !== undefined) {
+    assertBooleanField(value, "discontinuityBefore", name);
+  }
+
+  if (value.independent !== undefined) {
+    assertBooleanField(value, "independent", name);
   }
 }
 
@@ -217,7 +223,13 @@ function assertCommittedPart(
 
   assertNonNegativeIntegerField(value, "partNumber", name);
   assertPositiveNumberField(value, "duration", name);
+  assertOptionalPartFields(value, name);
+}
 
+function assertOptionalPartFields(
+  value: Record<string, unknown>,
+  name: string
+): void {
   if (value.programDateTime !== undefined) {
     assertIsoDateField(value, "programDateTime", name);
   }

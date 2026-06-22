@@ -497,6 +497,29 @@ describe("committed window validation", () => {
     );
   });
 
+  test("rejects invalid optional segment booleans", () => {
+    const firstSegment = validSegment(0);
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [
+              {
+                ...firstSegment,
+                discontinuityBefore: "yes",
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.segments[].discontinuityBefore must be a boolean"
+    );
+  });
+
   test("rejects unrenderable segments", () => {
     expect(() =>
       assertCommittedWindow({
