@@ -386,6 +386,32 @@ describe("stored S3 publisher upload step", () => {
     });
   });
 
+  test("summarizes rejected grant issue error codes", async () => {
+    const step = await runStoredS3PublisherUploadStep({
+      commit: () => Promise.resolve({ status: "not_found" }),
+      issueGrant: () =>
+        Promise.resolve({
+          error: {
+            error: {
+              code: "olos.quota_exceeded",
+              message: "publisher quota exceeded",
+            },
+          },
+          state: createEmptyCoordinatorState(),
+          status: "rejected",
+        }),
+      upload: () => Promise.reject(new Error("should not upload")),
+    });
+
+    expect(step.status).toBe("issue_failed");
+    expect(summarizeStoredS3PublisherUploadStep(step)).toEqual({
+      errorCode: "olos.quota_exceeded",
+      issueStatus: "rejected",
+      ok: false,
+      status: "issue_failed",
+    });
+  });
+
   test("keeps planned context when upload fails", async () => {
     const store = createMemoryCoordinatorStore();
 

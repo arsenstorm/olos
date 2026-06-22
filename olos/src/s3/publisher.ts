@@ -340,22 +340,63 @@ export function summarizeStoredS3PublisherUploadStep(
   const errorCode = resultErrorCode(commit) ?? resultErrorCode(issue);
 
   return {
-    ...(commit !== undefined && "commit" in commit
-      ? { commitId: commit.commit.commitId }
-      : {}),
-    ...(commit === undefined ? {} : { commitStatus: commit.status }),
+    ...commitSummaryFields(commit),
+    ...errorSummaryFields(error, errorCode),
+    ...heartbeatSummaryFields(heartbeat),
+    ...issueSummaryFields(issue),
+    ok: isSuccessfulStoredS3PublisherStepStatus(step.status),
+    ...slotSummaryFields(slot),
+    status: step.status,
+  };
+}
+
+function commitSummaryFields(
+  commit: StoredS3CoordinatorUploadCommit | undefined
+): Pick<StoredS3PublisherUploadStepSummary, "commitId" | "commitStatus"> {
+  if (commit === undefined) {
+    return {};
+  }
+
+  return {
+    ...("commit" in commit ? { commitId: commit.commit.commitId } : {}),
+    commitStatus: commit.status,
+  };
+}
+
+function errorSummaryFields(
+  error: string | undefined,
+  errorCode: OlosErrorCode | undefined
+): Pick<StoredS3PublisherUploadStepSummary, "error" | "errorCode"> {
+  return {
     ...(error === undefined ? {} : { error }),
     ...(errorCode === undefined ? {} : { errorCode }),
-    ...(heartbeat === undefined ? {} : { heartbeatStatus: heartbeat.status }),
-    ...(issue === undefined ? {} : { issueStatus: issue.status }),
-    ...(slot === undefined
-      ? {}
-      : {
-          objectKey: slot.objectKey,
-          slotId: slot.slotId,
-        }),
-    ok: isSuccessfulStoredS3PublisherStepStatus(step.status),
-    status: step.status,
+  };
+}
+
+function heartbeatSummaryFields(
+  heartbeat: RuntimePublisherHeartbeatResult | undefined
+): Pick<StoredS3PublisherUploadStepSummary, "heartbeatStatus"> {
+  return heartbeat === undefined ? {} : { heartbeatStatus: heartbeat.status };
+}
+
+function issueSummaryFields(
+  issue:
+    | Exclude<StoredS3CoordinatorUploadGrantIssue, { status: "saved" }>
+    | undefined
+): Pick<StoredS3PublisherUploadStepSummary, "issueStatus"> {
+  return issue === undefined ? {} : { issueStatus: issue.status };
+}
+
+function slotSummaryFields(
+  slot: UploadSlot | undefined
+): Pick<StoredS3PublisherUploadStepSummary, "objectKey" | "slotId"> {
+  if (slot === undefined) {
+    return {};
+  }
+
+  return {
+    objectKey: slot.objectKey,
+    slotId: slot.slotId,
   };
 }
 
