@@ -145,6 +145,15 @@ describe("runtime request field helpers", () => {
     expect(optionalUrlSafeIdentifierValueField({}, "id")).toBeUndefined();
   });
 
+  test("optional helpers validate defined invalid fields", () => {
+    expect(() => optionalBooleanField({ active: "false" }, "active")).toThrow(
+      "active must be a boolean"
+    );
+    expect(() =>
+      optionalTimestampValueField({ updatedAt: "later" }, "updatedAt")
+    ).toThrow("updatedAt must be a valid timestamp");
+  });
+
   test("timestampMs accepts dates and timestamp strings", () => {
     const timestamp = "2026-01-01T00:00:00.000Z";
 

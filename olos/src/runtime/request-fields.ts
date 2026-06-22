@@ -53,11 +53,7 @@ export function optionalStringField<Field extends string>(
   value: Record<string, unknown>,
   field: Field
 ): Partial<Record<Field, string>> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return optionalField(field, stringField(value, field));
+  return optionalParsedField(value, field, stringField);
 }
 
 export function urlSafeIdentifierField(
@@ -73,11 +69,7 @@ export function optionalUrlSafeIdentifierValueField(
   value: Record<string, unknown>,
   field: string
 ): string | undefined {
-  if (value[field] === undefined) {
-    return;
-  }
-
-  return urlSafeIdentifierField(value, field);
+  return optionalParsedValue(value, field, urlSafeIdentifierField);
 }
 
 export function numberField(
@@ -98,11 +90,7 @@ export function optionalBooleanField<Field extends string>(
   value: Record<string, unknown>,
   field: Field
 ): Partial<Record<Field, boolean>> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return optionalField(field, booleanField(value, field));
+  return optionalParsedField(value, field, booleanField);
 }
 
 export function nonNegativeNumberField(
@@ -118,11 +106,7 @@ export function optionalNonNegativeNumberField<Field extends string>(
   value: Record<string, unknown>,
   field: Field
 ): Partial<Record<Field, number>> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return optionalField(field, nonNegativeNumberField(value, field));
+  return optionalParsedField(value, field, nonNegativeNumberField);
 }
 
 export function nonNegativeNumber(value: number, name: string): number {
@@ -142,11 +126,7 @@ export function optionalNonNegativeIntegerField<Field extends string>(
   value: Record<string, unknown>,
   field: Field
 ): Partial<Record<Field, number>> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return optionalField(field, nonNegativeIntegerField(value, field));
+  return optionalParsedField(value, field, nonNegativeIntegerField);
 }
 
 export function nonNegativeInteger(value: unknown, name: string): number {
@@ -172,11 +152,7 @@ export function optionalPositiveIntegerField<Field extends string>(
   value: Record<string, unknown>,
   field: Field
 ): Partial<Record<Field, number>> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return optionalField(field, positiveIntegerField(value, field));
+  return optionalParsedField(value, field, positiveIntegerField);
 }
 
 export function positiveInteger(value: unknown, name: string): number {
@@ -213,22 +189,38 @@ export function optionalTimestampField<Field extends string>(
   value: Record<string, unknown>,
   field: Field
 ): Partial<Record<Field, string>> {
-  if (value[field] === undefined) {
-    return {};
-  }
-
-  return optionalField(field, timestampField(value, field));
+  return optionalParsedField(value, field, timestampField);
 }
 
 export function optionalTimestampValueField(
   value: Record<string, unknown>,
   field: string
 ): string | undefined {
+  return optionalParsedValue(value, field, timestampField);
+}
+
+function optionalParsedField<Field extends string, TValue>(
+  value: Record<string, unknown>,
+  field: Field,
+  parse: (value: Record<string, unknown>, field: Field) => TValue
+): Partial<Record<Field, TValue>> {
+  if (value[field] === undefined) {
+    return {};
+  }
+
+  return optionalField(field, parse(value, field));
+}
+
+function optionalParsedValue<TValue>(
+  value: Record<string, unknown>,
+  field: string,
+  parse: (value: Record<string, unknown>, field: string) => TValue
+): TValue | undefined {
   if (value[field] === undefined) {
     return;
   }
 
-  return timestampField(value, field);
+  return parse(value, field);
 }
 
 export function timestampMs(value: Date | string, name: string): number {
