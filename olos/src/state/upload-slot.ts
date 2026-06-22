@@ -207,15 +207,17 @@ export function resolveUploadExpiry(
     slot: options.slot,
     status: "expired",
     targetState: "expired",
-    validate: () => {
-      if (
-        timestampMs(options.now, "now") <
-        timestampMs(options.slot.expiresAt, "uploadSlot.expiresAt")
-      ) {
-        throw new Error("now must be after or equal to uploadSlot.expiresAt");
-      }
-    },
+    validate: () => assertUploadExpiryReady(options),
   });
+}
+
+function assertUploadExpiryReady(options: ResolveUploadExpiryOptions): void {
+  if (
+    timestampMs(options.now, "now") <
+    timestampMs(options.slot.expiresAt, "uploadSlot.expiresAt")
+  ) {
+    throw new Error("now must be after or equal to uploadSlot.expiresAt");
+  }
 }
 
 export function rejectUpload(

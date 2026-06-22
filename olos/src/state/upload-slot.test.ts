@@ -333,6 +333,15 @@ describe("expire upload", () => {
     ).toThrow("now must be after or equal to uploadSlot.expiresAt");
   });
 
+  test("rejects invalid expiry timestamps", () => {
+    expect(() =>
+      expireUpload({
+        now: "soon",
+        slot,
+      })
+    ).toThrow("now must be a valid timestamp");
+  });
+
   test("rejects non-expirable slots", () => {
     expect(() =>
       expireUpload({
