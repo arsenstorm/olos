@@ -92,6 +92,25 @@ describe("runtime HTTP client helpers", () => {
     ).toThrow("missing results");
   });
 
+  test("field helpers handle non-object payloads through their normal missing-field paths", () => {
+    expect(optionalRecordField(null, "cursor")).toBeUndefined();
+    expect(
+      optionalRecordPayload<"cursor", { sessionId: string }>(
+        null,
+        "cursor",
+        () => {
+          throw new Error("assertion should not run");
+        }
+      )
+    ).toEqual({});
+    expect(() => requiredStringField(null, "status", "missing status")).toThrow(
+      "missing status"
+    );
+    expect(() =>
+      requiredArrayField(null, "results", "missing results")
+    ).toThrow("missing results");
+  });
+
   test("responseBody parses JSON, text, and empty responses", async () => {
     await expect(responseBody(new Response('{"ok":true}'))).resolves.toEqual({
       ok: true,

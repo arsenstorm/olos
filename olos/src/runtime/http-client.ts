@@ -74,7 +74,7 @@ export function requiredArrayField(
   field: string,
   message: string
 ): unknown[] {
-  const fieldValue = recordValue(value)?.[field];
+  const fieldValue = recordFieldValue(value, field);
 
   if (!Array.isArray(fieldValue)) {
     throw new Error(message);
@@ -87,7 +87,7 @@ export function optionalRecordField(
   value: unknown,
   field: string
 ): Record<string, unknown> | undefined {
-  return recordValue(recordValue(value)?.[field]);
+  return recordValue(recordFieldValue(value, field));
 }
 
 export function requiredStringField(
@@ -95,13 +95,17 @@ export function requiredStringField(
   field: string,
   message: string
 ): string {
-  const fieldValue = recordValue(value)?.[field];
+  const fieldValue = recordFieldValue(value, field);
 
   if (typeof fieldValue !== "string") {
     throw new Error(message);
   }
 
   return fieldValue;
+}
+
+function recordFieldValue(value: unknown, field: string): unknown {
+  return recordValue(value)?.[field];
 }
 
 export function optionalRecordPayload<Field extends string, T>(
