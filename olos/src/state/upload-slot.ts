@@ -80,19 +80,7 @@ type RevokedUploadSlot = UploadSlot & { state: "revoked" };
 export function createIssuedUploadSlot(
   options: CreateIssuedUploadSlotOptions
 ): UploadSlot {
-  assertSession(options.session);
-
-  if (options.session.state !== "live") {
-    throw new Error("session.state must be live");
-  }
-
-  if (
-    !options.session.renditions.some(
-      (rendition) => rendition.renditionId === options.renditionId
-    )
-  ) {
-    throw new Error("uploadSlot.renditionId must belong to session.renditions");
-  }
+  assertIssuedUploadSlotSession(options);
 
   const slot: UploadSlot = {
     contentType: options.contentType,
@@ -113,6 +101,36 @@ export function createIssuedUploadSlot(
     tenantId: options.session.tenantId,
   };
 
+  applyOptionalIssuedUploadSlotFields(slot, options);
+  assertUploadSlot(slot);
+
+  return slot;
+}
+
+function assertIssuedUploadSlotSession(
+  options: CreateIssuedUploadSlotOptions
+): void {
+  assertSession(options.session);
+
+  if (options.session.state !== "live") {
+    throw new Error("session.state must be live");
+  }
+
+  if (!sessionHasRendition(options.session, options.renditionId)) {
+    throw new Error("uploadSlot.renditionId must belong to session.renditions");
+  }
+}
+
+function sessionHasRendition(session: Session, renditionId: string): boolean {
+  return session.renditions.some(
+    (rendition) => rendition.renditionId === renditionId
+  );
+}
+
+function applyOptionalIssuedUploadSlotFields(
+  slot: UploadSlot,
+  options: CreateIssuedUploadSlotOptions
+): void {
   if (options.minBytes !== undefined) {
     slot.minBytes = options.minBytes;
   }
@@ -120,10 +138,6 @@ export function createIssuedUploadSlot(
   if (options.partNumber !== undefined) {
     slot.partNumber = options.partNumber;
   }
-
-  assertUploadSlot(slot);
-
-  return slot;
 }
 
 export function observeUpload(options: ObserveUploadOptions): UploadSlot {
