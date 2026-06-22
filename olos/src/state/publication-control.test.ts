@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  assertPublicationAllowed,
   createPublicationKillSwitch,
   resolvePublicationControl,
 } from "./publication-control";
@@ -51,5 +52,20 @@ describe("publication control", () => {
       "advance_cursor",
     ]);
     expect(policy.reason).toBe("budget");
+  });
+
+  test("asserts publication control decisions", () => {
+    expect(() =>
+      assertPublicationAllowed({
+        operation: "commit_upload",
+        policy: { disabledOperations: ["process_provider_event"] },
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertPublicationAllowed({
+        operation: "process_provider_event",
+        policy: { disabledOperations: ["process_provider_event"] },
+      })
+    ).toThrow("publication operation is disabled");
   });
 });

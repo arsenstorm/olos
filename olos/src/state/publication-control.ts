@@ -40,7 +40,7 @@ export function createPublicationKillSwitch(
 export function resolvePublicationControl(
   options: ResolvePublicationControlOptions
 ): PublicationControlResolution {
-  if (!options.policy?.disabledOperations?.includes(options.operation)) {
+  if (!isPublicationOperationDisabled(options)) {
     return { status: "allowed" };
   }
 
@@ -69,11 +69,23 @@ function publicationControlError(
       code: "olos.security_policy_violation",
       details: {
         operation: options.operation,
-        ...(options.policy?.reason === undefined
-          ? {}
-          : { reason: options.policy.reason }),
+        ...publicationControlReasonDetails(options.policy),
       },
       message: "publication operation is disabled",
     },
   };
+}
+
+function isPublicationOperationDisabled(
+  options: ResolvePublicationControlOptions
+): boolean {
+  return (
+    options.policy?.disabledOperations?.includes(options.operation) === true
+  );
+}
+
+function publicationControlReasonDetails(
+  policy: PublicationControlPolicy | undefined
+): { reason?: string } {
+  return policy?.reason === undefined ? {} : { reason: policy.reason };
 }
