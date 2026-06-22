@@ -136,6 +136,18 @@ describe("s3 upload grants", () => {
     );
   });
 
+  test("allows SDK-presigned grants that expire exactly with the slot", async () => {
+    const grant = await createPresignedS3UploadGrant({
+      bucket: S3_BUCKET,
+      client: createTestS3Client(),
+      expiresInSeconds: 5,
+      now: S3_GRANT_NOW,
+      slot,
+    });
+
+    expect(grant.expiresAt).toBe(slot.expiresAt);
+  });
+
   test("validates SDK-presigned slots before signing", async () => {
     await expect(
       createPresignedS3UploadGrant({

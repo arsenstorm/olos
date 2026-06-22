@@ -155,16 +155,24 @@ function assertPresignedS3UploadGrantOptions(
 ): void {
   assertUploadSlot(options.slot);
   assertS3BucketName(options.bucket);
-
   assertPositiveExpiresInSeconds(options.expiresInSeconds);
 
-  const nowMs = resolveNowTimestampMs(options.now, options.clock);
+  assertPresignedGrantSlotIsIssued(options.slot);
+  assertPresignedGrantExpiresWithinSlot(options);
+}
 
-  if (options.slot.state !== "issued") {
+function assertPresignedGrantSlotIsIssued(slot: UploadSlot): void {
+  if (slot.state !== "issued") {
     throw new Error("uploadSlot.state must be issued");
   }
+}
 
-  const grantExpiresAt = nowMs + options.expiresInSeconds * 1000;
+function assertPresignedGrantExpiresWithinSlot(
+  options: CreatePresignedS3UploadGrantOptions
+): void {
+  const grantExpiresAt =
+    resolveNowTimestampMs(options.now, options.clock) +
+    options.expiresInSeconds * 1000;
   const slotExpiresAt = timestampMs(
     options.slot.expiresAt,
     "uploadSlot.expiresAt"
