@@ -204,7 +204,7 @@ function optionalParsedField<Field extends string, TValue>(
   field: Field,
   parse: (value: Record<string, unknown>, field: Field) => TValue
 ): Partial<Record<Field, TValue>> {
-  if (value[field] === undefined) {
+  if (!hasOptionalField(value, field)) {
     return {};
   }
 
@@ -216,11 +216,18 @@ function optionalParsedValue<TValue>(
   field: string,
   parse: (value: Record<string, unknown>, field: string) => TValue
 ): TValue | undefined {
-  if (value[field] === undefined) {
+  if (!hasOptionalField(value, field)) {
     return;
   }
 
   return parse(value, field);
+}
+
+function hasOptionalField(
+  value: Record<string, unknown>,
+  field: string
+): boolean {
+  return value[field] !== undefined;
 }
 
 export function timestampMs(value: Date | string, name: string): number {

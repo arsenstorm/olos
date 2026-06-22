@@ -149,6 +149,9 @@ describe("runtime request field helpers", () => {
     expect(() => optionalBooleanField({ active: "false" }, "active")).toThrow(
       "active must be a boolean"
     );
+    expect(() => optionalStringField({ label: null }, "label")).toThrow(
+      "label must be a string"
+    );
     expect(() =>
       optionalTimestampValueField({ updatedAt: "later" }, "updatedAt")
     ).toThrow("updatedAt must be a valid timestamp");
