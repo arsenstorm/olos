@@ -123,6 +123,16 @@ describe("observed upload validation", () => {
     ).not.toThrow();
   });
 
+  test("rejects invalid late tolerance", () => {
+    expect(() =>
+      assertObservedUploadMatchesSlot({
+        lateToleranceMs: -1,
+        object,
+        slot,
+      })
+    ).toThrow("lateToleranceMs must be a non-negative number");
+  });
+
   test("rejects slot id metadata mismatches when metadata is available", () => {
     expect(() =>
       assertObservedUploadMatchesSlot({

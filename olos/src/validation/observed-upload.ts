@@ -75,6 +75,15 @@ function isObservableUploadSlot(
 }
 
 function assertObjectMatchesSlot(options: ObservedUploadMatchOptions): void {
+  assertObjectIdentityMatchesSlot(options);
+  assertObjectSizeWithinSlot(options);
+  assertObservationBeforeSlotExpiry(options);
+  assertObservedSlotMetadataMatchesSlot(options);
+}
+
+function assertObjectIdentityMatchesSlot(
+  options: ObservedUploadMatchOptions
+): void {
   const { object, slot } = options;
 
   if (object.objectKey !== slot.objectKey) {
@@ -86,6 +95,10 @@ function assertObjectMatchesSlot(options: ObservedUploadMatchOptions): void {
       "observedUpload.contentType must match uploadSlot.contentType"
     );
   }
+}
+
+function assertObjectSizeWithinSlot(options: ObservedUploadMatchOptions): void {
+  const { object, slot } = options;
 
   if (object.size > slot.maxBytes) {
     throw new Error(
@@ -98,6 +111,12 @@ function assertObjectMatchesSlot(options: ObservedUploadMatchOptions): void {
       "observedUpload.size must be greater than or equal to uploadSlot.minBytes"
     );
   }
+}
+
+function assertObservationBeforeSlotExpiry(
+  options: ObservedUploadMatchOptions
+): void {
+  const { object, slot } = options;
 
   const lateToleranceMs = nonNegativeNumber(
     options.lateToleranceMs ?? 0,
@@ -112,6 +131,12 @@ function assertObjectMatchesSlot(options: ObservedUploadMatchOptions): void {
       "observedUpload.observedAt must be before or equal to uploadSlot.expiresAt"
     );
   }
+}
+
+function assertObservedSlotMetadataMatchesSlot(
+  options: ObservedUploadMatchOptions
+): void {
+  const { object, slot } = options;
 
   const observedSlotId = object.metadata?.["x-olos-slot-id"];
 
