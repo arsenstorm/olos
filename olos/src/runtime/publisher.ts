@@ -190,21 +190,35 @@ export async function runRuntimePublisherUploadStep(
     );
   }
 
-  if (isSuccessfulPublisherStepStatus(committed.status)) {
+  return runtimePublisherCommitStep(
+    committed,
+    heartbeat.result,
+    observed,
+    issued.slot
+  );
+}
+
+function runtimePublisherCommitStep(
+  commit: RuntimePublisherCommitResult,
+  heartbeat: RuntimePublisherHeartbeatResult | undefined,
+  observed: RuntimeObservedUploadPayload,
+  slot: UploadSlot
+): SuccessfulRuntimePublisherUploadStep | FailedRuntimePublisherCommitStep {
+  if (isSuccessfulPublisherStepStatus(commit.status)) {
     return {
-      commit: committed,
-      ...heartbeatResult(heartbeat.result),
+      commit,
+      ...heartbeatResult(heartbeat),
       observed,
-      slot: issued.slot,
-      status: committed.status,
+      slot,
+      status: commit.status,
     };
   }
 
   return {
-    commit: committed,
+    commit,
     observed,
-    ...heartbeatResult(heartbeat.result),
-    slot: issued.slot,
+    ...heartbeatResult(heartbeat),
+    slot,
     status: "commit_failed",
   };
 }
