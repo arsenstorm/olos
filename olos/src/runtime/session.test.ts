@@ -150,6 +150,51 @@ describe("stored session runtime", () => {
     expect(snapshot?.state.publisherLeases).toEqual([second.lease]);
   });
 
+  test("refreshes one publisher heartbeat without dropping other leases", async () => {
+    const store = createMemoryCoordinatorStore();
+    await seedCreatedSession(store);
+
+    const firstPublisher = await heartbeatStoredCoordinatorPublisher({
+      now: "2026-01-01T00:00:01.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 3000,
+    });
+    const secondPublisher = await heartbeatStoredCoordinatorPublisher({
+      now: "2026-01-01T00:00:01.500Z",
+      publisherInstanceId: "publisher_2",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 3000,
+    });
+    const refreshedFirstPublisher = await heartbeatStoredCoordinatorPublisher({
+      now: "2026-01-01T00:00:02.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 3000,
+    });
+
+    expect(firstPublisher.status).toBe("refreshed");
+    expect(secondPublisher.status).toBe("refreshed");
+    expect(refreshedFirstPublisher.status).toBe("refreshed");
+
+    if (
+      secondPublisher.status !== "refreshed" ||
+      refreshedFirstPublisher.status !== "refreshed"
+    ) {
+      throw new Error("expected refreshed publisher heartbeats");
+    }
+
+    const snapshot = await store.load(session.sessionId);
+
+    expect(snapshot?.state.publisherLeases).toEqual([
+      secondPublisher.lease,
+      refreshedFirstPublisher.lease,
+    ]);
+  });
+
   test("rejects publisher heartbeats for terminal sessions", async () => {
     const store = createMemoryCoordinatorStore();
     await seedStore(

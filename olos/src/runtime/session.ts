@@ -244,39 +244,70 @@ function heartbeatState(
 ): { lease: CoordinatorPublisherLease; state: CoordinatorPipelineState } {
   assertHeartbeatSessionState(state.session.state);
 
-  const current = state.publisherLeases.find(
-    (lease) => lease.publisherInstanceId === options.publisherInstanceId
-  );
-  const lease =
-    current === undefined
-      ? createRuntimePublisherLease({
-          now: options.now,
-          publisherInstanceId: options.publisherInstanceId,
-          sessionId: options.sessionId,
-          tenantId: state.session.tenantId,
-          ttlMs: options.ttlMs,
-        })
-      : refreshRuntimePublisherHeartbeat({
-          lease: current,
-          now: options.now,
-          publisherInstanceId: options.publisherInstanceId,
-          sessionId: options.sessionId,
-          tenantId: state.session.tenantId,
-          ttlMs: options.ttlMs,
-        });
+  const lease = heartbeatLease(state, options);
 
   return {
     lease,
     state: {
       ...state,
-      publisherLeases: [
-        ...state.publisherLeases.filter(
-          (entry) => entry.publisherInstanceId !== options.publisherInstanceId
-        ),
-        lease,
-      ],
+      publisherLeases: replacePublisherLease(
+        state.publisherLeases,
+        options.publisherInstanceId,
+        lease
+      ),
     },
   };
+}
+
+function heartbeatLease(
+  state: CoordinatorPipelineState,
+  options: HeartbeatStoredCoordinatorPublisherOptions
+): CoordinatorPublisherLease {
+  const current = currentPublisherLease(
+    state.publisherLeases,
+    options.publisherInstanceId
+  );
+
+  if (current === undefined) {
+    return createRuntimePublisherLease({
+      now: options.now,
+      publisherInstanceId: options.publisherInstanceId,
+      sessionId: options.sessionId,
+      tenantId: state.session.tenantId,
+      ttlMs: options.ttlMs,
+    });
+  }
+
+  return refreshRuntimePublisherHeartbeat({
+    lease: current,
+    now: options.now,
+    publisherInstanceId: options.publisherInstanceId,
+    sessionId: options.sessionId,
+    tenantId: state.session.tenantId,
+    ttlMs: options.ttlMs,
+  });
+}
+
+function currentPublisherLease(
+  leases: readonly CoordinatorPublisherLease[],
+  publisherInstanceId: OlosId
+): CoordinatorPublisherLease | undefined {
+  return leases.find(
+    (lease) => lease.publisherInstanceId === publisherInstanceId
+  );
+}
+
+function replacePublisherLease(
+  leases: readonly CoordinatorPublisherLease[],
+  publisherInstanceId: OlosId,
+  lease: CoordinatorPublisherLease
+): CoordinatorPublisherLease[] {
+  return [
+    ...leases.filter(
+      (entry) => entry.publisherInstanceId !== publisherInstanceId
+    ),
+    lease,
+  ];
 }
 
 function assertHeartbeatSessionState(state: SessionState): void {
