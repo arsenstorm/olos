@@ -85,12 +85,7 @@ export function resolveDirectPublicMediaRequestPolicy(
     };
   }
 
-  const lowerObjectKey = options.objectKey.toLowerCase();
-  const supportedExtension = DIRECT_PUBLIC_MEDIA_EXTENSIONS.some((extension) =>
-    lowerObjectKey.endsWith(extension)
-  );
-
-  if (!supportedExtension) {
+  if (!hasSupportedDirectPublicMediaExtension(options.objectKey)) {
     return {
       allowed: false,
       reason: "unsupported-extension",
@@ -98,10 +93,7 @@ export function resolveDirectPublicMediaRequestPolicy(
     };
   }
 
-  if (
-    options.fetchDestination === "document" ||
-    options.fetchMode === "navigate"
-  ) {
+  if (isDocumentNavigation(options)) {
     return {
       allowed: false,
       reason: "document-navigation",
@@ -109,7 +101,7 @@ export function resolveDirectPublicMediaRequestPolicy(
     };
   }
 
-  if (options.accept?.toLowerCase().includes("text/html") === true) {
+  if (acceptsHtml(options.accept)) {
     return {
       allowed: false,
       reason: "html-accept",
@@ -118,6 +110,26 @@ export function resolveDirectPublicMediaRequestPolicy(
   }
 
   return { allowed: true };
+}
+
+function hasSupportedDirectPublicMediaExtension(objectKey: string): boolean {
+  const lowerObjectKey = objectKey.toLowerCase();
+
+  return DIRECT_PUBLIC_MEDIA_EXTENSIONS.some((extension) =>
+    lowerObjectKey.endsWith(extension)
+  );
+}
+
+function isDocumentNavigation(
+  options: ResolveDirectPublicMediaRequestPolicyOptions
+): boolean {
+  return (
+    options.fetchDestination === "document" || options.fetchMode === "navigate"
+  );
+}
+
+function acceptsHtml(accept: string | null | undefined): boolean {
+  return accept?.toLowerCase().includes("text/html") === true;
 }
 
 export function createDirectPublicMediaResponseHeaders(

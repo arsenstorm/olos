@@ -272,6 +272,19 @@ describe("direct-public security policy", () => {
     });
   });
 
+  test("blocks navigate-mode requests to media objects", () => {
+    expect(
+      resolveDirectPublicMediaRequestPolicy({
+        fetchMode: "navigate",
+        objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
+      })
+    ).toEqual({
+      allowed: false,
+      reason: "document-navigation",
+      status: 403,
+    });
+  });
+
   test("blocks HTML accept requests for media objects", () => {
     expect(
       resolveDirectPublicMediaRequestPolicy({
