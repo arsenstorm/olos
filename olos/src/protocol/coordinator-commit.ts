@@ -67,36 +67,11 @@ export function commitCoordinatorUpload(
   }
 
   if (slot !== undefined && existingCommit !== undefined) {
-    const candidateCommit = createCommit({
-      commitId: options.commitId,
-      committedAt: options.committedAt,
-      independent: options.independent,
-      lateToleranceMs: options.lateToleranceMs,
-      mediaObject: options.object,
-      programDateTime: options.programDateTime,
-      slot: { ...slot, state: "upload_observed" },
-    });
-    const duplicate = resolveDuplicateCommit({
-      candidateCommit,
+    return resolveDuplicateCoordinatorUploadCommit({
       existingCommit,
+      options,
+      slot,
     });
-
-    if (isConflictingDuplicateCommit(duplicate)) {
-      return {
-        error: duplicate.error,
-        state: options.state,
-        status: "rejected",
-      };
-    }
-
-    return {
-      commit: duplicate.commit,
-      state: options.state,
-      status: "idempotent",
-      ...(options.state.cursor === undefined
-        ? {}
-        : { cursor: options.state.cursor }),
-    };
   }
 
   if (slot !== undefined && options.commitPolicy !== undefined) {
@@ -174,6 +149,47 @@ export function commitCoordinatorUpload(
     cursor: state.cursor,
     state,
     status: "committed",
+  };
+}
+
+function resolveDuplicateCoordinatorUploadCommit({
+  existingCommit,
+  options,
+  slot,
+}: {
+  existingCommit: Commit;
+  options: CommitCoordinatorUploadOptions;
+  slot: UploadSlot;
+}): CoordinatorUploadCommit {
+  const candidateCommit = createCommit({
+    commitId: options.commitId,
+    committedAt: options.committedAt,
+    independent: options.independent,
+    lateToleranceMs: options.lateToleranceMs,
+    mediaObject: options.object,
+    programDateTime: options.programDateTime,
+    slot: { ...slot, state: "upload_observed" },
+  });
+  const duplicate = resolveDuplicateCommit({
+    candidateCommit,
+    existingCommit,
+  });
+
+  if (isConflictingDuplicateCommit(duplicate)) {
+    return {
+      error: duplicate.error,
+      state: options.state,
+      status: "rejected",
+    };
+  }
+
+  return {
+    commit: duplicate.commit,
+    state: options.state,
+    status: "idempotent",
+    ...(options.state.cursor === undefined
+      ? {}
+      : { cursor: options.state.cursor }),
   };
 }
 

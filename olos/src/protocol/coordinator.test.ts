@@ -619,6 +619,76 @@ describe("coordinator pipeline", () => {
     expect(duplicateCommit.state.commits).toHaveLength(1);
   });
 
+  test("rejects duplicate uploads that conflict with the existing commit", () => {
+    let state = createEmptyCoordinatorState();
+    const issued = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/s3810.m4s",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/s3810.m4s",
+      publicationMode: "direct-public",
+      publisherInstanceId: "pub_1",
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state,
+    });
+    state = issued.state;
+
+    const committed = commitCoordinatorUpload({
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "media/s3810.m4s",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3810",
+      state,
+    });
+
+    if (committed.status !== "committed") {
+      throw new Error("expected segment commit");
+    }
+
+    const duplicate = commitCoordinatorUpload({
+      commitId: "commit_3810_retry",
+      committedAt: "2026-01-01T00:00:02.500Z",
+      independent: false,
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "media/s3810.m4s",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3810",
+      state: committed.state,
+    });
+
+    expect(duplicate.status).toBe("rejected");
+    if (duplicate.status !== "rejected") {
+      throw new Error("expected rejected duplicate commit");
+    }
+
+    expect(duplicate.error.error).toEqual({
+      code: "olos.duplicate_commit_conflict",
+      details: {
+        candidateCommitId: "commit_3810_retry",
+        existingCommitId: "commit_3810",
+        slotId: "slot_3810",
+      },
+      message: "duplicate commit conflicts with the existing commit",
+    });
+    expect(duplicate.state.commits).toHaveLength(1);
+  });
+
   test("commits uploads within configured late tolerance", () => {
     let state = createEmptyCoordinatorState();
     const issued = issueCoordinatorSlot({
