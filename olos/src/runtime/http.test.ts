@@ -619,6 +619,47 @@ describe("stored coordinator runtime handler", () => {
     });
   });
 
+  test("filters health by publisher instance query", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      now: () => "2026-01-01T00:00:02.000Z",
+      publisherLeaseTtlMs: 3000,
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/heartbeat", {
+        publisherInstanceId: "pub_1",
+      })
+    );
+    await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/heartbeat", {
+        publisherInstanceId: "pub_2",
+      })
+    );
+
+    const response = await handle(
+      new Request(
+        "https://edge.example.com/sessions/session_1/health?publisherInstanceId=pub_2"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      health: {
+        leaseStatus: "active",
+        publisherInstanceId: "pub_2",
+      },
+    });
+  });
+
   test("rejects invalid heartbeat publisher identifiers", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: [MEDIA_ORIGIN],

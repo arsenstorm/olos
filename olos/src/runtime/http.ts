@@ -380,38 +380,49 @@ async function handleGetSessionActionRoute(
   }
 
   if (action === SESSION_ROUTE_ACTIONS.health) {
-    const snapshot = await options.store.load(sessionId);
-
-    if (snapshot === undefined) {
-      return sessionNotFound();
-    }
-
-    const publisherInstanceId = new URL(request.url).searchParams.get(
-      "publisherInstanceId"
-    );
-    const publisherInstanceIdError = routePublisherInstanceIdError(
-      publisherInstanceId ?? undefined
-    );
-
-    if (publisherInstanceIdError !== undefined) {
-      return jsonBadRequestResponse(publisherInstanceIdError);
-    }
-
-    return jsonResponse(
-      {
-        health: resolveRuntimeLiveHealthFromState({
-          maxCursorAgeMs:
-            options.maxHealthCursorAgeMs ?? DEFAULT_MAX_HEALTH_CURSOR_AGE_MS,
-          now: currentNow(options),
-          ...(publisherInstanceId === null ? {} : { publisherInstanceId }),
-          state: snapshot.state,
-        }),
-      },
-      200
-    );
+    return await handleGetHealthRoute(request, sessionId, options);
   }
 
   return jsonMethodNotAllowedResponse();
+}
+
+async function handleGetHealthRoute(
+  request: Request,
+  sessionId: string,
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
+): Promise<Response> {
+  const snapshot = await options.store.load(sessionId);
+
+  if (snapshot === undefined) {
+    return sessionNotFound();
+  }
+
+  const publisherInstanceId = healthPublisherInstanceId(request);
+  const publisherInstanceIdError =
+    routePublisherInstanceIdError(publisherInstanceId);
+
+  if (publisherInstanceIdError !== undefined) {
+    return jsonBadRequestResponse(publisherInstanceIdError);
+  }
+
+  return jsonResponse(
+    {
+      health: resolveRuntimeLiveHealthFromState({
+        maxCursorAgeMs:
+          options.maxHealthCursorAgeMs ?? DEFAULT_MAX_HEALTH_CURSOR_AGE_MS,
+        now: currentNow(options),
+        ...(publisherInstanceId === undefined ? {} : { publisherInstanceId }),
+        state: snapshot.state,
+      }),
+    },
+    200
+  );
+}
+
+function healthPublisherInstanceId(request: Request): string | undefined {
+  return (
+    new URL(request.url).searchParams.get("publisherInstanceId") ?? undefined
+  );
 }
 
 function notifyCursor(
