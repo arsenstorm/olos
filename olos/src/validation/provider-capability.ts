@@ -136,6 +136,15 @@ function assertUploadGrants(value: unknown): void {
     throw new Error(`${name} must be an object`);
   }
 
+  assertUploadGrantBooleanFields(value, name);
+  assertUploadGrantTtl(value, name);
+  assertUploadGrantMechanism(value, name);
+}
+
+function assertUploadGrantBooleanFields(
+  value: Record<string, unknown>,
+  name: string
+): void {
   for (const field of REQUIRED_UPLOAD_GRANT_BOOLEAN_FIELDS) {
     assertBooleanField(value, field, name);
   }
@@ -145,11 +154,21 @@ function assertUploadGrants(value: unknown): void {
       assertBooleanField(value, field, name);
     }
   }
+}
 
+function assertUploadGrantTtl(
+  value: Record<string, unknown>,
+  name: string
+): void {
   if (value.maxRecommendedTtlSeconds !== undefined) {
     assertPositiveIntegerField(value, "maxRecommendedTtlSeconds", name);
   }
+}
 
+function assertUploadGrantMechanism(
+  value: Record<string, unknown>,
+  name: string
+): void {
   if (!(value.presignedPut || value.temporaryCredentials)) {
     throw new Error(
       `${name} must support presignedPut or temporaryCredentials`

@@ -150,6 +150,19 @@ describe("provider capability validation", () => {
     );
   });
 
+  test("accepts temporary-credential upload grants without presigned PUT", () => {
+    expect(() =>
+      assertProviderCapabilityDocument({
+        ...capability,
+        uploadGrants: {
+          ...capability.uploadGrants,
+          presignedPut: false,
+          temporaryCredentials: true,
+        },
+      })
+    ).not.toThrow();
+  });
+
   test("rejects missing upload grant safety declarations", () => {
     expect(() =>
       assertProviderCapabilityDocument({
