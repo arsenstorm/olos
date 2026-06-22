@@ -48,6 +48,9 @@ describe("upload slot validation", () => {
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, mediaSequenceNumber: -1 })
     ).toThrow("uploadSlot.mediaSequenceNumber must be a non-negative integer");
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, partNumber: -1 })
+    ).toThrow("uploadSlot.partNumber must be a non-negative integer");
   });
 
   test("rejects invalid expiry timestamps", () => {

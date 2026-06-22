@@ -28,19 +28,32 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
     throw new Error("uploadSlot must be an object");
   }
 
+  assertUploadSlotIdentifiers(value);
+  assertUploadSlotSequenceFields(value);
+  assertUploadSlotByteFields(value);
+  assertUploadSlotMediaFields(value);
+  assertOneOfField(value, "publicationMode", PUBLICATION_MODES, "uploadSlot");
+  assertOneOfField(value, "state", UPLOAD_SLOT_STATES, "uploadSlot");
+}
+
+function assertUploadSlotIdentifiers(value: Record<string, unknown>): void {
   assertUrlSafeField(value, "slotId", "uploadSlot");
   assertUrlSafeField(value, "sessionId", "uploadSlot");
   assertUrlSafeField(value, "tenantId", "uploadSlot");
   assertUrlSafeField(value, "publisherInstanceId", "uploadSlot");
   assertUrlSafeField(value, "renditionId", "uploadSlot");
+}
 
+function assertUploadSlotSequenceFields(value: Record<string, unknown>): void {
   assertNonNegativeIntegerField(value, "epoch", "uploadSlot");
   assertNonNegativeIntegerField(value, "mediaSequenceNumber", "uploadSlot");
 
   if (value.partNumber !== undefined) {
     assertNonNegativeIntegerField(value, "partNumber", "uploadSlot");
   }
+}
 
+function assertUploadSlotByteFields(value: Record<string, unknown>): void {
   assertPositiveNumberField(value, "duration", "uploadSlot");
   assertPositiveNumberField(value, "maxBytes", "uploadSlot");
   assertIsoDateField(value, "expiresAt", "uploadSlot");
@@ -54,7 +67,9 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
       );
     }
   }
+}
 
+function assertUploadSlotMediaFields(value: Record<string, unknown>): void {
   const kind = assertOneOfField(
     value,
     "kind",
@@ -64,7 +79,4 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
   assertSafeMediaObjectKey(value.objectKey, kind, "uploadSlot.objectKey");
   assertSafeDeliveryUrl(value.deliveryUrl, "uploadSlot.deliveryUrl");
   assertContentType(value.contentType, "uploadSlot.contentType");
-
-  assertOneOfField(value, "publicationMode", PUBLICATION_MODES, "uploadSlot");
-  assertOneOfField(value, "state", UPLOAD_SLOT_STATES, "uploadSlot");
 }
