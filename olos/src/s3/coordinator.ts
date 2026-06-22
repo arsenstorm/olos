@@ -345,13 +345,9 @@ export async function commitS3CoordinatorUpload(
   );
 
   if (slot === undefined) {
-    return {
-      error: createOlosError("olos.unknown_slot", "upload slot is unknown", {
-        slotId: options.slotId,
-      }),
-      state: options.state,
-      status: "rejected",
-    };
+    return unknownSlotS3CoordinatorUploadCommit(options.state, {
+      slotId: options.slotId,
+    });
   }
 
   const object = await observeS3Object({
@@ -483,28 +479,16 @@ export async function completeStoredS3CoordinatorUpload(
   );
 
   if (slot === undefined) {
-    return {
-      error: createOlosError("olos.unknown_slot", "upload slot is unknown", {
-        slotId: options.slotId,
-      }),
-      state: snapshot.state,
-      status: "rejected",
-    };
+    return unknownSlotS3CoordinatorUploadCommit(snapshot.state, {
+      slotId: options.slotId,
+    });
   }
 
   if (slot.objectKey !== objectKey) {
-    return {
-      error: createOlosError(
-        "olos.key_mismatch",
-        "object key mismatches slot",
-        {
-          objectKey,
-          slotId: options.slotId,
-        }
-      ),
-      state: snapshot.state,
-      status: "rejected",
-    };
+    return keyMismatchS3CoordinatorUploadCommit(snapshot.state, {
+      objectKey,
+      slotId: options.slotId,
+    });
   }
 
   return commitStoredS3CoordinatorUpload(commitOptions);
@@ -524,13 +508,9 @@ export async function completeStoredS3CoordinatorUploadByObjectKey(
   );
 
   if (slot === undefined) {
-    return {
-      error: createOlosError("olos.unknown_slot", "upload slot is unknown", {
-        objectKey: options.objectKey,
-      }),
-      state: snapshot.state,
-      status: "rejected",
-    };
+    return unknownSlotS3CoordinatorUploadCommit(snapshot.state, {
+      objectKey: options.objectKey,
+    });
   }
 
   return completeStoredS3CoordinatorUpload({
@@ -587,6 +567,37 @@ function numberDetail(value: unknown): number | undefined {
 
 function stringDetail(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
+}
+
+function unknownSlotS3CoordinatorUploadCommit(
+  state: CoordinatorPipelineState,
+  details: Record<string, unknown>
+): RejectedS3CoordinatorUploadCommit {
+  return rejectedS3CoordinatorUploadCommit(
+    state,
+    createOlosError("olos.unknown_slot", "upload slot is unknown", details)
+  );
+}
+
+function keyMismatchS3CoordinatorUploadCommit(
+  state: CoordinatorPipelineState,
+  details: Record<string, unknown>
+): RejectedS3CoordinatorUploadCommit {
+  return rejectedS3CoordinatorUploadCommit(
+    state,
+    createOlosError("olos.key_mismatch", "object key mismatches slot", details)
+  );
+}
+
+function rejectedS3CoordinatorUploadCommit(
+  state: CoordinatorPipelineState,
+  error: OlosError
+): RejectedS3CoordinatorUploadCommit {
+  return {
+    error,
+    state,
+    status: "rejected",
+  };
 }
 
 export async function routeStoredS3CoordinatorUploadEvent(

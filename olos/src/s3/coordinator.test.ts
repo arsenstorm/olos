@@ -998,7 +998,14 @@ describe("s3 coordinator uploads", () => {
       throw new Error("expected rejected completion");
     }
 
-    expect(result.error.error.code).toBe("olos.key_mismatch");
+    expect(result.error.error).toEqual({
+      code: "olos.key_mismatch",
+      details: {
+        objectKey: "media/other.m4s",
+        slotId: "slot_3810",
+      },
+      message: "object key mismatches slot",
+    });
   });
 
   test("completes stored S3 uploads by object key", async () => {
@@ -1071,7 +1078,13 @@ describe("s3 coordinator uploads", () => {
       throw new Error("expected rejected completion");
     }
 
-    expect(result.error.error.code).toBe("olos.unknown_slot");
+    expect(result.error.error).toEqual({
+      code: "olos.unknown_slot",
+      details: {
+        objectKey: "media/unknown.m4s",
+      },
+      message: "upload slot is unknown",
+    });
   });
 
   test("routes object-created events to object-key S3 completion", async () => {
@@ -1439,7 +1452,13 @@ describe("s3 coordinator uploads", () => {
       throw new Error("expected rejected upload");
     }
 
-    expect(result.error.error.code).toBe("olos.unknown_slot");
+    expect(result.error.error).toEqual({
+      code: "olos.unknown_slot",
+      details: {
+        slotId: "slot_unknown",
+      },
+      message: "upload slot is unknown",
+    });
   });
 });
 
