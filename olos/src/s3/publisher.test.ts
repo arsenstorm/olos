@@ -101,6 +101,67 @@ describe("stored S3 publisher upload step", () => {
     ]);
   });
 
+  test("applies planned minimum TTL before issuing the upload grant", async () => {
+    const headObjectInputs: unknown[] = [];
+    const uploadedGrantExpiries: string[] = [];
+    const uploadedSlotExpiries: string[] = [];
+    const store = createMemoryCoordinatorStore();
+
+    await savePublisherState(store);
+
+    const step = await runPlannedStoredS3PublisherUploadStep({
+      bucket: "media",
+      client: createTestS3Client(),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      headObjectClient: createTestHeadObjectClientForSingle(
+        "media/v1080/s3810/segment-slot_01M0.m4s",
+        98_304,
+        headObjectInputs
+      ),
+      independent: true,
+      minTtlSeconds: 30,
+      now: "2026-01-01T00:00:00.000Z",
+      plan: {
+        baseUrl: "https://media.example.com",
+        contentType: "video/mp4",
+        duration: 2,
+        extension: "m4s",
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKeyNonce: "slot_01M0",
+        objectKeyPrefix: "media",
+        publicationMode: "direct-public",
+        publisherInstanceId: "publisher_1",
+        renditionId: "v1080",
+      },
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store,
+      targetLatency: 3,
+      upload: (grant, plan) => {
+        uploadedGrantExpiries.push(grant.expiresAt);
+        uploadedSlotExpiries.push(plan.slot.expiresAt);
+
+        return Promise.resolve();
+      },
+    });
+
+    expect(step.status).toBe("committed");
+    expect(step.expiry).toEqual({
+      expiresAt: "2026-01-01T00:00:30.000Z",
+      ttlSeconds: 30,
+    });
+    expect(uploadedGrantExpiries).toEqual(["2026-01-01T00:00:30.000Z"]);
+    expect(uploadedSlotExpiries).toEqual(["2026-01-01T00:00:30.000Z"]);
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/v1080/s3810/segment-slot_01M0.m4s",
+      },
+    ]);
+  });
+
   test("derives the next S3 object from publisher cadence", async () => {
     const headObjectInputs: unknown[] = [];
     const uploadedUrls: string[] = [];

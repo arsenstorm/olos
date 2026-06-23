@@ -145,6 +145,22 @@ type SavedStoredS3CoordinatorUploadGrantIssue = Extract<
   { status: "saved" }
 >;
 
+type StoredS3PublisherObjectPlanStepOptions = Omit<
+  RunPlannedStoredS3PublisherUploadStepOptions,
+  "plan"
+> & {
+  expiry: RuntimePublisherObjectExpiry;
+  plan: RuntimePublisherObjectPlan;
+};
+
+type StoredS3PublisherCommitUploadOptions = Parameters<
+  typeof commitStoredS3CoordinatorUpload
+>[0];
+
+type StoredS3PublisherGrantIssueOptions = Parameters<
+  typeof issueStoredS3CoordinatorUploadGrant
+>[0];
+
 type ReadyStoredS3PublisherHeartbeat =
   | RuntimePublisherHeartbeatResult
   | undefined;
@@ -474,45 +490,17 @@ function isSavedStoredS3CoordinatorUploadGrantIssue(
 }
 
 async function runStoredS3PublisherObjectPlanStep(
-  options: Omit<RunPlannedStoredS3PublisherUploadStepOptions, "plan"> & {
-    expiry: RuntimePublisherObjectExpiry;
-    plan: RuntimePublisherObjectPlan;
-  }
+  options: StoredS3PublisherObjectPlanStepOptions
 ): Promise<PlannedStoredS3PublisherUploadStep> {
   const step = await runStoredS3PublisherUploadStep({
     commit: (slot) =>
-      commitStoredS3CoordinatorUpload({
-        bucket: options.bucket,
-        client: options.headObjectClient ?? options.client,
-        commitId: options.plan.commitId,
-        committedAt: options.committedAt,
-        commitPolicy: options.commitPolicy,
-        independent: options.independent,
-        lateToleranceMs: options.lateToleranceMs,
-        manifest: options.manifest,
-        maxAttempts: options.maxAttempts,
-        maxSegments: options.maxSegments,
-        programDateTime: options.programDateTime,
-        providerId: options.providerId,
-        publicationControl: options.publicationControl,
-        sessionId: options.sessionId,
-        slotId: slot.slotId,
-        store: options.store,
-        versionId: options.versionId,
-      }),
+      commitStoredS3CoordinatorUpload(
+        storedS3PublisherCommitUploadOptions(options, slot)
+      ),
     issueGrant: () =>
-      issueStoredS3CoordinatorUploadGrant({
-        additionalHeaders: options.additionalHeaders,
-        bucket: options.bucket,
-        client: options.client,
-        expiresInSeconds: options.expiry.ttlSeconds,
-        maxAttempts: options.maxAttempts,
-        now: options.now,
-        publicationControl: options.publicationControl,
-        sessionId: options.sessionId,
-        store: options.store,
-        ...options.plan.slot,
-      }),
+      issueStoredS3CoordinatorUploadGrant(
+        storedS3PublisherGrantIssueOptions(options)
+      ),
     heartbeat: options.heartbeat,
     upload: (grant) => options.upload(grant, options.plan),
   });
@@ -521,6 +509,48 @@ async function runStoredS3PublisherObjectPlanStep(
     ...step,
     expiry: options.expiry,
     plan: options.plan,
+  };
+}
+
+function storedS3PublisherCommitUploadOptions(
+  options: StoredS3PublisherObjectPlanStepOptions,
+  slot: UploadSlot
+): StoredS3PublisherCommitUploadOptions {
+  return {
+    bucket: options.bucket,
+    client: options.headObjectClient ?? options.client,
+    commitId: options.plan.commitId,
+    committedAt: options.committedAt,
+    commitPolicy: options.commitPolicy,
+    independent: options.independent,
+    lateToleranceMs: options.lateToleranceMs,
+    manifest: options.manifest,
+    maxAttempts: options.maxAttempts,
+    maxSegments: options.maxSegments,
+    programDateTime: options.programDateTime,
+    providerId: options.providerId,
+    publicationControl: options.publicationControl,
+    sessionId: options.sessionId,
+    slotId: slot.slotId,
+    store: options.store,
+    versionId: options.versionId,
+  };
+}
+
+function storedS3PublisherGrantIssueOptions(
+  options: StoredS3PublisherObjectPlanStepOptions
+): StoredS3PublisherGrantIssueOptions {
+  return {
+    additionalHeaders: options.additionalHeaders,
+    bucket: options.bucket,
+    client: options.client,
+    expiresInSeconds: options.expiry.ttlSeconds,
+    maxAttempts: options.maxAttempts,
+    now: options.now,
+    publicationControl: options.publicationControl,
+    sessionId: options.sessionId,
+    store: options.store,
+    ...options.plan.slot,
   };
 }
 
