@@ -53,12 +53,18 @@ function isAllowedDeliveryReference(value: string): boolean {
 }
 
 function isSafeRelativePath(value: string): boolean {
-  if (value.startsWith("//") || value.includes("//")) {
-    return false;
-  }
+  return (
+    !hasProtocolRelativeOrRepeatedSlash(value) &&
+    hasOnlySafeRelativePathSegments(value)
+  );
+}
 
-  const parts = value.split("/");
-  return parts.every((part) => part !== "." && part !== "..");
+function hasProtocolRelativeOrRepeatedSlash(value: string): boolean {
+  return value.startsWith("//") || value.includes("//");
+}
+
+function hasOnlySafeRelativePathSegments(value: string): boolean {
+  return value.split("/").every((part) => part !== "." && part !== "..");
 }
 
 function parseAbsoluteUrl(value: string): URL | undefined {

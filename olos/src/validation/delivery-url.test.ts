@@ -27,6 +27,9 @@ describe("delivery URL validation", () => {
     expect(() => assertSafeDeliveryUrl("/live/../secret.m4s", "url")).toThrow(
       "url must be an absolute HTTP(S) URL or safe relative path"
     );
+    expect(() => assertSafeDeliveryUrl("/live//3810.m4s", "url")).toThrow(
+      "url must be an absolute HTTP(S) URL or safe relative path"
+    );
     expect(() =>
       assertSafeDeliveryUrl("//cdn.example.com/live.m4s", "url")
     ).toThrow("url must be an absolute HTTP(S) URL or safe relative path");
