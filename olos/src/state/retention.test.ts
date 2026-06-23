@@ -145,4 +145,29 @@ describe("retention planning", () => {
       })
     ).toEqual([]);
   });
+
+  test("keeps retained part media out of retired committed objects", () => {
+    const partCommit = {
+      ...segmentCommit,
+      commitId: "commit_3810_0",
+      duration: 0.5,
+      objectKey: "media/3810.0.m4s",
+      partNumber: 0,
+      slotId: "slot_3810_0",
+    };
+    const retainedWindow = createCommittedWindow({
+      commits: [partCommit],
+      epoch: 1,
+      initCommits: [initCommit],
+      maxSegments: 2,
+      sessionId: "session_1",
+    });
+
+    expect(
+      selectRetiredCommittedObjects({
+        commits: [partCommit],
+        retainedWindow,
+      })
+    ).toEqual([]);
+  });
 });

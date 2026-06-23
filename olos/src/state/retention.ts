@@ -94,13 +94,15 @@ function addSegmentSlotIds(
   slotIds: Set<string>,
   segment: CommittedSegment
 ): void {
-  if (segment.segment !== undefined) {
-    slotIds.add(segment.segment.slotId);
+  for (const slotId of segmentSlotIds(segment)) {
+    slotIds.add(slotId);
   }
+}
 
-  for (const part of segment.parts ?? []) {
-    slotIds.add(part.slotId);
-  }
+function segmentSlotIds(segment: CommittedSegment): string[] {
+  const slotIds = segment.segment === undefined ? [] : [segment.segment.slotId];
+
+  return [...slotIds, ...(segment.parts ?? []).map((part) => part.slotId)];
 }
 
 function isoTimestampMs(value: string, name: string): number {
