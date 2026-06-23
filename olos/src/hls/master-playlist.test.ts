@@ -64,6 +64,20 @@ describe("master playlist rendering", () => {
     ).toContain("/live/v1080.m3u8");
   });
 
+  test("builds media playlist paths only for video renditions", () => {
+    const visitedRenditionIds: string[] = [];
+
+    renderMasterPlaylist(session, {
+      mediaPlaylistPath: (_session, rendition) => {
+        visitedRenditionIds.push(rendition.renditionId);
+
+        return `/live/${rendition.renditionId}.m3u8`;
+      },
+    });
+
+    expect(visitedRenditionIds).toEqual(["v1080", "v720"]);
+  });
+
   test("does not emit content steering", () => {
     expect(renderMasterPlaylist(session)).not.toContain(
       "#EXT-X-CONTENT-STEERING"

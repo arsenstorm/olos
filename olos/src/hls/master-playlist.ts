@@ -10,12 +10,37 @@ export interface RenderMasterPlaylistOptions {
 type AudioRendition = Rendition & { kind: "audio" };
 type VideoRendition = Rendition & { kind: "video" };
 
+interface MasterPlaylistRenditions {
+  audioCodecs: readonly string[];
+  videoRenditions: readonly VideoRendition[];
+}
+
 export function renderMasterPlaylist(
   session: Session,
   options: RenderMasterPlaylistOptions = {}
 ): string {
   assertSessionShape(session);
 
+  const renditions = masterPlaylistRenditions(session);
+  const mediaPlaylistPath =
+    options.mediaPlaylistPath ?? defaultMediaPlaylistPath;
+  const lines = ["#EXTM3U", "#EXT-X-VERSION:10", "#EXT-X-INDEPENDENT-SEGMENTS"];
+
+  for (const rendition of renditions.videoRenditions) {
+    lines.push(
+      ...renderVariantEntry(
+        session,
+        rendition,
+        renditions.audioCodecs,
+        mediaPlaylistPath
+      )
+    );
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function masterPlaylistRenditions(session: Session): MasterPlaylistRenditions {
   const audioCodecs = session.renditions
     .filter(isAudioRendition)
     .map((rendition) => rendition.codec);
@@ -27,17 +52,7 @@ export function renderMasterPlaylist(
     );
   }
 
-  const mediaPlaylistPath =
-    options.mediaPlaylistPath ?? defaultMediaPlaylistPath;
-  const lines = ["#EXTM3U", "#EXT-X-VERSION:10", "#EXT-X-INDEPENDENT-SEGMENTS"];
-
-  for (const rendition of videoRenditions) {
-    lines.push(
-      ...renderVariantEntry(session, rendition, audioCodecs, mediaPlaylistPath)
-    );
-  }
-
-  return `${lines.join("\n")}\n`;
+  return { audioCodecs, videoRenditions };
 }
 
 function renderVariantEntry(
