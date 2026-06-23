@@ -40,6 +40,12 @@ export interface RuntimePublisherObjectKindDefaults {
   minBytes?: number;
 }
 
+interface RuntimePublisherObjectPositionContext {
+  cursorWindow?: CursorWindow;
+  partsPerSegment?: number;
+  startMediaSequenceNumber: number;
+}
+
 export type RuntimePublisherPlannedObjectDefaults = Record<
   RuntimePublisherPlannedObjectKind,
   RuntimePublisherObjectKindDefaults
@@ -75,14 +81,7 @@ export interface RuntimePublisherNextObjectPlan {
 export function resolveRuntimePublisherNextObjectPosition(
   options: ResolveRuntimePublisherNextObjectPositionOptions = {}
 ): RuntimePublisherObjectPosition {
-  const startMediaSequenceNumber = options.startMediaSequenceNumber ?? 0;
-  assertNonNegativeInteger(
-    startMediaSequenceNumber,
-    "startMediaSequenceNumber"
-  );
-  if (options.cursorWindow !== undefined) {
-    assertCursorWindow(options.cursorWindow, "cursorWindow");
-  }
+  const context = runtimePublisherObjectPositionContext(options);
 
   if (options.initPublished === false) {
     return {
@@ -91,22 +90,43 @@ export function resolveRuntimePublisherNextObjectPosition(
     };
   }
 
-  if (options.mode === "part") {
-    const partsPerSegment = positiveInteger(
-      options.partsPerSegment,
-      "partsPerSegment"
-    );
+  return nextCadencePosition(options.mode, context);
+}
 
-    return nextPartPosition({
-      cursorWindow: options.cursorWindow,
-      partsPerSegment,
-      startMediaSequenceNumber,
-    });
+function runtimePublisherObjectPositionContext(
+  options: ResolveRuntimePublisherNextObjectPositionOptions
+): RuntimePublisherObjectPositionContext {
+  const startMediaSequenceNumber = options.startMediaSequenceNumber ?? 0;
+  assertNonNegativeInteger(
+    startMediaSequenceNumber,
+    "startMediaSequenceNumber"
+  );
+
+  if (options.cursorWindow !== undefined) {
+    assertCursorWindow(options.cursorWindow, "cursorWindow");
   }
 
-  return nextSegmentPosition({
+  return {
     cursorWindow: options.cursorWindow,
+    partsPerSegment: options.partsPerSegment,
     startMediaSequenceNumber,
+  };
+}
+
+function nextCadencePosition(
+  mode: RuntimePublisherCadenceMode | undefined,
+  context: RuntimePublisherObjectPositionContext
+): RuntimePublisherObjectPosition {
+  if (mode !== "part") {
+    return nextSegmentPosition(context);
+  }
+
+  return nextPartPosition({
+    ...context,
+    partsPerSegment: positiveInteger(
+      context.partsPerSegment,
+      "partsPerSegment"
+    ),
   });
 }
 

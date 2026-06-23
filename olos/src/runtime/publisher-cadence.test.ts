@@ -31,6 +31,17 @@ describe("runtime publisher cadence", () => {
     });
   });
 
+  test("starts segment cadence at the configured media sequence", () => {
+    expect(
+      resolveRuntimePublisherNextObjectPosition({
+        startMediaSequenceNumber: 3810,
+      })
+    ).toEqual({
+      kind: "segment",
+      mediaSequenceNumber: 3810,
+    });
+  });
+
   test("resolves the next low-latency part position", () => {
     expect(
       resolveRuntimePublisherNextObjectPosition({
