@@ -17,6 +17,22 @@ describe("parseRuntimeJsonRequest", () => {
     });
   });
 
+  test("does not parse already parsed values", async () => {
+    await expect(
+      parseRuntimeJsonRequest(
+        { ok: true },
+        () => {
+          throw new Error("parser should not be called");
+        },
+        invalidParse,
+        "invalid request"
+      )
+    ).resolves.toEqual({
+      status: "valid",
+      value: { ok: true },
+    });
+  });
+
   test("parses JSON request bodies", async () => {
     await expect(
       parseRuntimeJsonRequest(
