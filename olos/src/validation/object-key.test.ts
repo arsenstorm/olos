@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { assertSafeObjectKey, isSafeObjectKey } from "./object-key";
+import {
+  assertSafeMediaObjectKey,
+  assertSafeObjectKey,
+  assertSupportedMediaExtension,
+  isSafeObjectKey,
+} from "./object-key";
 
 describe("object key validation", () => {
   test("accepts safe relative object keys", () => {
@@ -26,5 +31,26 @@ describe("object key validation", () => {
     expect(() => assertSafeObjectKey("media/session/", "objectKey")).toThrow(
       "objectKey must be a safe relative object key"
     );
+  });
+
+  test("accepts supported media object extensions", () => {
+    expect(() =>
+      assertSafeMediaObjectKey("media/init.mp4", "init", "objectKey")
+    ).not.toThrow();
+    expect(() =>
+      assertSafeMediaObjectKey("media/3810.m4s", "segment", "objectKey")
+    ).not.toThrow();
+    expect(() =>
+      assertSupportedMediaExtension("m4s", "part", "extension")
+    ).not.toThrow();
+  });
+
+  test("rejects unsupported media object extensions", () => {
+    expect(() =>
+      assertSafeMediaObjectKey("media/init.m4s", "init", "objectKey")
+    ).toThrow("objectKey must use a supported media extension");
+    expect(() =>
+      assertSupportedMediaExtension("mp4", "segment", "extension")
+    ).toThrow("extension must use a supported media extension");
   });
 });

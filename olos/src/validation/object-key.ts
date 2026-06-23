@@ -27,12 +27,7 @@ export function assertSafeMediaObjectKey(
     return;
   }
 
-  const allowedExtensions = MEDIA_OBJECT_EXTENSIONS[kind];
-
-  if (
-    allowedExtensions !== undefined &&
-    !allowedExtensions.some((extension) => value.endsWith(extension))
-  ) {
+  if (!hasSupportedMediaObjectExtension(value, kind)) {
     throw new Error(`${name} must use a supported media extension`);
   }
 }
@@ -42,12 +37,7 @@ export function assertSupportedMediaExtension(
   kind: MediaObjectKind,
   name: string
 ): void {
-  const allowedExtensions = MEDIA_OBJECT_EXTENSIONS[kind];
-
-  if (
-    allowedExtensions !== undefined &&
-    !allowedExtensions.includes(`.${extension}`)
-  ) {
+  if (!isSupportedMediaExtension(extension, kind)) {
     throw new Error(`${name} must use a supported media extension`);
   }
 }
@@ -88,6 +78,30 @@ function hasUnsafeObjectKeySegment(value: string): boolean {
 
 function isUnsafeObjectKeySegment(segment: string): boolean {
   return segment === "" || segment === "." || segment === "..";
+}
+
+function hasSupportedMediaObjectExtension(
+  objectKey: string,
+  kind: MediaObjectKind
+): boolean {
+  const allowedExtensions = MEDIA_OBJECT_EXTENSIONS[kind];
+
+  return (
+    allowedExtensions === undefined ||
+    allowedExtensions.some((extension) => objectKey.endsWith(extension))
+  );
+}
+
+function isSupportedMediaExtension(
+  extension: string,
+  kind: MediaObjectKind
+): boolean {
+  const allowedExtensions = MEDIA_OBJECT_EXTENSIONS[kind];
+
+  return (
+    allowedExtensions === undefined ||
+    allowedExtensions.includes(`.${extension}`)
+  );
 }
 
 const MEDIA_OBJECT_EXTENSIONS: Partial<
