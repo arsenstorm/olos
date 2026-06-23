@@ -120,6 +120,24 @@ describe("runtime live health", () => {
     });
   });
 
+  test("resolves state health without stored publisher leases", () => {
+    expect(
+      resolveRuntimeLiveHealthFromState({
+        maxCursorAgeMs: 3000,
+        now: "2026-01-01T00:00:02.000Z",
+        state: {
+          ...createEmptyCoordinatorState(),
+          cursor: cursor(),
+          publisherLeases: [],
+        },
+      })
+    ).toEqual({
+      cursorAgeMs: 2000,
+      cursorFreshness: "fresh",
+      status: "active",
+    });
+  });
+
   test("resolves health for a requested stored publisher lease", () => {
     expect(
       resolveRuntimeLiveHealthFromState({

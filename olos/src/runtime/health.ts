@@ -150,18 +150,38 @@ function selectPublisherLease(
   publisherInstanceId: string | undefined
 ): CoordinatorPublisherLease | undefined {
   if (publisherInstanceId !== undefined) {
-    return leases.find(
-      (lease) => lease.publisherInstanceId === publisherInstanceId
-    );
+    return selectRequestedPublisherLease(leases, publisherInstanceId);
   }
 
+  return selectLatestPublisherLease(leases);
+}
+
+function selectRequestedPublisherLease(
+  leases: readonly CoordinatorPublisherLease[],
+  publisherInstanceId: string
+): CoordinatorPublisherLease | undefined {
+  return leases.find(
+    (lease) => lease.publisherInstanceId === publisherInstanceId
+  );
+}
+
+function selectLatestPublisherLease(
+  leases: readonly CoordinatorPublisherLease[]
+): CoordinatorPublisherLease | undefined {
   let latest: CoordinatorPublisherLease | undefined;
 
   for (const lease of leases) {
-    if (latest === undefined || lease.lastSeenAt > latest.lastSeenAt) {
+    if (isNewerPublisherLease(lease, latest)) {
       latest = lease;
     }
   }
 
   return latest;
+}
+
+function isNewerPublisherLease(
+  lease: CoordinatorPublisherLease,
+  current: CoordinatorPublisherLease | undefined
+): boolean {
+  return current === undefined || lease.lastSeenAt > current.lastSeenAt;
 }
