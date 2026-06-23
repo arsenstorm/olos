@@ -174,6 +174,25 @@ describe("runtime latency profile", () => {
     });
   });
 
+  test("allows zero minimum bytes in publisher object defaults", () => {
+    expect(
+      createRuntimeObjectLowLatencyPublisherDefaults({
+        contentType: "video/mp4",
+        init: {
+          duration: 1,
+          maxBytes: 2048,
+          minBytes: 0,
+        },
+        part: {
+          maxBytes: 25_000,
+        },
+        segment: {
+          maxBytes: 100_000,
+        },
+      }).init.minBytes
+    ).toBe(0);
+  });
+
   test("rejects invalid publisher object defaults", () => {
     expect(() =>
       createRuntimeObjectLowLatencyPublisherDefaults({

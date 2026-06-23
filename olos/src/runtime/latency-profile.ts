@@ -143,23 +143,9 @@ function publisherObjectDefaults(options: {
   extension: string;
   object: RuntimeObjectLowLatencyPublisherObjectOptions;
 }): RuntimePublisherObjectKindDefaults {
-  if (options.contentType.length === 0) {
-    throw new Error("contentType must be a non-empty string");
-  }
-
-  positiveNumber(options.duration, "duration");
-
-  if (!isPositiveSafeInteger(options.object.maxBytes)) {
-    throw new Error("maxBytes must be a positive integer");
-  }
-
-  if (
-    options.object.minBytes !== undefined &&
-    (!isNonNegativeSafeInteger(options.object.minBytes) ||
-      options.object.minBytes > options.object.maxBytes)
-  ) {
-    throw new Error("minBytes must be a non-negative integer up to maxBytes");
-  }
+  assertPublisherObjectContentType(options.contentType);
+  assertPublisherObjectDuration(options.duration);
+  assertPublisherObjectByteBounds(options.object);
 
   return {
     contentType: options.contentType,
@@ -168,4 +154,39 @@ function publisherObjectDefaults(options: {
     maxBytes: options.object.maxBytes,
     ...optionalField("minBytes", options.object.minBytes),
   };
+}
+
+function assertPublisherObjectContentType(contentType: string): void {
+  if (contentType.length === 0) {
+    throw new Error("contentType must be a non-empty string");
+  }
+}
+
+function assertPublisherObjectDuration(duration: number): void {
+  positiveNumber(duration, "duration");
+}
+
+function assertPublisherObjectByteBounds(
+  object: RuntimeObjectLowLatencyPublisherObjectOptions
+): void {
+  assertPublisherObjectMaxBytes(object.maxBytes);
+  assertPublisherObjectMinBytes(object);
+}
+
+function assertPublisherObjectMaxBytes(maxBytes: number): void {
+  if (!isPositiveSafeInteger(maxBytes)) {
+    throw new Error("maxBytes must be a positive integer");
+  }
+}
+
+function assertPublisherObjectMinBytes(
+  object: RuntimeObjectLowLatencyPublisherObjectOptions
+): void {
+  if (
+    object.minBytes !== undefined &&
+    (!isNonNegativeSafeInteger(object.minBytes) ||
+      object.minBytes > object.maxBytes)
+  ) {
+    throw new Error("minBytes must be a non-negative integer up to maxBytes");
+  }
 }
