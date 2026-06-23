@@ -251,6 +251,30 @@ describe("runtime publisher upload step", () => {
     });
   });
 
+  test("returns issue failure when slot issuance does not issue a slot", async () => {
+    const step = await runRuntimePublisherUploadStep({
+      commit: () => Promise.resolve({ status: "should_not_commit" }),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      commitId: "commit_3810",
+      issueSlot: () => Promise.resolve({ status: "rejected" }),
+      slot: slotPayload({
+        deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+        duration: 2,
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKey: "media/v1080/3810.m4s",
+        slotId: "slot_3810",
+      }),
+      upload: () => Promise.reject(new Error("should not upload")),
+    });
+
+    expect(step).toEqual({
+      issue: { status: "rejected" },
+      status: "issue_failed",
+    });
+  });
+
   test("returns commit failure when commit throws", async () => {
     const store = createMemoryCoordinatorStore();
     await seedSession(store);

@@ -137,6 +137,10 @@ type IssuedRuntimePublisherIssueResult = RuntimePublisherIssueResult & {
   status: "issued";
 };
 
+type RuntimePublisherIssuePhaseResult =
+  | FailedRuntimePublisherIssueStep
+  | IssuedRuntimePublisherIssueResult;
+
 const SUCCESSFUL_PUBLISHER_STEP_STATUSES = [
   "committed",
   "idempotent",
@@ -151,16 +155,10 @@ export async function runRuntimePublisherUploadStep(
     return heartbeat.step;
   }
 
-  let issued: RuntimePublisherIssueResult;
+  const issued = await runPublisherIssueSlot(options, heartbeat.result);
 
-  try {
-    issued = await options.issueSlot(options.slot);
-  } catch (error) {
-    return failedRuntimePublisherIssueStep(error, heartbeat.result);
-  }
-
-  if (!isIssuedRuntimePublisherIssueResult(issued)) {
-    return unissuedRuntimePublisherIssueStep(issued, heartbeat.result);
+  if (isFailedRuntimePublisherIssueStep(issued)) {
+    return issued;
   }
 
   let observed: RuntimeObservedUploadPayload;
@@ -196,6 +194,23 @@ export async function runRuntimePublisherUploadStep(
     observed,
     issued.slot
   );
+}
+
+async function runPublisherIssueSlot(
+  options: RunRuntimePublisherUploadStepOptions,
+  heartbeat: RuntimePublisherHeartbeatResult | undefined
+): Promise<RuntimePublisherIssuePhaseResult> {
+  try {
+    const issued = await options.issueSlot(options.slot);
+
+    if (isIssuedRuntimePublisherIssueResult(issued)) {
+      return issued;
+    }
+
+    return unissuedRuntimePublisherIssueStep(issued, heartbeat);
+  } catch (error) {
+    return failedRuntimePublisherIssueStep(error, heartbeat);
+  }
 }
 
 function runtimePublisherCommitStep(
@@ -375,6 +390,12 @@ function isSuccessfulPublisherStepStatus(
   status: string
 ): status is SuccessfulRuntimePublisherUploadStep["status"] {
   return isStringLiteral(status, SUCCESSFUL_PUBLISHER_STEP_STATUSES);
+}
+
+function isFailedRuntimePublisherIssueStep(
+  result: RuntimePublisherIssuePhaseResult
+): result is FailedRuntimePublisherIssueStep {
+  return result.status === "issue_failed";
 }
 
 function isIssuedRuntimePublisherIssueResult(
