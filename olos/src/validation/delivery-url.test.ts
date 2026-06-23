@@ -35,6 +35,11 @@ const rejectedDeliveryUrlCases = [
   },
   {
     error: "url must be an absolute HTTP(S) URL or safe relative path",
+    label: "current directory segments",
+    value: "/live/./3810.m4s",
+  },
+  {
+    error: "url must be an absolute HTTP(S) URL or safe relative path",
     label: "repeated slashes",
     value: "/live//3810.m4s",
   },

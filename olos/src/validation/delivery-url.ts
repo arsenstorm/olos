@@ -45,10 +45,17 @@ function assertDeliveryUrlHasNoQueryOrFragment(
 }
 
 function isAllowedDeliveryReference(value: string): boolean {
-  if (value.startsWith("/") && isSafeRelativePath(value)) {
-    return true;
-  }
+  return (
+    isAllowedRelativeDeliveryReference(value) ||
+    isAllowedAbsoluteDeliveryReference(value)
+  );
+}
 
+function isAllowedRelativeDeliveryReference(value: string): boolean {
+  return value.startsWith("/") && isSafeRelativePath(value);
+}
+
+function isAllowedAbsoluteDeliveryReference(value: string): boolean {
   return parseAbsoluteUrl(value) !== undefined;
 }
 
