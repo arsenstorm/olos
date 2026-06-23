@@ -22,6 +22,11 @@ interface CommittedPartPositionTracker {
   seenParts: Map<number, string>;
 }
 
+interface CommittedSegmentPositionTracker {
+  previousSequence: number;
+  seenSegments: Set<number>;
+}
+
 export function isCommittedWindow(value: unknown): value is CommittedWindow {
   try {
     assertCommittedWindow(value);
@@ -104,17 +109,31 @@ function assertMonotonicSegments(
   segments: readonly unknown[],
   name: string
 ): void {
-  let previousSequence = -1;
-  const seenSegments = new Set<number>();
+  const positions = initialCommittedSegmentPositionTracker();
 
   for (const segment of segments) {
     assertCommittedSegment(segment, name);
-    assertUniqueSegmentPosition(segment, seenSegments, name);
-    assertMonotonicSegmentSequence(segment, previousSequence, name);
-
-    seenSegments.add(segment.mediaSequenceNumber);
-    previousSequence = segment.mediaSequenceNumber;
+    assertOrderedUniqueSegmentPosition(segment, positions, name);
   }
+}
+
+function initialCommittedSegmentPositionTracker(): CommittedSegmentPositionTracker {
+  return {
+    previousSequence: -1,
+    seenSegments: new Set<number>(),
+  };
+}
+
+function assertOrderedUniqueSegmentPosition(
+  segment: CommittedSegment,
+  positions: CommittedSegmentPositionTracker,
+  name: string
+): void {
+  assertUniqueSegmentPosition(segment, positions.seenSegments, name);
+  assertMonotonicSegmentSequence(segment, positions.previousSequence, name);
+
+  positions.seenSegments.add(segment.mediaSequenceNumber);
+  positions.previousSequence = segment.mediaSequenceNumber;
 }
 
 function assertUniqueSegmentPosition(

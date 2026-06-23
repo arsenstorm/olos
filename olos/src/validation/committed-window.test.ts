@@ -386,6 +386,23 @@ describe("committed window validation", () => {
     );
   });
 
+  test("accepts monotonic media sequences with gaps", () => {
+    const firstSegment = validSegment(0);
+    const thirdSegment = validSegment(2);
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [firstSegment, thirdSegment],
+          },
+        },
+      })
+    ).not.toThrow();
+  });
+
   test("accepts segments that include a full segment and parts", () => {
     const firstSegment = validSegment(0);
     const firstPart = validPart(0);
