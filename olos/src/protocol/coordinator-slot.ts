@@ -19,6 +19,13 @@ import type {
 } from "./coordinator";
 import { coordinatorError } from "./coordinator-error";
 
+type RevocableCoordinatorUpload =
+  | Extract<CoordinatorUploadRevocation, { status: "rejected" }>
+  | {
+      slot: UploadSlot;
+      status: "revocable";
+    };
+
 export function issueCoordinatorSlot(
   options: IssueCoordinatorSlotOptions
 ): CoordinatorSlotIssue {
@@ -48,6 +55,27 @@ export function issueCoordinatorSlot(
 export function revokeCoordinatorUpload(
   options: RevokeCoordinatorUploadOptions
 ): CoordinatorUploadRevocation {
+  const revocation = resolveRevocableCoordinatorUpload(options);
+
+  if (revocation.status === "rejected") {
+    return revocation;
+  }
+
+  const result = revokeUpload({ slot: revocation.slot });
+
+  return {
+    slot: result,
+    state: removeSlotCommit({
+      slot: result,
+      state: options.state,
+    }),
+    status: revocation.slot.state === "revoked" ? "already_revoked" : "revoked",
+  };
+}
+
+function resolveRevocableCoordinatorUpload(
+  options: RevokeCoordinatorUploadOptions
+): RevocableCoordinatorUpload {
   const slot = findSlot(options.state, options.slotId);
 
   if (slot === undefined) {
@@ -91,15 +119,9 @@ export function revokeCoordinatorUpload(
     };
   }
 
-  const result = revokeUpload({ slot });
-
   return {
-    slot: result,
-    state: removeSlotCommit({
-      slot: result,
-      state: options.state,
-    }),
-    status: slot.state === "revoked" ? "already_revoked" : "revoked",
+    slot,
+    status: "revocable",
   };
 }
 

@@ -769,6 +769,27 @@ describe("coordinator pipeline", () => {
     expect(committed.status).toBe("committed");
   });
 
+  test("rejects revocation for unknown upload slots", () => {
+    const state = createEmptyCoordinatorState();
+
+    const rejected = revokeCoordinatorUpload({
+      slotId: "slot_missing",
+      state,
+    });
+
+    expect(rejected.status).toBe("rejected");
+    if (rejected.status !== "rejected") {
+      throw new Error("expected unknown slot revocation rejection");
+    }
+
+    expect(rejected.error.error).toEqual({
+      code: "olos.unknown_slot",
+      details: { slotId: "slot_missing" },
+      message: "upload slot was not found",
+    });
+    expect(rejected.state).toBe(state);
+  });
+
   test("revokes committed uploads before they are announced", () => {
     let state = createEmptyCoordinatorState();
     const issued = issueCoordinatorSlot({
