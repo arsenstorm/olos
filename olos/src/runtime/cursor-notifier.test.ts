@@ -36,6 +36,23 @@ describe("runtime cursor notifier", () => {
     });
   });
 
+  test("resolves waiters when the cursor epoch advances", async () => {
+    const notifier = createMemoryRuntimeCursorNotifier();
+    const controller = new AbortController();
+    const waiting = notifier.waitForCursor({
+      cursor: cursorAt(3810),
+      request: { mediaSequenceNumber: 3810 },
+      signal: controller.signal,
+    });
+
+    notifier.notify(cursorAt(3810, 2));
+
+    await expect(waiting).resolves.toMatchObject({
+      epoch: 2,
+      window: { lastMediaSequenceNumber: 3810 },
+    });
+  });
+
   test("returns the latest cursor when it already advanced", async () => {
     const notifier = createMemoryRuntimeCursorNotifier();
 
@@ -67,11 +84,11 @@ describe("runtime cursor notifier", () => {
   });
 });
 
-function cursorAt(mediaSequenceNumber: number): Cursor {
+function cursorAt(mediaSequenceNumber: number, epoch = 1): Cursor {
   return {
     committedWindow: {
       discontinuitySequence: 0,
-      epoch: 1,
+      epoch,
       firstMediaSequenceNumber: mediaSequenceNumber,
       lastMediaSequenceNumber: mediaSequenceNumber,
       renditions: {
@@ -98,7 +115,7 @@ function cursorAt(mediaSequenceNumber: number): Cursor {
         },
       },
     },
-    epoch: 1,
+    epoch,
     latencyProfile: "object-ll",
     olos: "1.0",
     partTarget: 0.5,

@@ -14,6 +14,12 @@ interface CursorWaiter {
   resolve(cursor: Cursor | undefined): void;
 }
 
+interface CursorProgress {
+  epoch: number;
+  lastMediaSequenceNumber: number;
+  lastPartNumber: number;
+}
+
 export function createMemoryRuntimeCursorNotifier(): RuntimeCursorNotifier {
   const latest = new Map<string, Cursor>();
   const waiters = new Map<string, Set<CursorWaiter>>();
@@ -107,23 +113,38 @@ function isCursorAfter(cursor: Cursor, after: Cursor): boolean {
     return false;
   }
 
-  if (cursor.epoch !== after.epoch) {
-    return cursor.epoch > after.epoch;
-  }
-
-  if (
-    cursor.window.lastMediaSequenceNumber !==
-    after.window.lastMediaSequenceNumber
-  ) {
-    return (
-      cursor.window.lastMediaSequenceNumber >
-      after.window.lastMediaSequenceNumber
-    );
-  }
-
-  return lastPartNumber(cursor) > lastPartNumber(after);
+  return (
+    compareCursorProgress(cursorProgress(cursor), cursorProgress(after)) > 0
+  );
 }
 
-function lastPartNumber(cursor: Cursor): number {
-  return cursor.window.lastPartNumber ?? SEGMENT_ONLY_CURSOR_PART_ORDER;
+function compareCursorProgress(
+  cursor: CursorProgress,
+  after: CursorProgress
+): number {
+  return (
+    compareNumber(cursor.epoch, after.epoch) ||
+    compareNumber(
+      cursor.lastMediaSequenceNumber,
+      after.lastMediaSequenceNumber
+    ) ||
+    compareNumber(cursor.lastPartNumber, after.lastPartNumber)
+  );
+}
+
+function cursorProgress(cursor: Cursor): CursorProgress {
+  return {
+    epoch: cursor.epoch,
+    lastMediaSequenceNumber: cursor.window.lastMediaSequenceNumber,
+    lastPartNumber:
+      cursor.window.lastPartNumber ?? SEGMENT_ONLY_CURSOR_PART_ORDER,
+  };
+}
+
+function compareNumber(left: number, right: number): number {
+  if (left === right) {
+    return 0;
+  }
+
+  return left > right ? 1 : -1;
 }
