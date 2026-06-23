@@ -39,9 +39,13 @@ function assertDeliveryUrlHasNoQueryOrFragment(
   value: string,
   name: string
 ): void {
-  if (value.includes("?") || value.includes("#")) {
+  if (hasQueryOrFragment(value)) {
     throw new Error(`${name} must not contain query strings or fragments`);
   }
+}
+
+function hasQueryOrFragment(value: string): boolean {
+  return value.includes("?") || value.includes("#");
 }
 
 function isAllowedDeliveryReference(value: string): boolean {

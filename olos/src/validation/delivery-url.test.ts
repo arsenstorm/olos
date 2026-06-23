@@ -29,6 +29,11 @@ const rejectedDeliveryUrlCases = [
     value: "/live/3810.m4s?token=1",
   },
   {
+    error: "url must not contain query strings or fragments",
+    label: "fragments",
+    value: "/live/3810.m4s#part",
+  },
+  {
     error: "url must be an absolute HTTP(S) URL or safe relative path",
     label: "parent directory segments",
     value: "/live/../secret.m4s",
