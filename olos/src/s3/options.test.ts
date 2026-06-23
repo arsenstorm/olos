@@ -10,5 +10,8 @@ describe("S3 option validation", () => {
     expect(() => assertPositiveExpiresInSeconds(0)).toThrow(
       "expiresInSeconds must be a positive number"
     );
+    expect(() => assertPositiveExpiresInSeconds(-1)).toThrow(
+      "expiresInSeconds must be a positive number"
+    );
   });
 });
