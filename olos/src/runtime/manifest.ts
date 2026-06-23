@@ -1,4 +1,5 @@
 import {
+  type BlockingHlsManifestArtifactResponseResolution,
   type CreateHlsManifestArtifactResponseOptions,
   createHlsManifestArtifactResponse,
   createHlsManifestErrorWebResponse,
@@ -56,11 +57,7 @@ export async function serveBlockingCoordinatorManifest(
     waitForCursor,
   });
 
-  if (resolved.status === "invalid" || resolved.status === "not_found") {
-    return createHlsManifestErrorWebResponse(resolved);
-  }
-
-  return createHlsManifestWebResponse(resolved.response);
+  return blockingManifestResponse(resolved);
 }
 
 function resolveCoordinatorManifestResponse(
@@ -91,6 +88,16 @@ function optionalManifestResponse(
   return resolved === undefined
     ? manifestNotFoundResponse()
     : createHlsManifestWebResponse(resolved);
+}
+
+function blockingManifestResponse(
+  resolved: BlockingHlsManifestArtifactResponseResolution
+): Response {
+  if (resolved.status === "invalid" || resolved.status === "not_found") {
+    return createHlsManifestErrorWebResponse(resolved);
+  }
+
+  return createHlsManifestWebResponse(resolved.response);
 }
 
 function manifestNotFoundResponse(): Response {

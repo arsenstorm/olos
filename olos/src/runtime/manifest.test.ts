@@ -93,4 +93,22 @@ describe("runtime manifest adapter", () => {
     expect(response.status).toBe(404);
     expect(await response.text()).toBe("manifest not found");
   });
+
+  test("returns invalid responses for malformed blocking reload requests", async () => {
+    const response = await serveBlockingCoordinatorManifest({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: testCoordinatorSession.partTarget,
+      request: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=bad",
+      segmentTarget: testCoordinatorSession.segmentTarget,
+      state: createCoordinatorStateWithCommittedSegment(),
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe(
+      "_HLS_msn must be a non-negative integer"
+    );
+  });
 });
