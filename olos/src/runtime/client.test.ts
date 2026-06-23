@@ -363,6 +363,28 @@ describe("runtime HTTP client", () => {
     ).rejects.toThrow("media playlist failed with status 404");
   });
 
+  test("captures text bodies for failed runtime responses", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response("plain failure", {
+          status: 503,
+        })
+      );
+
+    const error = getRuntimeMasterPlaylist({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      sessionId: session.sessionId,
+    }).catch((caught: unknown) => caught);
+
+    await expect(error).resolves.toBeInstanceOf(RuntimeHttpError);
+    await expect(error).resolves.toMatchObject({
+      body: "plain failure",
+      message: "master playlist failed with status 503",
+      status: 503,
+    });
+  });
+
   test("validates slot issue response payloads", async () => {
     const clientFetch: RuntimeFetch = () =>
       Promise.resolve(

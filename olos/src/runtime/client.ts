@@ -167,9 +167,7 @@ export async function sendRuntimePublisherHeartbeat(
     })
   );
 
-  if (!response.ok) {
-    throw await runtimeHttpError("publisher heartbeat", response);
-  }
+  await assertRuntimeHttpResponseOk("publisher heartbeat", response);
 
   return {
     lease: leasePayload(await response.json()),
@@ -188,9 +186,7 @@ export async function createRuntimeSession(
     })
   );
 
-  if (!response.ok) {
-    throw await runtimeHttpError("session create", response);
-  }
+  await assertRuntimeHttpResponseOk("session create", response);
 
   return {
     response,
@@ -206,9 +202,7 @@ export async function transitionRuntimeSession(
     jsonPost({ state: options.state })
   );
 
-  if (!response.ok) {
-    throw await runtimeHttpError("session transition", response);
-  }
+  await assertRuntimeHttpResponseOk("session transition", response);
 
   const payload = transitionPayload(await response.json());
 
@@ -226,9 +220,7 @@ export async function issueRuntimeSlot(
     jsonPost(options.payload)
   );
 
-  if (!response.ok) {
-    throw await runtimeHttpError("slot issue", response);
-  }
+  await assertRuntimeHttpResponseOk("slot issue", response);
 
   return {
     response,
@@ -244,9 +236,7 @@ export async function commitRuntimeUpload(
     jsonPost(options.payload)
   );
 
-  if (!response.ok) {
-    throw await runtimeHttpError("upload commit", response);
-  }
+  await assertRuntimeHttpResponseOk("upload commit", response);
 
   return {
     ...commitPayload(await response.json()),
@@ -265,9 +255,7 @@ export async function getRuntimeSessionHealth(
 
   const response = await fetchFor(options)(url);
 
-  if (!response.ok) {
-    throw await runtimeHttpError("session health", response);
-  }
+  await assertRuntimeHttpResponseOk("session health", response);
 
   return {
     health: healthPayload(await response.json()),
@@ -286,9 +274,7 @@ export async function getRuntimeSessionRetentionPlan(
 
   const response = await fetchFor(options)(url);
 
-  if (!response.ok) {
-    throw await runtimeHttpError("session retention", response);
-  }
+  await assertRuntimeHttpResponseOk("session retention", response);
 
   return {
     plan: retentionPayload(await response.json()),
@@ -301,9 +287,7 @@ export async function getRuntimeMasterPlaylist(
 ): Promise<RuntimePlaylistResponse> {
   const response = await fetchFor(options)(liveUrl(options));
 
-  if (!response.ok) {
-    throw await runtimeHttpError("master playlist", response);
-  }
+  await assertRuntimeHttpResponseOk("master playlist", response);
 
   return {
     playlist: await response.text(),
@@ -328,9 +312,7 @@ export async function getRuntimeMediaPlaylist(
 
   const response = await fetchFor(options)(url);
 
-  if (!response.ok) {
-    throw await runtimeHttpError("media playlist", response);
-  }
+  await assertRuntimeHttpResponseOk("media playlist", response);
 
   return {
     playlist: await response.text(),
@@ -366,6 +348,17 @@ function liveUrl(
     relativePath[0] === "/" ? relativePath.slice(1) : relativePath;
 
   return new URL(requestPath, normalizedBaseUrl(options.baseUrl));
+}
+
+async function assertRuntimeHttpResponseOk(
+  operation: string,
+  response: Response
+): Promise<void> {
+  if (response.ok) {
+    return;
+  }
+
+  throw await runtimeHttpError(operation, response);
 }
 
 async function runtimeHttpError(
