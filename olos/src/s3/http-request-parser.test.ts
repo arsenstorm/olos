@@ -17,6 +17,10 @@ describe("S3 HTTP request parser", () => {
       message: "S3 retention request must be a JSON object",
       status: "invalid",
     });
+    await expect(parseS3RetentionRequest(jsonRequest([]))).resolves.toEqual({
+      message: "S3 retention request must be a JSON object",
+      status: "invalid",
+    });
   });
 
   test("maps S3 retention field parser errors to request errors", async () => {
