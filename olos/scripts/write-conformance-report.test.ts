@@ -17,6 +17,7 @@ describe("conformance report writer", () => {
     expect(report).toContain(
       "| `CORE-LATE-002` | covered | `src/state/commit.test.ts` |"
     );
+    expect(report).not.toContain("## Unmapped Assertions");
   });
 
   test("summarizes release-gated conformance coverage", () => {

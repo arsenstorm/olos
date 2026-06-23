@@ -13,6 +13,9 @@ const reportRoot = join(repoRoot, "out", "conformance");
 const reportPath = join(reportRoot, "conformance.md");
 
 const levels = ["core", "object", "hls", "security"] as const;
+const coveredAssertionIds = new Set(
+  OLOS_CONFORMANCE_COVERAGE.map((entry) => entry.id)
+);
 
 if (isCliEntry(import.meta.url)) {
   const report = buildConformanceReport();
@@ -35,12 +38,14 @@ export interface ConformanceReportSummary {
   unmapped: number;
 }
 
+interface ConformanceReportLevelSummary extends ConformanceReportSummary {
+  level: OlosConformanceLevel;
+}
+
 export function buildConformanceReport(): string {
   const rows = levels.map((level) => countLevel(level));
   const total = summarizeRows(rows);
-  const unmappedIds = OLOS_CONFORMANCE_ASSERTION_IDS.filter(
-    (id) => !OLOS_CONFORMANCE_COVERAGE.some((entry) => entry.id === id)
-  );
+  const unmappedIds = unmappedAssertionIds();
   const lines = [
     "# OLOS Conformance",
     "",
@@ -85,20 +90,18 @@ export function buildConformanceReport(): string {
   return `${lines.join("\n")}\n`;
 }
 
-function countLevel(level: OlosConformanceLevel) {
-  const known = OLOS_CONFORMANCE_ASSERTION_IDS.filter(
-    (id) => levelFromAssertionId(id) === level
-  ).length;
-  const coverage = OLOS_CONFORMANCE_COVERAGE.filter(
-    (entry) => entry.level === level
-  );
+function countLevel(
+  level: OlosConformanceLevel
+): ConformanceReportLevelSummary {
+  const coverage = coverageForLevel(level);
+  const known = countKnownAssertions(level);
 
   return {
-    covered: coverage.filter((entry) => entry.status === "covered").length,
+    covered: countCoverageStatus(coverage, "covered"),
     known,
     level,
     mapped: coverage.length,
-    partial: coverage.filter((entry) => entry.status === "partial").length,
+    partial: countCoverageStatus(coverage, "partial"),
     unmapped: known - coverage.length,
   };
 }
@@ -120,6 +123,29 @@ function summarizeRows(
     }),
     { covered: 0, known: 0, mapped: 0, partial: 0, unmapped: 0 }
   );
+}
+
+function unmappedAssertionIds(): OlosConformanceAssertionId[] {
+  return OLOS_CONFORMANCE_ASSERTION_IDS.filter(
+    (id) => !coveredAssertionIds.has(id)
+  );
+}
+
+function coverageForLevel(level: OlosConformanceLevel) {
+  return OLOS_CONFORMANCE_COVERAGE.filter((entry) => entry.level === level);
+}
+
+function countKnownAssertions(level: OlosConformanceLevel): number {
+  return OLOS_CONFORMANCE_ASSERTION_IDS.filter(
+    (id) => levelFromAssertionId(id) === level
+  ).length;
+}
+
+function countCoverageStatus(
+  coverage: ReturnType<typeof coverageForLevel>,
+  status: "covered" | "partial"
+): number {
+  return coverage.filter((entry) => entry.status === status).length;
 }
 
 function labelLevel(level: OlosConformanceLevel): string {
