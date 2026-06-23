@@ -346,6 +346,29 @@ describe("HLS manifest artifacts", () => {
     }
   });
 
+  test("resolves blocking manifest responses from absolute HTTPS URLs", async () => {
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl:
+        "https://edge.example.com/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810",
+      session,
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result.status).toBe("ready");
+
+    if (result.status === "ready" || result.status === "timeout") {
+      expect(result.response.body).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
+    }
+  });
+
   test("waits before resolving a future media playlist request", async () => {
     const result = await resolveBlockingHlsManifestArtifactResponse({
       cursor,

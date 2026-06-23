@@ -248,6 +248,16 @@ export async function resolveBlockingHlsManifestArtifactResponse(
     return wait;
   }
 
+  return blockingHlsManifestArtifactResponseResolution(options, wait);
+}
+
+function blockingHlsManifestArtifactResponseResolution(
+  options: ResolveBlockingHlsManifestArtifactResponseOptions,
+  wait: Extract<
+    Awaited<ReturnType<typeof waitForHlsBlockingReload>>,
+    { status: "ready" | "timeout" }
+  >
+): BlockingHlsManifestArtifactResponseResolution {
   const response = resolveHlsManifestArtifactResponse(
     createResponseArtifacts(options.session, wait.cursor, options),
     options.requestUrl
