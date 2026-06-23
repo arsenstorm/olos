@@ -167,6 +167,34 @@ describe("s3 object observation", () => {
     expect(object.size).toBe(98_304);
   });
 
+  test("observes objects without versions using the injected fallback clock", async () => {
+    const client: S3HeadObjectClient = {
+      send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
+        expect(command.input).toEqual({
+          Bucket: "media",
+          Key: "live/session/v1080/3810.m4s",
+        });
+
+        return Promise.resolve({
+          $metadata: {},
+          ContentLength: 98_304,
+          ContentType: "video/mp4",
+        });
+      },
+    };
+
+    const object = await observeS3Object({
+      bucket: "media",
+      client,
+      clock: () => "2026-01-01T00:00:04.000Z",
+      objectKey: "live/session/v1080/3810.m4s",
+      providerId: "s3_primary",
+    });
+
+    expect(object.observedAt).toBe("2026-01-01T00:00:04.000Z");
+    expect(object.objectKey).toBe("live/session/v1080/3810.m4s");
+  });
+
   test("rejects invalid S3 object observation options before HeadObject", async () => {
     let sends = 0;
     const client: S3HeadObjectClient = {

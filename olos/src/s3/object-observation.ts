@@ -11,6 +11,10 @@ import { assertS3BucketName } from "./bucket";
 
 const DEFAULT_OBJECT_OBSERVATION_NOW = () => new Date();
 
+type S3HeadObjectCommandInput = ConstructorParameters<
+  typeof HeadObjectCommand
+>[0];
+
 export interface S3HeadObjectClient {
   send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput>;
 }
@@ -41,22 +45,12 @@ export async function observeS3Object(
   assertObserveS3ObjectOptions(options);
 
   const output = await options.client.send(
-    new HeadObjectCommand({
-      Bucket: options.bucket,
-      Key: options.objectKey,
-      ...(options.versionId === undefined
-        ? {}
-        : { VersionId: options.versionId }),
-    })
+    new HeadObjectCommand(s3HeadObjectCommandInput(options))
   );
 
-  return createObservedUploadFromS3HeadObject({
-    objectKey: options.objectKey,
-    observedAt: options.observedAt,
-    now: options.now,
-    output,
-    providerId: options.providerId,
-  });
+  return createObservedUploadFromS3HeadObject(
+    observedUploadFromS3HeadObjectOptions(options, output)
+  );
 }
 
 function assertObserveS3ObjectOptions(options: ObserveS3ObjectOptions): void {
@@ -93,6 +87,32 @@ export function createObservedUploadFromS3HeadObject(
     providerId: options.providerId,
     size: options.output.ContentLength,
   });
+}
+
+function s3HeadObjectCommandInput(
+  options: Pick<ObserveS3ObjectOptions, "bucket" | "objectKey" | "versionId">
+): S3HeadObjectCommandInput {
+  return {
+    Bucket: options.bucket,
+    Key: options.objectKey,
+    ...(options.versionId === undefined
+      ? {}
+      : { VersionId: options.versionId }),
+  };
+}
+
+function observedUploadFromS3HeadObjectOptions(
+  options: ObserveS3ObjectOptions,
+  output: HeadObjectCommandOutput
+): CreateObservedUploadFromS3HeadObjectOptions {
+  return {
+    clock: options.clock,
+    objectKey: options.objectKey,
+    observedAt: options.observedAt,
+    now: options.now,
+    output,
+    providerId: options.providerId,
+  };
 }
 
 function normalizeS3Metadata(
