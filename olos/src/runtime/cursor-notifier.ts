@@ -44,31 +44,46 @@ export function createMemoryRuntimeCursorNotifier(): RuntimeCursorNotifier {
         return Promise.resolve(undefined);
       }
 
-      const current = latest.get(context.cursor.sessionId);
+      const advanced = advancedLatestCursor(latest, context.cursor);
 
-      if (current !== undefined && isCursorAfter(current, context.cursor)) {
-        return Promise.resolve(current);
+      if (advanced !== undefined) {
+        return Promise.resolve(advanced);
       }
 
-      return new Promise((resolve) => {
-        const sessionWaiters = waitersForSession(
-          waiters,
-          context.cursor.sessionId
-        );
-        const waiter: CursorWaiter = {
-          after: context.cursor,
-          resolve,
-        };
-        const abort = () => {
-          sessionWaiters.delete(waiter);
-          resolve(undefined);
-        };
-
-        context.signal.addEventListener("abort", abort, { once: true });
-        sessionWaiters.add(waiter);
-      });
+      return waitForAdvancedCursor(waiters, context);
     },
   };
+}
+
+function advancedLatestCursor(
+  latest: ReadonlyMap<string, Cursor>,
+  after: Cursor
+): Cursor | undefined {
+  const current = latest.get(after.sessionId);
+
+  return current !== undefined && isCursorAfter(current, after)
+    ? current
+    : undefined;
+}
+
+function waitForAdvancedCursor(
+  waiters: Map<string, Set<CursorWaiter>>,
+  context: HlsCursorWaitContext
+): Promise<Cursor | undefined> {
+  return new Promise((resolve) => {
+    const sessionWaiters = waitersForSession(waiters, context.cursor.sessionId);
+    const waiter: CursorWaiter = {
+      after: context.cursor,
+      resolve,
+    };
+    const abort = () => {
+      sessionWaiters.delete(waiter);
+      resolve(undefined);
+    };
+
+    context.signal.addEventListener("abort", abort, { once: true });
+    sessionWaiters.add(waiter);
+  });
 }
 
 function resolveAdvancedWaiters(

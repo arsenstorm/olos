@@ -53,6 +53,22 @@ describe("runtime cursor notifier", () => {
     });
   });
 
+  test("resolves waiters when the cursor part advances", async () => {
+    const notifier = createMemoryRuntimeCursorNotifier();
+    const controller = new AbortController();
+    const waiting = notifier.waitForCursor({
+      cursor: cursorAt(3810, 1, 0),
+      request: { mediaSequenceNumber: 3810, partNumber: 1 },
+      signal: controller.signal,
+    });
+
+    notifier.notify(cursorAt(3810, 1, 1));
+
+    await expect(waiting).resolves.toMatchObject({
+      window: { lastMediaSequenceNumber: 3810, lastPartNumber: 1 },
+    });
+  });
+
   test("returns the latest cursor when it already advanced", async () => {
     const notifier = createMemoryRuntimeCursorNotifier();
 
@@ -84,7 +100,11 @@ describe("runtime cursor notifier", () => {
   });
 });
 
-function cursorAt(mediaSequenceNumber: number, epoch = 1): Cursor {
+function cursorAt(
+  mediaSequenceNumber: number,
+  epoch = 1,
+  lastPartNumber?: number
+): Cursor {
   return {
     committedWindow: {
       discontinuitySequence: 0,
@@ -136,6 +156,7 @@ function cursorAt(mediaSequenceNumber: number, epoch = 1): Cursor {
     window: {
       firstMediaSequenceNumber: mediaSequenceNumber,
       lastMediaSequenceNumber: mediaSequenceNumber,
+      ...(lastPartNumber === undefined ? {} : { lastPartNumber }),
     },
   };
 }
