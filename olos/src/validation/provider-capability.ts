@@ -41,6 +41,42 @@ const OPTIONAL_DELIVERY_BOOLEAN_FIELDS = [
   "documentNavigationCanBeBlocked",
 ] as const;
 
+interface DirectPublicationPreconditionContext {
+  consistency: Record<string, unknown>;
+  delivery: Record<string, unknown>;
+  publication: Record<string, unknown>;
+}
+
+interface DirectPublicationPrecondition {
+  isSatisfied: (context: DirectPublicationPreconditionContext) => boolean;
+  message: string;
+}
+
+const DIRECT_PUBLICATION_PRECONDITIONS = [
+  {
+    isSatisfied: ({ publication }) =>
+      publication.manifestGatedPublication === true,
+    message:
+      "providerCapability.publication.manifestGatedPublication must be true for direct object publication",
+  },
+  {
+    isSatisfied: ({ consistency }) => consistency.headAfterCreate === "strong",
+    message:
+      "providerCapability.consistency.headAfterCreate must be strong for direct object publication",
+  },
+  {
+    isSatisfied: ({ publication }) => publication.overwritesAllowed !== true,
+    message:
+      "providerCapability.publication.overwritesAllowed must not be true for direct object publication",
+  },
+  {
+    isSatisfied: ({ delivery }) =>
+      delivery.negativeCachingPolicyDeclared === true,
+    message:
+      "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct object publication",
+  },
+] satisfies readonly DirectPublicationPrecondition[];
+
 export function isProviderCapabilityDocument(
   value: unknown
 ): value is ProviderCapabilityDocument {
@@ -227,53 +263,28 @@ function assertCapabilityPreconditions(value: Record<string, unknown>): void {
     return;
   }
 
-  const consistency = providerCapabilityRecordField(value, "consistency");
-  const delivery = providerCapabilityRecordField(value, "delivery");
-  const publication = providerCapabilityRecordField(value, "publication");
-
-  assertDirectPublicationRequiresManifestGating(publication);
-  assertDirectPublicationRequiresStrongHeadConsistency(consistency);
-  assertDirectPublicationForbidsOverwrites(publication);
-  assertDirectPublicationRequiresNegativeCachingPolicy(delivery);
+  assertDirectPublicationPreconditions(
+    directPublicationPreconditionContext(value)
+  );
 }
 
-function assertDirectPublicationRequiresManifestGating(
-  publication: Record<string, unknown>
-): void {
-  if (publication.manifestGatedPublication !== true) {
-    throw new Error(
-      "providerCapability.publication.manifestGatedPublication must be true for direct object publication"
-    );
-  }
+function directPublicationPreconditionContext(
+  value: Record<string, unknown>
+): DirectPublicationPreconditionContext {
+  return {
+    consistency: providerCapabilityRecordField(value, "consistency"),
+    delivery: providerCapabilityRecordField(value, "delivery"),
+    publication: providerCapabilityRecordField(value, "publication"),
+  };
 }
 
-function assertDirectPublicationRequiresStrongHeadConsistency(
-  consistency: Record<string, unknown>
+function assertDirectPublicationPreconditions(
+  context: DirectPublicationPreconditionContext
 ): void {
-  if (consistency.headAfterCreate !== "strong") {
-    throw new Error(
-      "providerCapability.consistency.headAfterCreate must be strong for direct object publication"
-    );
-  }
-}
-
-function assertDirectPublicationForbidsOverwrites(
-  publication: Record<string, unknown>
-): void {
-  if (publication.overwritesAllowed === true) {
-    throw new Error(
-      "providerCapability.publication.overwritesAllowed must not be true for direct object publication"
-    );
-  }
-}
-
-function assertDirectPublicationRequiresNegativeCachingPolicy(
-  delivery: Record<string, unknown>
-): void {
-  if (delivery.negativeCachingPolicyDeclared !== true) {
-    throw new Error(
-      "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct object publication"
-    );
+  for (const precondition of DIRECT_PUBLICATION_PRECONDITIONS) {
+    if (!precondition.isSatisfied(context)) {
+      throw new Error(precondition.message);
+    }
   }
 }
 

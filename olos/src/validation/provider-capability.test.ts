@@ -148,6 +148,28 @@ describe("provider capability validation", () => {
     ).not.toThrow();
   });
 
+  test("skips direct-publication preconditions when direct publication is disabled", () => {
+    expect(() =>
+      assertProviderCapabilityDocument({
+        ...capability,
+        consistency: {
+          ...capability.consistency,
+          headAfterCreate: "eventual",
+        },
+        delivery: {
+          ...capability.delivery,
+          negativeCachingPolicyDeclared: false,
+        },
+        publication: {
+          ...capability.publication,
+          directObjectPublication: false,
+          manifestGatedPublication: false,
+          overwritesAllowed: true,
+        },
+      })
+    ).not.toThrow();
+  });
+
   test("rejects capabilities without an upload grant mechanism", () => {
     expect(() =>
       assertProviderCapabilityDocument({
