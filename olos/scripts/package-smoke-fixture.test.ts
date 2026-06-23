@@ -7,7 +7,10 @@ import {
   packageExportSubpaths,
 } from "./package-export-map";
 import { writePackageSmokeFile } from "./package-smoke-fixture";
-import { packageTypeSmokeConfig } from "./package-smoke-types";
+import {
+  packageTypeSmokeConfig,
+  packageTypeSmokeSource,
+} from "./package-smoke-types";
 import { expectedRuntimeExports } from "./public-surface";
 import { withTemporaryDirectory } from "./test-temp-dir";
 
@@ -97,6 +100,22 @@ describe("package smoke fixture", () => {
       },
       include: ["smoke.ts"],
     });
+  });
+
+  test("emits type smoke sections in dependency order", () => {
+    const source = packageTypeSmokeSource();
+
+    expect(
+      source.indexOf('import { OLOS_WIRE_VERSION } from "olos";')
+    ).toBeLessThan(
+      source.indexOf("const profile = createRuntimeObjectLowLatencyProfile();")
+    );
+    expect(
+      source.indexOf("const profile = createRuntimeObjectLowLatencyProfile();")
+    ).toBeLessThan(source.indexOf("const session: Session = {"));
+    expect(source.indexOf("const s3PublisherSummary")).toBeLessThan(
+      source.indexOf("if (!grant.requiredHeaders)")
+    );
   });
 });
 

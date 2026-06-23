@@ -9,9 +9,7 @@ const typeSmokeTsConfig = {
   include: ["smoke.ts"],
 } as const;
 
-export function packageTypeSmokeSource(): string {
-  return `
-import { OLOS_WIRE_VERSION } from "olos";
+const typeSmokeImports = `import { OLOS_WIRE_VERSION } from "olos";
 import {
   createHlsManifestArtifactResponse,
   createHlsManifestErrorWebResponse,
@@ -117,7 +115,9 @@ import type {
   UploadSlot,
 } from "olos/types";
 import { assertSession } from "olos/validation";
+`;
 
+const typeSmokeFunctionBindings = `
 const profile = createRuntimeObjectLowLatencyProfile();
 const manifestArtifactResponse: typeof createHlsManifestArtifactResponse =
   createHlsManifestArtifactResponse;
@@ -251,7 +251,9 @@ const s3ReconciliationLateTolerance = {
 const s3PublisherLateTolerance = {
   lateToleranceMs: 500,
 } satisfies Pick<RunPlannedStoredS3PublisherUploadStepOptions, "lateToleranceMs">;
+`;
 
+const typeSmokeFixtures = `
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
   epoch: 1,
@@ -464,7 +466,9 @@ const s3PublisherSummary: StoredS3PublisherUploadStepSummary = {
   ok: true,
   status: "committed",
 };
+`;
 
+const typeSmokeAssertions = `
 if (!grant.requiredHeaders) {
   throw new Error("expected S3 grant headers");
 }
@@ -566,7 +570,17 @@ s3RuntimeReconciliationPlanOptions satisfies S3RuntimePlanReconciliationOptions;
 s3RuntimeReconciliationOptions satisfies S3RuntimeReconcileUploadsOptions;
 s3RuntimeRetentionPayload satisfies S3RuntimeRetentionPayload;
 s3RuntimeRetentionOptions satisfies S3RuntimeApplyRetentionOptions;
-`.trimStart();
+`;
+
+const typeSmokeSourceSections = [
+  typeSmokeImports,
+  typeSmokeFunctionBindings,
+  typeSmokeFixtures,
+  typeSmokeAssertions,
+] as const;
+
+export function packageTypeSmokeSource(): string {
+  return `${typeSmokeSourceSections.join("\n")}\n`;
 }
 
 export function packageTypeSmokeConfig(): string {
