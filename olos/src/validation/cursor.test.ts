@@ -122,6 +122,21 @@ describe("cursor validation", () => {
     ).toThrow("cursor.pathways must not contain duplicate pathway IDs");
   });
 
+  test("rejects duplicate pathway IDs across distinct pathway objects", () => {
+    expect(() =>
+      assertCursor({
+        ...validCursor,
+        pathways: [
+          validCursor.pathways[0],
+          {
+            ...validCursor.pathways[0],
+            providerId: "provider_2",
+          },
+        ],
+      })
+    ).toThrow("cursor.pathways must not contain duplicate pathway IDs");
+  });
+
   test("rejects invalid pathway state", () => {
     expect(() =>
       assertCursor({

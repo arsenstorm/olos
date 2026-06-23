@@ -118,16 +118,27 @@ function assertCursorWindowSequence(
 
 function assertPathways(value: unknown): asserts value is Pathway[] {
   const pathways = nonEmptyArray<Pathway>(value, "cursor.pathways");
-
   const seenPathways = new Set<string>();
 
   for (const pathway of pathways) {
-    assertPathway(pathway);
+    assertUniquePathway(pathway, seenPathways);
+  }
+}
 
-    if (seenPathways.has(pathway.pathwayId)) {
-      throw new Error("cursor.pathways must not contain duplicate pathway IDs");
-    }
+function assertUniquePathway(
+  pathway: Pathway,
+  seenPathways: Set<string>
+): void {
+  assertPathway(pathway);
+  assertPathwayIdHasNotBeenSeen(pathway.pathwayId, seenPathways);
+  seenPathways.add(pathway.pathwayId);
+}
 
-    seenPathways.add(pathway.pathwayId);
+function assertPathwayIdHasNotBeenSeen(
+  pathwayId: string,
+  seenPathways: Set<string>
+): void {
+  if (seenPathways.has(pathwayId)) {
+    throw new Error("cursor.pathways must not contain duplicate pathway IDs");
   }
 }
