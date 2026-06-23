@@ -99,6 +99,26 @@ describe("master playlist rendering", () => {
     ).toThrow("session.renditions must include at least one video rendition");
   });
 
+  test("rejects renditions without codecs", () => {
+    const [videoRendition] = session.renditions;
+
+    if (videoRendition === undefined) {
+      throw new Error("expected video rendition fixture");
+    }
+
+    expect(() =>
+      renderMasterPlaylist({
+        ...session,
+        renditions: [
+          {
+            ...videoRendition,
+            codec: "",
+          },
+        ],
+      })
+    ).toThrow("rendition v1080 must define codec");
+  });
+
   test("rejects video renditions with partial resolution dimensions", () => {
     const [videoRendition] = session.renditions;
 

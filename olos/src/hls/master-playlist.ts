@@ -122,14 +122,18 @@ function assertSessionShape(session: Session): void {
   }
 
   for (const rendition of session.renditions) {
-    if (!isUrlSafeIdentifier(rendition.renditionId)) {
-      throw new Error(
-        "rendition.renditionId must be a non-empty URL-safe identifier"
-      );
-    }
+    assertRenditionShape(rendition);
+  }
+}
 
-    if (typeof rendition.codec !== "string" || rendition.codec.length === 0) {
-      throw new Error(`rendition ${rendition.renditionId} must define codec`);
-    }
+function assertRenditionShape(rendition: Rendition): void {
+  if (!isUrlSafeIdentifier(rendition.renditionId)) {
+    throw new Error(
+      "rendition.renditionId must be a non-empty URL-safe identifier"
+    );
+  }
+
+  if (typeof rendition.codec !== "string" || rendition.codec.length === 0) {
+    throw new Error(`rendition ${rendition.renditionId} must define codec`);
   }
 }
