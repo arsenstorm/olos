@@ -29,40 +29,65 @@ export interface LargeFileReportEntry {
   relativePath: string;
 }
 
+interface ResolvedFileSizeReportOptions {
+  excludedPrefixes: readonly string[];
+  includedExtensions: readonly string[];
+  maxLines: number;
+  root: string;
+}
+
 export async function largeFileReport(
   options: FileSizeReportOptions
 ): Promise<LargeFileReportEntry[]> {
-  const excludedPrefixes =
-    options.excludedPrefixes ?? DEFAULT_EXCLUDED_PREFIXES;
-  const includedExtensions =
-    options.includedExtensions ?? DEFAULT_INCLUDED_EXTENSIONS;
+  const resolvedOptions = resolveFileSizeReportOptions(options);
   const report: LargeFileReportEntry[] = [];
 
-  for (const entry of await listDirectoryEntries(options.root)) {
+  for (const entry of await listDirectoryEntries(resolvedOptions.root)) {
     if (
       !entry.isFile ||
-      shouldSkipFile(entry.relativePath, excludedPrefixes, includedExtensions)
+      shouldSkipFile(
+        entry.relativePath,
+        resolvedOptions.excludedPrefixes,
+        resolvedOptions.includedExtensions
+      )
     ) {
       continue;
     }
 
     const lines = countLines(await readFile(entry.absolutePath, "utf8"));
 
-    if (lines > options.maxLines) {
+    if (lines > resolvedOptions.maxLines) {
       report.push({
         lines,
-        relativePath: relative(options.root, entry.absolutePath),
+        relativePath: relative(resolvedOptions.root, entry.absolutePath),
       });
     }
   }
 
-  return report.sort((left, right) => {
-    if (right.lines !== left.lines) {
-      return right.lines - left.lines;
-    }
+  return report.sort(compareLargeFileReportEntries);
+}
 
-    return left.relativePath.localeCompare(right.relativePath);
-  });
+function resolveFileSizeReportOptions(
+  options: FileSizeReportOptions
+): ResolvedFileSizeReportOptions {
+  return {
+    excludedPrefixes: options.excludedPrefixes ?? DEFAULT_EXCLUDED_PREFIXES,
+    includedExtensions:
+      options.includedExtensions ?? DEFAULT_INCLUDED_EXTENSIONS,
+    maxLines: options.maxLines,
+    root: options.root,
+  };
+}
+
+function compareLargeFileReportEntries(
+  left: LargeFileReportEntry,
+  right: LargeFileReportEntry
+): number {
+  if (right.lines !== left.lines) {
+    return right.lines - left.lines;
+  }
+
+  return left.relativePath.localeCompare(right.relativePath);
 }
 
 export function formatLargeFileReport(
