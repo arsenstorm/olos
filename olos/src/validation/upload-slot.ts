@@ -57,7 +57,10 @@ function assertUploadSlotByteFields(value: Record<string, unknown>): void {
   assertPositiveNumberField(value, "duration", "uploadSlot");
   assertPositiveNumberField(value, "maxBytes", "uploadSlot");
   assertIsoDateField(value, "expiresAt", "uploadSlot");
+  assertUploadSlotMinBytes(value);
+}
 
+function assertUploadSlotMinBytes(value: Record<string, unknown>): void {
   if (value.minBytes !== undefined) {
     assertNonNegativeIntegerField(value, "minBytes", "uploadSlot");
 

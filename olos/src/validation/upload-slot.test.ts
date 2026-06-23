@@ -144,6 +144,12 @@ describe("upload slot validation", () => {
     ).toThrow("uploadSlot.minBytes must be less than or equal to maxBytes");
   });
 
+  test("accepts zero minimum byte limits", () => {
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, minBytes: 0 })
+    ).not.toThrow();
+  });
+
   test("rejects unknown enum values", () => {
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, state: "unknown" })
