@@ -412,6 +412,31 @@ describe("stored S3 publisher upload step", () => {
     });
   });
 
+  test("reports grant issue callback failures without uploading", async () => {
+    let uploaded = false;
+
+    const step = await runStoredS3PublisherUploadStep({
+      commit: () => Promise.resolve({ status: "not_found" }),
+      issueGrant: () => Promise.reject(new Error("grant failed")),
+      upload: () => {
+        uploaded = true;
+
+        return Promise.resolve();
+      },
+    });
+
+    expect(step).toEqual({
+      error: "grant failed",
+      status: "issue_failed",
+    });
+    expect(summarizeStoredS3PublisherUploadStep(step)).toEqual({
+      error: "grant failed",
+      ok: false,
+      status: "issue_failed",
+    });
+    expect(uploaded).toBe(false);
+  });
+
   test("keeps planned context when upload fails", async () => {
     const store = createMemoryCoordinatorStore();
 

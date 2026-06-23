@@ -145,6 +145,10 @@ type SavedStoredS3CoordinatorUploadGrantIssue = Extract<
   { status: "saved" }
 >;
 
+type ReadyStoredS3PublisherHeartbeat =
+  | RuntimePublisherHeartbeatResult
+  | undefined;
+
 const SUCCESSFUL_STORED_S3_PUBLISHER_STEP_STATUSES = [
   "committed",
   "idempotent",
@@ -222,24 +226,67 @@ export async function runStoredS3PublisherUploadStep(
     return heartbeat.step;
   }
 
+  const issued = await issueStoredS3PublisherUploadGrant(
+    options,
+    heartbeat.result
+  );
+
+  if (issued.status === "failed") {
+    return issued.step;
+  }
+
+  return await uploadAndCommitStoredS3PublisherUploadGrant(
+    options,
+    heartbeat.result,
+    issued.issue
+  );
+}
+
+async function issueStoredS3PublisherUploadGrant(
+  options: RunStoredS3PublisherUploadStepOptions,
+  heartbeat: ReadyStoredS3PublisherHeartbeat
+): Promise<
+  | {
+      issue: SavedStoredS3CoordinatorUploadGrantIssue;
+      status: "issued";
+    }
+  | {
+      status: "failed";
+      step: FailedStoredS3PublisherIssueStep;
+    }
+> {
   let issued: StoredS3CoordinatorUploadGrantIssue;
 
   try {
     issued = await options.issueGrant();
   } catch (error) {
-    return failedStoredS3PublisherIssueStep(error, heartbeat.result);
+    return {
+      status: "failed",
+      step: failedStoredS3PublisherIssueStep(error, heartbeat),
+    };
   }
 
   if (!isSavedStoredS3CoordinatorUploadGrantIssue(issued)) {
-    return unissuedStoredS3PublisherIssueStep(issued, heartbeat.result);
+    return {
+      status: "failed",
+      step: unissuedStoredS3PublisherIssueStep(issued, heartbeat),
+    };
   }
 
+  return { issue: issued, status: "issued" };
+}
+
+async function uploadAndCommitStoredS3PublisherUploadGrant(
+  options: RunStoredS3PublisherUploadStepOptions,
+  heartbeat: ReadyStoredS3PublisherHeartbeat,
+  issued: SavedStoredS3CoordinatorUploadGrantIssue
+): Promise<StoredS3PublisherUploadStep> {
   try {
     await options.upload(issued.grant);
   } catch (error) {
     return failedStoredS3PublisherUploadObjectStep(
       error,
-      heartbeat.result,
+      heartbeat,
       issued.grant,
       issued.slot
     );
@@ -252,28 +299,28 @@ export async function runStoredS3PublisherUploadStep(
   } catch (error) {
     return failedStoredS3PublisherCommitStep(
       error,
-      heartbeat.result,
+      heartbeat,
       issued.grant,
       issued.slot
     );
   }
 
-  if (isSuccessfulStoredS3PublisherStepStatus(committed.status)) {
-    return {
-      commit: committed,
-      grant: issued.grant,
-      ...heartbeatResult(heartbeat.result),
-      slot: issued.slot,
-      status: committed.status,
-    };
-  }
+  return committedStoredS3PublisherUploadStep(committed, heartbeat, issued);
+}
 
+function committedStoredS3PublisherUploadStep(
+  committed: StoredS3CoordinatorUploadCommit,
+  heartbeat: ReadyStoredS3PublisherHeartbeat,
+  issued: SavedStoredS3CoordinatorUploadGrantIssue
+): StoredS3PublisherUploadStep {
   return {
     commit: committed,
     grant: issued.grant,
-    ...heartbeatResult(heartbeat.result),
+    ...heartbeatResult(heartbeat),
     slot: issued.slot,
-    status: "commit_failed",
+    status: isSuccessfulStoredS3PublisherStepStatus(committed.status)
+      ? committed.status
+      : "commit_failed",
   };
 }
 
