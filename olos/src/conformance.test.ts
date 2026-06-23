@@ -95,6 +95,12 @@ describe("conformance manifest", () => {
       status: "covered",
       testFile: "src/s3/upload-grant.test.ts",
     });
+    expect(getOlosConformanceCoverage("SEC-DIRECT-007")).toEqual({
+      id: "SEC-DIRECT-007",
+      level: "security",
+      status: "covered",
+      testFile: "src/s3/http.test.ts",
+    });
   });
 
   test("maps schema conformance to the schema export tests", () => {

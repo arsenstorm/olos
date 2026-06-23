@@ -138,14 +138,17 @@ export interface OlosConformanceCoverage {
   testFile: string;
 }
 
+const OLOS_CONFORMANCE_ASSERTION_ID_SET = new Set<string>(
+  OLOS_CONFORMANCE_ASSERTION_IDS
+);
+
 function defineConformanceCoverage<
   const T extends readonly OlosConformanceCoverage[],
 >(coverage: T): T {
-  const known = new Set<string>(OLOS_CONFORMANCE_ASSERTION_IDS);
   const mapped = new Set<string>();
 
   for (const entry of coverage) {
-    if (!known.has(entry.id)) {
+    if (!OLOS_CONFORMANCE_ASSERTION_ID_SET.has(entry.id)) {
       throw new Error(`unknown conformance assertion coverage id: ${entry.id}`);
     }
 
@@ -918,16 +921,24 @@ export const OLOS_CONFORMANCE_COVERAGE = defineConformanceCoverage([
   },
 ] as const satisfies readonly OlosConformanceCoverage[]);
 
+const OLOS_CONFORMANCE_COVERAGE_BY_ID = new Map<
+  OlosConformanceAssertionId,
+  OlosConformanceCoverage
+>(
+  OLOS_CONFORMANCE_COVERAGE.map((entry) => [
+    entry.id,
+    entry satisfies OlosConformanceCoverage,
+  ])
+);
+
 export function getOlosConformanceCoverage(
   id: OlosConformanceAssertionId
 ): OlosConformanceCoverage | undefined {
-  return OLOS_CONFORMANCE_COVERAGE.find((entry) => entry.id === id);
+  return OLOS_CONFORMANCE_COVERAGE_BY_ID.get(id);
 }
 
 export function isOlosConformanceAssertionId(
   value: string
 ): value is OlosConformanceAssertionId {
-  return OLOS_CONFORMANCE_ASSERTION_IDS.some(
-    (assertionId) => assertionId === value
-  );
+  return OLOS_CONFORMANCE_ASSERTION_ID_SET.has(value);
 }
