@@ -195,14 +195,18 @@ export function assertRoutePath(value: string, name: string): void {
 }
 
 function assertRoutePathShape(value: string, name: string): void {
-  if (
+  if (isUnsafeRoutePathShape(value)) {
+    throw new Error(`${name} must be a safe route path`);
+  }
+}
+
+function isUnsafeRoutePathShape(value: string): boolean {
+  return (
     value.length === 0 ||
     !value.startsWith("/") ||
     value.startsWith("//") ||
     hasControlCharacter(value)
-  ) {
-    throw new Error(`${name} must be a safe route path`);
-  }
+  );
 }
 
 function assertRoutePathHasNoQueryOrFragment(
