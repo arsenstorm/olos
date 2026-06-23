@@ -17,6 +17,29 @@ const changelog = `# Changelog
 - Initial package.
 `;
 
+const acceptedHeadingCases = [
+  {
+    heading: "## 1.2.3",
+    label: "exact plain version heading",
+    note: "Added exact plain heading support.",
+  },
+  {
+    heading: "## 1.2.3 - 2026-06-23",
+    label: "dated plain version heading",
+    note: "Added dated plain heading support.",
+  },
+  {
+    heading: "## [1.2.3]",
+    label: "exact linked version heading",
+    note: "Added exact linked heading support.",
+  },
+  {
+    heading: "## [1.2.3] - 2026-06-23",
+    label: "dated linked version heading",
+    note: "Added dated linked heading support.",
+  },
+] as const;
+
 describe("release changelog helpers", () => {
   test("finds plain and linked version headings", () => {
     expect(hasVersionHeading(changelog, "0.1.0")).toBe(true);
@@ -30,33 +53,21 @@ describe("release changelog helpers", () => {
     );
   });
 
-  test("extracts release notes from a plain version heading with a date", () => {
-    const datedPlainHeading = `# Changelog
+  for (const headingCase of acceptedHeadingCases) {
+    test(`extracts release notes from ${headingCase.label}`, () => {
+      const source = `# Changelog
 
-## 1.2.3 - 2026-06-23
+${headingCase.heading}
 
-- Added dated plain heading support.
+- ${headingCase.note}
 `;
 
-    expect(hasVersionHeading(datedPlainHeading, "1.2.3")).toBe(true);
-    expect(releaseNotes(datedPlainHeading, "1.2.3")).toBe(
-      "- Added dated plain heading support.\n"
-    );
-  });
-
-  test("extracts release notes from an exact linked version heading", () => {
-    const exactLinkedHeading = `# Changelog
-
-## [1.2.3]
-
-- Added exact linked heading support.
-`;
-
-    expect(hasVersionHeading(exactLinkedHeading, "1.2.3")).toBe(true);
-    expect(releaseNotes(exactLinkedHeading, "1.2.3")).toBe(
-      "- Added exact linked heading support.\n"
-    );
-  });
+      expect(hasVersionHeading(source, "1.2.3")).toBe(true);
+      expect(releaseNotes(source, "1.2.3")).toBe(
+        releaseNoteBullet(headingCase.note)
+      );
+    });
+  }
 
   test("rejects missing or empty release sections", () => {
     expect(() => releaseNotes(changelog, "9.9.9")).toThrow(
@@ -67,3 +78,7 @@ describe("release changelog helpers", () => {
     );
   });
 });
+
+function releaseNoteBullet(note: string): string {
+  return `- ${note}\n`;
+}

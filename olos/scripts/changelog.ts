@@ -78,13 +78,15 @@ function findNextSectionHeadingIndex(
 }
 
 function isVersionHeading(line: string, releaseVersion: string): boolean {
-  const plainHeading = `## ${releaseVersion}`;
-  const linkedHeading = `## [${releaseVersion}]`;
-
-  return (
-    line === plainHeading ||
-    line.startsWith(`${plainHeading} - `) ||
-    line === linkedHeading ||
-    line.startsWith(`${linkedHeading} - `)
+  return versionHeadingPrefixes(releaseVersion).some((heading) =>
+    isExactOrDatedHeading(line, heading)
   );
+}
+
+function versionHeadingPrefixes(releaseVersion: string): string[] {
+  return [`## ${releaseVersion}`, `## [${releaseVersion}]`];
+}
+
+function isExactOrDatedHeading(line: string, heading: string): boolean {
+  return line === heading || line.startsWith(`${heading} - `);
 }
