@@ -157,6 +157,20 @@ async function parseRecordRequest<Payload>(
   fallbackMessage: string,
   parsePayload: (value: Record<string, unknown>) => Payload
 ): Promise<S3HttpRequestParse<Payload>> {
+  const parsed = await parseRecordJsonRequest(request, name, fallbackMessage);
+
+  if (parsed.status === "invalid") {
+    return parsed;
+  }
+
+  return parseRecordPayload(parsed.payload, fallbackMessage, parsePayload);
+}
+
+async function parseRecordJsonRequest(
+  request: Request,
+  name: string,
+  fallbackMessage: string
+): Promise<S3HttpRequestParse<Record<string, unknown>>> {
   try {
     const payload = await request.json();
 
@@ -164,6 +178,21 @@ async function parseRecordRequest<Payload>(
       return invalid(`${name} must be a JSON object`);
     }
 
+    return {
+      payload,
+      status: "valid",
+    };
+  } catch (error) {
+    return invalid(errorMessage(error, fallbackMessage));
+  }
+}
+
+function parseRecordPayload<Payload>(
+  payload: Record<string, unknown>,
+  fallbackMessage: string,
+  parsePayload: (value: Record<string, unknown>) => Payload
+): S3HttpRequestParse<Payload> {
+  try {
     return {
       payload: parsePayload(payload),
       status: "valid",
