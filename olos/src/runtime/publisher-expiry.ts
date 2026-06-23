@@ -20,22 +20,32 @@ export interface RuntimePublisherObjectExpiry {
 export function resolveRuntimePublisherObjectExpiry(
   options: ResolveRuntimePublisherObjectExpiryOptions
 ): RuntimePublisherObjectExpiry {
+  const ttlSeconds = resolveRuntimePublisherObjectTtlSeconds(options);
+
+  return {
+    expiresAt: runtimePublisherObjectExpiresAt(options.now, ttlSeconds),
+    ttlSeconds,
+  };
+}
+
+function resolveRuntimePublisherObjectTtlSeconds(
+  options: ResolveRuntimePublisherObjectExpiryOptions
+): number {
   const duration = positiveNumber(options.duration, "duration");
   const targetLatency = positiveNumber(options.targetLatency, "targetLatency");
   const minTtlSeconds = positiveNumber(
     options.minTtlSeconds ?? DEFAULT_MIN_TTL_SECONDS,
     "minTtlSeconds"
   );
-  const ttlSeconds = Math.max(
-    minTtlSeconds,
-    Math.ceil(duration + targetLatency)
-  );
-  const nowMs = timestampMs(options.now, "now");
 
-  return {
-    expiresAt: new Date(
-      nowMs + ttlSeconds * MILLISECONDS_PER_SECOND
-    ).toISOString(),
-    ttlSeconds,
-  };
+  return Math.max(minTtlSeconds, Math.ceil(duration + targetLatency));
+}
+
+function runtimePublisherObjectExpiresAt(
+  now: Date | string,
+  ttlSeconds: number
+): string {
+  const nowMs = timestampMs(now, "now");
+
+  return new Date(nowMs + ttlSeconds * MILLISECONDS_PER_SECOND).toISOString();
 }

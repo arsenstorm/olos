@@ -43,6 +43,20 @@ describe("runtime publisher object expiry", () => {
     });
   });
 
+  test("uses calculated ttl when it exceeds the explicit minimum", () => {
+    expect(
+      resolveRuntimePublisherObjectExpiry({
+        duration: 2.1,
+        minTtlSeconds: 1,
+        now: "2026-01-01T00:00:00.000Z",
+        targetLatency: 3.1,
+      })
+    ).toEqual({
+      expiresAt: "2026-01-01T00:00:06.000Z",
+      ttlSeconds: 6,
+    });
+  });
+
   test("defaults minimum ttl to low-latency profile setting", () => {
     expect(
       resolveRuntimePublisherObjectExpiry({
