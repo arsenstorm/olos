@@ -570,6 +570,12 @@ describe("object created event normalization", () => {
 
   test("rejects invalid client hints", () => {
     expect(() =>
+      createUploadCompletionHint(
+        null as unknown as Parameters<typeof createUploadCompletionHint>[0]
+      )
+    ).toThrow("uploadCompletionHint must be an object");
+
+    expect(() =>
       createUploadCompletionHint({
         eventId: "hint_1",
         eventTime: "not-a-date",

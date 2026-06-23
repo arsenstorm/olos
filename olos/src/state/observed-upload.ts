@@ -461,24 +461,42 @@ function assertObjectCreatedEvent(
 function assertUploadCompletionHint(
   options: unknown
 ): asserts options is CreateUploadCompletionHintOptions {
+  assertUploadCompletionHintEnvelope(options);
+  assertUploadCompletionHintIdentifiers(options);
+  assertUploadCompletionHintType(options);
+  assertUploadCompletionHintTime(options.eventTime);
+  assertSafeObjectKey(options.objectKey, "uploadCompletionHint.objectKey");
+}
+
+function assertUploadCompletionHintEnvelope(
+  options: unknown
+): asserts options is Record<string, unknown> {
   if (!isObjectLikeRecord(options)) {
     throw new Error("uploadCompletionHint must be an object");
   }
+}
 
+function assertUploadCompletionHintIdentifiers(
+  options: Record<string, unknown>
+): void {
   assertUrlSafeIdentifier(options.eventId, "uploadCompletionHint.eventId");
   assertUrlSafeIdentifier(options.slotId, "uploadCompletionHint.slotId");
+}
 
+function assertUploadCompletionHintType(
+  options: Record<string, unknown>
+): void {
   if (options.eventType !== UPLOAD_COMPLETED_HINT_TYPE) {
     throw new Error("uploadCompletionHint.eventType must be upload.completed");
   }
+}
 
-  if (typeof options.eventTime !== "string") {
+function assertUploadCompletionHintTime(eventTime: unknown): void {
+  if (typeof eventTime !== "string") {
     throw new Error("uploadCompletionHint.eventTime must be a valid timestamp");
   }
 
-  timestampMs(options.eventTime, "uploadCompletionHint.eventTime");
-
-  assertSafeObjectKey(options.objectKey, "uploadCompletionHint.objectKey");
+  timestampMs(eventTime, "uploadCompletionHint.eventTime");
 }
 
 function headObjectTimestamp(value: string | Date): string {
