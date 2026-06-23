@@ -11,6 +11,72 @@ const validMediaObject: MediaObject = {
   size: 98_304,
 };
 
+const invalidMediaObjectCases = [
+  {
+    error: "mediaObject.providerId must be a non-empty URL-safe identifier",
+    label: "unsafe provider IDs",
+    value: { ...validMediaObject, providerId: "../r2" },
+  },
+  {
+    error: "mediaObject.objectKey must be a non-empty string",
+    label: "missing object keys",
+    value: { ...validMediaObject, objectKey: "" },
+  },
+  {
+    error: "mediaObject.objectKey must be a safe relative object key",
+    label: "repeated object-key separators",
+    value: { ...validMediaObject, objectKey: "tenant//3810.m4s" },
+  },
+  {
+    error: "mediaObject.objectKey must not contain control characters",
+    label: "object keys with control characters",
+    value: { ...validMediaObject, objectKey: "tenant/3810.m4s\n" },
+  },
+  {
+    error: "mediaObject.contentType must be a valid content type",
+    label: "empty content types",
+    value: { ...validMediaObject, contentType: "" },
+  },
+  {
+    error: "mediaObject.contentType must be a valid content type",
+    label: "malformed content types",
+    value: { ...validMediaObject, contentType: "video" },
+  },
+  {
+    error: "mediaObject.contentType must be a valid content type",
+    label: "content types with control characters",
+    value: {
+      ...validMediaObject,
+      contentType: "video/mp4\ntext/html",
+    },
+  },
+  {
+    error: "mediaObject.observedAt must be a valid timestamp",
+    label: "invalid observation timestamps",
+    value: { ...validMediaObject, observedAt: "soon" },
+  },
+  {
+    error: "mediaObject.size must be a positive number",
+    label: "zero sizes",
+    value: { ...validMediaObject, size: 0 },
+  },
+  {
+    error: "mediaObject.size must be a positive number",
+    label: "negative sizes",
+    value: { ...validMediaObject, size: -1 },
+  },
+  {
+    error: "mediaObject.etag must be a non-empty string",
+    label: "non-string etags",
+    value: { ...validMediaObject, etag: 123 },
+  },
+  {
+    error: "mediaObject.etag must be a non-empty string",
+    label: "empty etags",
+    value: { ...validMediaObject, etag: "" },
+  },
+] as const;
+
 describe("media object validation", () => {
   test("accepts a valid media object", () => {
     expect(isMediaObject(validMediaObject)).toBe(true);
@@ -37,66 +103,11 @@ describe("media object validation", () => {
     );
   });
 
-  test("rejects unsafe provider IDs", () => {
-    expect(() =>
-      assertMediaObject({ ...validMediaObject, providerId: "../r2" })
-    ).toThrow("mediaObject.providerId must be a non-empty URL-safe identifier");
-  });
-
-  test("rejects missing object keys", () => {
-    expect(() =>
-      assertMediaObject({ ...validMediaObject, objectKey: "" })
-    ).toThrow("mediaObject.objectKey must be a non-empty string");
-  });
-
-  test("rejects unsafe object keys", () => {
-    expect(() =>
-      assertMediaObject({ ...validMediaObject, objectKey: "tenant//3810.m4s" })
-    ).toThrow("mediaObject.objectKey must be a safe relative object key");
-    expect(() =>
-      assertMediaObject({
-        ...validMediaObject,
-        objectKey: "tenant/3810.m4s\n",
-      })
-    ).toThrow("mediaObject.objectKey must not contain control characters");
-  });
-
-  test("rejects missing content types", () => {
-    expect(() =>
-      assertMediaObject({ ...validMediaObject, contentType: "" })
-    ).toThrow("mediaObject.contentType must be a valid content type");
-    expect(() =>
-      assertMediaObject({ ...validMediaObject, contentType: "video" })
-    ).toThrow("mediaObject.contentType must be a valid content type");
-    expect(() =>
-      assertMediaObject({
-        ...validMediaObject,
-        contentType: "video/mp4\ntext/html",
-      })
-    ).toThrow("mediaObject.contentType must be a valid content type");
-  });
-
-  test("rejects invalid observation timestamps", () => {
-    expect(() =>
-      assertMediaObject({ ...validMediaObject, observedAt: "soon" })
-    ).toThrow("mediaObject.observedAt must be a valid timestamp");
-  });
-
-  test("rejects invalid sizes", () => {
-    expect(() => assertMediaObject({ ...validMediaObject, size: 0 })).toThrow(
-      "mediaObject.size must be a positive number"
-    );
-    expect(() => assertMediaObject({ ...validMediaObject, size: -1 })).toThrow(
-      "mediaObject.size must be a positive number"
-    );
-  });
-
-  test("rejects invalid etags", () => {
-    expect(() => assertMediaObject({ ...validMediaObject, etag: 123 })).toThrow(
-      "mediaObject.etag must be a non-empty string"
-    );
-    expect(() => assertMediaObject({ ...validMediaObject, etag: "" })).toThrow(
-      "mediaObject.etag must be a non-empty string"
-    );
-  });
+  for (const mediaObjectCase of invalidMediaObjectCases) {
+    test(`rejects ${mediaObjectCase.label}`, () => {
+      expect(() => assertMediaObject(mediaObjectCase.value)).toThrow(
+        mediaObjectCase.error
+      );
+    });
+  }
 });
