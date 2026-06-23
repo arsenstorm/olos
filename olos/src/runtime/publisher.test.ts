@@ -459,6 +459,45 @@ describe("runtime publisher upload step", () => {
       status: "commit_failed",
     });
   });
+
+  test("returns idempotent commit results as successful steps", async () => {
+    const store = createMemoryCoordinatorStore();
+    await seedSession(store);
+
+    const step = await runRuntimePublisherUploadStep({
+      commit: () => Promise.resolve({ status: "idempotent" }),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      commitId: "commit_3810",
+      issueSlot: (request) =>
+        issueStoredCoordinatorSlotFromRequest({
+          request,
+          sessionId: session.sessionId,
+          store,
+        }),
+      slot: slotPayload({
+        deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+        duration: 2,
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKey: "media/v1080/3810.m4s",
+        slotId: "slot_3810",
+      }),
+      upload: (slot) =>
+        Promise.resolve({
+          contentType: slot.contentType,
+          objectKey: slot.objectKey,
+          observedAt: "2026-01-01T00:00:02.000Z",
+          providerId: "s3_primary",
+          size: 98_304,
+        }),
+    });
+
+    expect(step).toMatchObject({
+      commit: { status: "idempotent" },
+      status: "idempotent",
+    });
+  });
 });
 
 async function seedSession(

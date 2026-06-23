@@ -148,6 +148,13 @@ type RuntimePublisherUploadObjectPhaseResult =
       status: "uploaded";
     };
 
+type RuntimePublisherCommitPhaseResult =
+  | FailedRuntimePublisherCommitStep
+  | {
+      commit: RuntimePublisherCommitResult;
+      status: "resolved";
+    };
+
 const SUCCESSFUL_PUBLISHER_STEP_STATUSES = [
   "committed",
   "idempotent",
@@ -182,12 +189,41 @@ async function runPublisherUploadAndCommit(
     return uploaded;
   }
 
-  let committed: RuntimePublisherCommitResult;
+  const committed = await runPublisherCommitUpload(
+    options,
+    heartbeat,
+    uploaded,
+    issued
+  );
 
+  if (isFailedRuntimePublisherCommitStep(committed)) {
+    return committed;
+  }
+
+  return runtimePublisherCommitStep(
+    committed.commit,
+    heartbeat,
+    uploaded.observed,
+    issued.slot
+  );
+}
+
+async function runPublisherCommitUpload(
+  options: RunRuntimePublisherUploadStepOptions,
+  heartbeat: RuntimePublisherHeartbeatResult | undefined,
+  uploaded: Extract<
+    RuntimePublisherUploadObjectPhaseResult,
+    { status: "uploaded" }
+  >,
+  issued: IssuedRuntimePublisherIssueResult
+): Promise<RuntimePublisherCommitPhaseResult> {
   try {
-    committed = await options.commit(
-      publisherCommitPayload(options, issued.slot, uploaded.observed)
-    );
+    return {
+      commit: await options.commit(
+        publisherCommitPayload(options, issued.slot, uploaded.observed)
+      ),
+      status: "resolved",
+    };
   } catch (error) {
     return failedRuntimePublisherCommitStep(
       error,
@@ -196,13 +232,6 @@ async function runPublisherUploadAndCommit(
       issued.slot
     );
   }
-
-  return runtimePublisherCommitStep(
-    committed,
-    heartbeat,
-    uploaded.observed,
-    issued.slot
-  );
 }
 
 async function runPublisherUploadObject(
@@ -442,6 +471,12 @@ function isFailedRuntimePublisherUploadObjectStep(
   result: RuntimePublisherUploadObjectPhaseResult
 ): result is FailedRuntimePublisherUploadObjectStep {
   return result.status === "upload_failed";
+}
+
+function isFailedRuntimePublisherCommitStep(
+  result: RuntimePublisherCommitPhaseResult
+): result is FailedRuntimePublisherCommitStep {
+  return result.status === "commit_failed";
 }
 
 function isIssuedRuntimePublisherIssueResult(
