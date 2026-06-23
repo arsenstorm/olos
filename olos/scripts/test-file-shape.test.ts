@@ -7,6 +7,12 @@ import { packageRoot } from "./script-paths";
 const TEST_DECLARATION_PATTERN = /\b(?:describe|it|test)\(/;
 
 describe("test file shape", () => {
+  test("discovers script test files", async () => {
+    expect(await listTestFiles(packageRoot)).toContain(
+      join(packageRoot, "scripts", "test-file-shape.test.ts")
+    );
+  });
+
   test("keeps test files from being helper-only modules", async () => {
     const testFiles = await listTestFiles(packageRoot);
     const helperOnlyTestFiles: string[] = [];
@@ -15,7 +21,7 @@ describe("test file shape", () => {
       const source = await readFile(file, "utf8");
 
       if (!TEST_DECLARATION_PATTERN.test(source)) {
-        helperOnlyTestFiles.push(relative(packageRoot, file));
+        helperOnlyTestFiles.push(packageRelativePath(file));
       }
     }
 
@@ -27,11 +33,8 @@ describe("test file shape", () => {
     const badHelperTestFiles: string[] = [];
 
     for (const file of testFiles) {
-      if (
-        file.endsWith("-helper.test.ts") &&
-        !file.endsWith(".test-helper.test.ts")
-      ) {
-        badHelperTestFiles.push(relative(packageRoot, file));
+      if (isMisnamedHelperTestFile(file)) {
+        badHelperTestFiles.push(packageRelativePath(file));
       }
     }
 
@@ -41,11 +44,7 @@ describe("test file shape", () => {
   test("keeps test helper modules out of test discovery", async () => {
     const sourceFiles = await listSourceFiles(packageRoot);
     const badHelperModules = sourceFiles
-      .filter(
-        (file) =>
-          file.endsWith(".test-helper.ts") &&
-          !file.endsWith(".test-helper.test.ts")
-      )
+      .filter(isTestHelperModule)
       .filter((file) => file.endsWith(".test.ts"));
 
     expect(badHelperModules).toEqual([]);
@@ -56,6 +55,22 @@ async function listTestFiles(root: string): Promise<string[]> {
   const sourceFiles = await listSourceFiles(root);
 
   return sourceFiles.filter((file) => file.endsWith(".test.ts"));
+}
+
+function packageRelativePath(path: string): string {
+  return relative(packageRoot, path);
+}
+
+function isMisnamedHelperTestFile(path: string): boolean {
+  return path.endsWith("-helper.test.ts") && !isCanonicalHelperTestFile(path);
+}
+
+function isTestHelperModule(path: string): boolean {
+  return path.endsWith(".test-helper.ts") && !isCanonicalHelperTestFile(path);
+}
+
+function isCanonicalHelperTestFile(path: string): boolean {
+  return path.endsWith(".test-helper.test.ts");
 }
 
 async function listSourceFiles(root: string): Promise<string[]> {
