@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { OLOS_ERROR_CODES } from "./config/errors";
 import { MEDIA_OBJECT_KINDS } from "./config/media-object";
-import { PROVIDER_KINDS } from "./config/provider-capability";
+import {
+  PROVIDER_EVENT_DELIVERY_MODES,
+  PROVIDER_KINDS,
+} from "./config/provider-capability";
 import { PUBLICATION_MODES } from "./config/publication";
 import { LATENCY_PROFILES, SESSION_STATES } from "./config/session";
 import {
@@ -97,6 +100,9 @@ describe("OLOS JSON schemas", () => {
     expect(OLOS_PROVIDER_CAPABILITY_SCHEMA.properties.kind.enum).toEqual(
       PROVIDER_KINDS
     );
+    expect(
+      OLOS_PROVIDER_CAPABILITY_SCHEMA.properties.events.properties.delivery.enum
+    ).toEqual(PROVIDER_EVENT_DELIVERY_MODES);
     expect(
       OLOS_PROVIDER_CAPABILITY_SCHEMA.properties.uploadGrants.properties
         .presignedPut

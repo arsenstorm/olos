@@ -63,6 +63,10 @@ const objectKey = {
   type: "string",
 } as const;
 
+function stringEnum<const Values extends readonly string[]>(values: Values) {
+  return { enum: values, type: "string" } as const;
+}
+
 const providerApiSchema = {
   additionalProperties: false,
   properties: {
@@ -75,9 +79,9 @@ const providerApiSchema = {
 const providerConsistencySchema = {
   additionalProperties: false,
   properties: {
-    headAfterCreate: { enum: PROVIDER_CONSISTENCY_LEVELS, type: "string" },
-    listAfterCreate: { enum: PROVIDER_CONSISTENCY_LEVELS, type: "string" },
-    readAfterCreate: { enum: PROVIDER_CONSISTENCY_LEVELS, type: "string" },
+    headAfterCreate: stringEnum(PROVIDER_CONSISTENCY_LEVELS),
+    listAfterCreate: stringEnum(PROVIDER_CONSISTENCY_LEVELS),
+    readAfterCreate: stringEnum(PROVIDER_CONSISTENCY_LEVELS),
   },
   required: ["headAfterCreate", "readAfterCreate"],
   type: "object",
@@ -149,7 +153,7 @@ const providerDeliverySchema = {
 const providerEventsSchema = {
   additionalProperties: false,
   properties: {
-    delivery: { enum: PROVIDER_EVENT_DELIVERY_MODES, type: "string" },
+    delivery: stringEnum(PROVIDER_EVENT_DELIVERY_MODES),
     objectCreated: { type: "boolean" },
   },
   type: "object",
@@ -215,7 +219,7 @@ export const OLOS_SESSION_SCHEMA = {
   properties: {
     createdAt: timestamp,
     epoch: nonNegativeInteger,
-    latencyProfile: { enum: LATENCY_PROFILES, type: "string" },
+    latencyProfile: stringEnum(LATENCY_PROFILES),
     olos: { const: "1.0" },
     partTarget: positiveNumber,
     renditions: {
@@ -231,7 +235,7 @@ export const OLOS_SESSION_SCHEMA = {
           codec: nonEmptyString,
           frameRate: positiveNumber,
           height: { exclusiveMinimum: 0, type: "integer" },
-          kind: { enum: RENDITION_KINDS, type: "string" },
+          kind: stringEnum(RENDITION_KINDS),
           renditionId: id,
           sampleRate: { exclusiveMinimum: 0, type: "integer" },
           width: { exclusiveMinimum: 0, type: "integer" },
@@ -244,7 +248,7 @@ export const OLOS_SESSION_SCHEMA = {
     },
     segmentTarget: positiveNumber,
     sessionId: id,
-    state: { enum: SESSION_STATES, type: "string" },
+    state: stringEnum(SESSION_STATES),
     tenantId: id,
   },
   required: [
@@ -272,18 +276,18 @@ export const OLOS_UPLOAD_SLOT_SCHEMA = {
     duration: positiveNumber,
     epoch: nonNegativeInteger,
     expiresAt: timestamp,
-    kind: { enum: MEDIA_OBJECT_KINDS, type: "string" },
+    kind: stringEnum(MEDIA_OBJECT_KINDS),
     maxBytes: positiveNumber,
     mediaSequenceNumber: nonNegativeInteger,
     minBytes: nonNegativeInteger,
     objectKey,
     partNumber: nonNegativeInteger,
-    publicationMode: { enum: PUBLICATION_MODES, type: "string" },
+    publicationMode: stringEnum(PUBLICATION_MODES),
     publisherInstanceId: id,
     renditionId: id,
     sessionId: id,
     slotId: id,
-    state: { enum: UPLOAD_SLOT_STATES, type: "string" },
+    state: stringEnum(UPLOAD_SLOT_STATES),
     tenantId: id,
   },
   required: [
@@ -324,7 +328,7 @@ export const OLOS_COMMIT_SCHEMA = {
     partNumber: nonNegativeInteger,
     programDateTime: timestamp,
     providerId: id,
-    publicationMode: { enum: PUBLICATION_MODES, type: "string" },
+    publicationMode: stringEnum(PUBLICATION_MODES),
     renditionId: id,
     sessionId: id,
     size: positiveNumber,
@@ -388,7 +392,7 @@ export const OLOS_PATHWAY_SCHEMA = {
     pathwayId: id,
     priority: nonNegativeInteger,
     providerId: id,
-    state: { enum: PATHWAY_STATES, type: "string" },
+    state: stringEnum(PATHWAY_STATES),
   },
   required: ["baseUrl", "pathwayId", "priority", "providerId", "state"],
   title: "OLOS Pathway",
@@ -440,7 +444,7 @@ export const OLOS_PROVIDER_CAPABILITY_SCHEMA = {
     consistency: providerConsistencySchema,
     delivery: providerDeliverySchema,
     events: providerEventsSchema,
-    kind: { enum: PROVIDER_KINDS, type: "string" },
+    kind: stringEnum(PROVIDER_KINDS),
     olos: { const: "1.0" },
     providerId: id,
     publication: providerPublicationSchema,
@@ -466,7 +470,7 @@ export const OLOS_ERROR_SCHEMA = {
     error: {
       additionalProperties: false,
       properties: {
-        code: { enum: OLOS_ERROR_CODES, type: "string" },
+        code: stringEnum(OLOS_ERROR_CODES),
         details: { type: "object" },
         message: nonEmptyString,
       },
@@ -509,13 +513,13 @@ export const OLOS_CURSOR_SCHEMA = {
   properties: {
     committedWindow: OLOS_COMMITTED_WINDOW_SCHEMA,
     epoch: nonNegativeInteger,
-    latencyProfile: { enum: LATENCY_PROFILES, type: "string" },
+    latencyProfile: stringEnum(LATENCY_PROFILES),
     olos: { const: "1.0" },
     partTarget: positiveNumber,
     pathways: { items: OLOS_PATHWAY_SCHEMA, type: "array" },
     segmentTarget: positiveNumber,
     sessionId: id,
-    state: { enum: SESSION_STATES, type: "string" },
+    state: stringEnum(SESSION_STATES),
     tenantId: id,
     updatedAt: timestamp,
     window: {
