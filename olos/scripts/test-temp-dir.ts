@@ -11,6 +11,10 @@ export async function withTemporaryDirectory<T>(
   try {
     return await run(directory);
   } finally {
-    await rm(directory, { force: true, recursive: true });
+    await removeTemporaryDirectory(directory);
   }
+}
+
+function removeTemporaryDirectory(directory: string): Promise<void> {
+  return rm(directory, { force: true, recursive: true });
 }
