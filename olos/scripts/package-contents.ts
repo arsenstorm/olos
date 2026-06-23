@@ -42,9 +42,19 @@ async function packageRootEntryNames(packageRoot: string): Promise<string[]> {
 async function assertNoForbiddenPackagePaths(
   packageRoot: string
 ): Promise<void> {
+  const forbiddenPath = await firstForbiddenPackagePath(packageRoot);
+
+  if (forbiddenPath !== undefined) {
+    throw new Error(`package contains private file: ${forbiddenPath}`);
+  }
+}
+
+async function firstForbiddenPackagePath(
+  packageRoot: string
+): Promise<string | undefined> {
   for (const entry of await listDirectoryEntries(packageRoot)) {
     if (isForbiddenPackagePath(entry.relativePath)) {
-      throw new Error(`package contains private file: ${entry.relativePath}`);
+      return entry.relativePath;
     }
   }
 }

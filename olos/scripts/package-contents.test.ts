@@ -37,6 +37,10 @@ const forbiddenPublishedFileCases = [
     pathSegments: ["dist", "index.spec.js"],
   },
   {
+    label: "spec declarations",
+    pathSegments: ["dist", "index.spec.d.ts"],
+  },
+  {
     contents: "{}\n",
     label: "TypeScript config files",
     pathSegments: ["dist", "tsconfig.build.json"],
