@@ -139,6 +139,14 @@ type MutableStoredS3CoordinatorUploadReconciliationSummary = Omit<
   slotIds: OlosId[];
 };
 
+interface StoredS3CoordinatorUploadReconciliationSummaryContribution {
+  committed: number;
+  failed: number;
+  failedErrorCode?: OlosErrorCode;
+  failedSlotId?: OlosId;
+  idempotent: number;
+}
+
 export async function reconcileStoredS3CoordinatorUploads(
   options: ReconcileStoredS3CoordinatorUploadsOptions
 ): Promise<StoredS3CoordinatorUploadReconciliation> {
@@ -211,50 +219,69 @@ function summarizeStoredS3CoordinatorUploadReconciliationEntry(
   summary: MutableStoredS3CoordinatorUploadReconciliationSummary,
   entry: StoredS3CoordinatorUploadReconciliationResult
 ): void {
-  summary.slotIds.push(entry.slot.slotId);
+  const contribution =
+    storedS3CoordinatorUploadReconciliationSummaryContribution(entry);
 
-  switch (entry.status) {
-    case "committed":
-      summarizeCommittedStoredS3CoordinatorUploadReconciliationEntry(summary);
-      return;
-    case "idempotent":
-      summarizeIdempotentStoredS3CoordinatorUploadReconciliationEntry(summary);
-      return;
-    case "failed":
-      summarizeFailedStoredS3CoordinatorUploadReconciliationEntry(
-        summary,
-        entry
-      );
-      return;
-    default:
-      return;
+  summary.slotIds.push(entry.slot.slotId);
+  summary.committed += contribution.committed;
+  summary.failed += contribution.failed;
+  summary.idempotent += contribution.idempotent;
+
+  if (contribution.failedSlotId !== undefined) {
+    summary.failedSlotIds.push(contribution.failedSlotId);
+  }
+
+  if (contribution.failedErrorCode !== undefined) {
+    summary.failedErrorCodes.push(contribution.failedErrorCode);
   }
 }
 
-function summarizeCommittedStoredS3CoordinatorUploadReconciliationEntry(
-  summary: MutableStoredS3CoordinatorUploadReconciliationSummary
-): void {
-  summary.committed += 1;
+function storedS3CoordinatorUploadReconciliationSummaryContribution(
+  entry: StoredS3CoordinatorUploadReconciliationResult
+): StoredS3CoordinatorUploadReconciliationSummaryContribution {
+  switch (entry.status) {
+    case "committed":
+      return reconciliationSummaryContribution({ committed: 1 });
+    case "idempotent":
+      return reconciliationSummaryContribution({ idempotent: 1 });
+    case "failed":
+      return failedStoredS3CoordinatorUploadReconciliationSummaryContribution(
+        entry
+      );
+    default:
+      return reconciliationSummaryContribution();
+  }
 }
 
-function summarizeIdempotentStoredS3CoordinatorUploadReconciliationEntry(
-  summary: MutableStoredS3CoordinatorUploadReconciliationSummary
-): void {
-  summary.idempotent += 1;
-}
-
-function summarizeFailedStoredS3CoordinatorUploadReconciliationEntry(
-  summary: MutableStoredS3CoordinatorUploadReconciliationSummary,
+function failedStoredS3CoordinatorUploadReconciliationSummaryContribution(
   entry: FailedStoredS3CoordinatorUploadReconciliationResult
-): void {
-  summary.failed += 1;
-  summary.failedSlotIds.push(entry.slot.slotId);
-
+): StoredS3CoordinatorUploadReconciliationSummaryContribution {
   const failedResult = entry.result;
 
   if (isRejectedS3CoordinatorUploadCommit(failedResult)) {
-    summary.failedErrorCodes.push(failedResult.error.error.code);
+    return reconciliationSummaryContribution({
+      failed: 1,
+      failedErrorCode: failedResult.error.error.code,
+      failedSlotId: entry.slot.slotId,
+    });
   }
+
+  return reconciliationSummaryContribution({
+    failed: 1,
+    failedSlotId: entry.slot.slotId,
+  });
+}
+
+function reconciliationSummaryContribution(
+  contribution: Partial<StoredS3CoordinatorUploadReconciliationSummaryContribution> = {}
+): StoredS3CoordinatorUploadReconciliationSummaryContribution {
+  return {
+    committed: contribution.committed ?? 0,
+    failed: contribution.failed ?? 0,
+    failedErrorCode: contribution.failedErrorCode,
+    failedSlotId: contribution.failedSlotId,
+    idempotent: contribution.idempotent ?? 0,
+  };
 }
 
 function completedStoredS3CoordinatorUploadReconciliationSummary(

@@ -367,6 +367,60 @@ describe("stored S3 upload reconciliation", () => {
     });
   });
 
+  test("summarizes mixed reconciliation result contributions", () => {
+    const [initSlot, segmentSlot] = stateWithSlots().slots;
+
+    if (initSlot === undefined || segmentSlot === undefined) {
+      throw new Error("expected reconciliation slot fixtures");
+    }
+
+    expect(
+      summarizeStoredS3CoordinatorUploadReconciliation({
+        results: [
+          {
+            commit: {
+              status: "committed",
+            } as StoredS3CoordinatorUploadReconciliationCommit,
+            slot: initSlot,
+            status: "committed",
+          },
+          {
+            commit: {
+              status: "idempotent",
+            } as StoredS3CoordinatorUploadReconciliationCommit,
+            slot: segmentSlot,
+            status: "idempotent",
+          },
+          {
+            result: {
+              error: {
+                error: {
+                  code: "olos.quota_exceeded",
+                  message: "tenant quota exceeded",
+                },
+              },
+              state: createEmptyCoordinatorState(),
+              status: "rejected",
+            },
+            slot: segmentSlot,
+            status: "failed",
+          },
+        ],
+        status: "reconciled",
+      })
+    ).toEqual({
+      committed: 1,
+      failed: 1,
+      failedErrorCodes: ["olos.quota_exceeded"],
+      failedSlotIds: [segmentSlot.slotId],
+      idempotent: 1,
+      ok: false,
+      planned: 3,
+      slotIds: [initSlot.slotId, segmentSlot.slotId, segmentSlot.slotId],
+      status: "reconciled",
+    });
+  });
+
   test("rejects invalid S3 reconciliation options before object observation", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
