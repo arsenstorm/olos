@@ -98,6 +98,9 @@ describe("runtime publisher object plan", () => {
     expect(part.slot.objectKey).toBe(
       "media/session_1/v1080/s3810/p2-slot_01K1.m4s"
     );
+    expect(part.slot.deliveryUrl).toBe(
+      "https://media.example.com/media/session_1/v1080/s3810/p2-slot_01K1.m4s"
+    );
   });
 
   test("rejects direct-public object plans without a nonce", () => {

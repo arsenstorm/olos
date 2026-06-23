@@ -173,41 +173,61 @@ function createObjectKey(
 ): string {
   const prefix = trimSlashes(options.objectKeyPrefix);
   const extension = options.extension.replace(LEADING_DOTS_PATTERN, "");
-  const nonce = options.objectKeyNonce;
 
   if (isInitPublisherObjectPlan(options)) {
-    const fileName =
-      nonce === undefined ? `init.${extension}` : `init-${nonce}.${extension}`;
-
-    return `${prefix}/${options.renditionId}/${fileName}`;
+    return createInitObjectKey(options, prefix, extension);
   }
 
   if (isSegmentPublisherObjectPlan(options)) {
-    return createSegmentObjectKey(options, prefix, extension, nonce);
+    return createSegmentObjectKey(options, prefix, extension);
   }
 
-  const fileName =
-    nonce === undefined
-      ? `p${options.partNumber}.${extension}`
-      : `p${options.partNumber}-${nonce}.${extension}`;
+  if (isPartPublisherObjectPlan(options)) {
+    return createPartObjectKey(options, prefix, extension);
+  }
 
-  return `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}/${fileName}`;
+  throw new Error("unsupported publisher object kind");
+}
+
+function createInitObjectKey(
+  options: InitPublisherObjectPlanOptions,
+  prefix: string,
+  extension: string
+): string {
+  const fileName =
+    options.objectKeyNonce === undefined
+      ? `init.${extension}`
+      : `init-${options.objectKeyNonce}.${extension}`;
+
+  return `${prefix}/${options.renditionId}/${fileName}`;
 }
 
 function createSegmentObjectKey(
-  options: CreateRuntimePublisherObjectPlanOptions,
+  options: SegmentPublisherObjectPlanOptions,
   prefix: string,
-  extension: string,
-  nonce: string | undefined
+  extension: string
 ): string {
   const fileName =
-    nonce === undefined
+    options.objectKeyNonce === undefined
       ? `s${options.mediaSequenceNumber}.${extension}`
-      : `segment-${nonce}.${extension}`;
+      : `segment-${options.objectKeyNonce}.${extension}`;
 
-  return nonce === undefined
+  return options.objectKeyNonce === undefined
     ? `${prefix}/${options.renditionId}/${fileName}`
     : `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}/${fileName}`;
+}
+
+function createPartObjectKey(
+  options: PartPublisherObjectPlanOptions,
+  prefix: string,
+  extension: string
+): string {
+  const fileName =
+    options.objectKeyNonce === undefined
+      ? `p${options.partNumber}.${extension}`
+      : `p${options.partNumber}-${options.objectKeyNonce}.${extension}`;
+
+  return `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}/${fileName}`;
 }
 
 function createObjectId(
