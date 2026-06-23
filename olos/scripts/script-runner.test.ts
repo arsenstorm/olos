@@ -50,13 +50,31 @@ test("runCommandAndCapture can return captured output from failing commands", as
 });
 
 test("runCommandAndCapture includes captured output in failure message", async () => {
+  const error = runCommandAndCapture(
+    process.execPath,
+    [
+      "--eval",
+      'console.error("captured-stderr"); process.stdout.write("captured-stdout"); process.exit(7);',
+    ],
+    {
+      forwardOutput: false,
+    }
+  ).catch((caught: unknown) => caught);
+
+  const caught = await error;
+
+  expect(caught).toBeInstanceOf(Error);
+  expect((caught as Error).message).toContain(
+    "stdout (tail):\ncaptured-stdout"
+  );
+  expect((caught as Error).message).toContain(
+    "stderr (tail):\ncaptured-stderr"
+  );
+
   await expect(
     runCommandAndCapture(
       process.execPath,
-      [
-        "--eval",
-        'console.error("captured-stderr"); process.stdout.write("captured-stdout"); process.exit(7);',
-      ],
+      ["--eval", 'process.stderr.write("captured-stderr"); process.exit(7);'],
       {
         forwardOutput: false,
       }

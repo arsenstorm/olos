@@ -121,14 +121,27 @@ function commandExitMessage(
   stderr = ""
 ): string {
   const base = `${command} ${args.join(" ")} exited with ${exitCode}`;
-  const details = [
-    stdout && `stdout (tail):\n${truncateCommandOutput(stdout, "stdout")}`,
-    stderr && `stderr (tail):\n${truncateCommandOutput(stderr, "stderr")}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const details = capturedCommandOutputDetails({ stderr, stdout });
 
   return `${base}${details ? `\n${details}` : ""}`;
+}
+
+function capturedCommandOutputDetails(output: CapturedCommandOutput): string {
+  return [
+    capturedCommandStreamDetails(output.stdout, "stdout"),
+    capturedCommandStreamDetails(output.stderr, "stderr"),
+  ]
+    .filter((details) => details.length > 0)
+    .join("\n");
+}
+
+function capturedCommandStreamDetails(
+  output: string,
+  streamName: keyof CapturedCommandOutput
+): string {
+  return output.length === 0
+    ? ""
+    : `${streamName} (tail):\n${truncateCommandOutput(output, streamName)}`;
 }
 
 function truncateCommandOutput(value: string, streamName: string): string {
