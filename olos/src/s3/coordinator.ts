@@ -150,6 +150,14 @@ type MissingStoredS3CoordinatorUploadCommit = Extract<
   { status: "not_found" }
 >;
 
+type StoredS3CoordinatorSlotResolution =
+  | {
+      slot: UploadSlot;
+      status: "found";
+    }
+  | MissingStoredS3CoordinatorUploadCommit
+  | RejectedS3CoordinatorUploadCommit;
+
 type MissingStoredS3CoordinatorUploadGrantIssue = Extract<
   StoredS3CoordinatorUploadGrantIssue,
   { status: "not_found" }
@@ -474,21 +482,14 @@ export async function completeStoredS3CoordinatorUpload(
     return missingStoredS3CoordinatorUploadCommit();
   }
 
-  const slot = snapshot.state.slots.find(
-    (entry) => entry.slotId === options.slotId
+  const slotResolution = resolveStoredS3CoordinatorSlotById(
+    snapshot.state,
+    options.slotId,
+    objectKey
   );
 
-  if (slot === undefined) {
-    return unknownSlotS3CoordinatorUploadCommit(snapshot.state, {
-      slotId: options.slotId,
-    });
-  }
-
-  if (slot.objectKey !== objectKey) {
-    return keyMismatchS3CoordinatorUploadCommit(snapshot.state, {
-      objectKey,
-      slotId: options.slotId,
-    });
+  if (slotResolution.status !== "found") {
+    return slotResolution;
   }
 
   return commitStoredS3CoordinatorUpload(commitOptions);
@@ -503,20 +504,53 @@ export async function completeStoredS3CoordinatorUploadByObjectKey(
     return missingStoredS3CoordinatorUploadCommit();
   }
 
-  const slot = snapshot.state.slots.find(
-    (entry) => entry.objectKey === options.objectKey
+  const slotResolution = resolveStoredS3CoordinatorSlotByObjectKey(
+    snapshot.state,
+    options.objectKey
   );
 
-  if (slot === undefined) {
-    return unknownSlotS3CoordinatorUploadCommit(snapshot.state, {
-      objectKey: options.objectKey,
-    });
+  if (slotResolution.status !== "found") {
+    return slotResolution;
   }
 
   return completeStoredS3CoordinatorUpload({
     ...options,
-    slotId: slot.slotId,
+    slotId: slotResolution.slot.slotId,
   });
+}
+
+function resolveStoredS3CoordinatorSlotById(
+  state: CoordinatorPipelineState,
+  slotId: OlosId,
+  objectKey: string
+): StoredS3CoordinatorSlotResolution {
+  const slot = state.slots.find((entry) => entry.slotId === slotId);
+
+  if (slot === undefined) {
+    return unknownSlotS3CoordinatorUploadCommit(state, { slotId });
+  }
+
+  if (slot.objectKey !== objectKey) {
+    return keyMismatchS3CoordinatorUploadCommit(state, {
+      objectKey,
+      slotId,
+    });
+  }
+
+  return { slot, status: "found" };
+}
+
+function resolveStoredS3CoordinatorSlotByObjectKey(
+  state: CoordinatorPipelineState,
+  objectKey: string
+): StoredS3CoordinatorSlotResolution {
+  const slot = state.slots.find((entry) => entry.objectKey === objectKey);
+
+  if (slot === undefined) {
+    return unknownSlotS3CoordinatorUploadCommit(state, { objectKey });
+  }
+
+  return { slot, status: "found" };
 }
 
 function withAuditEvent(

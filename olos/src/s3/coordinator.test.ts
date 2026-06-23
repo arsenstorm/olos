@@ -1087,6 +1087,25 @@ describe("s3 coordinator uploads", () => {
     });
   });
 
+  test("does not query S3 for missing object-key completion sessions", async () => {
+    const result = await completeStoredS3CoordinatorUploadByObjectKey({
+      bucket: "media",
+      client: {
+        send(): Promise<HeadObjectCommandOutput> {
+          throw new Error("unexpected s3 call");
+        },
+      },
+      commitId: "commit_missing",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      objectKey: "media/s3810.m4s",
+      providerId: "s3_primary",
+      sessionId: session.sessionId,
+      store: createMemoryCoordinatorStore(),
+    });
+
+    expect(result).toEqual({ status: "not_found" });
+  });
+
   test("routes object-created events to object-key S3 completion", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
