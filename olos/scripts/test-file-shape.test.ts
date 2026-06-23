@@ -14,47 +14,53 @@ describe("test file shape", () => {
   });
 
   test("keeps test files from being helper-only modules", async () => {
-    const testFiles = await listTestFiles(packageRoot);
-    const helperOnlyTestFiles: string[] = [];
-
-    for (const file of testFiles) {
-      const source = await readFile(file, "utf8");
-
-      if (!TEST_DECLARATION_PATTERN.test(source)) {
-        helperOnlyTestFiles.push(packageRelativePath(file));
-      }
-    }
-
-    expect(helperOnlyTestFiles).toEqual([]);
+    expect(await listHelperOnlyTestFiles(packageRoot)).toEqual([]);
   });
 
   test("keeps helper test files in canonical naming", async () => {
-    const testFiles = await listTestFiles(packageRoot);
-    const badHelperTestFiles: string[] = [];
-
-    for (const file of testFiles) {
-      if (isMisnamedHelperTestFile(file)) {
-        badHelperTestFiles.push(packageRelativePath(file));
-      }
-    }
-
-    expect(badHelperTestFiles).toEqual([]);
+    expect(await listMisnamedHelperTestFiles(packageRoot)).toEqual([]);
   });
 
   test("keeps test helper modules out of test discovery", async () => {
-    const sourceFiles = await listSourceFiles(packageRoot);
-    const badHelperModules = sourceFiles
-      .filter(isTestHelperModule)
-      .filter((file) => file.endsWith(".test.ts"));
-
-    expect(badHelperModules).toEqual([]);
+    expect(await listDiscoverableTestHelperModules(packageRoot)).toEqual([]);
   });
 });
+
+async function listHelperOnlyTestFiles(root: string): Promise<string[]> {
+  const testFiles = await listTestFiles(root);
+  const helperOnlyTestFiles = await Promise.all(
+    testFiles.map(async (file) =>
+      (await hasTestDeclaration(file)) ? undefined : packageRelativePath(file)
+    )
+  );
+
+  return helperOnlyTestFiles.filter(isDefined).sort();
+}
+
+async function listMisnamedHelperTestFiles(root: string): Promise<string[]> {
+  return (await listTestFiles(root))
+    .filter(isMisnamedHelperTestFile)
+    .map(packageRelativePath)
+    .sort();
+}
+
+async function listDiscoverableTestHelperModules(
+  root: string
+): Promise<string[]> {
+  return (await listSourceFiles(root))
+    .filter(isDiscoverableTestHelperModule)
+    .map(packageRelativePath)
+    .sort();
+}
 
 async function listTestFiles(root: string): Promise<string[]> {
   const sourceFiles = await listSourceFiles(root);
 
   return sourceFiles.filter((file) => file.endsWith(".test.ts"));
+}
+
+async function hasTestDeclaration(file: string): Promise<boolean> {
+  return TEST_DECLARATION_PATTERN.test(await readFile(file, "utf8"));
 }
 
 function packageRelativePath(path: string): string {
@@ -69,13 +75,21 @@ function isTestHelperModule(path: string): boolean {
   return path.endsWith(".test-helper.ts") && !isCanonicalHelperTestFile(path);
 }
 
+function isDiscoverableTestHelperModule(path: string): boolean {
+  return isTestHelperModule(path) && path.endsWith(".test.ts");
+}
+
 function isCanonicalHelperTestFile(path: string): boolean {
   return path.endsWith(".test-helper.test.ts");
 }
 
+function isDefined<T>(value: T | undefined): value is T {
+  return value !== undefined;
+}
+
 async function listSourceFiles(root: string): Promise<string[]> {
   const roots = [join(root, "scripts"), join(root, "src")];
-  const testFiles = await Promise.all(
+  const sourceFiles = await Promise.all(
     roots.map(async (directory) =>
       (await listDirectoryEntries(directory))
         .filter((entry) => entry.isFile && entry.relativePath.endsWith(".ts"))
@@ -83,5 +97,5 @@ async function listSourceFiles(root: string): Promise<string[]> {
     )
   );
 
-  return testFiles.flat().sort();
+  return sourceFiles.flat().sort();
 }
