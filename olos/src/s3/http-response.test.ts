@@ -48,6 +48,22 @@ describe("S3 HTTP response mapping", () => {
     });
   });
 
+  test("maps failed reconciliation results with unsuccessful result statuses", () => {
+    const result = {
+      result: {
+        status: "not_found",
+      },
+      slot: testSlot(),
+      status: "failed",
+    } satisfies StoredS3CoordinatorUploadReconciliationResult;
+
+    expect(reconciliationResult(result)).toEqual({
+      resultStatus: "not_found",
+      slotId: "slot_3810",
+      status: "failed",
+    });
+  });
+
   test("maps rejected failed reconciliation results with structured errors", () => {
     const result = {
       result: {

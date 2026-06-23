@@ -161,11 +161,24 @@ function failedReconciliationResult(
   }
 
   return {
-    ...(result.error === undefined ? {} : { error: { message: result.error } }),
-    ...(result.result === undefined
-      ? {}
-      : { resultStatus: result.result.status }),
+    ...failedReconciliationErrorResponse(result.error),
+    ...failedReconciliationResultStatusResponse(result.result),
     slotId: result.slot.slotId,
     status: result.status,
   };
+}
+
+function failedReconciliationErrorResponse(
+  error: string | undefined
+): Partial<{ error: StoredS3CoordinatorRouteError }> {
+  return error === undefined ? {} : { error: { message: error } };
+}
+
+function failedReconciliationResultStatusResponse(
+  result: Extract<
+    StoredS3CoordinatorUploadReconciliationResult,
+    { status: "failed" }
+  >["result"]
+): Partial<{ resultStatus: string }> {
+  return result === undefined ? {} : { resultStatus: result.status };
 }
