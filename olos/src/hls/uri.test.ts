@@ -56,6 +56,9 @@ describe("HLS URI helpers", () => {
       assertSafeMediaUri("https://other.example.com/live/3810.m4s", {}, "uri")
     ).toThrow("uri origin is not allowed");
     expect(() =>
+      assertSafeMediaUri("/live/3810.m4s?token=1", {}, "uri")
+    ).toThrow("uri must not contain query strings or fragments");
+    expect(() =>
       assertSafeMediaUri("//media.example.com/live.m4s", {}, "uri")
     ).toThrow("uri must be a safe relative path");
     expect(() => assertSafeMediaUri("s3://bucket/key", {}, "uri")).toThrow(

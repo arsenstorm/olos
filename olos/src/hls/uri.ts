@@ -82,15 +82,28 @@ function assertAllowedAbsoluteMediaUri(
     );
   }
 
+  assertHttpsMediaUri(url, name);
+  assertAllowedMediaOrigin(url, policy, name);
+}
+
+function assertHttpsMediaUri(url: URL, name: string): void {
   if (url.protocol !== "https:") {
     throw new Error(`${name} must use https`);
   }
+}
 
-  const allowedOrigins = policy.allowedMediaOrigins ?? [];
-
-  if (!allowedOrigins.includes(url.origin)) {
+function assertAllowedMediaOrigin(
+  url: URL,
+  policy: MediaUriPolicy,
+  name: string
+): void {
+  if (!allowedMediaOrigins(policy).includes(url.origin)) {
     throw new Error(`${name} origin is not allowed`);
   }
+}
+
+function allowedMediaOrigins(policy: MediaUriPolicy): readonly string[] {
+  return policy.allowedMediaOrigins ?? [];
 }
 
 function parseAbsoluteUrl(value: string): URL | undefined {
