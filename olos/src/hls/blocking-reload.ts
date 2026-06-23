@@ -148,10 +148,7 @@ export function resolveHlsBlockingReload(
 ): HlsBlockingReloadResolution {
   assertCursor(cursor);
 
-  if (
-    request.mediaSequenceNumber === undefined &&
-    request.partNumber !== undefined
-  ) {
+  if (isPartOnlyBlockingRequest(request)) {
     return {
       message: "_HLS_part requires _HLS_msn",
       status: "invalid",
@@ -162,18 +159,42 @@ export function resolveHlsBlockingReload(
     return { request, status: "ready" };
   }
 
-  if (request.mediaSequenceNumber > cursor.window.lastMediaSequenceNumber) {
-    return { request, status: "block" };
-  }
+  const mediaSequenceStatus = resolveMediaSequenceReloadStatus(cursor, request);
 
-  if (request.mediaSequenceNumber < cursor.window.lastMediaSequenceNumber) {
-    return { request, status: "ready" };
+  if (mediaSequenceStatus !== undefined) {
+    return { request, status: mediaSequenceStatus };
   }
 
   return {
     request,
     status: resolveLiveEdgePartStatus(cursor, request),
   };
+}
+
+function isPartOnlyBlockingRequest(request: HlsBlockingReloadRequest): boolean {
+  return (
+    request.mediaSequenceNumber === undefined &&
+    request.partNumber !== undefined
+  );
+}
+
+function resolveMediaSequenceReloadStatus(
+  cursor: Cursor,
+  request: HlsBlockingReloadRequest
+): "block" | "ready" | undefined {
+  if (request.mediaSequenceNumber === undefined) {
+    return;
+  }
+
+  if (request.mediaSequenceNumber > cursor.window.lastMediaSequenceNumber) {
+    return "block";
+  }
+
+  if (request.mediaSequenceNumber < cursor.window.lastMediaSequenceNumber) {
+    return "ready";
+  }
+
+  return;
 }
 
 function timeoutHlsBlockingReloadResult(

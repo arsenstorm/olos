@@ -154,6 +154,21 @@ describe("HLS blocking reload", () => {
     });
   });
 
+  test("returns ready for older media sequences regardless of requested part", () => {
+    expect(
+      resolveHlsBlockingReload(cursor, {
+        mediaSequenceNumber: 3811,
+        partNumber: 999,
+      })
+    ).toEqual({
+      request: {
+        mediaSequenceNumber: 3811,
+        partNumber: 999,
+      },
+      status: "ready",
+    });
+  });
+
   test("blocks when the request is beyond the live cursor", () => {
     expect(
       resolveHlsBlockingReload(cursor, {
