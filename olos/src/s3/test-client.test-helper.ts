@@ -19,6 +19,9 @@ const createHeadObjectMetadata = (
 ): Record<string, string> | undefined =>
   metadata === undefined ? undefined : metadata[objectKey];
 
+const DEFAULT_HEAD_OBJECT_CONTENT_TYPE = "video/mp4";
+const DEFAULT_HEAD_OBJECT_LAST_MODIFIED = "2026-01-01T00:00:01.000Z";
+
 export function createTestS3Client(): S3Client {
   return new S3Client({
     credentials: {
@@ -54,10 +57,7 @@ export function createTestHeadObjectClientFor(
   lastModified: Record<string, string> = {},
   options: HeadObjectClientOptions = {}
 ): S3HeadObjectClient {
-  const resolveSize =
-    typeof sizes === "function"
-      ? sizes
-      : (objectKey: string) => sizes[objectKey];
+  const resolveSize = createObjectSizeResolver(sizes);
   const resolveMissingObjectError =
     options.missingObjectError ??
     ((objectKey) => `unexpected object key: ${objectKey}`);
@@ -75,17 +75,44 @@ export function createTestHeadObjectClientFor(
       }
 
       const objectMetadata = createHeadObjectMetadata(objectKey, metadata);
-      return Promise.resolve({
-        $metadata: {},
-        ContentLength: size,
-        ContentType: contentTypes[objectKey] ?? "video/mp4",
-        ETag: `"${objectKey}"`,
-        LastModified: new Date(
-          lastModified[objectKey] ?? "2026-01-01T00:00:01.000Z"
-        ),
-        ...(objectMetadata === undefined ? {} : { Metadata: objectMetadata }),
-      });
+      return Promise.resolve(
+        createHeadObjectOutput(objectKey, size, {
+          contentTypes,
+          lastModified,
+          metadata: objectMetadata,
+        })
+      );
     },
+  };
+}
+
+function createObjectSizeResolver(
+  sizes: Record<string, number> | ObjectSizeResolver
+): ObjectSizeResolver {
+  return typeof sizes === "function"
+    ? sizes
+    : (objectKey: string) => sizes[objectKey];
+}
+
+function createHeadObjectOutput(
+  objectKey: string,
+  size: number,
+  options: {
+    contentTypes: Record<string, string>;
+    lastModified: Record<string, string>;
+    metadata: Record<string, string> | undefined;
+  }
+): HeadObjectCommandOutput {
+  return {
+    $metadata: {},
+    ContentLength: size,
+    ContentType:
+      options.contentTypes[objectKey] ?? DEFAULT_HEAD_OBJECT_CONTENT_TYPE,
+    ETag: `"${objectKey}"`,
+    LastModified: new Date(
+      options.lastModified[objectKey] ?? DEFAULT_HEAD_OBJECT_LAST_MODIFIED
+    ),
+    ...(options.metadata === undefined ? {} : { Metadata: options.metadata }),
   };
 }
 

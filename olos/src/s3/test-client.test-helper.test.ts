@@ -90,4 +90,27 @@ describe("createTestHeadObjectClient", () => {
       } as HeadObjectCommand)
     ).rejects.toThrow("missing object: media/other.m4s");
   });
+
+  test("supports function-based object size resolvers", async () => {
+    const client = createTestHeadObjectClientFor([], (objectKey) =>
+      objectKey.endsWith(".m4s") ? 98_304 : undefined
+    );
+
+    const output = await client.send({
+      input: {
+        Bucket: "media",
+        Key: "media/v1080/3810.m4s",
+      },
+    } as HeadObjectCommand);
+
+    expect(output.ContentLength).toBe(98_304);
+    await expect(
+      client.send({
+        input: {
+          Bucket: "media",
+          Key: "media/v1080/init.mp4",
+        },
+      } as HeadObjectCommand)
+    ).rejects.toThrow("unexpected object key: media/v1080/init.mp4");
+  });
 });
