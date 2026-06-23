@@ -317,11 +317,15 @@ function defaultMediaPlaylistPath(
 }
 
 function parseRequestPath(value: string): string | undefined {
-  if (value.startsWith("/")) {
+  if (isRelativeRequestPath(value)) {
     return new URL(value, HLS_RELATIVE_REQUEST_BASE_URL).pathname;
   }
 
   return parseAbsoluteRequestPath(value);
+}
+
+function isRelativeRequestPath(value: string): boolean {
+  return value.startsWith("/");
 }
 
 function parseAbsoluteRequestPath(value: string): string | undefined {

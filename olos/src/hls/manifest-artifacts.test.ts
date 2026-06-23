@@ -307,6 +307,12 @@ describe("HLS manifest artifacts", () => {
     expect(
       resolveHlsManifestArtifactResponse(
         artifacts,
+        "http://edge.example.com/v1/live/session_1/master.m3u8"
+      )?.body
+    ).toContain("/v1/live/session_1/v1080/media.m3u8");
+    expect(
+      resolveHlsManifestArtifactResponse(
+        artifacts,
         "/v1/live/session_1/missing.m3u8"
       )
     ).toBeUndefined();
