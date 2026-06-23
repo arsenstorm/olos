@@ -5,7 +5,6 @@ import {
   S3_SESSION_ROUTE_SEGMENT,
   s3RouteParts,
 } from "../runtime/route";
-import type { CreateStoredS3CoordinatorRuntimeHandlerOptions } from "./http";
 
 interface InvalidS3Route {
   message: string;
@@ -34,10 +33,26 @@ type S3Route =
   | { status: "method_not_allowed" }
   | { status: "not_s3" };
 
-export function s3Route(
-  request: Request,
-  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
-): S3Route {
+interface S3RouteOptions {
+  sessionPath?: string;
+}
+
+type S3SessionRouteAction = Extract<
+  S3Route,
+  { slotId?: never; status: "matched" }
+>["action"];
+
+interface S3CompletionHintRouteParts {
+  sessionId: string;
+  slotId: string;
+}
+
+interface S3SessionRouteParts {
+  action: S3SessionRouteAction;
+  sessionId: string;
+}
+
+export function s3Route(request: Request, options: S3RouteOptions): S3Route {
   const url = new URL(request.url);
   const parts = s3RouteParts(url.pathname, options);
 
@@ -50,63 +65,122 @@ export function s3Route(
   }
 
   const [sessionId, provider, action, completion] = parts;
+  const completionHintParts = s3CompletionHintRouteParts(
+    parts,
+    sessionId,
+    provider,
+    action,
+    completion
+  );
 
-  if (
-    sessionId !== undefined &&
-    provider === S3_ROUTE_ACTIONS.completionHint &&
-    action !== undefined &&
-    completion === S3_COMPLETION_HINT_ACTION &&
-    parts.length === 4
-  ) {
-    if (request.method !== "POST") {
-      return { status: "method_not_allowed" };
-    }
+  if (completionHintParts !== undefined) {
+    const routeError = invalidPostS3Route(request, completionHintParts);
 
-    const sessionIdError = routeSessionIdError(sessionId);
-
-    if (sessionIdError !== undefined) {
-      return invalidS3Route(sessionIdError);
-    }
-
-    const slotIdError = routeSlotIdError(action);
-
-    if (slotIdError !== undefined) {
-      return invalidS3Route(slotIdError);
+    if (routeError !== undefined) {
+      return routeError;
     }
 
     return {
       action: "completion-hint",
-      sessionId,
-      slotId: action,
+      sessionId: completionHintParts.sessionId,
+      slotId: completionHintParts.slotId,
       status: "matched",
     };
   }
 
-  if (
-    sessionId === undefined ||
-    provider !== S3_SESSION_ROUTE_SEGMENT ||
-    (action !== S3_ROUTE_ACTIONS.slots &&
-      action !== S3_ROUTE_ACTIONS.commits &&
-      action !== S3_ROUTE_ACTIONS.events &&
-      action !== S3_ROUTE_ACTIONS.reconcilePlan &&
-      action !== S3_ROUTE_ACTIONS.retention &&
-      action !== S3_ROUTE_ACTIONS.reconcile) ||
-    parts.length !== 3
-  ) {
+  const sessionParts = s3SessionRouteParts(parts, sessionId, provider, action);
+
+  if (sessionParts === undefined) {
     return { status: "not_s3" };
   }
 
+  const routeError = invalidPostS3Route(request, sessionParts);
+
+  if (routeError !== undefined) {
+    return routeError;
+  }
+
+  return {
+    action: sessionParts.action,
+    sessionId: sessionParts.sessionId,
+    status: "matched",
+  };
+}
+
+function s3CompletionHintRouteParts(
+  parts: readonly string[],
+  sessionId: string | undefined,
+  provider: string | undefined,
+  action: string | undefined,
+  completion: string | undefined
+): S3CompletionHintRouteParts | undefined {
+  if (
+    sessionId === undefined ||
+    provider !== S3_ROUTE_ACTIONS.completionHint ||
+    action === undefined ||
+    completion !== S3_COMPLETION_HINT_ACTION ||
+    parts.length !== 4
+  ) {
+    return;
+  }
+
+  return { sessionId, slotId: action };
+}
+
+function s3SessionRouteParts(
+  parts: readonly string[],
+  sessionId: string | undefined,
+  provider: string | undefined,
+  action: string | undefined
+): S3SessionRouteParts | undefined {
+  if (
+    sessionId === undefined ||
+    provider !== S3_SESSION_ROUTE_SEGMENT ||
+    !isS3SessionRouteAction(action) ||
+    parts.length !== 3
+  ) {
+    return;
+  }
+
+  return { action, sessionId };
+}
+
+function isS3SessionRouteAction(
+  action: string | undefined
+): action is S3SessionRouteAction {
+  return (
+    action === S3_ROUTE_ACTIONS.slots ||
+    action === S3_ROUTE_ACTIONS.commits ||
+    action === S3_ROUTE_ACTIONS.events ||
+    action === S3_ROUTE_ACTIONS.reconcilePlan ||
+    action === S3_ROUTE_ACTIONS.retention ||
+    action === S3_ROUTE_ACTIONS.reconcile
+  );
+}
+
+function invalidPostS3Route(
+  request: Request,
+  route: { sessionId: string; slotId?: string }
+): InvalidS3Route | { status: "method_not_allowed" } | undefined {
   if (request.method !== "POST") {
     return { status: "method_not_allowed" };
   }
 
-  const sessionIdError = routeSessionIdError(sessionId);
+  const sessionIdError = routeSessionIdError(route.sessionId);
 
   if (sessionIdError !== undefined) {
     return invalidS3Route(sessionIdError);
   }
 
-  return { action, sessionId, status: "matched" };
+  if (route.slotId === undefined) {
+    return;
+  }
+
+  const slotIdError = routeSlotIdError(route.slotId);
+
+  if (slotIdError !== undefined) {
+    return invalidS3Route(slotIdError);
+  }
 }
 
 function routeSessionIdError(sessionId: string): string | undefined {
