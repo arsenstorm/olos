@@ -102,6 +102,21 @@ describe("observed upload validation", () => {
     );
   });
 
+  test("accepts object sizes exactly at slot byte limits", () => {
+    expect(() =>
+      assertObservedUploadMatchesSlot({
+        object: { ...object, size: slot.minBytes ?? 0 },
+        slot,
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertObservedUploadMatchesSlot({
+        object: { ...object, size: slot.maxBytes },
+        slot,
+      })
+    ).not.toThrow();
+  });
+
   test("rejects objects observed after slot expiry", () => {
     expect(() =>
       assertObservedUploadMatchesSlot({

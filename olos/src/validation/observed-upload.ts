@@ -103,12 +103,25 @@ function assertObjectIdentityMatchesSlot(
 function assertObjectSizeWithinSlot(options: ObservedUploadMatchOptions): void {
   const { object, slot } = options;
 
+  assertObjectSizeDoesNotExceedSlotMax(object, slot);
+  assertObjectSizeMeetsSlotMin(object, slot);
+}
+
+function assertObjectSizeDoesNotExceedSlotMax(
+  object: ObservedUpload,
+  slot: UploadSlot
+): void {
   if (object.size > slot.maxBytes) {
     throw new Error(
       "observedUpload.size must be less than or equal to uploadSlot.maxBytes"
     );
   }
+}
 
+function assertObjectSizeMeetsSlotMin(
+  object: ObservedUpload,
+  slot: UploadSlot
+): void {
   if (slot.minBytes !== undefined && object.size < slot.minBytes) {
     throw new Error(
       "observedUpload.size must be greater than or equal to uploadSlot.minBytes"
