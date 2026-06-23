@@ -167,11 +167,15 @@ describe("HLS manifest artifacts", () => {
   });
 
   test("supports custom safe playlist paths", () => {
+    const visitedRenditionIds: string[] = [];
     const artifacts = createHlsManifestArtifacts(session, committedWindow, {
       allowedMediaOrigins: [MEDIA_ORIGIN],
       masterPath: "/live/session_1/index.m3u8",
-      mediaPlaylistPath: (_session, rendition) =>
-        `/live/session_1/${rendition.renditionId}.m3u8`,
+      mediaPlaylistPath: (_session, rendition) => {
+        visitedRenditionIds.push(rendition.renditionId);
+
+        return `/live/session_1/${rendition.renditionId}.m3u8`;
+      },
       partTarget: session.partTarget,
       segmentTarget: session.segmentTarget,
     });
@@ -180,6 +184,7 @@ describe("HLS manifest artifacts", () => {
       "/live/session_1/index.m3u8",
       "/live/session_1/v1080.m3u8",
     ]);
+    expect(visitedRenditionIds).toEqual(["v1080", "v1080"]);
     expect(artifacts[0]?.body).toContain("/live/session_1/v1080.m3u8");
   });
 

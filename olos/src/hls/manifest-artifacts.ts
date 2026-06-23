@@ -88,6 +88,8 @@ type NotFoundHlsManifestArtifactResponseResolution = Extract<
   { status: "not_found" }
 >;
 
+type VideoRendition = Rendition & { kind: "video" };
+
 type ParsedBlockingReloadRequest =
   | HlsBlockingReloadRequest
   | InvalidParsedBlockingReloadRequest;
@@ -101,22 +103,44 @@ export function createHlsManifestArtifacts(
   const mediaPlaylistPath =
     options.mediaPlaylistPath ?? defaultMediaPlaylistPath;
 
+  return [
+    createMasterPlaylistArtifact(session, mediaPlaylistPath, masterPath),
+    ...createMediaPlaylistArtifacts(
+      session,
+      committedWindow,
+      mediaPlaylistPath,
+      options
+    ),
+  ];
+}
+
+function createMasterPlaylistArtifact(
+  session: Session,
+  mediaPlaylistPath: NonNullable<
+    CreateHlsManifestArtifactsOptions["mediaPlaylistPath"]
+  >,
+  masterPath: string
+): HlsManifestArtifact {
   assertSafeRelativePath(masterPath, "master playlist path");
 
-  const artifacts: HlsManifestArtifact[] = [
-    {
-      body: renderMasterPlaylist(session, { mediaPlaylistPath }),
-      contentType: HLS_CONTENT_TYPE,
-      path: masterPath,
-    },
-  ];
+  return {
+    body: renderMasterPlaylist(session, { mediaPlaylistPath }),
+    contentType: HLS_CONTENT_TYPE,
+    path: masterPath,
+  };
+}
 
-  for (const rendition of session.renditions) {
-    if (rendition.kind !== "video") {
-      continue;
-    }
-
-    artifacts.push(
+function createMediaPlaylistArtifacts(
+  session: Session,
+  committedWindow: CommittedWindow,
+  mediaPlaylistPath: NonNullable<
+    CreateHlsManifestArtifactsOptions["mediaPlaylistPath"]
+  >,
+  options: CreateHlsManifestArtifactsOptions
+): HlsManifestArtifact[] {
+  return session.renditions
+    .filter(isVideoRendition)
+    .map((rendition) =>
       createMediaPlaylistArtifact(
         session,
         committedWindow,
@@ -125,15 +149,12 @@ export function createHlsManifestArtifacts(
         options
       )
     );
-  }
-
-  return artifacts;
 }
 
 function createMediaPlaylistArtifact(
   session: Session,
   committedWindow: CommittedWindow,
-  rendition: Rendition,
+  rendition: VideoRendition,
   mediaPlaylistPath: NonNullable<
     CreateHlsManifestArtifactsOptions["mediaPlaylistPath"]
   >,
@@ -150,6 +171,10 @@ function createMediaPlaylistArtifact(
     contentType: HLS_CONTENT_TYPE,
     path,
   };
+}
+
+function isVideoRendition(rendition: Rendition): rendition is VideoRendition {
+  return rendition.kind === "video";
 }
 
 export function createHlsManifestArtifactResponse(
