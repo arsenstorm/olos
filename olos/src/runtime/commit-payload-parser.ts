@@ -413,15 +413,28 @@ function optionalUrlSafeIdentifierArray(
   value: unknown,
   field: string
 ): string[] {
+  assertStringArray(value, field);
+  assertUrlSafeIdentifierArrayEntries(value, field);
+
+  return value;
+}
+
+function assertStringArray(
+  value: unknown,
+  field: string
+): asserts value is string[] {
   if (!isStringArray(value)) {
     throw new Error(`${field} must be a string array`);
   }
+}
 
+function assertUrlSafeIdentifierArrayEntries(
+  value: readonly string[],
+  field: string
+): void {
   for (const entry of value) {
     assertUrlSafeIdentifier(entry, field);
   }
-
-  return value;
 }
 
 function isStringArray(value: unknown): value is string[] {

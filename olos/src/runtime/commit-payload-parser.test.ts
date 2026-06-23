@@ -154,6 +154,9 @@ describe("commit payload parser", () => {
   test("parses optional URL-safe identifier arrays", () => {
     expect(parseOptionalUrlSafeIdentifierArrayField({}, "slotIds")).toEqual({});
     expect(
+      parseOptionalUrlSafeIdentifierArrayField({ slotIds: [] }, "slotIds")
+    ).toEqual({ slotIds: [] });
+    expect(
       parseOptionalUrlSafeIdentifierArrayField(
         { slotIds: ["slot_init", "slot_3810"] },
         "slotIds"
