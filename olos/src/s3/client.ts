@@ -799,11 +799,17 @@ function failedReconciliationResultPayload(
   index: number,
   slotId: string
 ): S3RuntimeReconciliationResultPayload {
-  if (status === "failed") {
+  if (isSupportedFailedReconciliationResultStatus(status)) {
     return { slotId, status };
   }
 
   throw new Error(reconciliationResultUnsupportedStatusContext(index));
+}
+
+function isSupportedFailedReconciliationResultStatus(
+  status: S3RuntimeFailedReconciliationResultStatus
+): status is "failed" {
+  return status === "failed";
 }
 
 function reconciliationResultObjectContext(index: number): string {
