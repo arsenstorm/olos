@@ -144,6 +144,27 @@ describe("master playlist rendering", () => {
     ).toThrow("rendition v1080 must define codec");
   });
 
+  test("omits resolution attributes when video dimensions are absent", () => {
+    const [videoRendition] = session.renditions;
+
+    if (videoRendition === undefined) {
+      throw new Error("expected video rendition fixture");
+    }
+
+    const {
+      height: _height,
+      width: _width,
+      ...renditionWithoutDimensions
+    } = videoRendition;
+
+    expect(
+      renderMasterPlaylist({
+        ...session,
+        renditions: [renditionWithoutDimensions],
+      })
+    ).not.toContain("RESOLUTION=");
+  });
+
   test("rejects video renditions with partial resolution dimensions", () => {
     const [videoRendition] = session.renditions;
 

@@ -117,13 +117,17 @@ function resolutionAttributes(rendition: VideoRendition): string[] {
     return [];
   }
 
-  if (rendition.width === undefined || rendition.height === undefined) {
+  if (hasPartialRenditionResolution(rendition)) {
     throw new Error(
       `rendition ${rendition.renditionId} must define width and height together`
     );
   }
 
   return [`RESOLUTION=${rendition.width}x${rendition.height}`];
+}
+
+function hasPartialRenditionResolution(rendition: VideoRendition): boolean {
+  return rendition.width === undefined || rendition.height === undefined;
 }
 
 function isAudioRendition(rendition: Rendition): rendition is AudioRendition {
