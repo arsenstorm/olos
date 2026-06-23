@@ -27,7 +27,7 @@ export function assertUrlSafeField(
   field: string,
   name: string
 ): void {
-  assertUrlSafeIdentifier(value[field], fieldName(name, field));
+  assertFieldValue(value, field, name, assertUrlSafeIdentifier);
 }
 
 export function assertNonNegativeIntegerField(
@@ -35,7 +35,7 @@ export function assertNonNegativeIntegerField(
   field: string,
   name: string
 ): void {
-  assertNonNegativeInteger(value[field], fieldName(name, field));
+  assertFieldValue(value, field, name, assertNonNegativeInteger);
 }
 
 export function assertPositiveIntegerField(
@@ -43,7 +43,7 @@ export function assertPositiveIntegerField(
   field: string,
   name: string
 ): void {
-  assertPositiveInteger(value[field], fieldName(name, field));
+  assertFieldValue(value, field, name, assertPositiveInteger);
 }
 
 export function assertPositiveNumberField(
@@ -51,7 +51,7 @@ export function assertPositiveNumberField(
   field: string,
   name: string
 ): void {
-  positiveNumber(value[field], fieldName(name, field));
+  assertFieldValue(value, field, name, positiveNumber);
 }
 
 export function stringValue(value: unknown, name: string): string {
@@ -131,7 +131,7 @@ export function assertBooleanField(
   field: string,
   name: string
 ): void {
-  booleanValue(value[field], fieldName(name, field));
+  assertFieldValue(value, field, name, booleanValue);
 }
 
 export function assertIsoDateField(
@@ -139,7 +139,7 @@ export function assertIsoDateField(
   field: string,
   name: string
 ): void {
-  timestampString(value[field], fieldName(name, field));
+  assertFieldValue(value, field, name, timestampString);
 }
 
 export function assertOneOfField<const T extends readonly string[]>(
@@ -161,6 +161,15 @@ export function assertOneOfField<const T extends readonly string[]>(
 
 function fieldName(name: string, field: string): string {
   return `${name}.${field}`;
+}
+
+function assertFieldValue(
+  value: Record<string, unknown>,
+  field: string,
+  name: string,
+  assertValue: (value: unknown, name: string) => unknown
+): void {
+  assertValue(value[field], fieldName(name, field));
 }
 
 interface AbsoluteHttpUrlOptions {
