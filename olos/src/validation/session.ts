@@ -103,12 +103,18 @@ function assertOptionalPositiveIntegerFields(
 }
 
 function assertRenditionDimensions(value: Record<string, unknown>): void {
-  if (
-    (value.width === undefined && value.height !== undefined) ||
-    (value.width !== undefined && value.height === undefined)
-  ) {
+  if (hasPartialRenditionDimensions(value)) {
     throw new Error(
       "session.renditions[] must define width and height together"
     );
   }
+}
+
+function hasPartialRenditionDimensions(
+  value: Record<string, unknown>
+): boolean {
+  return (
+    (value.width === undefined && value.height !== undefined) ||
+    (value.width !== undefined && value.height === undefined)
+  );
 }

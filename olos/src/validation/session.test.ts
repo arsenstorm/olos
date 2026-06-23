@@ -113,6 +113,21 @@ describe("session validation", () => {
     ).not.toThrow();
   });
 
+  test("accepts renditions without dimensions", () => {
+    expect(() =>
+      assertSession({
+        ...validSession,
+        renditions: [
+          {
+            codec: "mp4a.40.2",
+            kind: "audio",
+            renditionId: "a128",
+          },
+        ],
+      })
+    ).not.toThrow();
+  });
+
   test("rejects invalid rendition fields", () => {
     expect(() =>
       assertSession({
