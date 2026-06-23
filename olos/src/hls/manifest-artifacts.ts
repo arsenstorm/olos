@@ -22,6 +22,7 @@ import {
 import { assertSafeRelativePath, HLS_RELATIVE_REQUEST_BASE_URL } from "./uri";
 
 const HLS_CONTENT_TYPE = "application/vnd.apple.mpegurl";
+const HLS_TEXT_ERROR_CONTENT_TYPE = "text/plain; charset=utf-8";
 
 export interface HlsManifestArtifact {
   body: string;
@@ -183,16 +184,10 @@ export function createHlsManifestErrorWebResponse(
   resolution: HlsManifestErrorResolution
 ): Response {
   if (resolution.status === "invalid") {
-    return new Response(resolution.message, {
-      headers: { "content-type": "text/plain; charset=utf-8" },
-      status: 400,
-    });
+    return createHlsTextErrorWebResponse(resolution.message, 400);
   }
 
-  return new Response("manifest not found", {
-    headers: { "content-type": "text/plain; charset=utf-8" },
-    status: 404,
-  });
+  return createHlsTextErrorWebResponse("manifest not found", 404);
 }
 
 export function resolveHlsManifestArtifactResponse(
@@ -291,10 +286,14 @@ function parseRequestPath(value: string): string | undefined {
     return new URL(value, HLS_RELATIVE_REQUEST_BASE_URL).pathname;
   }
 
+  return parseAbsoluteRequestPath(value);
+}
+
+function parseAbsoluteRequestPath(value: string): string | undefined {
   try {
     const url = new URL(value);
 
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
+    if (!isHttpRequestUrl(url)) {
       return;
     }
 
@@ -302,6 +301,10 @@ function parseRequestPath(value: string): string | undefined {
   } catch {
     return;
   }
+}
+
+function isHttpRequestUrl(url: URL): boolean {
+  return url.protocol === "http:" || url.protocol === "https:";
 }
 
 function createResponseArtifacts(
@@ -317,4 +320,14 @@ function createResponseArtifacts(
     ...artifact,
     response: createHlsManifestArtifactResponse(artifact, options.response),
   }));
+}
+
+function createHlsTextErrorWebResponse(
+  body: string,
+  status: 400 | 404
+): Response {
+  return new Response(body, {
+    headers: { "content-type": HLS_TEXT_ERROR_CONTENT_TYPE },
+    status,
+  });
 }

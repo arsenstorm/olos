@@ -308,6 +308,12 @@ describe("HLS manifest artifacts", () => {
     expect(
       resolveHlsManifestArtifactResponse(artifacts, "media.m3u8")
     ).toBeUndefined();
+    expect(
+      resolveHlsManifestArtifactResponse(
+        artifacts,
+        "ftp://edge.example.com/v1/live/session_1/master.m3u8"
+      )
+    ).toBeUndefined();
   });
 
   test("resolves blocking manifest responses immediately when ready", async () => {
