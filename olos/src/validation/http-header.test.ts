@@ -25,6 +25,7 @@ describe("HTTP header validation", () => {
     expect(isOptionalHttpHeaderStringMap({ "x-olos-slot-id": undefined })).toBe(
       true
     );
+    expect(isOptionalHttpHeaderStringMap({ "x-olos-slot-id": 1 })).toBe(false);
     expect(isOptionalHttpHeaderStringMap({ "bad header": undefined })).toBe(
       false
     );
