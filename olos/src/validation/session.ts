@@ -78,7 +78,10 @@ function assertRendition(value: unknown): asserts value is Rendition {
   assertUrlSafeField(value, "renditionId", "session.renditions[]");
   assertOneOfField(value, "kind", RENDITION_KINDS, "session.renditions[]");
   assertNonEmptyStringField(value, "codec", "session.renditions[]");
+  assertOptionalRenditionMetrics(value);
+}
 
+function assertOptionalRenditionMetrics(value: Record<string, unknown>): void {
   assertOptionalPositiveIntegerFields(value, OPTIONAL_RENDITION_INTEGER_FIELDS);
   assertOptionalPositiveIntegerFields(value, RENDITION_DIMENSION_FIELDS);
   assertRenditionDimensions(value);

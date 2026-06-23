@@ -95,6 +95,24 @@ describe("session validation", () => {
     ).toThrow("session.renditions must not contain duplicate IDs");
   });
 
+  test("accepts optional audio rendition metrics", () => {
+    expect(() =>
+      assertSession({
+        ...validSession,
+        renditions: [
+          {
+            bitrate: 128_000,
+            channels: 2,
+            codec: "mp4a.40.2",
+            kind: "audio",
+            renditionId: "a128",
+            sampleRate: 48_000,
+          },
+        ],
+      })
+    ).not.toThrow();
+  });
+
   test("rejects invalid rendition fields", () => {
     expect(() =>
       assertSession({
