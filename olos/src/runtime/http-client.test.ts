@@ -115,6 +115,9 @@ describe("runtime HTTP client helpers", () => {
     await expect(responseBody(new Response('{"ok":true}'))).resolves.toEqual({
       ok: true,
     });
+    await expect(responseBody(new Response("{bad json"))).resolves.toBe(
+      "{bad json"
+    );
     await expect(responseBody(new Response("plain text"))).resolves.toBe(
       "plain text"
     );

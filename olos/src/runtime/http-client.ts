@@ -129,12 +129,20 @@ export function recordPayload<T>(
 }
 
 export async function responseBody(response: Response): Promise<unknown> {
-  const text = await response.clone().text();
+  const text = await responseText(response);
 
   if (text.length === 0) {
     return;
   }
 
+  return parseResponseText(text);
+}
+
+async function responseText(response: Response): Promise<string> {
+  return await response.clone().text();
+}
+
+function parseResponseText(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch {
