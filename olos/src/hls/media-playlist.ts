@@ -115,13 +115,15 @@ function hasFullCommittedSegment(
 }
 
 function renderPart(part: CommittedPart, policy: MediaUriPolicy): string {
-  const attributes = [
+  return `#EXT-X-PART:${partAttributes(part, policy).join(",")}`;
+}
+
+function partAttributes(part: CommittedPart, policy: MediaUriPolicy): string[] {
+  return [
     `DURATION=${formatSeconds(part.duration)}`,
     part.independent ? "INDEPENDENT=YES" : undefined,
     `URI="${renderMediaUri(part.deliveryUrl, policy, "part.deliveryUrl")}"`,
   ].filter((attribute) => attribute !== undefined);
-
-  return `#EXT-X-PART:${attributes.join(",")}`;
 }
 
 function renderMediaUri(
