@@ -1,6 +1,10 @@
 import { SESSION_TRANSITIONS } from "../config/session";
 import type { SessionState } from "../types/session";
 
+const SESSION_TRANSITION_MAP: Partial<
+  Record<SessionState, readonly SessionState[]>
+> = SESSION_TRANSITIONS;
+
 export function canTransitionSession(
   from: SessionState,
   to: SessionState
@@ -16,14 +20,18 @@ export function assertSessionTransition(
     return;
   }
 
-  throw new Error(`Invalid session transition: ${from} -> ${to}`);
+  throw new Error(invalidSessionTransitionMessage(from, to));
 }
 
 function allowedSessionTransitions(
   from: SessionState
 ): readonly SessionState[] {
-  const transitions: Partial<Record<SessionState, readonly SessionState[]>> =
-    SESSION_TRANSITIONS;
+  return SESSION_TRANSITION_MAP[from] ?? [];
+}
 
-  return transitions[from] ?? [];
+function invalidSessionTransitionMessage(
+  from: SessionState,
+  to: SessionState
+): string {
+  return `Invalid session transition: ${from} -> ${to}`;
 }

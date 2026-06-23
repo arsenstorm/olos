@@ -20,6 +20,10 @@ describe("session transitions", () => {
     expect(canTransitionSession("expired", "live")).toBe(false);
   });
 
+  test("rejects terminal states without outgoing transitions", () => {
+    expect(canTransitionSession("ended", "ended")).toBe(false);
+  });
+
   test("throws for invalid transitions", () => {
     expect(() => assertSessionTransition("ended", "live")).toThrow(
       "Invalid session transition: ended -> live"
