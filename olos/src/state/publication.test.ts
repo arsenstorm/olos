@@ -164,4 +164,37 @@ describe("object publication", () => {
       "providerCapability.publication.readGateAvailable must be true for read-gated commits"
     );
   });
+
+  test("keeps committed private-promotion delivery URLs behind providers with promotion support", () => {
+    expect(
+      createObjectPublication({
+        capability,
+        commit: {
+          ...commit,
+          deliveryUrl: "/promoted/session/v1080/3810.m4s",
+          publicationMode: "private-upload-public-promotion",
+        },
+      }).deliveryUrl
+    ).toBe("/promoted/session/v1080/3810.m4s");
+  });
+
+  test("rejects private-promotion commits when the provider has no promotion support", () => {
+    expect(() =>
+      createObjectPublication({
+        capability: {
+          ...capability,
+          publication: {
+            ...capability.publication,
+            privateUploadPublicPromotion: false,
+          },
+        },
+        commit: {
+          ...commit,
+          publicationMode: "private-upload-public-promotion",
+        },
+      })
+    ).toThrow(
+      "providerCapability.publication.privateUploadPublicPromotion must be true for private-upload-public-promotion commits"
+    );
+  });
 });

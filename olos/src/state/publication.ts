@@ -10,12 +10,6 @@ export interface CreateObjectPublicationOptions {
   commit: Commit;
 }
 
-type DirectPublicCommit = Commit & { publicationMode: "direct-public" };
-type PrivatePromotionCommit = Commit & {
-  publicationMode: "private-upload-public-promotion";
-};
-type ReadGatedCommit = Commit & { publicationMode: "read-gated" };
-
 export function createObjectPublication(
   options: CreateObjectPublicationOptions
 ): ObjectPublication {
@@ -38,21 +32,36 @@ function deliveryUrlForPublication(
 ): string {
   const { capability, commit } = options;
 
-  if (isDirectPublicCommit(commit)) {
-    assertDirectPublicPublicationSupport(capability);
+  assertPublicationModeSupport(capability, commit);
 
-    return publicObjectUrl(capability.delivery.publicBaseUrl, commit.objectKey);
+  if (commit.publicationMode !== "direct-public") {
+    return commit.deliveryUrl;
   }
 
-  if (isReadGatedCommit(commit)) {
-    assertReadGatedPublicationSupport(capability);
-  }
+  return publicObjectUrl(capability.delivery.publicBaseUrl, commit.objectKey);
+}
 
-  if (isPrivatePromotionCommit(commit)) {
-    assertPrivatePromotionPublicationSupport(capability);
+function assertPublicationModeSupport(
+  capability: ProviderCapabilityDocument,
+  commit: Commit
+): void {
+  switch (commit.publicationMode) {
+    case "direct-public":
+      assertDirectPublicPublicationSupport(capability);
+      return;
+    case "private-upload-public-promotion":
+      assertPrivatePromotionPublicationSupport(capability);
+      return;
+    case "read-gated":
+      assertReadGatedPublicationSupport(capability);
+      return;
+    default:
+      assertUnsupportedPublicationMode(commit.publicationMode);
   }
+}
 
-  return commit.deliveryUrl;
+function assertUnsupportedPublicationMode(publicationMode: never): never {
+  throw new Error(`unsupported publicationMode ${publicationMode}`);
 }
 
 function assertDirectPublicPublicationSupport(
@@ -89,20 +98,6 @@ function assertPrivatePromotionPublicationSupport(
       "providerCapability.publication.privateUploadPublicPromotion must be true for private-upload-public-promotion commits"
     );
   }
-}
-
-function isDirectPublicCommit(commit: Commit): commit is DirectPublicCommit {
-  return commit.publicationMode === "direct-public";
-}
-
-function isPrivatePromotionCommit(
-  commit: Commit
-): commit is PrivatePromotionCommit {
-  return commit.publicationMode === "private-upload-public-promotion";
-}
-
-function isReadGatedCommit(commit: Commit): commit is ReadGatedCommit {
-  return commit.publicationMode === "read-gated";
 }
 
 function assertProviderOwnsCommit(
