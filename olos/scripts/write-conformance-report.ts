@@ -17,6 +17,8 @@ const coveredAssertionIds = new Set(
   OLOS_CONFORMANCE_COVERAGE.map((entry) => entry.id)
 );
 
+type ConformanceCoverageEntry = (typeof OLOS_CONFORMANCE_COVERAGE)[number];
+
 if (isCliEntry(import.meta.url)) {
   const report = buildConformanceReport();
 
@@ -45,49 +47,77 @@ interface ConformanceReportLevelSummary extends ConformanceReportSummary {
 export function buildConformanceReport(): string {
   const rows = levels.map((level) => countLevel(level));
   const total = summarizeRows(rows);
-  const unmappedIds = unmappedAssertionIds();
   const lines = [
     "# OLOS Conformance",
     "",
-    "| Level | Known | Mapped | Covered | Partial | Unmapped |",
-    "| --- | ---: | ---: | ---: | ---: | ---: |",
-    ...rows.map(
-      (row) =>
-        `| ${labelLevel(row.level)} | ${row.known} | ${row.mapped} | ${row.covered} | ${row.partial} | ${row.unmapped} |`
-    ),
-    `| Total | ${total.known} | ${total.mapped} | ${total.covered} | ${total.partial} | ${total.unmapped} |`,
+    ...summaryTable(rows, total),
     "",
     "Generated from `olos/src/conformance.ts`.",
+    ...unmappedAssertionsSection(unmappedAssertionIds()),
+    "",
+    "## Mapped Assertions",
+    ...mappedAssertionsSections(),
   ];
 
-  if (unmappedIds.length > 0) {
-    lines.push("", "## Unmapped Assertions", "");
-    for (const id of unmappedIds) {
-      lines.push(`- \`${id}\``);
-    }
-  }
-
-  lines.push("", "## Mapped Assertions");
-
-  for (const level of levels) {
-    const entries = OLOS_CONFORMANCE_COVERAGE.filter(
-      (entry) => entry.level === level
-    );
-
-    lines.push(
-      "",
-      `### ${labelLevel(level)}`,
-      "",
-      "| ID | Status | Test file |",
-      "| --- | --- | --- |",
-      ...entries.map(
-        (entry) =>
-          `| \`${entry.id}\` | ${entry.status} | \`${entry.testFile}\` |`
-      )
-    );
-  }
-
   return `${lines.join("\n")}\n`;
+}
+
+function summaryTable(
+  rows: readonly ConformanceReportLevelSummary[],
+  total: ConformanceReportSummary
+): string[] {
+  return [
+    "| Level | Known | Mapped | Covered | Partial | Unmapped |",
+    "| --- | ---: | ---: | ---: | ---: | ---: |",
+    ...rows.map(formatLevelSummaryRow),
+    formatTotalSummaryRow(total),
+  ];
+}
+
+function formatLevelSummaryRow(row: ConformanceReportLevelSummary): string {
+  return `| ${labelLevel(row.level)} | ${row.known} | ${row.mapped} | ${row.covered} | ${row.partial} | ${row.unmapped} |`;
+}
+
+function formatTotalSummaryRow(total: ConformanceReportSummary): string {
+  return `| Total | ${total.known} | ${total.mapped} | ${total.covered} | ${total.partial} | ${total.unmapped} |`;
+}
+
+function unmappedAssertionsSection(
+  assertionIds: readonly OlosConformanceAssertionId[]
+): string[] {
+  if (assertionIds.length === 0) {
+    return [];
+  }
+
+  return ["", "## Unmapped Assertions", "", ...assertionIds.map(formatListId)];
+}
+
+function mappedAssertionsSections(): string[] {
+  return levels.flatMap((level) =>
+    mappedAssertionsSection(level, coverageForLevel(level))
+  );
+}
+
+function mappedAssertionsSection(
+  level: OlosConformanceLevel,
+  entries: readonly ConformanceCoverageEntry[]
+): string[] {
+  return [
+    "",
+    `### ${labelLevel(level)}`,
+    "",
+    "| ID | Status | Test file |",
+    "| --- | --- | --- |",
+    ...entries.map(formatMappedAssertionRow),
+  ];
+}
+
+function formatMappedAssertionRow(entry: ConformanceCoverageEntry): string {
+  return `| \`${entry.id}\` | ${entry.status} | \`${entry.testFile}\` |`;
+}
+
+function formatListId(id: OlosConformanceAssertionId): string {
+  return `- \`${id}\``;
 }
 
 function countLevel(
@@ -131,7 +161,9 @@ function unmappedAssertionIds(): OlosConformanceAssertionId[] {
   );
 }
 
-function coverageForLevel(level: OlosConformanceLevel) {
+function coverageForLevel(
+  level: OlosConformanceLevel
+): ConformanceCoverageEntry[] {
   return OLOS_CONFORMANCE_COVERAGE.filter((entry) => entry.level === level);
 }
 
@@ -142,7 +174,7 @@ function countKnownAssertions(level: OlosConformanceLevel): number {
 }
 
 function countCoverageStatus(
-  coverage: ReturnType<typeof coverageForLevel>,
+  coverage: readonly ConformanceCoverageEntry[],
   status: "covered" | "partial"
 ): number {
   return coverage.filter((entry) => entry.status === status).length;

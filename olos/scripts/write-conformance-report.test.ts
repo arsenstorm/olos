@@ -20,6 +20,15 @@ describe("conformance report writer", () => {
     expect(report).not.toContain("## Unmapped Assertions");
   });
 
+  test("renders mapped assertion sections for every conformance level", () => {
+    const report = buildConformanceReport();
+
+    expect(report).toContain("### Core");
+    expect(report).toContain("### Object");
+    expect(report).toContain("### HLS");
+    expect(report).toContain("### Security");
+  });
+
   test("summarizes release-gated conformance coverage", () => {
     expect(summarizeConformance()).toEqual({
       covered: 124,
