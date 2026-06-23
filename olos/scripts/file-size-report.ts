@@ -43,14 +43,7 @@ export async function largeFileReport(
   const report: LargeFileReportEntry[] = [];
 
   for (const entry of await listDirectoryEntries(resolvedOptions.root)) {
-    if (
-      !entry.isFile ||
-      shouldSkipFile(
-        entry.relativePath,
-        resolvedOptions.excludedPrefixes,
-        resolvedOptions.includedExtensions
-      )
-    ) {
+    if (!isReportableFileEntry(entry, resolvedOptions)) {
       continue;
     }
 
@@ -65,6 +58,20 @@ export async function largeFileReport(
   }
 
   return report.sort(compareLargeFileReportEntries);
+}
+
+function isReportableFileEntry(
+  entry: Awaited<ReturnType<typeof listDirectoryEntries>>[number],
+  options: ResolvedFileSizeReportOptions
+): boolean {
+  return (
+    entry.isFile &&
+    !shouldSkipFile(
+      entry.relativePath,
+      options.excludedPrefixes,
+      options.includedExtensions
+    )
+  );
 }
 
 function resolveFileSizeReportOptions(

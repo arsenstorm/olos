@@ -34,6 +34,15 @@ describe("file size report", () => {
     });
   });
 
+  test("ignores files outside included source extensions", async () => {
+    await withTemporaryDirectory("olos-file-size-report-", async (root) => {
+      await mkdir(join(root, "src"), { recursive: true });
+      await writeFile(join(root, "src", "large.txt"), "one\ntwo\nthree\n");
+
+      expect(await largeFileReport({ maxLines: 2, root })).toEqual([]);
+    });
+  });
+
   test("sorts advisory entries by line count then path", async () => {
     await withTemporaryDirectory("olos-file-size-report-", async (root) => {
       await mkdir(join(root, "src"), { recursive: true });
