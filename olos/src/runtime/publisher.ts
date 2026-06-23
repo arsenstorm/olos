@@ -141,6 +141,13 @@ type RuntimePublisherIssuePhaseResult =
   | FailedRuntimePublisherIssueStep
   | IssuedRuntimePublisherIssueResult;
 
+type RuntimePublisherUploadObjectPhaseResult =
+  | FailedRuntimePublisherUploadObjectStep
+  | {
+      observed: RuntimeObservedUploadPayload;
+      status: "uploaded";
+    };
+
 const SUCCESSFUL_PUBLISHER_STEP_STATUSES = [
   "committed",
   "idempotent",
@@ -169,29 +176,23 @@ async function runPublisherUploadAndCommit(
   heartbeat: RuntimePublisherHeartbeatResult | undefined,
   issued: IssuedRuntimePublisherIssueResult
 ): Promise<RuntimePublisherUploadStep> {
-  let observed: RuntimeObservedUploadPayload;
+  const uploaded = await runPublisherUploadObject(options, heartbeat, issued);
 
-  try {
-    observed = await options.upload(issued.slot);
-  } catch (error) {
-    return failedRuntimePublisherUploadObjectStep(
-      error,
-      heartbeat,
-      issued.slot
-    );
+  if (isFailedRuntimePublisherUploadObjectStep(uploaded)) {
+    return uploaded;
   }
 
   let committed: RuntimePublisherCommitResult;
 
   try {
     committed = await options.commit(
-      publisherCommitPayload(options, issued.slot, observed)
+      publisherCommitPayload(options, issued.slot, uploaded.observed)
     );
   } catch (error) {
     return failedRuntimePublisherCommitStep(
       error,
       heartbeat,
-      observed,
+      uploaded.observed,
       issued.slot
     );
   }
@@ -199,9 +200,28 @@ async function runPublisherUploadAndCommit(
   return runtimePublisherCommitStep(
     committed,
     heartbeat,
-    observed,
+    uploaded.observed,
     issued.slot
   );
+}
+
+async function runPublisherUploadObject(
+  options: RunRuntimePublisherUploadStepOptions,
+  heartbeat: RuntimePublisherHeartbeatResult | undefined,
+  issued: IssuedRuntimePublisherIssueResult
+): Promise<RuntimePublisherUploadObjectPhaseResult> {
+  try {
+    return {
+      observed: await options.upload(issued.slot),
+      status: "uploaded",
+    };
+  } catch (error) {
+    return failedRuntimePublisherUploadObjectStep(
+      error,
+      heartbeat,
+      issued.slot
+    );
+  }
 }
 
 async function runPublisherIssueSlot(
@@ -416,6 +436,12 @@ function isFailedRuntimePublisherIssueStep(
   result: RuntimePublisherIssuePhaseResult
 ): result is FailedRuntimePublisherIssueStep {
   return result.status === "issue_failed";
+}
+
+function isFailedRuntimePublisherUploadObjectStep(
+  result: RuntimePublisherUploadObjectPhaseResult
+): result is FailedRuntimePublisherUploadObjectStep {
+  return result.status === "upload_failed";
 }
 
 function isIssuedRuntimePublisherIssueResult(

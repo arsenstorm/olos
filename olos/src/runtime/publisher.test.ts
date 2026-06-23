@@ -259,6 +259,40 @@ describe("runtime publisher upload step", () => {
     });
   });
 
+  test("keeps heartbeat context when upload fails", async () => {
+    const store = createMemoryCoordinatorStore();
+    await seedSession(store);
+
+    const step = await runRuntimePublisherUploadStep({
+      commit: () => Promise.resolve({ status: "should_not_commit" }),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      commitId: "commit_3810",
+      heartbeat: () => Promise.resolve({ status: "refreshed" }),
+      issueSlot: (request) =>
+        issueStoredCoordinatorSlotFromRequest({
+          request,
+          sessionId: session.sessionId,
+          store,
+        }),
+      slot: slotPayload({
+        deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+        duration: 2,
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKey: "media/v1080/3810.m4s",
+        slotId: "slot_3810",
+      }),
+      upload: () => Promise.reject(new Error("upload unavailable")),
+    });
+
+    expect(step).toMatchObject({
+      error: "upload unavailable",
+      heartbeat: { status: "refreshed" },
+      status: "upload_failed",
+    });
+  });
+
   test("returns issue failure when slot issuance throws", async () => {
     const step = await runRuntimePublisherUploadStep({
       commit: () => Promise.resolve({ status: "should_not_commit" }),
