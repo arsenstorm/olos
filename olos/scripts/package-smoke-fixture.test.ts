@@ -7,6 +7,7 @@ import {
   packageExportSubpaths,
 } from "./package-export-map";
 import { writePackageSmokeFile } from "./package-smoke-fixture";
+import { packageTypeSmokeConfig } from "./package-smoke-types";
 import { expectedRuntimeExports } from "./public-surface";
 import { withTemporaryDirectory } from "./test-temp-dir";
 
@@ -83,6 +84,19 @@ describe("package smoke fixture", () => {
     expect(Object.keys(expectedRuntimeExports).sort()).toEqual(
       packageExportSpecifiers()
     );
+  });
+
+  test("emits a strict NodeNext type smoke config", () => {
+    expect(JSON.parse(packageTypeSmokeConfig())).toEqual({
+      compilerOptions: {
+        module: "NodeNext",
+        moduleResolution: "NodeNext",
+        noEmit: true,
+        strict: true,
+        target: "ES2022",
+      },
+      include: ["smoke.ts"],
+    });
   });
 });
 

@@ -1,3 +1,14 @@
+const typeSmokeTsConfig = {
+  compilerOptions: {
+    module: "NodeNext",
+    moduleResolution: "NodeNext",
+    noEmit: true,
+    strict: true,
+    target: "ES2022",
+  },
+  include: ["smoke.ts"],
+} as const;
+
 export function packageTypeSmokeSource(): string {
   return `
 import { OLOS_WIRE_VERSION } from "olos";
@@ -559,18 +570,5 @@ s3RuntimeRetentionOptions satisfies S3RuntimeApplyRetentionOptions;
 }
 
 export function packageTypeSmokeConfig(): string {
-  return `${JSON.stringify(
-    {
-      compilerOptions: {
-        module: "NodeNext",
-        moduleResolution: "NodeNext",
-        noEmit: true,
-        strict: true,
-        target: "ES2022",
-      },
-      include: ["smoke.ts"],
-    },
-    null,
-    2
-  )}\n`;
+  return `${JSON.stringify(typeSmokeTsConfig, null, 2)}\n`;
 }
