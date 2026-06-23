@@ -90,6 +90,30 @@ describe("delivery cache policy", () => {
     });
   });
 
+  test("does not require negative caching support for manifest policies", () => {
+    expect(
+      createDeliveryCachePolicy({
+        capability: {
+          ...capability,
+          delivery: {
+            ...capability.delivery,
+            negativeCachingPolicyDeclared: false,
+          },
+          publication: {
+            ...capability.publication,
+            directObjectPublication: false,
+          },
+        },
+        maxAgeSeconds: 1,
+        target: "manifest",
+      })
+    ).toEqual({
+      cacheControl: "public, max-age=1, must-revalidate",
+      maxAgeSeconds: 1,
+      target: "manifest",
+    });
+  });
+
   test("rejects manifest cache freshness above target latency", () => {
     expect(() =>
       createDeliveryCachePolicy({

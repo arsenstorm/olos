@@ -121,11 +121,15 @@ function assertNegativeCachingPolicySupport(
   options: CreateDeliveryCachePolicyOptions
 ): void {
   if (
-    options.target === "negative-object" &&
+    isNegativeObjectCacheTarget(options.target) &&
     options.capability?.delivery.negativeCachingPolicyDeclared !== true
   ) {
     throw new Error(
       "providerCapability.delivery.negativeCachingPolicyDeclared must be true for negative-object cache policies"
     );
   }
+}
+
+function isNegativeObjectCacheTarget(target: DeliveryCacheTarget): boolean {
+  return target === "negative-object";
 }
