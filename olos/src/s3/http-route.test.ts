@@ -50,6 +50,21 @@ describe("S3 HTTP route matching", () => {
     });
   });
 
+  test("does not match completion hint routes with extra path segments", () => {
+    expect(
+      s3Route(
+        routeRequest(
+          `${s3CompletionHintRoutePathFromOptions(
+            "session_1",
+            "slot_1",
+            routeOptions
+          )}/extra`
+        ),
+        routeOptions
+      )
+    ).toEqual({ status: "not_s3" });
+  });
+
   test("rejects unsupported methods before route identifier validation", () => {
     expect(
       s3Route(

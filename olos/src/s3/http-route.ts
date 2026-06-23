@@ -52,6 +52,19 @@ interface S3SessionRouteParts {
   sessionId: string;
 }
 
+interface S3CompletionHintRouteCandidate {
+  action: string | undefined;
+  completion: string | undefined;
+  parts: readonly string[];
+  provider: string | undefined;
+  sessionId: string | undefined;
+}
+
+type S3CompletionHintRouteShape = S3CompletionHintRouteCandidate & {
+  action: string;
+  sessionId: string;
+};
+
 type MatchedS3RouteParts = Extract<S3Route, { status: "matched" }>;
 
 export function s3Route(request: Request, options: S3RouteOptions): S3Route {
@@ -122,17 +135,25 @@ function s3CompletionHintRouteParts(
   action: string | undefined,
   completion: string | undefined
 ): S3CompletionHintRouteParts | undefined {
-  if (
-    sessionId === undefined ||
-    provider !== S3_ROUTE_ACTIONS.completionHint ||
-    action === undefined ||
-    completion !== S3_COMPLETION_HINT_ACTION ||
-    parts.length !== 4
-  ) {
+  const candidate = { action, completion, parts, provider, sessionId };
+
+  if (!isS3CompletionHintRouteShape(candidate)) {
     return;
   }
 
-  return { sessionId, slotId: action };
+  return { sessionId: candidate.sessionId, slotId: candidate.action };
+}
+
+function isS3CompletionHintRouteShape(
+  candidate: S3CompletionHintRouteCandidate
+): candidate is S3CompletionHintRouteShape {
+  return (
+    candidate.sessionId !== undefined &&
+    candidate.provider === S3_ROUTE_ACTIONS.completionHint &&
+    candidate.action !== undefined &&
+    candidate.completion === S3_COMPLETION_HINT_ACTION &&
+    candidate.parts.length === 4
+  );
 }
 
 function s3SessionRouteParts(
