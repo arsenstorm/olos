@@ -1,40 +1,69 @@
 import { describe, expect, test } from "bun:test";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 
+const acceptedDeliveryUrlCases = [
+  {
+    label: "absolute HTTP URL",
+    value: "https://media.example.com/live/3810.m4s",
+  },
+  {
+    label: "safe relative path",
+    value: "/live/session/v1080/3810.m4s",
+  },
+] as const;
+
+const rejectedDeliveryUrlCases = [
+  {
+    error: "url must be a non-empty string",
+    label: "empty values",
+    value: "",
+  },
+  {
+    error: "url must not contain control characters",
+    label: "control characters",
+    value: "bad\nurl",
+  },
+  {
+    error: "url must not contain query strings or fragments",
+    label: "query strings",
+    value: "/live/3810.m4s?token=1",
+  },
+  {
+    error: "url must be an absolute HTTP(S) URL or safe relative path",
+    label: "parent directory segments",
+    value: "/live/../secret.m4s",
+  },
+  {
+    error: "url must be an absolute HTTP(S) URL or safe relative path",
+    label: "repeated slashes",
+    value: "/live//3810.m4s",
+  },
+  {
+    error: "url must be an absolute HTTP(S) URL or safe relative path",
+    label: "protocol-relative URLs",
+    value: "//cdn.example.com/live.m4s",
+  },
+  {
+    error: "url must be an absolute HTTP(S) URL or safe relative path",
+    label: "non-HTTP schemes",
+    value: "s3://bucket/key",
+  },
+] as const;
+
 describe("delivery URL validation", () => {
-  test("accepts absolute HTTP URLs and safe relative paths", () => {
-    expect(() =>
-      assertSafeDeliveryUrl("https://media.example.com/live/3810.m4s", "url")
-    ).not.toThrow();
-    expect(() =>
-      assertSafeDeliveryUrl("/live/session/v1080/3810.m4s", "url")
-    ).not.toThrow();
-  });
+  for (const deliveryUrl of acceptedDeliveryUrlCases) {
+    test(`accepts ${deliveryUrl.label}`, () => {
+      expect(() =>
+        assertSafeDeliveryUrl(deliveryUrl.value, "url")
+      ).not.toThrow();
+    });
+  }
 
-  test("rejects empty values and control characters", () => {
-    expect(() => assertSafeDeliveryUrl("", "url")).toThrow(
-      "url must be a non-empty string"
-    );
-    expect(() => assertSafeDeliveryUrl("bad\nurl", "url")).toThrow(
-      "url must not contain control characters"
-    );
-  });
-
-  test("rejects query strings, fragments, and unsafe paths", () => {
-    expect(() =>
-      assertSafeDeliveryUrl("/live/3810.m4s?token=1", "url")
-    ).toThrow("url must not contain query strings or fragments");
-    expect(() => assertSafeDeliveryUrl("/live/../secret.m4s", "url")).toThrow(
-      "url must be an absolute HTTP(S) URL or safe relative path"
-    );
-    expect(() => assertSafeDeliveryUrl("/live//3810.m4s", "url")).toThrow(
-      "url must be an absolute HTTP(S) URL or safe relative path"
-    );
-    expect(() =>
-      assertSafeDeliveryUrl("//cdn.example.com/live.m4s", "url")
-    ).toThrow("url must be an absolute HTTP(S) URL or safe relative path");
-    expect(() => assertSafeDeliveryUrl("s3://bucket/key", "url")).toThrow(
-      "url must be an absolute HTTP(S) URL or safe relative path"
-    );
-  });
+  for (const deliveryUrl of rejectedDeliveryUrlCases) {
+    test(`rejects ${deliveryUrl.label}`, () => {
+      expect(() => assertSafeDeliveryUrl(deliveryUrl.value, "url")).toThrow(
+        deliveryUrl.error
+      );
+    });
+  }
 });
