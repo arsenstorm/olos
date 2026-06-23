@@ -30,6 +30,20 @@ describe("release changelog helpers", () => {
     );
   });
 
+  test("extracts release notes from an exact linked version heading", () => {
+    const exactLinkedHeading = `# Changelog
+
+## [1.2.3]
+
+- Added exact linked heading support.
+`;
+
+    expect(hasVersionHeading(exactLinkedHeading, "1.2.3")).toBe(true);
+    expect(releaseNotes(exactLinkedHeading, "1.2.3")).toBe(
+      "- Added exact linked heading support.\n"
+    );
+  });
+
   test("rejects missing or empty release sections", () => {
     expect(() => releaseNotes(changelog, "9.9.9")).toThrow(
       "CHANGELOG.md must include a section for 9.9.9"

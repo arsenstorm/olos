@@ -2,19 +2,17 @@ export function hasVersionHeading(
   changelog: string,
   releaseVersion: string
 ): boolean {
-  return changelog
-    .split("\n")
-    .some((line) => isVersionHeading(line, releaseVersion));
+  return (
+    findVersionHeadingIndex(changelogLines(changelog), releaseVersion) !== -1
+  );
 }
 
 export function releaseNotes(
   changelog: string,
   releaseVersion: string
 ): string {
-  const lines = changelog.split("\n");
-  const headingIndex = lines.findIndex((line) =>
-    isVersionHeading(line, releaseVersion)
-  );
+  const lines = changelogLines(changelog);
+  const headingIndex = findVersionHeadingIndex(lines, releaseVersion);
 
   if (headingIndex === -1) {
     throw new Error(
@@ -22,9 +20,7 @@ export function releaseNotes(
     );
   }
 
-  const nextHeadingIndex = lines.findIndex(
-    (line, index) => index > headingIndex && line.startsWith("## ")
-  );
+  const nextHeadingIndex = findNextSectionHeadingIndex(lines, headingIndex);
   const sectionLines = lines
     .slice(
       headingIndex + 1,
@@ -38,6 +34,26 @@ export function releaseNotes(
   }
 
   return `${sectionLines}\n`;
+}
+
+function changelogLines(changelog: string): string[] {
+  return changelog.split("\n");
+}
+
+function findVersionHeadingIndex(
+  lines: readonly string[],
+  releaseVersion: string
+): number {
+  return lines.findIndex((line) => isVersionHeading(line, releaseVersion));
+}
+
+function findNextSectionHeadingIndex(
+  lines: readonly string[],
+  headingIndex: number
+): number {
+  return lines.findIndex(
+    (line, index) => index > headingIndex && line.startsWith("## ")
+  );
 }
 
 function isVersionHeading(line: string, releaseVersion: string): boolean {
