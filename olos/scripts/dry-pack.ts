@@ -5,6 +5,7 @@ import { isCliEntry } from "./script-entry";
 import { packageRoot } from "./script-paths";
 import { runCommandAndCapture } from "./script-runner";
 
+const exportFileFields = ["default", "import", "types"] as const;
 const requiredDryPackFiles = requiredDryPackFilesFromExports(
   packageJson.exports
 );
@@ -34,9 +35,10 @@ export function requiredDryPackFilesFromExports(
 
   for (const subpath of packageExportSubpaths(exportsMap)) {
     const value = exportsMap[subpath];
-    addExportFile(files, value, "default");
-    addExportFile(files, value, "import");
-    addExportFile(files, value, "types");
+
+    for (const field of exportFileFields) {
+      addExportFile(files, value, field);
+    }
   }
 
   return [...files].sort();

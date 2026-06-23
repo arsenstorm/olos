@@ -66,4 +66,16 @@ describe("dry package verifier", () => {
       "dist/runtime.js",
     ]);
   });
+
+  test("deduplicates repeated package export files", () => {
+    expect(
+      requiredDryPackFilesFromExports({
+        ".": {
+          default: "./dist/index.js",
+          import: "./dist/index.js",
+          types: "./dist/index.d.ts",
+        },
+      })
+    ).toEqual(["dist/index.d.ts", "dist/index.js"]);
+  });
 });
