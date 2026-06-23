@@ -237,14 +237,21 @@ function transitionState(
 
   return {
     ...state,
-    ...(state.cursor === undefined
-      ? {}
-      : { cursor: { ...state.cursor, state: nextState } }),
+    ...transitionedCursorField(state, nextState),
     session: {
       ...state.session,
       state: nextState,
     },
   };
+}
+
+function transitionedCursorField(
+  state: CoordinatorPipelineState,
+  nextState: SessionState
+): Pick<CoordinatorPipelineState, "cursor"> {
+  return state.cursor === undefined
+    ? {}
+    : { cursor: { ...state.cursor, state: nextState } };
 }
 
 function heartbeatState(

@@ -82,6 +82,7 @@ describe("stored session runtime", () => {
     const snapshot = await store.load(session.sessionId);
     expect(result.response.status).toBe(200);
     expect(result.state.session.state).toBe("starting");
+    expect(result.state.cursor).toBeUndefined();
     expect(snapshot?.state.session.state).toBe("starting");
   });
 
