@@ -209,7 +209,16 @@ function createS3AdditionalHeaders(options: {
 }
 
 function createS3SlotMetadataHeaders(slot: UploadSlot): Record<string, string> {
-  const headers: Record<string, string> = {
+  return {
+    ...createBaseS3SlotMetadataHeaders(slot),
+    ...createPartS3SlotMetadataHeaders(slot),
+  };
+}
+
+function createBaseS3SlotMetadataHeaders(
+  slot: UploadSlot
+): Record<string, string> {
+  return {
     "x-amz-meta-olos-epoch": String(slot.epoch),
     "x-amz-meta-olos-kind": slot.kind,
     "x-amz-meta-olos-media-sequence-number": String(slot.mediaSequenceNumber),
@@ -217,12 +226,18 @@ function createS3SlotMetadataHeaders(slot: UploadSlot): Record<string, string> {
     "x-amz-meta-olos-session-id": slot.sessionId,
     "x-amz-meta-olos-slot-id": slot.slotId,
   };
+}
 
-  if (slot.partNumber !== undefined) {
-    headers["x-amz-meta-olos-part-number"] = String(slot.partNumber);
+function createPartS3SlotMetadataHeaders(
+  slot: UploadSlot
+): Record<string, string> {
+  if (slot.partNumber === undefined) {
+    return {};
   }
 
-  return headers;
+  return {
+    "x-amz-meta-olos-part-number": String(slot.partNumber),
+  };
 }
 
 function assertDoesNotOverrideS3Metadata(

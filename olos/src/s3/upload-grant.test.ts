@@ -346,6 +346,16 @@ describe("s3 upload grants", () => {
     });
   });
 
+  test("omits part metadata for segment upload slots", () => {
+    expect(
+      createS3UploadGrant({
+        presignedUrl:
+          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+        slot,
+      }).requiredHeaders
+    ).not.toHaveProperty("x-amz-meta-olos-part-number");
+  });
+
   test("accepts presigned URL fragments when matching slot paths", () => {
     const presignedUrl =
       "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc#upload";
