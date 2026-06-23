@@ -39,6 +39,13 @@ describe("routeParts", () => {
     expect(routeParts("/sessions/", "/sessions")).toEqual([]);
   });
 
+  test("returns decoded child parts from normalized trailing slash roots", () => {
+    expect(routeParts("/sessions/session_1/slots", "/sessions/")).toEqual([
+      "session_1",
+      "slots",
+    ]);
+  });
+
   test("returns undefined for non-matching route prefixes", () => {
     expect(
       routeParts("/sessions-extra/session_1", "/sessions")

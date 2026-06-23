@@ -151,19 +151,29 @@ export function routeParts(
 ): "invalid" | readonly string[] | undefined {
   const normalized = normalizePath(routePath);
 
-  if (pathname !== normalized && !pathname.startsWith(`${normalized}/`)) {
+  if (!matchesRouteRoot(pathname, normalized)) {
     return;
   }
 
   try {
-    return pathname
-      .slice(normalized.length)
-      .split("/")
-      .filter(Boolean)
-      .map(decodeURIComponent);
+    return decodeRouteParts(pathname.slice(normalized.length));
   } catch {
     return "invalid";
   }
+}
+
+function matchesRouteRoot(
+  pathname: string,
+  normalizedRoutePath: string
+): boolean {
+  return (
+    pathname === normalizedRoutePath ||
+    pathname.startsWith(`${normalizedRoutePath}/`)
+  );
+}
+
+function decodeRouteParts(routeSuffix: string): readonly string[] {
+  return routeSuffix.split("/").filter(Boolean).map(decodeURIComponent);
 }
 
 export function routeIdentifierError(
