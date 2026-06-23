@@ -23,6 +23,81 @@ const record = {
   },
 };
 
+const malformedS3EventRecordCases = [
+  {
+    message: "s3 event record is invalid",
+    record: { ...record, s3: { bucket: { name: "media" } } },
+  },
+  {
+    message: "s3 event record is not object-created",
+    record: { ...record, eventName: "ObjectRemoved:Delete" },
+  },
+  {
+    message: "s3 event bucket is invalid",
+    record: {
+      ...record,
+      s3: {
+        bucket: {
+          name: "media/live",
+        },
+        object: {
+          key: "media/v1080/3810.m4s",
+          sequencer: "0065A4",
+          size: 98_304,
+        },
+      },
+    },
+  },
+  {
+    message: "s3 object key is invalid",
+    record: {
+      ...record,
+      responseElements: {},
+      s3: {
+        bucket: {
+          name: "media",
+        },
+        object: {
+          key: "%not-valid",
+          size: 98_304,
+        },
+      },
+    },
+  },
+  {
+    message: "s3 object key is invalid",
+    record: {
+      ...record,
+      s3: {
+        bucket: {
+          name: "media",
+        },
+        object: {
+          key: "media/session/%2E%2E/secret.m4s",
+          sequencer: "0065A4",
+          size: 98_304,
+        },
+      },
+    },
+  },
+  {
+    message: "s3 event record must include a request id or sequencer",
+    record: {
+      ...record,
+      responseElements: {},
+      s3: {
+        bucket: {
+          name: "media",
+        },
+        object: {
+          key: "media/v1080/3810.m4s",
+          size: 98_304,
+        },
+      },
+    },
+  },
+] as const;
+
 describe("s3 event normalization", () => {
   test("normalizes S3 object-created event records", () => {
     expect(
@@ -194,142 +269,25 @@ describe("s3 event normalization", () => {
   });
 
   test("rejects unsupported or malformed S3 event records", () => {
-    expect(
-      normalizeS3ObjectCreatedEventRecord({
-        providerId: "s3_primary",
-        record: { ...record, s3: { bucket: { name: "media" } } },
-      })
-    ).toEqual({
-      error: {
-        error: {
-          code: "olos.invalid_state",
-          message: "s3 event record is invalid",
-        },
-      },
-      status: "invalid_event",
-    });
-
-    expect(
-      normalizeS3ObjectCreatedEventRecord({
-        providerId: "s3_primary",
-        record: { ...record, eventName: "ObjectRemoved:Delete" },
-      })
-    ).toEqual({
-      error: {
-        error: {
-          code: "olos.invalid_state",
-          message: "s3 event record is not object-created",
-        },
-      },
-      status: "invalid_event",
-    });
-
-    expect(
-      normalizeS3ObjectCreatedEventRecord({
-        providerId: "s3_primary",
-        record: {
-          ...record,
-          s3: {
-            bucket: {
-              name: "media/live",
-            },
-            object: {
-              key: "media/v1080/3810.m4s",
-              sequencer: "0065A4",
-              size: 98_304,
-            },
-          },
-        },
-      })
-    ).toEqual({
-      error: {
-        error: {
-          code: "olos.invalid_state",
-          message: "s3 event bucket is invalid",
-        },
-      },
-      status: "invalid_event",
-    });
-
-    expect(
-      normalizeS3ObjectCreatedEventRecord({
-        providerId: "s3_primary",
-        record: {
-          ...record,
-          responseElements: {},
-          s3: {
-            bucket: {
-              name: "media",
-            },
-            object: {
-              key: "%not-valid",
-              size: 98_304,
-            },
-          },
-        },
-      })
-    ).toEqual({
-      error: {
-        error: {
-          code: "olos.invalid_state",
-          message: "s3 object key is invalid",
-        },
-      },
-      status: "invalid_event",
-    });
-
-    expect(
-      normalizeS3ObjectCreatedEventRecord({
-        providerId: "s3_primary",
-        record: {
-          ...record,
-          s3: {
-            bucket: {
-              name: "media",
-            },
-            object: {
-              key: "media/session/%2E%2E/secret.m4s",
-              sequencer: "0065A4",
-              size: 98_304,
-            },
-          },
-        },
-      })
-    ).toEqual({
-      error: {
-        error: {
-          code: "olos.invalid_state",
-          message: "s3 object key is invalid",
-        },
-      },
-      status: "invalid_event",
-    });
-
-    expect(
-      normalizeS3ObjectCreatedEventRecord({
-        providerId: "s3_primary",
-        record: {
-          ...record,
-          responseElements: {},
-          s3: {
-            bucket: {
-              name: "media",
-            },
-            object: {
-              key: "media/v1080/3810.m4s",
-              size: 98_304,
-            },
-          },
-        },
-      })
-    ).toEqual({
-      error: {
-        error: {
-          code: "olos.invalid_state",
-          message: "s3 event record must include a request id or sequencer",
-        },
-      },
-      status: "invalid_event",
-    });
+    for (const testCase of malformedS3EventRecordCases) {
+      expect(
+        normalizeS3ObjectCreatedEventRecord({
+          providerId: "s3_primary",
+          record: testCase.record,
+        })
+      ).toEqual(invalidS3Event(testCase.message));
+    }
   });
 });
+
+function invalidS3Event(message: string) {
+  return {
+    error: {
+      error: {
+        code: "olos.invalid_state" as const,
+        message,
+      },
+    },
+    status: "invalid_event" as const,
+  };
+}
