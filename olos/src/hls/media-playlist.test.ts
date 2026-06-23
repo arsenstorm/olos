@@ -91,6 +91,10 @@ function validRendition() {
   return rendition;
 }
 
+function missingSegment(): never {
+  throw new Error("missing segment fixture");
+}
+
 describe("media playlist rendering", () => {
   test("renders deterministic LL-HLS from a committed window", () => {
     expect(
@@ -238,6 +242,32 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
 
     expect(playlist).not.toContain("#EXT-X-PROGRAM-DATE-TIME");
     expect(playlist).toContain("#EXTINF:2.000,");
+  });
+
+  test("renders part-only segments without full-segment EXTINF entries", () => {
+    const playlist = renderMediaPlaylist(
+      {
+        ...committedWindow,
+        firstMediaSequenceNumber: 3812,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [validRendition().segments[2] ?? missingSegment()],
+          },
+        },
+      },
+      {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+      }
+    );
+
+    expect(playlist).not.toContain("#EXTINF:");
+    expect(playlist).toContain(
+      '#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p0-slot_3812_0.m4s"'
+    );
   });
 
   test("refuses non-monotonic committed windows", () => {

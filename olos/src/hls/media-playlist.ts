@@ -62,18 +62,10 @@ function renderSegment(
   const lines = renderSegmentHeaders(segment);
 
   if (hasFullCommittedSegment(segment)) {
-    lines.push(
-      `#EXTINF:${formatSeconds(segment.duration)},`,
-      renderMediaUri(segment.segment.deliveryUrl, policy, "segment.deliveryUrl")
-    );
-    return lines;
+    return [...lines, ...renderFullSegment(segment, policy)];
   }
 
-  for (const part of segment.parts ?? []) {
-    lines.push(renderPart(part, policy));
-  }
-
-  return lines;
+  return [...lines, ...renderPartialSegment(segment, policy)];
 }
 
 function renderSegmentHeaders(segment: CommittedSegment): string[] {
@@ -88,6 +80,23 @@ function renderSegmentHeaders(segment: CommittedSegment): string[] {
   }
 
   return lines;
+}
+
+function renderFullSegment(
+  segment: FullCommittedSegment,
+  policy: MediaUriPolicy
+): string[] {
+  return [
+    `#EXTINF:${formatSeconds(segment.duration)},`,
+    renderMediaUri(segment.segment.deliveryUrl, policy, "segment.deliveryUrl"),
+  ];
+}
+
+function renderPartialSegment(
+  segment: CommittedSegment,
+  policy: MediaUriPolicy
+): string[] {
+  return (segment.parts ?? []).map((part) => renderPart(part, policy));
 }
 
 function hasFullCommittedSegment(
