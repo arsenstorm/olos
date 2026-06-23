@@ -5,12 +5,13 @@ const exactRuntimeExports = {
   "olos/types": [],
 } as const;
 
-export function packageSmokeSource(): string {
-  return `
-import { readFile } from "node:fs/promises";
+const runtimeSmokeImports = `import { readFile } from "node:fs/promises";
 
 const expectedRuntimeExports = ${JSON.stringify(expectedRuntimeExports)};
 const exactRuntimeExports = ${JSON.stringify(exactRuntimeExports)};
+`;
+
+const runtimeSmokePackageExportAssertions = `
 const packageJson = JSON.parse(
   await readFile(new URL("./node_modules/olos/package.json", import.meta.url))
 );
@@ -20,7 +21,9 @@ const exportedSubpaths = Object.keys(packageJson.exports)
 const expectedSubpaths = Object.keys(expectedRuntimeExports);
 
 assertList("exported subpaths", exportedSubpaths, expectedSubpaths);
+`;
 
+const runtimeSmokeModuleExportAssertions = `
 for (const [specifier, names] of Object.entries(expectedRuntimeExports)) {
   const module = await import(specifier);
 
@@ -38,7 +41,9 @@ for (const [specifier, names] of Object.entries(expectedRuntimeExports)) {
     );
   }
 }
+`;
 
+const runtimeSmokeHelpers = `
 function assertList(name, actual, expected) {
   const actualList = [...actual].sort();
   const expectedList = [...expected].sort();
@@ -57,5 +62,15 @@ function isPackageModuleExportSubpath(subpath) {
 function packageExportSpecifier(subpath) {
   return subpath === "." ? "olos" : \`olos/\${subpath.slice(2)}\`;
 }
-`.trimStart();
+`;
+
+const runtimeSmokeSourceSections = [
+  runtimeSmokeImports,
+  runtimeSmokePackageExportAssertions,
+  runtimeSmokeModuleExportAssertions,
+  runtimeSmokeHelpers,
+] as const;
+
+export function packageSmokeSource(): string {
+  return `${runtimeSmokeSourceSections.join("\n")}\n`;
 }
