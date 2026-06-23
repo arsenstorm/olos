@@ -48,6 +48,57 @@ const capability: ProviderCapabilityDocument = {
   },
 };
 
+const directPublicationRejectionCases = [
+  {
+    error:
+      "providerCapability.consistency.headAfterCreate must be strong for direct object publication",
+    label: "without strong head-after-create",
+    value: {
+      ...capability,
+      consistency: {
+        ...capability.consistency,
+        headAfterCreate: "eventual",
+      },
+    },
+  },
+  {
+    error:
+      "providerCapability.publication.overwritesAllowed must not be true for direct object publication",
+    label: "with overwrites allowed",
+    value: {
+      ...capability,
+      publication: {
+        ...capability.publication,
+        overwritesAllowed: true,
+      },
+    },
+  },
+  {
+    error:
+      "providerCapability.publication.manifestGatedPublication must be true for direct object publication",
+    label: "without manifest-gated publication",
+    value: {
+      ...capability,
+      publication: {
+        ...capability.publication,
+        manifestGatedPublication: false,
+      },
+    },
+  },
+  {
+    error:
+      "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct object publication",
+    label: "without negative caching policy",
+    value: {
+      ...capability,
+      delivery: {
+        ...capability.delivery,
+        negativeCachingPolicyDeclared: false,
+      },
+    },
+  },
+] as const;
+
 describe("provider capability validation", () => {
   test("accepts a valid provider capability document", () => {
     expect(isProviderCapabilityDocument(capability)).toBe(true);
@@ -77,33 +128,13 @@ describe("provider capability validation", () => {
     ).toThrow("providerCapability.kind must be one of: object-store");
   });
 
-  test("rejects direct publication without strong head-after-create", () => {
-    expect(() =>
-      assertProviderCapabilityDocument({
-        ...capability,
-        consistency: {
-          ...capability.consistency,
-          headAfterCreate: "eventual",
-        },
-      })
-    ).toThrow(
-      "providerCapability.consistency.headAfterCreate must be strong for direct object publication"
-    );
-  });
-
-  test("rejects direct publication with overwrites allowed", () => {
-    expect(() =>
-      assertProviderCapabilityDocument({
-        ...capability,
-        publication: {
-          ...capability.publication,
-          overwritesAllowed: true,
-        },
-      })
-    ).toThrow(
-      "providerCapability.publication.overwritesAllowed must not be true for direct object publication"
-    );
-  });
+  for (const rejection of directPublicationRejectionCases) {
+    test(`rejects direct publication ${rejection.label}`, () => {
+      expect(() => assertProviderCapabilityDocument(rejection.value)).toThrow(
+        rejection.error
+      );
+    });
+  }
 
   test("accepts direct publication without an overwrite declaration", () => {
     expect(() =>
@@ -115,34 +146,6 @@ describe("provider capability validation", () => {
         },
       })
     ).not.toThrow();
-  });
-
-  test("rejects direct publication without manifest-gated publication", () => {
-    expect(() =>
-      assertProviderCapabilityDocument({
-        ...capability,
-        publication: {
-          ...capability.publication,
-          manifestGatedPublication: false,
-        },
-      })
-    ).toThrow(
-      "providerCapability.publication.manifestGatedPublication must be true for direct object publication"
-    );
-  });
-
-  test("rejects direct publication without negative caching policy", () => {
-    expect(() =>
-      assertProviderCapabilityDocument({
-        ...capability,
-        delivery: {
-          ...capability.delivery,
-          negativeCachingPolicyDeclared: false,
-        },
-      })
-    ).toThrow(
-      "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct object publication"
-    );
   });
 
   test("rejects capabilities without an upload grant mechanism", () => {
