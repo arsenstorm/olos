@@ -764,6 +764,52 @@ describe("S3 runtime HTTP client", () => {
       "S3 retention response result.failedObjects[0].error must be set"
     );
   });
+
+  test("validates malformed retention deleted object payloads", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            plan: {
+              expiredSlots: [],
+              retiredObjects: [],
+            },
+            result: {
+              deletedObjects: [
+                {
+                  commitId: "commit_3810",
+                  objectKey: 123,
+                  slotId: "slot_3810",
+                },
+              ],
+              failedObjects: [],
+            },
+            summary: {
+              deleted: 1,
+              failed: 0,
+              failedObjectKeys: [],
+              failedSlotIds: [],
+              ok: true,
+              planned: 1,
+            },
+          }),
+          { status: 202 }
+        )
+      );
+
+    await expect(
+      applyS3RuntimeRetention({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        payload: {
+          now: "2026-01-01T00:00:06.000Z",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow(
+      "S3 retention response result.deletedObjects[0].objectKey must be set"
+    );
+  });
 });
 
 async function createS3RuntimeClientHarness(options: {

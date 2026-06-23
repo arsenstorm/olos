@@ -901,15 +901,11 @@ function retentionPlanExpiredSlotsPayload(
 function retentionPlanRetiredObjectsPayload(
   value: Record<string, unknown>
 ): S3RuntimeRetentionRetiredObjectsPayload {
-  return requiredArrayField(
+  return retentionRetiredObjectCollectionPayload(
     value,
     "retiredObjects",
-    S3_RETENTION_PLAN_RETIRED_OBJECTS_MESSAGE
-  ).map((retiredObject, index) =>
-    retiredObjectPayload(
-      retiredObject,
-      `S3 retention response plan.retiredObjects[${index}]`
-    )
+    S3_RETENTION_PLAN_RETIRED_OBJECTS_MESSAGE,
+    "S3 retention response plan.retiredObjects"
   );
 }
 
@@ -972,17 +968,22 @@ function retentionResultPayload(
 function retentionDeletedObjectsPayload(
   value: Record<string, unknown>
 ): S3RuntimeRetentionDeletedObjectsPayload {
-  const deletedObjects = requiredArrayField(
+  return retentionRetiredObjectCollectionPayload(
     value,
     "deletedObjects",
-    S3_RETENTION_RESULT_DELETED_OBJECTS_MESSAGE
+    S3_RETENTION_RESULT_DELETED_OBJECTS_MESSAGE,
+    "S3 retention response result.deletedObjects"
   );
+}
 
-  return deletedObjects.map((entry, index) =>
-    retiredObjectPayload(
-      entry,
-      `S3 retention response result.deletedObjects[${index}]`
-    )
+function retentionRetiredObjectCollectionPayload(
+  value: Record<string, unknown>,
+  field: "deletedObjects" | "retiredObjects",
+  message: string,
+  context: string
+): S3RuntimeRetiredObjectPayload[] {
+  return requiredArrayField(value, field, message).map((entry, index) =>
+    retiredObjectPayload(entry, `${context}[${index}]`)
   );
 }
 
