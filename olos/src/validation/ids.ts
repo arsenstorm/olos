@@ -1,5 +1,9 @@
 const URL_SAFE_IDENTIFIER_PATTERN = /^[A-Za-z0-9._-]+$/;
 
+interface IntegerPredicateOptions {
+  safe?: boolean;
+}
+
 export function isNonNegativeInteger(value: unknown): value is number {
   return isIntegerAtLeast(value, 0);
 }
@@ -47,13 +51,16 @@ export function assertPositiveSafeInteger(
 function isIntegerAtLeast(
   value: unknown,
   minimum: number,
-  options: { safe?: boolean } = {}
+  options: IntegerPredicateOptions = {}
 ): value is number {
-  const isInteger = options.safe
-    ? Number.isSafeInteger(value)
-    : Number.isInteger(value);
+  return isIntegerValue(value, options) && value >= minimum;
+}
 
-  return isInteger && Number(value) >= minimum;
+function isIntegerValue(
+  value: unknown,
+  options: IntegerPredicateOptions
+): value is number {
+  return options.safe ? Number.isSafeInteger(value) : Number.isInteger(value);
 }
 
 function assertInteger(
@@ -70,11 +77,15 @@ function assertInteger(
 }
 
 export function isUrlSafeIdentifier(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.length > 0 &&
-    URL_SAFE_IDENTIFIER_PATTERN.test(value)
-  );
+  return isNonEmptyString(value) && hasUrlSafeIdentifierCharacters(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function hasUrlSafeIdentifierCharacters(value: string): boolean {
+  return URL_SAFE_IDENTIFIER_PATTERN.test(value);
 }
 
 export function assertUrlSafeIdentifier(

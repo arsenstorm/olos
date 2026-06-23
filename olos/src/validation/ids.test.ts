@@ -21,6 +21,8 @@ describe("identifier validation", () => {
     expect(isPositiveInteger(3812)).toBe(true);
     expect(isNonNegativeSafeInteger(0)).toBe(true);
     expect(isPositiveSafeInteger(1)).toBe(true);
+    expect(isNonNegativeSafeInteger(Number.MAX_SAFE_INTEGER)).toBe(true);
+    expect(isPositiveSafeInteger(Number.MAX_SAFE_INTEGER)).toBe(true);
   });
 
   test("rejects invalid non-negative integers", () => {
