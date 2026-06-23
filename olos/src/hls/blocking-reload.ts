@@ -70,6 +70,9 @@ type ReadyOrTimeoutHlsBlockingReloadResult = Extract<
   WaitForHlsBlockingReloadResult,
   { status: "ready" | "timeout" }
 >;
+type ReadyHlsBlockingReloadResult = ReadyOrTimeoutHlsBlockingReloadResult & {
+  status: "ready";
+};
 type TimeoutHlsBlockingReloadResult = ReadyOrTimeoutHlsBlockingReloadResult & {
   status: "timeout";
 };
@@ -104,11 +107,7 @@ export async function waitForHlsBlockingReload(
     }
 
     if (isReadyHlsBlockingReloadResolution(resolution)) {
-      return {
-        cursor,
-        request: options.request,
-        status: "ready",
-      };
+      return readyHlsBlockingReloadResult(cursor, options.request);
     }
 
     const remainingMs = remainingHlsBlockingReloadMs(deadline, options);
@@ -125,6 +124,17 @@ export async function waitForHlsBlockingReload(
 
     cursor = nextCursor;
   }
+}
+
+function readyHlsBlockingReloadResult(
+  cursor: Cursor,
+  request: HlsBlockingReloadRequest
+): ReadyHlsBlockingReloadResult {
+  return {
+    cursor,
+    request,
+    status: "ready",
+  };
 }
 
 function createHlsBlockingReloadDeadline(

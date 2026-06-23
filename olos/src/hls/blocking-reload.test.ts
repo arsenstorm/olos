@@ -377,6 +377,26 @@ describe("HLS blocking reload", () => {
     });
   });
 
+  test("times out with current cursor when waiter returns no cursor", async () => {
+    const result = await waitForHlsBlockingReload({
+      cursor,
+      request: {
+        mediaSequenceNumber: 3813,
+      },
+      sleep: () => Promise.resolve(),
+      timeoutMs: 100,
+      waitForCursor: () => Promise.resolve(undefined),
+    });
+
+    expect(result).toEqual({
+      cursor,
+      request: {
+        mediaSequenceNumber: 3813,
+      },
+      status: "timeout",
+    });
+  });
+
   test("uses the remaining deadline for blocking wait timeout", async () => {
     let nowCalls = 0;
     let sleepDurationMs: number | undefined;
