@@ -193,13 +193,11 @@ function parseRuntimeCommitPayload(
   value: unknown,
   payloadName: string
 ): RuntimeCommitPayload {
-  if (!isRecord(value)) {
-    throw new Error(`${payloadName} must be a JSON object`);
-  }
+  const payload = parseRecordPayload(value, payloadName);
 
   return {
-    ...parseCommitRequestPayload(value),
-    object: parseObservedUploadPayload(value.object, "object"),
+    ...parseCommitRequestPayload(payload),
+    object: parseObservedUploadPayload(payload.object, "object"),
   };
 }
 
@@ -210,11 +208,12 @@ function parseS3CommitPayloadPayload(
   overrides: S3CommitPayloadParseOverrides,
   payloadName: string
 ): ParsedS3CommitPayload {
-  if (!isRecord(value)) {
-    throw new Error(`${payloadName} must be a JSON object`);
-  }
-
-  return parseS3CommitPayload(value, options, parseCommittedAt, overrides);
+  return parseS3CommitPayload(
+    parseRecordPayload(value, payloadName),
+    options,
+    parseCommittedAt,
+    overrides
+  );
 }
 
 function parseS3ReconciliationPayloadPayload(
@@ -223,11 +222,22 @@ function parseS3ReconciliationPayloadPayload(
   parseCommittedAt: ParseTimestampField,
   payloadName: string
 ): ParsedS3ReconciliationPayload {
+  return parseS3ReconciliationPayload(
+    parseRecordPayload(value, payloadName),
+    options,
+    parseCommittedAt
+  );
+}
+
+function parseRecordPayload(
+  value: unknown,
+  payloadName: string
+): Record<string, unknown> {
   if (!isRecord(value)) {
     throw new Error(`${payloadName} must be a JSON object`);
   }
 
-  return parseS3ReconciliationPayload(value, options, parseCommittedAt);
+  return value;
 }
 
 export function parseCommitTimestamp(

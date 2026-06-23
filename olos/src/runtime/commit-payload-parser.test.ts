@@ -11,6 +11,7 @@ import {
   parseProviderResolvedCommitPayload,
   parseS3CommitPayload,
   parseS3ReconciliationPayload,
+  parseS3ReconciliationPayloadRequest,
   parseSafeObjectKeyField,
 } from "./commit-payload-parser";
 
@@ -299,6 +300,23 @@ describe("commit payload parser", () => {
       slotIds: ["slot_init", "slot_3810"],
       versionId: "v1",
       independent: true,
+    });
+  });
+
+  test("rejects malformed S3 reconciliation request payloads", async () => {
+    await expect(
+      parseS3ReconciliationPayloadRequest(
+        new Request("https://edge.example.com/s3/reconcile", {
+          body: JSON.stringify([]),
+          method: "POST",
+        }),
+        (message) => ({ message, status: "invalid" as const }),
+        "fallback",
+        { providerId: "provider_fallback" }
+      )
+    ).resolves.toEqual({
+      message: "S3 reconciliation request must be a JSON object",
+      status: "invalid",
     });
   });
 });
