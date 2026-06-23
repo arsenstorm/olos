@@ -53,24 +53,38 @@ export function resolvePathwayFailover(
 function applyPathwayFailover(
   options: ResolvePathwayFailoverOptions
 ): AppliedPathwayFailover {
-  let matched = false;
+  const validatedPathways = options.pathways.map(validatePathway);
+  const matched = validatedPathways.some((pathway) =>
+    isFailoverTarget(pathway, options.pathwayId)
+  );
 
-  const pathways = options.pathways.map((pathway) => {
-    assertPathway(pathway);
-
-    if (pathway.pathwayId !== options.pathwayId) {
+  const pathways = validatedPathways.map((pathway) => {
+    if (!isFailoverTarget(pathway, options.pathwayId)) {
       return pathway;
     }
 
-    matched = true;
-
     return {
       ...pathway,
-      state: options.state ?? "degraded",
+      state: failoverState(options),
     };
   });
 
   return { matched, pathways };
+}
+
+function validatePathway(pathway: Pathway): Pathway {
+  assertPathway(pathway);
+  return pathway;
+}
+
+function isFailoverTarget(pathway: Pathway, pathwayId: OlosId): boolean {
+  return pathway.pathwayId === pathwayId;
+}
+
+function failoverState(
+  options: ResolvePathwayFailoverOptions
+): Extract<PathwayState, "degraded" | "disabled" | "draining"> {
+  return options.state ?? "degraded";
 }
 
 function unavailable(

@@ -129,6 +129,16 @@ describe("pathway failover", () => {
     });
   });
 
+  test("returns provider unavailable with the explicit failed pathway state", () => {
+    expect(
+      resolvePathwayFailover({
+        pathwayId: "primary",
+        pathways: [primaryPathway],
+        state: "disabled",
+      }).pathways
+    ).toEqual([{ ...primaryPathway, state: "disabled" }]);
+  });
+
   test("returns provider unavailable for an unknown pathway", () => {
     expect(
       resolvePathwayFailover({
