@@ -11,6 +11,9 @@ describe("runtime attempt helpers", () => {
   });
 
   test("rejects invalid attempt counts", () => {
+    expect(() => positiveAttempts(-1)).toThrow(
+      "maxAttempts must be a positive integer"
+    );
     expect(() => positiveAttempts(0)).toThrow(
       "maxAttempts must be a positive integer"
     );
