@@ -104,17 +104,31 @@ function assertMonotonicSegments(
 
   for (const segment of segments) {
     assertCommittedSegment(segment, name);
-
-    if (seenSegments.has(segment.mediaSequenceNumber)) {
-      throw new Error(`${name}.segments must not contain duplicate positions`);
-    }
-
-    if (segment.mediaSequenceNumber <= previousSequence) {
-      throw new Error(`${name}.segments must have monotonic media sequences`);
-    }
+    assertUniqueSegmentPosition(segment, seenSegments, name);
+    assertMonotonicSegmentSequence(segment, previousSequence, name);
 
     seenSegments.add(segment.mediaSequenceNumber);
     previousSequence = segment.mediaSequenceNumber;
+  }
+}
+
+function assertUniqueSegmentPosition(
+  segment: CommittedSegment,
+  seenSegments: Set<number>,
+  name: string
+): void {
+  if (seenSegments.has(segment.mediaSequenceNumber)) {
+    throw new Error(`${name}.segments must not contain duplicate positions`);
+  }
+}
+
+function assertMonotonicSegmentSequence(
+  segment: CommittedSegment,
+  previousSequence: number,
+  name: string
+): void {
+  if (segment.mediaSequenceNumber <= previousSequence) {
+    throw new Error(`${name}.segments must have monotonic media sequences`);
   }
 }
 

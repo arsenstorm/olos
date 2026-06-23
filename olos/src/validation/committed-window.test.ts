@@ -362,6 +362,30 @@ describe("committed window validation", () => {
     );
   });
 
+  test("rejects duplicate segment positions across distinct segment objects", () => {
+    const firstSegment = validSegment(0);
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [
+              firstSegment,
+              {
+                ...firstSegment,
+                duration: 3,
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.segments must not contain duplicate positions"
+    );
+  });
+
   test("accepts segments that include a full segment and parts", () => {
     const firstSegment = validSegment(0);
     const firstPart = validPart(0);
