@@ -6,6 +6,12 @@ describe("published package verifier", () => {
     expect(() => assertPublishedPackageVersion("0.1.0")).not.toThrow();
   });
 
+  test("accepts prerelease and build metadata versions", () => {
+    expect(() =>
+      assertPublishedPackageVersion("0.1.0-beta.1+build.5")
+    ).not.toThrow();
+  });
+
   test("rejects the unpublished placeholder version", () => {
     expect(() => assertPublishedPackageVersion("0.0.0")).toThrow(
       "published package verification requires a released version"
