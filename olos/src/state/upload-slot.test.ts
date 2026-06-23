@@ -149,6 +149,27 @@ describe("upload slot issuance", () => {
     ).toEqual(slot);
   });
 
+  test("creates issued part slots with optional part numbers", () => {
+    expect(
+      createIssuedUploadSlot({
+        contentType: "video/mp4",
+        deliveryUrl: "https://media.example.com/live/session/v1080/3810/0.m4s",
+        duration: 0.5,
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "part",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3810,
+        objectKey: "live/session/v1080/3810/0.m4s",
+        partNumber: 0,
+        publicationMode: "direct-public",
+        publisherInstanceId: "pub_1",
+        renditionId: "v1080",
+        session,
+        slotId: "slot_3810_0",
+      }).partNumber
+    ).toBe(0);
+  });
+
   test("rejects non-live sessions", () => {
     expect(() =>
       createIssuedUploadSlot({

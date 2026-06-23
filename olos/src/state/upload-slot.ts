@@ -115,9 +115,9 @@ export function createIssuedUploadSlot(
     slotId: options.slotId,
     state: "issued",
     tenantId: options.session.tenantId,
+    ...optionalIssuedUploadSlotFields(options),
   };
 
-  applyOptionalIssuedUploadSlotFields(slot, options);
   assertUploadSlot(slot);
 
   return slot;
@@ -143,17 +143,20 @@ function sessionHasRendition(session: Session, renditionId: string): boolean {
   );
 }
 
-function applyOptionalIssuedUploadSlotFields(
-  slot: UploadSlot,
+function optionalIssuedUploadSlotFields(
   options: CreateIssuedUploadSlotOptions
-): void {
+): Pick<UploadSlot, "minBytes" | "partNumber"> {
+  const optionalFields: Pick<UploadSlot, "minBytes" | "partNumber"> = {};
+
   if (options.minBytes !== undefined) {
-    slot.minBytes = options.minBytes;
+    optionalFields.minBytes = options.minBytes;
   }
 
   if (options.partNumber !== undefined) {
-    slot.partNumber = options.partNumber;
+    optionalFields.partNumber = options.partNumber;
   }
+
+  return optionalFields;
 }
 
 export function observeUpload(options: ObserveUploadOptions): UploadSlot {
