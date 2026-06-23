@@ -23,5 +23,8 @@ describe("object key validation", () => {
     expect(() =>
       assertSafeObjectKey("media/../secret.m4s", "objectKey")
     ).toThrow("objectKey must be a safe relative object key");
+    expect(() => assertSafeObjectKey("media/session/", "objectKey")).toThrow(
+      "objectKey must be a safe relative object key"
+    );
   });
 });
