@@ -325,6 +325,11 @@ type S3RuntimeRetentionSummaryCounts = Pick<
 type S3RuntimeRetentionSummaryOk =
   StoredS3CoordinatorRetentionResponse["summary"]["ok"];
 
+interface S3RuntimeSummaryCountField<Field extends string> {
+  field: Field;
+  message: string;
+}
+
 interface S3RuntimeRetiredObjectPayload {
   commitId: string;
   objectKey: string;
@@ -1090,50 +1095,40 @@ function reconciliationSummaryPayload(
 function retentionSummaryCounts(
   value: Record<string, unknown>
 ): S3RuntimeRetentionSummaryCounts {
-  return {
-    deleted: requiredSummaryNumber(
-      value,
-      "deleted",
-      S3_RETENTION_SUMMARY_DELETED_MESSAGE
-    ),
-    failed: requiredSummaryNumber(
-      value,
-      "failed",
-      S3_RETENTION_SUMMARY_FAILED_MESSAGE
-    ),
-    planned: requiredSummaryNumber(
-      value,
-      "planned",
-      S3_RETENTION_SUMMARY_PLANNED_MESSAGE
-    ),
-  };
+  return summaryCounts(value, [
+    { field: "deleted", message: S3_RETENTION_SUMMARY_DELETED_MESSAGE },
+    { field: "failed", message: S3_RETENTION_SUMMARY_FAILED_MESSAGE },
+    { field: "planned", message: S3_RETENTION_SUMMARY_PLANNED_MESSAGE },
+  ]);
 }
 
 function reconciliationSummaryCounts(
   value: Record<string, unknown>
 ): S3RuntimeReconciliationSummaryCounts {
-  return {
-    committed: requiredSummaryNumber(
-      value,
-      "committed",
-      S3_RECONCILIATION_SUMMARY_COMMITTED_MESSAGE
-    ),
-    failed: requiredSummaryNumber(
-      value,
-      "failed",
-      S3_RECONCILIATION_SUMMARY_FAILED_MESSAGE
-    ),
-    idempotent: requiredSummaryNumber(
-      value,
-      "idempotent",
-      S3_RECONCILIATION_SUMMARY_IDEMPOTENT_MESSAGE
-    ),
-    planned: requiredSummaryNumber(
-      value,
-      "planned",
-      S3_RECONCILIATION_SUMMARY_PLANNED_MESSAGE
-    ),
-  };
+  return summaryCounts(value, [
+    {
+      field: "committed",
+      message: S3_RECONCILIATION_SUMMARY_COMMITTED_MESSAGE,
+    },
+    { field: "failed", message: S3_RECONCILIATION_SUMMARY_FAILED_MESSAGE },
+    {
+      field: "idempotent",
+      message: S3_RECONCILIATION_SUMMARY_IDEMPOTENT_MESSAGE,
+    },
+    { field: "planned", message: S3_RECONCILIATION_SUMMARY_PLANNED_MESSAGE },
+  ]);
+}
+
+function summaryCounts<const Field extends string>(
+  value: Record<string, unknown>,
+  fields: readonly S3RuntimeSummaryCountField<Field>[]
+): Record<Field, number> {
+  return Object.fromEntries(
+    fields.map(({ field, message }) => [
+      field,
+      requiredSummaryNumber(value, field, message),
+    ])
+  ) as Record<Field, number>;
 }
 
 function reconciliationSummaryStatus(

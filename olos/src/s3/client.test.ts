@@ -716,6 +716,44 @@ describe("S3 runtime HTTP client", () => {
     );
   });
 
+  test("validates malformed retention response summary counts", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            plan: {
+              expiredSlots: [],
+              retiredObjects: [],
+            },
+            result: {
+              deletedObjects: [],
+              failedObjects: [],
+            },
+            summary: {
+              deleted: "1",
+              failed: 0,
+              failedObjectKeys: [],
+              failedSlotIds: [],
+              ok: true,
+              planned: 1,
+            },
+          }),
+          { status: 202 }
+        )
+      );
+
+    await expect(
+      applyS3RuntimeRetention({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        payload: {
+          now: "2026-01-01T00:00:06.000Z",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow("S3 retention response summary must include deleted");
+  });
+
   test("validates malformed retention response result payloads", async () => {
     const clientFetch: RuntimeFetch = () =>
       Promise.resolve(
