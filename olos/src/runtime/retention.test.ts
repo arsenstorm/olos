@@ -131,6 +131,28 @@ describe("stored runtime retention", () => {
     });
   });
 
+  test("summarizes an empty retired object deletion plan", async () => {
+    const result = await deleteRetiredCoordinatorObjects({
+      deleteObject: () => {
+        throw new Error("delete should not be called");
+      },
+      objects: [],
+    });
+
+    expect(result).toEqual({
+      deletedObjects: [],
+      failedObjects: [],
+    });
+    expect(summarizeRetiredCoordinatorObjectDeletions(result)).toEqual({
+      deleted: 0,
+      failed: 0,
+      failedObjectKeys: [],
+      failedSlotIds: [],
+      ok: true,
+      planned: 0,
+    });
+  });
+
   test("keeps deleting retired coordinator objects after a failure", async () => {
     const result = await deleteRetiredCoordinatorObjects({
       deleteObject: (object) => {

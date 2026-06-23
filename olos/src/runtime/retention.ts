@@ -55,6 +55,11 @@ type RetiredCoordinatorObjectDeletionAttempt =
       status: "failed";
     };
 
+interface MutableRetiredCoordinatorObjectDeletionResult {
+  deletedObjects: RetiredCoordinatorObjectDeletion[];
+  failedObjects: RetiredCoordinatorObjectDeletionFailure[];
+}
+
 export type StoredRuntimeRetentionPlan =
   | {
       plan: CoordinatorRetentionPlan;
@@ -69,23 +74,14 @@ export type StoredRuntimeRetentionPlan =
 export async function deleteRetiredCoordinatorObjects(
   options: DeleteRetiredCoordinatorObjectsOptions
 ): Promise<RetiredCoordinatorObjectDeletionResult> {
-  const deletedObjects: RetiredCoordinatorObjectDeletion[] = [];
-  const failedObjects: RetiredCoordinatorObjectDeletionFailure[] = [];
+  const result = emptyRetiredCoordinatorObjectDeletionResult();
 
   for (const object of options.objects) {
     const attempt = await deleteRetiredCoordinatorObject(options, object);
-
-    if (attempt.status === "deleted") {
-      deletedObjects.push(attempt.object);
-    } else {
-      failedObjects.push(attempt.failure);
-    }
+    recordRetiredCoordinatorObjectDeletionAttempt(result, attempt);
   }
 
-  return {
-    deletedObjects,
-    failedObjects,
-  };
+  return result;
 }
 
 async function deleteRetiredCoordinatorObject(
@@ -108,6 +104,25 @@ async function deleteRetiredCoordinatorObject(
       status: "failed",
     };
   }
+}
+
+function emptyRetiredCoordinatorObjectDeletionResult(): MutableRetiredCoordinatorObjectDeletionResult {
+  return {
+    deletedObjects: [],
+    failedObjects: [],
+  };
+}
+
+function recordRetiredCoordinatorObjectDeletionAttempt(
+  result: MutableRetiredCoordinatorObjectDeletionResult,
+  attempt: RetiredCoordinatorObjectDeletionAttempt
+): void {
+  if (attempt.status === "deleted") {
+    result.deletedObjects.push(attempt.object);
+    return;
+  }
+
+  result.failedObjects.push(attempt.failure);
 }
 
 export function summarizeRetiredCoordinatorObjectDeletions(
