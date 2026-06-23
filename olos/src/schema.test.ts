@@ -128,6 +128,8 @@ describe("OLOS JSON schemas", () => {
   });
 
   test("describes provider capability preconditions", () => {
+    expect(OLOS_PROVIDER_CAPABILITY_SCHEMA.allOf).toHaveLength(1);
+
     expect(
       OLOS_PROVIDER_CAPABILITY_SCHEMA.properties.uploadGrants.anyOf
     ).toEqual([

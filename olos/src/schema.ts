@@ -159,6 +159,46 @@ const providerEventsSchema = {
   type: "object",
 } as const;
 
+const providerDirectObjectPublicationCondition = {
+  properties: {
+    publication: {
+      properties: {
+        directObjectPublication: { const: true },
+      },
+      required: ["directObjectPublication"],
+    },
+  },
+} as const;
+
+const providerDirectObjectPublicationRequirements = {
+  properties: {
+    consistency: {
+      properties: {
+        headAfterCreate: { const: "strong" },
+      },
+      required: ["headAfterCreate"],
+    },
+    delivery: {
+      properties: {
+        negativeCachingPolicyDeclared: { const: true },
+      },
+      required: ["negativeCachingPolicyDeclared"],
+    },
+    publication: {
+      properties: {
+        manifestGatedPublication: { const: true },
+        overwritesAllowed: { not: { const: true } },
+      },
+      required: ["manifestGatedPublication"],
+    },
+  },
+} as const;
+
+const providerDirectObjectPublicationPrecondition = {
+  if: providerDirectObjectPublicationCondition,
+  [JSON_SCHEMA_THEN]: providerDirectObjectPublicationRequirements,
+} as const;
+
 const committedObjectSchema = {
   additionalProperties: false,
   properties: {
@@ -402,43 +442,7 @@ export const OLOS_PATHWAY_SCHEMA = {
 export const OLOS_PROVIDER_CAPABILITY_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
-  allOf: [
-    {
-      if: {
-        properties: {
-          publication: {
-            properties: {
-              directObjectPublication: { const: true },
-            },
-            required: ["directObjectPublication"],
-          },
-        },
-      },
-      [JSON_SCHEMA_THEN]: {
-        properties: {
-          consistency: {
-            properties: {
-              headAfterCreate: { const: "strong" },
-            },
-            required: ["headAfterCreate"],
-          },
-          delivery: {
-            properties: {
-              negativeCachingPolicyDeclared: { const: true },
-            },
-            required: ["negativeCachingPolicyDeclared"],
-          },
-          publication: {
-            properties: {
-              manifestGatedPublication: { const: true },
-              overwritesAllowed: { not: { const: true } },
-            },
-            required: ["manifestGatedPublication"],
-          },
-        },
-      },
-    },
-  ],
+  allOf: [providerDirectObjectPublicationPrecondition],
   properties: {
     api: providerApiSchema,
     consistency: providerConsistencySchema,
