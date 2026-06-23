@@ -160,6 +160,9 @@ describe("validation field helpers", () => {
     expect(() =>
       assertAbsoluteHttpUrl("https://media.example.com/live?x=1", "baseUrl")
     ).toThrow("baseUrl must not contain query strings or fragments");
+    expect(() =>
+      assertAbsoluteHttpUrl("https://media.example.com/live#frag", "baseUrl")
+    ).toThrow("baseUrl must not contain query strings or fragments");
   });
 
   test("allows absolute HTTP URL query strings when requested", () => {

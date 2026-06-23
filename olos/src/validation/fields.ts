@@ -224,12 +224,13 @@ function assertUrlQueryAndFragmentPolicy(
   name: string,
   options: AbsoluteHttpUrlOptions
 ): void {
-  if (
-    !options.allowQueryOrFragment &&
-    (url.search.length > 0 || url.hash.length > 0)
-  ) {
+  if (!options.allowQueryOrFragment && hasUrlQueryOrFragment(url)) {
     throw new Error(`${name} must not contain query strings or fragments`);
   }
+}
+
+function hasUrlQueryOrFragment(url: URL): boolean {
+  return url.search.length > 0 || url.hash.length > 0;
 }
 
 export function isAllowedString<const T extends readonly string[]>(
