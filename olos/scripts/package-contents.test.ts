@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import packageJson from "../package.json" with { type: "json" };
 import {
   assertInstalledPackageContents,
@@ -10,6 +10,38 @@ import {
 import { packageExportSubpaths } from "./package-export-map";
 import { expectedRuntimeExports } from "./public-surface";
 import { withTemporaryDirectory } from "./test-temp-dir";
+
+const forbiddenPublishedFileCases = [
+  {
+    label: "test files",
+    pathSegments: ["dist", "index.test.js"],
+  },
+  {
+    label: "nested test files",
+    pathSegments: ["dist", "internal", "route.test.js"],
+  },
+  {
+    label: "test declarations",
+    pathSegments: ["dist", "index.test.d.ts"],
+  },
+  {
+    label: "test helper files",
+    pathSegments: ["dist", "test-client.test-helper.js"],
+  },
+  {
+    label: "test helper declarations",
+    pathSegments: ["dist", "test-client.test-helper.d.ts"],
+  },
+  {
+    label: "spec files",
+    pathSegments: ["dist", "index.spec.js"],
+  },
+  {
+    contents: "{}\n",
+    label: "TypeScript config files",
+    pathSegments: ["dist", "tsconfig.build.json"],
+  },
+] as const;
 
 describe("package contents verifier", () => {
   test("keeps public package roots aligned with export and smoke coverage", () => {
@@ -49,76 +81,21 @@ describe("package contents verifier", () => {
     });
   }
 
-  test("rejects test files inside published roots", async () => {
-    await withPackageRoot(async (root) => {
-      await writeFile(join(root, "dist", "index.test.js"), "");
+  for (const forbiddenFile of forbiddenPublishedFileCases) {
+    test(`rejects ${forbiddenFile.label} inside published roots`, async () => {
+      await withPackageRoot(async (root) => {
+        const filePath = join(root, ...forbiddenFile.pathSegments);
+        const relativePath = forbiddenFile.pathSegments.join("/");
 
-      await expect(assertInstalledPackageContents(root)).rejects.toThrow(
-        "package contains private file: dist/index.test.js"
-      );
+        await mkdir(dirname(filePath), { recursive: true });
+        await writeFile(filePath, forbiddenFile.contents ?? "");
+
+        await expect(assertInstalledPackageContents(root)).rejects.toThrow(
+          `package contains private file: ${relativePath}`
+        );
+      });
     });
-  });
-
-  test("rejects nested test files inside published roots", async () => {
-    await withPackageRoot(async (root) => {
-      await mkdir(join(root, "dist", "internal"), { recursive: true });
-      await writeFile(join(root, "dist", "internal", "route.test.js"), "");
-
-      await expect(assertInstalledPackageContents(root)).rejects.toThrow(
-        "package contains private file: dist/internal/route.test.js"
-      );
-    });
-  });
-
-  test("rejects test declarations inside published roots", async () => {
-    await withPackageRoot(async (root) => {
-      await writeFile(join(root, "dist", "index.test.d.ts"), "");
-
-      await expect(assertInstalledPackageContents(root)).rejects.toThrow(
-        "package contains private file: dist/index.test.d.ts"
-      );
-    });
-  });
-
-  test("rejects test helper files inside published roots", async () => {
-    await withPackageRoot(async (root) => {
-      await writeFile(join(root, "dist", "test-client.test-helper.js"), "");
-
-      await expect(assertInstalledPackageContents(root)).rejects.toThrow(
-        "package contains private file: dist/test-client.test-helper.js"
-      );
-    });
-  });
-
-  test("rejects test helper declarations inside published roots", async () => {
-    await withPackageRoot(async (root) => {
-      await writeFile(join(root, "dist", "test-client.test-helper.d.ts"), "");
-
-      await expect(assertInstalledPackageContents(root)).rejects.toThrow(
-        "package contains private file: dist/test-client.test-helper.d.ts"
-      );
-    });
-  });
-
-  test("rejects spec files inside published roots", async () => {
-    await withPackageRoot(async (root) => {
-      await writeFile(join(root, "dist", "index.spec.js"), "");
-
-      await expect(assertInstalledPackageContents(root)).rejects.toThrow(
-        "package contains private file: dist/index.spec.js"
-      );
-    });
-  });
-
-  test("rejects TypeScript config files inside published roots", async () => {
-    await withPackageRoot(async (root) => {
-      await writeFile(join(root, "dist", "tsconfig.build.json"), "{}\n");
-
-      await expect(assertInstalledPackageContents(root)).rejects.toThrow(
-        "package contains private file: dist/tsconfig.build.json"
-      );
-    });
-  });
+  }
 });
 
 async function withPackageRoot(
