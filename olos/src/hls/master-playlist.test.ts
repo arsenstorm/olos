@@ -78,6 +78,17 @@ describe("master playlist rendering", () => {
     expect(visitedRenditionIds).toEqual(["v1080", "v720"]);
   });
 
+  test("renders video-only stream codecs without audio codecs", () => {
+    expect(
+      renderMasterPlaylist({
+        ...session,
+        renditions: session.renditions.filter(
+          (rendition) => rendition.kind === "video"
+        ),
+      })
+    ).toContain('CODECS="avc1.640028"');
+  });
+
   test("does not emit content steering", () => {
     expect(renderMasterPlaylist(session)).not.toContain(
       "#EXT-X-CONTENT-STEERING"

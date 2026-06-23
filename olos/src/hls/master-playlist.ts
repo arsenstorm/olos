@@ -74,26 +74,42 @@ function renderStreamAttributes(
   rendition: VideoRendition,
   audioCodecs: readonly string[]
 ): string {
+  const bandwidth = requiredBandwidth(rendition);
+
+  const attributes = [
+    `BANDWIDTH=${bandwidth}`,
+    `AVERAGE-BANDWIDTH=${bandwidth}`,
+    codecsAttribute(rendition, audioCodecs),
+    ...resolutionAttributes(rendition),
+    ...frameRateAttributes(rendition),
+  ];
+
+  return attributes.join(",");
+}
+
+function requiredBandwidth(rendition: VideoRendition): number {
   const bandwidth = rendition.bitrate;
 
   if (!bandwidth) {
     throw new Error(`rendition ${rendition.renditionId} must define bitrate`);
   }
 
-  const attributes = [
-    `BANDWIDTH=${bandwidth}`,
-    `AVERAGE-BANDWIDTH=${bandwidth}`,
-    `CODECS="${escapePlaylistValue(
-      [rendition.codec, ...audioCodecs].join(",")
-    )}"`,
-    ...resolutionAttributes(rendition),
-  ];
+  return bandwidth;
+}
 
-  if (rendition.frameRate !== undefined) {
-    attributes.push(`FRAME-RATE=${formatFrameRate(rendition.frameRate)}`);
-  }
+function codecsAttribute(
+  rendition: VideoRendition,
+  audioCodecs: readonly string[]
+): string {
+  return `CODECS="${escapePlaylistValue(
+    [rendition.codec, ...audioCodecs].join(",")
+  )}"`;
+}
 
-  return attributes.join(",");
+function frameRateAttributes(rendition: VideoRendition): string[] {
+  return rendition.frameRate === undefined
+    ? []
+    : [`FRAME-RATE=${formatFrameRate(rendition.frameRate)}`];
 }
 
 function resolutionAttributes(rendition: VideoRendition): string[] {
