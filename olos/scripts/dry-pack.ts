@@ -34,14 +34,16 @@ export function requiredDryPackFilesFromExports(
   const files = new Set<string>();
 
   for (const subpath of packageExportSubpaths(exportsMap)) {
-    const value = exportsMap[subpath];
-
-    for (const field of exportFileFields) {
-      addExportFile(files, value, field);
-    }
+    addExportFiles(files, exportsMap[subpath]);
   }
 
   return [...files].sort();
+}
+
+function addExportFiles(files: Set<string>, value: unknown): void {
+  for (const field of exportFileFields) {
+    addExportFile(files, value, field);
+  }
 }
 
 function addExportFile(

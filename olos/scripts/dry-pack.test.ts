@@ -90,4 +90,12 @@ describe("dry package verifier", () => {
       })
     ).toEqual(["dist/index.js"]);
   });
+
+  test("ignores non-object package export entries", () => {
+    expect(
+      requiredDryPackFilesFromExports({
+        ".": "./dist/index.js",
+      })
+    ).toEqual([]);
+  });
 });
