@@ -47,7 +47,7 @@ function safeObjectKeyError(value: unknown): string | undefined {
     return "must be a non-empty string";
   }
 
-  if (hasUnsafeObjectKeyBoundary(value)) {
+  if (hasUnsafeRelativeObjectKeyShape(value)) {
     return "must be a safe relative object key";
   }
 
@@ -58,18 +58,18 @@ function safeObjectKeyError(value: unknown): string | undefined {
   if (hasObjectKeyQueryOrFragment(value)) {
     return "must not contain query strings or fragments";
   }
-
-  if (hasUnsafeObjectKeySegment(value)) {
-    return "must be a safe relative object key";
-  }
 }
 
-function hasUnsafeObjectKeyBoundary(value: string): boolean {
-  return value.startsWith("/") || value.endsWith("/");
+function hasUnsafeRelativeObjectKeyShape(value: string): boolean {
+  return hasUnsafeObjectKeyBoundary(value) || hasUnsafeObjectKeySegment(value);
 }
 
 function hasObjectKeyQueryOrFragment(value: string): boolean {
   return value.includes("?") || value.includes("#");
+}
+
+function hasUnsafeObjectKeyBoundary(value: string): boolean {
+  return value.startsWith("/") || value.endsWith("/");
 }
 
 function hasUnsafeObjectKeySegment(value: string): boolean {

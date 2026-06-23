@@ -25,6 +25,9 @@ describe("object key validation", () => {
 
   test("rejects unsafe relative object key segments", () => {
     expect(isSafeObjectKey("media//3810.m4s")).toBe(false);
+    expect(() => assertSafeObjectKey("/media/3810.m4s", "objectKey")).toThrow(
+      "objectKey must be a safe relative object key"
+    );
     expect(() =>
       assertSafeObjectKey("media/../secret.m4s", "objectKey")
     ).toThrow("objectKey must be a safe relative object key");
