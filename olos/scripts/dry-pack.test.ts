@@ -78,4 +78,16 @@ describe("dry package verifier", () => {
       })
     ).toEqual(["dist/index.d.ts", "dist/index.js"]);
   });
+
+  test("ignores package exports outside dist", () => {
+    expect(
+      requiredDryPackFilesFromExports({
+        ".": {
+          default: "./src/index.ts",
+          import: "./dist/index.js",
+          types: "./index.d.ts",
+        },
+      })
+    ).toEqual(["dist/index.js"]);
+  });
 });

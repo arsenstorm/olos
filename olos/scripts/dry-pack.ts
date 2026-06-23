@@ -55,7 +55,21 @@ function addExportFile(
 
   const path = value[field];
 
-  if (typeof path === "string" && path.startsWith("./dist/")) {
-    files.add(path.slice(2));
+  const file = distExportFile(path);
+
+  if (file !== undefined) {
+    files.add(file);
   }
+}
+
+function distExportFile(value: unknown): string | undefined {
+  if (!isDistExportPath(value)) {
+    return;
+  }
+
+  return value.slice(2);
+}
+
+function isDistExportPath(value: unknown): value is string {
+  return typeof value === "string" && value.startsWith("./dist/");
 }
