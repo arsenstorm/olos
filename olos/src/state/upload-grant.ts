@@ -67,10 +67,17 @@ function assertNoReservedAdditionalHeaders(
   const reserved = reservedHeaderNames(reservedHeaders);
 
   for (const header of Object.keys(additionalHeaders)) {
-    if (reserved.has(header.toLowerCase())) {
+    if (isReservedAdditionalHeader(header, reserved)) {
       throw new Error(`additionalHeaders must not override ${header}`);
     }
   }
+}
+
+function isReservedAdditionalHeader(
+  header: string,
+  reservedHeaders: Set<string>
+): boolean {
+  return reservedHeaders.has(header.toLowerCase());
 }
 
 function reservedHeaderNames(headers: Record<string, string>): Set<string> {

@@ -113,6 +113,15 @@ describe("upload grant builder", () => {
         url: "https://storage.example.com/upload/signed",
       })
     ).toThrow("additionalHeaders must not override IF-NONE-MATCH");
+    expect(() =>
+      createUploadGrant({
+        additionalHeaders: {
+          "X-OLOS-SLOT-ID": "slot_other",
+        },
+        slot,
+        url: "https://storage.example.com/upload/signed",
+      })
+    ).toThrow("additionalHeaders must not override X-OLOS-SLOT-ID");
   });
 
   test("rejects malformed additional headers", () => {
