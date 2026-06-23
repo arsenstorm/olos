@@ -47,40 +47,55 @@ export function eventRouteResult(result: {
     (result.status === "committed" || result.status === "idempotent") &&
     result.commit !== undefined
   ) {
-    return {
-      commit: result.commit,
-      status: result.status,
-    };
+    return successfulEventRouteResult(result.commit, result.status);
   }
 
   if (result.status === "invalid_event") {
-    return {
-      error: result.error?.error as StoredS3CoordinatorRouteError,
-      status: "invalid_event",
-    };
+    return invalidEventRouteResult(result.error);
   }
 
   if (result.status === "rejected") {
-    if (result.error === undefined) {
-      return {
-        error: { message: "S3 route rejected without error details" },
-        status: "rejected",
-      };
-    }
+    return rejectedEventRouteResult(result);
+  }
 
-    const rejected = {
-      auditEvent: result.auditEvent,
-      error: result.error,
-    };
+  return { status: result.status as "conflict" | "not_found" };
+}
 
+function successfulEventRouteResult(
+  commit: Commit,
+  status: SuccessfulCommitStatus
+): StoredS3CoordinatorEventRouteResponseResult {
+  return { commit, status };
+}
+
+function invalidEventRouteResult(
+  error: { error: StoredS3CoordinatorRouteError } | undefined
+): StoredS3CoordinatorEventRouteResponseResult {
+  return {
+    error: error?.error as StoredS3CoordinatorRouteError,
+    status: "invalid_event",
+  };
+}
+
+function rejectedEventRouteResult(result: {
+  auditEvent?: unknown;
+  error?: { error: StoredS3CoordinatorRouteError };
+}): StoredS3CoordinatorEventRouteResponseResult {
+  if (result.error === undefined) {
     return {
-      ...rejectionBody(rejected),
-      error: result.error.error,
+      error: { message: "S3 route rejected without error details" },
       status: "rejected",
     };
   }
 
-  return { status: result.status as "conflict" | "not_found" };
+  return {
+    ...rejectionBody({
+      auditEvent: result.auditEvent,
+      error: result.error,
+    }),
+    error: result.error.error,
+    status: "rejected",
+  };
 }
 
 export function rejectionBody(
@@ -107,34 +122,50 @@ export function reconciliationResult(
   result: StoredS3CoordinatorUploadReconciliationResult
 ): StoredS3CoordinatorReconciliationResponseResult {
   if (isSuccessfulS3MutationResult(result)) {
-    return {
-      commit: result.commit.commit,
-      ...optionalCursorResponse(result.commit.cursor),
-      slotId: result.slot.slotId,
-      status: result.status,
-    };
+    return successfulReconciliationResult(result);
   }
 
   if (result.status === "failed") {
-    if (result.result?.status === "rejected") {
-      return {
-        error: result.result.error.error,
-        slotId: result.slot.slotId,
-        status: result.status,
-      };
-    }
+    return failedReconciliationResult(result);
+  }
 
+  throw new Error("unsupported S3 reconciliation result status");
+}
+
+function successfulReconciliationResult(
+  result: Extract<
+    StoredS3CoordinatorUploadReconciliationResult,
+    { status: SuccessfulCommitStatus }
+  >
+): StoredS3CoordinatorReconciliationResponseResult {
+  return {
+    commit: result.commit.commit,
+    ...optionalCursorResponse(result.commit.cursor),
+    slotId: result.slot.slotId,
+    status: result.status,
+  };
+}
+
+function failedReconciliationResult(
+  result: Extract<
+    StoredS3CoordinatorUploadReconciliationResult,
+    { status: "failed" }
+  >
+): StoredS3CoordinatorReconciliationResponseResult {
+  if (result.result?.status === "rejected") {
     return {
-      ...(result.error === undefined
-        ? {}
-        : { error: { message: result.error } }),
-      ...(result.result === undefined
-        ? {}
-        : { resultStatus: result.result.status }),
+      error: result.result.error.error,
       slotId: result.slot.slotId,
       status: result.status,
     };
   }
 
-  throw new Error("unsupported S3 reconciliation result status");
+  return {
+    ...(result.error === undefined ? {} : { error: { message: result.error } }),
+    ...(result.result === undefined
+      ? {}
+      : { resultStatus: result.result.status }),
+    slotId: result.slot.slotId,
+    status: result.status,
+  };
 }
