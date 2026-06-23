@@ -158,6 +158,12 @@ describe("upload slot validation", () => {
     ).not.toThrow();
   });
 
+  test("accepts upload slots without minimum byte limits", () => {
+    const { minBytes: _minBytes, ...slotWithoutMinBytes } = validUploadSlot;
+
+    expect(() => assertUploadSlot(slotWithoutMinBytes)).not.toThrow();
+  });
+
   test("rejects unknown enum values", () => {
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, state: "unknown" })

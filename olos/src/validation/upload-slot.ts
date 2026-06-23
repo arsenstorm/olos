@@ -63,12 +63,17 @@ function assertUploadSlotByteFields(value: Record<string, unknown>): void {
 function assertUploadSlotMinBytes(value: Record<string, unknown>): void {
   if (value.minBytes !== undefined) {
     assertNonNegativeIntegerField(value, "minBytes", "uploadSlot");
+    assertUploadSlotMinBytesWithinMaxBytes(value);
+  }
+}
 
-    if (Number(value.minBytes) > Number(value.maxBytes)) {
-      throw new Error(
-        "uploadSlot.minBytes must be less than or equal to maxBytes"
-      );
-    }
+function assertUploadSlotMinBytesWithinMaxBytes(
+  value: Record<string, unknown>
+): void {
+  if (Number(value.minBytes) > Number(value.maxBytes)) {
+    throw new Error(
+      "uploadSlot.minBytes must be less than or equal to maxBytes"
+    );
   }
 }
 
