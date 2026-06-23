@@ -59,15 +59,7 @@ function renderSegment(
   segment: CommittedSegment,
   policy: MediaUriPolicy
 ): string[] {
-  const lines: string[] = [];
-
-  if (segment.discontinuityBefore) {
-    lines.push("#EXT-X-DISCONTINUITY");
-  }
-
-  if (segment.programDateTime) {
-    lines.push(`#EXT-X-PROGRAM-DATE-TIME:${segment.programDateTime}`);
-  }
+  const lines = renderSegmentHeaders(segment);
 
   if (hasFullCommittedSegment(segment)) {
     lines.push(
@@ -79,6 +71,20 @@ function renderSegment(
 
   for (const part of segment.parts ?? []) {
     lines.push(renderPart(part, policy));
+  }
+
+  return lines;
+}
+
+function renderSegmentHeaders(segment: CommittedSegment): string[] {
+  const lines: string[] = [];
+
+  if (segment.discontinuityBefore) {
+    lines.push("#EXT-X-DISCONTINUITY");
+  }
+
+  if (segment.programDateTime) {
+    lines.push(`#EXT-X-PROGRAM-DATE-TIME:${segment.programDateTime}`);
   }
 
   return lines;

@@ -214,6 +214,32 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
     ).not.toContain("#EXT-X-RENDITION-REPORT");
   });
 
+  test("omits program date-time tags for segments without program dates", () => {
+    const playlist = renderMediaPlaylist(
+      {
+        ...committedWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: validRendition().segments.map((segment) => ({
+              ...segment,
+              programDateTime: undefined,
+            })),
+          },
+        },
+      },
+      {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+      }
+    );
+
+    expect(playlist).not.toContain("#EXT-X-PROGRAM-DATE-TIME");
+    expect(playlist).toContain("#EXTINF:2.000,");
+  });
+
   test("refuses non-monotonic committed windows", () => {
     expect(() =>
       renderMediaPlaylist(
