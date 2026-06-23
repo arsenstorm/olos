@@ -152,19 +152,29 @@ function failedReconciliationResult(
     { status: "failed" }
   >
 ): StoredS3CoordinatorReconciliationResponseResult {
+  return {
+    ...failedReconciliationFailureDetails(result),
+    slotId: result.slot.slotId,
+    status: result.status,
+  };
+}
+
+function failedReconciliationFailureDetails(
+  result: Extract<
+    StoredS3CoordinatorUploadReconciliationResult,
+    { status: "failed" }
+  >
+): Partial<{
+  error: StoredS3CoordinatorRouteError;
+  resultStatus: string;
+}> {
   if (result.result?.status === "rejected") {
-    return {
-      error: result.result.error.error,
-      slotId: result.slot.slotId,
-      status: result.status,
-    };
+    return { error: result.result.error.error };
   }
 
   return {
     ...failedReconciliationErrorResponse(result.error),
     ...failedReconciliationResultStatusResponse(result.result),
-    slotId: result.slot.slotId,
-    status: result.status,
   };
 }
 

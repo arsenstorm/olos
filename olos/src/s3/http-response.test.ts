@@ -64,6 +64,24 @@ describe("S3 HTTP response mapping", () => {
     });
   });
 
+  test("maps failed reconciliation results with thrown errors and statuses", () => {
+    const result = {
+      error: "missing object: media/v1080/3810.m4s",
+      result: {
+        status: "conflict",
+      },
+      slot: testSlot(),
+      status: "failed",
+    } satisfies StoredS3CoordinatorUploadReconciliationResult;
+
+    expect(reconciliationResult(result)).toEqual({
+      error: { message: "missing object: media/v1080/3810.m4s" },
+      resultStatus: "conflict",
+      slotId: "slot_3810",
+      status: "failed",
+    });
+  });
+
   test("maps rejected failed reconciliation results with structured errors", () => {
     const result = {
       result: {
