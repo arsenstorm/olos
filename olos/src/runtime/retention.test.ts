@@ -16,8 +16,33 @@ import { createObservedUpload } from "../state/observed-upload";
 import {
   deleteRetiredCoordinatorObjects,
   planStoredCoordinatorRetention,
+  type RetiredCoordinatorObjectDeletion,
   summarizeRetiredCoordinatorObjectDeletions,
 } from "./retention";
+
+const RETIRED_OBJECT: RetiredCoordinatorObjectDeletion = {
+  commitId: "commit_3810",
+  objectKey: "media/s3810.m4s",
+  slotId: "slot_3810",
+};
+
+const FAILED_RETIRED_OBJECT: RetiredCoordinatorObjectDeletion = {
+  commitId: "commit_fail",
+  objectKey: "media/fail.m4s",
+  slotId: "slot_fail",
+};
+
+const SECOND_FAILED_RETIRED_OBJECT: RetiredCoordinatorObjectDeletion = {
+  commitId: "commit_second_fail",
+  objectKey: "media/second-fail.m4s",
+  slotId: "slot_second_fail",
+};
+
+const OK_RETIRED_OBJECT: RetiredCoordinatorObjectDeletion = {
+  commitId: "commit_ok",
+  objectKey: "media/ok.m4s",
+  slotId: "slot_ok",
+};
 
 describe("stored runtime retention", () => {
   test("plans app-owned retention work from stored coordinator state", async () => {
@@ -104,24 +129,12 @@ describe("stored runtime retention", () => {
       deleteObject: (object) => {
         deleted.push(object.objectKey);
       },
-      objects: [
-        {
-          commitId: "commit_3810",
-          objectKey: "media/s3810.m4s",
-          slotId: "slot_3810",
-        },
-      ],
+      objects: [RETIRED_OBJECT],
     });
 
     expect(deleted).toEqual(["media/s3810.m4s"]);
     expect(result).toEqual({
-      deletedObjects: [
-        {
-          commitId: "commit_3810",
-          objectKey: "media/s3810.m4s",
-          slotId: "slot_3810",
-        },
-      ],
+      deletedObjects: [RETIRED_OBJECT],
       failedObjects: [],
     });
     expect(summarizeRetiredCoordinatorObjectDeletions(result)).toEqual({
@@ -163,35 +176,14 @@ describe("stored runtime retention", () => {
           throw new Error("delete failed");
         }
       },
-      objects: [
-        {
-          commitId: "commit_fail",
-          objectKey: "media/fail.m4s",
-          slotId: "slot_fail",
-        },
-        {
-          commitId: "commit_ok",
-          objectKey: "media/ok.m4s",
-          slotId: "slot_ok",
-        },
-      ],
+      objects: [FAILED_RETIRED_OBJECT, OK_RETIRED_OBJECT],
     });
 
-    expect(result.deletedObjects).toEqual([
-      {
-        commitId: "commit_ok",
-        objectKey: "media/ok.m4s",
-        slotId: "slot_ok",
-      },
-    ]);
+    expect(result.deletedObjects).toEqual([OK_RETIRED_OBJECT]);
     expect(result.failedObjects).toEqual([
       {
         error: "delete failed",
-        object: {
-          commitId: "commit_fail",
-          objectKey: "media/fail.m4s",
-          slotId: "slot_fail",
-        },
+        object: FAILED_RETIRED_OBJECT,
       },
     ]);
     expect(summarizeRetiredCoordinatorObjectDeletions(result)).toEqual({
@@ -213,38 +205,42 @@ describe("stored runtime retention", () => {
 
         return Promise.resolve();
       },
-      objects: [
-        {
-          commitId: "commit_fail",
-          objectKey: "media/fail.m4s",
-          slotId: "slot_fail",
-        },
-        {
-          commitId: "commit_ok",
-          objectKey: "media/ok.m4s",
-          slotId: "slot_ok",
-        },
-      ],
+      objects: [FAILED_RETIRED_OBJECT, OK_RETIRED_OBJECT],
     });
 
     expect(result).toEqual({
-      deletedObjects: [
-        {
-          commitId: "commit_ok",
-          objectKey: "media/ok.m4s",
-          slotId: "slot_ok",
-        },
-      ],
+      deletedObjects: [OK_RETIRED_OBJECT],
       failedObjects: [
         {
           error: "async delete failed",
-          object: {
-            commitId: "commit_fail",
-            objectKey: "media/fail.m4s",
-            slotId: "slot_fail",
-          },
+          object: FAILED_RETIRED_OBJECT,
         },
       ],
+    });
+  });
+
+  test("summarizes failed retired objects by object key and slot id", () => {
+    expect(
+      summarizeRetiredCoordinatorObjectDeletions({
+        deletedObjects: [OK_RETIRED_OBJECT],
+        failedObjects: [
+          {
+            error: "delete failed",
+            object: FAILED_RETIRED_OBJECT,
+          },
+          {
+            error: "second delete failed",
+            object: SECOND_FAILED_RETIRED_OBJECT,
+          },
+        ],
+      })
+    ).toEqual({
+      deleted: 1,
+      failed: 2,
+      failedObjectKeys: ["media/fail.m4s", "media/second-fail.m4s"],
+      failedSlotIds: ["slot_fail", "slot_second_fail"],
+      ok: false,
+      planned: 3,
     });
   });
 });
