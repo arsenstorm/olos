@@ -9,27 +9,22 @@ import {
 import { packageRoot } from "./script-paths";
 
 const EXPORT_SOURCE_PATTERN = /from\s+"([^"]+)";/g;
+const PACKAGE_METADATA_EXPORT = "./package.json";
 
 describe("package exports", () => {
   test("map package subpaths to matching dist entrypoints", () => {
     for (const [subpath, value] of Object.entries(packageJson.exports)) {
-      if (subpath === "./package.json") {
-        expect(value).toBe("./package.json");
+      if (isPackageMetadataExport(subpath)) {
+        expect(value).toBe(PACKAGE_METADATA_EXPORT);
         continue;
       }
 
-      const entrypoint = packageExportEntrypoint(subpath);
-
-      expect(value).toEqual({
-        default: `./dist/${entrypoint}.js`,
-        import: `./dist/${entrypoint}.js`,
-        types: `./dist/${entrypoint}.d.ts`,
-      });
+      expect(value).toEqual(expectedModuleExportValue(subpath));
     }
   });
 
   test("have matching source facade files for public subpaths", async () => {
-    for (const entrypoint of publicFacadeEntrypoints()) {
+    for (const entrypoint of publicModuleEntrypoints()) {
       await access(sourceFacadePath(entrypoint));
     }
   });
@@ -38,7 +33,7 @@ describe("package exports", () => {
     const sourceEntries = await readdir(join(packageRoot, "src"), {
       withFileTypes: true,
     });
-    const expectedFacadeEntrypoints = publicFacadeEntrypoints();
+    const expectedFacadeEntrypoints = publicModuleEntrypoints();
     const actualFacadeEntrypoints = sourceEntries
       .filter(
         (entry) =>
@@ -53,7 +48,7 @@ describe("package exports", () => {
   });
 
   test("keep public facade export blocks grouped by source module", async () => {
-    for (const entrypoint of publicFacadeEntrypoints()) {
+    for (const entrypoint of publicModuleEntrypoints()) {
       const source = await readFile(sourceFacadePath(entrypoint), "utf8");
       const exportSources = [...source.matchAll(EXPORT_SOURCE_PATTERN)].map(
         (match) => match[1]
@@ -70,10 +65,32 @@ describe("package exports", () => {
   });
 });
 
-function publicFacadeEntrypoints(): string[] {
+function publicModuleEntrypoints(): string[] {
   return packageExportSubpaths(packageJson.exports)
     .map(packageExportEntrypoint)
     .sort();
+}
+
+function isPackageMetadataExport(subpath: string): boolean {
+  return subpath === PACKAGE_METADATA_EXPORT;
+}
+
+function expectedModuleExportValue(subpath: string): {
+  default: string;
+  import: string;
+  types: string;
+} {
+  const entrypoint = packageExportEntrypoint(subpath);
+
+  return {
+    default: distEntrypointPath(entrypoint, "js"),
+    import: distEntrypointPath(entrypoint, "js"),
+    types: distEntrypointPath(entrypoint, "d.ts"),
+  };
+}
+
+function distEntrypointPath(entrypoint: string, extension: string): string {
+  return `./dist/${entrypoint}.${extension}`;
 }
 
 function sourceFacadePath(entrypoint: string): string {
