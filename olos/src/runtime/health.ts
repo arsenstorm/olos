@@ -134,14 +134,35 @@ export function resolveRuntimeLiveHealthFromState(
     now: options.now,
   });
 
+  return stateLiveHealth({
+    health,
+    lease,
+    publisherInstanceId: options.publisherInstanceId,
+  });
+}
+
+function stateLiveHealth(options: {
+  health: RuntimeLiveHealth;
+  lease: CoordinatorPublisherLease | undefined;
+  publisherInstanceId: string | undefined;
+}): RuntimeLiveHealth {
+  if (
+    options.publisherInstanceId !== undefined &&
+    options.lease === undefined
+  ) {
+    return {
+      ...options.health,
+      status: "stale",
+    };
+  }
+
+  if (options.lease === undefined) {
+    return options.health;
+  }
+
   return {
-    ...health,
-    ...(options.publisherInstanceId !== undefined && lease === undefined
-      ? { status: "stale" }
-      : {}),
-    ...(lease === undefined
-      ? {}
-      : { publisherInstanceId: lease.publisherInstanceId }),
+    ...options.health,
+    publisherInstanceId: options.lease.publisherInstanceId,
   };
 }
 

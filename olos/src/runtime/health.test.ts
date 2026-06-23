@@ -180,6 +180,23 @@ describe("runtime live health", () => {
     });
   });
 
+  test("marks a missing requested publisher lease as stale before a cursor exists", () => {
+    expect(
+      resolveRuntimeLiveHealthFromState({
+        maxCursorAgeMs: 3000,
+        now: "2026-01-01T00:00:02.000Z",
+        publisherInstanceId: "publisher_missing",
+        state: {
+          ...createEmptyCoordinatorState(),
+          publisherLeases: [lease()],
+        },
+      })
+    ).toEqual({
+      cursorFreshness: "missing",
+      status: "stale",
+    });
+  });
+
   test("rejects invalid health inputs", () => {
     expect(() =>
       resolveRuntimeLiveHealth({
