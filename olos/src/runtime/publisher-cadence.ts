@@ -46,6 +46,12 @@ interface RuntimePublisherObjectPositionContext {
   startMediaSequenceNumber: number;
 }
 
+interface RuntimePublisherPartPositionContext {
+  cursorWindow?: CursorWindow;
+  partsPerSegment: number;
+  startMediaSequenceNumber: number;
+}
+
 export type RuntimePublisherPlannedObjectDefaults = Record<
   RuntimePublisherPlannedObjectKind,
   RuntimePublisherObjectKindDefaults
@@ -121,13 +127,20 @@ function nextCadencePosition(
     return nextSegmentPosition(context);
   }
 
-  return nextPartPosition({
-    ...context,
+  return nextPartPosition(runtimePublisherPartPositionContext(context));
+}
+
+function runtimePublisherPartPositionContext(
+  context: RuntimePublisherObjectPositionContext
+): RuntimePublisherPartPositionContext {
+  return {
+    cursorWindow: context.cursorWindow,
     partsPerSegment: positiveInteger(
       context.partsPerSegment,
       "partsPerSegment"
     ),
-  });
+    startMediaSequenceNumber: context.startMediaSequenceNumber,
+  };
 }
 
 export function createRuntimePublisherObjectPlanInput(
@@ -191,11 +204,9 @@ export function createRuntimePublisherNextObjectPlan(
   };
 }
 
-function nextPartPosition(options: {
-  cursorWindow?: CursorWindow;
-  partsPerSegment: number;
-  startMediaSequenceNumber: number;
-}): RuntimePublisherObjectPosition {
+function nextPartPosition(
+  options: RuntimePublisherPartPositionContext
+): RuntimePublisherObjectPosition {
   const { cursorWindow } = options;
 
   if (cursorWindow === undefined) {

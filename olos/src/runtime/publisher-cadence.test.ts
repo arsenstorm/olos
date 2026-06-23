@@ -42,6 +42,18 @@ describe("runtime publisher cadence", () => {
     });
   });
 
+  test("does not require part cadence fields for segment cadence", () => {
+    expect(
+      resolveRuntimePublisherNextObjectPosition({
+        mode: "segment",
+        partsPerSegment: 0,
+      })
+    ).toEqual({
+      kind: "segment",
+      mediaSequenceNumber: 0,
+    });
+  });
+
   test("resolves the next low-latency part position", () => {
     expect(
       resolveRuntimePublisherNextObjectPosition({
