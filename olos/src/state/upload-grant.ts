@@ -19,7 +19,7 @@ export function createUploadGrant(
   assertUploadGrantPreconditions(options);
 
   const grant: UploadGrant = {
-    expiresAt: options.expiresAt ?? options.slot.expiresAt,
+    expiresAt: resolveUploadGrantExpiresAt(options),
     method: "PUT",
     requiredHeaders: createRequiredHeaders(options),
     slotId: options.slot.slotId,
@@ -39,10 +39,17 @@ function createRequiredHeaders(
     return headers;
   }
 
-  assertAdditionalUploadHeaders(options.additionalHeaders);
-  assertNoReservedAdditionalHeaders(options.additionalHeaders, headers);
+  return mergeAdditionalRequiredHeaders(headers, options.additionalHeaders);
+}
 
-  return { ...headers, ...options.additionalHeaders };
+function mergeAdditionalRequiredHeaders(
+  baseHeaders: Record<string, string>,
+  additionalHeaders: Record<string, string>
+): Record<string, string> {
+  assertAdditionalUploadHeaders(additionalHeaders);
+  assertNoReservedAdditionalHeaders(additionalHeaders, baseHeaders);
+
+  return { ...baseHeaders, ...additionalHeaders };
 }
 
 function createBaseRequiredHeaders(slot: UploadSlot): Record<string, string> {
@@ -57,15 +64,17 @@ function assertNoReservedAdditionalHeaders(
   additionalHeaders: Record<string, string>,
   reservedHeaders: Record<string, string>
 ): void {
-  const reserved = new Set(
-    Object.keys(reservedHeaders).map((header) => header.toLowerCase())
-  );
+  const reserved = reservedHeaderNames(reservedHeaders);
 
   for (const header of Object.keys(additionalHeaders)) {
     if (reserved.has(header.toLowerCase())) {
       throw new Error(`additionalHeaders must not override ${header}`);
     }
   }
+}
+
+function reservedHeaderNames(headers: Record<string, string>): Set<string> {
+  return new Set(Object.keys(headers).map((header) => header.toLowerCase()));
 }
 
 export function assertAdditionalUploadHeaders(
@@ -82,7 +91,7 @@ function assertUploadGrantPreconditions(
   }
 
   const grantExpiresAt = timestampMs(
-    options.expiresAt ?? options.slot.expiresAt,
+    resolveUploadGrantExpiresAt(options),
     "uploadGrant.expiresAt"
   );
   const slotExpiresAt = timestampMs(
@@ -95,4 +104,10 @@ function assertUploadGrantPreconditions(
       "uploadGrant.expiresAt must be before or equal to uploadSlot.expiresAt"
     );
   }
+}
+
+function resolveUploadGrantExpiresAt(
+  options: CreateUploadGrantOptions
+): string {
+  return options.expiresAt ?? options.slot.expiresAt;
 }

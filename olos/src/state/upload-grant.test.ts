@@ -63,6 +63,16 @@ describe("upload grant builder", () => {
     });
   });
 
+  test("allows explicit grant expiry equal to the slot expiry", () => {
+    expect(
+      createUploadGrant({
+        expiresAt: slot.expiresAt,
+        slot,
+        url: "https://storage.example.com/upload/signed",
+      }).expiresAt
+    ).toBe(slot.expiresAt);
+  });
+
   test("rejects slots that are not issued", () => {
     expect(() =>
       createUploadGrant({
