@@ -30,6 +30,20 @@ describe("release changelog helpers", () => {
     );
   });
 
+  test("extracts release notes from a plain version heading with a date", () => {
+    const datedPlainHeading = `# Changelog
+
+## 1.2.3 - 2026-06-23
+
+- Added dated plain heading support.
+`;
+
+    expect(hasVersionHeading(datedPlainHeading, "1.2.3")).toBe(true);
+    expect(releaseNotes(datedPlainHeading, "1.2.3")).toBe(
+      "- Added dated plain heading support.\n"
+    );
+  });
+
   test("extracts release notes from an exact linked version heading", () => {
     const exactLinkedHeading = `# Changelog
 

@@ -12,6 +12,18 @@ export function releaseNotes(
   releaseVersion: string
 ): string {
   const lines = changelogLines(changelog);
+  const headingIndex = requireVersionHeadingIndex(lines, releaseVersion);
+  const sectionLines = releaseNoteSectionLines(lines, headingIndex).trim();
+
+  assertReleaseNoteSectionIsNotEmpty(sectionLines, releaseVersion);
+
+  return `${sectionLines}\n`;
+}
+
+function requireVersionHeadingIndex(
+  lines: readonly string[],
+  releaseVersion: string
+): number {
   const headingIndex = findVersionHeadingIndex(lines, releaseVersion);
 
   if (headingIndex === -1) {
@@ -20,20 +32,29 @@ export function releaseNotes(
     );
   }
 
+  return headingIndex;
+}
+
+function releaseNoteSectionLines(
+  lines: readonly string[],
+  headingIndex: number
+): string {
   const nextHeadingIndex = findNextSectionHeadingIndex(lines, headingIndex);
-  const sectionLines = lines
+  return lines
     .slice(
       headingIndex + 1,
       nextHeadingIndex === -1 ? undefined : nextHeadingIndex
     )
-    .join("\n")
-    .trim();
+    .join("\n");
+}
 
+function assertReleaseNoteSectionIsNotEmpty(
+  sectionLines: string,
+  releaseVersion: string
+): void {
   if (sectionLines === "") {
     throw new Error(`CHANGELOG.md section for ${releaseVersion} is empty`);
   }
-
-  return `${sectionLines}\n`;
 }
 
 function changelogLines(changelog: string): string[] {
