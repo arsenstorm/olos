@@ -29,10 +29,8 @@ describe("package exports", () => {
   });
 
   test("have matching source facade files for public subpaths", async () => {
-    for (const subpath of packageExportSubpaths(packageJson.exports)) {
-      await access(
-        join(packageRoot, "src", `${packageExportEntrypoint(subpath)}.ts`)
-      );
+    for (const entrypoint of publicFacadeEntrypoints()) {
+      await access(sourceFacadePath(entrypoint));
     }
   });
 
@@ -40,9 +38,7 @@ describe("package exports", () => {
     const sourceEntries = await readdir(join(packageRoot, "src"), {
       withFileTypes: true,
     });
-    const expectedFacadeEntrypoints = packageExportSubpaths(packageJson.exports)
-      .map(packageExportEntrypoint)
-      .sort();
+    const expectedFacadeEntrypoints = publicFacadeEntrypoints();
     const actualFacadeEntrypoints = sourceEntries
       .filter(
         (entry) =>
@@ -57,12 +53,8 @@ describe("package exports", () => {
   });
 
   test("keep public facade export blocks grouped by source module", async () => {
-    for (const subpath of packageExportSubpaths(packageJson.exports)) {
-      const entrypoint = packageExportEntrypoint(subpath);
-      const source = await readFile(
-        join(packageRoot, "src", `${entrypoint}.ts`),
-        "utf8"
-      );
+    for (const entrypoint of publicFacadeEntrypoints()) {
+      const source = await readFile(sourceFacadePath(entrypoint), "utf8");
       const exportSources = [...source.matchAll(EXPORT_SOURCE_PATTERN)].map(
         (match) => match[1]
       );
@@ -70,4 +62,20 @@ describe("package exports", () => {
       expect(exportSources).toEqual([...exportSources].sort());
     }
   });
+
+  test("maps the root package export to the index facade", () => {
+    expect(sourceFacadePath("index")).toBe(
+      join(packageRoot, "src", "index.ts")
+    );
+  });
 });
+
+function publicFacadeEntrypoints(): string[] {
+  return packageExportSubpaths(packageJson.exports)
+    .map(packageExportEntrypoint)
+    .sort();
+}
+
+function sourceFacadePath(entrypoint: string): string {
+  return join(packageRoot, "src", `${entrypoint}.ts`);
+}
