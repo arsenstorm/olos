@@ -15,8 +15,8 @@ const packageJson = JSON.parse(
   await readFile(new URL("./node_modules/olos/package.json", import.meta.url))
 );
 const exportedSubpaths = Object.keys(packageJson.exports)
-  .filter((subpath) => subpath !== "./package.json")
-  .map((subpath) => (subpath === "." ? "olos" : \`olos/\${subpath.slice(2)}\`));
+  .filter(isPackageModuleExportSubpath)
+  .map(packageExportSpecifier);
 const expectedSubpaths = Object.keys(expectedRuntimeExports);
 
 assertList("exported subpaths", exportedSubpaths, expectedSubpaths);
@@ -48,6 +48,14 @@ function assertList(name, actual, expected) {
       \`\${name} mismatch: expected \${expectedList.join(", ")}, received \${actualList.join(", ")}\`
     );
   }
+}
+
+function isPackageModuleExportSubpath(subpath) {
+  return subpath !== "./package.json";
+}
+
+function packageExportSpecifier(subpath) {
+  return subpath === "." ? "olos" : \`olos/\${subpath.slice(2)}\`;
 }
 `.trimStart();
 }
