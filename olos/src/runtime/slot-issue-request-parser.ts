@@ -19,7 +19,7 @@ export async function parseRuntimeSlotIssuePayloadRequest<Invalid>(
   fallbackMessage: string,
   payloadName = "slot issue request"
 ): Promise<SlotIssueRequestParse<Invalid>> {
-  return await parseSlotIssueRequest(
+  return await parseRuntimeSlotIssueRequestPayload(
     request,
     invalid,
     fallbackMessage,
@@ -32,6 +32,20 @@ export async function parseSlotIssueRequest<Invalid>(
   invalid: (message: string) => Invalid,
   fallbackMessage: string,
   payloadName = "slot issue request"
+): Promise<SlotIssueRequestParse<Invalid>> {
+  return await parseRuntimeSlotIssueRequestPayload(
+    request,
+    invalid,
+    fallbackMessage,
+    payloadName
+  );
+}
+
+async function parseRuntimeSlotIssueRequestPayload<Invalid>(
+  request: Request | RuntimeSlotIssuePayload,
+  invalid: (message: string) => Invalid,
+  fallbackMessage: string,
+  payloadName: string
 ): Promise<SlotIssueRequestParse<Invalid>> {
   return await parseRuntimeJsonRequest(
     request,
