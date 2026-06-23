@@ -25,6 +25,48 @@ const validUploadSlot: UploadSlot = {
   tenantId: "tenant_acme",
 };
 
+const unsafeDeliveryUrlCases = [
+  {
+    error:
+      "uploadSlot.deliveryUrl must be an absolute HTTP(S) URL or safe relative path",
+    label: "relative paths without a leading slash",
+    value: "media/key.m4s",
+  },
+  {
+    error:
+      "uploadSlot.deliveryUrl must be an absolute HTTP(S) URL or safe relative path",
+    label: "non-HTTP schemes",
+    value: "ftp://media/key.m4s",
+  },
+  {
+    error: "uploadSlot.deliveryUrl must not contain query strings or fragments",
+    label: "absolute URL query strings",
+    value: "https://media.example.com/key.m4s?token=abc",
+  },
+  {
+    error: "uploadSlot.deliveryUrl must not contain query strings or fragments",
+    label: "relative path fragments",
+    value: "/media/key.m4s#x",
+  },
+  {
+    error: "uploadSlot.deliveryUrl must not contain control characters",
+    label: "control characters",
+    value: "/media/key.m4s\n#EXT-X-ENDLIST",
+  },
+  {
+    error:
+      "uploadSlot.deliveryUrl must be an absolute HTTP(S) URL or safe relative path",
+    label: "parent directory segments",
+    value: "/media/../key.m4s",
+  },
+  {
+    error:
+      "uploadSlot.deliveryUrl must be an absolute HTTP(S) URL or safe relative path",
+    label: "repeated slashes",
+    value: "/media//key.m4s",
+  },
+] as const;
+
 describe("upload slot validation", () => {
   test("accepts a valid upload slot", () => {
     expect(isUploadSlot(validUploadSlot)).toBe(true);
@@ -69,48 +111,14 @@ describe("upload slot validation", () => {
   });
 
   test("rejects unsafe delivery URLs", () => {
-    expect(() =>
-      assertUploadSlot({ ...validUploadSlot, deliveryUrl: "media/key.m4s" })
-    ).toThrow(
-      "uploadSlot.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
-    );
-    expect(() =>
-      assertUploadSlot({
-        ...validUploadSlot,
-        deliveryUrl: "ftp://media/key.m4s",
-      })
-    ).toThrow(
-      "uploadSlot.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
-    );
-    expect(() =>
-      assertUploadSlot({
-        ...validUploadSlot,
-        deliveryUrl: "https://media.example.com/key.m4s?token=abc",
-      })
-    ).toThrow(
-      "uploadSlot.deliveryUrl must not contain query strings or fragments"
-    );
-    expect(() =>
-      assertUploadSlot({ ...validUploadSlot, deliveryUrl: "/media/key.m4s#x" })
-    ).toThrow(
-      "uploadSlot.deliveryUrl must not contain query strings or fragments"
-    );
-    expect(() =>
-      assertUploadSlot({
-        ...validUploadSlot,
-        deliveryUrl: "/media/key.m4s\n#EXT-X-ENDLIST",
-      })
-    ).toThrow("uploadSlot.deliveryUrl must not contain control characters");
-    expect(() =>
-      assertUploadSlot({ ...validUploadSlot, deliveryUrl: "/media/../key.m4s" })
-    ).toThrow(
-      "uploadSlot.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
-    );
-    expect(() =>
-      assertUploadSlot({ ...validUploadSlot, deliveryUrl: "/media//key.m4s" })
-    ).toThrow(
-      "uploadSlot.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
-    );
+    for (const deliveryUrl of unsafeDeliveryUrlCases) {
+      expect(() =>
+        assertUploadSlot({
+          ...validUploadSlot,
+          deliveryUrl: deliveryUrl.value,
+        })
+      ).toThrow(deliveryUrl.error);
+    }
   });
 
   test("rejects unsupported media object extensions", () => {
