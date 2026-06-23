@@ -61,14 +61,28 @@ function assertCommitObjectFields(value: Record<string, unknown>): void {
 }
 
 function assertCommitOptionalFields(value: Record<string, unknown>): void {
+  assertOptionalCommitEtag(value);
+  assertOptionalCommitProgramDateTime(value);
+  assertOptionalCommitIndependence(value);
+}
+
+function assertOptionalCommitEtag(value: Record<string, unknown>): void {
   if (value.etag !== undefined) {
     assertNonEmptyStringField(value, "etag", "commit");
   }
+}
 
+function assertOptionalCommitProgramDateTime(
+  value: Record<string, unknown>
+): void {
   if (value.programDateTime !== undefined) {
     assertIsoDateField(value, "programDateTime", "commit");
   }
+}
 
+function assertOptionalCommitIndependence(
+  value: Record<string, unknown>
+): void {
   if (value.independent !== undefined) {
     assertBooleanField(value, "independent", "commit");
   }

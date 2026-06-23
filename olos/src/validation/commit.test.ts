@@ -30,6 +30,17 @@ describe("commit validation", () => {
     expect(() => assertCommit(validCommit)).not.toThrow();
   });
 
+  test("accepts commits without optional fields", () => {
+    const { etag, independent, partNumber, programDateTime, ...commit } =
+      validCommit;
+
+    expect(etag).toBeDefined();
+    expect(independent).toBe(false);
+    expect(partNumber).toBe(3);
+    expect(programDateTime).toBeDefined();
+    expect(() => assertCommit(commit)).not.toThrow();
+  });
+
   test("rejects non-object values", () => {
     expect(isCommit(null)).toBe(false);
     expect(() => assertCommit(null)).toThrow("commit must be an object");
