@@ -161,6 +161,14 @@ export async function runRuntimePublisherUploadStep(
     return issued;
   }
 
+  return await runPublisherUploadAndCommit(options, heartbeat.result, issued);
+}
+
+async function runPublisherUploadAndCommit(
+  options: RunRuntimePublisherUploadStepOptions,
+  heartbeat: RuntimePublisherHeartbeatResult | undefined,
+  issued: IssuedRuntimePublisherIssueResult
+): Promise<RuntimePublisherUploadStep> {
   let observed: RuntimeObservedUploadPayload;
 
   try {
@@ -168,7 +176,7 @@ export async function runRuntimePublisherUploadStep(
   } catch (error) {
     return failedRuntimePublisherUploadObjectStep(
       error,
-      heartbeat.result,
+      heartbeat,
       issued.slot
     );
   }
@@ -182,7 +190,7 @@ export async function runRuntimePublisherUploadStep(
   } catch (error) {
     return failedRuntimePublisherCommitStep(
       error,
-      heartbeat.result,
+      heartbeat,
       observed,
       issued.slot
     );
@@ -190,7 +198,7 @@ export async function runRuntimePublisherUploadStep(
 
   return runtimePublisherCommitStep(
     committed,
-    heartbeat.result,
+    heartbeat,
     observed,
     issued.slot
   );
