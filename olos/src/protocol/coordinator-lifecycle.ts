@@ -3,6 +3,8 @@ import {
   selectExpiredUploadSlots,
   selectRetiredCommittedObjects,
 } from "../state/retention";
+import type { CommittedWindow } from "../types/committed-window";
+import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import { assertSession } from "../validation/session";
@@ -58,20 +60,38 @@ export function createCoordinatorManifestArtifacts(
 export function planCoordinatorRetention(
   options: PlanCoordinatorRetentionOptions
 ): CoordinatorRetentionPlan {
-  const cursor = options.state.cursor;
-
   return {
     expiredSlots: selectExpiredUploadSlots({
       now: options.now,
       slots: options.state.slots,
     }),
-    retiredObjects:
-      cursor === undefined
-        ? []
-        : selectRetiredCommittedObjects({
-            commits: options.state.commits,
-            retainedWindow: cursor.committedWindow,
-          }),
-    ...(cursor === undefined ? {} : { cursor }),
+    ...retainedCoordinatorCursorFields(options.state.cursor, options.state),
   };
+}
+
+function retainedCoordinatorCursorFields(
+  cursor: Cursor | undefined,
+  state: CoordinatorPipelineState
+): Pick<CoordinatorRetentionPlan, "cursor" | "retiredObjects"> {
+  if (cursor === undefined) {
+    return { retiredObjects: [] };
+  }
+
+  return {
+    cursor,
+    retiredObjects: retainedCoordinatorObjects(
+      state.commits,
+      cursor.committedWindow
+    ),
+  };
+}
+
+function retainedCoordinatorObjects(
+  commits: CoordinatorPipelineState["commits"],
+  retainedWindow: CommittedWindow
+): CoordinatorRetentionPlan["retiredObjects"] {
+  return selectRetiredCommittedObjects({
+    commits,
+    retainedWindow,
+  });
 }
