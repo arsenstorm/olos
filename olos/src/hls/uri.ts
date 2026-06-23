@@ -49,15 +49,19 @@ function assertMediaUriHasNoControlCharacters(
 }
 
 function assertRelativePathShape(value: string, name: string): void {
-  if (
+  if (isUnsafeRelativePathShape(value)) {
+    throw new Error(`${name} must be a safe relative path`);
+  }
+}
+
+function isUnsafeRelativePathShape(value: string): boolean {
+  return (
     typeof value !== "string" ||
     value.length === 0 ||
     !value.startsWith("/") ||
     value.startsWith("//") ||
     hasControlCharacter(value)
-  ) {
-    throw new Error(`${name} must be a safe relative path`);
-  }
+  );
 }
 
 function assertRelativePathHasNoQueryOrFragment(

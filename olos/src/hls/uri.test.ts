@@ -12,6 +12,9 @@ describe("HLS URI helpers", () => {
     expect(() =>
       assertSafeRelativePath("/live/session/v1080/media.m3u8", "path")
     ).not.toThrow();
+    expect(() => assertSafeRelativePath("", "path")).toThrow(
+      "path must be a safe relative path"
+    );
     expect(() => assertSafeRelativePath("live/session", "path")).toThrow(
       "path must be a safe relative path"
     );
