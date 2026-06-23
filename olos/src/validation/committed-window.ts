@@ -17,6 +17,11 @@ import {
 } from "./fields";
 import { assertSafeObjectKey } from "./object-key";
 
+interface CommittedPartPositionTracker {
+  previousPart: number;
+  seenParts: Map<number, string>;
+}
+
 export function isCommittedWindow(value: unknown): value is CommittedWindow {
   try {
     assertCommittedWindow(value);
@@ -184,19 +189,31 @@ function assertOptionalSegmentFields(
 
 function assertCommittedParts(value: unknown, segmentName: string): void {
   const parts = nonEmptyArray<CommittedPart>(value, `${segmentName}.parts`);
-
-  let previousPart = -1;
-  const seenParts = new Map<number, string>();
+  const positions = initialCommittedPartPositionTracker();
 
   for (const part of parts) {
     assertCommittedPart(part, segmentName);
-
-    assertUniquePartPosition(part, seenParts, segmentName);
-    assertMonotonicPartNumber(part, previousPart, segmentName);
-
-    seenParts.set(part.partNumber, part.deliveryUrl);
-    previousPart = part.partNumber;
+    assertOrderedUniquePartPosition(part, positions, segmentName);
   }
+}
+
+function initialCommittedPartPositionTracker(): CommittedPartPositionTracker {
+  return {
+    previousPart: -1,
+    seenParts: new Map<number, string>(),
+  };
+}
+
+function assertOrderedUniquePartPosition(
+  part: CommittedPart,
+  positions: CommittedPartPositionTracker,
+  segmentName: string
+): void {
+  assertUniquePartPosition(part, positions.seenParts, segmentName);
+  assertMonotonicPartNumber(part, positions.previousPart, segmentName);
+
+  positions.seenParts.set(part.partNumber, part.deliveryUrl);
+  positions.previousPart = part.partNumber;
 }
 
 function assertUniquePartPosition(

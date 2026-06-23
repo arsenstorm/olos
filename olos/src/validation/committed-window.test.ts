@@ -408,6 +408,35 @@ describe("committed window validation", () => {
     ).not.toThrow();
   });
 
+  test("accepts monotonic part numbers with gaps", () => {
+    const liveSegment = validSegment(2);
+    const firstPart = validPart(0);
+    const secondPart = validPart(1);
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [
+              {
+                ...liveSegment,
+                parts: [
+                  firstPart,
+                  {
+                    ...secondPart,
+                    partNumber: 2,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      })
+    ).not.toThrow();
+  });
+
   test("rejects non-monotonic part numbers", () => {
     const liveSegment = validSegment(2);
 
