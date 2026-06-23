@@ -1,6 +1,11 @@
+const JSON_CONTENT_TYPE = "application/json; charset=utf-8";
+const BAD_REQUEST_STATUS = 400;
+const METHOD_NOT_ALLOWED_STATUS = 405;
+const METHOD_NOT_ALLOWED_MESSAGE = "method not allowed";
+
 export function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: { "content-type": JSON_CONTENT_TYPE },
     status,
   });
 }
@@ -10,9 +15,12 @@ export function jsonErrorResponse(message: string, status: number): Response {
 }
 
 export function jsonBadRequestResponse(message: string): Response {
-  return jsonErrorResponse(message, 400);
+  return jsonErrorResponse(message, BAD_REQUEST_STATUS);
 }
 
 export function jsonMethodNotAllowedResponse(): Response {
-  return jsonErrorResponse("method not allowed", 405);
+  return jsonErrorResponse(
+    METHOD_NOT_ALLOWED_MESSAGE,
+    METHOD_NOT_ALLOWED_STATUS
+  );
 }

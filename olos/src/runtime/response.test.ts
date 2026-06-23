@@ -39,6 +39,9 @@ describe("runtime JSON responses", () => {
     const response = jsonMethodNotAllowedResponse();
 
     expect(response.status).toBe(405);
+    expect(response.headers.get("content-type")).toBe(
+      "application/json; charset=utf-8"
+    );
     await expect(response.json()).resolves.toEqual({
       error: { message: "method not allowed" },
     });
