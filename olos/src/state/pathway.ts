@@ -63,10 +63,7 @@ function applyPathwayFailover(
       return pathway;
     }
 
-    return {
-      ...pathway,
-      state: failoverState(options),
-    };
+    return failedOverPathway(pathway, options);
   });
 
   return { matched, pathways };
@@ -79,6 +76,16 @@ function validatePathway(pathway: Pathway): Pathway {
 
 function isFailoverTarget(pathway: Pathway, pathwayId: OlosId): boolean {
   return pathway.pathwayId === pathwayId;
+}
+
+function failedOverPathway(
+  pathway: Pathway,
+  options: ResolvePathwayFailoverOptions
+): Pathway {
+  return {
+    ...pathway,
+    state: failoverState(options),
+  };
 }
 
 function failoverState(

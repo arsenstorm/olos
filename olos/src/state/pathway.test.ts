@@ -99,6 +99,17 @@ describe("pathway failover", () => {
     expect(pathways).toEqual([primaryPathway, backupPathway]);
   });
 
+  test("preserves non-target inactive pathways during failover", () => {
+    const drainingBackup = { ...backupPathway, state: "draining" as const };
+
+    expect(
+      resolvePathwayFailover({
+        pathwayId: "primary",
+        pathways: [primaryPathway, drainingBackup],
+      }).pathways
+    ).toEqual([{ ...primaryPathway, state: "degraded" }, drainingBackup]);
+  });
+
   test("rejects invalid pathways before resolving failover", () => {
     expect(() =>
       resolvePathwayFailover({
