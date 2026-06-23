@@ -5,6 +5,12 @@ import { listDirectoryEntries } from "./directory-walk";
 import { withTemporaryDirectory } from "./test-temp-dir";
 
 describe("directory walker", () => {
+  test("returns no entries for an empty root", async () => {
+    await withTemporaryDirectory("olos-directory-walk-", async (root) => {
+      await expect(listDirectoryEntries(root)).resolves.toEqual([]);
+    });
+  });
+
   test("lists descendant files and directories with stable relative paths", async () => {
     await withTemporaryDirectory("olos-directory-walk-", async (root) => {
       await mkdir(join(root, "src", "runtime"), { recursive: true });

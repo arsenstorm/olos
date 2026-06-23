@@ -8,11 +8,16 @@ export interface DirectoryWalkEntry {
   relativePath: string;
 }
 
+interface PendingDirectory {
+  absolutePath: string;
+  relativePath: string;
+}
+
 export async function listDirectoryEntries(
   root: string
 ): Promise<DirectoryWalkEntry[]> {
   const entries: DirectoryWalkEntry[] = [];
-  const pending: Array<{ absolutePath: string; relativePath: string }> = [
+  const pending: PendingDirectory[] = [
     { absolutePath: root, relativePath: "" },
   ];
 
@@ -26,21 +31,15 @@ export async function listDirectoryEntries(
     for (const entry of await readdir(current.absolutePath, {
       withFileTypes: true,
     })) {
-      const relativePath =
-        current.relativePath === ""
-          ? entry.name
-          : `${current.relativePath}/${entry.name}`;
-      const absolutePath = join(current.absolutePath, entry.name);
-
-      entries.push({
-        absolutePath,
+      const walkEntry = createDirectoryWalkEntry(current, entry.name, {
         isDirectory: entry.isDirectory(),
         isFile: entry.isFile(),
-        relativePath,
       });
 
+      entries.push(walkEntry);
+
       if (entry.isDirectory()) {
-        pending.push({ absolutePath, relativePath });
+        pending.push(walkEntry);
       }
     }
   }
@@ -48,4 +47,21 @@ export async function listDirectoryEntries(
   return entries.sort((left, right) =>
     left.relativePath.localeCompare(right.relativePath)
   );
+}
+
+function createDirectoryWalkEntry(
+  parent: PendingDirectory,
+  name: string,
+  kind: Pick<DirectoryWalkEntry, "isDirectory" | "isFile">
+): DirectoryWalkEntry {
+  return {
+    absolutePath: join(parent.absolutePath, name),
+    isDirectory: kind.isDirectory,
+    isFile: kind.isFile,
+    relativePath: childRelativePath(parent.relativePath, name),
+  };
+}
+
+function childRelativePath(parentRelativePath: string, name: string): string {
+  return parentRelativePath === "" ? name : `${parentRelativePath}/${name}`;
 }
