@@ -234,19 +234,27 @@ function commitContiguousParts(segment: CommittedSegment): CommittedSegment {
 
   assertUniqueParts(segment.parts);
 
-  const parts: CommittedPart[] = [];
-
-  for (const part of segment.parts) {
-    if (part.partNumber !== parts.length) {
-      break;
-    }
-
-    parts.push(part);
-  }
+  const parts = contiguousPartsPrefix(segment.parts);
 
   return parts.length === 0
     ? { ...segment, parts: undefined }
     : { ...segment, parts };
+}
+
+function contiguousPartsPrefix(
+  parts: readonly CommittedPart[]
+): CommittedPart[] {
+  const contiguousParts: CommittedPart[] = [];
+
+  for (const part of parts) {
+    if (part.partNumber !== contiguousParts.length) {
+      break;
+    }
+
+    contiguousParts.push(part);
+  }
+
+  return contiguousParts;
 }
 
 function hasCommittedMedia(segment: CommittedSegment): boolean {
