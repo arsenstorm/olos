@@ -163,13 +163,24 @@ describe("s3 event normalization", () => {
         status: "invalid_event",
       },
     ]);
+  });
 
+  test("returns one invalid result per record when envelope options are invalid", () => {
     expect(
       normalizeS3ObjectCreatedEvents({
-        payload: { Records: [record] },
+        payload: { Records: [record, record] },
         providerId: "../provider",
       })
     ).toEqual([
+      {
+        error: {
+          error: {
+            code: "olos.invalid_state",
+            message: "providerId must be a non-empty URL-safe identifier",
+          },
+        },
+        status: "invalid_event",
+      },
       {
         error: {
           error: {

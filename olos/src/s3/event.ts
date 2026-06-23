@@ -32,6 +32,17 @@ interface S3ObjectCreatedEventRecordParts {
   record: Record<string, unknown>;
 }
 
+type S3ObjectCreatedEventIdentity =
+  | {
+      eventId: string;
+      objectKey: string;
+      status: "valid";
+    }
+  | {
+      normalization: UploadEventNormalization;
+      status: "invalid";
+    };
+
 export function normalizeS3ObjectCreatedEvents(
   options: NormalizeS3ObjectCreatedEventsOptions
 ): readonly UploadEventNormalization[] {
@@ -76,27 +87,28 @@ export function normalizeS3ObjectCreatedEventRecord(
     return recordError;
   }
 
-  const key = objectKey(parts.object.key);
-  const id = eventId(parts.record, parts.object);
+  const identity = s3ObjectCreatedEventIdentity(parts);
 
-  if (key === undefined) {
-    return invalidS3Event("s3 object key is invalid");
+  if (identity.status === "invalid") {
+    return identity.normalization;
   }
 
-  if (id === undefined) {
-    return invalidS3Event(
-      "s3 event record must include a request id or sequencer"
-    );
-  }
+  return normalizeS3ObjectCreatedUploadEvent(options, parts, identity);
+}
 
+function normalizeS3ObjectCreatedUploadEvent(
+  options: NormalizeS3ObjectCreatedEventRecordOptions,
+  parts: S3ObjectCreatedEventRecordParts,
+  identity: Extract<S3ObjectCreatedEventIdentity, { status: "valid" }>
+): UploadEventNormalization {
   return normalizeUploadEvent({
     event: {
       contentType: options.contentType ?? DEFAULT_S3_EVENT_CONTENT_TYPE,
       etag: stringValue(parts.object.eTag),
-      eventId: id,
+      eventId: identity.eventId,
       eventTime: parts.record.eventTime,
       eventType: "object.created",
-      objectKey: key,
+      objectKey: identity.objectKey,
       providerId: options.providerId,
       size: parts.object.size,
     },
@@ -148,6 +160,31 @@ function s3ObjectCreatedEventRecordParts(
   }
 
   return { bucket, object, record };
+}
+
+function s3ObjectCreatedEventIdentity(
+  parts: S3ObjectCreatedEventRecordParts
+): S3ObjectCreatedEventIdentity {
+  const key = objectKey(parts.object.key);
+  const id = eventId(parts.record, parts.object);
+
+  if (key === undefined) {
+    return {
+      normalization: invalidS3Event("s3 object key is invalid"),
+      status: "invalid",
+    };
+  }
+
+  if (id === undefined) {
+    return {
+      normalization: invalidS3Event(
+        "s3 event record must include a request id or sequencer"
+      ),
+      status: "invalid",
+    };
+  }
+
+  return { eventId: id, objectKey: key, status: "valid" };
 }
 
 function isProviderId(value: string): boolean {
