@@ -3,10 +3,7 @@ import { readFileSync } from "node:fs";
 
 describe("release documentation", () => {
   test("keeps the publish workflow release-safe", () => {
-    const workflow = readFileSync(
-      new URL("../../.github/workflows/publish.yml", import.meta.url),
-      "utf8"
-    );
+    const workflow = repositoryFile(".github/workflows/publish.yml");
 
     expect(workflow).toContain("id-token: write");
     expect(workflow).toContain("bun --filter olos release:verify-tag");
@@ -17,10 +14,7 @@ describe("release documentation", () => {
   });
 
   test("documents the repository validation boundary", () => {
-    const checks = readFileSync(
-      new URL("../../contributing/repository/checks.md", import.meta.url),
-      "utf8"
-    );
+    const checks = repositoryFile("contributing/repository/checks.md");
 
     expect(checks).toContain("Required status check");
     expect(checks).toContain("`publish:check`");
@@ -36,10 +30,7 @@ describe("release documentation", () => {
   });
 
   test("keeps v0.1 package readiness separate from deployment readiness", () => {
-    const releases = readFileSync(
-      new URL("../../contributing/repository/releases.md", import.meta.url),
-      "utf8"
-    );
+    const releases = releaseDocs();
 
     expect(releases).toContain("## v0.1 Readiness");
     expect(releases).toContain("Treat `v0.1` as package-ready");
@@ -66,10 +57,7 @@ describe("release documentation", () => {
   });
 
   test("documents published package verification with package versions", () => {
-    const releases = readFileSync(
-      new URL("../../contributing/repository/releases.md", import.meta.url),
-      "utf8"
-    );
+    const releases = releaseDocs();
 
     expect(releases).toContain(
       "bun --filter olos release:verify-published 0.1.0"
@@ -80,17 +68,10 @@ describe("release documentation", () => {
   });
 
   test("documents compatibility intent for public-facing cleanup", () => {
-    const pullRequests = readFileSync(
-      new URL(
-        "../../contributing/repository/pull-request-descriptions.md",
-        import.meta.url
-      ),
-      "utf8"
+    const pullRequests = repositoryFile(
+      "contributing/repository/pull-request-descriptions.md"
     );
-    const releases = readFileSync(
-      new URL("../../contributing/repository/releases.md", import.meta.url),
-      "utf8"
-    );
+    const releases = releaseDocs();
 
     expect(pullRequests).toContain("state the compatibility intent explicitly");
     expect(pullRequests).toContain("Public behavior unchanged");
@@ -100,3 +81,11 @@ describe("release documentation", () => {
     expect(releases).toContain("Any cleanup that changes public behavior");
   });
 });
+
+function releaseDocs(): string {
+  return repositoryFile("contributing/repository/releases.md");
+}
+
+function repositoryFile(path: string): string {
+  return readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
+}
