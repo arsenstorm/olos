@@ -94,6 +94,11 @@ type ParsedBlockingReloadRequest =
   | HlsBlockingReloadRequest
   | InvalidParsedBlockingReloadRequest;
 
+type ServableBlockingReloadWait = Extract<
+  Awaited<ReturnType<typeof waitForHlsBlockingReload>>,
+  { status: "ready" | "timeout" }
+>;
+
 export function createHlsManifestArtifacts(
   session: Session,
   committedWindow: CommittedWindow,
@@ -244,7 +249,7 @@ export async function resolveBlockingHlsManifestArtifactResponse(
     waitForCursor: options.waitForCursor,
   });
 
-  if (wait.status === "invalid") {
+  if (!isServableBlockingReloadWait(wait)) {
     return wait;
   }
 
@@ -253,10 +258,7 @@ export async function resolveBlockingHlsManifestArtifactResponse(
 
 function blockingHlsManifestArtifactResponseResolution(
   options: ResolveBlockingHlsManifestArtifactResponseOptions,
-  wait: Extract<
-    Awaited<ReturnType<typeof waitForHlsBlockingReload>>,
-    { status: "ready" | "timeout" }
-  >
+  wait: ServableBlockingReloadWait
 ): BlockingHlsManifestArtifactResponseResolution {
   const response = resolveHlsManifestArtifactResponse(
     createResponseArtifacts(options.session, wait.cursor, options),
@@ -303,6 +305,12 @@ function isInvalidParsedBlockingReloadRequest(
   request: ParsedBlockingReloadRequest
 ): request is InvalidParsedBlockingReloadRequest {
   return "status" in request;
+}
+
+function isServableBlockingReloadWait(
+  wait: Awaited<ReturnType<typeof waitForHlsBlockingReload>>
+): wait is ServableBlockingReloadWait {
+  return wait.status === "ready" || wait.status === "timeout";
 }
 
 function defaultMasterPath(session: Session): string {

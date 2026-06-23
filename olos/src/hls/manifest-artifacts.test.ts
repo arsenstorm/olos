@@ -483,6 +483,24 @@ describe("HLS manifest artifacts", () => {
 
     expect(result).toEqual({ status: "not_found" });
   });
+
+  test("returns not_found for unknown absolute manifest URLs", async () => {
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "https://edge.example.com/v1/live/session_1/missing.m3u8",
+      session,
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result).toEqual({ status: "not_found" });
+  });
 });
 
 function requiredManifestArtifact(
