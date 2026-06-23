@@ -17,6 +17,12 @@ export interface RuntimePublisherObjectExpiry {
   ttlSeconds: number;
 }
 
+interface RuntimePublisherObjectTtlInputs {
+  duration: number;
+  minTtlSeconds: number;
+  targetLatency: number;
+}
+
 export function resolveRuntimePublisherObjectExpiry(
   options: ResolveRuntimePublisherObjectExpiryOptions
 ): RuntimePublisherObjectExpiry {
@@ -31,14 +37,25 @@ export function resolveRuntimePublisherObjectExpiry(
 function resolveRuntimePublisherObjectTtlSeconds(
   options: ResolveRuntimePublisherObjectExpiryOptions
 ): number {
-  const duration = positiveNumber(options.duration, "duration");
-  const targetLatency = positiveNumber(options.targetLatency, "targetLatency");
-  const minTtlSeconds = positiveNumber(
-    options.minTtlSeconds ?? DEFAULT_MIN_TTL_SECONDS,
-    "minTtlSeconds"
-  );
+  const inputs = runtimePublisherObjectTtlInputs(options);
 
-  return Math.max(minTtlSeconds, Math.ceil(duration + targetLatency));
+  return Math.max(
+    inputs.minTtlSeconds,
+    Math.ceil(inputs.duration + inputs.targetLatency)
+  );
+}
+
+function runtimePublisherObjectTtlInputs(
+  options: ResolveRuntimePublisherObjectExpiryOptions
+): RuntimePublisherObjectTtlInputs {
+  return {
+    duration: positiveNumber(options.duration, "duration"),
+    minTtlSeconds: positiveNumber(
+      options.minTtlSeconds ?? DEFAULT_MIN_TTL_SECONDS,
+      "minTtlSeconds"
+    ),
+    targetLatency: positiveNumber(options.targetLatency, "targetLatency"),
+  };
 }
 
 function runtimePublisherObjectExpiresAt(
