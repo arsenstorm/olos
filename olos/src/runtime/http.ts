@@ -211,8 +211,8 @@ async function handleSessionRoute(
   if (request.method === "POST" && parts.length === 0) {
     const parsed = await parseSessionCreateRequest(request);
 
-    if (parsed.status === "invalid") {
-      return jsonBadRequestResponse(parsed.message);
+    if (isInvalidRuntimeHttpRequestParse(parsed)) {
+      return invalidRuntimeHttpRequestParseResponse(parsed);
     }
 
     return (
@@ -336,8 +336,8 @@ async function handlePostTransitionRoute(
 ): Promise<Response> {
   const parsed = await parseTransitionRequest(request);
 
-  if (parsed.status === "invalid") {
-    return jsonBadRequestResponse(parsed.message);
+  if (isInvalidRuntimeHttpRequestParse(parsed)) {
+    return invalidRuntimeHttpRequestParseResponse(parsed);
   }
 
   return (
@@ -357,8 +357,8 @@ async function handlePostHeartbeatRoute(
 ): Promise<Response> {
   const parsed = await parseHeartbeatRequest(request);
 
-  if (parsed.status === "invalid") {
-    return jsonBadRequestResponse(parsed.message);
+  if (isInvalidRuntimeHttpRequestParse(parsed)) {
+    return invalidRuntimeHttpRequestParseResponse(parsed);
   }
 
   return (
@@ -452,6 +452,18 @@ function isSuccessfulRuntimeCommitResult<
   result: Result
 ): result is Extract<Result, { status: SuccessfulCommitStatus }> {
   return isSuccessfulCommitStatus(result.status);
+}
+
+function isInvalidRuntimeHttpRequestParse(
+  parsed: RuntimeHttpRequestParse<object>
+): parsed is InvalidRuntimeHttpRequestParse {
+  return parsed.status === "invalid";
+}
+
+function invalidRuntimeHttpRequestParseResponse(
+  parsed: InvalidRuntimeHttpRequestParse
+): Response {
+  return jsonBadRequestResponse(parsed.message);
 }
 
 async function handleLiveRoute(

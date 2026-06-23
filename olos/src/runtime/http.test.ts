@@ -697,6 +697,36 @@ describe("stored coordinator runtime handler", () => {
     });
   });
 
+  test("rejects invalid heartbeat payload shapes", async () => {
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      store: createMemoryCoordinatorStore(),
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        pathways,
+        session,
+      })
+    );
+
+    const response = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/heartbeat",
+        "not an object"
+      )
+    );
+
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          message: "publisher heartbeat request must be a JSON object",
+        },
+      },
+      status: 400,
+    });
+  });
+
   test("rejects invalid health publisher query identifiers", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: [MEDIA_ORIGIN],
