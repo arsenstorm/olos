@@ -15,25 +15,22 @@ import {
 export interface RuntimeSlotIssuePayload
   extends Omit<IssueCoordinatorSlotOptions, "state"> {}
 
+type RuntimeSlotIssueObjectFields = Pick<
+  RuntimeSlotIssuePayload,
+  "deliveryUrl" | "kind" | "objectKey"
+>;
+
 export function parseRuntimeSlotIssuePayload(
   value: Record<string, unknown>
 ): RuntimeSlotIssuePayload {
-  const kind = oneOfStringField(value, "kind", MEDIA_OBJECT_KINDS);
-  const deliveryUrl = stringField(value, "deliveryUrl");
-  const objectKey = stringField(value, "objectKey");
-
-  assertSafeDeliveryUrl(deliveryUrl, "deliveryUrl");
-  assertSafeMediaObjectKey(objectKey, kind, "objectKey");
+  const object = runtimeSlotIssueObjectFields(value);
 
   return {
     contentType: stringField(value, "contentType"),
-    deliveryUrl,
     duration: positiveNumberField(value, "duration"),
     expiresAt: stringField(value, "expiresAt"),
-    kind,
     maxBytes: positiveNumberField(value, "maxBytes"),
     mediaSequenceNumber: nonNegativeIntegerField(value, "mediaSequenceNumber"),
-    objectKey,
     publicationMode: oneOfStringField(
       value,
       "publicationMode",
@@ -42,7 +39,25 @@ export function parseRuntimeSlotIssuePayload(
     publisherInstanceId: urlSafeIdentifierField(value, "publisherInstanceId"),
     renditionId: urlSafeIdentifierField(value, "renditionId"),
     slotId: urlSafeIdentifierField(value, "slotId"),
+    ...object,
     ...optionalNonNegativeIntegerField(value, "minBytes"),
     ...optionalNonNegativeIntegerField(value, "partNumber"),
+  };
+}
+
+function runtimeSlotIssueObjectFields(
+  value: Record<string, unknown>
+): RuntimeSlotIssueObjectFields {
+  const kind = oneOfStringField(value, "kind", MEDIA_OBJECT_KINDS);
+  const deliveryUrl = stringField(value, "deliveryUrl");
+  const objectKey = stringField(value, "objectKey");
+
+  assertSafeDeliveryUrl(deliveryUrl, "deliveryUrl");
+  assertSafeMediaObjectKey(objectKey, kind, "objectKey");
+
+  return {
+    deliveryUrl,
+    kind,
+    objectKey,
   };
 }

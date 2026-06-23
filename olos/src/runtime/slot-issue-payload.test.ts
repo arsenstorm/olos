@@ -39,6 +39,30 @@ describe("runtime slot issue payload parser", () => {
     });
   });
 
+  test("parses init slot issue payload object fields", () => {
+    const payload = parseRuntimeSlotIssuePayload({
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/live/session/init.mp4",
+      duration: 1,
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "live/session/init.mp4",
+      publicationMode: "direct-public",
+      publisherInstanceId: "publisher_1",
+      renditionId: "v1080",
+      slotId: "slot_init",
+    });
+
+    expect(payload).toMatchObject({
+      deliveryUrl: "https://media.example.com/live/session/init.mp4",
+      kind: "init",
+      objectKey: "live/session/init.mp4",
+      slotId: "slot_init",
+    });
+  });
+
   test("rejects unsafe object keys", () => {
     expect(() =>
       parseRuntimeSlotIssuePayload({
