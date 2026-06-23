@@ -74,36 +74,9 @@ const pathways = [
 
 describe("S3 HTTP pipeline", () => {
   test("publishes and serves a live HLS session through the Fetch handler", async () => {
-    const headObjectInputs: unknown[] = [];
-    const notifier = createMemoryRuntimeCursorNotifier();
-    const store = createMemoryCoordinatorStore();
-    let waits = 0;
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      blockingReload: {
-        timeoutMs: 1000,
-        waitForCursor: (context) => {
-          waits += 1;
-          return notifier.waitForCursor(context);
-        },
-      },
-      bucket: "media",
-      client: createTestS3Client(),
-      cursorNotifier: notifier,
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: createTestHeadObjectClientFor(
-        {
-          "media/v1080/3810.m4s": 98_304,
-          "media/v1080/3811.m4s": 98_304,
-          "media/v1080/init.mp4": 1024,
-        },
-        headObjectInputs
-      ),
-      providerId: "s3_primary",
-      response: manifestOptions.response,
-      store,
-      ...manifestOptions.manifest,
+    const { handle, headObjectInputs, waitCount } = createS3HttpPipeline({
+      enableBlockingReload: true,
+      objectSizes: defaultS3ObjectSizes(),
     });
     const clientFetch = runtimeFetchFor(handle);
 
@@ -214,7 +187,7 @@ describe("S3 HTTP pipeline", () => {
       )
     );
 
-    await waitFor(() => waits === 1);
+    await waitFor(() => waitCount() === 1);
 
     const nextCommit = await handle(
       jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
@@ -240,36 +213,9 @@ describe("S3 HTTP pipeline", () => {
   });
 
   test("commits S3 object-created events through the Fetch handler", async () => {
-    const headObjectInputs: unknown[] = [];
-    const notifier = createMemoryRuntimeCursorNotifier();
-    const store = createMemoryCoordinatorStore();
-    let waits = 0;
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      blockingReload: {
-        timeoutMs: 1000,
-        waitForCursor: (context) => {
-          waits += 1;
-          return notifier.waitForCursor(context);
-        },
-      },
-      bucket: "media",
-      client: createTestS3Client(),
-      cursorNotifier: notifier,
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: createTestHeadObjectClientFor(
-        {
-          "media/v1080/3810.m4s": 98_304,
-          "media/v1080/3811.m4s": 98_304,
-          "media/v1080/init.mp4": 1024,
-        },
-        headObjectInputs
-      ),
-      providerId: "s3_primary",
-      response: manifestOptions.response,
-      store,
-      ...manifestOptions.manifest,
+    const { handle, headObjectInputs, waitCount } = createS3HttpPipeline({
+      enableBlockingReload: true,
+      objectSizes: defaultS3ObjectSizes(),
     });
 
     await handle(
@@ -368,7 +314,7 @@ describe("S3 HTTP pipeline", () => {
       )
     );
 
-    await waitFor(() => waits === 1);
+    await waitFor(() => waitCount() === 1);
 
     const nextEvent = await handle(
       jsonRequest(
@@ -397,27 +343,13 @@ describe("S3 HTTP pipeline", () => {
   });
 
   test("publishes multiple S3 renditions through coherent HLS manifests", async () => {
-    const headObjectInputs: unknown[] = [];
-    const store = createMemoryCoordinatorStore();
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
-      client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: createTestHeadObjectClientFor(
-        {
-          "media/v1080/3810.m4s": 98_304,
-          "media/v1080/init.mp4": 1024,
-          "media/v720/3810.m4s": 64_000,
-          "media/v720/init.mp4": 1024,
-        },
-        headObjectInputs
-      ),
-      providerId: "s3_primary",
-      response: manifestOptions.response,
-      store,
-      ...manifestOptions.manifest,
+    const { handle, headObjectInputs } = createS3HttpPipeline({
+      objectSizes: {
+        "media/v1080/3810.m4s": 98_304,
+        "media/v1080/init.mp4": 1024,
+        "media/v720/3810.m4s": 64_000,
+        "media/v720/init.mp4": 1024,
+      },
     });
 
     await handle(
@@ -486,18 +418,7 @@ describe("S3 HTTP pipeline", () => {
   });
 
   test("rejects unsafe S3 slot paths through the Fetch handler", async () => {
-    const store = createMemoryCoordinatorStore();
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
-      client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
-      providerId: "s3_primary",
-      response: manifestOptions.response,
-      store,
-      ...manifestOptions.manifest,
-    });
+    const { handle } = createS3HttpPipeline();
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", { pathways, session })
@@ -545,25 +466,11 @@ describe("S3 HTTP pipeline", () => {
   });
 
   test("rejects wrong-key S3 commits without advancing manifests", async () => {
-    const headObjectInputs: unknown[] = [];
-    const store = createMemoryCoordinatorStore();
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
-      client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: createTestHeadObjectClientFor(
-        {
-          "media/v1080/3810.m4s": 98_304,
-          "media/v1080/wrong.m4s": 98_304,
-        },
-        headObjectInputs
-      ),
-      providerId: "s3_primary",
-      response: manifestOptions.response,
-      store,
-      ...manifestOptions.manifest,
+    const { handle, headObjectInputs, store } = createS3HttpPipeline({
+      objectSizes: {
+        "media/v1080/3810.m4s": 98_304,
+        "media/v1080/wrong.m4s": 98_304,
+      },
     });
 
     await handle(
@@ -619,24 +526,10 @@ describe("S3 HTTP pipeline", () => {
   });
 
   test("rejects oversized S3 commits without advancing manifests", async () => {
-    const headObjectInputs: unknown[] = [];
-    const store = createMemoryCoordinatorStore();
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      bucket: "media",
-      client: createTestS3Client(),
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: createTestHeadObjectClientFor(
-        {
-          "media/v1080/3810.m4s": 100_001,
-        },
-        headObjectInputs
-      ),
-      providerId: "s3_primary",
-      response: manifestOptions.response,
-      store,
-      ...manifestOptions.manifest,
+    const { handle, headObjectInputs, store } = createS3HttpPipeline({
+      objectSizes: {
+        "media/v1080/3810.m4s": 100_001,
+      },
     });
 
     await handle(
@@ -700,36 +593,9 @@ describe("S3 HTTP pipeline", () => {
   });
 
   test("recovers missed S3 commits through reconciliation routes", async () => {
-    const headObjectInputs: unknown[] = [];
-    const notifier = createMemoryRuntimeCursorNotifier();
-    const store = createMemoryCoordinatorStore();
-    let waits = 0;
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
-      blockingReload: {
-        timeoutMs: 1000,
-        waitForCursor: (context) => {
-          waits += 1;
-          return notifier.waitForCursor(context);
-        },
-      },
-      bucket: "media",
-      client: createTestS3Client(),
-      cursorNotifier: notifier,
-      expiresInSeconds: 3,
-      grantNow: () => "2026-01-01T00:00:00.000Z",
-      objectClient: createTestHeadObjectClientFor(
-        {
-          "media/v1080/3810.m4s": 98_304,
-          "media/v1080/3811.m4s": 98_304,
-          "media/v1080/init.mp4": 1024,
-        },
-        headObjectInputs
-      ),
-      providerId: "s3_primary",
-      response: manifestOptions.response,
-      store,
-      ...manifestOptions.manifest,
+    const { handle, headObjectInputs, waitCount } = createS3HttpPipeline({
+      enableBlockingReload: true,
+      objectSizes: defaultS3ObjectSizes(),
     });
 
     await handle(
@@ -869,7 +735,7 @@ describe("S3 HTTP pipeline", () => {
       )
     );
 
-    await waitFor(() => waits === 1);
+    await waitFor(() => waitCount() === 1);
 
     const nextRecovered = await handle(
       jsonRequest("https://edge.example.com/sessions/session_1/s3/reconcile", {
@@ -1144,6 +1010,70 @@ function runtimeFetchFor(
     );
 }
 
+interface S3HttpPipelineOptions {
+  enableBlockingReload?: boolean;
+  objectSizes?: Record<string, number>;
+  retentionClient?: ReturnType<typeof createTestDeleteObjectClient>;
+}
+
+function createS3HttpPipeline(options: S3HttpPipelineOptions = {}) {
+  const headObjectInputs: unknown[] = [];
+  const notifier = options.enableBlockingReload
+    ? createMemoryRuntimeCursorNotifier()
+    : undefined;
+  const store = createMemoryCoordinatorStore();
+  let waits = 0;
+  const handle = createStoredS3CoordinatorRuntimeHandler({
+    allowedMediaOrigins: ["https://media.example.com"],
+    ...(notifier === undefined
+      ? {}
+      : {
+          blockingReload: {
+            timeoutMs: 1000,
+            waitForCursor: (context) => {
+              waits += 1;
+              return notifier.waitForCursor(context);
+            },
+          },
+          cursorNotifier: notifier,
+        }),
+    bucket: "media",
+    client: createTestS3Client(),
+    expiresInSeconds: 3,
+    grantNow: () => "2026-01-01T00:00:00.000Z",
+    ...(options.objectSizes === undefined
+      ? {}
+      : {
+          objectClient: createTestHeadObjectClientFor(
+            options.objectSizes,
+            headObjectInputs
+          ),
+        }),
+    providerId: "s3_primary",
+    response: manifestOptions.response,
+    ...(options.retentionClient === undefined
+      ? {}
+      : { retentionClient: options.retentionClient }),
+    store,
+    ...manifestOptions.manifest,
+  });
+
+  return {
+    handle,
+    headObjectInputs,
+    store,
+    waitCount: () => waits,
+  };
+}
+
+function defaultS3ObjectSizes(): Record<string, number> {
+  return {
+    "media/v1080/3810.m4s": 98_304,
+    "media/v1080/3811.m4s": 98_304,
+    "media/v1080/init.mp4": 1024,
+  };
+}
+
 interface S3ObjectCreatedPayloadOptions {
   eventTime: string;
   objectKey: string;
@@ -1223,31 +1153,17 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
 
 function createRetentionPipeline(options: { failingDeleteKey?: string } = {}) {
   const deleteInputs: unknown[] = [];
-  const headObjectInputs: unknown[] = [];
-  const store = createMemoryCoordinatorStore();
-  const handle = createStoredS3CoordinatorRuntimeHandler({
-    allowedMediaOrigins: ["https://media.example.com"],
-    bucket: "media",
-    client: createTestS3Client(),
-    expiresInSeconds: 3,
-    grantNow: () => "2026-01-01T00:00:00.000Z",
-    objectClient: createTestHeadObjectClientFor(
-      {
-        "media/v1080/3810.m4s": 98_304,
-        "media/v1080/3811.m4s": 98_304,
-        "media/v1080/3812.m4s": 98_304,
-        "media/v1080/init.mp4": 1024,
-      },
-      headObjectInputs
-    ),
-    providerId: "s3_primary",
-    response: manifestOptions.response,
+  const { handle, store } = createS3HttpPipeline({
+    objectSizes: {
+      "media/v1080/3810.m4s": 98_304,
+      "media/v1080/3811.m4s": 98_304,
+      "media/v1080/3812.m4s": 98_304,
+      "media/v1080/init.mp4": 1024,
+    },
     retentionClient: createTestDeleteObjectClient(
       deleteInputs,
       options.failingDeleteKey
     ),
-    store,
-    ...manifestOptions.manifest,
   });
 
   return { deleteInputs, handle, store };

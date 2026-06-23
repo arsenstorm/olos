@@ -1,3 +1,4 @@
+import { OLOS_ERROR_CODES } from "../config/errors";
 import type { RuntimeFetch } from "../runtime/client";
 import {
   fetchFor,
@@ -33,7 +34,7 @@ import { assertUrlSafeIdentifier } from "../validation/ids";
 import type {
   StoredS3CoordinatorReconciliationResponse,
   StoredS3CoordinatorRetentionResponse,
-} from "./http";
+} from "./http-types";
 import type { StoredS3CoordinatorReconciliationPlan } from "./reconciliation";
 
 export interface S3RuntimeHttpClientOptions {
@@ -176,17 +177,13 @@ type S3RuntimeReconciliationResultPayload =
 
 type S3RuntimeReconciliationResultStatus =
   | "committed"
-  | "conflict"
   | "failed"
-  | "idempotent"
-  | "not_found";
+  | "idempotent";
 
 const S3_RUNTIME_RECONCILIATION_RESULT_STATUSES = [
   "committed",
-  "conflict",
   "failed",
   "idempotent",
-  "not_found",
 ] as const satisfies readonly S3RuntimeReconciliationResultStatus[];
 const S3_UPLOAD_GRANT_RESPONSE_FIELDS_MESSAGE =
   "S3 upload grant response must include grant and slot";
@@ -732,7 +729,7 @@ function reconciliationResultPayload(
     );
   }
 
-  return failedReconciliationResultPayload(status, index, slotId);
+  return failedReconciliationResultPayload(status, slotId);
 }
 
 function reconciliationResultStatus(
@@ -801,20 +798,9 @@ function optionalReconciliationResultCursor(
 
 function failedReconciliationResultPayload(
   status: S3RuntimeFailedReconciliationResultStatus,
-  index: number,
   slotId: string
 ): S3RuntimeReconciliationResultPayload {
-  if (isSupportedFailedReconciliationResultStatus(status)) {
-    return { slotId, status };
-  }
-
-  throw new Error(reconciliationResultUnsupportedStatusContext(index));
-}
-
-function isSupportedFailedReconciliationResultStatus(
-  status: S3RuntimeFailedReconciliationResultStatus
-): status is "failed" {
-  return status === "failed";
+  return { slotId, status };
 }
 
 function reconciliationResultObjectContext(index: number): string {
@@ -830,10 +816,6 @@ function reconciliationResultCommitContext(index: number): string {
 }
 
 function reconciliationResultUnknownStatusContext(index: number): string {
-  return `S3 reconciliation response results[${index}] status must be committed, idempotent, failed, conflict, or not_found`;
-}
-
-function reconciliationResultUnsupportedStatusContext(index: number): string {
   return `S3 reconciliation response results[${index}] status must be committed, idempotent, or failed`;
 }
 
@@ -1150,11 +1132,30 @@ function reconciliationSummaryStatus(
 function reconciliationSummaryErrorCodes(
   value: Record<string, unknown>
 ): readonly OlosErrorCode[] {
-  return requiredStringArrayField(
+  const codes = requiredStringArrayField(
     value,
     "failedErrorCodes",
     S3_RECONCILIATION_SUMMARY_FAILED_ERROR_CODES_MESSAGE
-  ) as readonly OlosErrorCode[];
+  );
+  const parsed: OlosErrorCode[] = [];
+
+  for (const [index, code] of codes.entries()) {
+    if (!isOlosErrorCode(code)) {
+      throw new Error(reconciliationSummaryErrorCodeContext(index));
+    }
+
+    parsed.push(code);
+  }
+
+  return parsed;
+}
+
+function isOlosErrorCode(value: string): value is OlosErrorCode {
+  return isStringInSet(value, OLOS_ERROR_CODES);
+}
+
+function reconciliationSummaryErrorCodeContext(index: number): string {
+  return `${S3_RECONCILIATION_SUMMARY_FAILED_ERROR_CODES_MESSAGE}[${index}] must be an OLOS error code`;
 }
 
 function reconciliationSummaryArrays(

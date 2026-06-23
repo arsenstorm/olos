@@ -610,25 +610,20 @@ describe("S3 runtime HTTP client", () => {
         sessionId: session.sessionId,
       })
     ).rejects.toThrow(
-      "S3 reconciliation response results[0] status must be committed, idempotent, failed, conflict, or not_found"
+      "S3 reconciliation response results[0] status must be committed, idempotent, or failed"
     );
   });
 
-  test("rejects known unsupported reconciliation response result statuses", async () => {
+  test("rejects reconciliation summaries with unknown OLOS error codes", async () => {
     const clientFetch: RuntimeFetch = () =>
       Promise.resolve(
         new Response(
           JSON.stringify({
-            results: [
-              {
-                slotId: "slot_init",
-                status: "conflict",
-              },
-            ],
+            results: [],
             summary: {
               committed: 0,
               failed: 1,
-              failedErrorCodes: [],
+              failedErrorCodes: ["unknown_status"],
               failedSlotIds: ["slot_init"],
               idempotent: 0,
               ok: false,
@@ -651,7 +646,7 @@ describe("S3 runtime HTTP client", () => {
         sessionId: session.sessionId,
       })
     ).rejects.toThrow(
-      "S3 reconciliation response results[0] status must be committed, idempotent, or failed"
+      "S3 reconciliation response summary must include failedErrorCodes[0] must be an OLOS error code"
     );
   });
 

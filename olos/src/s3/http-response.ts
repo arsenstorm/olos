@@ -5,13 +5,15 @@ import {
 import { jsonErrorResponse } from "../runtime/response";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
+import type { OlosError } from "../types/errors";
+import type { StoredS3CoordinatorUploadEventRoute } from "./coordinator";
 import type {
   StoredS3CoordinatorCommitResponse,
   StoredS3CoordinatorEventRouteResponseResult,
   StoredS3CoordinatorReconciliationResponse,
   StoredS3CoordinatorReconciliationResponseResult,
   StoredS3CoordinatorRouteError,
-} from "./http";
+} from "./http-types";
 import {
   type StoredS3CoordinatorUploadReconciliationResult,
   summarizeStoredS3CoordinatorUploadReconciliation,
@@ -37,28 +39,29 @@ export function s3ResponseConflict(): Response {
   return jsonErrorResponse("coordinator session changed during mutation", 409);
 }
 
-export function eventRouteResult(result: {
-  status: string;
-  commit?: Commit;
-  error?: { error: StoredS3CoordinatorRouteError };
-  auditEvent?: unknown;
-}): StoredS3CoordinatorEventRouteResponseResult {
-  if (
-    (result.status === "committed" || result.status === "idempotent") &&
-    result.commit !== undefined
-  ) {
-    return successfulEventRouteResult(result.commit, result.status);
+export function eventRouteResult(
+  result: StoredS3CoordinatorUploadEventRoute
+): StoredS3CoordinatorEventRouteResponseResult {
+  switch (result.status) {
+    case "committed":
+    case "idempotent":
+      return successfulEventRouteResult(result.commit, result.status);
+    case "invalid_event":
+      return invalidEventRouteResult(result.error);
+    case "rejected":
+      return rejectedEventRouteResult(result);
+    case "conflict":
+    case "not_found":
+      return { status: result.status };
+    default:
+      return unsupportedEventRouteStatus(result);
   }
+}
 
-  if (result.status === "invalid_event") {
-    return invalidEventRouteResult(result.error);
-  }
-
-  if (result.status === "rejected") {
-    return rejectedEventRouteResult(result);
-  }
-
-  return { status: result.status as "conflict" | "not_found" };
+function unsupportedEventRouteStatus(
+  _result: never
+): StoredS3CoordinatorEventRouteResponseResult {
+  throw new Error("unsupported S3 event route status");
 }
 
 function successfulEventRouteResult(
@@ -69,18 +72,17 @@ function successfulEventRouteResult(
 }
 
 function invalidEventRouteResult(
-  error: { error: StoredS3CoordinatorRouteError } | undefined
+  error: OlosError
 ): StoredS3CoordinatorEventRouteResponseResult {
   return {
-    error: error?.error as StoredS3CoordinatorRouteError,
+    error: error.error,
     status: "invalid_event",
   };
 }
 
-function rejectedEventRouteResult(result: {
-  auditEvent?: unknown;
-  error?: { error: StoredS3CoordinatorRouteError };
-}): StoredS3CoordinatorEventRouteResponseResult {
+function rejectedEventRouteResult(
+  result: Extract<StoredS3CoordinatorUploadEventRoute, { status: "rejected" }>
+): StoredS3CoordinatorEventRouteResponseResult {
   if (result.error === undefined) {
     return {
       error: { message: "S3 route rejected without error details" },

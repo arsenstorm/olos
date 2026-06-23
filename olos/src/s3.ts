@@ -61,16 +61,18 @@ export {
 export {
   type CreateStoredS3CoordinatorRuntimeHandlerOptions,
   createStoredS3CoordinatorRuntimeHandler,
-  type StoredS3CoordinatorCommitResponse,
-  type StoredS3CoordinatorEventRouteResponse,
-  type StoredS3CoordinatorEventRouteResponseResult,
-  type StoredS3CoordinatorReconciliationResponse,
-  type StoredS3CoordinatorReconciliationResponseResult,
-  type StoredS3CoordinatorRetentionResponse,
-  type StoredS3CoordinatorRouteError,
   type StoredS3CoordinatorRuntimeHandler,
-  type StoredS3CoordinatorSlotGrantResponse,
 } from "./s3/http";
+export type {
+  StoredS3CoordinatorCommitResponse,
+  StoredS3CoordinatorEventRouteResponse,
+  StoredS3CoordinatorEventRouteResponseResult,
+  StoredS3CoordinatorReconciliationResponse,
+  StoredS3CoordinatorReconciliationResponseResult,
+  StoredS3CoordinatorRetentionResponse,
+  StoredS3CoordinatorRouteError,
+  StoredS3CoordinatorSlotGrantResponse,
+} from "./s3/http-types";
 export {
   type CreateObservedUploadFromS3HeadObjectOptions,
   createObservedUploadFromS3HeadObject,

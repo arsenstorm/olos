@@ -8,17 +8,46 @@ describe("S3 HTTP response mapping", () => {
   test("maps rejected event route results with audit details", () => {
     expect(
       eventRouteResult({
-        auditEvent: { reason: "policy" },
+        auditEvent: {
+          error: {
+            error: {
+              code: "olos.quota_exceeded",
+              message: "tenant quota exceeded",
+            },
+          },
+          eventType: "upload.rejected",
+          maxBytes: 100_000,
+          objectKey: "media/v1080/3810.m4s",
+          observedBytes: 100_001,
+          occurredAt: "2026-01-01T00:00:02.000Z",
+          reason: "object_too_large",
+          slotId: "slot_3810",
+        },
         error: {
           error: {
             code: "olos.quota_exceeded",
             message: "tenant quota exceeded",
           },
         },
+        state: createEmptyCoordinatorState(),
         status: "rejected",
       })
     ).toEqual({
-      auditEvent: { reason: "policy" },
+      auditEvent: {
+        error: {
+          error: {
+            code: "olos.quota_exceeded",
+            message: "tenant quota exceeded",
+          },
+        },
+        eventType: "upload.rejected",
+        maxBytes: 100_000,
+        objectKey: "media/v1080/3810.m4s",
+        observedBytes: 100_001,
+        occurredAt: "2026-01-01T00:00:02.000Z",
+        reason: "object_too_large",
+        slotId: "slot_3810",
+      },
       error: {
         code: "olos.quota_exceeded",
         message: "tenant quota exceeded",
@@ -27,10 +56,12 @@ describe("S3 HTTP response mapping", () => {
     });
   });
 
-  test("keeps the rejected event fallback error message", () => {
-    expect(eventRouteResult({ status: "rejected" })).toEqual({
-      error: { message: "S3 route rejected without error details" },
-      status: "rejected",
+  test("maps terminal event route statuses", () => {
+    expect(eventRouteResult({ status: "conflict" })).toEqual({
+      status: "conflict",
+    });
+    expect(eventRouteResult({ status: "not_found" })).toEqual({
+      status: "not_found",
     });
   });
 
