@@ -116,6 +116,22 @@ describe("runtime manifest adapter", () => {
     expect(await response.text()).toBe("manifest not found");
   });
 
+  test("returns not found for unknown blocking manifest paths", async () => {
+    const response = await serveBlockingCoordinatorManifest({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: testCoordinatorSession.partTarget,
+      request: "/v1/live/session_1/missing.m3u8?_HLS_msn=3810",
+      segmentTarget: testCoordinatorSession.segmentTarget,
+      state: createCoordinatorStateWithCommittedSegment(),
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(response.status).toBe(404);
+    expect(await response.text()).toBe("manifest not found");
+  });
+
   test("returns invalid responses for malformed blocking reload requests", async () => {
     const response = await serveBlockingCoordinatorManifest({
       allowedMediaOrigins: [MEDIA_ORIGIN],

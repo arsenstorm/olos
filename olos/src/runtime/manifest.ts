@@ -5,6 +5,7 @@ import {
   createHlsManifestErrorWebResponse,
   createHlsManifestWebResponse,
   type HlsCursorWaitContext,
+  type HlsManifestErrorResolution,
   resolveBlockingHlsManifestArtifactResponse,
   resolveHlsManifestArtifactResponse,
 } from "../hls";
@@ -28,6 +29,11 @@ export interface ServeBlockingCoordinatorManifestOptions
     context: HlsCursorWaitContext
   ) => Promise<HlsCursorWaitContext["cursor"] | undefined>;
 }
+
+type ServableBlockingCoordinatorManifestResolution = Extract<
+  BlockingHlsManifestArtifactResponseResolution,
+  { status: "ready" | "timeout" }
+>;
 
 export function serveCoordinatorManifest(
   options: ServeCoordinatorManifestOptions
@@ -104,11 +110,23 @@ function optionalManifestResponse(
 function blockingManifestResponse(
   resolved: BlockingHlsManifestArtifactResponseResolution
 ): Response {
-  if (resolved.status === "invalid" || resolved.status === "not_found") {
+  if (isHlsManifestErrorResolution(resolved)) {
     return createHlsManifestErrorWebResponse(resolved);
   }
 
   return createHlsManifestWebResponse(resolved.response);
+}
+
+function isHlsManifestErrorResolution(
+  resolved: BlockingHlsManifestArtifactResponseResolution
+): resolved is HlsManifestErrorResolution {
+  return !isServableBlockingCoordinatorManifestResolution(resolved);
+}
+
+function isServableBlockingCoordinatorManifestResolution(
+  resolved: BlockingHlsManifestArtifactResponseResolution
+): resolved is ServableBlockingCoordinatorManifestResolution {
+  return resolved.status === "ready" || resolved.status === "timeout";
 }
 
 function manifestNotFoundResponse(): Response {
