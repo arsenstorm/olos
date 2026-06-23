@@ -246,6 +246,20 @@ describe("direct-public security policy", () => {
     });
   });
 
+  test("checks object-key safety before request navigation headers", () => {
+    expect(
+      resolveDirectPublicMediaRequestPolicy({
+        accept: "text/html",
+        fetchMode: "navigate",
+        objectKey: "../media/tenant/session/e1/v1080/s1/p0-slot_1.html",
+      })
+    ).toEqual({
+      allowed: false,
+      reason: "unsafe-object-key",
+      status: 404,
+    });
+  });
+
   test("blocks unsafe media object keys", () => {
     for (const objectKey of [
       "../media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",

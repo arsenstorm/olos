@@ -43,6 +43,62 @@ export interface CreateDirectPublicNegativeObjectResponseHeadersOptions {
   policy: DirectPublicSecurityPolicy;
 }
 
+interface DirectPublicCapabilityRequirement {
+  isSupported: (capability: ProviderCapabilityDocument) => boolean;
+  message: string;
+}
+
+interface DirectPublicMediaRequestBlockRule {
+  isBlocked: (options: ResolveDirectPublicMediaRequestPolicyOptions) => boolean;
+  reason: DirectPublicMediaRequestBlockReason;
+  status: 403 | 404;
+}
+
+const DIRECT_PUBLIC_CAPABILITY_REQUIREMENTS = [
+  {
+    isSupported: (capability) =>
+      capability.publication.directObjectPublication === true,
+    message:
+      "providerCapability.publication.directObjectPublication must be true for direct-public security",
+  },
+  {
+    isSupported: (capability) =>
+      capability.publication.manifestGatedPublication === true,
+    message:
+      "providerCapability.publication.manifestGatedPublication must be true for direct-public security",
+  },
+  {
+    isSupported: (capability) =>
+      capability.delivery.documentNavigationCanBeBlocked === true,
+    message:
+      "providerCapability.delivery.documentNavigationCanBeBlocked must be true for direct-public security",
+  },
+] satisfies readonly DirectPublicCapabilityRequirement[];
+
+const DIRECT_PUBLIC_MEDIA_REQUEST_BLOCK_RULES = [
+  {
+    isBlocked: (options) => !isSafeObjectKey(options.objectKey),
+    reason: "unsafe-object-key",
+    status: 404,
+  },
+  {
+    isBlocked: (options) =>
+      !hasSupportedDirectPublicMediaExtension(options.objectKey),
+    reason: "unsupported-extension",
+    status: 404,
+  },
+  {
+    isBlocked: isDocumentNavigation,
+    reason: "document-navigation",
+    status: 403,
+  },
+  {
+    isBlocked: (options) => acceptsHtml(options.accept),
+    reason: "html-accept",
+    status: 403,
+  },
+] satisfies readonly DirectPublicMediaRequestBlockRule[];
+
 export function createDirectPublicSecurityPolicy(
   options: CreateDirectPublicSecurityPolicyOptions
 ): DirectPublicSecurityPolicy {
@@ -77,39 +133,23 @@ export function createDirectPublicSecurityPolicy(
 export function resolveDirectPublicMediaRequestPolicy(
   options: ResolveDirectPublicMediaRequestPolicyOptions
 ): DirectPublicMediaRequestPolicy {
-  if (!isSafeObjectKey(options.objectKey)) {
-    return {
-      allowed: false,
-      reason: "unsafe-object-key",
-      status: 404,
-    };
-  }
-
-  if (!hasSupportedDirectPublicMediaExtension(options.objectKey)) {
-    return {
-      allowed: false,
-      reason: "unsupported-extension",
-      status: 404,
-    };
-  }
-
-  if (isDocumentNavigation(options)) {
-    return {
-      allowed: false,
-      reason: "document-navigation",
-      status: 403,
-    };
-  }
-
-  if (acceptsHtml(options.accept)) {
-    return {
-      allowed: false,
-      reason: "html-accept",
-      status: 403,
-    };
+  for (const rule of DIRECT_PUBLIC_MEDIA_REQUEST_BLOCK_RULES) {
+    if (rule.isBlocked(options)) {
+      return directPublicMediaRequestBlocked(rule);
+    }
   }
 
   return { allowed: true };
+}
+
+function directPublicMediaRequestBlocked(
+  rule: DirectPublicMediaRequestBlockRule
+): DirectPublicMediaRequestPolicy {
+  return {
+    allowed: false,
+    reason: rule.reason,
+    status: rule.status,
+  };
 }
 
 function hasSupportedDirectPublicMediaExtension(objectKey: string): boolean {
@@ -156,22 +196,17 @@ export function createDirectPublicNegativeObjectResponseHeaders(
 function assertDirectPublicCapability(
   capability: ProviderCapabilityDocument
 ): void {
-  if (capability.publication.directObjectPublication !== true) {
-    throw new Error(
-      "providerCapability.publication.directObjectPublication must be true for direct-public security"
-    );
+  for (const requirement of DIRECT_PUBLIC_CAPABILITY_REQUIREMENTS) {
+    assertDirectPublicCapabilityRequirement(capability, requirement);
   }
+}
 
-  if (capability.publication.manifestGatedPublication !== true) {
-    throw new Error(
-      "providerCapability.publication.manifestGatedPublication must be true for direct-public security"
-    );
-  }
-
-  if (capability.delivery.documentNavigationCanBeBlocked !== true) {
-    throw new Error(
-      "providerCapability.delivery.documentNavigationCanBeBlocked must be true for direct-public security"
-    );
+function assertDirectPublicCapabilityRequirement(
+  capability: ProviderCapabilityDocument,
+  requirement: DirectPublicCapabilityRequirement
+): void {
+  if (!requirement.isSupported(capability)) {
+    throw new Error(requirement.message);
   }
 }
 
