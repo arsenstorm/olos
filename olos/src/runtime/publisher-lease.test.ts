@@ -180,4 +180,17 @@ describe("runtime publisher lease", () => {
       "publisherLease must be an object"
     );
   });
+
+  test("rejects publisher leases with invalid timestamp fields", () => {
+    expect(() =>
+      assertRuntimePublisherLease({
+        expiresAt: 0,
+        issuedAt: "2026-01-01T00:00:00.000Z",
+        lastSeenAt: "2026-01-01T00:00:00.000Z",
+        publisherInstanceId: "publisher_1",
+        sessionId: "session_1",
+        tenantId: "tenant_1",
+      })
+    ).toThrow("publisherLease.expiresAt must be a valid timestamp");
+  });
 });

@@ -55,11 +55,8 @@ export function createRuntimePublisherLease(
     tenantId: options.tenantId,
   });
 
-  const nowMs = timestampMs(options.now, "now");
-  const ttlMs = positiveNumber(options.ttlMs, "ttlMs");
-
   return {
-    expiresAt: new Date(nowMs + ttlMs).toISOString(),
+    expiresAt: leaseExpiresAt(options.now, options.ttlMs),
     issuedAt: options.now,
     lastSeenAt: options.now,
     publisherInstanceId: options.publisherInstanceId,
@@ -74,12 +71,11 @@ export function refreshRuntimePublisherLease(
   assertRuntimePublisherLease(options.lease);
 
   const nowMs = timestampMs(options.now, "now");
-  const ttlMs = positiveNumber(options.ttlMs, "ttlMs");
   assertRefreshTimeNotBeforeIssuedAt(options.lease, nowMs);
 
   return {
     ...options.lease,
-    expiresAt: new Date(nowMs + ttlMs).toISOString(),
+    expiresAt: leaseExpiresAt(options.now, options.ttlMs),
     lastSeenAt: options.now,
   };
 }
@@ -123,6 +119,10 @@ export function assertRuntimePublisherLease(
   }
 
   assertLeaseIdentity(value);
+  assertLeaseTimeline(value);
+}
+
+function assertLeaseTimeline(value: Record<string, unknown>): void {
   const issuedAtMs = timestampFieldMs(value, "issuedAt");
   const lastSeenAtMs = timestampFieldMs(value, "lastSeenAt");
   const expiresAtMs = timestampFieldMs(value, "expiresAt");
@@ -134,6 +134,13 @@ export function assertRuntimePublisherLease(
   if (expiresAtMs < lastSeenAtMs) {
     throw new Error("publisherLease.expiresAt must not be before lastSeenAt");
   }
+}
+
+function leaseExpiresAt(now: string, ttlMsValue: number): string {
+  const nowMs = timestampMs(now, "now");
+  const ttlMs = positiveNumber(ttlMsValue, "ttlMs");
+
+  return new Date(nowMs + ttlMs).toISOString();
 }
 
 function assertLeaseOwner(
