@@ -21,6 +21,12 @@ describe("HLS URI helpers", () => {
     expect(() =>
       assertSafeRelativePath("/live/media.m3u8?x=1", "path")
     ).toThrow("path must not contain query strings or fragments");
+    expect(() =>
+      assertSafeRelativePath("/live/media.m3u8#part", "path")
+    ).toThrow("path must not contain query strings or fragments");
+    expect(() =>
+      assertSafeRelativePath("/live/media.m3u8\n#EXTINF", "path")
+    ).toThrow("path must be a safe relative path");
   });
 
   test("validates relative and allowed absolute media URIs", () => {

@@ -10,19 +10,8 @@ export interface MediaUriPolicy {
 }
 
 export function assertSafeRelativePath(value: string, name: string): void {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    !value.startsWith("/") ||
-    value.startsWith("//") ||
-    hasControlCharacter(value)
-  ) {
-    throw new Error(`${name} must be a safe relative path`);
-  }
-
-  if (value.includes("?") || value.includes("#")) {
-    throw new Error(`${name} must not contain query strings or fragments`);
-  }
+  assertRelativePathShape(value, name);
+  assertRelativePathHasNoQueryOrFragment(value, name);
 }
 
 export function assertSafeMediaUri(
@@ -56,6 +45,27 @@ function assertMediaUriHasNoControlCharacters(
 ): void {
   if (hasControlCharacter(value)) {
     throw new Error(`${name} must not contain control characters`);
+  }
+}
+
+function assertRelativePathShape(value: string, name: string): void {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    hasControlCharacter(value)
+  ) {
+    throw new Error(`${name} must be a safe relative path`);
+  }
+}
+
+function assertRelativePathHasNoQueryOrFragment(
+  value: string,
+  name: string
+): void {
+  if (value.includes("?") || value.includes("#")) {
+    throw new Error(`${name} must not contain query strings or fragments`);
   }
 }
 
