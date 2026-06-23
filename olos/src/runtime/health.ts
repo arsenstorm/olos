@@ -53,24 +53,45 @@ export function resolveRuntimeLiveHealth(
         });
 
   if (options.cursor === undefined) {
-    return {
-      cursorFreshness: "missing",
-      ...(leaseStatus === undefined ? {} : { leaseStatus }),
-      status: leaseStatus === "stale" ? "stale" : "starting",
-    };
+    return missingCursorLiveHealth(leaseStatus);
   }
 
   assertCursor(options.cursor);
 
-  const cursorAgeMs = cursorAgeMsSince(options.cursor, nowMs);
+  return cursorLiveHealth(options.cursor, nowMs, maxCursorAgeMs, leaseStatus);
+}
+
+function missingCursorLiveHealth(
+  leaseStatus: RuntimePublisherLeaseStatus | undefined
+): RuntimeLiveHealth {
+  return {
+    cursorFreshness: "missing",
+    ...leaseStatusField(leaseStatus),
+    status: leaseStatus === "stale" ? "stale" : "starting",
+  };
+}
+
+function cursorLiveHealth(
+  cursor: Cursor,
+  nowMs: number,
+  maxCursorAgeMs: number,
+  leaseStatus: RuntimePublisherLeaseStatus | undefined
+): RuntimeLiveHealth {
+  const cursorAgeMs = cursorAgeMsSince(cursor, nowMs);
   const cursorFreshness = cursorFreshnessForAge(cursorAgeMs, maxCursorAgeMs);
 
   return {
     cursorAgeMs,
     cursorFreshness,
-    ...(leaseStatus === undefined ? {} : { leaseStatus }),
+    ...leaseStatusField(leaseStatus),
     status: liveHealthStatus(cursorFreshness, leaseStatus),
   };
+}
+
+function leaseStatusField(
+  leaseStatus: RuntimePublisherLeaseStatus | undefined
+): Pick<RuntimeLiveHealth, "leaseStatus"> | Record<string, never> {
+  return leaseStatus === undefined ? {} : { leaseStatus };
 }
 
 function cursorAgeMsSince(cursor: Cursor, nowMs: number): number {

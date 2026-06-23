@@ -41,6 +41,18 @@ describe("runtime live health", () => {
     });
   });
 
+  test("resolves starting health before a cursor or lease exists", () => {
+    expect(
+      resolveRuntimeLiveHealth({
+        maxCursorAgeMs: 3000,
+        now: "2026-01-01T00:00:01.000Z",
+      })
+    ).toEqual({
+      cursorFreshness: "missing",
+      status: "starting",
+    });
+  });
+
   test("marks stale cursor progress as stale", () => {
     expect(
       resolveRuntimeLiveHealth({
