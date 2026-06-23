@@ -27,6 +27,12 @@ describe("runtime object key nonce", () => {
   test("rejects weak or unsafe nonce inputs", () => {
     expect(() =>
       createRuntimePublisherObjectKeyNonce({
+        bytes: [] as unknown as Uint8Array,
+      })
+    ).toThrow("objectKeyNonce bytes must be a Uint8Array");
+
+    expect(() =>
+      createRuntimePublisherObjectKeyNonce({
         bytes: new Uint8Array(RUNTIME_PUBLISHER_OBJECT_KEY_NONCE_MIN_BYTES - 1),
       })
     ).toThrow("objectKeyNonce bytes must contain at least 16 bytes");
