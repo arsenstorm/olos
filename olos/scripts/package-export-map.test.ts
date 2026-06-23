@@ -18,8 +18,9 @@ describe("package export map helpers", () => {
       packageExportSubpaths({
         ".": {},
         "./package.json": "./package.json",
+        "./runtime/client": {},
         "./runtime": {},
       })
-    ).toEqual([".", "./runtime"]);
+    ).toEqual([".", "./runtime/client", "./runtime"]);
   });
 });
