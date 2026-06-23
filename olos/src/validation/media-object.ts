@@ -25,11 +25,23 @@ export function assertMediaObject(
     throw new Error("mediaObject must be an object");
   }
 
+  assertMediaObjectIdentity(value);
+  assertMediaObjectObservation(value);
+  assertOptionalMediaObjectFields(value);
+}
+
+function assertMediaObjectIdentity(value: Record<string, unknown>): void {
   assertUrlSafeField(value, "providerId", "mediaObject");
   assertSafeObjectKey(value.objectKey, "mediaObject.objectKey");
   assertContentType(value.contentType, "mediaObject.contentType");
+}
+
+function assertMediaObjectObservation(value: Record<string, unknown>): void {
   assertIsoDateField(value, "observedAt", "mediaObject");
   assertPositiveNumberField(value, "size", "mediaObject");
+}
+
+function assertOptionalMediaObjectFields(value: Record<string, unknown>): void {
   assertOptionalNonEmptyStringField(value, "etag", "mediaObject");
 }
 

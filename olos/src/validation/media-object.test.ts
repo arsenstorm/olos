@@ -24,6 +24,12 @@ describe("media object validation", () => {
     expect(() => assertMediaObject(mediaObject)).not.toThrow();
   });
 
+  test("accepts fractional positive sizes", () => {
+    expect(() =>
+      assertMediaObject({ ...validMediaObject, size: 0.5 })
+    ).not.toThrow();
+  });
+
   test("rejects non-object values", () => {
     expect(isMediaObject(null)).toBe(false);
     expect(() => assertMediaObject(null)).toThrow(
