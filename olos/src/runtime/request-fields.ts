@@ -231,11 +231,15 @@ function hasOptionalField(
 }
 
 export function timestampMs(value: Date | string, name: string): number {
-  const timestamp = value instanceof Date ? value.getTime() : Date.parse(value);
+  const timestamp = timestampValueMs(value);
 
   if (Number.isNaN(timestamp)) {
     throw new Error(`${name} must be a valid timestamp`);
   }
 
   return timestamp;
+}
+
+function timestampValueMs(value: Date | string): number {
+  return value instanceof Date ? value.getTime() : Date.parse(value);
 }

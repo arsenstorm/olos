@@ -165,5 +165,8 @@ describe("runtime request field helpers", () => {
     expect(() => timestampMs("later", "now")).toThrow(
       "now must be a valid timestamp"
     );
+    expect(() => timestampMs(new Date("later"), "now")).toThrow(
+      "now must be a valid timestamp"
+    );
   });
 });
