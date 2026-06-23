@@ -101,15 +101,12 @@ function assertConsistency(value: unknown): void {
 
   assertOneOfField(value, "readAfterCreate", PROVIDER_CONSISTENCY_LEVELS, name);
   assertOneOfField(value, "headAfterCreate", PROVIDER_CONSISTENCY_LEVELS, name);
-
-  if (value.listAfterCreate !== undefined) {
-    assertOneOfField(
-      value,
-      "listAfterCreate",
-      PROVIDER_CONSISTENCY_LEVELS,
-      name
-    );
-  }
+  assertOptionalOneOfField(
+    value,
+    "listAfterCreate",
+    PROVIDER_CONSISTENCY_LEVELS,
+    name
+  );
 }
 
 function assertPublication(value: unknown): void {
@@ -206,8 +203,22 @@ function assertEvents(value: unknown): void {
     assertBooleanField(value, "objectCreated", name);
   }
 
-  if (value.delivery !== undefined) {
-    assertOneOfField(value, "delivery", PROVIDER_EVENT_DELIVERY_MODES, name);
+  assertOptionalOneOfField(
+    value,
+    "delivery",
+    PROVIDER_EVENT_DELIVERY_MODES,
+    name
+  );
+}
+
+function assertOptionalOneOfField(
+  value: Record<string, unknown>,
+  field: string,
+  values: readonly string[],
+  name: string
+): void {
+  if (value[field] !== undefined) {
+    assertOneOfField(value, field, values, name);
   }
 }
 

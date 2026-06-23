@@ -271,6 +271,20 @@ describe("provider capability validation", () => {
     ).toThrow("providerCapability.delivery.rangeRequests must be a boolean");
   });
 
+  test("rejects invalid event delivery modes", () => {
+    expect(() =>
+      assertProviderCapabilityDocument({
+        ...capability,
+        events: {
+          ...capability.events,
+          delivery: "eventually",
+        },
+      })
+    ).toThrow(
+      "providerCapability.events.delivery must be one of: none, best-effort, at-least-once, exactly-once"
+    );
+  });
+
   test("accepts read-gated providers without direct object publication", () => {
     expect(() =>
       assertProviderCapabilityDocument({
