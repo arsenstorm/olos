@@ -121,19 +121,23 @@ function assertObservationBeforeSlotExpiry(
 ): void {
   const { object, slot } = options;
 
+  if (Date.parse(object.observedAt) > toleratedSlotExpiryMs(slot, options)) {
+    throw new Error(
+      "observedUpload.observedAt must be before or equal to uploadSlot.expiresAt"
+    );
+  }
+}
+
+function toleratedSlotExpiryMs(
+  slot: UploadSlot,
+  options: ObservedUploadMatchOptions
+): number {
   const lateToleranceMs = nonNegativeNumber(
     options.lateToleranceMs ?? 0,
     "lateToleranceMs"
   );
 
-  if (
-    Date.parse(object.observedAt) >
-    Date.parse(slot.expiresAt) + lateToleranceMs
-  ) {
-    throw new Error(
-      "observedUpload.observedAt must be before or equal to uploadSlot.expiresAt"
-    );
-  }
+  return Date.parse(slot.expiresAt) + lateToleranceMs;
 }
 
 function assertObservedSlotMetadataMatchesSlot(

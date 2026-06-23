@@ -123,6 +123,16 @@ describe("observed upload validation", () => {
     ).not.toThrow();
   });
 
+  test("allows observations exactly at the tolerated expiry deadline", () => {
+    expect(() =>
+      assertObservedUploadMatchesSlot({
+        lateToleranceMs: 1000,
+        object: { ...object, observedAt: "2026-01-01T00:00:06.000Z" },
+        slot,
+      })
+    ).not.toThrow();
+  });
+
   test("rejects invalid late tolerance", () => {
     expect(() =>
       assertObservedUploadMatchesSlot({
