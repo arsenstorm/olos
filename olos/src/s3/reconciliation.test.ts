@@ -19,6 +19,29 @@ import {
 import { createTestHeadObjectClientFor } from "./test-client.test-helper";
 
 describe("stored S3 upload reconciliation", () => {
+  test("reports missing sessions consistently for plans and reconciliation", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+
+    await expect(
+      planStoredS3CoordinatorReconciliation({
+        sessionId: session.sessionId,
+        store,
+      })
+    ).resolves.toEqual({ status: "not_found" });
+    await expect(
+      reconcileStoredS3CoordinatorUploads({
+        bucket: "media",
+        client: clientFor(new Map(), headObjectInputs),
+        committedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        sessionId: session.sessionId,
+        store,
+      })
+    ).resolves.toEqual({ status: "not_found" });
+    expect(headObjectInputs).toEqual([]);
+  });
+
   test("plans in-flight S3 slots for app-owned recovery jobs", async () => {
     const store = createMemoryCoordinatorStore();
 

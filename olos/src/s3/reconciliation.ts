@@ -144,15 +144,15 @@ export async function reconcileStoredS3CoordinatorUploads(
 ): Promise<StoredS3CoordinatorUploadReconciliation> {
   assertReconciliationOptions(options);
 
-  const snapshot = await options.store.load(options.sessionId);
+  const plan = await loadStoredS3CoordinatorReconciliationPlan(options);
 
-  if (snapshot === undefined) {
+  if (isMissingStoredS3CoordinatorReconciliationPlan(plan)) {
     return missingStoredS3CoordinatorUploadReconciliation();
   }
 
   const results: StoredS3CoordinatorUploadReconciliationResult[] = [];
 
-  for (const slot of reconciliationSlots(snapshot.state.slots, options)) {
+  for (const slot of plan.slots) {
     results.push(await reconcileSlot(slot, options));
   }
 
@@ -275,7 +275,13 @@ function completedStoredS3CoordinatorUploadReconciliationSummary(
   };
 }
 
-export async function planStoredS3CoordinatorReconciliation(
+export function planStoredS3CoordinatorReconciliation(
+  options: PlanStoredS3CoordinatorReconciliationOptions
+): Promise<StoredS3CoordinatorReconciliationPlan> {
+  return loadStoredS3CoordinatorReconciliationPlan(options);
+}
+
+async function loadStoredS3CoordinatorReconciliationPlan(
   options: PlanStoredS3CoordinatorReconciliationOptions
 ): Promise<StoredS3CoordinatorReconciliationPlan> {
   const snapshot = await options.store.load(options.sessionId);
@@ -389,6 +395,12 @@ function isMissingStoredS3CoordinatorUploadReconciliation(
   result: StoredS3CoordinatorUploadReconciliation
 ): result is MissingStoredS3CoordinatorUploadReconciliation {
   return result.status === "not_found";
+}
+
+function isMissingStoredS3CoordinatorReconciliationPlan(
+  plan: StoredS3CoordinatorReconciliationPlan
+): plan is MissingStoredS3CoordinatorReconciliationPlan {
+  return plan.status === "not_found";
 }
 
 function reconciliationSlots(
