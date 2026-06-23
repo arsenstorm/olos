@@ -12,6 +12,8 @@ import { assertProviderCapabilityDocument } from "../validation/provider-capabil
 const DEFAULT_FRESHNESS_BOUND_MAX_AGE_SECONDS = 1;
 const DEFAULT_MEDIA_OBJECT_MAX_AGE_SECONDS = 31_536_000;
 const DEFAULT_TARGET_LATENCY_SECONDS = 3;
+const FRESHNESS_BOUND_CACHE_DIRECTIVE = "must-revalidate";
+const IMMUTABLE_CACHE_DIRECTIVE = "immutable";
 
 export interface CreateDeliveryCachePolicyOptions {
   capability?: ProviderCapabilityDocument;
@@ -23,15 +25,21 @@ export interface CreateDeliveryCachePolicyOptions {
 export function createDeliveryCachePolicy(
   options: CreateDeliveryCachePolicyOptions
 ): DeliveryCachePolicy {
-  if (options.capability !== undefined) {
-    assertProviderCapabilityDocument(options.capability);
-  }
+  assertOptionalProviderCapability(options.capability);
 
-  if (options.target === "media-object") {
+  if (isMediaObjectCacheTarget(options.target)) {
     return createMediaObjectCachePolicy(options);
   }
 
   return createFreshnessBoundCachePolicy(options);
+}
+
+function assertOptionalProviderCapability(
+  capability: ProviderCapabilityDocument | undefined
+): void {
+  if (capability !== undefined) {
+    assertProviderCapabilityDocument(capability);
+  }
 }
 
 function createMediaObjectCachePolicy(
@@ -44,7 +52,10 @@ function createMediaObjectCachePolicy(
   assertPositiveInteger(maxAgeSeconds, "maxAgeSeconds");
 
   return {
-    cacheControl: `public, max-age=${maxAgeSeconds}, immutable`,
+    cacheControl: formatPublicCacheControl(
+      maxAgeSeconds,
+      IMMUTABLE_CACHE_DIRECTIVE
+    ),
     maxAgeSeconds,
     target: "media-object",
   };
@@ -62,10 +73,24 @@ function createFreshnessBoundCachePolicy(
   assertNegativeCachingPolicySupport(options);
 
   return {
-    cacheControl: `public, max-age=${maxAgeSeconds}, must-revalidate`,
+    cacheControl: formatPublicCacheControl(
+      maxAgeSeconds,
+      FRESHNESS_BOUND_CACHE_DIRECTIVE
+    ),
     maxAgeSeconds,
     target: options.target,
   };
+}
+
+function isMediaObjectCacheTarget(target: DeliveryCacheTarget): boolean {
+  return target === "media-object";
+}
+
+function formatPublicCacheControl(
+  maxAgeSeconds: number,
+  directive: string
+): string {
+  return `public, max-age=${maxAgeSeconds}, ${directive}`;
 }
 
 function assertImmutableCachingSupport(

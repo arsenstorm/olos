@@ -45,6 +45,20 @@ describe("delivery cache policy", () => {
     });
   });
 
+  test("creates custom immutable cache policy for media objects", () => {
+    expect(
+      createDeliveryCachePolicy({
+        capability,
+        maxAgeSeconds: 120,
+        target: "media-object",
+      })
+    ).toEqual({
+      cacheControl: "public, max-age=120, immutable",
+      maxAgeSeconds: 120,
+      target: "media-object",
+    });
+  });
+
   test("rejects media object caching without immutable provider support", () => {
     expect(() =>
       createDeliveryCachePolicy({
