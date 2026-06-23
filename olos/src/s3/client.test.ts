@@ -283,6 +283,27 @@ describe("S3 runtime HTTP client", () => {
     ).rejects.toThrow("commitId");
   });
 
+  test("validates malformed upload completion responses", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            cursor: {},
+          }),
+          { status: 201 }
+        )
+      );
+
+    await expect(
+      completeS3RuntimeUpload({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        sessionId: session.sessionId,
+        slotId: "slot_init",
+      })
+    ).rejects.toThrow("S3 upload completion response must include a commit");
+  });
+
   test("rejects unsafe S3 runtime route identifiers before fetch", async () => {
     let requests = 0;
     const clientFetch: RuntimeFetch = () => {

@@ -353,14 +353,11 @@ export async function issueS3RuntimeUploadGrant(
     jsonPost(options.payload)
   );
 
-  if (!response.ok) {
-    throw await s3RuntimeHttpError("S3 upload grant issue", response);
-  }
-
-  return {
-    ...grantPayload(await response.json()),
+  return await parsedS3RuntimeResponse(
     response,
-  };
+    "S3 upload grant issue",
+    grantPayload
+  );
 }
 
 export async function completeS3RuntimeUpload(
@@ -371,14 +368,11 @@ export async function completeS3RuntimeUpload(
     jsonPost(options.payload ?? {})
   );
 
-  if (!response.ok) {
-    throw await s3RuntimeHttpError("S3 upload completion", response);
-  }
-
-  return {
-    ...commitPayload(await response.json()),
+  return await parsedS3RuntimeResponse(
     response,
-  };
+    "S3 upload completion",
+    commitPayload
+  );
 }
 
 export async function commitS3RuntimeUpload(
@@ -389,14 +383,11 @@ export async function commitS3RuntimeUpload(
     jsonPost(options.payload)
   );
 
-  if (!response.ok) {
-    throw await s3RuntimeHttpError("S3 upload commit", response);
-  }
-
-  return {
-    ...commitPayload(await response.json()),
+  return await parsedS3RuntimeResponse(
     response,
-  };
+    "S3 upload commit",
+    commitPayload
+  );
 }
 
 export async function planS3RuntimeReconciliation(
@@ -411,14 +402,11 @@ export async function planS3RuntimeReconciliation(
     jsonPost(options.payload ?? {})
   );
 
-  if (!response.ok) {
-    throw await s3RuntimeHttpError("S3 reconciliation plan", response);
-  }
-
-  return {
-    ...reconciliationPlanPayload(await response.json()),
+  return await parsedS3RuntimeResponse(
     response,
-  };
+    "S3 reconciliation plan",
+    reconciliationPlanPayload
+  );
 }
 
 export async function reconcileS3RuntimeUploads(
@@ -429,14 +417,11 @@ export async function reconcileS3RuntimeUploads(
     jsonPost(options.payload)
   );
 
-  if (!response.ok) {
-    throw await s3RuntimeHttpError("S3 upload reconciliation", response);
-  }
-
-  return {
-    ...reconciliationPayload(await response.json()),
+  return await parsedS3RuntimeResponse(
     response,
-  };
+    "S3 upload reconciliation",
+    reconciliationPayload
+  );
 }
 
 export async function applyS3RuntimeRetention(
@@ -447,14 +432,11 @@ export async function applyS3RuntimeRetention(
     jsonPost(options.payload)
   );
 
-  if (!response.ok) {
-    throw await s3RuntimeHttpError("S3 retention", response);
-  }
-
-  return {
-    ...retentionPayload(await response.json()),
+  return await parsedS3RuntimeResponse(
     response,
-  };
+    "S3 retention",
+    retentionPayload
+  );
 }
 
 function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
@@ -489,6 +471,21 @@ async function s3RuntimeHttpError(
     response,
     await responseBody(response)
   );
+}
+
+async function parsedS3RuntimeResponse<Payload extends object>(
+  response: Response,
+  operation: string,
+  parsePayload: (value: unknown) => Payload
+): Promise<Payload & { response: Response }> {
+  if (!response.ok) {
+    throw await s3RuntimeHttpError(operation, response);
+  }
+
+  return {
+    ...parsePayload(await response.json()),
+    response,
+  };
 }
 
 function grantPayload(
