@@ -220,24 +220,45 @@ function assertCapabilityPreconditions(value: Record<string, unknown>): void {
   const delivery = providerCapabilityRecordField(value, "delivery");
   const publication = providerCapabilityRecordField(value, "publication");
 
+  assertDirectPublicationRequiresManifestGating(publication);
+  assertDirectPublicationRequiresStrongHeadConsistency(consistency);
+  assertDirectPublicationForbidsOverwrites(publication);
+  assertDirectPublicationRequiresNegativeCachingPolicy(delivery);
+}
+
+function assertDirectPublicationRequiresManifestGating(
+  publication: Record<string, unknown>
+): void {
   if (publication.manifestGatedPublication !== true) {
     throw new Error(
       "providerCapability.publication.manifestGatedPublication must be true for direct object publication"
     );
   }
+}
 
+function assertDirectPublicationRequiresStrongHeadConsistency(
+  consistency: Record<string, unknown>
+): void {
   if (consistency.headAfterCreate !== "strong") {
     throw new Error(
       "providerCapability.consistency.headAfterCreate must be strong for direct object publication"
     );
   }
+}
 
+function assertDirectPublicationForbidsOverwrites(
+  publication: Record<string, unknown>
+): void {
   if (publication.overwritesAllowed === true) {
     throw new Error(
       "providerCapability.publication.overwritesAllowed must not be true for direct object publication"
     );
   }
+}
 
+function assertDirectPublicationRequiresNegativeCachingPolicy(
+  delivery: Record<string, unknown>
+): void {
   if (delivery.negativeCachingPolicyDeclared !== true) {
     throw new Error(
       "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct object publication"

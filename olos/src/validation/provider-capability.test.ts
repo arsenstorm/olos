@@ -105,6 +105,18 @@ describe("provider capability validation", () => {
     );
   });
 
+  test("accepts direct publication without an overwrite declaration", () => {
+    expect(() =>
+      assertProviderCapabilityDocument({
+        ...capability,
+        publication: {
+          ...capability.publication,
+          overwritesAllowed: undefined,
+        },
+      })
+    ).not.toThrow();
+  });
+
   test("rejects direct publication without manifest-gated publication", () => {
     expect(() =>
       assertProviderCapabilityDocument({
