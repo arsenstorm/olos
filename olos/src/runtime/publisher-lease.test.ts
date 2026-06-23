@@ -113,6 +113,27 @@ describe("runtime publisher lease", () => {
     ).toThrow("publisherLease.publisherInstanceId does not match heartbeat");
   });
 
+  test("rejects a heartbeat for a different session", () => {
+    const lease = createRuntimePublisherLease({
+      now: "2026-01-01T00:00:00.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: "session_1",
+      tenantId: "tenant_1",
+      ttlMs: 3000,
+    });
+
+    expect(() =>
+      refreshRuntimePublisherHeartbeat({
+        lease,
+        now: "2026-01-01T00:00:02.000Z",
+        publisherInstanceId: "publisher_1",
+        sessionId: "session_2",
+        tenantId: "tenant_1",
+        ttlMs: 3000,
+      })
+    ).toThrow("publisherLease.sessionId does not match heartbeat");
+  });
+
   test("detects stale publisher leases", () => {
     const lease = createRuntimePublisherLease({
       now: "2026-01-01T00:00:00.000Z",

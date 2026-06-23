@@ -8,6 +8,10 @@ const LEASE_IDENTITY_FIELDS = [
 ] as const;
 
 type LeaseTimestampField = "expiresAt" | "issuedAt" | "lastSeenAt";
+type LeaseIdentity = Pick<
+  RuntimePublisherLease,
+  "publisherInstanceId" | "sessionId" | "tenantId"
+>;
 
 export interface RuntimePublisherLease {
   expiresAt: string;
@@ -83,16 +87,10 @@ export function refreshRuntimePublisherLease(
 export function refreshRuntimePublisherHeartbeat(
   options: RefreshRuntimePublisherHeartbeatOptions
 ): RuntimePublisherLease {
-  assertLeaseIdentity({
-    publisherInstanceId: options.publisherInstanceId,
-    sessionId: options.sessionId,
-    tenantId: options.tenantId,
-  });
-  assertLeaseOwner(options.lease, {
-    publisherInstanceId: options.publisherInstanceId,
-    sessionId: options.sessionId,
-    tenantId: options.tenantId,
-  });
+  const owner = heartbeatLeaseOwner(options);
+
+  assertLeaseIdentity(owner);
+  assertLeaseOwner(options.lease, owner);
 
   return refreshRuntimePublisherLease(options);
 }
@@ -145,19 +143,33 @@ function leaseExpiresAt(now: string, ttlMsValue: number): string {
 
 function assertLeaseOwner(
   lease: RuntimePublisherLease,
-  owner: {
-    publisherInstanceId: string;
-    sessionId: string;
-    tenantId: string;
-  }
+  owner: LeaseIdentity
 ): void {
   assertRuntimePublisherLease(lease);
 
   for (const field of LEASE_IDENTITY_FIELDS) {
-    if (lease[field] !== owner[field]) {
-      throw new Error(`publisherLease.${field} does not match heartbeat`);
-    }
+    assertLeaseOwnerField(lease, owner, field);
   }
+}
+
+function assertLeaseOwnerField(
+  lease: RuntimePublisherLease,
+  owner: LeaseIdentity,
+  field: (typeof LEASE_IDENTITY_FIELDS)[number]
+): void {
+  if (lease[field] !== owner[field]) {
+    throw new Error(`publisherLease.${field} does not match heartbeat`);
+  }
+}
+
+function heartbeatLeaseOwner(
+  options: RefreshRuntimePublisherHeartbeatOptions
+): LeaseIdentity {
+  return {
+    publisherInstanceId: options.publisherInstanceId,
+    sessionId: options.sessionId,
+    tenantId: options.tenantId,
+  };
 }
 
 function assertRefreshTimeNotBeforeIssuedAt(
