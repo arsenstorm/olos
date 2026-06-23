@@ -30,6 +30,23 @@ describe("runtime manifest adapter", () => {
     );
   });
 
+  test("serves coordinator manifests from Request objects", async () => {
+    const response = serveCoordinatorManifest({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: testCoordinatorSession.partTarget,
+      request: new Request(
+        "https://edge.example.com/v1/live/session_1/master.m3u8"
+      ),
+      segmentTarget: testCoordinatorSession.segmentTarget,
+      state: createCoordinatorStateWithCommittedSegment(),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain(
+      "/v1/live/session_1/v1080/media.m3u8"
+    );
+  });
+
   test("returns not found before the coordinator has a cursor", async () => {
     const response = serveCoordinatorManifest({
       allowedMediaOrigins: [MEDIA_ORIGIN],

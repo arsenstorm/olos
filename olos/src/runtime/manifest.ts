@@ -31,12 +31,7 @@ export interface ServeBlockingCoordinatorManifestOptions
 export function serveCoordinatorManifest(
   options: ServeCoordinatorManifestOptions
 ): Response {
-  const { request, response, ...manifestOptions } = options;
-  const manifest = createCoordinatorManifestArtifacts(manifestOptions);
-  const resolved = resolveHlsManifestArtifactResponse(
-    manifestArtifactResponses(manifest.artifacts, response),
-    requestUrl(request)
-  );
+  const resolved = resolveCoordinatorManifestResponse(options);
 
   return optionalManifestResponse(resolved);
 }
@@ -66,6 +61,18 @@ export async function serveBlockingCoordinatorManifest(
   }
 
   return createHlsManifestWebResponse(resolved.response);
+}
+
+function resolveCoordinatorManifestResponse(
+  options: ServeCoordinatorManifestOptions
+): ReturnType<typeof resolveHlsManifestArtifactResponse> {
+  const { request, response, ...manifestOptions } = options;
+  const manifest = createCoordinatorManifestArtifacts(manifestOptions);
+
+  return resolveHlsManifestArtifactResponse(
+    manifestArtifactResponses(manifest.artifacts, response),
+    requestUrl(request)
+  );
 }
 
 function manifestArtifactResponses(
