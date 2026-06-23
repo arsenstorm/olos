@@ -195,6 +195,50 @@ describe("HLS blocking reload", () => {
     });
   });
 
+  test("returns ready for ordinary parts at a segment-only live edge", () => {
+    const { lastPartNumber: _lastPartNumber, ...segmentOnlyWindow } =
+      cursor.window;
+
+    expect(
+      resolveHlsBlockingReload(
+        {
+          ...cursor,
+          committedWindow: {
+            ...cursor.committedWindow,
+            renditions: {
+              v1080: {
+                ...validRendition(),
+                segments: [
+                  {
+                    duration: 2,
+                    mediaSequenceNumber: 3812,
+                    segment: {
+                      commitId: "commit_3812",
+                      deliveryUrl: "/media/3812.m4s",
+                      objectKey: "media/3812.m4s",
+                      slotId: "slot_3812",
+                    },
+                  },
+                ],
+              },
+            },
+          },
+          window: segmentOnlyWindow,
+        },
+        {
+          mediaSequenceNumber: 3812,
+          partNumber: 0,
+        }
+      )
+    ).toEqual({
+      request: {
+        mediaSequenceNumber: 3812,
+        partNumber: 0,
+      },
+      status: "ready",
+    });
+  });
+
   test("rejects part-only blocking requests", () => {
     expect(resolveHlsBlockingReload(cursor, { partNumber: 0 })).toEqual({
       message: "_HLS_part requires _HLS_msn",

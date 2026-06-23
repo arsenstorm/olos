@@ -222,12 +222,17 @@ function resolveLiveEdgePartStatus(
   cursor: Cursor,
   request: HlsBlockingReloadRequest
 ): "block" | "ready" {
+  return isRequestedPartBeyondLiveEdge(cursor, request) ? "block" : "ready";
+}
+
+function isRequestedPartBeyondLiveEdge(
+  cursor: Cursor,
+  request: HlsBlockingReloadRequest
+): boolean {
   const liveEdgePart =
     cursor.window.lastPartNumber ?? SEGMENT_ONLY_LIVE_EDGE_PART;
 
-  return request.partNumber !== undefined && request.partNumber > liveEdgePart
-    ? "block"
-    : "ready";
+  return request.partNumber !== undefined && request.partNumber > liveEdgePart;
 }
 
 function isInvalidHlsBlockingReloadResolution(
