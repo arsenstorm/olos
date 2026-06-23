@@ -58,10 +58,23 @@ function assertCursorCommittedWindow(
   cursorWindow: CursorWindow,
   committedWindow: CommittedWindow
 ): void {
+  assertCursorEpochMatchesCommittedWindow(cursor, committedWindow);
+  assertCursorWindowMatchesCommittedWindow(cursorWindow, committedWindow);
+}
+
+function assertCursorEpochMatchesCommittedWindow(
+  cursor: Record<string, unknown>,
+  committedWindow: CommittedWindow
+): void {
   if (cursor.epoch !== committedWindow.epoch) {
     throw new Error("cursor.epoch must match committedWindow.epoch");
   }
+}
 
+function assertCursorWindowMatchesCommittedWindow(
+  cursorWindow: CursorWindow,
+  committedWindow: CommittedWindow
+): void {
   if (
     cursorWindow.firstMediaSequenceNumber !==
       committedWindow.firstMediaSequenceNumber ||
