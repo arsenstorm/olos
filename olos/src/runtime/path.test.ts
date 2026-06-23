@@ -64,6 +64,9 @@ describe("runtime path helpers", () => {
     expect(() => assertSafePath("v1/live?x=1", "path")).toThrow(
       "path must not contain query strings or fragments"
     );
+    expect(() => assertSafePath("v1/live#fragment", "path")).toThrow(
+      "path must not contain query strings or fragments"
+    );
   });
 
   test("assertSafePathSegment rejects unsafe values", () => {

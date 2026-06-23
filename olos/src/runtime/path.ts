@@ -17,6 +17,19 @@ export function normalizedSafeRelativePath(
   value: string,
   name: string
 ): string {
+  assertNormalizableRelativePathInput(value, name);
+
+  const path = trimSlashes(value);
+
+  assertNormalizedRelativePathSegments(path, name);
+
+  return path;
+}
+
+function assertNormalizableRelativePathInput(
+  value: string,
+  name: string
+): void {
   if (
     typeof value !== "string" ||
     value.length === 0 ||
@@ -28,17 +41,19 @@ export function normalizedSafeRelativePath(
   ) {
     throw new Error(`${name} must be a safe relative path`);
   }
+}
 
-  const path = trimSlashes(value);
-
-  if (
-    path.length === 0 ||
-    path.split("/").some((segment) => segment === "." || segment === "..")
-  ) {
+function assertNormalizedRelativePathSegments(
+  path: string,
+  name: string
+): void {
+  if (path.length === 0 || hasRelativeTraversalSegment(path)) {
     throw new Error(`${name} must be a safe relative path`);
   }
+}
 
-  return path;
+function hasRelativeTraversalSegment(path: string): boolean {
+  return path.split("/").some((segment) => segment === "." || segment === "..");
 }
 
 export function assertSafePath(value: string, name: string): void {
