@@ -20,6 +20,7 @@ import {
 } from "./coordinator";
 import {
   createCoordinatorStateWithCommittedSegment,
+  createCoordinatorStateWithIssuedSegment,
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "./coordinator-state.test-helper";
@@ -687,6 +688,48 @@ describe("coordinator pipeline", () => {
       message: "duplicate commit conflicts with the existing commit",
     });
     expect(duplicate.state.commits).toHaveLength(1);
+  });
+
+  test("rejects uploads when the commit policy rejects the candidate", () => {
+    const state = createCoordinatorStateWithIssuedSegment();
+
+    const rejected = commitCoordinatorUpload({
+      commitId: "commit_3810",
+      commitPolicy: () => ({
+        error: {
+          error: {
+            code: "olos.invalid_state",
+            details: { slotId: "slot_3810" },
+            message: "policy rejected commit",
+          },
+        },
+        status: "rejected",
+      }),
+      committedAt: "2026-01-01T00:00:02.000Z",
+      independent: true,
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "media/s3810.m4s",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(rejected.status).toBe("rejected");
+    if (rejected.status !== "rejected") {
+      throw new Error("expected commit policy rejection");
+    }
+
+    expect(rejected.error.error).toEqual({
+      code: "olos.invalid_state",
+      details: { slotId: "slot_3810" },
+      message: "policy rejected commit",
+    });
+    expect(rejected.state).toBe(state);
+    expect(rejected.state.commits).toHaveLength(0);
   });
 
   test("commits uploads within configured late tolerance", () => {

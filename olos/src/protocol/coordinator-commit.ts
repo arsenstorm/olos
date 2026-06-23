@@ -74,22 +74,13 @@ export function commitCoordinatorUpload(
     });
   }
 
-  if (slot !== undefined && options.commitPolicy !== undefined) {
-    const policy = options.commitPolicy({
-      commitId: options.commitId,
-      committedAt: options.committedAt,
-      object: options.object,
-      slot,
-      state: options.state,
-    });
+  const rejectedCommitPolicy = rejectCoordinatorCommitPolicy({
+    options,
+    slot,
+  });
 
-    if (isRejectedCoordinatorCommitPolicyDecision(policy)) {
-      return {
-        error: policy.error,
-        state: options.state,
-        status: "rejected",
-      };
-    }
+  if (rejectedCommitPolicy !== undefined) {
+    return rejectedCommitPolicy;
   }
 
   const observedSlot =
@@ -234,6 +225,36 @@ function rejectInvalidObservedUpload(options: {
         state: options.state,
         status: "rejected",
       };
+}
+
+function rejectCoordinatorCommitPolicy({
+  options,
+  slot,
+}: {
+  options: CommitCoordinatorUploadOptions;
+  slot?: UploadSlot;
+}): Extract<CoordinatorUploadCommit, { status: "rejected" }> | undefined {
+  if (slot === undefined || options.commitPolicy === undefined) {
+    return;
+  }
+
+  const policy = options.commitPolicy({
+    commitId: options.commitId,
+    committedAt: options.committedAt,
+    object: options.object,
+    slot,
+    state: options.state,
+  });
+
+  if (!isRejectedCoordinatorCommitPolicyDecision(policy)) {
+    return;
+  }
+
+  return {
+    error: policy.error,
+    state: options.state,
+    status: "rejected",
+  };
 }
 
 function commitIntoState(options: {
