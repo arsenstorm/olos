@@ -24,6 +24,14 @@ describe("runtime object key nonce", () => {
     ).toBe("obj_00000000000000000000000000000000");
   });
 
+  test("accepts exactly the minimum entropy byte count", () => {
+    expect(
+      createRuntimePublisherObjectKeyNonce({
+        bytes: new Uint8Array(RUNTIME_PUBLISHER_OBJECT_KEY_NONCE_MIN_BYTES),
+      })
+    ).toBe("slot_00000000000000000000000000000000");
+  });
+
   test("rejects weak or unsafe nonce inputs", () => {
     expect(() =>
       createRuntimePublisherObjectKeyNonce({

@@ -12,22 +12,39 @@ export interface CreateRuntimePublisherObjectKeyNonceOptions {
 export function createRuntimePublisherObjectKeyNonce(
   options: CreateRuntimePublisherObjectKeyNonceOptions
 ): string {
-  if (!(options.bytes instanceof Uint8Array)) {
+  assertObjectKeyNonceBytes(options.bytes);
+
+  const prefix = resolveObjectKeyNoncePrefix(options.prefix);
+
+  return formatObjectKeyNonce(prefix, options.bytes);
+}
+
+function assertObjectKeyNonceBytes(bytes: Uint8Array): void {
+  if (!(bytes instanceof Uint8Array)) {
     throw new Error(
       `${OBJECT_KEY_NONCE_FIELD_NAME} bytes must be a Uint8Array`
     );
   }
 
-  if (options.bytes.byteLength < RUNTIME_PUBLISHER_OBJECT_KEY_NONCE_MIN_BYTES) {
+  if (bytes.byteLength < RUNTIME_PUBLISHER_OBJECT_KEY_NONCE_MIN_BYTES) {
     throw new Error(
       `${OBJECT_KEY_NONCE_FIELD_NAME} bytes must contain at least ${RUNTIME_PUBLISHER_OBJECT_KEY_NONCE_MIN_BYTES} bytes`
     );
   }
+}
 
-  const prefix = options.prefix ?? DEFAULT_OBJECT_KEY_NONCE_PREFIX;
-  assertUrlSafeIdentifier(prefix, `${OBJECT_KEY_NONCE_FIELD_NAME} prefix`);
+function resolveObjectKeyNoncePrefix(prefix: string | undefined): string {
+  const resolvedPrefix = prefix ?? DEFAULT_OBJECT_KEY_NONCE_PREFIX;
+  assertUrlSafeIdentifier(
+    resolvedPrefix,
+    `${OBJECT_KEY_NONCE_FIELD_NAME} prefix`
+  );
 
-  return `${prefix}_${toHex(options.bytes)}`;
+  return resolvedPrefix;
+}
+
+function formatObjectKeyNonce(prefix: string, bytes: Uint8Array): string {
+  return `${prefix}_${toHex(bytes)}`;
 }
 
 function toHex(bytes: Uint8Array): string {
