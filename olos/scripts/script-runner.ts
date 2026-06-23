@@ -8,6 +8,11 @@ interface RunCommandOptions {
   reject?: boolean;
 }
 
+interface CapturedCommandOutput {
+  stderr: string;
+  stdout: string;
+}
+
 export async function runCommand(
   command: string,
   args: readonly string[],
@@ -36,33 +41,51 @@ export async function runCommandAndCapture(
     env: options.env,
     stdio: ["ignore", "pipe", "pipe"],
   });
-  let stdout = "";
-  let stderr = "";
+  const output = emptyCapturedCommandOutput();
 
   child.stdout.on("data", (chunk: Buffer) => {
-    const text = chunk.toString();
-    stdout += text;
-    if (options.forwardOutput !== false) {
-      process.stdout.write(text);
-    }
+    captureCommandOutputChunk(output, "stdout", chunk, options);
   });
   child.stderr.on("data", (chunk: Buffer) => {
-    const text = chunk.toString();
-    stderr += text;
-    if (options.forwardOutput !== false) {
-      process.stderr.write(text);
-    }
+    captureCommandOutputChunk(output, "stderr", chunk, options);
   });
 
   const exitCode = await waitForExit(child);
 
   if (options.reject !== false && exitCode !== 0) {
     throw new Error(
-      commandExitMessage(command, args, exitCode, stdout, stderr)
+      commandExitMessage(command, args, exitCode, output.stdout, output.stderr)
     );
   }
 
-  return `${stdout}\n${stderr}`;
+  return `${output.stdout}\n${output.stderr}`;
+}
+
+function emptyCapturedCommandOutput(): CapturedCommandOutput {
+  return {
+    stderr: "",
+    stdout: "",
+  };
+}
+
+function captureCommandOutputChunk(
+  output: CapturedCommandOutput,
+  streamName: keyof CapturedCommandOutput,
+  chunk: Buffer,
+  options: RunCommandOptions
+): void {
+  const text = chunk.toString();
+  output[streamName] += text;
+
+  if (options.forwardOutput !== false) {
+    forwardedOutputStream(streamName).write(text);
+  }
+}
+
+function forwardedOutputStream(
+  streamName: keyof CapturedCommandOutput
+): NodeJS.WriteStream {
+  return streamName === "stdout" ? process.stdout : process.stderr;
 }
 
 function spawnAndWait(

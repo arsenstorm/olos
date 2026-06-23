@@ -33,6 +33,22 @@ test("runCommandAndCapture returns stdout", async () => {
   ).resolves.toContain("captured-output");
 });
 
+test("runCommandAndCapture can return captured output from failing commands", async () => {
+  await expect(
+    runCommandAndCapture(
+      process.execPath,
+      [
+        "--eval",
+        'process.stdout.write("captured-stdout"); process.stderr.write("captured-stderr"); process.exit(7);',
+      ],
+      {
+        forwardOutput: false,
+        reject: false,
+      }
+    )
+  ).resolves.toContain("captured-stderr");
+});
+
 test("runCommandAndCapture includes captured output in failure message", async () => {
   await expect(
     runCommandAndCapture(
