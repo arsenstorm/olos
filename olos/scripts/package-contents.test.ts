@@ -59,6 +59,17 @@ describe("package contents verifier", () => {
     });
   });
 
+  test("rejects nested test files inside published roots", async () => {
+    await withPackageRoot(async (root) => {
+      await mkdir(join(root, "dist", "internal"), { recursive: true });
+      await writeFile(join(root, "dist", "internal", "route.test.js"), "");
+
+      await expect(assertInstalledPackageContents(root)).rejects.toThrow(
+        "package contains private file: dist/internal/route.test.js"
+      );
+    });
+  });
+
   test("rejects test declarations inside published roots", async () => {
     await withPackageRoot(async (root) => {
       await writeFile(join(root, "dist", "index.test.d.ts"), "");

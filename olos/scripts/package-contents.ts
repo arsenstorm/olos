@@ -25,19 +25,32 @@ const forbiddenPackagePaths = [
 export async function assertInstalledPackageContents(
   packageRoot: string
 ): Promise<void> {
-  const rootEntries = (await readdir(packageRoot, { withFileTypes: true }))
+  assertList(
+    "package root entries",
+    await packageRootEntryNames(packageRoot),
+    packagePublicRootEntries
+  );
+  await assertNoForbiddenPackagePaths(packageRoot);
+}
+
+async function packageRootEntryNames(packageRoot: string): Promise<string[]> {
+  return (await readdir(packageRoot, { withFileTypes: true }))
     .map((entry) => entry.name)
     .sort();
+}
 
-  assertList("package root entries", rootEntries, packagePublicRootEntries);
-
+async function assertNoForbiddenPackagePaths(
+  packageRoot: string
+): Promise<void> {
   for (const entry of await listDirectoryEntries(packageRoot)) {
-    if (
-      forbiddenPackagePaths.some((pattern) => pattern.test(entry.relativePath))
-    ) {
+    if (isForbiddenPackagePath(entry.relativePath)) {
       throw new Error(`package contains private file: ${entry.relativePath}`);
     }
   }
+}
+
+function isForbiddenPackagePath(relativePath: string): boolean {
+  return forbiddenPackagePaths.some((pattern) => pattern.test(relativePath));
 }
 
 function assertList(
