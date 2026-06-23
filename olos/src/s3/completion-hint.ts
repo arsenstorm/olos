@@ -52,13 +52,7 @@ function completionHintCommitId(slotId: string): string {
   return `${DEFAULT_COMPLETION_HINT_COMMIT_ID_PREFIX}${slotId}`;
 }
 
-function completionHintTimestamp(
-  now: (() => Date | string) | undefined
-): string {
-  if (now === undefined) {
-    return new Date().toISOString();
-  }
-
+function completionHintTimestamp(now: () => Date | string): string {
   const next = now();
 
   return next instanceof Date ? next.toISOString() : next;
