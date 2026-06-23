@@ -337,21 +337,33 @@ async function runPublisherHeartbeat(
     }
 
     return {
+      step: failedRuntimePublisherHeartbeatResultStep(result),
       status: "failed",
-      step: {
-        heartbeat: result,
-        status: "heartbeat_failed",
-      },
     };
   } catch (error) {
     return {
+      step: failedRuntimePublisherHeartbeatErrorStep(error),
       status: "failed",
-      step: {
-        error: errorMessage(error, "publisher upload failed"),
-        status: "heartbeat_failed",
-      },
     };
   }
+}
+
+function failedRuntimePublisherHeartbeatResultStep(
+  heartbeat: RuntimePublisherHeartbeatResult
+): FailedRuntimePublisherHeartbeatStep {
+  return {
+    heartbeat,
+    status: "heartbeat_failed",
+  };
+}
+
+function failedRuntimePublisherHeartbeatErrorStep(
+  error: unknown
+): FailedRuntimePublisherHeartbeatStep {
+  return {
+    error: errorMessage(error, "publisher upload failed"),
+    status: "heartbeat_failed",
+  };
 }
 
 function heartbeatResult(
