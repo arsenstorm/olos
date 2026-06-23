@@ -67,6 +67,22 @@ describe("parseRuntimeJsonRequest", () => {
       status: "invalid",
     });
   });
+
+  test("returns fallback invalid results for empty request bodies", async () => {
+    await expect(
+      parseRuntimeJsonRequest(
+        new Request("https://edge.example.com", {
+          method: "POST",
+        }),
+        parseObject,
+        invalidParse,
+        "invalid request"
+      )
+    ).resolves.toEqual({
+      message: "Unexpected end of JSON input",
+      status: "invalid",
+    });
+  });
 });
 
 function parseObject(value: unknown): Record<string, unknown> {
