@@ -208,6 +208,11 @@ describe("HLS blocking reload", () => {
         "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=-1"
       )
     ).toThrow("_HLS_msn must be a non-negative integer");
+    expect(() =>
+      parseHlsBlockingReloadRequest(
+        "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3812&_HLS_part=-1"
+      )
+    ).toThrow("_HLS_part must be a non-negative integer");
   });
 
   test("waits for a cursor that satisfies a blocking request", async () => {

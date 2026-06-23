@@ -240,10 +240,27 @@ function parseOptionalInteger(
     return {};
   }
 
+  return parsedBlockingReloadRequestField(
+    name,
+    parseBlockingReloadInteger(value, name)
+  );
+}
+
+function parseBlockingReloadInteger(
+  value: string,
+  name: typeof HLS_MSN | typeof HLS_PART
+): number {
   const number = Number(value);
 
   assertNonNegativeInteger(number, name);
 
+  return number;
+}
+
+function parsedBlockingReloadRequestField(
+  name: typeof HLS_MSN | typeof HLS_PART,
+  number: number
+): Partial<HlsBlockingReloadRequest> {
   return name === HLS_MSN
     ? { mediaSequenceNumber: number }
     : { partNumber: number };
