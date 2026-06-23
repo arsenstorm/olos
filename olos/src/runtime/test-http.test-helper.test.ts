@@ -28,6 +28,7 @@ describe("test HTTP helpers", () => {
     });
 
     expect(rawRequest.method).toBe("POST");
+    expect(rawRequest.headers.get("content-type")).toBeNull();
     expect(await rawRequest.text()).toBe("{");
     expect(jsonRequest.method).toBe("POST");
     expect(await jsonRequest.json()).toEqual({ ok: true });

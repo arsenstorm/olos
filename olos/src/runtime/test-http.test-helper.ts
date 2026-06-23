@@ -1,8 +1,11 @@
+const JSON_CONTENT_TYPE = "application/json";
+const POST_METHOD = "POST";
+
 export function jsonPostRequest(url: string, body: unknown): Request {
   return new Request(url, {
-    body: JSON.stringify(body),
-    headers: { "content-type": "application/json" },
-    method: "POST",
+    body: jsonBody(body),
+    headers: { "content-type": JSON_CONTENT_TYPE },
+    method: POST_METHOD,
   });
 }
 
@@ -11,8 +14,8 @@ export function rawOrJsonPostRequest(
   body: string | unknown
 ): Request {
   return new Request(url, {
-    body: typeof body === "string" ? body : JSON.stringify(body),
-    method: "POST",
+    body: requestBody(body),
+    method: POST_METHOD,
   });
 }
 
@@ -20,10 +23,18 @@ export function jsonErrorTestResponse(
   message: string,
   status: number
 ): Response {
-  return new Response(JSON.stringify({ error: { message } }), {
-    headers: { "content-type": "application/json" },
+  return new Response(jsonBody({ error: { message } }), {
+    headers: { "content-type": JSON_CONTENT_TYPE },
     status,
   });
+}
+
+function requestBody(body: string | unknown): string {
+  return typeof body === "string" ? body : jsonBody(body);
+}
+
+function jsonBody(body: unknown): string {
+  return JSON.stringify(body);
 }
 
 export async function jsonResponseBody<T>(response: Response): Promise<T> {
