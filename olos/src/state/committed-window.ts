@@ -36,19 +36,13 @@ export function createCommittedWindow(
   }
 
   const renditions = createRenditions(initCommits, mediaCommits, options);
-  const sequences = Object.values(renditions).flatMap((rendition) =>
-    rendition.segments.map((segment) => segment.mediaSequenceNumber)
-  );
-
-  if (sequences.length === 0) {
-    throw new Error("commits must produce at least one segment");
-  }
+  const mediaSequenceRange = committedWindowMediaSequenceRange(renditions);
 
   const window: CommittedWindow = {
     discontinuitySequence: options.discontinuitySequence ?? 0,
     epoch: options.epoch,
-    firstMediaSequenceNumber: Math.min(...sequences),
-    lastMediaSequenceNumber: Math.max(...sequences),
+    firstMediaSequenceNumber: mediaSequenceRange.firstMediaSequenceNumber,
+    lastMediaSequenceNumber: mediaSequenceRange.lastMediaSequenceNumber,
     renditions,
   };
 
@@ -100,6 +94,26 @@ function createRenditions(
   }
 
   return renditions;
+}
+
+function committedWindowMediaSequenceRange(
+  renditions: Record<string, RenditionWindow>
+): Pick<
+  CommittedWindow,
+  "firstMediaSequenceNumber" | "lastMediaSequenceNumber"
+> {
+  const mediaSequenceNumbers = Object.values(renditions).flatMap((rendition) =>
+    rendition.segments.map((segment) => segment.mediaSequenceNumber)
+  );
+
+  if (mediaSequenceNumbers.length === 0) {
+    throw new Error("commits must produce at least one segment");
+  }
+
+  return {
+    firstMediaSequenceNumber: Math.min(...mediaSequenceNumbers),
+    lastMediaSequenceNumber: Math.max(...mediaSequenceNumbers),
+  };
 }
 
 function createInitCommitsByRendition(

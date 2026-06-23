@@ -177,6 +177,35 @@ describe("committed window builder", () => {
     ]);
   });
 
+  test("derives media sequence range from part-only segments", () => {
+    const window = createCommittedWindow({
+      commits: [partCommit(0)],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    expect(window.firstMediaSequenceNumber).toBe(3811);
+    expect(window.lastMediaSequenceNumber).toBe(3811);
+    expect(window.renditions.v1080?.segments).toEqual([
+      {
+        duration: 0.5,
+        mediaSequenceNumber: 3811,
+        parts: [
+          {
+            commitId: "commit_3811_0",
+            deliveryUrl: "/media/v1080/3811.0.m4s",
+            duration: 0.5,
+            independent: true,
+            objectKey: "media/v1080/3811.0.m4s",
+            partNumber: 0,
+            slotId: "slot_3811_0",
+          },
+        ],
+      },
+    ]);
+  });
+
   test("rejects empty init commits", () => {
     expect(() =>
       createCommittedWindow({
