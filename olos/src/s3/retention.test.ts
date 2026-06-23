@@ -4,6 +4,22 @@ import { deleteRetiredS3CoordinatorObjects } from "./retention";
 import { createTestS3DeleteObjectClient } from "./test-delete-client.test-helper";
 
 describe("S3 retention", () => {
+  test("does not send delete commands when there are no retired objects", async () => {
+    const inputs: unknown[] = [];
+
+    const result = await deleteRetiredS3CoordinatorObjects({
+      bucket: "media",
+      client: createTestS3DeleteObjectClient(inputs),
+      objects: [],
+    });
+
+    expect(inputs).toEqual([]);
+    expect(result).toEqual({
+      deletedObjects: [],
+      failedObjects: [],
+    });
+  });
+
   test("deletes retired coordinator objects from S3", async () => {
     const inputs: unknown[] = [];
 

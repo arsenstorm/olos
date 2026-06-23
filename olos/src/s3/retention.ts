@@ -26,16 +26,21 @@ export async function deleteRetiredS3CoordinatorObjects(
   assertS3BucketName(options.bucket);
 
   return await deleteRetiredCoordinatorObjects({
-    deleteObject: async (object) => {
-      assertSafeObjectKey(object.objectKey, "objectKey");
-
-      await options.client.send(
-        new DeleteObjectCommand({
-          Bucket: options.bucket,
-          Key: object.objectKey,
-        })
-      );
-    },
+    deleteObject: (object) => deleteRetiredS3Object(options, object),
     objects: options.objects,
   });
+}
+
+async function deleteRetiredS3Object(
+  options: Pick<DeleteRetiredS3CoordinatorObjectsOptions, "bucket" | "client">,
+  object: RetiredCoordinatorObjectDeletion
+): Promise<void> {
+  assertSafeObjectKey(object.objectKey, "objectKey");
+
+  await options.client.send(
+    new DeleteObjectCommand({
+      Bucket: options.bucket,
+      Key: object.objectKey,
+    })
+  );
 }
