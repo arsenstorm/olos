@@ -503,19 +503,32 @@ function isObservedUploadSlot(slot: UploadSlot): slot is ObservedUploadSlot {
 }
 
 function isLateSlot(slot: UploadSlot, cursor: Cursor): boolean {
-  if (slot.mediaSequenceNumber < cursor.window.lastMediaSequenceNumber) {
+  if (isBeforeCursorMediaSequence(slot, cursor)) {
     return true;
   }
+
+  return isLateCursorPartPosition(slot, cursor);
+}
+
+function isBeforeCursorMediaSequence(
+  slot: UploadSlot,
+  cursor: Cursor
+): boolean {
+  return slot.mediaSequenceNumber < cursor.window.lastMediaSequenceNumber;
+}
+
+function isLateCursorPartPosition(slot: UploadSlot, cursor: Cursor): boolean {
+  const lastPartNumber = cursor.window.lastPartNumber;
 
   if (
     slot.mediaSequenceNumber !== cursor.window.lastMediaSequenceNumber ||
     slot.partNumber === undefined ||
-    cursor.window.lastPartNumber === undefined
+    lastPartNumber === undefined
   ) {
     return false;
   }
 
-  return slot.partNumber <= cursor.window.lastPartNumber;
+  return slot.partNumber <= lastPartNumber;
 }
 
 function commitsAreIdempotent(first: Commit, second: Commit): boolean {

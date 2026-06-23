@@ -590,6 +590,31 @@ describe("commit attempt resolution", () => {
     ).toBe("late_object");
   });
 
+  test("allows full segments at the current cursor media sequence", () => {
+    const currentSegmentSlot = {
+      ...slot,
+      deliveryUrl: "/objects/tenant/session/v1080/3811.m4s",
+      mediaSequenceNumber: 3811,
+      objectKey: "tenant/session/v1080/3811.m4s",
+      slotId: "slot_3811",
+    };
+
+    expect(
+      resolveCommitAttempt({
+        commitId: "commit_3811",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        cursor,
+        mediaObject: {
+          ...mediaObject,
+          objectKey: "tenant/session/v1080/3811.m4s",
+        },
+        objectVerified: true,
+        slot: currentSegmentSlot,
+        slotId: "slot_3811",
+      }).status
+    ).toBe("committed");
+  });
+
   test("rejects parts already published by the current cursor", () => {
     const partSlot = {
       ...slot,
