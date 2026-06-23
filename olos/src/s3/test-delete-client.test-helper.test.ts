@@ -41,4 +41,24 @@ describe("createTestS3DeleteObjectClient", () => {
       },
     ]);
   });
+
+  test("succeeds when the configured failing key does not match", async () => {
+    const inputs: unknown[] = [];
+    const client = createTestS3DeleteObjectClient(inputs, "media/fail.m4s");
+
+    await expect(
+      client.send(
+        new DeleteObjectCommand({
+          Bucket: "media",
+          Key: "media/ok.m4s",
+        })
+      )
+    ).resolves.toEqual({ $metadata: {} });
+    expect(inputs).toEqual([
+      {
+        Bucket: "media",
+        Key: "media/ok.m4s",
+      },
+    ]);
+  });
 });

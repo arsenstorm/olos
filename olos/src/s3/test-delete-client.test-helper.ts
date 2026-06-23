@@ -10,13 +10,27 @@ export function createTestS3DeleteObjectClient(
 ): S3DeleteObjectClient {
   return {
     send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput> {
-      inputs.push(command.input);
+      recordDeleteObjectInput(inputs, command);
 
-      if (command.input.Key === failingKey) {
+      if (isFailingDeleteKey(command, failingKey)) {
         throw new Error("delete failed");
       }
 
       return Promise.resolve({ $metadata: {} });
     },
   };
+}
+
+function recordDeleteObjectInput(
+  inputs: unknown[],
+  command: DeleteObjectCommand
+): void {
+  inputs.push(command.input);
+}
+
+function isFailingDeleteKey(
+  command: DeleteObjectCommand,
+  failingKey: string | undefined
+): boolean {
+  return command.input.Key === failingKey;
 }
