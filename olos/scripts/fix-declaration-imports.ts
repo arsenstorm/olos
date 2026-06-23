@@ -1,3 +1,4 @@
+import type { Dirent } from "node:fs";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { isCliEntry } from "./script-entry";
@@ -13,20 +14,33 @@ if (isCliEntry(import.meta.url)) {
 export async function fixDeclarationImports(
   directory = distRoot
 ): Promise<void> {
-  const entries = await readdir(directory, { withFileTypes: true });
-
-  for (const entry of entries) {
-    const path = join(directory, entry.name);
-
-    if (entry.isDirectory()) {
-      await fixDeclarationImports(path);
-      continue;
-    }
-
-    if (entry.isFile() && entry.name.endsWith(".d.ts")) {
-      await fixDeclaration(path);
-    }
+  for (const entry of await declarationDirectoryEntries(directory)) {
+    await fixDeclarationEntry(directory, entry);
   }
+}
+
+function declarationDirectoryEntries(directory: string): Promise<Dirent[]> {
+  return readdir(directory, { withFileTypes: true });
+}
+
+async function fixDeclarationEntry(
+  directory: string,
+  entry: Dirent
+): Promise<void> {
+  const path = join(directory, entry.name);
+
+  if (entry.isDirectory()) {
+    await fixDeclarationImports(path);
+    return;
+  }
+
+  if (isDeclarationFile(entry)) {
+    await fixDeclaration(path);
+  }
+}
+
+function isDeclarationFile(entry: Dirent): boolean {
+  return entry.isFile() && entry.name.endsWith(".d.ts");
 }
 
 async function fixDeclaration(path: string): Promise<void> {
