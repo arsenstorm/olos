@@ -131,7 +131,13 @@ function assertCommittedSegment(
   assertNonNegativeIntegerField(value, "mediaSequenceNumber", name);
   assertPositiveNumberField(value, "duration", name);
   assertOptionalSegmentFields(value, name);
+  assertCommittedSegmentPayload(value, name);
+}
 
+function assertCommittedSegmentPayload(
+  value: Record<string, unknown>,
+  name: string
+): void {
   if (value.segment !== undefined) {
     assertCommittedObject(value.segment, `${name}.segment`);
   }

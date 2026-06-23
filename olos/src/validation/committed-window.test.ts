@@ -362,6 +362,28 @@ describe("committed window validation", () => {
     );
   });
 
+  test("accepts segments that include a full segment and parts", () => {
+    const firstSegment = validSegment(0);
+    const firstPart = validPart(0);
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [
+              {
+                ...firstSegment,
+                parts: [firstPart],
+              },
+            ],
+          },
+        },
+      })
+    ).not.toThrow();
+  });
+
   test("rejects non-monotonic part numbers", () => {
     const liveSegment = validSegment(2);
 
