@@ -77,6 +77,15 @@ describe("S3 HTTP route matching", () => {
     });
   });
 
+  test("reports malformed route percent encoding", () => {
+    expect(
+      s3Route(routeRequest("/sessions/session_1/s3/slots%"), routeOptions)
+    ).toEqual({
+      message: "route path contains invalid percent encoding",
+      status: "invalid",
+    });
+  });
+
   test("ignores non-S3 routes", () => {
     expect(s3Route(routeRequest("/health"), routeOptions)).toEqual({
       status: "not_s3",

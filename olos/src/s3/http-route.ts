@@ -52,6 +52,8 @@ interface S3SessionRouteParts {
   sessionId: string;
 }
 
+type MatchedS3RouteParts = Extract<S3Route, { status: "matched" }>;
+
 export function s3Route(request: Request, options: S3RouteOptions): S3Route {
   const url = new URL(request.url);
   const parts = s3RouteParts(url.pathname, options);
@@ -64,6 +66,24 @@ export function s3Route(request: Request, options: S3RouteOptions): S3Route {
     return invalidS3Route("route path contains invalid percent encoding");
   }
 
+  const matched = matchedS3RouteParts(parts);
+
+  if (matched === undefined) {
+    return { status: "not_s3" };
+  }
+
+  const routeError = invalidPostS3Route(request, matched);
+
+  if (routeError !== undefined) {
+    return routeError;
+  }
+
+  return matched;
+}
+
+function matchedS3RouteParts(
+  parts: readonly string[]
+): MatchedS3RouteParts | undefined {
   const [sessionId, provider, action, completion] = parts;
   const completionHintParts = s3CompletionHintRouteParts(
     parts,
@@ -74,12 +94,6 @@ export function s3Route(request: Request, options: S3RouteOptions): S3Route {
   );
 
   if (completionHintParts !== undefined) {
-    const routeError = invalidPostS3Route(request, completionHintParts);
-
-    if (routeError !== undefined) {
-      return routeError;
-    }
-
     return {
       action: "completion-hint",
       sessionId: completionHintParts.sessionId,
@@ -91,13 +105,7 @@ export function s3Route(request: Request, options: S3RouteOptions): S3Route {
   const sessionParts = s3SessionRouteParts(parts, sessionId, provider, action);
 
   if (sessionParts === undefined) {
-    return { status: "not_s3" };
-  }
-
-  const routeError = invalidPostS3Route(request, sessionParts);
-
-  if (routeError !== undefined) {
-    return routeError;
+    return;
   }
 
   return {
