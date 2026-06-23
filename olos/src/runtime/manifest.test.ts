@@ -78,6 +78,28 @@ describe("runtime manifest adapter", () => {
     expect(await response.text()).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
   });
 
+  test("applies response cache options to blocking manifests", async () => {
+    const response = await serveBlockingCoordinatorManifest({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: testCoordinatorSession.partTarget,
+      request: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810",
+      response: {
+        maxAgeSeconds: 0,
+        targetLatencySeconds: 3,
+      },
+      segmentTarget: testCoordinatorSession.segmentTarget,
+      state: createCoordinatorStateWithCommittedSegment(),
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe(
+      "public, max-age=0, must-revalidate"
+    );
+  });
+
   test("returns not found for blocking reloads before the coordinator has a cursor", async () => {
     const response = await serveBlockingCoordinatorManifest({
       allowedMediaOrigins: [MEDIA_ORIGIN],

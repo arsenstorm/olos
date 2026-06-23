@@ -40,24 +40,35 @@ export function serveCoordinatorManifest(
 export async function serveBlockingCoordinatorManifest(
   options: ServeBlockingCoordinatorManifestOptions
 ): Promise<Response> {
-  const { request, response, state, timeoutMs, waitForCursor, ...manifest } =
-    options;
-
-  if (state.cursor === undefined) {
+  if (options.state.cursor === undefined) {
     return manifestNotFoundResponse();
   }
 
-  const resolved = await resolveBlockingHlsManifestArtifactResponse({
-    cursor: state.cursor,
+  const resolved = await resolveBlockingHlsManifestArtifactResponse(
+    blockingCoordinatorManifestResolutionOptions(options, options.state.cursor)
+  );
+
+  return blockingManifestResponse(resolved);
+}
+
+function blockingCoordinatorManifestResolutionOptions(
+  options: ServeBlockingCoordinatorManifestOptions,
+  cursor: NonNullable<
+    ServeBlockingCoordinatorManifestOptions["state"]["cursor"]
+  >
+): Parameters<typeof resolveBlockingHlsManifestArtifactResponse>[0] {
+  const { request, response, state, timeoutMs, waitForCursor, ...manifest } =
+    options;
+
+  return {
+    cursor,
     manifest,
     requestUrl: requestUrl(request),
     response,
     session: state.session,
     timeoutMs,
     waitForCursor,
-  });
-
-  return blockingManifestResponse(resolved);
+  };
 }
 
 function resolveCoordinatorManifestResponse(
