@@ -10,8 +10,12 @@ type SuccessfulCoordinatorUploadCommit = Extract<
   { status: "committed" | "idempotent" }
 >;
 
+const HTTP_BAD_REQUEST = 400;
+const HTTP_CREATED = 201;
+const HTTP_OK = 200;
+
 export function invalidRuntimeCommandResponse(message: string): Response {
-  return jsonErrorResponse(message, 400);
+  return jsonErrorResponse(message, HTTP_BAD_REQUEST);
 }
 
 export function rejectedRuntimeCommandResponse(error: OlosError): Response {
@@ -19,19 +23,31 @@ export function rejectedRuntimeCommandResponse(error: OlosError): Response {
 }
 
 export function issuedSlotRuntimeCommandResponse(slot: UploadSlot): Response {
-  return jsonResponse({ slot }, 201);
+  return jsonResponse({ slot }, HTTP_CREATED);
 }
 
 export function committedUploadRuntimeCommandResponse(
   committed: SuccessfulCoordinatorUploadCommit
 ): Response {
   return jsonResponse(
-    {
-      commit: committed.commit,
-      ...(committed.cursor === undefined ? {} : { cursor: committed.cursor }),
-    },
-    committed.status === "committed" ? 201 : 200
+    committedUploadRuntimeCommandBody(committed),
+    committedUploadRuntimeCommandStatus(committed)
   );
+}
+
+function committedUploadRuntimeCommandBody(
+  committed: SuccessfulCoordinatorUploadCommit
+) {
+  return {
+    commit: committed.commit,
+    ...(committed.cursor === undefined ? {} : { cursor: committed.cursor }),
+  };
+}
+
+function committedUploadRuntimeCommandStatus(
+  committed: SuccessfulCoordinatorUploadCommit
+): number {
+  return committed.status === "committed" ? HTTP_CREATED : HTTP_OK;
 }
 
 export function rejectedRuntimeCommandResult<
