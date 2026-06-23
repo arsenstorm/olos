@@ -110,6 +110,37 @@ describe("provider upload grant policy", () => {
     ).not.toThrow();
   });
 
+  test("allows missing grant safeguards when requirements are disabled", () => {
+    expect(() =>
+      assertProviderCanIssueUploadGrant({
+        capability: {
+          ...capability,
+          publication: {
+            ...capability.publication,
+            createIfAbsent: false,
+          },
+          uploadGrants: {
+            ...capability.uploadGrants,
+            contentTypeBound: false,
+            exactKey: false,
+            methodBound: false,
+            objectSizeCanBeObserved: false,
+            presignedPut: false,
+            requiredHeadersCanBeSigned: false,
+          },
+        },
+        requireContentTypeBound: false,
+        requireCreateIfAbsent: false,
+        requireExactKey: false,
+        requireMethodBound: false,
+        requireObjectSizeObservation: false,
+        requirePresignedPut: false,
+        requireSignedRequiredHeaders: false,
+        slot,
+      })
+    ).not.toThrow();
+  });
+
   test("rejects providers without exact-key grants", () => {
     expect(() =>
       assertProviderCanIssueUploadGrant({

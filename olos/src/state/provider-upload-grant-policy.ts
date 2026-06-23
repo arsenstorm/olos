@@ -21,6 +21,66 @@ type PrivatePromotionUploadSlot = UploadSlot & {
   publicationMode: "private-upload-public-promotion";
 };
 type ReadGatedUploadSlot = UploadSlot & { publicationMode: "read-gated" };
+type UploadGrantCapabilityOption =
+  | "requireContentTypeBound"
+  | "requireCreateIfAbsent"
+  | "requireExactKey"
+  | "requireMethodBound"
+  | "requireObjectSizeObservation"
+  | "requirePresignedPut"
+  | "requireSignedRequiredHeaders";
+
+interface UploadGrantCapabilityRequirement {
+  isSupported: (options: ProviderUploadGrantPolicyOptions) => boolean;
+  message: string;
+  option: UploadGrantCapabilityOption;
+}
+
+const UPLOAD_GRANT_CAPABILITY_REQUIREMENTS = [
+  {
+    isSupported: (options) =>
+      options.capability.uploadGrants.presignedPut === true,
+    message: "providerCapability.uploadGrants.presignedPut must be true",
+    option: "requirePresignedPut",
+  },
+  {
+    isSupported: (options) => options.capability.uploadGrants.exactKey === true,
+    message: "providerCapability.uploadGrants.exactKey must be true",
+    option: "requireExactKey",
+  },
+  {
+    isSupported: (options) =>
+      options.capability.uploadGrants.methodBound === true,
+    message: "providerCapability.uploadGrants.methodBound must be true",
+    option: "requireMethodBound",
+  },
+  {
+    isSupported: (options) =>
+      options.capability.uploadGrants.contentTypeBound === true,
+    message: "providerCapability.uploadGrants.contentTypeBound must be true",
+    option: "requireContentTypeBound",
+  },
+  {
+    isSupported: (options) =>
+      options.capability.uploadGrants.requiredHeadersCanBeSigned === true,
+    message:
+      "providerCapability.uploadGrants.requiredHeadersCanBeSigned must be true",
+    option: "requireSignedRequiredHeaders",
+  },
+  {
+    isSupported: (options) =>
+      options.capability.uploadGrants.objectSizeCanBeObserved === true,
+    message:
+      "providerCapability.uploadGrants.objectSizeCanBeObserved must be true",
+    option: "requireObjectSizeObservation",
+  },
+  {
+    isSupported: (options) =>
+      options.capability.publication.createIfAbsent === true,
+    message: "providerCapability.publication.createIfAbsent must be true",
+    option: "requireCreateIfAbsent",
+  },
+] satisfies readonly UploadGrantCapabilityRequirement[];
 
 export function canProviderIssueUploadGrant(
   options: ProviderUploadGrantPolicyOptions
@@ -113,59 +173,20 @@ function assertUploadGrantCapabilities(
 function assertRequiredUploadGrantCapabilities(
   options: ProviderUploadGrantPolicyOptions
 ): void {
-  const { uploadGrants } = options.capability;
-
-  if (requires(options.requirePresignedPut) && !uploadGrants.presignedPut) {
-    throw new Error(
-      "providerCapability.uploadGrants.presignedPut must be true"
-    );
+  for (const requirement of UPLOAD_GRANT_CAPABILITY_REQUIREMENTS) {
+    assertUploadGrantCapabilityRequirement(options, requirement);
   }
+}
 
-  if (requires(options.requireExactKey) && uploadGrants.exactKey !== true) {
-    throw new Error("providerCapability.uploadGrants.exactKey must be true");
-  }
-
+function assertUploadGrantCapabilityRequirement(
+  options: ProviderUploadGrantPolicyOptions,
+  requirement: UploadGrantCapabilityRequirement
+): void {
   if (
-    requires(options.requireMethodBound) &&
-    uploadGrants.methodBound !== true
+    requires(options[requirement.option]) &&
+    !requirement.isSupported(options)
   ) {
-    throw new Error("providerCapability.uploadGrants.methodBound must be true");
-  }
-
-  if (
-    requires(options.requireContentTypeBound) &&
-    uploadGrants.contentTypeBound !== true
-  ) {
-    throw new Error(
-      "providerCapability.uploadGrants.contentTypeBound must be true"
-    );
-  }
-
-  if (
-    requires(options.requireSignedRequiredHeaders) &&
-    uploadGrants.requiredHeadersCanBeSigned !== true
-  ) {
-    throw new Error(
-      "providerCapability.uploadGrants.requiredHeadersCanBeSigned must be true"
-    );
-  }
-
-  if (
-    requires(options.requireObjectSizeObservation) &&
-    uploadGrants.objectSizeCanBeObserved !== true
-  ) {
-    throw new Error(
-      "providerCapability.uploadGrants.objectSizeCanBeObserved must be true"
-    );
-  }
-
-  if (
-    requires(options.requireCreateIfAbsent) &&
-    !options.capability.publication.createIfAbsent
-  ) {
-    throw new Error(
-      "providerCapability.publication.createIfAbsent must be true"
-    );
+    throw new Error(requirement.message);
   }
 }
 
