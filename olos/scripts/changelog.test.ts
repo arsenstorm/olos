@@ -53,6 +53,10 @@ describe("release changelog helpers", () => {
     );
   });
 
+  test("stops release notes at the next version section", () => {
+    expect(releaseNotes(changelog, "0.0.1")).toBe("- Initial package.\n");
+  });
+
   for (const headingCase of acceptedHeadingCases) {
     test(`extracts release notes from ${headingCase.label}`, () => {
       const source = `# Changelog

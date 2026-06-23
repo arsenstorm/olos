@@ -39,13 +39,9 @@ function releaseNoteSectionLines(
   lines: readonly string[],
   headingIndex: number
 ): string {
-  const nextHeadingIndex = findNextSectionHeadingIndex(lines, headingIndex);
-  return lines
-    .slice(
-      headingIndex + 1,
-      nextHeadingIndex === -1 ? undefined : nextHeadingIndex
-    )
-    .join("\n");
+  const range = releaseNoteSectionRange(lines, headingIndex);
+
+  return lines.slice(range.start, range.end).join("\n");
 }
 
 function assertReleaseNoteSectionIsNotEmpty(
@@ -75,6 +71,18 @@ function findNextSectionHeadingIndex(
   return lines.findIndex(
     (line, index) => index > headingIndex && line.startsWith("## ")
   );
+}
+
+function releaseNoteSectionRange(
+  lines: readonly string[],
+  headingIndex: number
+): { end?: number; start: number } {
+  const nextHeadingIndex = findNextSectionHeadingIndex(lines, headingIndex);
+
+  return {
+    end: nextHeadingIndex === -1 ? undefined : nextHeadingIndex,
+    start: headingIndex + 1,
+  };
 }
 
 function isVersionHeading(line: string, releaseVersion: string): boolean {
