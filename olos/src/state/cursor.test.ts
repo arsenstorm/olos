@@ -257,6 +257,43 @@ describe("cursor update resolution", () => {
     });
   });
 
+  test("accepts same-position candidates with changed rendition IDs", () => {
+    const candidateCursor = createCursor({
+      ...options,
+      committedWindow: {
+        ...committedWindow,
+        renditions: {
+          v720: {
+            ...alternateRendition,
+            segments: [
+              ...alternateRendition.segments,
+              {
+                duration: 1,
+                mediaSequenceNumber: 3811,
+                segment: {
+                  commitId: "commit_v720_3811",
+                  deliveryUrl: "/media/v720/3811.m4s",
+                  objectKey: "tenant/session/v720/3811.m4s",
+                  slotId: "slot_v720_3811",
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(
+      resolveCursorUpdate({
+        candidateCursor,
+        currentCursor,
+      })
+    ).toEqual({
+      cursor: candidateCursor,
+      status: "advanced",
+    });
+  });
+
   test("accepts same-position candidates with changed discontinuity sequence", () => {
     const candidateCursor = createCursor({
       ...options,

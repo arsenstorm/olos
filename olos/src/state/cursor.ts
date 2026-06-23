@@ -176,26 +176,43 @@ function sameRenditionWindows(
   first: Record<string, RenditionWindow>,
   second: Record<string, RenditionWindow>
 ): boolean {
+  if (!sameRenditionIds(first, second)) {
+    return false;
+  }
+
+  return Object.keys(first).every((renditionId) =>
+    sameRenditionWindowForId(first, second, renditionId)
+  );
+}
+
+function sameRenditionIds(
+  first: Record<string, RenditionWindow>,
+  second: Record<string, RenditionWindow>
+): boolean {
   const firstRenditionIds = Object.keys(first);
 
   if (firstRenditionIds.length !== Object.keys(second).length) {
     return false;
   }
 
-  for (const renditionId of firstRenditionIds) {
-    const firstRendition = first[renditionId];
-    const secondRendition = second[renditionId];
+  return firstRenditionIds.every(
+    (renditionId) => second[renditionId] !== undefined
+  );
+}
 
-    if (
-      firstRendition === undefined ||
-      secondRendition === undefined ||
-      !sameRendition(firstRendition, secondRendition)
-    ) {
-      return false;
-    }
-  }
+function sameRenditionWindowForId(
+  first: Record<string, RenditionWindow>,
+  second: Record<string, RenditionWindow>,
+  renditionId: string
+): boolean {
+  const firstRendition = first[renditionId];
+  const secondRendition = second[renditionId];
 
-  return true;
+  return (
+    firstRendition !== undefined &&
+    secondRendition !== undefined &&
+    sameRendition(firstRendition, secondRendition)
+  );
 }
 
 function sameRendition(
