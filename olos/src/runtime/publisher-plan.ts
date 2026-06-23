@@ -104,16 +104,7 @@ function assertPlanOptions(
   assertUrlSafeIdentifier(options.slotIdPrefix ?? "slot", "slotIdPrefix");
   assertUrlSafeIdentifier(options.commitIdPrefix ?? "commit", "commitIdPrefix");
   assertOptionalUrlSafeIdentifier(options.objectKeyNonce, "objectKeyNonce");
-  assertPublicationMode(options.publicationMode);
-
-  if (
-    options.publicationMode === "direct-public" &&
-    options.objectKeyNonce === undefined
-  ) {
-    throw new Error(
-      "objectKeyNonce is required for direct-public object plans"
-    );
-  }
+  assertPublicationNoncePolicy(options);
 
   assertSafePath(options.objectKeyPrefix, "objectKeyPrefix");
   assertSafePathSegment(options.extension, "extension");
@@ -166,6 +157,24 @@ function assertPublicationMode(value: PublicationMode): void {
       `publicationMode must be one of: ${PUBLICATION_MODES.join(", ")}`
     );
   }
+}
+
+function assertPublicationNoncePolicy(
+  options: CreateRuntimePublisherObjectPlanOptions
+): void {
+  assertPublicationMode(options.publicationMode);
+
+  if (requiresObjectKeyNonce(options) && options.objectKeyNonce === undefined) {
+    throw new Error(
+      "objectKeyNonce is required for direct-public object plans"
+    );
+  }
+}
+
+function requiresObjectKeyNonce(
+  options: CreateRuntimePublisherObjectPlanOptions
+): boolean {
+  return options.publicationMode === "direct-public";
 }
 
 function createObjectKey(

@@ -112,6 +112,16 @@ describe("runtime publisher object plan", () => {
     ).toThrow("objectKeyNonce is required for direct-public object plans");
   });
 
+  test("allows read-gated object plans without a nonce", () => {
+    expect(() =>
+      createRuntimePublisherObjectPlan({
+        ...validSegmentPlan(),
+        objectKeyNonce: undefined,
+        publicationMode: "read-gated",
+      })
+    ).not.toThrow();
+  });
+
   test("creates an init slot payload", () => {
     const plan = createRuntimePublisherObjectPlan({
       baseUrl: "https://media.example.com",
