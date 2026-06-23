@@ -156,6 +156,14 @@ function createSegments(
   commits: readonly Commit[],
   maxSegments: number | undefined
 ): CommittedSegment[] {
+  const segments = finalizeCommittedSegments(createSegmentsBySequence(commits));
+
+  return limitCommittedSegments(segments, maxSegments);
+}
+
+function createSegmentsBySequence(
+  commits: readonly Commit[]
+): Map<number, CommittedSegment> {
   const segmentsBySequence = new Map<number, CommittedSegment>();
   const sortedCommits = [...commits].sort(compareCommitPosition);
 
@@ -164,19 +172,30 @@ function createSegments(
     addCommitToSegment(segment, commit);
   }
 
-  const segments = [...segmentsBySequence.values()]
+  return segmentsBySequence;
+}
+
+function finalizeCommittedSegments(
+  segmentsBySequence: Map<number, CommittedSegment>
+): CommittedSegment[] {
+  return [...segmentsBySequence.values()]
     .map(commitContiguousParts)
     .filter(hasCommittedMedia)
     .sort(
       (left, right) => left.mediaSequenceNumber - right.mediaSequenceNumber
     );
+}
 
+function limitCommittedSegments(
+  segments: readonly CommittedSegment[],
+  maxSegments: number | undefined
+): CommittedSegment[] {
   if (maxSegments !== undefined) {
     assertPositiveInteger(maxSegments, "maxSegments");
     return segments.slice(-maxSegments);
   }
 
-  return segments;
+  return [...segments];
 }
 
 function addCommitToSegment(segment: CommittedSegment, commit: Commit): void {

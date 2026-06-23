@@ -141,6 +141,18 @@ describe("committed window builder", () => {
     expect(window.renditions.v1080?.segments).toHaveLength(1);
   });
 
+  test("rejects invalid committed window segment limits", () => {
+    expect(() =>
+      createCommittedWindow({
+        commits: [segmentCommit],
+        epoch: 1,
+        initCommits: [initCommit],
+        maxSegments: 0,
+        sessionId: "session_1",
+      })
+    ).toThrow("maxSegments must be a positive integer");
+  });
+
   test("does not advance the window through a missing part", () => {
     const window = createCommittedWindow({
       commits: [segmentCommit, partCommit(1)],
