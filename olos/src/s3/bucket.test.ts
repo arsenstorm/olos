@@ -16,5 +16,8 @@ describe("S3 bucket validation", () => {
     expect(() => assertS3BucketName("media/bucket")).toThrow(
       "bucket must not contain path separators"
     );
+    expect(() => assertS3BucketName("/media-bucket")).toThrow(
+      "bucket must not contain path separators"
+    );
   });
 });
