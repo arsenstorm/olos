@@ -180,16 +180,20 @@ export function parseAbsoluteHttpUrl(
   name: string,
   options: AbsoluteHttpUrlOptions = {}
 ): URL {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${name} must be an absolute HTTP(S) URL`);
-  }
-
-  const url = parseUrl(value, name);
+  const url = parseUrl(absoluteHttpUrlString(value, name), name);
 
   assertHttpUrlProtocol(url, name);
   assertUrlQueryAndFragmentPolicy(url, name, options);
 
   return url;
+}
+
+function absoluteHttpUrlString(value: unknown, name: string): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`${name} must be an absolute HTTP(S) URL`);
+  }
+
+  return value;
 }
 
 function parseUrl(value: string, name: string): URL {

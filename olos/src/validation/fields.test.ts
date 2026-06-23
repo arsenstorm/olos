@@ -151,6 +151,9 @@ describe("validation field helpers", () => {
     expect(() =>
       assertAbsoluteHttpUrl("https://media.example.com/live", "baseUrl")
     ).not.toThrow();
+    expect(() => assertAbsoluteHttpUrl("", "baseUrl")).toThrow(
+      "baseUrl must be an absolute HTTP(S) URL"
+    );
     expect(() => assertAbsoluteHttpUrl("ftp://example.com", "baseUrl")).toThrow(
       "baseUrl must be an absolute HTTP(S) URL"
     );
