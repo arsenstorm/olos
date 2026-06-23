@@ -149,6 +149,17 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
     ).toContain("PART-HOLD-BACK=2.000,HOLD-BACK=4.000");
   });
 
+  test("rounds target duration up in media playlist headers", () => {
+    expect(
+      renderMediaPlaylist(committedWindow, {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2.1,
+      })
+    ).toContain("#EXT-X-TARGETDURATION:3");
+  });
+
   test("rejects unrealistic part hold-back values", () => {
     expect(() =>
       renderMediaPlaylist(committedWindow, {

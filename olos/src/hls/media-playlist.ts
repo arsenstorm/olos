@@ -35,8 +35,23 @@ export function renderMediaPlaylist(
     throw new Error(`rendition not found: ${options.renditionId}`);
   }
 
+  const lines = renderMediaPlaylistHeaders(committedWindow, options, rendition);
+
+  for (const segment of rendition.segments) {
+    lines.push(...renderSegment(segment, options));
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function renderMediaPlaylistHeaders(
+  committedWindow: CommittedWindow,
+  options: RenderMediaPlaylistOptions,
+  rendition: CommittedWindow["renditions"][string]
+): string[] {
   const { partHoldBack, targetLatency } = resolveHoldBackOptions(options);
-  const lines = [
+
+  return [
     "#EXTM3U",
     "#EXT-X-VERSION:10",
     `#EXT-X-TARGETDURATION:${Math.ceil(options.segmentTarget)}`,
@@ -47,12 +62,6 @@ export function renderMediaPlaylist(
     `#EXT-X-MAP:URI="${renderMediaUri(rendition.init.deliveryUrl, options, "rendition.init.deliveryUrl")}"`,
     "",
   ];
-
-  for (const segment of rendition.segments) {
-    lines.push(...renderSegment(segment, options));
-  }
-
-  return `${lines.join("\n")}\n`;
 }
 
 function renderSegment(
