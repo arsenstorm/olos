@@ -109,6 +109,9 @@ describe("validation field helpers", () => {
     expect(() => nonNegativeNumber(-1, "duration")).toThrow(
       "duration must be a non-negative number"
     );
+    expect(() => nonNegativeNumber(Number.NaN, "duration")).toThrow(
+      "duration must be a non-negative number"
+    );
     expect(() => finiteNumber(Number.POSITIVE_INFINITY, "duration")).toThrow(
       "duration must be a finite number"
     );

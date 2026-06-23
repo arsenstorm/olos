@@ -71,7 +71,7 @@ export function booleanValue(value: unknown, name: string): boolean {
 }
 
 export function finiteNumber(value: unknown, name: string): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
+  if (!isFiniteNumber(value)) {
     throw new Error(`${name} must be a finite number`);
   }
 
@@ -79,7 +79,7 @@ export function finiteNumber(value: unknown, name: string): number {
 }
 
 export function positiveNumber(value: unknown, name: string): number {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+  if (!isFiniteNumber(value) || value <= 0) {
     throw new Error(`${name} must be a positive number`);
   }
 
@@ -87,11 +87,15 @@ export function positiveNumber(value: unknown, name: string): number {
 }
 
 export function nonNegativeNumber(value: number, name: string): number {
-  if (!Number.isFinite(value) || value < 0) {
+  if (!isFiniteNumber(value) || value < 0) {
     throw new Error(`${name} must be a non-negative number`);
   }
 
   return value;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 export function timestampString(value: unknown, name: string): string {
