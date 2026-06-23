@@ -9,6 +9,8 @@ import { errorMessage } from "./errors";
 import { timestampMs } from "./request-fields";
 import { jsonErrorResponse, jsonResponse } from "./response";
 
+const RETENTION_SESSION_NOT_FOUND_MESSAGE = "coordinator session was not found";
+
 export interface DeleteRetiredCoordinatorObjectsOptions {
   deleteObject(object: RetiredCoordinatorObjectDeletion): Promise<void> | void;
   objects: readonly RetiredCoordinatorObjectDeletion[];
@@ -148,10 +150,7 @@ export async function planStoredCoordinatorRetention(
   const snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
-    return {
-      response: jsonErrorResponse("coordinator session was not found", 404),
-      status: "not_found",
-    };
+    return storedRetentionNotFound();
   }
 
   const plan = planCoordinatorRetention({
@@ -159,6 +158,19 @@ export async function planStoredCoordinatorRetention(
     state: snapshot.state,
   });
 
+  return storedRetentionPlanned(plan);
+}
+
+function storedRetentionNotFound(): StoredRuntimeRetentionPlan {
+  return {
+    response: jsonErrorResponse(RETENTION_SESSION_NOT_FOUND_MESSAGE, 404),
+    status: "not_found",
+  };
+}
+
+function storedRetentionPlanned(
+  plan: CoordinatorRetentionPlan
+): StoredRuntimeRetentionPlan {
   return {
     plan,
     response: jsonResponse({ plan }, 200),

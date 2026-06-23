@@ -64,6 +64,9 @@ describe("stored runtime retention", () => {
 
     expect(result.status).toBe("not_found");
     expect(result.response.status).toBe(404);
+    expect(await result.response.json()).toEqual({
+      error: { message: "coordinator session was not found" },
+    });
   });
 
   test("rejects invalid stored retention options before loading state", async () => {
