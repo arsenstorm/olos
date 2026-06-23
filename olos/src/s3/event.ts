@@ -46,8 +46,7 @@ type S3ObjectCreatedEventIdentity =
 export function normalizeS3ObjectCreatedEvents(
   options: NormalizeS3ObjectCreatedEventsOptions
 ): readonly UploadEventNormalization[] {
-  const payload = recordValue(options.payload);
-  const records = Array.isArray(payload?.Records) ? payload.Records : undefined;
+  const records = s3ObjectCreatedEventRecords(options.payload);
 
   if (records === undefined) {
     return [invalidS3Event("s3 event payload must contain Records")];
@@ -61,6 +60,12 @@ export function normalizeS3ObjectCreatedEvents(
       record,
     })
   );
+}
+
+function s3ObjectCreatedEventRecords(payload: unknown): unknown[] | undefined {
+  const record = recordValue(payload);
+
+  return Array.isArray(record?.Records) ? record.Records : undefined;
 }
 
 export function normalizeS3ObjectCreatedEventRecord(

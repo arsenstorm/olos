@@ -238,6 +238,22 @@ describe("s3 event normalization", () => {
         status: "invalid_event",
       },
     ]);
+    expect(
+      normalizeS3ObjectCreatedEvents({
+        payload: { Records: {} },
+        providerId: "s3",
+      })
+    ).toEqual([
+      {
+        error: {
+          error: {
+            code: "olos.invalid_state",
+            message: "s3 event payload must contain Records",
+          },
+        },
+        status: "invalid_event",
+      },
+    ]);
   });
 
   test("returns one invalid result per record when envelope options are invalid", () => {
