@@ -33,6 +33,7 @@ describe("runtime path helpers", () => {
       "../live",
       "v1/../live",
       "https://evil.test/live",
+      "custom+scheme:live",
       "v1/live?token=abc",
       "v1/live#fragment",
       "v1/live\n",

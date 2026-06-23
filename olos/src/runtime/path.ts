@@ -30,7 +30,13 @@ function assertNormalizableRelativePathInput(
   value: string,
   name: string
 ): void {
-  if (
+  if (isUnsafeNormalizableRelativePathInput(value)) {
+    throw new Error(`${name} must be a safe relative path`);
+  }
+}
+
+function isUnsafeNormalizableRelativePathInput(value: string): boolean {
+  return (
     typeof value !== "string" ||
     value.length === 0 ||
     value.startsWith("//") ||
@@ -38,9 +44,7 @@ function assertNormalizableRelativePathInput(
     value.includes("#") ||
     hasControlCharacter(value) ||
     URL_SCHEME_PREFIX.test(value)
-  ) {
-    throw new Error(`${name} must be a safe relative path`);
-  }
+  );
 }
 
 function assertNormalizedRelativePathSegments(
