@@ -150,14 +150,8 @@ export async function reconcileStoredS3CoordinatorUploads(
     return missingStoredS3CoordinatorUploadReconciliation();
   }
 
-  const results: StoredS3CoordinatorUploadReconciliationResult[] = [];
-
-  for (const slot of plan.slots) {
-    results.push(await reconcileSlot(slot, options));
-  }
-
   return {
-    results,
+    results: await reconcileStoredS3CoordinatorUploadSlots(plan.slots, options),
     status: "reconciled",
   };
 }
@@ -320,6 +314,19 @@ async function reconcileSlot(
   } catch (error) {
     return failedStoredS3CoordinatorUploadReconciliationError(slot, error);
   }
+}
+
+async function reconcileStoredS3CoordinatorUploadSlots(
+  slots: readonly UploadSlot[],
+  options: ReconcileStoredS3CoordinatorUploadsOptions
+): Promise<StoredS3CoordinatorUploadReconciliationResult[]> {
+  const results: StoredS3CoordinatorUploadReconciliationResult[] = [];
+
+  for (const slot of slots) {
+    results.push(await reconcileSlot(slot, options));
+  }
+
+  return results;
 }
 
 function reconciliationCommitOptions(
