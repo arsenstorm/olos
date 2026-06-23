@@ -182,11 +182,7 @@ function nextSegmentPosition(options: {
 export function createRuntimePublisherNextObjectPlan(
   options: CreateRuntimePublisherNextObjectPlanOptions
 ): RuntimePublisherNextObjectPlan {
-  const position = resolveRuntimePublisherNextObjectPosition(options);
-  const input = createRuntimePublisherObjectPlanInput({
-    ...options,
-    position,
-  });
+  const input = createRuntimePublisherNextObjectPlanInput(options);
   const expiry = resolveRuntimePublisherObjectExpiry({
     duration: input.duration,
     minTtlSeconds: options.minTtlSeconds,
@@ -196,12 +192,35 @@ export function createRuntimePublisherNextObjectPlan(
 
   return {
     expiry,
-    plan: createRuntimePublisherObjectPlan({
-      ...input,
-      expiresAt: expiry.expiresAt,
+    plan: runtimePublisherObjectPlan(input, expiry),
+    position: input.position,
+  };
+}
+
+function createRuntimePublisherNextObjectPlanInput(
+  options: CreateRuntimePublisherNextObjectPlanOptions
+): RuntimePublisherObjectPlanInput & {
+  position: RuntimePublisherObjectPosition;
+} {
+  const position = resolveRuntimePublisherNextObjectPosition(options);
+
+  return {
+    ...createRuntimePublisherObjectPlanInput({
+      ...options,
+      position,
     }),
     position,
   };
+}
+
+function runtimePublisherObjectPlan(
+  input: RuntimePublisherObjectPlanInput,
+  expiry: RuntimePublisherObjectExpiry
+): RuntimePublisherObjectPlan {
+  return createRuntimePublisherObjectPlan({
+    ...input,
+    expiresAt: expiry.expiresAt,
+  });
 }
 
 function nextPartPosition(

@@ -216,6 +216,26 @@ describe("runtime publisher cadence", () => {
     ).toBe("media/session_1/v1080/s3812/segment-slot_01JZ.m4s");
   });
 
+  test("applies minimum TTL when creating the next object plan", () => {
+    expect(
+      createRuntimePublisherNextObjectPlan({
+        baseUrl: "https://media.example.com",
+        defaults: objectDefaults,
+        minTtlSeconds: 30,
+        now: "2026-01-01T00:00:00.000Z",
+        objectKeyNonce: "slot_01TTL",
+        objectKeyPrefix: "media/session_1",
+        publicationMode: "direct-public",
+        publisherInstanceId: "publisher_1",
+        renditionId: "v1080",
+        targetLatency: 3,
+      }).expiry
+    ).toEqual({
+      expiresAt: "2026-01-01T00:00:30.000Z",
+      ttlSeconds: 30,
+    });
+  });
+
   test("creates the next object plan from cursor cadence", () => {
     expect(
       createRuntimePublisherNextObjectPlan({
