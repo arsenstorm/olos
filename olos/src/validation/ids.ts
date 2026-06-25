@@ -54,6 +54,7 @@ function isIntegerAtLeast(
   options: IntegerPredicateOptions = {}
 ): value is number {
   return (
+    typeof value === "number" &&
     (options.safe ? Number.isSafeInteger(value) : Number.isInteger(value)) &&
     value >= minimum
   );

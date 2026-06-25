@@ -271,6 +271,10 @@ function assertCommittedPart(
 ): asserts value is CommittedPart {
   const name = `${segmentName}.parts[]`;
 
+  if (!isRecord(value)) {
+    throw new Error(`${name} must be an object`);
+  }
+
   assertCommittedObject(value, name);
 
   assertNonNegativeIntegerField(value, "partNumber", name);
