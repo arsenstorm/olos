@@ -14,7 +14,7 @@ export async function mutateCoordinatorPipeline(
 ): Promise<CoordinatorPipelineMutation> {
   const attempts = positiveMutationAttempts(options.maxAttempts);
 
-  const result = await runStoredCoordinatorMutationWithAdapters<
+  return await runStoredCoordinatorMutationWithAdapters<
     { state: CoordinatorPipelineState },
     never,
     CoordinatorPipelineMutation
@@ -32,8 +32,6 @@ export async function mutateCoordinatorPipeline(
         : conflictingCoordinatorPipelineMutation(current),
     onExhausted: (snapshot) => conflictingCoordinatorPipelineMutation(snapshot),
   });
-
-  return result;
 }
 
 function missingCoordinatorPipelineMutation(): Extract<

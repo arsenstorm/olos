@@ -225,14 +225,14 @@ async function runStoredCoordinatorMutationAttempt<TAttempt, TResult>({
   };
 }
 
-export async function runStoredCoordinatorMutationWithAdapters<
+export function runStoredCoordinatorMutationWithAdapters<
   TAttempt,
   TDecisionResult,
   TResult,
 >(
   options: RunStoredMutationAdapterOptions<TAttempt, TDecisionResult, TResult>
 ): Promise<TResult> {
-  const result = await runStoredCoordinatorMutation<TAttempt, TResult>({
+  return runStoredCoordinatorMutation<TAttempt, TResult>({
     attempts: options.attempts,
     decide: (attempt, snapshot) => {
       const decision = options.decide(attempt, snapshot);
@@ -263,8 +263,6 @@ export async function runStoredCoordinatorMutationWithAdapters<
     sessionId: options.sessionId,
     store: options.store,
   });
-
-  return result;
 }
 
 export function runStoredCoordinatorMutationWithAdaptersAndConflict<
