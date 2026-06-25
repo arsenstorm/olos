@@ -44,15 +44,5 @@ function resolveObjectKeyNoncePrefix(prefix: string | undefined): string {
 }
 
 function formatObjectKeyNonce(prefix: string, bytes: Uint8Array): string {
-  return `${prefix}_${toHex(bytes)}`;
-}
-
-function toHex(bytes: Uint8Array): string {
-  let value = "";
-
-  for (const byte of bytes) {
-    value += byte.toString(16).padStart(2, "0");
-  }
-
-  return value;
+  return `${prefix}_${Buffer.from(bytes).toString("hex")}`;
 }
