@@ -358,14 +358,7 @@ async function assertRuntimeHttpResponseOk(
     return;
   }
 
-  throw await runtimeHttpError(operation, response);
-}
-
-async function runtimeHttpError(
-  operation: string,
-  response: Response
-): Promise<RuntimeHttpError> {
-  return new RuntimeHttpError(
+  throw new RuntimeHttpError(
     `${operation} failed with status ${response.status}`,
     response,
     await responseBody(response)
