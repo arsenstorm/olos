@@ -129,13 +129,13 @@ export function parseObservedUploadPayload(
   };
 }
 
-export async function parseRuntimeCommitPayloadRequest<Invalid>(
+export function parseRuntimeCommitPayloadRequest<Invalid>(
   request: Request | RuntimeCommitPayload,
   invalid: (message: string) => Invalid,
   fallbackMessage: string,
   payloadName = "commit request"
 ): Promise<RuntimeCommitRequestParse<Invalid>> {
-  return await parseRuntimeJsonRequest(
+  return parseRuntimeJsonRequest(
     request,
     (value) => parseRuntimeCommitPayload(value, payloadName),
     invalid,
@@ -143,7 +143,7 @@ export async function parseRuntimeCommitPayloadRequest<Invalid>(
   );
 }
 
-export async function parseS3CommitPayloadRequest<Invalid>(
+export function parseS3CommitPayloadRequest<Invalid>(
   request: Request | ParsedS3CommitPayload,
   invalid: (message: string) => Invalid,
   fallbackMessage: string,
@@ -152,7 +152,7 @@ export async function parseS3CommitPayloadRequest<Invalid>(
   overrides: S3CommitPayloadParseOverrides = {},
   payloadName = "S3 commit request"
 ): Promise<S3CommitPayloadRequestParse<Invalid>> {
-  return await parseRuntimeJsonRequest(
+  return parseRuntimeJsonRequest(
     request,
     (value) =>
       parseS3CommitPayloadPayload(
@@ -167,7 +167,7 @@ export async function parseS3CommitPayloadRequest<Invalid>(
   );
 }
 
-export async function parseS3ReconciliationPayloadRequest<Invalid>(
+export function parseS3ReconciliationPayloadRequest<Invalid>(
   request: Request | ParsedS3ReconciliationPayload,
   invalid: (message: string) => Invalid,
   fallbackMessage: string,
@@ -175,7 +175,7 @@ export async function parseS3ReconciliationPayloadRequest<Invalid>(
   parseCommittedAt: ParseTimestampField = parseCommitTimestamp,
   payloadName = "S3 reconciliation request"
 ): Promise<S3ReconciliationPayloadRequestParse<Invalid>> {
-  return await parseRuntimeJsonRequest(
+  return parseRuntimeJsonRequest(
     request,
     (value) =>
       parseS3ReconciliationPayloadPayload(

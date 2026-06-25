@@ -103,10 +103,10 @@ function isRejectedCoordinatorUploadCommit(
   return result.status === "rejected";
 }
 
-async function parseRequest(
+function parseRequest(
   request: RuntimeCommitRequest
 ): Promise<RuntimeCommitRequestParse> {
-  return await parseRuntimeCommitPayloadRequest(
+  return parseRuntimeCommitPayloadRequest(
     request,
     invalid,
     "invalid commit request"
