@@ -11,6 +11,10 @@ import { assertSession } from "../validation/session";
 import { assertUploadSlot } from "../validation/upload-slot";
 import { timestampMs } from "./timestamp";
 
+const UPLOAD_SLOT_TRANSITION_MAP: Partial<
+  Record<UploadSlotState, readonly UploadSlotState[]>
+> = UPLOAD_SLOT_TRANSITIONS;
+
 export interface CreateIssuedUploadSlotOptions {
   contentType: string;
   deliveryUrl: string;
@@ -305,9 +309,5 @@ export function assertUploadSlotTransition(
 function allowedUploadSlotTransitions(
   from: UploadSlotState
 ): readonly UploadSlotState[] {
-  const transitions: Partial<
-    Record<UploadSlotState, readonly UploadSlotState[]>
-  > = UPLOAD_SLOT_TRANSITIONS;
-
-  return transitions[from] ?? [];
+  return UPLOAD_SLOT_TRANSITION_MAP[from] ?? [];
 }
