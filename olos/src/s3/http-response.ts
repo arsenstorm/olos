@@ -10,14 +10,10 @@ import type { StoredS3CoordinatorUploadEventRoute } from "./coordinator";
 import type {
   StoredS3CoordinatorCommitResponse,
   StoredS3CoordinatorEventRouteResponseResult,
-  StoredS3CoordinatorReconciliationResponse,
   StoredS3CoordinatorReconciliationResponseResult,
   StoredS3CoordinatorRouteError,
 } from "./http-types";
-import {
-  type StoredS3CoordinatorUploadReconciliationResult,
-  summarizeStoredS3CoordinatorUploadReconciliation,
-} from "./reconciliation";
+import type { StoredS3CoordinatorUploadReconciliationResult } from "./reconciliation";
 
 export function isSuccessfulS3MutationResult<Result extends { status: string }>(
   result: Result
@@ -111,13 +107,6 @@ export function rejectionBody(
       ? {}
       : { auditEvent: result.auditEvent }),
   };
-}
-
-export function summarizeReconciliationResult(result: {
-  status: "not_found" | "reconciled";
-  results: StoredS3CoordinatorUploadReconciliationResult[];
-}): StoredS3CoordinatorReconciliationResponse["summary"] {
-  return summarizeStoredS3CoordinatorUploadReconciliation(result);
 }
 
 export function reconciliationResult(

@@ -70,10 +70,10 @@ export async function parseS3CommitRequest(
     : { payload: parsed.value, status: "valid" };
 }
 
-export async function parseS3ReconciliationPlanRequest(
+export function parseS3ReconciliationPlanRequest(
   request: Request
 ): Promise<S3HttpRequestParse<S3ReconciliationPlanPayload>> {
-  return await parseRecordRequest(
+  return parseRecordRequest(
     request,
     "S3 reconciliation plan request",
     "invalid S3 reconciliation plan request",
@@ -101,10 +101,10 @@ export async function parseS3ReconciliationRequest(
     : { payload: parsed.value, status: "valid" };
 }
 
-export async function parseS3RetentionRequest(
+export function parseS3RetentionRequest(
   request: Request
 ): Promise<S3HttpRequestParse<S3RetentionPayload>> {
-  return await parseRecordRequest(
+  return parseRecordRequest(
     request,
     "S3 retention request",
     "invalid S3 retention request",
