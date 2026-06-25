@@ -30,17 +30,16 @@ export function assertUploadGrant(
     allowQueryOrFragment: true,
   });
   assertIsoDateField(value, "expiresAt", "uploadGrant");
-  assertOptionalRequiredHeaders(value.requiredHeaders);
+  if (value.requiredHeaders !== undefined) {
+    assertHttpHeaderStringMap(
+      value.requiredHeaders,
+      "uploadGrant.requiredHeaders"
+    );
+  }
 }
 
 function assertUploadGrantMethod(method: unknown): void {
   if (method !== "PUT") {
     throw new Error("uploadGrant.method must be PUT");
-  }
-}
-
-function assertOptionalRequiredHeaders(requiredHeaders: unknown): void {
-  if (requiredHeaders !== undefined) {
-    assertHttpHeaderStringMap(requiredHeaders, "uploadGrant.requiredHeaders");
   }
 }

@@ -273,10 +273,6 @@ function assertCommittedPart(
 
   assertCommittedObject(value, name);
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
   assertNonNegativeIntegerField(value, "partNumber", name);
   assertPositiveNumberField(value, "duration", name);
   assertOptionalPartFields(value, name);
