@@ -924,12 +924,7 @@ export const OLOS_CONFORMANCE_COVERAGE = defineConformanceCoverage([
 const OLOS_CONFORMANCE_COVERAGE_BY_ID = new Map<
   OlosConformanceAssertionId,
   OlosConformanceCoverage
->(
-  OLOS_CONFORMANCE_COVERAGE.map((entry) => [
-    entry.id,
-    entry satisfies OlosConformanceCoverage,
-  ])
-);
+>(OLOS_CONFORMANCE_COVERAGE.map((entry) => [entry.id, entry]));
 
 export function getOlosConformanceCoverage(
   id: OlosConformanceAssertionId
