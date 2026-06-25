@@ -42,15 +42,7 @@ function assertMediaObjectObservation(value: Record<string, unknown>): void {
 }
 
 function assertOptionalMediaObjectFields(value: Record<string, unknown>): void {
-  assertOptionalNonEmptyStringField(value, "etag", "mediaObject");
-}
-
-function assertOptionalNonEmptyStringField(
-  value: Record<string, unknown>,
-  field: string,
-  name: string
-): void {
-  if (value[field] !== undefined) {
-    assertNonEmptyStringField(value, field, name);
+  if (value.etag !== undefined) {
+    assertNonEmptyStringField(value, "etag", "mediaObject");
   }
 }
