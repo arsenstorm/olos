@@ -99,7 +99,7 @@ describe("package smoke fixture", () => {
         skipLibCheck: true,
         strict: true,
         target: "ES2022",
-        types: ["node"],
+        types: [],
       },
       include: ["smoke.ts"],
     });

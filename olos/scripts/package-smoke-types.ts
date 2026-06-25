@@ -7,7 +7,7 @@ const typeSmokeTsConfig = {
     skipLibCheck: true,
     strict: true,
     target: "ES2022",
-    types: ["node"],
+    types: [],
   },
   include: ["smoke.ts"],
 } as const;

@@ -8,10 +8,10 @@ Current manifest snapshot:
 | Level | Covered assertions |
 | --- | ---: |
 | Core | 62 |
-| Object | 40 |
+| Object | 41 |
 | HLS | 14 |
 | Security | 7 |
-| Total | 123 |
+| Total | 124 |
 
 Coverage means an assertion ID is mapped to a deterministic test file in
 `OLOS_CONFORMANCE_COVERAGE`. It does not mean a deployment is production-ready;
@@ -39,5 +39,5 @@ When adding or changing behavior:
 3. Add the test mapping to `OLOS_CONFORMANCE_COVERAGE`.
 4. Run `bun run publish:check` before publishing or release work.
 
-Use `specs/08-conformance.md` for the assertion catalogue and interoperability
-target.
+Use `olos/src/conformance/metadata.ts` for the assertion catalogue and
+interoperability target.

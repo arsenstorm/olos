@@ -9,6 +9,9 @@ dist
 # local agent goal
 GOAL.md
 
+# local draft specs
+specs/
+
 # code coverage
 coverage
 *.lcov

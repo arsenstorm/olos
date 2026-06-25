@@ -11,7 +11,6 @@ import {
 import { createMemoryCoordinatorStore } from "./protocol";
 
 const ASSERTION_ID_PATTERN = /^(CORE|OBJ|HLS|SEC)-[A-Z]+-\d{3}$/;
-const DOCUMENTED_ASSERTION_ID_PATTERN = /`([A-Z]+(?:-[A-Z]+)*-\d{3})`/g;
 
 describe("conformance manifest", () => {
   test("keeps public metadata exports on the conformance facade", () => {
@@ -64,14 +63,6 @@ describe("conformance manifest", () => {
     }
   });
 
-  test("documents every executable assertion in the conformance spec", () => {
-    const documented = documentedAssertionIds();
-
-    expect(
-      OLOS_CONFORMANCE_ASSERTION_IDS.filter((id) => !documented.has(id))
-    ).toEqual([]);
-  });
-
   test("does not duplicate coverage entries", () => {
     expect(
       new Set(OLOS_CONFORMANCE_COVERAGE.map((entry) => entry.id)).size
@@ -86,6 +77,17 @@ describe("conformance manifest", () => {
       security: 7,
       total: 124,
     });
+
+    const guide = readFileSync(
+      new URL("../../contributing/core/conformance.md", import.meta.url),
+      "utf8"
+    );
+
+    expect(guide).toContain("| Core | 62 |");
+    expect(guide).toContain("| Object | 41 |");
+    expect(guide).toContain("| HLS | 14 |");
+    expect(guide).toContain("| Security | 7 |");
+    expect(guide).toContain("| Total | 124 |");
   });
 
   test("finds coverage by assertion identifier", () => {
@@ -219,19 +221,6 @@ function isCoveredTestFile(value: string): boolean {
 
 function coverageTestFileExists(value: string): boolean {
   return existsSync(new URL(`../${value}`, import.meta.url));
-}
-
-function documentedAssertionIds(): Set<string> {
-  const spec = readFileSync(
-    new URL("../../specs/08-conformance.md", import.meta.url),
-    "utf8"
-  );
-
-  return new Set(
-    [...spec.matchAll(DOCUMENTED_ASSERTION_ID_PATTERN)].flatMap((match) =>
-      match[1] === undefined ? [] : [match[1]]
-    )
-  );
 }
 
 function countCoverageByLevel() {
