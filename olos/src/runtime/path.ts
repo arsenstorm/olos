@@ -90,13 +90,7 @@ function hasUnsafePathSegment(value: string): boolean {
 }
 
 export function assertSafePathSegment(value: string, name: string): void {
-  if (
-    value.length === 0 ||
-    value.includes("/") ||
-    value.includes(".") ||
-    value === "." ||
-    value === ".."
-  ) {
+  if (value.length === 0 || value.includes("/") || value.includes(".")) {
     throw new Error(`${name} must be a safe path segment without dots`);
   }
 }
