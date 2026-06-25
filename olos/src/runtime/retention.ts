@@ -47,16 +47,6 @@ export interface RetiredCoordinatorObjectDeletionSummary {
   planned: number;
 }
 
-type RetiredCoordinatorObjectDeletionAttempt =
-  | {
-      object: RetiredCoordinatorObjectDeletion;
-      status: "deleted";
-    }
-  | {
-      failure: RetiredCoordinatorObjectDeletionFailure;
-      status: "failed";
-    };
-
 interface MutableRetiredCoordinatorObjectDeletionResult {
   deletedObjects: RetiredCoordinatorObjectDeletion[];
   failedObjects: RetiredCoordinatorObjectDeletionFailure[];
@@ -76,55 +66,24 @@ export type StoredRuntimeRetentionPlan =
 export async function deleteRetiredCoordinatorObjects(
   options: DeleteRetiredCoordinatorObjectsOptions
 ): Promise<RetiredCoordinatorObjectDeletionResult> {
-  const result = emptyRetiredCoordinatorObjectDeletionResult();
-
-  for (const object of options.objects) {
-    const attempt = await deleteRetiredCoordinatorObject(options, object);
-    recordRetiredCoordinatorObjectDeletionAttempt(result, attempt);
-  }
-
-  return result;
-}
-
-async function deleteRetiredCoordinatorObject(
-  options: DeleteRetiredCoordinatorObjectsOptions,
-  object: RetiredCoordinatorObjectDeletion
-): Promise<RetiredCoordinatorObjectDeletionAttempt> {
-  try {
-    await options.deleteObject(object);
-
-    return {
-      object,
-      status: "deleted",
-    };
-  } catch (error) {
-    return {
-      failure: {
-        error: errorMessage(error, "retention deletion failed"),
-        object,
-      },
-      status: "failed",
-    };
-  }
-}
-
-function emptyRetiredCoordinatorObjectDeletionResult(): MutableRetiredCoordinatorObjectDeletionResult {
-  return {
+  const result: MutableRetiredCoordinatorObjectDeletionResult = {
     deletedObjects: [],
     failedObjects: [],
   };
-}
 
-function recordRetiredCoordinatorObjectDeletionAttempt(
-  result: MutableRetiredCoordinatorObjectDeletionResult,
-  attempt: RetiredCoordinatorObjectDeletionAttempt
-): void {
-  if (attempt.status === "deleted") {
-    result.deletedObjects.push(attempt.object);
-    return;
+  for (const object of options.objects) {
+    try {
+      await options.deleteObject(object);
+      result.deletedObjects.push(object);
+    } catch (error) {
+      result.failedObjects.push({
+        error: errorMessage(error, "retention deletion failed"),
+        object,
+      });
+    }
   }
 
-  result.failedObjects.push(attempt.failure);
+  return result;
 }
 
 export function summarizeRetiredCoordinatorObjectDeletions(

@@ -137,89 +137,93 @@ export async function serveStoredBlockingCoordinatorManifest(
 
   const { sessionId, store, ...manifest } = options;
 
-  return await serveBlockingCoordinatorManifest({
+  return serveBlockingCoordinatorManifest({
     ...manifest,
     state: snapshot.state,
   });
 }
 
-export async function issueStoredCoordinatorSlotFromRequest(
+export function issueStoredCoordinatorSlotFromRequest(
   options: IssueStoredCoordinatorSlotFromRequestOptions
 ): Promise<StoredRuntimeSlotIssue> {
-  return await runStoredCoordinatorMutationWithAdaptersAndResponse<
-    RuntimeCoordinatorSlotIssue,
-    Exclude<RuntimeCoordinatorSlotIssue, { status: "issued" }>,
-    StoredRuntimeSlotIssue
-  >({
-    maxAttempts: options.maxAttempts,
-    mutate: async (state) =>
-      await issueCoordinatorSlotFromRequest({
-        publicationControl: options.publicationControl,
-        request: requestForAttempt(options.request),
-        state,
+  return Promise.resolve().then(() =>
+    runStoredCoordinatorMutationWithAdaptersAndResponse<
+      RuntimeCoordinatorSlotIssue,
+      Exclude<RuntimeCoordinatorSlotIssue, { status: "issued" }>,
+      StoredRuntimeSlotIssue
+    >({
+      maxAttempts: options.maxAttempts,
+      mutate: (state) =>
+        issueCoordinatorSlotFromRequest({
+          publicationControl: options.publicationControl,
+          request: requestForAttempt(options.request),
+          state,
+        }),
+      sessionId: options.sessionId,
+      store: options.store,
+      decide: (issued) =>
+        isIssuedRuntimeCoordinatorSlotIssue(issued)
+          ? { status: "save", state: issued.state }
+          : { status: "terminal", result: issued },
+      mapTerminal: (issued) => issued,
+      onMissing: () => notFound(),
+      mapSaved: (saved, attempt) => ({
+        ...(attempt as IssuedRuntimeCoordinatorSlotIssue),
+        etag: saved.etag,
+        state: saved.state,
       }),
-    sessionId: options.sessionId,
-    store: options.store,
-    decide: (issued) =>
-      isIssuedRuntimeCoordinatorSlotIssue(issued)
-        ? { status: "save", state: issued.state }
-        : { status: "terminal", result: issued },
-    mapTerminal: (issued) => issued,
-    onMissing: () => notFound(),
-    mapSaved: (saved, attempt) => ({
-      ...(attempt as IssuedRuntimeCoordinatorSlotIssue),
-      etag: saved.etag,
-      state: saved.state,
-    }),
-    onConflictOrExhausted: (snapshot) => conflict(snapshot),
-  });
+      onConflictOrExhausted: (snapshot) => conflict(snapshot),
+    })
+  );
 }
 
-export async function commitStoredCoordinatorUploadFromRequest(
+export function commitStoredCoordinatorUploadFromRequest(
   options: CommitStoredCoordinatorUploadFromRequestOptions
 ): Promise<StoredRuntimeUploadCommit> {
-  return await runStoredCoordinatorMutationWithAdaptersAndResponse<
-    RuntimeCoordinatorUploadCommit,
-    TerminalStoredRuntimeUploadCommit,
-    StoredRuntimeUploadCommit
-  >({
-    maxAttempts: options.maxAttempts,
-    mutate: async (state) =>
-      await commitCoordinatorUploadFromRequest({
-        commitPolicy: options.commitPolicy,
-        lateToleranceMs: options.lateToleranceMs,
-        publicationControl: options.publicationControl,
-        request: requestForAttempt(options.request),
-        state,
+  return Promise.resolve().then(() =>
+    runStoredCoordinatorMutationWithAdaptersAndResponse<
+      RuntimeCoordinatorUploadCommit,
+      TerminalStoredRuntimeUploadCommit,
+      StoredRuntimeUploadCommit
+    >({
+      maxAttempts: options.maxAttempts,
+      mutate: (state) =>
+        commitCoordinatorUploadFromRequest({
+          commitPolicy: options.commitPolicy,
+          lateToleranceMs: options.lateToleranceMs,
+          publicationControl: options.publicationControl,
+          request: requestForAttempt(options.request),
+          state,
+        }),
+      sessionId: options.sessionId,
+      store: options.store,
+      decide: (committed, snapshot) => {
+        if (isTerminalRuntimeCoordinatorUploadCommit(committed)) {
+          return { status: "terminal", result: committed };
+        }
+
+        if (isIdempotentRuntimeCoordinatorUploadCommit(committed)) {
+          return {
+            status: "terminal",
+            result: {
+              ...committed,
+              etag: snapshot.etag,
+            },
+          };
+        }
+
+        return { status: "save", state: committed.state };
+      },
+      mapTerminal: (committed) => committed,
+      onMissing: () => notFound(),
+      mapSaved: (saved, attempt) => ({
+        ...(attempt as RuntimeCoordinatorUploadCommit),
+        etag: saved.etag,
+        state: saved.state,
       }),
-    sessionId: options.sessionId,
-    store: options.store,
-    decide: (committed, snapshot) => {
-      if (isTerminalRuntimeCoordinatorUploadCommit(committed)) {
-        return { status: "terminal", result: committed };
-      }
-
-      if (isIdempotentRuntimeCoordinatorUploadCommit(committed)) {
-        return {
-          status: "terminal",
-          result: {
-            ...committed,
-            etag: snapshot.etag,
-          },
-        };
-      }
-
-      return { status: "save", state: committed.state };
-    },
-    mapTerminal: (committed) => committed,
-    onMissing: () => notFound(),
-    mapSaved: (saved, attempt) => ({
-      ...(attempt as RuntimeCoordinatorUploadCommit),
-      etag: saved.etag,
-      state: saved.state,
-    }),
-    onConflictOrExhausted: (snapshot) => conflict(snapshot),
-  });
+      onConflictOrExhausted: (snapshot) => conflict(snapshot),
+    })
+  );
 }
 
 function isTerminalRuntimeCoordinatorUploadCommit(
