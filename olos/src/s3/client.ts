@@ -19,6 +19,7 @@ import {
   s3RoutePathFromOptions,
 } from "../runtime/route";
 import type { RuntimeSlotIssuePayload } from "../runtime/slot-issue-payload";
+import { isStringLiteral } from "../runtime/string-literals";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosErrorCode } from "../types/errors";
@@ -355,7 +356,7 @@ export async function issueS3RuntimeUploadGrant(
     jsonPost(options.payload)
   );
 
-  return await parsedS3RuntimeResponse(
+  return parsedS3RuntimeResponse(
     response,
     "S3 upload grant issue",
     grantPayload
@@ -370,7 +371,7 @@ export async function completeS3RuntimeUpload(
     jsonPost(options.payload ?? {})
   );
 
-  return await parsedS3RuntimeResponse(
+  return parsedS3RuntimeResponse(
     response,
     "S3 upload completion",
     commitPayload
@@ -385,11 +386,7 @@ export async function commitS3RuntimeUpload(
     jsonPost(options.payload)
   );
 
-  return await parsedS3RuntimeResponse(
-    response,
-    "S3 upload commit",
-    commitPayload
-  );
+  return parsedS3RuntimeResponse(response, "S3 upload commit", commitPayload);
 }
 
 export async function planS3RuntimeReconciliation(
@@ -404,7 +401,7 @@ export async function planS3RuntimeReconciliation(
     jsonPost(options.payload ?? {})
   );
 
-  return await parsedS3RuntimeResponse(
+  return parsedS3RuntimeResponse(
     response,
     "S3 reconciliation plan",
     reconciliationPlanPayload
@@ -419,7 +416,7 @@ export async function reconcileS3RuntimeUploads(
     jsonPost(options.payload)
   );
 
-  return await parsedS3RuntimeResponse(
+  return parsedS3RuntimeResponse(
     response,
     "S3 upload reconciliation",
     reconciliationPayload
@@ -434,11 +431,7 @@ export async function applyS3RuntimeRetention(
     jsonPost(options.payload)
   );
 
-  return await parsedS3RuntimeResponse(
-    response,
-    "S3 retention",
-    retentionPayload
-  );
+  return parsedS3RuntimeResponse(response, "S3 retention", retentionPayload);
 }
 
 function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
@@ -608,7 +601,7 @@ function reconciliationPlanStatus(
 function isReconciliationPlanStatus(
   status: string
 ): status is S3RuntimeReconciliationPlanStatus {
-  return isStringInSet(status, S3_RUNTIME_RECONCILIATION_PLAN_STATUSES);
+  return isStringLiteral(status, S3_RUNTIME_RECONCILIATION_PLAN_STATUSES);
 }
 
 function reconciliationPlanSlotIds(
@@ -752,14 +745,7 @@ function reconciliationResultStatus(
 function isReconciliationResultStatus(
   status: string
 ): status is S3RuntimeReconciliationResultStatus {
-  return isStringInSet(status, S3_RUNTIME_RECONCILIATION_RESULT_STATUSES);
-}
-
-function isStringInSet<const Value extends string>(
-  value: string,
-  values: readonly Value[]
-): value is Value {
-  return values.includes(value as Value);
+  return isStringLiteral(status, S3_RUNTIME_RECONCILIATION_RESULT_STATUSES);
 }
 
 function isSuccessfulReconciliationResultStatus(
@@ -1151,7 +1137,7 @@ function reconciliationSummaryErrorCodes(
 }
 
 function isOlosErrorCode(value: string): value is OlosErrorCode {
-  return isStringInSet(value, OLOS_ERROR_CODES);
+  return isStringLiteral(value, OLOS_ERROR_CODES);
 }
 
 function reconciliationSummaryErrorCodeContext(index: number): string {
