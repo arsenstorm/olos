@@ -92,11 +92,14 @@ describe("package smoke fixture", () => {
   test("emits a strict NodeNext type smoke config", () => {
     expect(JSON.parse(packageTypeSmokeConfig())).toEqual({
       compilerOptions: {
+        lib: ["ES2022", "DOM"],
         module: "NodeNext",
         moduleResolution: "NodeNext",
         noEmit: true,
+        skipLibCheck: true,
         strict: true,
         target: "ES2022",
+        types: ["node"],
       },
       include: ["smoke.ts"],
     });

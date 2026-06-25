@@ -8,5 +8,5 @@ test("script paths identify the package and repository roots", async () => {
   expect(dirname(packageRoot)).toBe(repoRoot);
 
   await access(join(packageRoot, "package.json"));
-  await access(join(repoRoot, "GOAL.md"));
+  await access(join(repoRoot, "specs", "00-index.md"));
 });

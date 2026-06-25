@@ -1,10 +1,13 @@
 const typeSmokeTsConfig = {
   compilerOptions: {
+    lib: ["ES2022", "DOM"],
     module: "NodeNext",
     moduleResolution: "NodeNext",
     noEmit: true,
+    skipLibCheck: true,
     strict: true,
     target: "ES2022",
+    types: ["node"],
   },
   include: ["smoke.ts"],
 } as const;

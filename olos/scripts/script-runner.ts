@@ -146,10 +146,38 @@ function capturedCommandStreamDetails(
 
 function truncateCommandOutput(value: string, streamName: string): string {
   const maxTailLength = 1024;
-  if (value.length <= maxTailLength) {
-    return value;
+  const plainValue = stripAnsi(value);
+
+  if (plainValue.length <= maxTailLength) {
+    return plainValue;
   }
 
   const marker = `${streamName} output truncated to the last ${maxTailLength} characters`;
-  return `${marker}\n${value.slice(-maxTailLength)}`;
+  return `${marker}\n${plainValue.slice(-maxTailLength)}`;
+}
+
+function stripAnsi(value: string): string {
+  let result = "";
+  let index = 0;
+
+  while (index < value.length) {
+    if (value.charCodeAt(index) !== 0x1b || value[index + 1] !== "[") {
+      result += value[index];
+      index += 1;
+      continue;
+    }
+
+    index += 2;
+
+    while (index < value.length) {
+      const code = value.charCodeAt(index);
+      index += 1;
+
+      if (code >= 0x40 && code <= 0x7e) {
+        break;
+      }
+    }
+  }
+
+  return result;
 }

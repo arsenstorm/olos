@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Ajv } from "ajv";
+import Ajv from "ajv";
 import {
   OLOS_COMMIT_SCHEMA,
   OLOS_COMMITTED_WINDOW_SCHEMA,
