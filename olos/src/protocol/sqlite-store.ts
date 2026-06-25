@@ -50,11 +50,11 @@ export function createSqliteSerializedCoordinatorStoreBackend(
   const sql = statements(tableName);
 
   return {
-    async load(sessionId) {
-      return await loadRecord(options.database, sql.load, sessionId);
+    load(sessionId) {
+      return loadRecord(options.database, sql.load, sessionId);
     },
-    async save(saveOptions) {
-      return await saveRecord(options.database, sql, saveOptions);
+    save(saveOptions) {
+      return saveRecord(options.database, sql, saveOptions);
     },
   };
 }
