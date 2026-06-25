@@ -83,11 +83,6 @@ type InvalidParsedBlockingReloadRequest = Extract<
   { status: "invalid" }
 >;
 
-type NotFoundHlsManifestArtifactResponseResolution = Extract<
-  BlockingHlsManifestArtifactResponseResolution,
-  { status: "not_found" }
->;
-
 type VideoRendition = Rendition & { kind: "video" };
 
 type ParsedBlockingReloadRequest =
@@ -266,7 +261,7 @@ function blockingHlsManifestArtifactResponseResolution(
   );
 
   if (!response) {
-    return notFoundHlsManifestArtifactResponseResolution();
+    return { status: "not_found" };
   }
 
   return {
@@ -295,10 +290,6 @@ function invalidParsedBlockingReloadRequest(
     message,
     status: "invalid",
   };
-}
-
-function notFoundHlsManifestArtifactResponseResolution(): NotFoundHlsManifestArtifactResponseResolution {
-  return { status: "not_found" };
 }
 
 function isInvalidParsedBlockingReloadRequest(

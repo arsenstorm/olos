@@ -8,7 +8,6 @@ import { HLS_RELATIVE_REQUEST_BASE_URL } from "./uri";
 const HLS_MSN = "_HLS_msn";
 const HLS_PART = "_HLS_part";
 const SEGMENT_ONLY_LIVE_EDGE_PART = Number.MAX_SAFE_INTEGER;
-const defaultBlockingReloadNowMs = () => Date.now();
 
 export interface HlsBlockingReloadRequest {
   mediaSequenceNumber?: MediaSequenceNumber;
@@ -346,5 +345,5 @@ function nowMs(options: WaitForHlsBlockingReloadOptions): number {
     return options.clock();
   }
 
-  return defaultBlockingReloadNowMs();
+  return Date.now();
 }

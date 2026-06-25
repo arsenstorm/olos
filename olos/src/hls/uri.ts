@@ -101,13 +101,9 @@ function assertAllowedMediaOrigin(
   policy: MediaUriPolicy,
   name: string
 ): void {
-  if (!allowedMediaOrigins(policy).includes(url.origin)) {
+  if (!(policy.allowedMediaOrigins ?? []).includes(url.origin)) {
     throw new Error(`${name} origin is not allowed`);
   }
-}
-
-function allowedMediaOrigins(policy: MediaUriPolicy): readonly string[] {
-  return policy.allowedMediaOrigins ?? [];
 }
 
 function parseAbsoluteUrl(value: string): URL | undefined {
