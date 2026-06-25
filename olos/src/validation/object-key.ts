@@ -8,7 +8,10 @@ export function isSafeObjectKey(value: unknown): value is string {
   return typeof value === "string" && safeObjectKeyError(value) === undefined;
 }
 
-export function assertSafeObjectKey(value: unknown, name: string): void {
+export function assertSafeObjectKey(
+  value: unknown,
+  name: string
+): asserts value is string {
   const error = safeObjectKeyError(value);
 
   if (error !== undefined) {
@@ -22,10 +25,6 @@ export function assertSafeMediaObjectKey(
   name: string
 ): void {
   assertSafeObjectKey(value, name);
-
-  if (typeof value !== "string") {
-    return;
-  }
 
   if (!hasSupportedMediaObjectExtension(value, kind)) {
     throw new Error(`${name} must use a supported media extension`);

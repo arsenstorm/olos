@@ -71,7 +71,7 @@ function isSafeRelativePath(value: string): boolean {
 }
 
 function hasProtocolRelativeOrRepeatedSlash(value: string): boolean {
-  return value.startsWith("//") || value.includes("//");
+  return value.includes("//");
 }
 
 function hasOnlySafeRelativePathSegments(value: string): boolean {
