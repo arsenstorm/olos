@@ -30,24 +30,12 @@ export function committedUploadRuntimeCommandResponse(
   committed: SuccessfulCoordinatorUploadCommit
 ): Response {
   return jsonResponse(
-    committedUploadRuntimeCommandBody(committed),
-    committedUploadRuntimeCommandStatus(committed)
+    {
+      commit: committed.commit,
+      ...(committed.cursor === undefined ? {} : { cursor: committed.cursor }),
+    },
+    committed.status === "committed" ? HTTP_CREATED : HTTP_OK
   );
-}
-
-function committedUploadRuntimeCommandBody(
-  committed: SuccessfulCoordinatorUploadCommit
-) {
-  return {
-    commit: committed.commit,
-    ...(committed.cursor === undefined ? {} : { cursor: committed.cursor }),
-  };
-}
-
-function committedUploadRuntimeCommandStatus(
-  committed: SuccessfulCoordinatorUploadCommit
-): number {
-  return committed.status === "committed" ? HTTP_CREATED : HTTP_OK;
 }
 
 export function rejectedRuntimeCommandResult<
