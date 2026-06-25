@@ -53,14 +53,10 @@ function isIntegerAtLeast(
   minimum: number,
   options: IntegerPredicateOptions = {}
 ): value is number {
-  return isIntegerValue(value, options) && value >= minimum;
-}
-
-function isIntegerValue(
-  value: unknown,
-  options: IntegerPredicateOptions
-): value is number {
-  return options.safe ? Number.isSafeInteger(value) : Number.isInteger(value);
+  return (
+    (options.safe ? Number.isSafeInteger(value) : Number.isInteger(value)) &&
+    value >= minimum
+  );
 }
 
 function assertInteger(
