@@ -1,5 +1,8 @@
 # OLOS
 
+[![Socket](https://socket.dev/api/badge/npm/package/@arsenstorm/olos)](https://socket.dev/npm/package/@arsenstorm/olos)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/arsenstorm/olos/badge)](https://scorecard.dev/viewer/?uri=github.com/arsenstorm/olos)
+
 Open Live Object Streaming protocol primitives. A low-latency append-only
 stream log over plain object storage (S3, R2, GCS).
 
