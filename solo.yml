@@ -15,3 +15,45 @@ processes:
     auto_restart: false
     restart_when_changed: []
     env: {}
+  MinIO (examples):
+    command: docker compose up
+    working_dir: examples/api
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  API Worker (example):
+    command: bun run dev
+    working_dir: examples/api
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  Streamer (example):
+    command: bun run start
+    working_dir: examples/streamer
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  Player (example):
+    command: bun run start
+    working_dir: examples/player
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  Publish Demo (example):
+    command: bun run publish-demo
+    working_dir: examples/api
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  Reset Stack (examples):
+    command: bun run reset
+    working_dir: examples/api
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}

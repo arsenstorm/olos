@@ -4,12 +4,19 @@ Notable package changes are documented here.
 
 This project follows semantic versioning for the published `olos` package.
 
-## Unreleased
-
-- No unreleased changes.
-
 ## 0.1.0
 
+- Added optional `byterange` field to `UploadSlot`, `Commit`, and
+  `CommittedPart`. When a part declares a byterange + `segmentObjectKey` +
+  `segmentDeliveryUrl`, the manifest renders `#EXT-X-PART:BYTERANGE="L@O"`
+  against the virtual segment URI rather than a per-part URL, enabling
+  spec-compliant LL-HLS byte-range parts. Per-part-URL parts continue to
+  work unchanged.
+- Added `#EXT-X-PRELOAD-HINT:TYPE=PART,BYTERANGE-START=N` rendering after
+  the last byterange part of the in-progress segment.
+- Added `HLS-BYTERANGE-001`, `HLS-BYTERANGE-002`, `HLS-BYTERANGE-003`
+  conformance assertions covering byterange validation, manifest
+  rendering, and preload-hint emission.
 - Added core OLOS protocol types, validation, and coordinator state helpers.
 - Added stored runtime helpers for sessions, upload slots, commits, manifests,
   retention, publisher liveness, and publisher upload loops.

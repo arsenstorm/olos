@@ -4,6 +4,7 @@ import type {
   CommittedSegment,
   CommittedWindow,
 } from "../types/committed-window";
+import { assertByterange } from "./byterange";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
   assertBooleanField,
@@ -292,6 +293,10 @@ function assertOptionalPartFields(
 
   if (value.independent !== undefined) {
     assertBooleanField(value, "independent", name);
+  }
+
+  if (value.byterange !== undefined) {
+    assertByterange(value.byterange, `${name}.byterange`);
   }
 }
 

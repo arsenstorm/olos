@@ -1,0 +1,9 @@
+# Copy to .dev.vars for `wrangler dev`. These match docker-compose.yml MinIO defaults.
+S3_ENDPOINT_URL=http://localhost:9000
+S3_ACCESS_KEY_ID=minioadmin
+S3_SECRET_ACCESS_KEY=minioadmin
+INGEST_KEY=dev-key
+# MEDIA_ORIGIN must be HTTPS to satisfy OLOS's `allowedMediaOrigins` policy.
+# In local dev, the Worker actually serves http://localhost:8787; manifest URLs
+# bake in https://localhost:8787 as a content placeholder. Set up an HTTPS
+# tunnel or local cert if you want real viewer playback.

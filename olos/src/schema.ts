@@ -67,6 +67,18 @@ function stringEnum<const Values extends readonly string[]>(values: Values) {
   return { enum: values, type: "string" } as const;
 }
 
+const byterangeSchema = {
+  additionalProperties: false,
+  properties: {
+    length: { exclusiveMinimum: 0, type: "integer" },
+    offset: { minimum: 0, type: "integer" },
+    segmentDeliveryUrl: deliveryUrl,
+    segmentObjectKey: objectKey,
+  },
+  required: ["length", "offset", "segmentDeliveryUrl", "segmentObjectKey"],
+  type: "object",
+} as const;
+
 const providerApiSchema = {
   additionalProperties: false,
   properties: {
@@ -218,6 +230,7 @@ const committedPartSchema = {
   additionalProperties: false,
   properties: {
     ...committedObjectSchema.properties,
+    byterange: byterangeSchema,
     duration: positiveNumber,
     independent: { type: "boolean" },
     partNumber: nonNegativeInteger,
@@ -311,6 +324,7 @@ export const OLOS_UPLOAD_SLOT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
   properties: {
+    byterange: byterangeSchema,
     contentType,
     deliveryUrl,
     duration: positiveNumber,
@@ -356,6 +370,7 @@ export const OLOS_COMMIT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
   properties: {
+    byterange: byterangeSchema,
     commitId: id,
     committedAt: timestamp,
     deliveryUrl,

@@ -125,6 +125,9 @@ export function createCommit(options: CreateCommitOptions): Commit {
   assertCommitPreconditions(options);
 
   const commit: Commit = {
+    ...(options.slot.byterange === undefined
+      ? {}
+      : { byterange: options.slot.byterange }),
     commitId: options.commitId,
     committedAt: options.committedAt,
     deliveryUrl: options.slot.deliveryUrl,

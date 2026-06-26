@@ -1,5 +1,6 @@
 import { PUBLICATION_MODES } from "../config/publication";
 import type { Commit } from "../types/commit";
+import { assertByterange } from "./byterange";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
   assertBooleanField,
@@ -64,6 +65,23 @@ function assertCommitOptionalFields(value: Record<string, unknown>): void {
   assertOptionalCommitEtag(value);
   assertOptionalCommitProgramDateTime(value);
   assertOptionalCommitIndependence(value);
+  assertOptionalCommitByterange(value);
+}
+
+function assertOptionalCommitByterange(value: Record<string, unknown>): void {
+  if (value.byterange === undefined) {
+    return;
+  }
+
+  assertByterange(value.byterange, "commit.byterange");
+  // A part-kind commit is the only thing OLOS lets carry a byterange. Slot
+  // issuance enforces it; we re-check here so a hand-rolled commit can't
+  // smuggle a byterange onto a segment commit.
+  if (value.partNumber === undefined) {
+    throw new Error(
+      "commit.byterange may only be set when partNumber is present"
+    );
+  }
 }
 
 function assertOptionalCommitEtag(value: Record<string, unknown>): void {

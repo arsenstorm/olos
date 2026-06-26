@@ -41,6 +41,3 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Turbo
 .turbo
-
-# Ignore work in examples (for now)
-examples/*

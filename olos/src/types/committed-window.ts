@@ -1,3 +1,4 @@
+import type { Byterange } from "./byterange";
 import type { MediaSequenceNumber, OlosId, PartNumber } from "./ids";
 
 export interface CommittedObject {
@@ -11,6 +12,7 @@ export interface CommittedObject {
 }
 
 export type CommittedPart = CommittedObject & {
+  byterange?: Byterange;
   duration: number;
   independent?: boolean;
   partNumber: PartNumber;

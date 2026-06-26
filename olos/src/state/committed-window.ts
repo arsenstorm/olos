@@ -310,6 +310,7 @@ function committedPart(commit: Commit): CommittedPart {
 
   return {
     ...committedObject(commit),
+    ...(commit.byterange === undefined ? {} : { byterange: commit.byterange }),
     duration: commit.duration,
     ...(commit.independent === undefined
       ? {}

@@ -1,0 +1,92 @@
+import { createSerializedCoordinatorStore } from "olos/protocol";
+import { createStoredS3CoordinatorRuntimeHandler } from "olos/s3";
+import { createCoordinatorStoreBackend } from "./coordinator-store";
+import { createCursorWaiter } from "./cursor-notifier";
+import { proxyMediaObject } from "./media-proxy";
+import { createS3Client } from "./s3-client";
+import { proxyVirtualSegment } from "./virtual-segment-proxy";
+
+// biome-ignore lint/performance/noBarrelFile: Wrangler requires the DO class to be exported from the main module
+export { StreamCoordinator } from "./coordinator-do";
+
+const BLOCKING_RELOAD_TIMEOUT_MS = 3000;
+const UPLOAD_GRANT_EXPIRY_SECONDS = 5;
+const PROVIDER_ID = "example_primary";
+// PART-HOLD-BACK and HOLD-BACK in the rendered manifest. With a 0.5 s
+// partTarget the LL-HLS spec floor for PART-HOLD-BACK is 3 × 0.5 = 1.5 s;
+// going lower would tell players they can chase tighter than the spec
+// allows. OLOS defaults targetLatency to 3 s — that's safe for production
+// but it parks the player ~3 s behind live regardless of liveSyncDuration.
+const TARGET_LATENCY_SECONDS = 1.5;
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+
+    if (isPublicRoute(url.pathname) && request.method === "OPTIONS") {
+      return withCors(new Response(null, { status: 204 }));
+    }
+
+    const client = createS3Client(env);
+    const store = createSerializedCoordinatorStore(
+      createCoordinatorStoreBackend(env.STREAMS)
+    );
+
+    if (request.method === "GET" && url.pathname.startsWith("/v/")) {
+      return withCors(await proxyVirtualSegment(request, env, client, store));
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/media/")) {
+      return withCors(await proxyMediaObject(request, env, client));
+    }
+
+    if (!(isPublicRoute(url.pathname) || isAuthed(request, env))) {
+      return new Response("unauthorised", { status: 401 });
+    }
+
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: [env.MEDIA_ORIGIN],
+      blockingReload: {
+        timeoutMs: BLOCKING_RELOAD_TIMEOUT_MS,
+        waitForCursor: createCursorWaiter(
+          env.STREAMS,
+          BLOCKING_RELOAD_TIMEOUT_MS
+        ),
+      },
+      bucket: env.S3_BUCKET,
+      client,
+      expiresInSeconds: UPLOAD_GRANT_EXPIRY_SECONDS,
+      providerId: PROVIDER_ID,
+      store,
+      targetLatency: TARGET_LATENCY_SECONDS,
+    });
+
+    const response = await handle(request);
+    return isPublicRoute(url.pathname) ? withCors(response) : response;
+  },
+} satisfies ExportedHandler<Env>;
+
+function isPublicRoute(pathname: string): boolean {
+  return (
+    pathname.startsWith("/v1/live/") ||
+    pathname.startsWith("/media/") ||
+    pathname.startsWith("/v/")
+  );
+}
+
+function isAuthed(request: Request, env: Env): boolean {
+  return request.headers.get("authorization") === `Bearer ${env.INGEST_KEY}`;
+}
+
+function withCors(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set("access-control-allow-origin", "*");
+  headers.set("access-control-allow-headers", "*");
+  headers.set("access-control-allow-methods", "GET, OPTIONS");
+  headers.set("access-control-expose-headers", "*");
+  return new Response(response.body, {
+    headers,
+    status: response.status,
+    statusText: response.statusText,
+  });
+}

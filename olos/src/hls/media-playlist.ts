@@ -105,7 +105,15 @@ function renderPartialSegment(
   segment: CommittedSegment,
   policy: MediaUriPolicy
 ): string[] {
-  return (segment.parts ?? []).map((part) => renderPart(part, policy));
+  const parts = segment.parts ?? [];
+  const lines = parts.map((part) => renderPart(part, policy));
+
+  const preloadHint = renderPreloadHint(parts, policy);
+  if (preloadHint !== undefined) {
+    lines.push(preloadHint);
+  }
+
+  return lines;
 }
 
 function hasFullCommittedSegment(
@@ -119,11 +127,49 @@ function renderPart(part: CommittedPart, policy: MediaUriPolicy): string {
 }
 
 function partAttributes(part: CommittedPart, policy: MediaUriPolicy): string[] {
+  const { byterange } = part;
+  const uri = byterange?.segmentDeliveryUrl ?? part.deliveryUrl;
+  const uriField = byterange
+    ? "part.byterange.segmentDeliveryUrl"
+    : "part.deliveryUrl";
+
   return [
     `DURATION=${formatSeconds(part.duration)}`,
     part.independent ? "INDEPENDENT=YES" : undefined,
-    `URI="${renderMediaUri(part.deliveryUrl, policy, "part.deliveryUrl")}"`,
+    `URI="${renderMediaUri(uri, policy, uriField)}"`,
+    byterange
+      ? `BYTERANGE="${byterange.length}@${byterange.offset}"`
+      : undefined,
   ].filter((attribute) => attribute !== undefined);
+}
+
+/**
+ * `#EXT-X-PRELOAD-HINT:TYPE=PART` tells the player the byte offset at which
+ * the next part will land, so it can hold a Range request open and receive
+ * the bytes as soon as the streamer commits them. Only emitted when the last
+ * committed part of the in-progress segment uses byterange addressing — for
+ * per-part-URI sessions there's nothing to preload-hint at.
+ */
+function renderPreloadHint(
+  parts: readonly CommittedPart[],
+  policy: MediaUriPolicy
+): string | undefined {
+  if (parts.length === 0) {
+    return;
+  }
+
+  const lastPart = parts.at(-1);
+  if (lastPart?.byterange === undefined) {
+    return;
+  }
+
+  const { length, offset, segmentDeliveryUrl } = lastPart.byterange;
+  const uri = renderMediaUri(
+    segmentDeliveryUrl,
+    policy,
+    "part.byterange.segmentDeliveryUrl"
+  );
+  return `#EXT-X-PRELOAD-HINT:TYPE=PART,URI="${uri}",BYTERANGE-START=${offset + length}`;
 }
 
 function renderMediaUri(

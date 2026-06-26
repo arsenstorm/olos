@@ -1,6 +1,8 @@
 import { MEDIA_OBJECT_KINDS } from "../config/media-object";
 import { PUBLICATION_MODES } from "../config/publication";
 import type { IssueCoordinatorSlotOptions } from "../protocol";
+import type { Byterange } from "../types/byterange";
+import { assertByterange, assertByterangeKind } from "../validation/byterange";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import { assertSafeMediaObjectKey } from "../validation/object-key";
 import {
@@ -42,7 +44,22 @@ export function parseRuntimeSlotIssuePayload(
     ...object,
     ...optionalNonNegativeIntegerField(value, "minBytes"),
     ...optionalNonNegativeIntegerField(value, "partNumber"),
+    ...optionalSlotByterange(value, object.kind),
   };
+}
+
+function optionalSlotByterange(
+  value: Record<string, unknown>,
+  kind: string
+): { byterange?: Byterange } {
+  if (value.byterange === undefined) {
+    return {};
+  }
+
+  assertByterange(value.byterange, "byterange");
+  assertByterangeKind(kind, "uploadSlot");
+
+  return { byterange: value.byterange };
 }
 
 function runtimeSlotIssueObjectFields(

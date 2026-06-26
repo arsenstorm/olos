@@ -141,6 +141,9 @@ export const OLOS_CONFORMANCE_COVERAGE_ROWS = [
   ["HLS-BLOCK-001", "hls", "src/hls/blocking-reload.test.ts"],
   ["HLS-BLOCK-002", "hls", "src/hls/manifest-artifacts.test.ts"],
   ["HLS-BLOCK-003", "hls", "e2e/runtime-client-flow.test.ts"],
+  ["HLS-BYTERANGE-001", "hls", "src/validation/byterange.test.ts"],
+  ["HLS-BYTERANGE-002", "hls", "src/hls/media-playlist.test.ts"],
+  ["HLS-BYTERANGE-003", "hls", "src/hls/media-playlist.test.ts"],
   ["SEC-DIRECT-004", "security", "src/s3/http.test.ts"],
   [
     "SEC-DIRECT-001",

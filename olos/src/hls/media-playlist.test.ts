@@ -255,6 +255,82 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
     expect(playlist).toContain("#EXTINF:2.000,");
   });
 
+  test("renders byterange parts and EXT-X-PRELOAD-HINT for the in-progress segment", () => {
+    const segmentDeliveryUrl =
+      "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/segment-3812.m4s";
+    const segmentObjectKey =
+      "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/segment-3812.m4s";
+
+    const playlist = renderMediaPlaylist(
+      {
+        ...committedWindow,
+        firstMediaSequenceNumber: 3812,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            segments: [
+              {
+                duration: 2,
+                mediaSequenceNumber: 3812,
+                parts: [
+                  {
+                    byterange: {
+                      length: 12_500,
+                      offset: 0,
+                      segmentDeliveryUrl,
+                      segmentObjectKey,
+                    },
+                    commitId: "commit_3812_0",
+                    deliveryUrl:
+                      "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p0.m4s",
+                    duration: 0.5,
+                    independent: true,
+                    objectKey:
+                      "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p0.m4s",
+                    partNumber: 0,
+                    slotId: "slot_3812_0",
+                  },
+                  {
+                    byterange: {
+                      length: 11_900,
+                      offset: 12_500,
+                      segmentDeliveryUrl,
+                      segmentObjectKey,
+                    },
+                    commitId: "commit_3812_1",
+                    deliveryUrl:
+                      "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p1.m4s",
+                    duration: 0.5,
+                    objectKey:
+                      "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p1.m4s",
+                    partNumber: 1,
+                    slotId: "slot_3812_1",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+      {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+      }
+    );
+
+    expect(playlist).toContain(
+      `#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="${segmentDeliveryUrl}",BYTERANGE="12500@0"`
+    );
+    expect(playlist).toContain(
+      `#EXT-X-PART:DURATION=0.500,URI="${segmentDeliveryUrl}",BYTERANGE="11900@12500"`
+    );
+    expect(playlist).toContain(
+      `#EXT-X-PRELOAD-HINT:TYPE=PART,URI="${segmentDeliveryUrl}",BYTERANGE-START=24400`
+    );
+  });
+
   test("renders part-only segments without full-segment EXTINF entries", () => {
     const playlist = renderMediaPlaylist(
       {

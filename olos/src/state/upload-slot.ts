@@ -1,4 +1,5 @@
 import { UPLOAD_SLOT_TRANSITIONS } from "../config/upload-slot";
+import type { Byterange } from "../types/byterange";
 import type { Cursor } from "../types/cursor";
 import type { MediaObjectKind } from "../types/media-object";
 import type { Session } from "../types/session";
@@ -16,6 +17,7 @@ const UPLOAD_SLOT_TRANSITION_MAP: Partial<
 > = UPLOAD_SLOT_TRANSITIONS;
 
 export interface CreateIssuedUploadSlotOptions {
+  byterange?: Byterange;
   contentType: string;
   deliveryUrl: string;
   duration: number;
@@ -149,8 +151,11 @@ function sessionHasRendition(session: Session, renditionId: string): boolean {
 
 function optionalIssuedUploadSlotFields(
   options: CreateIssuedUploadSlotOptions
-): Pick<UploadSlot, "minBytes" | "partNumber"> {
-  const optionalFields: Pick<UploadSlot, "minBytes" | "partNumber"> = {};
+): Pick<UploadSlot, "byterange" | "minBytes" | "partNumber"> {
+  const optionalFields: Pick<
+    UploadSlot,
+    "byterange" | "minBytes" | "partNumber"
+  > = {};
 
   if (options.minBytes !== undefined) {
     optionalFields.minBytes = options.minBytes;
@@ -158,6 +163,10 @@ function optionalIssuedUploadSlotFields(
 
   if (options.partNumber !== undefined) {
     optionalFields.partNumber = options.partNumber;
+  }
+
+  if (options.byterange !== undefined) {
+    optionalFields.byterange = options.byterange;
   }
 
   return optionalFields;

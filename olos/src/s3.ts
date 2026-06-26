@@ -1,6 +1,14 @@
 // biome-ignore-all lint/performance/noBarrelFile: public S3 facade for the olos/s3 export
 
 export {
+  type ByterangeCursorWait,
+  type ByterangeCursorWaitContext,
+  type ByterangeRangeRequest,
+  type CreateByterangeSegmentResponseOptions,
+  createByterangeSegmentResponse,
+  type S3GetObjectClient,
+} from "./s3/byterange-response";
+export {
   applyS3RuntimeRetention,
   commitS3RuntimeUpload,
   completeS3RuntimeUpload,

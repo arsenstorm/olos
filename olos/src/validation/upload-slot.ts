@@ -2,6 +2,7 @@ import { MEDIA_OBJECT_KINDS } from "../config/media-object";
 import { PUBLICATION_MODES } from "../config/publication";
 import { UPLOAD_SLOT_STATES } from "../config/upload-slot";
 import type { UploadSlot } from "../types/upload-slot";
+import { assertByterange, assertByterangeKind } from "./byterange";
 import { assertContentType } from "./content-type";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
@@ -32,8 +33,18 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
   assertUploadSlotSequenceFields(value);
   assertUploadSlotByteFields(value);
   assertUploadSlotMediaFields(value);
+  assertUploadSlotByterange(value);
   assertOneOfField(value, "publicationMode", PUBLICATION_MODES, "uploadSlot");
   assertOneOfField(value, "state", UPLOAD_SLOT_STATES, "uploadSlot");
+}
+
+function assertUploadSlotByterange(value: Record<string, unknown>): void {
+  if (value.byterange === undefined) {
+    return;
+  }
+
+  assertByterange(value.byterange, "uploadSlot.byterange");
+  assertByterangeKind(value.kind as string, "uploadSlot");
 }
 
 function assertUploadSlotIdentifiers(value: Record<string, unknown>): void {

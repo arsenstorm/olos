@@ -1,3 +1,4 @@
+export type { Byterange } from "./types/byterange";
 export type {
   DeliveryCachePolicy,
   DeliveryCacheTarget,

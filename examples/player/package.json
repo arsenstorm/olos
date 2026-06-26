@@ -1,0 +1,12 @@
+{
+  "name": "olos-examples/player",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun src/serve.ts",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}
