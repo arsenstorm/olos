@@ -1,8 +1,8 @@
-import type { S3Client } from "@aws-sdk/client-s3";
 import type { CoordinatorPipelineStore } from "olos/protocol";
 import {
   type ByterangeRangeRequest,
   createByterangeSegmentResponse,
+  type S3GetObjectClient,
 } from "olos/s3";
 import { createCursorWaiter } from "./cursor-notifier";
 
@@ -16,7 +16,7 @@ const BLOCKING_RELOAD_TIMEOUT_MS = 3000;
 export async function proxyVirtualSegment(
   request: Request,
   env: Env,
-  client: S3Client,
+  client: S3GetObjectClient,
   store: CoordinatorPipelineStore
 ): Promise<Response> {
   const url = new URL(request.url);

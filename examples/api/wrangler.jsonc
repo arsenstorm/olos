@@ -21,10 +21,17 @@
       "new_sqlite_classes": ["StreamCoordinator"]
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "olos-example-media"
+    }
+  ],
   "vars": {
     "MEDIA_ORIGIN": "https://localhost:8787",
     "S3_BUCKET": "olos-example-media",
-    "S3_REGION": "auto"
+    "S3_REGION": "auto",
+    "USE_R2_BINDING": "false"
   },
   "secrets": {
     "required": [

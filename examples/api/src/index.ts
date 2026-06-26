@@ -1,8 +1,12 @@
 import { createSerializedCoordinatorStore } from "olos/protocol";
-import { createStoredS3CoordinatorRuntimeHandler } from "olos/s3";
+import {
+  createStoredS3CoordinatorRuntimeHandler,
+  type S3GetObjectClient,
+} from "olos/s3";
 import { createCoordinatorStoreBackend } from "./coordinator-store";
 import { createCursorWaiter } from "./cursor-notifier";
 import { proxyMediaObject } from "./media-proxy";
+import { R2GetObjectClient } from "./r2-get-object-client";
 import { createS3Client } from "./s3-client";
 import { proxyVirtualSegment } from "./virtual-segment-proxy";
 
@@ -28,16 +32,19 @@ export default {
     }
 
     const client = createS3Client(env);
+    const readClient = pickReadClient(env, client);
     const store = createSerializedCoordinatorStore(
       createCoordinatorStoreBackend(env.STREAMS)
     );
 
     if (request.method === "GET" && url.pathname.startsWith("/v/")) {
-      return withCors(await proxyVirtualSegment(request, env, client, store));
+      return withCors(
+        await proxyVirtualSegment(request, env, readClient, store)
+      );
     }
 
     if (request.method === "GET" && url.pathname.startsWith("/media/")) {
-      return withCors(await proxyMediaObject(request, env, client));
+      return withCors(await proxyMediaObject(request, env, readClient));
     }
 
     if (!(isPublicRoute(url.pathname) || isAuthed(request, env))) {
@@ -72,6 +79,17 @@ function isPublicRoute(pathname: string): boolean {
     pathname.startsWith("/media/") ||
     pathname.startsWith("/v/")
   );
+}
+
+// Picks the GetObject path. In production set `USE_R2_BINDING=true` to read
+// from the R2 binding (no AWS SigV4 CPU, slightly cheaper class B ops). In
+// dev we stay on S3 because Miniflare's R2 emulator is a different bucket
+// from MinIO so the binding read would always miss.
+function pickReadClient(
+  env: Pick<Env, "MEDIA"> & { USE_R2_BINDING: string },
+  s3: ReturnType<typeof createS3Client>
+): S3GetObjectClient {
+  return env.USE_R2_BINDING === "true" ? new R2GetObjectClient(env.MEDIA) : s3;
 }
 
 function isAuthed(request: Request, env: Env): boolean {

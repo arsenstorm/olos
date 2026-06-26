@@ -1,12 +1,13 @@
-import type { GetObjectCommandOutput, S3Client } from "@aws-sdk/client-s3";
+import type { GetObjectCommandOutput } from "@aws-sdk/client-s3";
 import { GetObjectCommand, NoSuchKey } from "@aws-sdk/client-s3";
+import type { S3GetObjectClient } from "olos/s3";
 
 const MEDIA_PREFIX = "/media/";
 
 export async function proxyMediaObject(
   request: Request,
   env: Env,
-  client: S3Client
+  client: S3GetObjectClient
 ): Promise<Response> {
   const url = new URL(request.url);
   const objectKey = url.pathname.slice(MEDIA_PREFIX.length);
@@ -21,7 +22,7 @@ export async function proxyMediaObject(
       new GetObjectCommand({ Bucket: env.S3_BUCKET, Key: objectKey })
     );
   } catch (error) {
-    if (error instanceof NoSuchKey) {
+    if (error instanceof NoSuchKey || (error as Error)?.name === "NoSuchKey") {
       return new Response("not found", { status: 404 });
     }
     throw error;

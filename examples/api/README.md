@@ -73,17 +73,43 @@ manifest handler — useful when iterating on `coordinator-do.ts` or
 
 ## Production deployment
 
-Switch the S3 client to your R2 bucket. The Worker is unchanged.
+Worker code is unchanged. Two prerequisites:
+
+1. **Create the R2 bucket** with the name declared in `wrangler.jsonc`
+   (`olos-example-media` by default). `wrangler deploy` fails if the bucket
+   binding doesn't resolve, which is the whole reason the binding is in
+   `wrangler.jsonc` — broken config is caught before deploy, not at the
+   first viewer request.
+
+   ```bash
+   wrangler r2 bucket create olos-example-media
+   ```
+
+2. **Set secrets.** The streamer always talks to the bucket via R2's S3
+   endpoint (R2 bindings only work from inside a Worker; the streamer is a
+   Bun process). Generate an R2 API token from the Cloudflare dashboard,
+   then:
+
+   ```bash
+   wrangler secret put S3_ENDPOINT_URL           # https://<account>.r2.cloudflarestorage.com
+   wrangler secret put S3_ACCESS_KEY_ID
+   wrangler secret put S3_SECRET_ACCESS_KEY
+   wrangler secret put INGEST_KEY
+   wrangler secret put USE_R2_BINDING            # set to "true"
+   ```
+
+   Setting `USE_R2_BINDING=true` flips the Worker's GetObject path
+   (`/media/*` and `/v/*`) to use `env.MEDIA.get(...)` directly — no AWS
+   SigV4 signing CPU, slightly cheaper class B operations. The streamer's
+   presigned PUT flow still uses the S3 endpoint regardless. In local dev
+   `USE_R2_BINDING` is `"false"` (set in `wrangler.jsonc` vars), because
+   Miniflare's R2 emulator is a separate bucket from MinIO so the binding
+   would always miss.
+
+Then edit `wrangler.jsonc` `vars.MEDIA_ORIGIN` to your viewer-facing origin
+and deploy:
 
 ```bash
-# R2 S3 endpoint is https://<account-id>.r2.cloudflarestorage.com
-wrangler secret put S3_ENDPOINT_URL
-wrangler secret put S3_ACCESS_KEY_ID
-wrangler secret put S3_SECRET_ACCESS_KEY
-wrangler secret put INGEST_KEY
-
-# Edit wrangler.jsonc vars.MEDIA_ORIGIN to your viewer-facing origin and
-# vars.S3_BUCKET to the R2 bucket name, then:
 bun run deploy                 # vite build && wrangler deploy
 ```
 
@@ -95,7 +121,11 @@ routes.
 
 ## Files
 
-- `src/index.ts` — Worker entry; composes the OLOS handler.
+- `src/index.ts` — Worker entry; composes the OLOS handler; picks R2 binding
+  vs S3 SDK for the read path.
+- `src/r2-get-object-client.ts` — wraps `env.MEDIA` to satisfy OLOS's
+  `S3GetObjectClient` interface so the byterange helper and media proxy
+  can read via the binding in production.
 - `src/coordinator-do.ts` — `StreamCoordinator` Durable Object: store backend
   plus in-memory cursor waiters.
 - `src/coordinator-store.ts` — adapter routing OLOS store calls to the DO.
