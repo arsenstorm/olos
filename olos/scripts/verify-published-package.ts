@@ -4,13 +4,13 @@ import { assertInstalledPackageContents } from "./package-contents";
 import { writePackageSmokeFile } from "./package-smoke-fixture";
 import { assertPublishedPackageVersion } from "./published-package";
 import { packageVersion } from "./release-metadata";
+import { resolveWorkspaceBin } from "./script-bin";
 import { packageRoot, repoRoot } from "./script-paths";
 import { runCommand } from "./script-runner";
 
 const workRoot = join(repoRoot, "out", "published-package-smoke");
 const consumerRoot = join(workRoot, "consumer");
 const tempRoot = join(workRoot, "tmp");
-const tsc = join(packageRoot, "node_modules", ".bin", "tsc");
 const version = process.argv[2] ?? packageVersion;
 const smokeEnv = {
   ...process.env,
@@ -45,7 +45,11 @@ await assertInstalledPackageContents(
 );
 await writePackageSmokeFile(consumerRoot);
 await run("bun", ["smoke.mjs"], { cwd: consumerRoot });
-await run(tsc, ["--project", "tsconfig.json"], { cwd: consumerRoot });
+await run(
+  await resolveWorkspaceBin("tsc", [packageRoot, repoRoot]),
+  ["--project", "tsconfig.json"],
+  { cwd: consumerRoot }
+);
 
 async function runWithRetries(
   command: string,
