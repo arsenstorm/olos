@@ -48,7 +48,7 @@ create table olos_coordinator_snapshots (
 Generate the canonical SQLite-compatible table schema with:
 
 ```ts
-import { createSqliteSerializedCoordinatorStoreSchema } from "olos/protocol";
+import { createSqliteSerializedCoordinatorStoreSchema } from "@arsenstorm/olos/protocol";
 
 const sql = createSqliteSerializedCoordinatorStoreSchema();
 ```
@@ -117,7 +117,7 @@ hide a best-effort last-write-wins backend behind the adapter contract.
 Every production backend should run:
 
 ```ts
-import { assertSerializedCoordinatorStoreBackendConformance } from "olos/protocol";
+import { assertSerializedCoordinatorStoreBackendConformance } from "@arsenstorm/olos/protocol";
 
 await assertSerializedCoordinatorStoreBackendConformance({
   createBackend: () => createBackendForTestDatabase(),

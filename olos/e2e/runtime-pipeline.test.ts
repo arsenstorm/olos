@@ -5,7 +5,7 @@ import {
   createSqliteSerializedCoordinatorStoreBackend,
   type SqliteSerializedCoordinatorStoreDatabase,
   type SqliteSerializedCoordinatorStoreRunResult,
-} from "olos/protocol";
+} from "@arsenstorm/olos/protocol";
 import {
   commitStoredCoordinatorUploadFromRequest,
   createRuntimeObjectLowLatencyManifestOptions,
@@ -21,9 +21,9 @@ import {
   resolveRuntimePublisherObjectExpiry,
   serveStoredCoordinatorManifest,
   transitionStoredCoordinatorSession,
-} from "olos/runtime";
-import type { Pathway, Session } from "olos/types";
-import { assertCursor } from "olos/validation";
+} from "@arsenstorm/olos/runtime";
+import type { Pathway, Session } from "@arsenstorm/olos/types";
+import { assertCursor } from "@arsenstorm/olos/validation";
 import { describe, expect, test } from "vitest";
 
 const latency = createRuntimeObjectLowLatencyProfile();

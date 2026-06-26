@@ -1,4 +1,4 @@
-import type { Cursor } from "olos/types";
+import type { Cursor } from "@arsenstorm/olos/types";
 import type { StreamCoordinator } from "./coordinator-do";
 
 interface CursorWaitContext {

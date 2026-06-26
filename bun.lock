@@ -17,9 +17,9 @@
     "examples/api": {
       "name": "olos-examples/api",
       "dependencies": {
+        "@arsenstorm/olos": "workspace:*",
         "@aws-sdk/client-s3": "^3.1066.0",
         "@aws-sdk/s3-request-presigner": "^3.1066.0",
-        "olos": "workspace:*",
       },
       "devDependencies": {
         "@cloudflare/vite-plugin": "^1.40.2",
@@ -38,14 +38,14 @@
     "examples/streamer": {
       "name": "olos-examples/streamer",
       "dependencies": {
-        "olos": "workspace:*",
+        "@arsenstorm/olos": "workspace:*",
       },
       "devDependencies": {
         "typescript": "^5",
       },
     },
     "olos": {
-      "name": "olos",
+      "name": "@arsenstorm/olos",
       "version": "0.1.0",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1066.0",
@@ -58,6 +58,8 @@
     },
   },
   "packages": {
+    "@arsenstorm/olos": ["@arsenstorm/olos@workspace:olos"],
+
     "@aws-crypto/crc32": ["@aws-crypto/crc32@5.2.0", "", { "dependencies": { "@aws-crypto/util": "^5.2.0", "@aws-sdk/types": "^3.222.0", "tslib": "^2.6.2" } }, "sha512-nLbCWqQNgUiwwtFsen1AdzAtvuLRsQS8rYgMuxCrdKf9kOssamGLuPwyTY9wyYblNr9+1XM8v6zoDTPPSIeANg=="],
 
     "@aws-crypto/crc32c": ["@aws-crypto/crc32c@5.2.0", "", { "dependencies": { "@aws-crypto/util": "^5.2.0", "@aws-sdk/types": "^3.222.0", "tslib": "^2.6.2" } }, "sha512-+iWb8qaHLYKrNvGRbiYRHSdKRWhto5XlZUEBwDjYNf+ly5SVYG6zEoYIdxvf5R3zyeP16w4PLBn3rH1xc74Rag=="],
@@ -475,8 +477,6 @@
     "nypm": ["nypm@0.6.7", "", { "dependencies": { "citty": "^0.2.2", "pathe": "^2.0.3", "tinyexec": "^1.2.4" }, "bin": { "nypm": "./dist/cli.mjs" } }, "sha512-s3ds97SD5pd1dULE+tHUk1DrV0cSHOnsfpcdGATJ8JpBo21DoKqN9exTH4/2nhPQNOLomBdTFMicN94S4DrZrQ=="],
 
     "obug": ["obug@2.1.2", "", {}, "sha512-AWGB9WFcRXOQs48Z/udjI5ZcZMHXwX8XPByNpOydgcGsDLIzjGizhoMWJyKAWze7AVW/2W1i+/gPX4YtKe5cyg=="],
-
-    "olos": ["olos@workspace:olos"],
 
     "olos-examples/api": ["olos-examples/api@workspace:examples/api"],
 

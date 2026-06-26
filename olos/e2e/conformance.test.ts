@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
-import { renderMasterPlaylist, renderMediaPlaylist } from "olos/hls";
-import { createRuntimeObjectLowLatencyManifestOptions } from "olos/runtime";
-import { assertCommittedWindow } from "olos/validation";
+import {
+  renderMasterPlaylist,
+  renderMediaPlaylist,
+} from "@arsenstorm/olos/hls";
+import { createRuntimeObjectLowLatencyManifestOptions } from "@arsenstorm/olos/runtime";
+import { assertCommittedWindow } from "@arsenstorm/olos/validation";
 import { describe, expect, test } from "vitest";
 
 import {

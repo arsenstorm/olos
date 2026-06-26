@@ -1,8 +1,8 @@
 import { expectedRuntimeExports } from "./public-surface";
 
 const exactRuntimeExports = {
-  olos: expectedRuntimeExports.olos,
-  "olos/types": [],
+  "@arsenstorm/olos": expectedRuntimeExports["@arsenstorm/olos"],
+  "@arsenstorm/olos/types": [],
 } as const;
 
 const runtimeSmokeImports = `import { readFile } from "node:fs/promises";
@@ -13,7 +13,7 @@ const exactRuntimeExports = ${JSON.stringify(exactRuntimeExports)};
 
 const runtimeSmokePackageExportAssertions = `
 const packageJson = JSON.parse(
-  await readFile(new URL("./node_modules/olos/package.json", import.meta.url))
+  await readFile(new URL("./node_modules/@arsenstorm/olos/package.json", import.meta.url))
 );
 const exportedSubpaths = Object.keys(packageJson.exports)
   .filter(isPackageModuleExportSubpath)
@@ -60,7 +60,9 @@ function isPackageModuleExportSubpath(subpath) {
 }
 
 function packageExportSpecifier(subpath) {
-  return subpath === "." ? "olos" : \`olos/\${subpath.slice(2)}\`;
+  return subpath === "."
+    ? "@arsenstorm/olos"
+    : \`@arsenstorm/olos/\${subpath.slice(2)}\`;
 }
 `;
 

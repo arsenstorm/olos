@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { S3Client } from "@aws-sdk/client-s3";
 import {
   createPresignedS3UploadGrant,
   deleteRetiredS3CoordinatorObjects,
   observeS3Object,
-} from "olos/s3";
-import type { UploadSlot } from "olos/types";
+} from "@arsenstorm/olos/s3";
+import type { UploadSlot } from "@arsenstorm/olos/types";
+import { S3Client } from "@aws-sdk/client-s3";
 import { expect, test } from "vitest";
 import { readLiveS3ConfigFromEnv } from "./s3-config";
 

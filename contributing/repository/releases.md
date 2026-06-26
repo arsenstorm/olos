@@ -50,7 +50,7 @@ Release checklist:
 2. Move relevant `CHANGELOG.md` entries from `Unreleased` into the new version.
 3. Run `bun run publish:check` from the repository root.
 4. Run `bun run test:live-s3` when the release needs live provider validation.
-5. Run `bun --filter olos release:verify-tag olos-vX.Y.Z`.
+5. Run `bun --filter '@arsenstorm/olos' release:verify-tag olos-vX.Y.Z`.
 6. Push a tag named `olos-vX.Y.Z` to run the publish workflow.
 7. Confirm the workflow published from `olos/` with npm provenance enabled.
 8. Confirm the workflow verified the published package subpaths.
@@ -67,7 +67,7 @@ protection rules.
 ```bash
 bun install --frozen-lockfile
 bun run publish:check
-bun --filter olos release:verify-tag olos-v0.1.0
+bun --filter '@arsenstorm/olos' release:verify-tag olos-v0.1.0
 git tag olos-v0.1.0
 git push origin olos-v0.1.0
 ```
@@ -76,7 +76,7 @@ After the workflow finishes, verify the published package from a fresh checkout
 or local working tree:
 
 ```bash
-bun --filter olos release:verify-published 0.1.0
+bun --filter '@arsenstorm/olos' release:verify-published 0.1.0
 ```
 
 Pass the npm package version, not the git tag name, to
@@ -89,7 +89,7 @@ consumer project:
 mkdir /tmp/olos-npm-verify
 cd /tmp/olos-npm-verify
 npm init -y
-npm install olos@0.1.0
+npm install @arsenstorm/olos@0.1.0
 npm audit signatures
 ```
 

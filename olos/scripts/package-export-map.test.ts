@@ -9,8 +9,10 @@ describe("package export map helpers", () => {
   test("maps package subpaths to source and package entrypoints", () => {
     expect(packageExportEntrypoint(".")).toBe("index");
     expect(packageExportEntrypoint("./runtime")).toBe("runtime");
-    expect(packageExportSpecifier(".")).toBe("olos");
-    expect(packageExportSpecifier("./runtime")).toBe("olos/runtime");
+    expect(packageExportSpecifier(".")).toBe("@arsenstorm/olos");
+    expect(packageExportSpecifier("./runtime")).toBe(
+      "@arsenstorm/olos/runtime"
+    );
   });
 
   test("keeps package metadata out of public module subpaths", () => {

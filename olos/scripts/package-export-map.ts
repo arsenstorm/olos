@@ -8,7 +8,9 @@ export function packageExportEntrypoint(subpath: string): string {
 }
 
 export function packageExportSpecifier(subpath: string): string {
-  return subpath === "." ? "olos" : `olos/${packageExportEntrypoint(subpath)}`;
+  return subpath === "."
+    ? "@arsenstorm/olos"
+    : `@arsenstorm/olos/${packageExportEntrypoint(subpath)}`;
 }
 
 export function packageExportSubpaths(

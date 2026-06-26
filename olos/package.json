@@ -1,5 +1,5 @@
 {
-  "name": "olos",
+  "name": "@arsenstorm/olos",
   "version": "0.1.0",
   "description": "Open Live Object Streaming protocol primitives.",
   "type": "module",

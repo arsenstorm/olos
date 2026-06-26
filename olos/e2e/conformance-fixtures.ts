@@ -1,5 +1,5 @@
-import { createRuntimeObjectLowLatencyProfile } from "olos/runtime";
-import type { CommittedWindow, Session } from "olos/types";
+import { createRuntimeObjectLowLatencyProfile } from "@arsenstorm/olos/runtime";
+import type { CommittedWindow, Session } from "@arsenstorm/olos/types";
 
 const latency = createRuntimeObjectLowLatencyProfile();
 

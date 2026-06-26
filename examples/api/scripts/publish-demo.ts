@@ -1,5 +1,8 @@
-import { commitS3RuntimeUpload, issueS3RuntimeUploadGrant } from "olos/s3";
-import type { Byterange, Pathway, Session } from "olos/types";
+import {
+  commitS3RuntimeUpload,
+  issueS3RuntimeUploadGrant,
+} from "@arsenstorm/olos/s3";
+import type { Byterange, Pathway, Session } from "@arsenstorm/olos/types";
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:8787";
 const INGEST_KEY = process.env.INGEST_KEY ?? "dev-key";

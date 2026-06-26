@@ -1,9 +1,9 @@
+import type { S3GetObjectClient } from "@arsenstorm/olos/s3";
 import type {
   GetObjectCommand,
   GetObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import { NoSuchKey } from "@aws-sdk/client-s3";
-import type { S3GetObjectClient } from "olos/s3";
 
 const RANGE_PATTERN = /^bytes=(\d+)-(\d*)$/;
 

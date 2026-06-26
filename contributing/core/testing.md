@@ -11,7 +11,7 @@ bun run test
 Run the package test suite directly:
 
 ```bash
-bun --filter olos test
+bun --filter '@arsenstorm/olos' test
 ```
 
 Run deterministic E2E tests:

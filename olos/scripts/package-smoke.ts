@@ -10,7 +10,7 @@ const workRoot = join(repoRoot, "out", "package-smoke");
 const tarball = join(workRoot, "olos-smoke.tgz");
 const consumerRoot = join(workRoot, "consumer");
 const consumerNodeModules = join(consumerRoot, "node_modules");
-const packageInstallRoot = join(consumerNodeModules, "olos");
+const packageInstallRoot = join(consumerNodeModules, "@arsenstorm", "olos");
 const tempRoot = join(workRoot, "tmp");
 const smokeEnv = {
   ...process.env,
@@ -62,7 +62,7 @@ async function linkPackageDependencies() {
   const entries = await readdir(packageNodeModules);
 
   for (const entry of entries) {
-    if (entry === ".bin" || entry === "olos") {
+    if (entry === ".bin" || entry === "@arsenstorm") {
       continue;
     }
 

@@ -12,7 +12,7 @@ const typeSmokeTsConfig = {
   include: ["smoke.ts"],
 } as const;
 
-const typeSmokeImports = `import { OLOS_WIRE_VERSION } from "olos";
+const typeSmokeImports = `import { OLOS_WIRE_VERSION } from "@arsenstorm/olos";
 import {
   createHlsManifestArtifactResponse,
   createHlsManifestErrorWebResponse,
@@ -21,7 +21,7 @@ import {
   resolveBlockingHlsManifestArtifactResponse,
   resolveHlsBlockingReload,
   waitForHlsBlockingReload,
-} from "olos/hls";
+} from "@arsenstorm/olos/hls";
 import {
   assertSerializedCoordinatorStoreBackendConformance,
   createMemorySerializedCoordinatorStoreBackend,
@@ -32,7 +32,7 @@ import {
   parseCoordinatorPipelineSnapshot,
   planCoordinatorRetention,
   serializeCoordinatorPipelineSnapshot,
-} from "olos/protocol";
+} from "@arsenstorm/olos/protocol";
 import {
   createMemoryRuntimeCursorNotifier,
   createRuntimeObjectLowLatencyManifestOptions,
@@ -52,11 +52,11 @@ import {
   serveStoredBlockingCoordinatorManifest,
   serveStoredCoordinatorManifest,
   summarizeRetiredCoordinatorObjectDeletions,
-} from "olos/runtime";
+} from "@arsenstorm/olos/runtime";
 import type {
   CommitCoordinatorUploadFromRequestOptions,
   RunRuntimePublisherUploadStepOptions,
-} from "olos/runtime";
+} from "@arsenstorm/olos/runtime";
 import {
   applyS3RuntimeRetention,
   completeS3RuntimeUpload,
@@ -79,7 +79,7 @@ import {
   runStoredS3PublisherUploadStep,
   summarizeStoredS3CoordinatorUploadReconciliation,
   summarizeStoredS3PublisherUploadStep,
-} from "olos/s3";
+} from "@arsenstorm/olos/s3";
 import type {
   S3RuntimeApplyRetentionOptions,
   S3RuntimeCommitPayload,
@@ -101,8 +101,8 @@ import type {
   CreateStoredS3CoordinatorRuntimeHandlerOptions,
   ReconcileStoredS3CoordinatorUploadsOptions,
   RunPlannedStoredS3PublisherUploadStepOptions,
-} from "olos/s3";
-import { OLOS_JSON_SCHEMAS } from "olos/schema";
+} from "@arsenstorm/olos/s3";
+import { OLOS_JSON_SCHEMAS } from "@arsenstorm/olos/schema";
 import {
   createDirectPublicMediaResponseHeaders,
   createDirectPublicNegativeObjectResponseHeaders,
@@ -110,14 +110,14 @@ import {
   resolveDirectPublicMediaRequestPolicy,
   selectExpiredUploadSlots,
   selectRetiredCommittedObjects,
-} from "olos/state";
+} from "@arsenstorm/olos/state";
 import type {
   ProviderCapabilityDocument,
   Session,
   UploadGrant,
   UploadSlot,
-} from "olos/types";
-import { assertSession } from "olos/validation";
+} from "@arsenstorm/olos/types";
+import { assertSession } from "@arsenstorm/olos/validation";
 `;
 
 const typeSmokeFunctionBindings = `

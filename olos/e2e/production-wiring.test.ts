@@ -1,11 +1,11 @@
-import { createMemoryCoordinatorStore } from "olos/protocol";
+import { createMemoryCoordinatorStore } from "@arsenstorm/olos/protocol";
 import {
   createMemoryRuntimeCursorNotifier,
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
-} from "olos/runtime";
-import { createStoredS3CoordinatorRuntimeHandler } from "olos/s3";
-import type { Pathway, Session } from "olos/types";
+} from "@arsenstorm/olos/runtime";
+import { createStoredS3CoordinatorRuntimeHandler } from "@arsenstorm/olos/s3";
+import type { Pathway, Session } from "@arsenstorm/olos/types";
 import { describe, expect, test } from "vitest";
 import {
   createTestDeleteObjectClient,

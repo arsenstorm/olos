@@ -14,8 +14,8 @@ manager.
 ## Imports
 
 ```ts
-import { OLOS_PROTOCOL_NAME } from "olos";
-import type { Session } from "olos/types";
+import { OLOS_PROTOCOL_NAME } from "@arsenstorm/olos";
+import type { Session } from "@arsenstorm/olos/types";
 ```
 
 `olos` keeps the root export small. Use subpath imports for the rest of the
@@ -43,7 +43,7 @@ Use `olos/schema` when a service needs JSON Schema documents for API gateways,
 typed clients, fixtures, or external conformance tooling:
 
 ```ts
-import { OLOS_JSON_SCHEMAS, OLOS_SESSION_SCHEMA } from "olos/schema";
+import { OLOS_JSON_SCHEMAS, OLOS_SESSION_SCHEMA } from "@arsenstorm/olos/schema";
 ```
 
 Runtime validation helpers remain in `olos/validation`; the schema export is a
@@ -83,7 +83,7 @@ import {
   serveStoredBlockingCoordinatorManifest,
   serveStoredCoordinatorManifest,
   transitionStoredCoordinatorSession,
-} from "olos/runtime";
+} from "@arsenstorm/olos/runtime";
 
 await createStoredCoordinatorSession({
   pathways,
@@ -187,7 +187,7 @@ app-generated `objectKeyNonce` so future object URLs are not deterministic.
 for that field:
 
 ```ts
-import { createRuntimePublisherObjectKeyNonce } from "olos/runtime";
+import { createRuntimePublisherObjectKeyNonce } from "@arsenstorm/olos/runtime";
 
 const objectKeyNonce = createRuntimePublisherObjectKeyNonce({
   bytes: crypto.getRandomValues(new Uint8Array(16)),
@@ -238,8 +238,8 @@ Use `publicationControl` to stop new publication during an incident or budget
 limit without tearing down the session:
 
 ```ts
-import { createStoredCoordinatorRuntimeHandler } from "olos/runtime";
-import { createPublicationKillSwitch } from "olos/state";
+import { createStoredCoordinatorRuntimeHandler } from "@arsenstorm/olos/runtime";
+import { createPublicationKillSwitch } from "@arsenstorm/olos/state";
 
 const handleOlos = createStoredCoordinatorRuntimeHandler({
   allowedMediaOrigins: ["https://media.example.com"],
@@ -262,7 +262,7 @@ Use `commitPolicy` when publication depends on app-owned publisher
 authorisation or quota state:
 
 ```ts
-import { createStoredCoordinatorRuntimeHandler } from "olos/runtime";
+import { createStoredCoordinatorRuntimeHandler } from "@arsenstorm/olos/runtime";
 
 const handleOlos = createStoredCoordinatorRuntimeHandler({
   allowedMediaOrigins: ["https://media.example.com"],
@@ -308,7 +308,7 @@ import {
   createNextCoordinatorPipelineEtag,
   parseCoordinatorPipelineSnapshot,
   serializeCoordinatorPipelineSnapshot,
-} from "olos/protocol";
+} from "@arsenstorm/olos/protocol";
 
 const snapshot = parseCoordinatorPipelineSnapshot(row.snapshot_json);
 const nextEtag = createNextCoordinatorPipelineEtag(snapshot.etag);
@@ -326,7 +326,7 @@ For stores that persist an opaque JSON snapshot plus a separate ETag column,
 contract:
 
 ```ts
-import { createSerializedCoordinatorStore } from "olos/protocol";
+import { createSerializedCoordinatorStore } from "@arsenstorm/olos/protocol";
 
 const store = createSerializedCoordinatorStore({
   load: (sessionId) => loadSnapshotRow(sessionId),
@@ -381,13 +381,13 @@ For production adapter guidance, see the repository
 manifest responses after a commit.
 
 ```ts
-import { resolveHlsManifestArtifactResponse } from "olos/hls";
+import { resolveHlsManifestArtifactResponse } from "@arsenstorm/olos/hls";
 import {
   commitStoredS3CoordinatorUpload,
   issueStoredS3CoordinatorUploadGrant,
   normalizeS3ObjectCreatedEvents,
   routeStoredS3CoordinatorUploadEvent,
-} from "olos/s3";
+} from "@arsenstorm/olos/s3";
 
 const issued = await issueStoredS3CoordinatorUploadGrant({
   bucket: "media",
@@ -454,7 +454,7 @@ For applications that want a Fetch-compatible route handler, `olos/s3` exposes
 the same flow over HTTP without choosing a web framework:
 
 ```ts
-import { createStoredS3CoordinatorRuntimeHandler } from "olos/s3";
+import { createStoredS3CoordinatorRuntimeHandler } from "@arsenstorm/olos/s3";
 
 const handleOlos = createStoredS3CoordinatorRuntimeHandler({
   allowedMediaOrigins: ["https://media.example.com"],
@@ -497,7 +497,7 @@ hand-building route URLs:
 import {
   commitS3RuntimeUpload,
   issueS3RuntimeUploadGrant,
-} from "olos/s3";
+} from "@arsenstorm/olos/s3";
 
 const issued = await issueS3RuntimeUploadGrant({
   baseUrl: "https://edge.example.com",
@@ -523,7 +523,7 @@ If the publisher only sends a completion hint, use the slot-scoped completion
 route instead:
 
 ```ts
-import { completeS3RuntimeUpload } from "olos/s3";
+import { completeS3RuntimeUpload } from "@arsenstorm/olos/s3";
 
 const completed = await completeS3RuntimeUpload({
   baseUrl: "https://edge.example.com",
@@ -618,7 +618,7 @@ HTTP recovery clients can use the S3 runtime helpers over the same routes:
 import {
   planS3RuntimeReconciliation,
   reconcileS3RuntimeUploads,
-} from "olos/s3";
+} from "@arsenstorm/olos/s3";
 
 const plan = await planS3RuntimeReconciliation({
   baseUrl: "https://edge.example.com",
@@ -647,7 +647,7 @@ cutoff is explicit.
 HTTP retention clients can use the matching S3 runtime helper:
 
 ```ts
-import { applyS3RuntimeRetention } from "olos/s3";
+import { applyS3RuntimeRetention } from "@arsenstorm/olos/s3";
 
 const retained = await applyS3RuntimeRetention({
   baseUrl: "https://edge.example.com",
@@ -721,8 +721,8 @@ For deployment controls, see the repository
 import {
   selectExpiredUploadSlots,
   selectRetiredCommittedObjects,
-} from "olos/state";
-import { planCoordinatorRetention } from "olos/protocol";
+} from "@arsenstorm/olos/state";
+import { planCoordinatorRetention } from "@arsenstorm/olos/protocol";
 
 const expiredSlots = selectExpiredUploadSlots({ now, slots });
 const retiredObjects = selectRetiredCommittedObjects({
@@ -738,7 +738,7 @@ const plan = planCoordinatorRetention({ now, state });
 import {
   deleteRetiredCoordinatorObjects,
   summarizeRetiredCoordinatorObjectDeletions,
-} from "olos/runtime";
+} from "@arsenstorm/olos/runtime";
 
 const result = await deleteRetiredCoordinatorObjects({
   deleteObject: (object) => objectStore.delete(object.objectKey),
@@ -763,7 +763,7 @@ import {
   resolveBlockingHlsManifestArtifactResponse,
   resolveHlsBlockingReload,
   waitForHlsBlockingReload,
-} from "olos/hls";
+} from "@arsenstorm/olos/hls";
 
 const request = parseHlsBlockingReloadRequest(
   "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3812&_HLS_part=2"
@@ -837,7 +837,7 @@ same commit identity instead of creating a new media commit.
 Before publishing, run the package gate from the repository root:
 
 ```bash
-bun --filter olos publish:check
+bun --filter '@arsenstorm/olos' publish:check
 ```
 
 The gate verifies the changelog, release notes, type checks, Bun tests, E2E

@@ -11,15 +11,15 @@
   },
   "scripts": {
     "audit": "bun audit",
-    "build": "bun --filter olos build",
+    "build": "bun --filter '@arsenstorm/olos' build",
     "check": "ultracite check",
-    "check-types": "bun --filter olos check-types",
+    "check-types": "bun --filter '@arsenstorm/olos' check-types",
     "fix": "ultracite fix",
     "prepare": "husky",
-    "publish:check": "bun --filter olos publish:check",
-    "test": "bun --filter olos test",
-    "test:e2e": "bun --filter olos test:e2e",
-    "test:live-s3": "bun --filter olos test:live-s3"
+    "publish:check": "bun --filter '@arsenstorm/olos' publish:check",
+    "test": "bun --filter '@arsenstorm/olos' test",
+    "test:e2e": "bun --filter '@arsenstorm/olos' test:e2e",
+    "test:live-s3": "bun --filter '@arsenstorm/olos' test:live-s3"
   },
   "type": "module",
   "workspaces": [

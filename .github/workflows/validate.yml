@@ -35,7 +35,7 @@ jobs:
         run: bun run publish:check
 
       - name: Report conformance coverage
-        run: bun --filter olos conformance:report
+        run: bun --filter '@arsenstorm/olos' conformance:report
 
       - name: Upload conformance report
         uses: actions/upload-artifact@v4
@@ -45,7 +45,7 @@ jobs:
           if-no-files-found: error
 
       - name: Create package artifact
-        run: bun --filter olos pack:artifact
+        run: bun --filter '@arsenstorm/olos' pack:artifact
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4

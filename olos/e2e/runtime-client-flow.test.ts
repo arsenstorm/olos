@@ -1,4 +1,4 @@
-import { createMemoryCoordinatorStore } from "olos/protocol";
+import { createMemoryCoordinatorStore } from "@arsenstorm/olos/protocol";
 import {
   commitRuntimeUpload,
   createMemoryRuntimeCursorNotifier,
@@ -14,7 +14,7 @@ import {
   RuntimeHttpError,
   sendRuntimePublisherHeartbeat,
   transitionRuntimeSession,
-} from "olos/runtime";
+} from "@arsenstorm/olos/runtime";
 import { describe, expect, test } from "vitest";
 import { createTestPathways, createTestSession } from "./protocol-fixtures";
 import { waitFor } from "./wait-for";

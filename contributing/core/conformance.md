@@ -21,13 +21,13 @@ and provider-specific integration tests.
 Generate the current CI-friendly report with:
 
 ```bash
-bun --filter olos conformance:report
+bun --filter '@arsenstorm/olos' conformance:report
 ```
 
 Check that every known assertion is mapped before release work with:
 
 ```bash
-bun --filter olos conformance:check
+bun --filter '@arsenstorm/olos' conformance:check
 ```
 
 The validation workflow uploads this report as `olos-conformance`.

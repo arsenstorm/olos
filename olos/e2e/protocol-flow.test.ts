@@ -1,8 +1,8 @@
-import { renderMediaPlaylist } from "olos/hls";
+import { renderMediaPlaylist } from "@arsenstorm/olos/hls";
 import {
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
-} from "olos/runtime";
+} from "@arsenstorm/olos/runtime";
 import {
   commitObservedUpload,
   createCommit,
@@ -11,13 +11,16 @@ import {
   createDirectPublicSecurityPolicy,
   createObjectPublication,
   createObservedUpload,
-} from "olos/state";
+} from "@arsenstorm/olos/state";
 import type {
   MediaObject,
   ProviderCapabilityDocument,
   UploadSlot,
-} from "olos/types";
-import { assertCommittedWindow, assertCursor } from "olos/validation";
+} from "@arsenstorm/olos/types";
+import {
+  assertCommittedWindow,
+  assertCursor,
+} from "@arsenstorm/olos/validation";
 import { describe, expect, test } from "vitest";
 
 const latency = createRuntimeObjectLowLatencyProfile();

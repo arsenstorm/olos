@@ -1,17 +1,21 @@
 /* Public package surface expected by export-map, README, and smoke tests. */
 export const expectedRuntimeExports = {
-  olos: [
+  "@arsenstorm/olos": [
     "OLOS_PROTOCOL_NAME",
     "OLOS_PROTOCOL_SHORT_NAME",
     "OLOS_SPEC_STATUS",
     "OLOS_WIRE_VERSION",
   ],
-  "olos/config": ["OLOS_ERROR_CODES", "SESSION_STATES", "UPLOAD_SLOT_STATES"],
-  "olos/conformance": [
+  "@arsenstorm/olos/config": [
+    "OLOS_ERROR_CODES",
+    "SESSION_STATES",
+    "UPLOAD_SLOT_STATES",
+  ],
+  "@arsenstorm/olos/conformance": [
     "OLOS_CONFORMANCE_ASSERTION_IDS",
     "OLOS_CONFORMANCE_COVERAGE",
   ],
-  "olos/hls": [
+  "@arsenstorm/olos/hls": [
     "createHlsManifestArtifactResponse",
     "createHlsManifestErrorWebResponse",
     "createHlsManifestWebResponse",
@@ -22,7 +26,7 @@ export const expectedRuntimeExports = {
     "resolveHlsManifestArtifactResponse",
     "waitForHlsBlockingReload",
   ],
-  "olos/protocol": [
+  "@arsenstorm/olos/protocol": [
     "assertSerializedCoordinatorStoreBackendConformance",
     "createCoordinatorPipeline",
     "createMemoryCoordinatorStore",
@@ -35,7 +39,7 @@ export const expectedRuntimeExports = {
     "planCoordinatorRetention",
     "serializeCoordinatorPipelineSnapshot",
   ],
-  "olos/runtime": [
+  "@arsenstorm/olos/runtime": [
     "commitStoredCoordinatorUploadFromRequest",
     "commitRuntimeUpload",
     "createMemoryRuntimeCursorNotifier",
@@ -74,7 +78,7 @@ export const expectedRuntimeExports = {
     "transitionStoredCoordinatorSession",
     "transitionRuntimeSession",
   ],
-  "olos/schema": [
+  "@arsenstorm/olos/schema": [
     "OLOS_COMMIT_SCHEMA",
     "OLOS_CURSOR_SCHEMA",
     "OLOS_ERROR_SCHEMA",
@@ -85,7 +89,7 @@ export const expectedRuntimeExports = {
     "OLOS_UPLOAD_GRANT_SCHEMA",
     "OLOS_UPLOAD_SLOT_SCHEMA",
   ],
-  "olos/s3": [
+  "@arsenstorm/olos/s3": [
     "applyS3RuntimeRetention",
     "completeS3RuntimeUpload",
     "commitS3RuntimeUpload",
@@ -109,7 +113,7 @@ export const expectedRuntimeExports = {
     "summarizeStoredS3CoordinatorUploadReconciliation",
     "summarizeStoredS3PublisherUploadStep",
   ],
-  "olos/state": [
+  "@arsenstorm/olos/state": [
     "createCursor",
     "createDirectPublicMediaResponseHeaders",
     "createDirectPublicNegativeObjectResponseHeaders",
@@ -120,6 +124,6 @@ export const expectedRuntimeExports = {
     "selectExpiredUploadSlots",
     "selectRetiredCommittedObjects",
   ],
-  "olos/types": [],
-  "olos/validation": ["assertSession", "isSession", "isUploadSlot"],
+  "@arsenstorm/olos/types": [],
+  "@arsenstorm/olos/validation": ["assertSession", "isSession", "isUploadSlot"],
 } as const;

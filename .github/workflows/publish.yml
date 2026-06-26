@@ -30,7 +30,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Verify release tag
-        run: bun --filter olos release:verify-tag
+        run: bun --filter '@arsenstorm/olos' release:verify-tag
 
       - name: Publish check
         run: bun run publish:check
@@ -42,10 +42,10 @@ jobs:
         working-directory: olos
 
       - name: Verify published package
-        run: bun --filter olos release:verify-published
+        run: bun --filter '@arsenstorm/olos' release:verify-published
 
       - name: Write release notes
-        run: bun --filter olos release:notes
+        run: bun --filter '@arsenstorm/olos' release:notes
 
       - name: Create GitHub release
         env:

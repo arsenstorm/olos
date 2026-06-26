@@ -1,4 +1,7 @@
-import type { S3DeleteObjectClient, S3HeadObjectClient } from "olos/s3";
+import type {
+  S3DeleteObjectClient,
+  S3HeadObjectClient,
+} from "@arsenstorm/olos/s3";
 import {
   createTestHeadObjectClientFor as createSourceTestHeadObjectClientFor,
   createTestS3Client as createSourceTestS3Client,

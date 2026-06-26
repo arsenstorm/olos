@@ -3,9 +3,9 @@ import type {
   SaveSerializedCoordinatorStoreOptions,
   SerializedCoordinatorStoreRecord,
   SerializedCoordinatorStoreSave,
-} from "olos/protocol";
-import { parseCoordinatorPipelineSnapshot } from "olos/protocol";
-import type { Cursor } from "olos/types";
+} from "@arsenstorm/olos/protocol";
+import { parseCoordinatorPipelineSnapshot } from "@arsenstorm/olos/protocol";
+import type { Cursor } from "@arsenstorm/olos/types";
 
 const RECORD_KEY = "coordinator-record";
 

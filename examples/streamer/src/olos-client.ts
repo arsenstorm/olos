@@ -1,5 +1,8 @@
-import { commitS3RuntimeUpload, issueS3RuntimeUploadGrant } from "olos/s3";
-import type { Byterange, Pathway, Session } from "olos/types";
+import {
+  commitS3RuntimeUpload,
+  issueS3RuntimeUploadGrant,
+} from "@arsenstorm/olos/s3";
+import type { Byterange, Pathway, Session } from "@arsenstorm/olos/types";
 
 const TENANT_ID = "tenant_streamer";
 const PUBLISHER_INSTANCE_ID = "streamer_obs";

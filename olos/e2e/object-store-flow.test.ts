@@ -2,11 +2,11 @@ import {
   renderMediaPlaylist,
   resolveBlockingHlsManifestArtifactResponse,
   resolveHlsManifestArtifactResponse,
-} from "olos/hls";
+} from "@arsenstorm/olos/hls";
 import {
   createCoordinatorPipeline,
   createMemoryCoordinatorStore,
-} from "olos/protocol";
+} from "@arsenstorm/olos/protocol";
 import {
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
@@ -17,7 +17,7 @@ import {
   type RuntimePublisherObjectPlan,
   type RuntimePublisherPlannedObjectKind,
   resolveRuntimePublisherObjectExpiry,
-} from "olos/runtime";
+} from "@arsenstorm/olos/runtime";
 import {
   commitStoredS3CoordinatorUpload,
   deleteRetiredS3CoordinatorObjects,
@@ -30,10 +30,10 @@ import {
   type StoredS3PublisherUploadStepSummary,
   summarizeStoredS3CoordinatorUploadReconciliation,
   summarizeStoredS3PublisherUploadStep,
-} from "olos/s3";
-import { normalizeUploadEvent } from "olos/state";
-import type { Pathway, Session } from "olos/types";
-import { assertCursor } from "olos/validation";
+} from "@arsenstorm/olos/s3";
+import { normalizeUploadEvent } from "@arsenstorm/olos/state";
+import type { Pathway, Session } from "@arsenstorm/olos/types";
+import { assertCursor } from "@arsenstorm/olos/validation";
 import { describe, expect, test } from "vitest";
 import {
   createTestDeleteObjectClient,

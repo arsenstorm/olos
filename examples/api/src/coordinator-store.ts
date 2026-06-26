@@ -3,7 +3,7 @@ import type {
   SerializedCoordinatorStoreBackend,
   SerializedCoordinatorStoreRecord,
   SerializedCoordinatorStoreSave,
-} from "olos/protocol";
+} from "@arsenstorm/olos/protocol";
 import type { StreamCoordinator } from "./coordinator-do";
 
 export function createCoordinatorStoreBackend(

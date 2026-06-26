@@ -6,11 +6,15 @@ describe("release documentation", () => {
     const workflow = repositoryFile(".github/workflows/publish.yml");
 
     expect(workflow).toContain("id-token: write");
-    expect(workflow).toContain("bun --filter olos release:verify-tag");
+    expect(workflow).toContain(
+      "bun --filter '@arsenstorm/olos' release:verify-tag"
+    );
     expect(workflow).toContain("bun run publish:check");
     expect(workflow).toContain("npm publish --provenance --access public");
     expect(workflow).toContain("working-directory: olos");
-    expect(workflow).toContain("bun --filter olos release:verify-published");
+    expect(workflow).toContain(
+      "bun --filter '@arsenstorm/olos' release:verify-published"
+    );
   });
 
   test("documents the repository validation boundary", () => {
@@ -60,7 +64,7 @@ describe("release documentation", () => {
     const releases = releaseDocs();
 
     expect(releases).toContain(
-      "bun --filter olos release:verify-published 0.1.0"
+      "bun --filter '@arsenstorm/olos' release:verify-published 0.1.0"
     );
     expect(releases).toContain(
       "Pass the npm package version, not the git tag name"

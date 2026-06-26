@@ -15,7 +15,7 @@ import { expectedRuntimeExports } from "./public-surface";
 import { withTemporaryDirectory } from "./test-temp-dir";
 
 const README_IMPORT_PATTERN =
-  /import\s+(type\s+)?\{\s*([^;]*?)\s*\}\s+from\s+["'](olos(?:\/[a-z-]+)?)["'];/g;
+  /import\s+(type\s+)?\{\s*([^;]*?)\s*\}\s+from\s+["'](@arsenstorm\/olos(?:\/[a-z-]+)?)["'];/g;
 const README_TYPESCRIPT_BLOCK_PATTERN = /```ts\n([\s\S]*?)\n```/g;
 const IMPORT_ALIAS_PATTERN = /\s+as\s+/;
 
@@ -109,7 +109,7 @@ describe("package smoke fixture", () => {
     const source = packageTypeSmokeSource();
 
     expect(
-      source.indexOf('import { OLOS_WIRE_VERSION } from "olos";')
+      source.indexOf('import { OLOS_WIRE_VERSION } from "@arsenstorm/olos";')
     ).toBeLessThan(
       source.indexOf("const profile = createRuntimeObjectLowLatencyProfile();")
     );
@@ -169,7 +169,7 @@ function shouldCollectReadmeImport(
   specifier: string
 ): boolean {
   if (kind === "runtime") {
-    return typeOnly === undefined && specifier !== "olos/types";
+    return typeOnly === undefined && specifier !== "@arsenstorm/olos/types";
   }
 
   return typeOnly !== undefined;

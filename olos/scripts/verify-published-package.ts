@@ -36,12 +36,12 @@ await writeFile(
   )}\n`
 );
 
-await runWithRetries("bun", ["add", "--exact", `olos@${version}`], {
+await runWithRetries("bun", ["add", "--exact", `@arsenstorm/olos@${version}`], {
   cwd: consumerRoot,
   retries: 12,
 });
 await assertInstalledPackageContents(
-  join(consumerRoot, "node_modules", "olos")
+  join(consumerRoot, "node_modules", "@arsenstorm", "olos")
 );
 await writePackageSmokeFile(consumerRoot);
 await run("bun", ["smoke.mjs"], { cwd: consumerRoot });

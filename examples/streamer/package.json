@@ -7,7 +7,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "olos": "workspace:*"
+    "@arsenstorm/olos": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5"

@@ -1,6 +1,6 @@
+import type { S3GetObjectClient } from "@arsenstorm/olos/s3";
 import type { GetObjectCommandOutput } from "@aws-sdk/client-s3";
 import { GetObjectCommand, NoSuchKey } from "@aws-sdk/client-s3";
-import type { S3GetObjectClient } from "olos/s3";
 
 const MEDIA_PREFIX = "/media/";
 

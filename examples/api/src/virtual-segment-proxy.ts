@@ -1,9 +1,9 @@
-import type { CoordinatorPipelineStore } from "olos/protocol";
+import type { CoordinatorPipelineStore } from "@arsenstorm/olos/protocol";
 import {
   type ByterangeRangeRequest,
   createByterangeSegmentResponse,
   type S3GetObjectClient,
-} from "olos/s3";
+} from "@arsenstorm/olos/s3";
 import { createCursorWaiter } from "./cursor-notifier";
 
 const VIRTUAL_PATH_PATTERN =

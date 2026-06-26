@@ -1,8 +1,8 @@
-import { createSerializedCoordinatorStore } from "olos/protocol";
+import { createSerializedCoordinatorStore } from "@arsenstorm/olos/protocol";
 import {
   createStoredS3CoordinatorRuntimeHandler,
   type S3GetObjectClient,
-} from "olos/s3";
+} from "@arsenstorm/olos/s3";
 import { createCoordinatorStoreBackend } from "./coordinator-store";
 import { createCursorWaiter } from "./cursor-notifier";
 import { proxyMediaObject } from "./media-proxy";
