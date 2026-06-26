@@ -36,29 +36,13 @@ jobs:
       - name: Publish check
         run: bun run publish:check
 
-      - name: Debug npm auth state
-        run: |
-          echo "--- ~/.npmrc ---"
-          cat ~/.npmrc 2>/dev/null || echo "(no ~/.npmrc)"
-          echo
-          echo "--- olos/.npmrc ---"
-          cat olos/.npmrc 2>/dev/null || echo "(no olos/.npmrc)"
-          echo
-          echo "--- npm config list ---"
-          npm config list
-          echo
-          echo "--- NODE_AUTH_TOKEN set? ---"
-          if [ -n "$NODE_AUTH_TOKEN" ]; then
-            echo "yes (len=$(printf %s "$NODE_AUTH_TOKEN" | wc -c))"
-          else
-            echo "no"
-          fi
-          echo
-          echo "--- npm version ---"
-          npm --version
-
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        # setup-node writes a placeholder NODE_AUTH_TOKEN into the temp .npmrc;
+        # remove it so npm falls back to OIDC and matches Trusted Publisher.
+        run: |
+          rm -f "$NPM_CONFIG_USERCONFIG"
+          unset NODE_AUTH_TOKEN
+          npm publish --provenance --access public
         working-directory: olos
 
       - name: Verify published package
