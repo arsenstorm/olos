@@ -1,0 +1,109 @@
+{
+  "name": "olos",
+  "version": "0.1.0",
+  "description": "Open Live Object Streaming protocol primitives.",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arsenstorm/olos.git",
+    "directory": "olos"
+  },
+  "bugs": {
+    "url": "https://github.com/arsenstorm/olos/issues"
+  },
+  "homepage": "https://github.com/arsenstorm/olos#readme",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js",
+      "default": "./dist/config.js"
+    },
+    "./conformance": {
+      "types": "./dist/conformance.d.ts",
+      "import": "./dist/conformance.js",
+      "default": "./dist/conformance.js"
+    },
+    "./hls": {
+      "types": "./dist/hls.d.ts",
+      "import": "./dist/hls.js",
+      "default": "./dist/hls.js"
+    },
+    "./protocol": {
+      "types": "./dist/protocol.d.ts",
+      "import": "./dist/protocol.js",
+      "default": "./dist/protocol.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js",
+      "default": "./dist/runtime.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js",
+      "default": "./dist/schema.js"
+    },
+    "./s3": {
+      "types": "./dist/s3.d.ts",
+      "import": "./dist/s3.js",
+      "default": "./dist/s3.js"
+    },
+    "./state": {
+      "types": "./dist/state.d.ts",
+      "import": "./dist/state.js",
+      "default": "./dist/state.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js",
+      "default": "./dist/types.js"
+    },
+    "./validation": {
+      "types": "./dist/validation.d.ts",
+      "import": "./dist/validation.js",
+      "default": "./dist/validation.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "bun scripts/clean-dist.ts && tsc --project tsconfig.build.json && bun scripts/fix-declaration-imports.ts",
+    "check-types": "tsc --project tsconfig.json --noEmit",
+    "conformance:check": "bun scripts/check-conformance.ts",
+    "conformance:report": "bun scripts/write-conformance-report.ts",
+    "pack:dry": "bun scripts/dry-pack.ts",
+    "pack:artifact": "bun run build && bun scripts/create-package-artifact.ts",
+    "pack:smoke": "bun run build && bun scripts/package-smoke.ts",
+    "publish:check": "bun run release:verify-changelog && bun run release:notes && bun run conformance:check && bun run check-types && bun run test && bun run test:e2e && bun run build && bun run pack:dry && bun run pack:smoke",
+    "release:verify-changelog": "bun scripts/verify-release-changelog.ts",
+    "release:verify-published": "bun scripts/verify-published-package.ts",
+    "release:verify-tag": "bun scripts/verify-release-tag.ts",
+    "release:notes": "bun scripts/write-release-notes.ts",
+    "report:file-sizes": "bun scripts/report-file-sizes.ts",
+    "test": "bun test src scripts --pass-with-no-tests --path-ignore-patterns 'e2e/**' --path-ignore-patterns '**/*.e2e.test.ts'",
+    "test:e2e": "bun run build && vitest run --config vitest.e2e.config.ts",
+    "test:live-s3": "bun run build && vitest run --config vitest.live-s3.config.ts",
+    "prepublishOnly": "bun run publish:check"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "vitest": "^4.1.8"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1066.0",
+    "@aws-sdk/s3-request-presigner": "^3.1066.0"
+  }
+}

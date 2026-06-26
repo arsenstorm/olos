@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OLOS Player</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+    <style>
+    :root {
+      color-scheme: dark;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      max-width: 760px;
+      padding: 0 1rem;
+      margin: 2rem auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #eee;
+      background: #111;
+    }
+    h1 {
+      margin-bottom: 1.5rem;
+      font-weight: 400;
+      letter-spacing: -0.02em;
+    }
+    label {
+      display: block;
+      margin: 0 0 0.25rem;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      opacity: 0.6;
+    }
+    input,
+    button {
+      padding: 0.55rem 0.75rem;
+      font: inherit;
+      color: #eee;
+      background: #1c1c1c;
+      border: 1px solid #333;
+      border-radius: 4px;
+    }
+    input {
+      width: 100%;
+    }
+    button {
+      cursor: pointer;
+      background: #2a2a2a;
+    }
+    button:hover {
+      background: #3a3a3a;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 0.7fr auto;
+      gap: 0.5rem;
+      align-items: end;
+    }
+    .player {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      margin: 1.25rem 0;
+      overflow: hidden;
+      background: #000;
+      border-radius: 4px;
+    }
+    .player video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #000;
+    }
+    .controls {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      padding: 0.5rem 0.75rem;
+      background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .player:hover .controls,
+    .player:focus-within .controls,
+    .controls.paused {
+      opacity: 1;
+    }
+    .controls .spacer {
+      flex: 1;
+    }
+    .controls button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 2.2rem;
+      height: 2.2rem;
+      padding: 0;
+      font-size: 1rem;
+      background: rgba(40, 40, 40, 0.7);
+      border: 1px solid rgba(60, 60, 60, 0.7);
+    }
+    .controls button:hover {
+      background: rgba(60, 60, 60, 0.85);
+    }
+    .live-pill {
+      display: inline-flex;
+      gap: 0.4rem;
+      align-items: center;
+      height: 2.2rem;
+      padding: 0 0.7rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #ddd;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      user-select: none;
+      background: rgba(40, 40, 40, 0.7);
+      border: 1px solid rgba(60, 60, 60, 0.7);
+      border-radius: 4px;
+    }
+    .live-pill .dot {
+      width: 0.55rem;
+      height: 0.55rem;
+      background: #444;
+      border-radius: 50%;
+    }
+    .live-pill[data-live="true"] .dot {
+      background: #e63946;
+      box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.55);
+      animation: live-pulse 1.6s ease-out infinite;
+    }
+    .live-pill[data-live="false"] {
+      cursor: pointer;
+    }
+    .live-pill[data-live="false"] .label::after {
+      content: " · jump";
+      opacity: 0.6;
+    }
+    @keyframes live-pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.5);
+      }
+      70% {
+        box-shadow: 0 0 0 0.6rem rgba(230, 57, 70, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(230, 57, 70, 0);
+      }
+    }
+    .stats {
+      display: flex;
+      gap: 1rem;
+      margin: 0 0 1rem;
+      font-size: 0.8rem;
+      color: #999;
+    }
+    .stats span strong {
+      font-weight: 600;
+      color: #eee;
+    }
+    pre {
+      max-height: 220px;
+      padding: 0.75rem;
+      margin: 0;
+      overflow: auto;
+      font-size: 0.75rem;
+      line-height: 1.45;
+      background: #1a1a1a;
+      border-radius: 4px;
+    }
+    </style>
+  </head>
+  <body>
+    <h1>OLOS Player</h1>
+    <div class="grid">
+      <div>
+        <label for="base">Worker base</label>
+        <input id="base" value="http://localhost:8787">
+      </div>
+      <div>
+        <label for="session">Session</label>
+        <input id="session" placeholder="obs_1719...">
+      </div>
+      <div>
+        <label for="rendition">Rendition</label>
+        <input id="rendition" value="v1080">
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="play" type="button">Play</button>
+      </div>
+    </div>
+    <div class="player" id="player" tabindex="-1">
+      <video id="video" autoplay muted playsinline></video>
+      <div class="controls" id="controls">
+        <button id="play-pause" type="button" aria-label="Play / pause">
+          ⏸
+        </button>
+        <button id="mute" type="button" aria-label="Mute / unmute">🔇</button>
+        <span
+          class="live-pill"
+          id="live-pill"
+          data-live="false"
+          aria-label="Live"
+        >
+          <span class="dot"></span>
+          <span class="label">LIVE</span>
+        </span>
+        <span class="spacer"></span>
+        <button id="fullscreen" type="button" aria-label="Fullscreen">⛶</button>
+      </div>
+    </div>
+    <div class="stats">
+      <span>latency: <strong id="stat-latency">—</strong></span>
+      <span>buffer: <strong id="stat-buffer">—</strong></span>
+    </div>
+    <pre id="log"></pre>
+    <script>
+    "use strict";
+    const BASE_URL_TRAILING_SLASH_PATTERN = /\/$/;
+    const $ = (id) => document.getElementById(id);
+    const log = (msg) => {
+      const el = $("log");
+      el.textContent += `${msg}\n`;
+      el.scrollTop = el.scrollHeight;
+    };
+
+    // OLOS bakes the configured MEDIA_ORIGIN (https://localhost:8787) into
+    // every segment URL in the manifest, but the local Worker actually
+    // serves http. Rewrite same-host URLs to match the base origin scheme.
+    function rewriteUrl(url, base) {
+      try {
+        const u = new URL(url);
+        const b = new URL(base);
+        if (u.hostname === b.hostname && u.port === b.port) {
+          u.protocol = b.protocol;
+          return u.toString();
+        }
+      } catch {
+        // ignore
+      }
+      return url;
+    }
+
+    const video = $("video");
+    const playPauseButton = $("play-pause");
+    const muteButton = $("mute");
+    const livePill = $("live-pill");
+    const fullscreenButton = $("fullscreen");
+    const playerEl = $("player");
+    const controlsEl = $("controls");
+    const statLatency = $("stat-latency");
+    const statBuffer = $("stat-buffer");
+
+    let hls = null;
+
+    function renderPlayPause() {
+      playPauseButton.textContent = video.paused ? "▶" : "⏸";
+      controlsEl.classList.toggle("paused", video.paused);
+    }
+    function renderMute() {
+      muteButton.textContent = video.muted || video.volume === 0 ? "🔇" : "🔊";
+    }
+    video.addEventListener("play", renderPlayPause);
+    video.addEventListener("pause", renderPlayPause);
+    video.addEventListener("volumechange", renderMute);
+    renderPlayPause();
+    renderMute();
+
+    const ignoreAbort = () => {
+      // play() rejects when interrupted (eg. by a quick pause); not a real error.
+    };
+    // On a live stream, "resume after pause" should snap forward to the live
+    // edge instead of replaying the buffer hls.js kept fetching while paused.
+    // Otherwise you spend the next few seconds at 1.5× catch-up.
+    const RESUME_SNAP_THRESHOLD_SECONDS = 1;
+    playPauseButton.onclick = () => {
+      if (video.paused) {
+        const live = hls?.liveSyncPosition;
+        if (
+          typeof live === "number" &&
+          live - video.currentTime > RESUME_SNAP_THRESHOLD_SECONDS
+        ) {
+          video.currentTime = live;
+        }
+        video.play().catch(ignoreAbort);
+      } else {
+        video.pause();
+      }
+    };
+    muteButton.onclick = () => {
+      video.muted = !video.muted;
+    };
+    fullscreenButton.onclick = () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        playerEl.requestFullscreen?.();
+      }
+    };
+    livePill.onclick = () => {
+      if (hls?.liveSyncPosition !== undefined) {
+        video.currentTime = hls.liveSyncPosition;
+        if (video.paused) {
+          video.play().catch(ignoreAbort);
+        }
+      }
+    };
+
+    function updateLiveStatus() {
+      if (!hls) {
+        return;
+      }
+      const target = hls.liveSyncPosition;
+      if (typeof target !== "number" || Number.isNaN(target)) {
+        return;
+      }
+      const drift = target - video.currentTime;
+      const live = drift < 2;
+      livePill.dataset.live = String(live);
+
+      statLatency.textContent = `${drift.toFixed(2)}s`;
+      const buffered = video.buffered;
+      const ahead =
+        buffered.length > 0
+          ? Math.max(0, buffered.end(buffered.length - 1) - video.currentTime)
+          : 0;
+      statBuffer.textContent = `${ahead.toFixed(2)}s`;
+    }
+    setInterval(updateLiveStatus, 250);
+
+    $("play").onclick = () => {
+      const base = $("base").value.replace(BASE_URL_TRAILING_SLASH_PATTERN, "");
+      const session = $("session").value.trim();
+      const rendition = $("rendition").value.trim() || "v1080";
+      if (!session) {
+        log("enter a session ID");
+        return;
+      }
+      const manifestUrl = `${base}/v1/live/${session}/${rendition}/media.m3u8`;
+      log(`loading ${manifestUrl}`);
+
+      if (hls) {
+        hls.destroy();
+        hls = null;
+      }
+
+      if (window.Hls?.isSupported()) {
+        class RewritingLoader extends window.Hls.DefaultConfig.loader {
+          load(context, config, callbacks) {
+            context.url = rewriteUrl(context.url, base);
+            super.load(context, config, callbacks);
+          }
+        }
+        hls = new window.Hls({
+          loader: RewritingLoader,
+          lowLatencyMode: true,
+          // Match the server's PART-HOLD-BACK (1.5 s = 3 × 0.5 s partTarget).
+          // hls.js will not chase tighter than what the server advertises, so
+          // setting this any lower has no effect — the gain has to come from
+          // the manifest's #EXT-X-SERVER-CONTROL line.
+          liveSyncDuration: 1.5,
+          liveMaxLatencyDuration: 5,
+          maxLiveSyncPlaybackRate: 1.5,
+          maxBufferLength: 6,
+          backBufferLength: 30,
+          maxBufferHole: 0.5,
+          nudgeMaxRetry: 10,
+        });
+        hls.on(window.Hls.Events.ERROR, (_, data) => {
+          // `bufferStalledError` is hls.js's normal LL-HLS chatter — the
+          // playhead caught the buffer edge and the nudge logic recovers
+          // within a frame or two. Surfacing it as an "error" in the log
+          // makes the player look broken when it isn't.
+          if (
+            !data.fatal &&
+            data.details === window.Hls.ErrorDetails.BUFFER_STALLED_ERROR
+          ) {
+            return;
+          }
+          log(
+            `error: ${data.type}/${data.details}${data.fatal ? " (fatal)" : ""}`
+          );
+        });
+        hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+          log("manifest parsed");
+          // The video element's `autoplay` attribute fires only on initial
+          // load — swapping in a new manifest via attachMedia leaves the
+          // element paused. Kick playback now that hls.js has loaded its
+          // first level.
+          video.play().catch(ignoreAbort);
+        });
+        hls.on(window.Hls.Events.FRAG_LOADED, (_, data) =>
+          log(`fragment ${data.frag.sn}/${data.part?.index ?? "—"} loaded`)
+        );
+        hls.loadSource(manifestUrl);
+        hls.attachMedia(video);
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = manifestUrl;
+      } else {
+        log("hls.js not supported and no native HLS");
+      }
+    };
+    </script>
+  </body>
+</html>

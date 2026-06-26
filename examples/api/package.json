@@ -1,0 +1,31 @@
+{
+  "name": "olos-examples/api",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "deploy": "vite build && wrangler deploy",
+    "gen-types": "wrangler types",
+    "check-types": "wrangler types && tsc --noEmit",
+    "publish-demo": "bun scripts/publish-demo.ts",
+    "reset": "bun scripts/reset.ts",
+    "minio:up": "docker compose up -d",
+    "minio:down": "docker compose down -v"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1066.0",
+    "@aws-sdk/s3-request-presigner": "^3.1066.0",
+    "olos": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.40.2",
+    "@smithy/fetch-http-handler": "^5.5.2",
+    "typescript": "^5",
+    "vite": "^8",
+    "wrangler": "^4"
+  }
+}

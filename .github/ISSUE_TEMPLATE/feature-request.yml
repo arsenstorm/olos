@@ -1,0 +1,68 @@
+name: Feature request
+description: Propose new functionality or an enhancement to existing behaviour.
+title: "[feat]: "
+labels: ["enhancement", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a feature. Please include enough detail for a maintainer to assess the protocol or package impact.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences describing the feature.
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem are you trying to solve, and how do you solve it today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Sketch the API, protocol behaviour, or package surface you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you consider, and why did you rule them out?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      description: Which part of OLOS would this touch?
+      options:
+        - Core protocol model
+        - State machine / commits / cursor
+        - HLS mapping
+        - Object binding
+        - Provider profile
+        - NPM package / exports
+        - Documentation / specification
+        - CI / repository tooling
+        - Cross-cutting / not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      options:
+        - label: I have searched existing issues and confirmed this is not a duplicate.
+          required: true

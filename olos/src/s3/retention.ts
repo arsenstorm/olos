@@ -1,0 +1,46 @@
+import {
+  DeleteObjectCommand,
+  type DeleteObjectCommandOutput,
+} from "@aws-sdk/client-s3";
+import {
+  deleteRetiredCoordinatorObjects,
+  type RetiredCoordinatorObjectDeletion,
+  type RetiredCoordinatorObjectDeletionResult,
+} from "../runtime/retention";
+import { assertSafeObjectKey } from "../validation/object-key";
+import { assertS3BucketName } from "./bucket";
+
+export interface S3DeleteObjectClient {
+  send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput>;
+}
+
+export interface DeleteRetiredS3CoordinatorObjectsOptions {
+  bucket: string;
+  client: S3DeleteObjectClient;
+  objects: readonly RetiredCoordinatorObjectDeletion[];
+}
+
+export async function deleteRetiredS3CoordinatorObjects(
+  options: DeleteRetiredS3CoordinatorObjectsOptions
+): Promise<RetiredCoordinatorObjectDeletionResult> {
+  assertS3BucketName(options.bucket);
+
+  return await deleteRetiredCoordinatorObjects({
+    deleteObject: (object) => deleteRetiredS3Object(options, object),
+    objects: options.objects,
+  });
+}
+
+async function deleteRetiredS3Object(
+  options: Pick<DeleteRetiredS3CoordinatorObjectsOptions, "bucket" | "client">,
+  object: RetiredCoordinatorObjectDeletion
+): Promise<void> {
+  assertSafeObjectKey(object.objectKey, "objectKey");
+
+  await options.client.send(
+    new DeleteObjectCommand({
+      Bucket: options.bucket,
+      Key: object.objectKey,
+    })
+  );
+}

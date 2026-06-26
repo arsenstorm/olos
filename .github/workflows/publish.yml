@@ -1,0 +1,53 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - olos-v*
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish npm package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up npm registry
+        uses: actions/setup-node@v4
+        with:
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify release tag
+        run: bun --filter olos release:verify-tag
+
+      - name: Publish check
+        run: bun run publish:check
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+        working-directory: olos
+
+      - name: Verify published package
+        run: bun --filter olos release:verify-published
+
+      - name: Write release notes
+        run: bun --filter olos release:notes
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file out/release/notes.md

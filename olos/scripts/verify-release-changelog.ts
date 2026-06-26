@@ -1,0 +1,16 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { hasVersionHeading } from "./changelog";
+import { releaseVersionFromEnv } from "./release-metadata";
+import { repoRoot } from "./script-paths";
+
+const version = releaseVersionFromEnv();
+
+if (version !== "0.0.0") {
+  const changelogPath = join(repoRoot, "CHANGELOG.md");
+  const changelog = await readFile(changelogPath, "utf8");
+
+  if (!hasVersionHeading(changelog, version)) {
+    throw new Error(`CHANGELOG.md must include a section for ${version}`);
+  }
+}

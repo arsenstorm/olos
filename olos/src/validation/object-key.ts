@@ -1,0 +1,112 @@
+import type { MediaObjectKind } from "../types/media-object";
+import { hasControlCharacter } from "./fields";
+
+// Object-key policy for payload fields that identify S3/object storage locations.
+// These are treated as internal object names, so we reject traversal, query/frag,
+// control chars, and unsafe absolute/empty keys before any storage use.
+export function isSafeObjectKey(value: unknown): value is string {
+  return typeof value === "string" && safeObjectKeyError(value) === undefined;
+}
+
+export function assertSafeObjectKey(
+  value: unknown,
+  name: string
+): asserts value is string {
+  const error = safeObjectKeyError(value);
+
+  if (error !== undefined) {
+    throw new Error(`${name} ${error}`);
+  }
+}
+
+export function assertSafeMediaObjectKey(
+  value: unknown,
+  kind: MediaObjectKind,
+  name: string
+): void {
+  assertSafeObjectKey(value, name);
+
+  if (!hasSupportedMediaObjectExtension(value, kind)) {
+    throw new Error(`${name} must use a supported media extension`);
+  }
+}
+
+export function assertSupportedMediaExtension(
+  extension: string,
+  kind: MediaObjectKind,
+  name: string
+): void {
+  if (!isSupportedMediaExtension(extension, kind)) {
+    throw new Error(`${name} must use a supported media extension`);
+  }
+}
+
+function safeObjectKeyError(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.length === 0) {
+    return "must be a non-empty string";
+  }
+
+  if (hasUnsafeRelativeObjectKeyShape(value)) {
+    return "must be a safe relative object key";
+  }
+
+  if (hasControlCharacter(value)) {
+    return "must not contain control characters";
+  }
+
+  if (hasObjectKeyQueryOrFragment(value)) {
+    return "must not contain query strings or fragments";
+  }
+}
+
+function hasUnsafeRelativeObjectKeyShape(value: string): boolean {
+  return hasUnsafeObjectKeyBoundary(value) || hasUnsafeObjectKeySegment(value);
+}
+
+function hasObjectKeyQueryOrFragment(value: string): boolean {
+  return value.includes("?") || value.includes("#");
+}
+
+function hasUnsafeObjectKeyBoundary(value: string): boolean {
+  return value.startsWith("/") || value.endsWith("/");
+}
+
+function hasUnsafeObjectKeySegment(value: string): boolean {
+  return value.split("/").some(isUnsafeObjectKeySegment);
+}
+
+function isUnsafeObjectKeySegment(segment: string): boolean {
+  return segment === "" || segment === "." || segment === "..";
+}
+
+function hasSupportedMediaObjectExtension(
+  objectKey: string,
+  kind: MediaObjectKind
+): boolean {
+  const allowedExtensions = MEDIA_OBJECT_EXTENSIONS[kind];
+
+  return (
+    allowedExtensions === undefined ||
+    allowedExtensions.some((extension) => objectKey.endsWith(extension))
+  );
+}
+
+function isSupportedMediaExtension(
+  extension: string,
+  kind: MediaObjectKind
+): boolean {
+  const allowedExtensions = MEDIA_OBJECT_EXTENSIONS[kind];
+
+  return (
+    allowedExtensions === undefined ||
+    allowedExtensions.includes(`.${extension}`)
+  );
+}
+
+const MEDIA_OBJECT_EXTENSIONS: Partial<
+  Record<MediaObjectKind, readonly string[]>
+> = {
+  init: [".mp4"],
+  part: [".m4s"],
+  segment: [".m4s"],
+};

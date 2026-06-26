@@ -1,0 +1,239 @@
+import { describe, expect, test } from "bun:test";
+import { existsSync, readFileSync } from "node:fs";
+import {
+  assertCoordinatorPipelineStoreConformance,
+  getOlosConformanceCoverage,
+  isOlosConformanceAssertionId,
+  OLOS_CONFORMANCE_ASSERTION_IDS,
+  OLOS_CONFORMANCE_COVERAGE,
+  type OlosConformanceAssertionId,
+} from "./conformance";
+import { createMemoryCoordinatorStore } from "./protocol";
+
+const ASSERTION_ID_PATTERN = /^(CORE|OBJ|HLS|SEC)-[A-Z]+-\d{3}$/;
+
+describe("conformance manifest", () => {
+  test("keeps public metadata exports on the conformance facade", () => {
+    expect(OLOS_CONFORMANCE_ASSERTION_IDS).toHaveLength(127);
+    expect(OLOS_CONFORMANCE_COVERAGE).toHaveLength(127);
+    expect(getOlosConformanceCoverage("CORE-STORE-001")?.testFile).toBe(
+      "src/conformance.test.ts"
+    );
+  });
+
+  test("uses stable assertion identifiers", () => {
+    for (const id of OLOS_CONFORMANCE_ASSERTION_IDS) {
+      expect(id).toMatch(ASSERTION_ID_PATTERN);
+      expect(isOlosConformanceAssertionId(id)).toBe(true);
+    }
+
+    expect(isOlosConformanceAssertionId("CORE-NOT-A-REAL-ID")).toBe(false);
+  });
+
+  test("does not duplicate assertion identifiers", () => {
+    expect(new Set(OLOS_CONFORMANCE_ASSERTION_IDS).size).toBe(
+      OLOS_CONFORMANCE_ASSERTION_IDS.length
+    );
+  });
+
+  test("maps covered assertions to known assertion identifiers", () => {
+    const assertionIds = new Set(OLOS_CONFORMANCE_ASSERTION_IDS);
+
+    for (const entry of OLOS_CONFORMANCE_COVERAGE) {
+      expect(assertionIds.has(entry.id)).toBe(true);
+      expect(isCoveredTestFile(entry.testFile)).toBe(true);
+    }
+  });
+
+  test("defines one coverage row for every assertion identifier", () => {
+    const covered = new Set(OLOS_CONFORMANCE_COVERAGE.map((entry) => entry.id));
+    const known = new Set(OLOS_CONFORMANCE_ASSERTION_IDS);
+
+    expect(
+      OLOS_CONFORMANCE_ASSERTION_IDS.filter((id) => !covered.has(id))
+    ).toEqual([]);
+    expect(
+      OLOS_CONFORMANCE_COVERAGE.filter((entry) => !known.has(entry.id))
+    ).toEqual([]);
+  });
+
+  test("maps covered assertions to existing test files", () => {
+    for (const entry of OLOS_CONFORMANCE_COVERAGE) {
+      expect(coverageTestFileExists(entry.testFile)).toBe(true);
+    }
+  });
+
+  test("does not duplicate coverage entries", () => {
+    expect(
+      new Set(OLOS_CONFORMANCE_COVERAGE.map((entry) => entry.id)).size
+    ).toBe(OLOS_CONFORMANCE_COVERAGE.length);
+  });
+
+  test("matches the documented coverage snapshot", () => {
+    expect(countCoverageByLevel()).toEqual({
+      core: 62,
+      hls: 17,
+      object: 41,
+      security: 7,
+      total: 127,
+    });
+
+    const guide = readFileSync(
+      new URL("../../contributing/core/conformance.md", import.meta.url),
+      "utf8"
+    );
+
+    expect(guide).toContain("| Core | 62 |");
+    expect(guide).toContain("| Object | 41 |");
+    expect(guide).toContain("| HLS | 17 |");
+    expect(guide).toContain("| Security | 7 |");
+    expect(guide).toContain("| Total | 127 |");
+  });
+
+  test("finds coverage by assertion identifier", () => {
+    expect(getOlosConformanceCoverage("OBJ-GRANT-001")).toEqual({
+      id: "OBJ-GRANT-001",
+      level: "object",
+      status: "covered",
+      testFile: "src/s3/upload-grant.test.ts",
+    });
+    expect(getOlosConformanceCoverage("SEC-DIRECT-007")).toEqual({
+      id: "SEC-DIRECT-007",
+      level: "security",
+      status: "covered",
+      testFile: "src/s3/http.test.ts",
+    });
+  });
+
+  test("maps schema conformance to the schema export tests", () => {
+    expect(getOlosConformanceCoverage("CORE-SCHEMA-001")).toEqual({
+      id: "CORE-SCHEMA-001",
+      level: "core",
+      status: "covered",
+      testFile: "src/schema.test.ts",
+    });
+  });
+
+  test("maps revoked-slot conformance to coordinator tests", () => {
+    expect(getOlosConformanceCoverage("CORE-SLOT-006")).toEqual({
+      id: "CORE-SLOT-006",
+      level: "core",
+      status: "covered",
+      testFile: "src/protocol/coordinator.test.ts",
+    });
+    expect(getOlosConformanceCoverage("CORE-SLOT-007")).toEqual({
+      id: "CORE-SLOT-007",
+      level: "core",
+      status: "covered",
+      testFile: "src/protocol/coordinator.test.ts",
+    });
+  });
+
+  test("maps verified-object conformance to state tests", () => {
+    expect(getOlosConformanceCoverage("CORE-COMMIT-006")).toEqual({
+      id: "CORE-COMMIT-006",
+      level: "core",
+      status: "covered",
+      testFile: "src/state/commit.test.ts",
+    });
+    expect(getOlosConformanceCoverage("CORE-EVENT-002")).toEqual({
+      id: "CORE-EVENT-002",
+      level: "core",
+      status: "covered",
+      testFile: "src/state/observed-upload.test.ts",
+    });
+  });
+
+  test("maps public S3 object-flow conformance to route and E2E tests", () => {
+    const expected: {
+      id: OlosConformanceAssertionId;
+      testFile: string;
+    }[] = [
+      { id: "OBJ-FLOW-001", testFile: "e2e/s3-http-pipeline.test.ts" },
+      { id: "OBJ-FLOW-005", testFile: "src/s3/http.test.ts" },
+      { id: "OBJ-FLOW-008", testFile: "src/s3/http.test.ts" },
+      { id: "OBJ-FLOW-010", testFile: "src/s3/http.test.ts" },
+      { id: "OBJ-FLOW-013", testFile: "e2e/s3-http-pipeline.test.ts" },
+      { id: "OBJ-RUNTIME-014", testFile: "e2e/s3-http-pipeline.test.ts" },
+    ];
+
+    for (const { id, testFile } of expected) {
+      expect(getOlosConformanceCoverage(id)).toEqual({
+        id,
+        level: "object",
+        status: "covered",
+        testFile,
+      });
+    }
+  });
+
+  test("maps cache conformance to delivery policy tests", () => {
+    expect(getOlosConformanceCoverage("OBJ-CACHE-002")).toEqual({
+      id: "OBJ-CACHE-002",
+      level: "object",
+      status: "covered",
+      testFile: "src/state/direct-public-security-policy.test.ts",
+    });
+    expect(getOlosConformanceCoverage("OBJ-CACHE-004")).toEqual({
+      id: "OBJ-CACHE-004",
+      level: "object",
+      status: "covered",
+      testFile: "src/state/direct-public-security-policy.test.ts",
+    });
+    expect(getOlosConformanceCoverage("OBJ-CACHE-005")).toEqual({
+      id: "OBJ-CACHE-005",
+      level: "object",
+      status: "covered",
+      testFile: "src/state/direct-public-security-policy.test.ts",
+    });
+  });
+
+  test("asserts coordinator store conformance", async () => {
+    await expect(
+      assertCoordinatorPipelineStoreConformance({
+        createStore: createMemoryCoordinatorStore,
+      })
+    ).resolves.toBeUndefined();
+  });
+
+  test("documents store adapter conformance as the refactor boundary", () => {
+    const guide = readFileSync(
+      new URL("../../contributing/core/store-adapters.md", import.meta.url),
+      "utf8"
+    );
+
+    expect(guide).toContain(
+      "assertSerializedCoordinatorStoreBackendConformance"
+    );
+    expect(guide).toContain("Missing row, no `expectedEtag`");
+    expect(guide).toContain("Existing row, no `expectedEtag`");
+    expect(guide).toContain("Existing row, matching `expectedEtag`");
+    expect(guide).toContain("Missing or stale `expectedEtag`");
+    expect(guide).toContain(
+      "Conflict reads return the current row when possible"
+    );
+  });
+});
+
+function isCoveredTestFile(value: string): boolean {
+  return value.startsWith("src/") || value.startsWith("e2e/");
+}
+
+function coverageTestFileExists(value: string): boolean {
+  return existsSync(new URL(`../${value}`, import.meta.url));
+}
+
+function countCoverageByLevel() {
+  return {
+    core: countCoverage("core"),
+    hls: countCoverage("hls"),
+    object: countCoverage("object"),
+    security: countCoverage("security"),
+    total: OLOS_CONFORMANCE_COVERAGE.length,
+  };
+}
+
+function countCoverage(level: string): number {
+  return OLOS_CONFORMANCE_COVERAGE.filter((entry) => entry.level === level)
+    .length;
+}

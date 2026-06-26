@@ -1,0 +1,80 @@
+import { MEDIA_OBJECT_KINDS } from "../config/media-object";
+import { PUBLICATION_MODES } from "../config/publication";
+import type { IssueCoordinatorSlotOptions } from "../protocol";
+import type { Byterange } from "../types/byterange";
+import { assertByterange, assertByterangeKind } from "../validation/byterange";
+import { assertSafeDeliveryUrl } from "../validation/delivery-url";
+import { assertSafeMediaObjectKey } from "../validation/object-key";
+import {
+  nonNegativeIntegerField,
+  oneOfStringField,
+  optionalNonNegativeIntegerField,
+  positiveNumberField,
+  stringField,
+  urlSafeIdentifierField,
+} from "./request-fields";
+
+export interface RuntimeSlotIssuePayload
+  extends Omit<IssueCoordinatorSlotOptions, "state"> {}
+
+type RuntimeSlotIssueObjectFields = Pick<
+  RuntimeSlotIssuePayload,
+  "deliveryUrl" | "kind" | "objectKey"
+>;
+
+export function parseRuntimeSlotIssuePayload(
+  value: Record<string, unknown>
+): RuntimeSlotIssuePayload {
+  const object = runtimeSlotIssueObjectFields(value);
+
+  return {
+    contentType: stringField(value, "contentType"),
+    duration: positiveNumberField(value, "duration"),
+    expiresAt: stringField(value, "expiresAt"),
+    maxBytes: positiveNumberField(value, "maxBytes"),
+    mediaSequenceNumber: nonNegativeIntegerField(value, "mediaSequenceNumber"),
+    publicationMode: oneOfStringField(
+      value,
+      "publicationMode",
+      PUBLICATION_MODES
+    ),
+    publisherInstanceId: urlSafeIdentifierField(value, "publisherInstanceId"),
+    renditionId: urlSafeIdentifierField(value, "renditionId"),
+    slotId: urlSafeIdentifierField(value, "slotId"),
+    ...object,
+    ...optionalNonNegativeIntegerField(value, "minBytes"),
+    ...optionalNonNegativeIntegerField(value, "partNumber"),
+    ...optionalSlotByterange(value, object.kind),
+  };
+}
+
+function optionalSlotByterange(
+  value: Record<string, unknown>,
+  kind: string
+): { byterange?: Byterange } {
+  if (value.byterange === undefined) {
+    return {};
+  }
+
+  assertByterange(value.byterange, "byterange");
+  assertByterangeKind(kind, "uploadSlot");
+
+  return { byterange: value.byterange };
+}
+
+function runtimeSlotIssueObjectFields(
+  value: Record<string, unknown>
+): RuntimeSlotIssueObjectFields {
+  const kind = oneOfStringField(value, "kind", MEDIA_OBJECT_KINDS);
+  const deliveryUrl = stringField(value, "deliveryUrl");
+  const objectKey = stringField(value, "objectKey");
+
+  assertSafeDeliveryUrl(deliveryUrl, "deliveryUrl");
+  assertSafeMediaObjectKey(objectKey, kind, "objectKey");
+
+  return {
+    deliveryUrl,
+    kind,
+    objectKey,
+  };
+}

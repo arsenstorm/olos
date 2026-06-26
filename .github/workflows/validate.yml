@@ -1,0 +1,55 @@
+name: Validate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Audit dependencies
+        run: bun run audit
+
+      - name: Lint
+        run: bun run check
+
+      - name: Publish check
+        run: bun run publish:check
+
+      - name: Report conformance coverage
+        run: bun --filter olos conformance:report
+
+      - name: Upload conformance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: olos-conformance
+          path: out/conformance/conformance.md
+          if-no-files-found: error
+
+      - name: Create package artifact
+        run: bun --filter olos pack:artifact
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: olos-package
+          path: out/package-artifacts/*.tgz
+          if-no-files-found: error
