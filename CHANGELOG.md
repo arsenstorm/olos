@@ -4,6 +4,12 @@ Notable package changes are documented here.
 
 This project follows semantic versioning for the published `olos` package.
 
+## 0.1.1
+
+- Updated GitHub Actions workflows to use npm provenance OIDC for package
+  publication and pin versioned dependencies.
+- Declared `engines.node >= 22`.
+
 ## 0.1.0
 
 - Added optional `byterange` field to `UploadSlot`, `Commit`, and

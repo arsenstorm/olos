@@ -12,8 +12,8 @@ jobs:
     name: Publish npm package
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # gh release create
-      id-token: write   # npm provenance OIDC
+      contents: write # gh release create
+      id-token: write # npm provenance OIDC
 
     steps:
       - name: Check out repository code
@@ -37,8 +37,6 @@ jobs:
         run: bun run publish:check
 
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
         working-directory: olos
 
