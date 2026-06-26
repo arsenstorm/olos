@@ -399,6 +399,7 @@ describe("HLS blocking reload", () => {
         mediaSequenceNumber: 3813,
       },
       timeoutMs: 100,
+      clock: () => 1000,
       sleep: (durationMs, signal) => {
         sleepCalls += 1;
 
