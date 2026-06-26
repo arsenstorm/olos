@@ -36,10 +36,14 @@ await writeFile(
   )}\n`
 );
 
-await runWithRetries("bun", ["add", "--exact", `@arsenstorm/olos@${version}`], {
-  cwd: consumerRoot,
-  retries: 12,
-});
+await runWithRetries(
+  "bun",
+  ["add", "--no-cache", "--exact", `@arsenstorm/olos@${version}`],
+  {
+    cwd: consumerRoot,
+    retries: 12,
+  }
+);
 await assertInstalledPackageContents(
   join(consumerRoot, "node_modules", "@arsenstorm", "olos")
 );
