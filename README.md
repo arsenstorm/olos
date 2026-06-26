@@ -1,4 +1,4 @@
-# Open Live Object Streaming (OLOS) Protocol
+# Open Live Object Streaming (OLOS)
 
 OLOS is for live adaptive media in which encoded media is published as immutable, time-indexed CMAF objects and exposed through standard or native low-latency playback interfaces.
 
