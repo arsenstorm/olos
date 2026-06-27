@@ -24,12 +24,10 @@ const slot: UploadSlot = {
   mediaSequenceNumber: 3810,
   minBytes: 1,
   objectKey: "tenant/session/v1080/3810.m4s",
-  publisherInstanceId: "pub_1",
   renditionId: "v1080",
   sessionId: "session_1",
   slotId: "slot_1",
   state: "upload_observed",
-  tenantId: "tenant_1",
 };
 
 const mediaObject: MediaObject = {
@@ -66,7 +64,6 @@ const session: Session = {
   segmentTarget: 2,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
 };
 
 const cursor: Cursor = {
@@ -111,7 +108,6 @@ const cursor: Cursor = {
   segmentTarget: 2,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
   updatedAt: "2026-01-01T00:00:03.000Z",
   window: {
     firstMediaSequenceNumber: 3810,

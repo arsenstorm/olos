@@ -50,7 +50,6 @@ const validCursor: Cursor = {
   segmentTarget: 1,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
   updatedAt: "2026-06-08T12:00:01.820Z",
   window: {
     firstMediaSequenceNumber: 3810,

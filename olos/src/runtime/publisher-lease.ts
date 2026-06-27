@@ -1,16 +1,12 @@
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { isRecord, positiveNumber, timestampMs } from "./request-fields";
 
-const LEASE_IDENTITY_FIELDS = [
-  "tenantId",
-  "sessionId",
-  "publisherInstanceId",
-] as const;
+const LEASE_IDENTITY_FIELDS = ["sessionId", "publisherInstanceId"] as const;
 
 type LeaseTimestampField = "expiresAt" | "issuedAt" | "lastSeenAt";
 type LeaseIdentity = Pick<
   RuntimePublisherLease,
-  "publisherInstanceId" | "sessionId" | "tenantId"
+  "publisherInstanceId" | "sessionId"
 >;
 
 export interface RuntimePublisherLease {
@@ -19,14 +15,12 @@ export interface RuntimePublisherLease {
   lastSeenAt: string;
   publisherInstanceId: string;
   sessionId: string;
-  tenantId: string;
 }
 
 export interface CreateRuntimePublisherLeaseOptions {
   now: string;
   publisherInstanceId: string;
   sessionId: string;
-  tenantId: string;
   ttlMs: number;
 }
 
@@ -40,7 +34,6 @@ export interface RefreshRuntimePublisherHeartbeatOptions
   extends RefreshRuntimePublisherLeaseOptions {
   publisherInstanceId: string;
   sessionId: string;
-  tenantId: string;
 }
 
 export interface ResolveRuntimePublisherLeaseStatusOptions {
@@ -56,7 +49,6 @@ export function createRuntimePublisherLease(
   assertLeaseIdentity({
     publisherInstanceId: options.publisherInstanceId,
     sessionId: options.sessionId,
-    tenantId: options.tenantId,
   });
 
   return {
@@ -65,7 +57,6 @@ export function createRuntimePublisherLease(
     lastSeenAt: options.now,
     publisherInstanceId: options.publisherInstanceId,
     sessionId: options.sessionId,
-    tenantId: options.tenantId,
   };
 }
 
@@ -168,7 +159,6 @@ function heartbeatLeaseOwner(
   return {
     publisherInstanceId: options.publisherInstanceId,
     sessionId: options.sessionId,
-    tenantId: options.tenantId,
   };
 }
 

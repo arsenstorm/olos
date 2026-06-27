@@ -12,7 +12,6 @@ export interface Cursor {
   segmentTarget: number;
   sessionId: OlosId;
   state: SessionState;
-  tenantId: OlosId;
   updatedAt: string;
   window: CursorWindow;
 }

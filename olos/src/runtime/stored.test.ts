@@ -118,7 +118,7 @@ describe("stored runtime mutations", () => {
         error: {
           error: {
             code: "olos.security_policy_violation",
-            details: { publisherInstanceId: slot.publisherInstanceId },
+            details: { renditionId: slot.renditionId },
             message: "publisher is not authorised",
           },
         },
@@ -139,7 +139,7 @@ describe("stored runtime mutations", () => {
     expect(await result.response.json()).toEqual({
       error: {
         code: "olos.security_policy_violation",
-        details: { publisherInstanceId: "pub_1" },
+        details: { renditionId: "v1080" },
         message: "publisher is not authorised",
       },
     });
@@ -507,7 +507,6 @@ async function createReadyStore(): Promise<CoordinatorPipelineStore> {
     maxBytes: 2048,
     mediaSequenceNumber: 0,
     objectKey: "media/init.mp4",
-    publisherInstanceId: "pub_1",
     renditionId: "v1080",
     slotId: "slot_init",
     state,
@@ -554,7 +553,6 @@ function slotPayload() {
     maxBytes: 100_000,
     mediaSequenceNumber: 3810,
     objectKey: "media/s3810.m4s",
-    publisherInstanceId: "pub_1",
     renditionId: "v1080",
     slotId: "slot_3810",
   };

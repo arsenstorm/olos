@@ -15,7 +15,6 @@ describe("runtime slot issue payload parser", () => {
       minBytes: 1,
       objectKey: "live/session/3810.m4s",
       partNumber: 10,
-      publisherInstanceId: "publisher_1",
       renditionId: "v1080",
       slotId: "slot_3810",
     });
@@ -31,7 +30,6 @@ describe("runtime slot issue payload parser", () => {
       minBytes: 1,
       objectKey: "live/session/3810.m4s",
       partNumber: 10,
-      publisherInstanceId: "publisher_1",
       renditionId: "v1080",
       slotId: "slot_3810",
     });
@@ -47,7 +45,6 @@ describe("runtime slot issue payload parser", () => {
       maxBytes: 2048,
       mediaSequenceNumber: 0,
       objectKey: "live/session/init.mp4",
-      publisherInstanceId: "publisher_1",
       renditionId: "v1080",
       slotId: "slot_init",
     });
@@ -71,7 +68,6 @@ describe("runtime slot issue payload parser", () => {
         maxBytes: 1_000_000,
         mediaSequenceNumber: 0,
         objectKey: "media/../secret.m4s",
-        publisherInstanceId: "publisher_1",
         renditionId: "v1080",
         slotId: "slot_3810",
       })
@@ -90,7 +86,6 @@ describe("runtime slot issue payload parser", () => {
         maxBytes: 1_000_000,
         mediaSequenceNumber: 0,
         objectKey: "live/session/3810.m4s",
-        publisherInstanceId: "publisher_1",
         renditionId: "v1080",
         slotId: "slot_3810",
       })

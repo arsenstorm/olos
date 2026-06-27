@@ -14,7 +14,6 @@ describe("runtime publisher lease", () => {
         now: "2026-01-01T00:00:00.000Z",
         publisherInstanceId: "publisher_1",
         sessionId: "session_1",
-        tenantId: "tenant_1",
         ttlMs: 3000,
       })
     ).toEqual({
@@ -23,7 +22,6 @@ describe("runtime publisher lease", () => {
       lastSeenAt: "2026-01-01T00:00:00.000Z",
       publisherInstanceId: "publisher_1",
       sessionId: "session_1",
-      tenantId: "tenant_1",
     });
   });
 
@@ -32,7 +30,6 @@ describe("runtime publisher lease", () => {
       now: "2026-01-01T00:00:00.000Z",
       publisherInstanceId: "publisher_1",
       sessionId: "session_1",
-      tenantId: "tenant_1",
       ttlMs: 3000,
     });
 
@@ -54,7 +51,6 @@ describe("runtime publisher lease", () => {
       now: "2026-01-01T00:00:01.000Z",
       publisherInstanceId: "publisher_1",
       sessionId: "session_1",
-      tenantId: "tenant_1",
       ttlMs: 3000,
     });
 
@@ -72,7 +68,6 @@ describe("runtime publisher lease", () => {
       now: "2026-01-01T00:00:00.000Z",
       publisherInstanceId: "publisher_1",
       sessionId: "session_1",
-      tenantId: "tenant_1",
       ttlMs: 3000,
     });
 
@@ -82,7 +77,6 @@ describe("runtime publisher lease", () => {
         now: "2026-01-01T00:00:02.000Z",
         publisherInstanceId: "publisher_1",
         sessionId: "session_1",
-        tenantId: "tenant_1",
         ttlMs: 3000,
       })
     ).toEqual({
@@ -97,7 +91,6 @@ describe("runtime publisher lease", () => {
       now: "2026-01-01T00:00:00.000Z",
       publisherInstanceId: "publisher_1",
       sessionId: "session_1",
-      tenantId: "tenant_1",
       ttlMs: 3000,
     });
 
@@ -107,7 +100,6 @@ describe("runtime publisher lease", () => {
         now: "2026-01-01T00:00:02.000Z",
         publisherInstanceId: "publisher_2",
         sessionId: "session_1",
-        tenantId: "tenant_1",
         ttlMs: 3000,
       })
     ).toThrow("publisherLease.publisherInstanceId does not match heartbeat");
@@ -118,7 +110,6 @@ describe("runtime publisher lease", () => {
       now: "2026-01-01T00:00:00.000Z",
       publisherInstanceId: "publisher_1",
       sessionId: "session_1",
-      tenantId: "tenant_1",
       ttlMs: 3000,
     });
 
@@ -128,7 +119,6 @@ describe("runtime publisher lease", () => {
         now: "2026-01-01T00:00:02.000Z",
         publisherInstanceId: "publisher_1",
         sessionId: "session_2",
-        tenantId: "tenant_1",
         ttlMs: 3000,
       })
     ).toThrow("publisherLease.sessionId does not match heartbeat");
@@ -139,7 +129,6 @@ describe("runtime publisher lease", () => {
       now: "2026-01-01T00:00:00.000Z",
       publisherInstanceId: "publisher_1",
       sessionId: "session_1",
-      tenantId: "tenant_1",
       ttlMs: 3000,
     });
 
@@ -163,7 +152,6 @@ describe("runtime publisher lease", () => {
         now: "2026-01-01T00:00:00.000Z",
         publisherInstanceId: "publisher 1",
         sessionId: "session_1",
-        tenantId: "tenant_1",
         ttlMs: 3000,
       })
     ).toThrow(
@@ -177,7 +165,6 @@ describe("runtime publisher lease", () => {
           lastSeenAt: "2026-01-01T00:00:01.000Z",
           publisherInstanceId: "publisher_1",
           sessionId: "session_1",
-          tenantId: "tenant_1",
         },
         now: "2026-01-01T00:00:02.000Z",
         ttlMs: 3000,
@@ -191,7 +178,6 @@ describe("runtime publisher lease", () => {
           lastSeenAt: "2026-01-01T00:00:02.000Z",
           publisherInstanceId: "publisher_1",
           sessionId: "session_1",
-          tenantId: "tenant_1",
         },
         now: "2026-01-01T00:00:02.000Z",
         ttlMs: 3000,
@@ -210,7 +196,6 @@ describe("runtime publisher lease", () => {
         lastSeenAt: "2026-01-01T00:00:00.000Z",
         publisherInstanceId: "publisher_1",
         sessionId: "session_1",
-        tenantId: "tenant_1",
       })
     ).toThrow("publisherLease.expiresAt must be a valid timestamp");
   });

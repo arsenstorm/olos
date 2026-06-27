@@ -35,7 +35,6 @@ export interface CreateRuntimePublisherObjectPlanOptions {
   objectKeyPrefix: string;
   partNumber?: number;
   publicationMode?: PublicationMode;
-  publisherInstanceId: string;
   renditionId: string;
   slotIdPrefix?: string;
 }
@@ -82,7 +81,6 @@ export function createRuntimePublisherObjectPlan(
       maxBytes: options.maxBytes,
       mediaSequenceNumber: options.mediaSequenceNumber,
       objectKey,
-      publisherInstanceId: options.publisherInstanceId,
       renditionId: options.renditionId,
       slotId,
       ...optionalField("minBytes", options.minBytes),
@@ -95,7 +93,6 @@ function assertPlanOptions(
   options: CreateRuntimePublisherObjectPlanOptions
 ): void {
   assertUrlSafeIdentifier(options.renditionId, "renditionId");
-  assertUrlSafeIdentifier(options.publisherInstanceId, "publisherInstanceId");
   assertUrlSafeIdentifier(options.slotIdPrefix ?? "slot", "slotIdPrefix");
   assertUrlSafeIdentifier(options.commitIdPrefix ?? "commit", "commitIdPrefix");
   assertOptionalUrlSafeIdentifier(options.objectKeyNonce, "objectKeyNonce");

@@ -66,7 +66,6 @@ describe("runtime HTTP client", () => {
         maxBytes: 2048,
         mediaSequenceNumber: 0,
         objectKey: "media/init-slot_1.mp4",
-        publisherInstanceId: "publisher_1",
         renditionId: "v1080",
         slotId: "slot_init",
       },
@@ -128,7 +127,6 @@ describe("runtime HTTP client", () => {
     const health = await getRuntimeSessionHealth({
       baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
-      publisherInstanceId: "publisher_1",
       sessionId: session.sessionId,
     });
     const retention = await getRuntimeSessionRetentionPlan({
@@ -144,7 +142,6 @@ describe("runtime HTTP client", () => {
     expect(health.health).toEqual({
       cursorFreshness: "missing",
       leaseStatus: "active",
-      publisherInstanceId: "publisher_1",
       status: "starting",
     });
     expect(retention.response.status).toBe(200);
@@ -299,7 +296,6 @@ describe("runtime HTTP client", () => {
           maxBytes: 2048,
           mediaSequenceNumber: 0,
           objectKey: "media/init-slot_1.mp4",
-          publisherInstanceId: "publisher_1",
           renditionId: "v1080",
           slotId: "slot_init",
         },
@@ -409,7 +405,6 @@ describe("runtime HTTP client", () => {
           maxBytes: 2048,
           mediaSequenceNumber: 0,
           objectKey: "media/init-slot_1.mp4",
-          publisherInstanceId: "publisher_1",
           renditionId: "v1080",
           slotId: "slot_init",
         },

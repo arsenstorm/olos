@@ -173,11 +173,6 @@ function assertPublisherLeases(
       "sessionId",
       "coordinator pipeline publisher lease"
     );
-    assertUrlSafeField(
-      entry,
-      "tenantId",
-      "coordinator pipeline publisher lease"
-    );
   });
 }
 

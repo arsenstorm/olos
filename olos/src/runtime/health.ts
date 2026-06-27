@@ -156,7 +156,10 @@ function stateLiveHealth(options: {
     };
   }
 
-  if (options.lease === undefined) {
+  if (
+    options.publisherInstanceId === undefined ||
+    options.lease === undefined
+  ) {
     return options.health;
   }
 

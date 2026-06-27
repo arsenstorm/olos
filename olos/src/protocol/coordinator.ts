@@ -38,7 +38,6 @@ export interface CoordinatorPublisherLease {
   lastSeenAt: string;
   publisherInstanceId: OlosId;
   sessionId: OlosId;
-  tenantId: OlosId;
 }
 
 export interface CoordinatorPipelineState {

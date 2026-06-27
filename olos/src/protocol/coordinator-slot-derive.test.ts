@@ -10,7 +10,6 @@ describe("issueCoordinatorSlot derived addresses", () => {
     duration: 2,
     expiresAt: "2026-01-01T00:00:05.000Z",
     maxBytes: 100_000,
-    publisherInstanceId: "pub_1",
     renditionId: "v1080",
   } as const;
 

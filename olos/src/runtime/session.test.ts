@@ -147,7 +147,6 @@ describe("stored session runtime", () => {
       lastSeenAt: "2026-01-01T00:00:02.000Z",
       publisherInstanceId: "publisher_1",
       sessionId: session.sessionId,
-      tenantId: session.tenantId,
     });
     expect(snapshot?.state.publisherLeases).toEqual([second.lease]);
   });
@@ -442,7 +441,6 @@ function cursor(state: Cursor["state"]): Cursor {
     segmentTarget: session.segmentTarget,
     sessionId: session.sessionId,
     state,
-    tenantId: session.tenantId,
     updatedAt: "2026-01-01T00:00:02.000Z",
     window: {
       firstMediaSequenceNumber: 3810,

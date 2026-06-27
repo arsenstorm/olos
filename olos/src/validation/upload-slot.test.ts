@@ -16,12 +16,10 @@ const validUploadSlot: UploadSlot = {
   minBytes: 1024,
   objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
   partNumber: 3,
-  publisherInstanceId: "pubinst_01",
   renditionId: "v1080",
   sessionId: "sess_01JZLIVE",
   slotId: "slot_01JZ",
   state: "issued",
-  tenantId: "tenant_acme",
 };
 
 const unsafeDeliveryUrlCases = [

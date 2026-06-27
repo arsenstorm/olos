@@ -112,7 +112,6 @@ describe("runtime live health", () => {
       cursorAgeMs: 2000,
       cursorFreshness: "fresh",
       leaseStatus: "active",
-      publisherInstanceId: "publisher_2",
       status: "active",
     });
   });
@@ -140,7 +139,6 @@ describe("runtime live health", () => {
       resolveRuntimeLiveHealthFromState({
         maxCursorAgeMs: 3000,
         now: "2026-01-01T00:00:05.001Z",
-        publisherInstanceId: "publisher_1",
         state: {
           ...createEmptyCoordinatorState(),
           cursor: cursor("2026-01-01T00:00:05.000Z"),
@@ -153,7 +151,6 @@ describe("runtime live health", () => {
     ).toMatchObject({
       cursorFreshness: "fresh",
       leaseStatus: "stale",
-      publisherInstanceId: "publisher_1",
       status: "stale",
     });
   });
@@ -231,7 +228,6 @@ function lease(
     lastSeenAt,
     publisherInstanceId,
     sessionId: "session_1",
-    tenantId: "tenant_1",
   };
 }
 
@@ -275,7 +271,6 @@ function cursor(updatedAt = "2026-01-01T00:00:00.000Z"): Cursor {
     segmentTarget: 2,
     sessionId: "session_1",
     state: "live",
-    tenantId: "tenant_1",
     updatedAt,
     window: {
       firstMediaSequenceNumber: 3810,

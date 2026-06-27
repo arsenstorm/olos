@@ -30,7 +30,6 @@ const validSession: Session = {
   segmentTarget: 1,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
 };
 
 describe("session validation", () => {

@@ -152,7 +152,6 @@ describe("runtime publisher cadence", () => {
           mediaSequenceNumber: 3810,
         },
         publicationMode: "direct-public",
-        publisherInstanceId: "publisher_1",
         renditionId: "v1080",
       })
     ).toEqual({
@@ -165,7 +164,6 @@ describe("runtime publisher cadence", () => {
       mediaSequenceNumber: 3810,
       objectKeyPrefix: "media/session_1",
       publicationMode: "direct-public",
-      publisherInstanceId: "publisher_1",
       renditionId: "v1080",
     });
   });
@@ -182,7 +180,6 @@ describe("runtime publisher cadence", () => {
           partNumber: 1,
         },
         publicationMode: "direct-public",
-        publisherInstanceId: "publisher_1",
         renditionId: "v1080",
       })
     ).toMatchObject({
@@ -209,7 +206,6 @@ describe("runtime publisher cadence", () => {
         objectKeyNonce: "slot_01JZ",
         objectKeyPrefix: "media/session_1",
         publicationMode: "direct-public",
-        publisherInstanceId: "publisher_1",
         renditionId: "v1080",
         targetLatency: 3,
       }).plan.slot.objectKey
@@ -226,7 +222,6 @@ describe("runtime publisher cadence", () => {
         objectKeyNonce: "slot_01TTL",
         objectKeyPrefix: "media/session_1",
         publicationMode: "direct-public",
-        publisherInstanceId: "publisher_1",
         renditionId: "v1080",
         targetLatency: 3,
       }).expiry
@@ -249,7 +244,6 @@ describe("runtime publisher cadence", () => {
         objectKeyNonce: "slot_01JZ",
         objectKeyPrefix: "media/session_1",
         publicationMode: "direct-public",
-        publisherInstanceId: "publisher_1",
         renditionId: "v1080",
         targetLatency: 3,
       })
@@ -270,7 +264,6 @@ describe("runtime publisher cadence", () => {
           maxBytes: 100_000,
           mediaSequenceNumber: 3812,
           objectKey: "media/session_1/v1080/s3812/segment-slot_01JZ.m4s",
-          publisherInstanceId: "publisher_1",
           renditionId: "v1080",
           slotId: "slot_v1080_s3812",
         },
@@ -298,7 +291,6 @@ describe("runtime publisher cadence", () => {
         objectKeyPrefix: "media/session_1",
         partsPerSegment: 4,
         publicationMode: "direct-public",
-        publisherInstanceId: "publisher_1",
         renditionId: "v1080",
         targetLatency: 3,
       })

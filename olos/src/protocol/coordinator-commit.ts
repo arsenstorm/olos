@@ -302,7 +302,6 @@ function commitIntoState(options: {
     segmentTarget: options.state.session.segmentTarget,
     sessionId: options.state.session.sessionId,
     state: options.state.session.state,
-    tenantId: options.state.session.tenantId,
     updatedAt: options.commit.committedAt,
     ...(partNumber === undefined ? {} : { lastPartNumber: partNumber }),
   });

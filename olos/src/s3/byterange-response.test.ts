@@ -82,7 +82,6 @@ function makeCursor(parts: readonly CommittedPart[]): Cursor {
     segmentTarget: 2,
     sessionId: SESSION_ID,
     state: "live",
-    tenantId: "tenant",
     updatedAt: "2026-06-26T00:00:00.000Z",
     window: {
       firstMediaSequenceNumber: 0,
@@ -176,7 +175,6 @@ async function seedStore(
         segmentTarget: 2,
         sessionId: SESSION_ID,
         state: "live",
-        tenantId: "tenant",
       },
       slots: [],
     },

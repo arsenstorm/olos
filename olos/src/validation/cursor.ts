@@ -41,7 +41,6 @@ export function assertCursor(value: unknown): asserts value is Cursor {
 }
 
 function assertCursorFields(value: Record<string, unknown>): void {
-  assertUrlSafeField(value, "tenantId", "cursor");
   assertUrlSafeField(value, "sessionId", "cursor");
   assertOneOfField(value, "state", SESSION_STATES, "cursor");
   assertOneOfField(value, "latencyProfile", LATENCY_PROFILES, "cursor");

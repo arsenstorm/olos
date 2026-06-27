@@ -38,7 +38,6 @@ const session: Session = {
   segmentTarget: 2,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
 };
 
 const slot: UploadSlot = {
@@ -52,12 +51,10 @@ const slot: UploadSlot = {
   mediaSequenceNumber: 3810,
   minBytes: 1000,
   objectKey: "live/session/v1080/3810.m4s",
-  publisherInstanceId: "pub_1",
   renditionId: "v1080",
   sessionId: "session_1",
   slotId: "slot_1",
   state: "issued",
-  tenantId: "tenant_1",
 };
 
 const object: ObservedUpload = {
@@ -110,7 +107,6 @@ const cursor: Cursor = {
   segmentTarget: 2,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
   updatedAt: "2026-01-01T00:00:02.000Z",
   window: {
     firstMediaSequenceNumber: 3810,
@@ -131,7 +127,6 @@ describe("upload slot issuance", () => {
         mediaSequenceNumber: 3810,
         minBytes: 1000,
         objectKey: "live/session/v1080/3810.m4s",
-        publisherInstanceId: "pub_1",
         renditionId: "v1080",
         session,
         slotId: "slot_1",
@@ -151,7 +146,6 @@ describe("upload slot issuance", () => {
         mediaSequenceNumber: 3810,
         objectKey: "live/session/v1080/3810/0.m4s",
         partNumber: 0,
-        publisherInstanceId: "pub_1",
         renditionId: "v1080",
         session,
         slotId: "slot_3810_0",
@@ -170,7 +164,6 @@ describe("upload slot issuance", () => {
         maxBytes: 100_000,
         mediaSequenceNumber: 3810,
         objectKey: "live/session/v1080/3810.m4s",
-        publisherInstanceId: "pub_1",
         renditionId: "v1080",
         session: { ...session, state: "created" },
         slotId: "slot_1",
@@ -189,7 +182,6 @@ describe("upload slot issuance", () => {
         maxBytes: 100_000,
         mediaSequenceNumber: 3810,
         objectKey: "live/session/v720/3810.m4s",
-        publisherInstanceId: "pub_1",
         renditionId: "v720",
         session,
         slotId: "slot_1",

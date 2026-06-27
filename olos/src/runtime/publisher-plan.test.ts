@@ -14,7 +14,6 @@ describe("runtime publisher object plan", () => {
       mediaSequenceNumber: 3810,
       objectKeyPrefix: "media/session_1",
       publicationMode: "read-gated",
-      publisherInstanceId: "publisher_1",
       renditionId: "v1080",
     });
 
@@ -30,7 +29,6 @@ describe("runtime publisher object plan", () => {
         maxBytes: 100_000,
         mediaSequenceNumber: 3810,
         objectKey: "media/session_1/v1080/s3810.m4s",
-        publisherInstanceId: "publisher_1",
         renditionId: "v1080",
         slotId: "slot_v1080_s3810",
       },
@@ -50,7 +48,6 @@ describe("runtime publisher object plan", () => {
       objectKeyPrefix: "media/session_1",
       partNumber: 2,
       publicationMode: "read-gated",
-      publisherInstanceId: "publisher_1",
       renditionId: "v1080",
       slotIdPrefix: "upload",
     });
@@ -133,7 +130,6 @@ describe("runtime publisher object plan", () => {
       mediaSequenceNumber: 0,
       objectKeyPrefix: "media/session_1",
       publicationMode: "read-gated",
-      publisherInstanceId: "publisher_1",
       renditionId: "v1080",
     });
 
@@ -240,7 +236,6 @@ function validSegmentPlan() {
     objectKeyNonce: "slot_01JZ",
     objectKeyPrefix: "media/session_1",
     publicationMode: "direct-public" as const,
-    publisherInstanceId: "publisher_1",
     renditionId: "v1080",
   };
 }

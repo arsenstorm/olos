@@ -143,7 +143,6 @@ function cursorAt(
     segmentTarget: 2,
     sessionId: "session_1",
     state: "live",
-    tenantId: "tenant_1",
     updatedAt: "2026-01-01T00:00:02.000Z",
     window: {
       firstMediaSequenceNumber: mediaSequenceNumber,

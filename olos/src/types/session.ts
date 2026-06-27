@@ -31,5 +31,4 @@ export interface Session {
   segmentTarget: number;
   sessionId: OlosId;
   state: SessionState;
-  tenantId: OlosId;
 }

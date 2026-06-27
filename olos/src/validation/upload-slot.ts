@@ -48,8 +48,6 @@ function assertUploadSlotByterange(value: Record<string, unknown>): void {
 function assertUploadSlotIdentifiers(value: Record<string, unknown>): void {
   assertUrlSafeField(value, "slotId", "uploadSlot");
   assertUrlSafeField(value, "sessionId", "uploadSlot");
-  assertUrlSafeField(value, "tenantId", "uploadSlot");
-  assertUrlSafeField(value, "publisherInstanceId", "uploadSlot");
   assertUrlSafeField(value, "renditionId", "uploadSlot");
 }
 

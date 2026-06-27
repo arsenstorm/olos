@@ -17,12 +17,10 @@ const slot: UploadSlot = {
   maxBytes: 100_000,
   mediaSequenceNumber: 3810,
   objectKey: "media/3810.m4s",
-  publisherInstanceId: "pub_1",
   renditionId: "v1080",
   sessionId: "session_1",
   slotId: "slot_3810",
   state: "issued",
-  tenantId: "tenant_1",
 };
 
 const initCommit: Commit = {

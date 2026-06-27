@@ -79,10 +79,6 @@ describe("runtime slot adapter", () => {
   test("returns invalid responses for unsafe JSON slot identifiers", async () => {
     const cases = [
       {
-        expected: "publisherInstanceId must be a non-empty URL-safe identifier",
-        field: "publisherInstanceId",
-      },
-      {
         expected: "renditionId must be a non-empty URL-safe identifier",
         field: "renditionId",
       },
@@ -186,7 +182,6 @@ function slotPayload() {
     maxBytes: 100_000,
     mediaSequenceNumber: 3810,
     objectKey: "media/s3810.m4s",
-    publisherInstanceId: "pub_1",
     renditionId: "v1080",
     slotId: "slot_3810",
   };

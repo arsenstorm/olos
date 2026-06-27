@@ -1208,10 +1208,6 @@ describe("stored S3 coordinator runtime handler", () => {
 
     const cases = [
       {
-        expected: "publisherInstanceId must be a non-empty URL-safe identifier",
-        field: "publisherInstanceId",
-      },
-      {
         expected: "renditionId must be a non-empty URL-safe identifier",
         field: "renditionId",
       },
@@ -2129,7 +2125,7 @@ describe("stored S3 coordinator runtime handler", () => {
                 error: {
                   code: "olos.quota_exceeded",
                   details: {
-                    publisherInstanceId: slot.publisherInstanceId,
+                    renditionId: slot.renditionId,
                   },
                   message: "tenant quota exceeded",
                 },
@@ -2213,9 +2209,7 @@ describe("stored S3 coordinator runtime handler", () => {
       {
         error: {
           code: "olos.quota_exceeded",
-          details: {
-            publisherInstanceId: "pub_1",
-          },
+          details: {},
           message: "tenant quota exceeded",
         },
         status: "rejected",
@@ -3221,7 +3215,6 @@ function slotPayload(options: SlotPayloadOptions) {
     ...(options.partNumber === undefined
       ? {}
       : { partNumber: options.partNumber }),
-    publisherInstanceId: "pub_1",
     renditionId: "v1080",
     slotId: options.slotId,
   };

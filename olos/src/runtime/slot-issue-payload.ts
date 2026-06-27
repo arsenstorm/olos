@@ -32,7 +32,6 @@ export function parseRuntimeSlotIssuePayload(
     expiresAt: stringField(value, "expiresAt"),
     maxBytes: positiveNumberField(value, "maxBytes"),
     mediaSequenceNumber: nonNegativeIntegerField(value, "mediaSequenceNumber"),
-    publisherInstanceId: urlSafeIdentifierField(value, "publisherInstanceId"),
     renditionId: urlSafeIdentifierField(value, "renditionId"),
     slotId: urlSafeIdentifierField(value, "slotId"),
     ...object,

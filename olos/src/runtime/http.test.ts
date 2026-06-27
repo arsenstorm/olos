@@ -522,7 +522,7 @@ describe("stored coordinator runtime handler", () => {
 
     const response = await handle(
       jsonRequest("https://edge.example.com/sessions/session_1/heartbeat", {
-        publisherInstanceId: "pub_1",
+        publisherInstanceId: "publisher_1",
       })
     );
     const health = await handle(
@@ -536,9 +536,8 @@ describe("stored coordinator runtime handler", () => {
         expiresAt: "2026-01-01T00:00:05.000Z",
         issuedAt: "2026-01-01T00:00:02.000Z",
         lastSeenAt: "2026-01-01T00:00:02.000Z",
-        publisherInstanceId: "pub_1",
+        publisherInstanceId: "publisher_1",
         sessionId: session.sessionId,
-        tenantId: session.tenantId,
       },
     });
     expect(health.status).toBe(200);
@@ -546,7 +545,6 @@ describe("stored coordinator runtime handler", () => {
       health: {
         cursorFreshness: "missing",
         leaseStatus: "active",
-        publisherInstanceId: "pub_1",
         status: "starting",
       },
     });
@@ -571,7 +569,7 @@ describe("stored coordinator runtime handler", () => {
 
     const response = await handle(
       jsonRequest("https://edge.example.com/sessions/session_1/heartbeat", {
-        publisherInstanceId: "pub_1",
+        publisherInstanceId: "publisher_1",
       })
     );
 
@@ -580,9 +578,8 @@ describe("stored coordinator runtime handler", () => {
         expiresAt: "2026-01-01T00:00:06.000Z",
         issuedAt: "2026-01-01T00:00:03.000Z",
         lastSeenAt: "2026-01-01T00:00:03.000Z",
-        publisherInstanceId: "pub_1",
+        publisherInstanceId: "publisher_1",
         sessionId: session.sessionId,
-        tenantId: session.tenantId,
       },
     });
   });
@@ -926,7 +923,6 @@ function slotPayload(options: SlotPayloadOptions) {
     maxBytes: options.maxBytes,
     mediaSequenceNumber: options.mediaSequenceNumber,
     objectKey: options.objectKey,
-    publisherInstanceId: "pub_1",
     renditionId: "v1080",
     slotId: options.slotId,
   };

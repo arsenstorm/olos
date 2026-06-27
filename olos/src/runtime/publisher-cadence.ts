@@ -64,7 +64,6 @@ export interface CreateRuntimePublisherObjectPlanInputOptions {
   objectKeyPrefix: string;
   position: RuntimePublisherObjectPosition;
   publicationMode?: PublicationMode;
-  publisherInstanceId: string;
   renditionId: string;
 }
 
@@ -158,7 +157,6 @@ export function createRuntimePublisherObjectPlanInput(
     mediaSequenceNumber: options.position.mediaSequenceNumber,
     objectKeyPrefix: options.objectKeyPrefix,
     publicationMode: options.publicationMode,
-    publisherInstanceId: options.publisherInstanceId,
     renditionId: options.renditionId,
     ...optionalField("minBytes", defaults.minBytes),
     ...optionalField("objectKeyNonce", options.objectKeyNonce),

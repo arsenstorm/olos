@@ -43,7 +43,6 @@ export function assertSession(value: unknown): asserts value is Session {
     throw new Error(`session.olos must be ${OLOS_WIRE_VERSION}`);
   }
 
-  assertUrlSafeField(value, "tenantId", "session");
   assertUrlSafeField(value, "sessionId", "session");
   assertNonNegativeIntegerField(value, "epoch", "session");
   assertOneOfField(value, "state", SESSION_STATES, "session");

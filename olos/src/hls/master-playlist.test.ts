@@ -40,7 +40,6 @@ const session: Session = {
   segmentTarget: 2,
   sessionId: "sess_01JZLIVE",
   state: "live",
-  tenantId: "tenant_acme",
 };
 
 describe("master playlist rendering", () => {

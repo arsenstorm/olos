@@ -116,7 +116,6 @@ export async function assertCoordinatorPipelineStoreConformance(
     maxBytes: 2048,
     mediaSequenceNumber: 0,
     objectKey: "media/v1080/init.mp4",
-    publisherInstanceId: "pub_1",
     renditionId: "v1080",
     slotId: "slot_init",
     state: loaded.state,
@@ -210,7 +209,6 @@ const conformanceSession: Session = {
   segmentTarget: 2,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
 };
 
 const CONFORMANCE_MEDIA_BASE_URL = "https://media.example.com";

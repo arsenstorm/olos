@@ -27,7 +27,6 @@ export const testCoordinatorSession: Session = {
   segmentTarget: 2,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
 };
 
 export const TEST_COORDINATOR_MEDIA_BASE_URL = "https://media.example.com";
@@ -144,7 +143,6 @@ function issueTestCoordinatorSlot(
     maxBytes: slot.maxBytes,
     mediaSequenceNumber: slot.mediaSequenceNumber,
     objectKey: slot.objectKey,
-    publisherInstanceId: "pub_1",
     renditionId: "v1080",
     slotId: slot.slotId,
     state,

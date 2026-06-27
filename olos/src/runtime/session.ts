@@ -291,7 +291,6 @@ function heartbeatLease(
       now: options.now,
       publisherInstanceId: options.publisherInstanceId,
       sessionId: options.sessionId,
-      tenantId: state.session.tenantId,
       ttlMs: options.ttlMs,
     });
   }
@@ -301,7 +300,6 @@ function heartbeatLease(
     now: options.now,
     publisherInstanceId: options.publisherInstanceId,
     sessionId: options.sessionId,
-    tenantId: state.session.tenantId,
     ttlMs: options.ttlMs,
   });
 }

@@ -23,7 +23,6 @@ export interface CreateCursorOptions {
   segmentTarget: number;
   sessionId: string;
   state: SessionState;
-  tenantId: string;
   updatedAt: string;
 }
 
@@ -53,7 +52,6 @@ export function createCursor(options: CreateCursorOptions): Cursor {
     segmentTarget: options.segmentTarget,
     sessionId: options.sessionId,
     state: options.state,
-    tenantId: options.tenantId,
     updatedAt: options.updatedAt,
     window: {
       firstMediaSequenceNumber:

@@ -55,7 +55,6 @@ const validSession = {
   segmentTarget: 1,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
 } as const;
 
 const validCommit = {
@@ -90,12 +89,10 @@ const validUploadSlot = {
   minBytes: 1024,
   objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
   partNumber: 3,
-  publisherInstanceId: "pubinst_01",
   renditionId: "v1080",
   sessionId: "sess_01JZLIVE",
   slotId: "slot_01JZ",
   state: "issued",
-  tenantId: "tenant_acme",
 } as const;
 
 const validCommittedWindow = {
@@ -176,7 +173,6 @@ const validCursor = {
   segmentTarget: 1,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
   updatedAt: "2026-06-08T12:00:01.820Z",
   window: {
     firstMediaSequenceNumber: 3810,
