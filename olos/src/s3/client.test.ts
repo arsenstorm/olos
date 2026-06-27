@@ -35,8 +35,8 @@ describe("S3 runtime HTTP client", () => {
     const { clientFetch } = await createS3RuntimeClientHarness({
       headObjectInputs,
       objectSizes: {
-        "live/session/v1080/3810.m4s": 98_304,
-        "live/session/v1080/init.mp4": 1024,
+        "media/v1080/s3810.m4s": 98_304,
+        "media/v1080/init.mp4": 1024,
       },
       providerId: "s3_primary",
     });
@@ -46,13 +46,11 @@ describe("S3 runtime HTTP client", () => {
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
-        deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
         duration: 1,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "init",
         maxBytes: 2048,
         mediaSequenceNumber: 0,
-        objectKey: "live/session/v1080/init.mp4",
         renditionId: "v1080",
         slotId: "slot_init",
       },
@@ -63,13 +61,11 @@ describe("S3 runtime HTTP client", () => {
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
-        deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
         duration: 2,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
         maxBytes: 100_000,
         mediaSequenceNumber: 3810,
-        objectKey: "live/session/v1080/3810.m4s",
         renditionId: "v1080",
         slotId: "slot_3810",
       },
@@ -81,7 +77,7 @@ describe("S3 runtime HTTP client", () => {
       payload: {
         commitId: "commit_init",
         committedAt: "2026-01-01T00:00:02.000Z",
-        objectKey: "live/session/v1080/init.mp4",
+        objectKey: "media/v1080/init.mp4",
         slotId: issued.slot.slotId,
       },
       sessionId: session.sessionId,
@@ -91,9 +87,9 @@ describe("S3 runtime HTTP client", () => {
       fetch: clientFetch,
       payload: {
         committedAt: "2026-01-01T00:00:03.000Z",
-        etag: '"live/session/v1080/3810.m4s"',
+        etag: '"media/v1080/s3810.m4s"',
         independent: true,
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         size: 98_304,
       },
       sessionId: session.sessionId,
@@ -102,27 +98,27 @@ describe("S3 runtime HTTP client", () => {
 
     expect(issued.response.status).toBe(201);
     expect(issued.grant.slotId).toBe("slot_init");
-    expect(issued.slot.objectKey).toBe("live/session/v1080/init.mp4");
+    expect(issued.slot.objectKey).toBe("media/v1080/init.mp4");
     expect(committed.response.status).toBe(201);
     expect(committed.commit).toMatchObject({
       commitId: "commit_init",
-      objectKey: "live/session/v1080/init.mp4",
+      objectKey: "media/v1080/init.mp4",
       slotId: "slot_init",
     });
     expect(completed.response.status).toBe(201);
     expect(completed.commit).toMatchObject({
       commitId: "complete_slot_3810",
-      objectKey: "live/session/v1080/3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       slotId: "slot_3810",
     });
     expect(headObjectInputs).toEqual([
       {
         Bucket: S3_BUCKET,
-        Key: "live/session/v1080/init.mp4",
+        Key: "media/v1080/init.mp4",
       },
       {
         Bucket: S3_BUCKET,
-        Key: "live/session/v1080/3810.m4s",
+        Key: "media/v1080/s3810.m4s",
       },
     ]);
   });
@@ -136,13 +132,11 @@ describe("S3 runtime HTTP client", () => {
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
-        deliveryUrl: "https://media.example.com/init.mp4",
         duration: 1,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "init",
         maxBytes: 2048,
         mediaSequenceNumber: 0,
-        objectKey: "media/init-slot_1.mp4",
         renditionId: "v1080",
         slotId: "slot_init",
       },
@@ -233,13 +227,11 @@ describe("S3 runtime HTTP client", () => {
         fetch: clientFetch,
         payload: {
           contentType: "video/mp4",
-          deliveryUrl: "https://media.example.com/init.mp4",
           duration: 1,
           expiresAt: "2026-01-01T00:00:05.000Z",
           kind: "init",
           maxBytes: 2048,
           mediaSequenceNumber: 0,
-          objectKey: "media/init-slot_1.mp4",
           renditionId: "v1080",
           slotId: "slot_init",
         },
@@ -326,8 +318,8 @@ describe("S3 runtime HTTP client", () => {
     const { clientFetch } = await createS3RuntimeClientHarness({
       headObjectInputs,
       objectSizes: {
-        "live/session/v1080/3810.m4s": 98_304,
-        "live/session/v1080/init.mp4": 1024,
+        "media/v1080/s3810.m4s": 98_304,
+        "media/v1080/init.mp4": 1024,
       },
       providerId: "s3_primary",
     });
@@ -337,13 +329,11 @@ describe("S3 runtime HTTP client", () => {
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
-        deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
         duration: 1,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "init",
         maxBytes: 2048,
         mediaSequenceNumber: 0,
-        objectKey: "live/session/v1080/init.mp4",
         renditionId: "v1080",
         slotId: "slot_init",
       },
@@ -354,13 +344,11 @@ describe("S3 runtime HTTP client", () => {
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
-        deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
         duration: 2,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
         maxBytes: 100_000,
         mediaSequenceNumber: 3810,
-        objectKey: "live/session/v1080/3810.m4s",
         renditionId: "v1080",
         slotId: "slot_3810",
       },
@@ -410,11 +398,11 @@ describe("S3 runtime HTTP client", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: S3_BUCKET,
-        Key: "live/session/v1080/init.mp4",
+        Key: "media/v1080/init.mp4",
       },
       {
         Bucket: S3_BUCKET,
-        Key: "live/session/v1080/3810.m4s",
+        Key: "media/v1080/s3810.m4s",
       },
     ]);
   });
@@ -424,9 +412,9 @@ describe("S3 runtime HTTP client", () => {
     const { clientFetch } = await createS3RuntimeClientHarness({
       deleteInputs,
       objectSizes: {
-        "live/session/v1080/3810.m4s": 98_304,
-        "live/session/v1080/3811.m4s": 98_304,
-        "live/session/v1080/init.mp4": 1024,
+        "media/v1080/s3810.m4s": 98_304,
+        "media/v1080/s3811.m4s": 98_304,
+        "media/v1080/init.mp4": 1024,
       },
     });
 
@@ -437,7 +425,7 @@ describe("S3 runtime HTTP client", () => {
         kind: "init" as const,
         maxBytes: 2048,
         mediaSequenceNumber: 0,
-        objectKey: "live/session/v1080/init.mp4",
+        objectKey: "media/v1080/init.mp4",
         slotId: "slot_init",
       },
       {
@@ -446,7 +434,7 @@ describe("S3 runtime HTTP client", () => {
         kind: "segment" as const,
         maxBytes: 100_000,
         mediaSequenceNumber: 3810,
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         slotId: "slot_3810",
       },
       {
@@ -455,7 +443,7 @@ describe("S3 runtime HTTP client", () => {
         kind: "segment" as const,
         maxBytes: 100_000,
         mediaSequenceNumber: 3811,
-        objectKey: "live/session/v1080/3811.m4s",
+        objectKey: "media/v1080/s3811.m4s",
         slotId: "slot_3811",
       },
     ]) {
@@ -464,13 +452,11 @@ describe("S3 runtime HTTP client", () => {
         fetch: clientFetch,
         payload: {
           contentType: "video/mp4",
-          deliveryUrl: `https://media.example.com/${object.objectKey}`,
           duration: object.duration,
           expiresAt: "2026-01-01T00:00:05.000Z",
           kind: object.kind,
           maxBytes: object.maxBytes,
           mediaSequenceNumber: object.mediaSequenceNumber,
-          objectKey: object.objectKey,
           renditionId: "v1080",
           slotId: object.slotId,
         },
@@ -505,7 +491,7 @@ describe("S3 runtime HTTP client", () => {
     expect(retained.plan.retiredObjects).toEqual([
       {
         commitId: "commit_3810",
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         slotId: "slot_3810",
       },
     ]);
@@ -520,7 +506,7 @@ describe("S3 runtime HTTP client", () => {
     expect(deleteInputs).toEqual([
       {
         Bucket: S3_BUCKET,
-        Key: "live/session/v1080/3810.m4s",
+        Key: "media/v1080/s3810.m4s",
       },
     ]);
   });
@@ -751,7 +737,7 @@ describe("S3 runtime HTTP client", () => {
                   error: 123,
                   object: {
                     commitId: "commit_3810",
-                    objectKey: "live/session/v1080/3810.m4s",
+                    objectKey: "media/v1080/s3810.m4s",
                     slotId: "slot_3810",
                   },
                 },
@@ -760,7 +746,7 @@ describe("S3 runtime HTTP client", () => {
             summary: {
               deleted: 0,
               failed: 1,
-              failedObjectKeys: ["live/session/v1080/3810.m4s"],
+              failedObjectKeys: ["media/v1080/s3810.m4s"],
               failedSlotIds: ["slot_3810"],
               ok: false,
               planned: 1,
@@ -848,6 +834,7 @@ async function createS3RuntimeClientHarness(options: {
       options.headObjectInputs ?? [],
       options.objectSizes
     ),
+    publicationMode: "read-gated",
     ...(options.providerId === undefined
       ? {}
       : { providerId: options.providerId }),

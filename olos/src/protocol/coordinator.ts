@@ -112,9 +112,7 @@ export interface IssueCoordinatorSlotOptions
     CreateIssuedUploadSlotOptions,
     "deliveryUrl" | "objectKey" | "session"
   > {
-  deliveryUrl?: string;
   extension?: string;
-  objectKey?: string;
   objectKeyNonce?: string;
   objectKeyPrefix?: string;
   publicationControl?: PublicationControlPolicy;

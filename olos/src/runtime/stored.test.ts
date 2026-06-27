@@ -102,7 +102,7 @@ describe("stored runtime mutations", () => {
     expect(snapshot?.state.commits).toHaveLength(1);
     expect(snapshot?.state.commits[0]).toMatchObject({
       commitId: "commit_3810",
-      objectKey: "media/s3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       slotId: "slot_3810",
     });
     expect(snapshot?.state.cursor?.window).toEqual({
@@ -177,7 +177,7 @@ describe("stored runtime mutations", () => {
         code: "olos.object_too_small",
         details: {
           minBytes: 100_000,
-          objectKey: "media/s3810.m4s",
+          objectKey: "media/v1080/s3810.m4s",
           size: 50,
           slotId: "slot_3810",
         },
@@ -267,7 +267,7 @@ describe("stored runtime mutations", () => {
     expect(result.state.commits).toHaveLength(1);
     expect(result.state.commits[0]).toMatchObject({
       commitId: "commit_3810",
-      objectKey: "media/s3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       slotId: "slot_3810",
     });
   });
@@ -319,7 +319,7 @@ describe("stored runtime mutations", () => {
       "application/vnd.apple.mpegurl"
     );
     expect(await response.text()).toContain(
-      "https://media.example.com/s3810.m4s"
+      "https://media.example.com/media/v1080/s3810.m4s"
     );
   });
 
@@ -383,8 +383,6 @@ async function createConflictingStore(): Promise<CoordinatorPipelineStore> {
   const originalSave = store.save;
   const currentState = issueCoordinatorSlot({
     ...slotPayload(),
-    deliveryUrl: "https://media.example.com/existing.m4s",
-    objectKey: "media/existing.m4s",
     slotId: "slot_existing",
     state: createEmptyCoordinatorState(),
   }).state;
@@ -444,9 +442,7 @@ async function createCommitConflictingStore(): Promise<CoordinatorPipelineStore>
 
         const next = issueCoordinatorSlot({
           ...slotPayload(),
-          deliveryUrl: "https://media.example.com/s3811.m4s",
           mediaSequenceNumber: 3811,
-          objectKey: "media/s3811.m4s",
           slotId: "slot_3811",
           state: current.state,
         });
@@ -500,13 +496,11 @@ async function createReadyStore(): Promise<CoordinatorPipelineStore> {
   const state = createEmptyCoordinatorState();
   const init = issueCoordinatorSlot({
     contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/init.mp4",
     duration: 1,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "init",
     maxBytes: 2048,
     mediaSequenceNumber: 0,
-    objectKey: "media/init.mp4",
     renditionId: "v1080",
     slotId: "slot_init",
     state,
@@ -516,7 +510,7 @@ async function createReadyStore(): Promise<CoordinatorPipelineStore> {
     committedAt: "2026-01-01T00:00:02.000Z",
     object: createObservedUpload({
       contentType: "video/mp4",
-      objectKey: "media/init.mp4",
+      objectKey: "media/v1080/init.mp4",
       observedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
       size: 1024,
@@ -546,13 +540,13 @@ async function createReadyStore(): Promise<CoordinatorPipelineStore> {
 function slotPayload() {
   return {
     contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/s3810.m4s",
+    deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
     duration: 2,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment" as const,
     maxBytes: 100_000,
     mediaSequenceNumber: 3810,
-    objectKey: "media/s3810.m4s",
+    objectKey: "media/v1080/s3810.m4s",
     renditionId: "v1080",
     slotId: "slot_3810",
   };
@@ -565,7 +559,7 @@ function commitPayload() {
     independent: true,
     object: {
       contentType: "video/mp4",
-      objectKey: "media/s3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       observedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
       size: 98_304,

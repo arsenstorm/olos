@@ -62,12 +62,10 @@ interface PublishSpec {
   byterange?: Byterange;
   bytes: Uint8Array;
   commitId: string;
-  deliveryUrl: string;
   duration: number;
   independent: boolean;
   kind: ObjectKind;
   mediaSequenceNumber: number;
-  objectKey: string;
   partNumber?: number;
   slotId: string;
 }
@@ -89,16 +87,13 @@ export function createOlosClient(options: OlosClientOptions): OlosClient {
       return createSession(options, ingestHeaders, partTarget, segmentTarget);
     },
     publishInit({ bytes, duration, mediaSequenceNumber }) {
-      const objectKey = `live/${options.sessionId}/${options.renditionId}/init.mp4`;
       return publish(options, ingestFetch, {
         bytes,
         commitId: `${options.sessionId}_commit_init`,
-        deliveryUrl: `${options.mediaOrigin}/media/${objectKey}`,
         duration,
         independent: false,
         kind: "init",
         mediaSequenceNumber,
-        objectKey,
         slotId: `${options.sessionId}_slot_init`,
       });
     },
@@ -110,32 +105,26 @@ export function createOlosClient(options: OlosClientOptions): OlosClient {
       mediaSequenceNumber,
       partNumber,
     }) {
-      const objectKey = `live/${options.sessionId}/${options.renditionId}/${mediaSequenceNumber}-part-${partNumber}.m4s`;
       return publish(options, ingestFetch, {
         byterange,
         bytes,
         commitId: `${options.sessionId}_commit_${mediaSequenceNumber}_part_${partNumber}`,
-        deliveryUrl: `${options.mediaOrigin}/media/${objectKey}`,
         duration,
         independent,
         kind: "part",
         mediaSequenceNumber,
-        objectKey,
         partNumber,
         slotId: `${options.sessionId}_slot_${mediaSequenceNumber}_part_${partNumber}`,
       });
     },
     publishSegment({ bytes, duration, mediaSequenceNumber }) {
-      const objectKey = `live/${options.sessionId}/${options.renditionId}/${mediaSequenceNumber}.m4s`;
       return publish(options, ingestFetch, {
         bytes,
         commitId: `${options.sessionId}_commit_${mediaSequenceNumber}`,
-        deliveryUrl: `${options.mediaOrigin}/media/${objectKey}`,
         duration,
         independent: true,
         kind: "segment",
         mediaSequenceNumber,
-        objectKey,
         slotId: `${options.sessionId}_slot_${mediaSequenceNumber}`,
       });
     },
@@ -201,13 +190,11 @@ async function publish(
     payload: {
       ...(spec.byterange === undefined ? {} : { byterange: spec.byterange }),
       contentType: "video/mp4",
-      deliveryUrl: spec.deliveryUrl,
       duration: spec.duration,
       expiresAt,
       kind: spec.kind,
       maxBytes: spec.bytes.length,
       mediaSequenceNumber: spec.mediaSequenceNumber,
-      objectKey: spec.objectKey,
       ...(spec.partNumber === undefined ? {} : { partNumber: spec.partNumber }),
       renditionId: options.renditionId,
       slotId: spec.slotId,
@@ -223,7 +210,7 @@ async function publish(
 
   if (!upload.ok) {
     throw new Error(
-      `PUT ${spec.objectKey} ${upload.status}: ${await upload.text()}`
+      `PUT ${granted.slot.objectKey} ${upload.status}: ${await upload.text()}`
     );
   }
 
@@ -234,7 +221,7 @@ async function publish(
       commitId: spec.commitId,
       committedAt: new Date().toISOString(),
       independent: spec.independent,
-      objectKey: spec.objectKey,
+      objectKey: granted.slot.objectKey,
       slotId: spec.slotId,
     },
     sessionId: options.sessionId,

@@ -490,7 +490,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
               ...validRendition(),
               init: {
                 ...validRendition().init,
-                deliveryUrl: "/media/init.mp4?token=abc",
+                deliveryUrl: "/media/v1080/init.mp4?token=abc",
               },
             },
           },
@@ -516,7 +516,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
               ...validRendition(),
               init: {
                 ...validRendition().init,
-                deliveryUrl: "/media/init.mp4\n#EXT-X-ENDLIST",
+                deliveryUrl: "/media/v1080/init.mp4\n#EXT-X-ENDLIST",
               },
             },
           },

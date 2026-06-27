@@ -12,7 +12,7 @@ const validCursor: Cursor = {
       v1080: {
         init: {
           commitId: "commit_init",
-          deliveryUrl: "/media/init.mp4",
+          deliveryUrl: "/media/v1080/init.mp4",
           objectKey: "tenant/session/v1080/init.mp4",
           slotId: "slot_init",
         },

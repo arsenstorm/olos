@@ -6,7 +6,7 @@ import { createTestS3DeleteObjectClient } from "./test-delete-client.test-helper
 
 const RETIRED_OBJECT: RetiredCoordinatorObjectDeletion = {
   commitId: "commit_3810",
-  objectKey: "media/s3810.m4s",
+  objectKey: "media/v1080/s3810.m4s",
   slotId: "slot_3810",
 };
 
@@ -57,7 +57,7 @@ describe("S3 retention", () => {
     expect(inputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/s3810.m4s",
+        Key: "media/v1080/s3810.m4s",
       },
     ]);
     expect(result).toEqual({

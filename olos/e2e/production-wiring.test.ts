@@ -25,6 +25,7 @@ describe("production object pipeline wiring", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
+      publicationMode: "read-gated",
       blockingReload: {
         timeoutMs: latency.blockingReloadTimeoutMs,
         waitForCursor: (context) => notifier.waitForCursor(context),
@@ -37,9 +38,9 @@ describe("production object pipeline wiring", () => {
       now: () => now,
       objectClient: createTestHeadObjectClientFor(
         {
-          "live/session/v1080/3810.m4s": 98_304,
-          "live/session/v1080/3811.m4s": 98_304,
-          "live/session/v1080/init.mp4": 1024,
+          "media/v1080/s3810.m4s": 98_304,
+          "media/v1080/s3811.m4s": 98_304,
+          "media/v1080/init.mp4": 1024,
         },
         headInputs
       ),
@@ -90,7 +91,7 @@ describe("production object pipeline wiring", () => {
     });
     expect(media.status).toBe(200);
     expect(await media.text()).toContain(
-      "https://media.example.com/live/session/v1080/3810.m4s"
+      "https://media.example.com/media/v1080/s3810.m4s"
     );
 
     await issueObject(handle, secondSegment);
@@ -199,36 +200,36 @@ interface ObjectFixture {
 
 const initObject: ObjectFixture = {
   commitId: "commit_init",
-  deliveryUrl: "https://media.example.com/live/session/v1080/init.mp4",
+  deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
   duration: 1,
   kind: "init",
   maxBytes: 2048,
   mediaSequenceNumber: 0,
-  objectKey: "live/session/v1080/init.mp4",
+  objectKey: "media/v1080/init.mp4",
   slotId: "slot_init",
 };
 
 const firstSegment: ObjectFixture = {
   commitId: "commit_3810",
-  deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+  deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
   duration: 2,
   kind: "segment",
   maxBytes: 100_000,
   maxSegments: 1,
   mediaSequenceNumber: 3810,
-  objectKey: "live/session/v1080/3810.m4s",
+  objectKey: "media/v1080/s3810.m4s",
   slotId: "slot_3810",
 };
 
 const secondSegment: ObjectFixture = {
   commitId: "commit_3811",
-  deliveryUrl: "https://media.example.com/live/session/v1080/3811.m4s",
+  deliveryUrl: "https://media.example.com/media/v1080/s3811.m4s",
   duration: 2,
   kind: "segment",
   maxBytes: 100_000,
   maxSegments: 1,
   mediaSequenceNumber: 3811,
-  objectKey: "live/session/v1080/3811.m4s",
+  objectKey: "media/v1080/s3811.m4s",
   slotId: "slot_3811",
 };
 
@@ -239,13 +240,11 @@ async function issueObject(
   const response = await handle(
     jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", {
       contentType: "video/mp4",
-      deliveryUrl: object.deliveryUrl,
       duration: object.duration,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: object.kind,
       maxBytes: object.maxBytes,
       mediaSequenceNumber: object.mediaSequenceNumber,
-      objectKey: object.objectKey,
       renditionId: "v1080",
       slotId: object.slotId,
     })

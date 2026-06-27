@@ -347,13 +347,11 @@ const s3RuntimeGrantOptions = {
   baseUrl: runtimeBaseUrl,
   payload: {
     contentType: slot.contentType,
-    deliveryUrl: slot.deliveryUrl,
     duration: slot.duration,
     expiresAt: slot.expiresAt,
     kind: slot.kind,
     maxBytes: slot.maxBytes,
     mediaSequenceNumber: slot.mediaSequenceNumber,
-    objectKey: slot.objectKey,
     renditionId: slot.renditionId,
     slotId: slot.slotId,
   },

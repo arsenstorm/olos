@@ -66,37 +66,25 @@ function resolveSlotObjectAddress(options: IssueCoordinatorSlotOptions): {
   objectKey: string;
   deliveryUrl: string;
 } {
-  if (options.objectKey !== undefined && options.deliveryUrl !== undefined) {
-    return { deliveryUrl: options.deliveryUrl, objectKey: options.objectKey };
-  }
-
   if (!isDerivableMediaObjectKind(options.kind)) {
     throw new Error(
       `cannot derive objectKey for media object kind ${options.kind}`
     );
   }
 
-  const nonce = resolveSlotObjectKeyNonce(options);
-  const objectKey =
-    options.objectKey ??
-    createPublisherObjectKey({
-      ...(options.extension === undefined
-        ? {}
-        : { extension: options.extension }),
-      kind: options.kind,
-      mediaSequenceNumber: options.mediaSequenceNumber,
-      ...(nonce === undefined ? {} : { objectKeyNonce: nonce }),
-      ...(options.objectKeyPrefix === undefined
-        ? {}
-        : { objectKeyPrefix: options.objectKeyPrefix }),
-      ...(options.partNumber === undefined
-        ? {}
-        : { partNumber: options.partNumber }),
-      renditionId: options.renditionId,
-    });
-  const deliveryUrl =
-    options.deliveryUrl ??
-    createPublisherDeliveryUrl(options.state.mediaBaseUrl, objectKey);
+  const objectKey = createPublisherObjectKey({
+    extension: options.extension,
+    kind: options.kind,
+    mediaSequenceNumber: options.mediaSequenceNumber,
+    objectKeyNonce: resolveSlotObjectKeyNonce(options),
+    objectKeyPrefix: options.objectKeyPrefix,
+    partNumber: options.partNumber,
+    renditionId: options.renditionId,
+  });
+  const deliveryUrl = createPublisherDeliveryUrl(
+    options.state.mediaBaseUrl,
+    objectKey
+  );
 
   return { deliveryUrl, objectKey };
 }

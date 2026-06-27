@@ -42,7 +42,7 @@ const session: Session = {
 
 const slot: UploadSlot = {
   contentType: "video/mp4",
-  deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+  deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
   duration: 2,
   epoch: 0,
   expiresAt: "2026-01-01T00:00:05.000Z",
@@ -50,7 +50,7 @@ const slot: UploadSlot = {
   maxBytes: 100_000,
   mediaSequenceNumber: 3810,
   minBytes: 1000,
-  objectKey: "live/session/v1080/3810.m4s",
+  objectKey: "media/v1080/s3810.m4s",
   renditionId: "v1080",
   sessionId: "session_1",
   slotId: "slot_1",
@@ -63,7 +63,7 @@ const object: ObservedUpload = {
   metadata: {
     "x-olos-slot-id": "slot_1",
   },
-  objectKey: "live/session/v1080/3810.m4s",
+  objectKey: "media/v1080/s3810.m4s",
   observedAt: "2026-01-01T00:00:03.000Z",
   providerId: "s3_primary",
   size: 50_000,
@@ -79,8 +79,8 @@ const cursor: Cursor = {
       v1080: {
         init: {
           commitId: "commit_init",
-          deliveryUrl: "/media/init.mp4",
-          objectKey: "media/init.mp4",
+          deliveryUrl: "/media/v1080/init.mp4",
+          objectKey: "media/v1080/init.mp4",
           slotId: "slot_init",
         },
         renditionId: "v1080",
@@ -119,14 +119,14 @@ describe("upload slot issuance", () => {
     expect(
       createIssuedUploadSlot({
         contentType: "video/mp4",
-        deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
         maxBytes: 100_000,
         mediaSequenceNumber: 3810,
         minBytes: 1000,
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         renditionId: "v1080",
         session,
         slotId: "slot_1",
@@ -157,13 +157,13 @@ describe("upload slot issuance", () => {
     expect(() =>
       createIssuedUploadSlot({
         contentType: "video/mp4",
-        deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
         maxBytes: 100_000,
         mediaSequenceNumber: 3810,
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         renditionId: "v1080",
         session: { ...session, state: "ended" },
         slotId: "slot_1",

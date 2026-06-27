@@ -98,12 +98,12 @@ describe("S3 HTTP pipeline", () => {
       baseUrl: BASE_URL,
       fetch: clientFetch,
       payload: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
         mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         slotId: "slot_3810",
       }),
       sessionId: session.sessionId,
@@ -160,19 +160,19 @@ describe("S3 HTTP pipeline", () => {
     expect(mediaBody).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
     expect(mediaBody).toContain("#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES");
     expect(mediaBody).toContain(
-      "https://media.example.com/media/v1080/3810.m4s"
+      "https://media.example.com/media/v1080/s3810.m4s"
     );
 
     await handle(
       jsonRequest(
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/3811.m4s",
+          deliveryUrl: "https://media.example.com/media/v1080/s3811.m4s",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
           mediaSequenceNumber: 3811,
-          objectKey: "media/v1080/3811.m4s",
+          objectKey: "media/v1080/s3811.m4s",
           slotId: "slot_3811",
         })
       )
@@ -200,12 +200,12 @@ describe("S3 HTTP pipeline", () => {
     expect(reloaded.status).toBe(200);
     expect(reloadedBody).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
     expect(reloadedBody).toContain(
-      "https://media.example.com/media/v1080/3811.m4s"
+      "https://media.example.com/media/v1080/s3811.m4s"
     );
     expect(headObjectInputs).toEqual([
       { Bucket: "media", Key: "media/v1080/init.mp4" },
-      { Bucket: "media", Key: "media/v1080/3810.m4s" },
-      { Bucket: "media", Key: "media/v1080/3811.m4s" },
+      { Bucket: "media", Key: "media/v1080/s3810.m4s" },
+      { Bucket: "media", Key: "media/v1080/s3811.m4s" },
     ]);
   });
 
@@ -239,12 +239,12 @@ describe("S3 HTTP pipeline", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+          deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
           mediaSequenceNumber: 3810,
-          objectKey: "media/v1080/3810.m4s",
+          objectKey: "media/v1080/s3810.m4s",
           slotId: "slot_3810",
         })
       )
@@ -266,7 +266,7 @@ describe("S3 HTTP pipeline", () => {
         "https://edge.example.com/sessions/session_1/s3/events",
         s3ObjectCreatedPayload({
           eventTime: "2026-01-01T00:00:02.000Z",
-          objectKey: "media/v1080/3810.m4s",
+          objectKey: "media/v1080/s3810.m4s",
           requestId: "commit_3810",
           size: 98_304,
         })
@@ -290,19 +290,19 @@ describe("S3 HTTP pipeline", () => {
     ]);
     expect(media.status).toBe(200);
     expect(mediaBody).toContain(
-      "https://media.example.com/media/v1080/3810.m4s"
+      "https://media.example.com/media/v1080/s3810.m4s"
     );
 
     await handle(
       jsonRequest(
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/3811.m4s",
+          deliveryUrl: "https://media.example.com/media/v1080/s3811.m4s",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
           mediaSequenceNumber: 3811,
-          objectKey: "media/v1080/3811.m4s",
+          objectKey: "media/v1080/s3811.m4s",
           slotId: "slot_3811",
         })
       )
@@ -321,7 +321,7 @@ describe("S3 HTTP pipeline", () => {
         "https://edge.example.com/sessions/session_1/s3/events",
         s3ObjectCreatedPayload({
           eventTime: "2026-01-01T00:00:03.000Z",
-          objectKey: "media/v1080/3811.m4s",
+          objectKey: "media/v1080/s3811.m4s",
           requestId: "commit_3811",
           size: 98_304,
         })
@@ -333,21 +333,21 @@ describe("S3 HTTP pipeline", () => {
     expect(nextEvent.status).toBe(202);
     expect(reloaded.status).toBe(200);
     expect(reloadedBody).toContain(
-      "https://media.example.com/media/v1080/3811.m4s"
+      "https://media.example.com/media/v1080/s3811.m4s"
     );
     expect(headObjectInputs).toEqual([
       { Bucket: "media", Key: "media/v1080/init.mp4" },
-      { Bucket: "media", Key: "media/v1080/3810.m4s" },
-      { Bucket: "media", Key: "media/v1080/3811.m4s" },
+      { Bucket: "media", Key: "media/v1080/s3810.m4s" },
+      { Bucket: "media", Key: "media/v1080/s3811.m4s" },
     ]);
   });
 
   test("publishes multiple S3 renditions through coherent HLS manifests", async () => {
     const { handle, headObjectInputs } = createS3HttpPipeline({
       objectSizes: {
-        "media/v1080/3810.m4s": 98_304,
+        "media/v1080/s3810.m4s": 98_304,
         "media/v1080/init.mp4": 1024,
-        "media/v720/3810.m4s": 64_000,
+        "media/v720/s3810.m4s": 64_000,
         "media/v720/init.mp4": 1024,
       },
     });
@@ -402,76 +402,27 @@ describe("S3 HTTP pipeline", () => {
       '#EXT-X-MAP:URI="https://media.example.com/media/v1080/init.mp4"'
     );
     expect(v1080Body).toContain(
-      "https://media.example.com/media/v1080/3810.m4s"
+      "https://media.example.com/media/v1080/s3810.m4s"
     );
     expect(v720.status).toBe(200);
     expect(v720Body).toContain(
       '#EXT-X-MAP:URI="https://media.example.com/media/v720/init.mp4"'
     );
-    expect(v720Body).toContain("https://media.example.com/media/v720/3810.m4s");
+    expect(v720Body).toContain(
+      "https://media.example.com/media/v720/s3810.m4s"
+    );
     expect(headObjectInputs).toEqual([
       { Bucket: "media", Key: "media/v1080/init.mp4" },
       { Bucket: "media", Key: "media/v720/init.mp4" },
-      { Bucket: "media", Key: "media/v1080/3810.m4s" },
-      { Bucket: "media", Key: "media/v720/3810.m4s" },
+      { Bucket: "media", Key: "media/v1080/s3810.m4s" },
+      { Bucket: "media", Key: "media/v720/s3810.m4s" },
     ]);
-  });
-
-  test("rejects unsafe S3 slot paths through the Fetch handler", async () => {
-    const { handle } = createS3HttpPipeline();
-
-    await handle(
-      jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
-        session,
-      })
-    );
-
-    const unsafeKey = await handle(
-      jsonRequest(
-        "https://edge.example.com/sessions/session_1/s3/slots",
-        slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
-          duration: 2,
-          kind: "segment",
-          maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
-          objectKey: "media/../secret.m4s",
-          slotId: "slot_unsafe_key",
-        })
-      )
-    );
-    const unsafeUrl = await handle(
-      jsonRequest(
-        "https://edge.example.com/sessions/session_1/s3/slots",
-        slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s?token=1",
-          duration: 2,
-          kind: "segment",
-          maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
-          objectKey: "media/v1080/3810.m4s",
-          slotId: "slot_unsafe_url",
-        })
-      )
-    );
-
-    expect(unsafeKey.status).toBe(400);
-    expect(await unsafeKey.json()).toEqual({
-      error: { message: "objectKey must be a safe relative object key" },
-    });
-    expect(unsafeUrl.status).toBe(400);
-    expect(await unsafeUrl.json()).toEqual({
-      error: {
-        message: "deliveryUrl must not contain query strings or fragments",
-      },
-    });
   });
 
   test("rejects wrong-key S3 commits without advancing manifests", async () => {
     const { handle, headObjectInputs, store } = createS3HttpPipeline({
       objectSizes: {
-        "media/v1080/3810.m4s": 98_304,
+        "media/v1080/s3810.m4s": 98_304,
         "media/v1080/wrong.m4s": 98_304,
       },
     });
@@ -486,12 +437,12 @@ describe("S3 HTTP pipeline", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+          deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
           mediaSequenceNumber: 3810,
-          objectKey: "media/v1080/3810.m4s",
+          objectKey: "media/v1080/s3810.m4s",
           slotId: "slot_3810",
         })
       )
@@ -534,7 +485,7 @@ describe("S3 HTTP pipeline", () => {
   test("rejects oversized S3 commits without advancing manifests", async () => {
     const { handle, headObjectInputs, store } = createS3HttpPipeline({
       objectSizes: {
-        "media/v1080/3810.m4s": 100_001,
+        "media/v1080/s3810.m4s": 100_001,
       },
     });
 
@@ -548,12 +499,12 @@ describe("S3 HTTP pipeline", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+          deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
           mediaSequenceNumber: 3810,
-          objectKey: "media/v1080/3810.m4s",
+          objectKey: "media/v1080/s3810.m4s",
           slotId: "slot_3810",
         })
       )
@@ -587,7 +538,7 @@ describe("S3 HTTP pipeline", () => {
     expect(rejectedBody.error.code).toBe("olos.object_too_large");
     expect(rejectedBody.auditEvent).toMatchObject({
       maxBytes: 100_000,
-      objectKey: "media/v1080/3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       observedBytes: 100_001,
       reason: "object_too_large",
       slotId: "slot_3810",
@@ -597,7 +548,7 @@ describe("S3 HTTP pipeline", () => {
     expect(media.status).toBe(404);
     expect(await media.text()).toBe("manifest not found");
     expect(headObjectInputs).toEqual([
-      { Bucket: "media", Key: "media/v1080/3810.m4s" },
+      { Bucket: "media", Key: "media/v1080/s3810.m4s" },
     ]);
   });
 
@@ -631,12 +582,12 @@ describe("S3 HTTP pipeline", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+          deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
           mediaSequenceNumber: 3810,
-          objectKey: "media/v1080/3810.m4s",
+          objectKey: "media/v1080/s3810.m4s",
           slotId: "slot_3810",
         })
       )
@@ -715,19 +666,19 @@ describe("S3 HTTP pipeline", () => {
     });
     expect(media.status).toBe(200);
     expect(mediaBody).toContain(
-      "https://media.example.com/media/v1080/3810.m4s"
+      "https://media.example.com/media/v1080/s3810.m4s"
     );
 
     await handle(
       jsonRequest(
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/3811.m4s",
+          deliveryUrl: "https://media.example.com/media/v1080/s3811.m4s",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
           mediaSequenceNumber: 3811,
-          objectKey: "media/v1080/3811.m4s",
+          objectKey: "media/v1080/s3811.m4s",
           slotId: "slot_3811",
         })
       )
@@ -780,12 +731,12 @@ describe("S3 HTTP pipeline", () => {
     });
     expect(reloaded.status).toBe(200);
     expect(reloadedBody).toContain(
-      "https://media.example.com/media/v1080/3811.m4s"
+      "https://media.example.com/media/v1080/s3811.m4s"
     );
     expect(headObjectInputs).toEqual([
       { Bucket: "media", Key: "media/v1080/init.mp4" },
-      { Bucket: "media", Key: "media/v1080/3810.m4s" },
-      { Bucket: "media", Key: "media/v1080/3811.m4s" },
+      { Bucket: "media", Key: "media/v1080/s3810.m4s" },
+      { Bucket: "media", Key: "media/v1080/s3811.m4s" },
     ]);
   });
 
@@ -850,7 +801,7 @@ describe("S3 HTTP pipeline", () => {
     expect(retentionBody.plan.retiredObjects).toEqual([
       {
         commitId: "commit_3810",
-        objectKey: "media/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         slotId: "slot_3810",
       },
     ]);
@@ -859,17 +810,17 @@ describe("S3 HTTP pipeline", () => {
       failedObjects: [],
     });
     expect(deleteInputs).toEqual([
-      { Bucket: "media", Key: "media/v1080/3810.m4s" },
+      { Bucket: "media", Key: "media/v1080/s3810.m4s" },
     ]);
     expect(media.status).toBe(200);
-    expect(mediaBody).not.toContain("media/v1080/3810.m4s");
-    expect(mediaBody).toContain("media/v1080/3811.m4s");
-    expect(mediaBody).toContain("media/v1080/3812.m4s");
+    expect(mediaBody).not.toContain("media/v1080/s3810.m4s");
+    expect(mediaBody).toContain("media/v1080/s3811.m4s");
+    expect(mediaBody).toContain("media/v1080/s3812.m4s");
   });
 
   test("reports failed S3 retention deletes without changing the cursor", async () => {
     const { deleteInputs, handle, store } = createRetentionPipeline({
-      failingDeleteKey: "media/v1080/3810.m4s",
+      failingDeleteKey: "media/v1080/s3810.m4s",
     });
 
     await handle(
@@ -930,7 +881,7 @@ describe("S3 HTTP pipeline", () => {
 
     expect(retention.status).toBe(202);
     expect(deleteInputs).toEqual([
-      { Bucket: "media", Key: "media/v1080/3810.m4s" },
+      { Bucket: "media", Key: "media/v1080/s3810.m4s" },
     ]);
     expect(retentionBody.result).toEqual({
       deletedObjects: [],
@@ -939,7 +890,7 @@ describe("S3 HTTP pipeline", () => {
           error: "delete failed",
           object: {
             commitId: "commit_3810",
-            objectKey: "media/v1080/3810.m4s",
+            objectKey: "media/v1080/s3810.m4s",
             slotId: "slot_3810",
           },
         },
@@ -948,7 +899,7 @@ describe("S3 HTTP pipeline", () => {
     expect(retentionBody.summary).toEqual({
       deleted: 0,
       failed: 1,
-      failedObjectKeys: ["media/v1080/3810.m4s"],
+      failedObjectKeys: ["media/v1080/s3810.m4s"],
       failedSlotIds: ["slot_3810"],
       ok: false,
       planned: 1,
@@ -995,13 +946,11 @@ function renditionObject(
 function slotPayload(options: SlotPayloadOptions) {
   return {
     contentType: "video/mp4",
-    deliveryUrl: options.deliveryUrl,
     duration: options.duration,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: options.kind,
     maxBytes: options.maxBytes,
     mediaSequenceNumber: options.mediaSequenceNumber,
-    objectKey: options.objectKey,
     renditionId: options.renditionId ?? "v1080",
     slotId: options.slotId,
   };
@@ -1041,6 +990,7 @@ function createS3HttpPipeline(options: S3HttpPipelineOptions = {}) {
   let waits = 0;
   const handle = createStoredS3CoordinatorRuntimeHandler({
     allowedMediaOrigins: ["https://media.example.com"],
+    publicationMode: "read-gated",
     ...(notifier === undefined
       ? {}
       : {
@@ -1084,8 +1034,8 @@ function createS3HttpPipeline(options: S3HttpPipelineOptions = {}) {
 
 function defaultS3ObjectSizes(): Record<string, number> {
   return {
-    "media/v1080/3810.m4s": 98_304,
-    "media/v1080/3811.m4s": 98_304,
+    "media/v1080/s3810.m4s": 98_304,
+    "media/v1080/s3811.m4s": 98_304,
     "media/v1080/init.mp4": 1024,
   };
 }
@@ -1135,33 +1085,33 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
     },
     {
       commitId: "commit_3810",
-      deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+      deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
       duration: 2,
       kind: "segment",
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      objectKey: "media/v1080/3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       slotId: "slot_3810",
     },
     {
       commitId: "commit_3811",
-      deliveryUrl: "https://media.example.com/media/v1080/3811.m4s",
+      deliveryUrl: "https://media.example.com/media/v1080/s3811.m4s",
       duration: 2,
       kind: "segment",
       maxBytes: 100_000,
       mediaSequenceNumber: 3811,
-      objectKey: "media/v1080/3811.m4s",
+      objectKey: "media/v1080/s3811.m4s",
       slotId: "slot_3811",
     },
     {
       commitId: "commit_3812",
-      deliveryUrl: "https://media.example.com/media/v1080/3812.m4s",
+      deliveryUrl: "https://media.example.com/media/v1080/s3812.m4s",
       duration: 2,
       kind: "segment",
       maxBytes: 100_000,
       maxSegments: 2,
       mediaSequenceNumber: 3812,
-      objectKey: "media/v1080/3812.m4s",
+      objectKey: "media/v1080/s3812.m4s",
       slotId: "slot_3812",
     },
   ];
@@ -1171,9 +1121,9 @@ function createRetentionPipeline(options: { failingDeleteKey?: string } = {}) {
   const deleteInputs: unknown[] = [];
   const { handle, store } = createS3HttpPipeline({
     objectSizes: {
-      "media/v1080/3810.m4s": 98_304,
-      "media/v1080/3811.m4s": 98_304,
-      "media/v1080/3812.m4s": 98_304,
+      "media/v1080/s3810.m4s": 98_304,
+      "media/v1080/s3811.m4s": 98_304,
+      "media/v1080/s3812.m4s": 98_304,
       "media/v1080/init.mp4": 1024,
     },
     retentionClient: createTestDeleteObjectClient(

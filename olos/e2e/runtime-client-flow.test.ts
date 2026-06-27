@@ -27,6 +27,7 @@ describe("runtime public client flow", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
+      publicationMode: "read-gated",
       now: () => "2026-01-01T00:00:03.000Z",
       store,
     });
@@ -44,13 +45,11 @@ describe("runtime public client flow", () => {
       fetch,
       payload: {
         contentType: "video/mp4",
-        deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
         duration: 1,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "init",
         maxBytes: 2048,
         mediaSequenceNumber: 0,
-        objectKey: "media/v1080/init.mp4",
         renditionId: "v1080",
         slotId: "slot_init",
       },
@@ -61,13 +60,11 @@ describe("runtime public client flow", () => {
       fetch,
       payload: {
         contentType: "video/mp4",
-        deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
         duration: latency.segmentTarget,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
         maxBytes: 100_000,
         mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/3810.m4s",
         renditionId: "v1080",
         slotId: "slot_3810",
       },
@@ -144,7 +141,7 @@ describe("runtime public client flow", () => {
       '#EXT-X-MAP:URI="https://media.example.com/media/v1080/init.mp4"'
     );
     expect(media.playlist).toContain(
-      "https://media.example.com/media/v1080/3810.m4s"
+      "https://media.example.com/media/v1080/s3810.m4s"
     );
     expect(health.health.status).toBe("active");
     expect(retention.plan.retiredObjects).toEqual([]);
@@ -155,6 +152,7 @@ describe("runtime public client flow", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
+      publicationMode: "read-gated",
       maxHealthCursorAgeMs: 10_000,
       now: () => now,
       publisherLeaseTtlMs: 3000,
@@ -182,7 +180,7 @@ describe("runtime public client flow", () => {
       commitId: "commit_3810",
       independent: true,
       mediaSequenceNumber: 3810,
-      objectKey: "media/v1080/3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       size: 98_304,
       slotId: "slot_3810",
     });
@@ -236,6 +234,7 @@ describe("runtime public client flow", () => {
     let waits = 0;
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
+      publicationMode: "read-gated",
       blockingReload: {
         timeoutMs: 1000,
         waitForCursor: (context) => {
@@ -268,7 +267,7 @@ describe("runtime public client flow", () => {
       commitId: "commit_3810",
       independent: true,
       mediaSequenceNumber: 3810,
-      objectKey: "media/v1080/3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       size: 98_304,
       slotId: "slot_3810",
     });
@@ -286,7 +285,7 @@ describe("runtime public client flow", () => {
     await publishObject(fetch, {
       commitId: "commit_3811",
       mediaSequenceNumber: 3811,
-      objectKey: "media/v1080/3811.m4s",
+      objectKey: "media/v1080/s3811.m4s",
       size: 98_304,
       slotId: "slot_3811",
     });
@@ -295,7 +294,7 @@ describe("runtime public client flow", () => {
 
     expect(reloaded.playlist).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
     expect(reloaded.playlist).toContain(
-      "https://media.example.com/media/v1080/3811.m4s"
+      "https://media.example.com/media/v1080/s3811.m4s"
     );
   });
 
@@ -303,6 +302,7 @@ describe("runtime public client flow", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
+      publicationMode: "read-gated",
       store,
     });
     const fetch = runtimeFetchFor(handle);
@@ -346,13 +346,11 @@ async function publishObject(
     fetch,
     payload: {
       contentType: "video/mp4",
-      deliveryUrl: `https://media.example.com/${options.objectKey}`,
       duration: options.duration ?? latency.segmentTarget,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind,
       maxBytes: options.maxBytes ?? 100_000,
       mediaSequenceNumber: options.mediaSequenceNumber,
-      objectKey: options.objectKey,
       renditionId: "v1080",
       slotId: options.slotId,
     },

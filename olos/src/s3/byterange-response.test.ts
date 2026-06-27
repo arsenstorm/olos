@@ -64,9 +64,8 @@ function makeCursor(parts: readonly CommittedPart[]): Cursor {
         v1080: {
           init: {
             commitId: "commit_init",
-            deliveryUrl:
-              "https://media.example.com/live/session/v1080/init.mp4",
-            objectKey: "live/session/v1080/init.mp4",
+            deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+            objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
           renditionId: "v1080",

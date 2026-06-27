@@ -31,9 +31,13 @@ export const testCoordinatorSession: Session = {
 
 export const TEST_COORDINATOR_MEDIA_BASE_URL = "https://media.example.com";
 
+// Helper sessions use read-gated publication so the coordinator derives
+// deterministic object addresses (no random nonce), letting tests assert
+// against known keys: media/<rendition>/init.mp4 and media/<rendition>/s<msn>.m4s.
 export function createEmptyCoordinatorState(): CoordinatorPipelineState {
   return createCoordinatorPipeline({
     mediaBaseUrl: TEST_COORDINATOR_MEDIA_BASE_URL,
+    publicationMode: "read-gated",
     session: testCoordinatorSession,
   });
 }
@@ -42,12 +46,10 @@ export function createCoordinatorStateWithIssuedSegment(): CoordinatorPipelineSt
   const initCommit = commitTestCoordinatorSlot(createEmptyCoordinatorState(), {
     commitId: "commit_init",
     contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/init.mp4",
     duration: 1,
     kind: "init",
     maxBytes: 2048,
     mediaSequenceNumber: 0,
-    objectKey: "media/init.mp4",
     size: 1024,
     slotId: "slot_init",
   });
@@ -71,13 +73,11 @@ export function createCoordinatorStateWithCommittedSegment(): CoordinatorPipelin
 interface TestCoordinatorSlot {
   commitId?: string;
   contentType: string;
-  deliveryUrl: string;
   duration: number;
   independent?: boolean;
   kind: "init" | "segment";
   maxBytes: number;
   mediaSequenceNumber: number;
-  objectKey: string;
   size?: number;
   slotId: string;
 }
@@ -85,12 +85,10 @@ interface TestCoordinatorSlot {
 function testCoordinatorSegmentSlot(): TestCoordinatorSlot {
   return {
     contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/s3810.m4s",
     duration: 2,
     kind: "segment",
     maxBytes: 100_000,
     mediaSequenceNumber: 3810,
-    objectKey: "media/s3810.m4s",
     slotId: "slot_3810",
   };
 }
@@ -99,22 +97,31 @@ function commitTestCoordinatorSlot(
   state: CoordinatorPipelineState,
   slot: TestCoordinatorSlot & { commitId: string; size: number }
 ): CoordinatorPipelineState {
-  const issued = issueTestCoordinatorSlot(state, slot);
-
-  return commitIssuedTestCoordinatorSlot(issued.state, slot);
+  return commitIssuedTestCoordinatorSlot(
+    issueTestCoordinatorSlot(state, slot).state,
+    slot
+  );
 }
 
 function commitIssuedTestCoordinatorSlot(
   state: CoordinatorPipelineState,
   slot: TestCoordinatorSlot & { commitId: string; size: number }
 ): CoordinatorPipelineState {
+  const objectKey = state.slots.find(
+    (s) => s.slotId === slot.slotId
+  )?.objectKey;
+
+  if (objectKey === undefined) {
+    throw new Error(`missing slot ${slot.slotId} for commit`);
+  }
+
   const committed = commitCoordinatorUpload({
     commitId: slot.commitId,
     committedAt: "2026-01-01T00:00:02.000Z",
     independent: slot.independent,
     object: createObservedUpload({
       contentType: slot.contentType,
-      objectKey: slot.objectKey,
+      objectKey,
       observedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
       size: slot.size,
@@ -136,13 +143,11 @@ function issueTestCoordinatorSlot(
 ) {
   return issueCoordinatorSlot({
     contentType: slot.contentType,
-    deliveryUrl: slot.deliveryUrl,
     duration: slot.duration,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: slot.kind,
     maxBytes: slot.maxBytes,
     mediaSequenceNumber: slot.mediaSequenceNumber,
-    objectKey: slot.objectKey,
     renditionId: "v1080",
     slotId: slot.slotId,
     state,

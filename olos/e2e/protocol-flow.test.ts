@@ -28,14 +28,14 @@ const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(latency);
 
 const slot: UploadSlot = {
   contentType: "video/mp4",
-  deliveryUrl: "/media/v1080/3810.m4s",
+  deliveryUrl: "/media/v1080/s3810.m4s",
   duration: 2,
   epoch: 1,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
   mediaSequenceNumber: 3810,
-  objectKey: "media/v1080/3810.m4s",
+  objectKey: "media/v1080/s3810.m4s",
   renditionId: "v1080",
   sessionId: "session_1",
   slotId: "slot_3810",
@@ -44,7 +44,7 @@ const slot: UploadSlot = {
 
 const mediaObject: MediaObject = createObservedUpload({
   contentType: "video/mp4",
-  objectKey: "media/v1080/3810.m4s",
+  objectKey: "media/v1080/s3810.m4s",
   observedAt: "2026-01-01T00:00:01.000Z",
   providerId: "r2_primary",
   size: 98_304,
@@ -145,13 +145,13 @@ describe("protocol flow", () => {
     expect(playlist).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
     expect(playlist).toContain('#EXT-X-MAP:URI="/media/v1080/init.mp4"');
     expect(playlist).toContain("#EXTINF:2.000,");
-    expect(playlist).toContain("/media/v1080/3810.m4s");
+    expect(playlist).toContain("/media/v1080/s3810.m4s");
   });
 
   test("publishes direct-public objects through security policy and HLS output", () => {
     const directPublicSlot = {
       ...slot,
-      deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
+      deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
     };
     const initSlot = {
       ...directPublicSlot,
@@ -220,7 +220,7 @@ describe("protocol flow", () => {
       '#EXT-X-MAP:URI="https://media.example.com/media/v1080/init.mp4"'
     );
     expect(playlist).toContain(
-      "https://media.example.com/media/v1080/3810.m4s"
+      "https://media.example.com/media/v1080/s3810.m4s"
     );
   });
 });

@@ -22,7 +22,7 @@ import {
 
 const RETIRED_OBJECT: RetiredCoordinatorObjectDeletion = {
   commitId: "commit_3810",
-  objectKey: "media/s3810.m4s",
+  objectKey: "media/v1080/s3810.m4s",
   slotId: "slot_3810",
 };
 
@@ -73,7 +73,7 @@ describe("stored runtime retention", () => {
     expect(result.plan.retiredObjects).toEqual([
       {
         commitId: "commit_3810",
-        objectKey: "media/s3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         slotId: "slot_3810",
       },
     ]);
@@ -132,7 +132,7 @@ describe("stored runtime retention", () => {
       objects: [RETIRED_OBJECT],
     });
 
-    expect(deleted).toEqual(["media/s3810.m4s"]);
+    expect(deleted).toEqual(["media/v1080/s3810.m4s"]);
     expect(result).toEqual({
       deletedObjects: [RETIRED_OBJECT],
       failedObjects: [],
@@ -250,22 +250,22 @@ function retentionState(): CoordinatorPipelineState {
 
   state = commitSlot(state, {
     commitId: "commit_init",
-    deliveryUrl: "https://media.example.com/init.mp4",
+    deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
     duration: 1,
     maxBytes: 2048,
     mediaSequenceNumber: 0,
-    objectKey: "media/init.mp4",
+    objectKey: "media/v1080/init.mp4",
     slotId: "slot_init",
     size: 1024,
   });
   state = commitSlot(state, {
     commitId: "commit_3810",
-    deliveryUrl: "https://media.example.com/s3810.m4s",
+    deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
     duration: 2,
     independent: true,
     maxBytes: 100_000,
     mediaSequenceNumber: 3810,
-    objectKey: "media/s3810.m4s",
+    objectKey: "media/v1080/s3810.m4s",
     slotId: "slot_3810",
     size: 98_304,
   });
@@ -295,13 +295,11 @@ function retentionState(): CoordinatorPipelineState {
 
   return issueCoordinatorSlot({
     contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/s3813.m4s",
     duration: 2,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment",
     maxBytes: 100_000,
     mediaSequenceNumber: 3813,
-    objectKey: "media/s3813.m4s",
     renditionId: "v1080",
     slotId: "slot_3813",
     state,
@@ -327,13 +325,11 @@ function commitSlot(
 ): CoordinatorPipelineState {
   const issued = issueCoordinatorSlot({
     contentType: "video/mp4",
-    deliveryUrl: options.deliveryUrl,
     duration: options.duration,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: options.slotId === "slot_init" ? "init" : "segment",
     maxBytes: options.maxBytes,
     mediaSequenceNumber: options.mediaSequenceNumber,
-    objectKey: options.objectKey,
     renditionId: "v1080",
     slotId: options.slotId,
     state,
@@ -345,7 +341,7 @@ function commitSlot(
     maxSegments: options.maxSegments,
     object: createObservedUpload({
       contentType: "video/mp4",
-      objectKey: options.objectKey,
+      objectKey: issued.slot.objectKey,
       observedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
       size: options.size,

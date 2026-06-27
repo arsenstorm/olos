@@ -60,7 +60,7 @@ describe("stored S3 upload reconciliation", () => {
 
     expect(plan.slotIds).toEqual(["slot_3810"]);
     expect(plan.slots).toHaveLength(1);
-    expect(plan.slots[0]?.objectKey).toBe("media/v1080/3810.m4s");
+    expect(plan.slots[0]?.objectKey).toBe("media/v1080/s3810.m4s");
   });
 
   test("commits existing S3 objects for issued slots", async () => {
@@ -74,7 +74,7 @@ describe("stored S3 upload reconciliation", () => {
       client: clientFor(
         new Map([
           ["media/v1080/init.mp4", 1024],
-          ["media/v1080/3810.m4s", 98_304],
+          ["media/v1080/s3810.m4s", 98_304],
         ]),
         headObjectInputs
       ),
@@ -117,7 +117,7 @@ describe("stored S3 upload reconciliation", () => {
       },
       {
         Bucket: "media",
-        Key: "media/v1080/3810.m4s",
+        Key: "media/v1080/s3810.m4s",
       },
     ]);
   });
@@ -131,7 +131,7 @@ describe("stored S3 upload reconciliation", () => {
     const result = await reconcileStoredS3CoordinatorUploads({
       bucket: "media",
       client: clientFor(
-        new Map([["media/v1080/3810.m4s", 98_304]]),
+        new Map([["media/v1080/s3810.m4s", 98_304]]),
         headObjectInputs
       ),
       committedAt: "2026-01-01T00:00:02.000Z",
@@ -164,7 +164,7 @@ describe("stored S3 upload reconciliation", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/3810.m4s",
+        Key: "media/v1080/s3810.m4s",
       },
     ]);
   });
@@ -179,7 +179,7 @@ describe("stored S3 upload reconciliation", () => {
       client: clientFor(
         new Map([
           ["media/v1080/init.mp4", 1024],
-          ["media/v1080/3810.m4s", 98_304],
+          ["media/v1080/s3810.m4s", 98_304],
         ]),
         []
       ),
@@ -247,7 +247,7 @@ describe("stored S3 upload reconciliation", () => {
 
     const result = await reconcileStoredS3CoordinatorUploads({
       bucket: "media",
-      client: clientFor(new Map([["media/v1080/3810.m4s", 98_304]]), []),
+      client: clientFor(new Map([["media/v1080/s3810.m4s", 98_304]]), []),
       commitId: (slot) => `custom_${slot.slotId}`,
       committedAt: "2026-01-01T00:00:02.000Z",
       independent: true,
@@ -300,7 +300,7 @@ describe("stored S3 upload reconciliation", () => {
       "failed",
     ]);
     expect(result.results[1]).toMatchObject({
-      error: "missing object: media/v1080/3810.m4s",
+      error: "missing object: media/v1080/s3810.m4s",
       status: "failed",
     });
     expect(summarizeStoredS3CoordinatorUploadReconciliation(result)).toEqual({
@@ -469,13 +469,11 @@ function stateWithSlots(): CoordinatorPipelineState {
 
   state = issueCoordinatorSlot({
     contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
     duration: 1,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "init",
     maxBytes: 2048,
     mediaSequenceNumber: 0,
-    objectKey: "media/v1080/init.mp4",
     renditionId: "v1080",
     slotId: "slot_init",
     state,
@@ -483,13 +481,11 @@ function stateWithSlots(): CoordinatorPipelineState {
 
   return issueCoordinatorSlot({
     contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
     duration: 2,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment",
     maxBytes: 100_000,
     mediaSequenceNumber: 3810,
-    objectKey: "media/v1080/3810.m4s",
     renditionId: "v1080",
     slotId: "slot_3810",
     state,

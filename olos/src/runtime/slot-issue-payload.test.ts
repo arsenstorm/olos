@@ -69,25 +69,7 @@ describe("runtime slot issue payload parser", () => {
     });
   });
 
-  test("accepts publisher-supplied objectKey and deliveryUrl as compat hints", () => {
-    const payload = parseRuntimeSlotIssuePayload({
-      contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/anything.m4s",
-      duration: 2,
-      expiresAt: "2026-01-01T00:00:00.000Z",
-      kind: "segment",
-      maxBytes: 1_000_000,
-      mediaSequenceNumber: 3810,
-      objectKey: "any/key.m4s",
-      renditionId: "v1080",
-      slotId: "slot_3810",
-    });
-
-    expect(payload.objectKey).toBe("any/key.m4s");
-    expect(payload.deliveryUrl).toBe("https://media.example.com/anything.m4s");
-  });
-
-  test("rejects unsafe objectKey", () => {
+  test("rejects publisher-supplied objectKey in the wire payload", () => {
     expect(() =>
       parseRuntimeSlotIssuePayload({
         contentType: "video/mp4",
@@ -96,11 +78,31 @@ describe("runtime slot issue payload parser", () => {
         kind: "segment",
         maxBytes: 1_000_000,
         mediaSequenceNumber: 3810,
-        objectKey: "media/../secret.m4s",
+        objectKey: "any/key.m4s",
         renditionId: "v1080",
         slotId: "slot_3810",
       })
-    ).toThrow("objectKey must be a safe relative object key");
+    ).toThrow(
+      "slot issue payload must not include objectKey (the coordinator derives it)"
+    );
+  });
+
+  test("rejects publisher-supplied deliveryUrl in the wire payload", () => {
+    expect(() =>
+      parseRuntimeSlotIssuePayload({
+        contentType: "video/mp4",
+        deliveryUrl: "https://media.example.com/anything.m4s",
+        duration: 2,
+        expiresAt: "2026-01-01T00:00:00.000Z",
+        kind: "segment",
+        maxBytes: 1_000_000,
+        mediaSequenceNumber: 3810,
+        renditionId: "v1080",
+        slotId: "slot_3810",
+      })
+    ).toThrow(
+      "slot issue payload must not include deliveryUrl (the coordinator derives it)"
+    );
   });
 
   test("rejects partNumber on non-part kinds", () => {

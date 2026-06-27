@@ -16,7 +16,7 @@ const record = {
     },
     object: {
       eTag: "etag-3810",
-      key: "media/v1080/3810.m4s",
+      key: "media/v1080/s3810.m4s",
       sequencer: "0065A4",
       size: 98_304,
     },
@@ -41,7 +41,7 @@ const malformedS3EventRecordCases = [
           name: "media/live",
         },
         object: {
-          key: "media/v1080/3810.m4s",
+          key: "media/v1080/s3810.m4s",
           sequencer: "0065A4",
           size: 98_304,
         },
@@ -90,7 +90,7 @@ const malformedS3EventRecordCases = [
           name: "media",
         },
         object: {
-          key: "media/v1080/3810.m4s",
+          key: "media/v1080/s3810.m4s",
           size: 98_304,
         },
       },
@@ -113,7 +113,7 @@ describe("s3 event normalization", () => {
         object: {
           contentType: "video/mp4",
           etag: "etag-3810",
-          objectKey: "media/v1080/3810.m4s",
+          objectKey: "media/v1080/s3810.m4s",
           observedAt: "2026-01-01T00:00:02.000Z",
           providerId: "s3_primary",
           size: 98_304,
@@ -138,7 +138,7 @@ describe("s3 event normalization", () => {
           object: {
             contentType: "application/octet-stream",
             etag: "etag-3810",
-            objectKey: "media/v1080/3810.m4s",
+            objectKey: "media/v1080/s3810.m4s",
             observedAt: "2026-01-01T00:00:02.000Z",
             providerId: "s3_primary",
             size: 98_304,
@@ -177,7 +177,7 @@ describe("s3 event normalization", () => {
               name: "archive",
             },
             object: {
-              key: "media/v1080/3810.m4s",
+              key: "media/v1080/s3810.m4s",
               sequencer: "0065A4",
               size: 98_304,
             },

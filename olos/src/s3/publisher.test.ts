@@ -562,7 +562,6 @@ describe("stored S3 publisher upload step", () => {
           bucket: "media",
           client: createTestS3Client(),
           contentType: "video/mp4",
-          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
           duration: 2,
           expiresAt: "2026-01-01T00:00:05.000Z",
           expiresInSeconds: manualGrantTtlSeconds,
@@ -570,7 +569,6 @@ describe("stored S3 publisher upload step", () => {
           maxBytes: 100_000,
           mediaSequenceNumber: 3810,
           now: "2026-01-01T00:00:00.000Z",
-          objectKey: "media/v1080/3810.m4s",
           renditionId: "v1080",
           sessionId: session.sessionId,
           slotId: "slot_3810",
@@ -588,7 +586,7 @@ describe("stored S3 publisher upload step", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/3810.m4s",
+        Key: "media/v1080/s3810.m4s",
       },
     ]);
   });
@@ -673,7 +671,6 @@ describe("stored S3 publisher upload step", () => {
           bucket: "media",
           client: createTestS3Client(),
           contentType: "video/mp4",
-          deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
           duration: 2,
           expiresAt: "2026-01-01T00:00:05.000Z",
           expiresInSeconds: manualGrantTtlSeconds,
@@ -681,7 +678,6 @@ describe("stored S3 publisher upload step", () => {
           maxBytes: 100_000,
           mediaSequenceNumber: 3810,
           now: "2026-01-01T00:00:00.000Z",
-          objectKey: "media/v1080/3810.m4s",
           renditionId: "v1080",
           sessionId: session.sessionId,
           slotId: "slot_3810",

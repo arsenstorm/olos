@@ -226,7 +226,7 @@ function commitPayload() {
     independent: true,
     object: {
       contentType: "video/mp4",
-      objectKey: "media/s3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       observedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
       size: 98_304,

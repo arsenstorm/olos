@@ -10,14 +10,14 @@ import {
 
 const slot: UploadSlot = {
   contentType: "video/mp4",
-  deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
+  deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
   duration: 2,
   epoch: 0,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
   mediaSequenceNumber: 3810,
-  objectKey: "live/session/v1080/3810.m4s",
+  objectKey: "media/v1080/s3810.m4s",
   renditionId: "v1080",
   sessionId: "session_1",
   slotId: "slot_1",
@@ -63,7 +63,7 @@ describe("s3 upload grants", () => {
       slotId: "slot_1",
     });
     expect(url.hostname).toBe("s3.example.com");
-    expect(url.pathname).toBe("/media/live/session/v1080/3810.m4s");
+    expect(url.pathname).toBe("/media/media/v1080/s3810.m4s");
     expect(url.searchParams.get("X-Amz-SignedHeaders")).toBe(
       signedOlosMetadataHeaders
     );
@@ -209,7 +209,7 @@ describe("s3 upload grants", () => {
     expect(
       createS3UploadGrant({
         presignedUrl:
-          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/media/v1080/s3810.m4s?X-Amz-Signature=abc",
         slot,
       })
     ).toEqual({
@@ -222,7 +222,7 @@ describe("s3 upload grants", () => {
         "x-olos-slot-id": "slot_1",
       },
       slotId: "slot_1",
-      url: "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+      url: "https://bucket.s3.example.com/media/v1080/s3810.m4s?X-Amz-Signature=abc",
     });
   });
 
@@ -231,11 +231,11 @@ describe("s3 upload grants", () => {
       createS3UploadGrant({
         bucket: "media",
         presignedUrl:
-          "https://s3.example.com/media/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+          "https://s3.example.com/media/media/v1080/s3810.m4s?X-Amz-Signature=abc",
         slot,
       }).url
     ).toBe(
-      "https://s3.example.com/media/live/session/v1080/3810.m4s?X-Amz-Signature=abc"
+      "https://s3.example.com/media/media/v1080/s3810.m4s?X-Amz-Signature=abc"
     );
   });
 
@@ -244,7 +244,7 @@ describe("s3 upload grants", () => {
       createS3UploadGrant({
         bucket: "media",
         presignedUrl:
-          "https://s3.example.com/archive/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+          "https://s3.example.com/archive/media/v1080/s3810.m4s?X-Amz-Signature=abc",
         slot,
       })
     ).toThrow("presignedUrl path must match uploadSlot.objectKey");
@@ -254,7 +254,7 @@ describe("s3 upload grants", () => {
     expect(() =>
       createS3UploadGrant({
         presignedUrl:
-          "https://bucket.s3.example.com/live/session/v1080/3811.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/media/v1080/s3811.m4s?X-Amz-Signature=abc",
         slot,
       })
     ).toThrow("presignedUrl path must match uploadSlot.objectKey");
@@ -264,7 +264,7 @@ describe("s3 upload grants", () => {
     expect(() =>
       createS3UploadGrant({
         presignedUrl:
-          "https://bucket.s3.example.com/prefix/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/prefix/media/v1080/s3810.m4s?X-Amz-Signature=abc",
         slot,
       })
     ).toThrow("presignedUrl path must match uploadSlot.objectKey");
@@ -275,7 +275,7 @@ describe("s3 upload grants", () => {
       createS3UploadGrant({
         bucket: "",
         presignedUrl:
-          "https://s3.example.com/media/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+          "https://s3.example.com/media/media/v1080/s3810.m4s?X-Amz-Signature=abc",
         slot,
       })
     ).toThrow("bucket must be a non-empty string");
@@ -284,7 +284,7 @@ describe("s3 upload grants", () => {
       createS3UploadGrant({
         bucket: "media/live",
         presignedUrl:
-          "https://s3.example.com/media/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+          "https://s3.example.com/media/media/v1080/s3810.m4s?X-Amz-Signature=abc",
         slot,
       })
     ).toThrow("bucket must not contain path separators");
@@ -293,8 +293,8 @@ describe("s3 upload grants", () => {
   test("rejects invalid manual S3 presigned URLs", () => {
     const urls = [
       "not a url",
-      "/live/session/v1080/3810.m4s",
-      "s3://bucket/live/session/v1080/3810.m4s",
+      "/media/v1080/s3810.m4s",
+      "s3://bucket/media/v1080/s3810.m4s",
     ];
 
     for (const presignedUrl of urls) {
@@ -315,7 +315,7 @@ describe("s3 upload grants", () => {
         },
         expiresAt: "2026-01-01T00:00:03.000Z",
         presignedUrl:
-          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/media/v1080/s3810.m4s?X-Amz-Signature=abc",
         slot,
       })
     ).toMatchObject({
@@ -334,7 +334,7 @@ describe("s3 upload grants", () => {
     expect(
       createS3UploadGrant({
         presignedUrl:
-          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/media/v1080/s3810.m4s?X-Amz-Signature=abc",
         slot: { ...slot, kind: "part", partNumber: 3 },
       }).requiredHeaders
     ).toMatchObject({
@@ -347,7 +347,7 @@ describe("s3 upload grants", () => {
     expect(
       createS3UploadGrant({
         presignedUrl:
-          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/media/v1080/s3810.m4s?X-Amz-Signature=abc",
         slot,
       }).requiredHeaders
     ).not.toHaveProperty("x-amz-meta-olos-part-number");
@@ -355,7 +355,7 @@ describe("s3 upload grants", () => {
 
   test("accepts presigned URL fragments when matching slot paths", () => {
     const presignedUrl =
-      "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc#upload";
+      "https://bucket.s3.example.com/media/v1080/s3810.m4s?X-Amz-Signature=abc#upload";
 
     const grant = createS3UploadGrant({
       presignedUrl,
@@ -369,7 +369,7 @@ describe("s3 upload grants", () => {
     expect(() =>
       createS3UploadGrant({
         presignedUrl:
-          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/media/v1080/s3810.m4s?X-Amz-Signature=abc",
         slot: { ...slot, state: "expired" },
       })
     ).toThrow("uploadSlot.state must be issued");
@@ -382,7 +382,7 @@ describe("s3 upload grants", () => {
           "if-none-match": "etag",
         },
         presignedUrl:
-          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/media/v1080/s3810.m4s?X-Amz-Signature=abc",
         slot,
       })
     ).toThrow("additionalHeaders must not override if-none-match");
@@ -395,7 +395,7 @@ describe("s3 upload grants", () => {
           "x-amz-meta-olos-session-id": "other_session",
         },
         presignedUrl:
-          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/media/v1080/s3810.m4s?X-Amz-Signature=abc",
         slot,
       })
     ).toThrow("additionalHeaders must not override x-amz-meta-olos-session-id");
@@ -406,7 +406,7 @@ describe("s3 upload grants", () => {
       createS3UploadGrant({
         additionalHeaders: invalidStringMapFixture(null),
         presignedUrl:
-          "https://bucket.s3.example.com/live/session/v1080/3810.m4s?X-Amz-Signature=abc",
+          "https://bucket.s3.example.com/media/v1080/s3810.m4s?X-Amz-Signature=abc",
         slot,
       })
     ).toThrow("additionalHeaders must be a string map");

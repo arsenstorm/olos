@@ -1,4 +1,8 @@
 import {
+  createPublisherDeliveryUrl,
+  createPublisherObjectKey,
+} from "@arsenstorm/olos/runtime";
+import {
   commitS3RuntimeUpload,
   issueS3RuntimeUploadGrant,
 } from "@arsenstorm/olos/s3";
@@ -31,9 +35,26 @@ interface ObjectFixture {
   kind: "init" | "part" | "segment";
   maxBytes: number;
   mediaSequenceNumber: number;
-  objectKey: string;
+  objectKeyNonce?: string;
   partNumber?: number;
   slotId: string;
+}
+
+function segmentNonce(msn: number): string {
+  return `nonce_${msn}`;
+}
+
+function segmentObjectKey(msn: number): string {
+  return createPublisherObjectKey({
+    kind: "segment",
+    mediaSequenceNumber: msn,
+    objectKeyNonce: segmentNonce(msn),
+    renditionId: RENDITION_ID,
+  });
+}
+
+function segmentDeliveryUrl(msn: number): string {
+  return createPublisherDeliveryUrl(MEDIA_ORIGIN, segmentObjectKey(msn));
 }
 
 main().catch((error) => {
@@ -56,7 +77,7 @@ async function main(): Promise<void> {
       await publish(part);
       bytePos += part.bytes.length;
     }
-    await publish(segmentObject(msn, bytePos));
+    await publish(makeSegmentObject(msn, bytePos));
     console.log(`segment msn=${msn} published (${bytePos}B across 4 parts)`);
   }
 
@@ -124,10 +145,11 @@ async function publish(object: ObjectFixture): Promise<void> {
     );
   }
 
-  await commitObject(object);
+  await commitObject(object, grant.objectKey);
 }
 
 async function issueGrant(object: ObjectFixture): Promise<{
+  objectKey: string;
   requiredHeaders: Record<string, string>;
   uploadUrl: string;
 }> {
@@ -140,13 +162,14 @@ async function issueGrant(object: ObjectFixture): Promise<{
         ? {}
         : { byterange: object.byterange }),
       contentType: object.contentType,
-      deliveryUrl: `${MEDIA_ORIGIN}/media/${object.objectKey}`,
       duration: object.duration,
       expiresAt,
       kind: object.kind,
       maxBytes: object.maxBytes,
       mediaSequenceNumber: object.mediaSequenceNumber,
-      objectKey: object.objectKey,
+      ...(object.objectKeyNonce === undefined
+        ? {}
+        : { objectKeyNonce: object.objectKeyNonce }),
       ...(object.partNumber === undefined
         ? {}
         : { partNumber: object.partNumber }),
@@ -157,12 +180,16 @@ async function issueGrant(object: ObjectFixture): Promise<{
   });
 
   return {
+    objectKey: result.slot.objectKey,
     requiredHeaders: result.grant.requiredHeaders ?? {},
     uploadUrl: result.grant.url,
   };
 }
 
-async function commitObject(object: ObjectFixture): Promise<void> {
+async function commitObject(
+  object: ObjectFixture,
+  objectKey: string
+): Promise<void> {
   await commitS3RuntimeUpload({
     baseUrl: BASE_URL,
     fetch: ingestFetch,
@@ -170,7 +197,7 @@ async function commitObject(object: ObjectFixture): Promise<void> {
       commitId: object.commitId,
       committedAt: new Date().toISOString(),
       independent: object.independent,
-      objectKey: object.objectKey,
+      objectKey,
       slotId: object.slotId,
     },
     sessionId: SESSION_ID,
@@ -210,7 +237,7 @@ async function runBlockingReload(): Promise<void> {
     await publish(part);
     bytePos += part.bytes.length;
   }
-  await publish(segmentObject(nextMsn, bytePos));
+  await publish(makeSegmentObject(nextMsn, bytePos));
 
   const blockingResponse = await blockingPromise;
   const elapsedMs = Date.now() - startedAtMs;
@@ -269,11 +296,13 @@ function initObject(): ObjectFixture {
     kind: "init",
     maxBytes: 2048,
     mediaSequenceNumber: 0,
-    objectKey: `live/${SESSION_ID}/${RENDITION_ID}/init.mp4`,
     slotId: `${SESSION_ID}_slot_init`,
   };
 }
 
+// Each part shares a per-segment nonce with the segment slot so the
+// coordinator derives the same object address for byterange.segmentObjectKey
+// and the eventual segment commit.
 function partObject(
   msn: number,
   partNumber: number,
@@ -284,8 +313,8 @@ function partObject(
     byterange: {
       length: bytes.length,
       offset: byterangeOffset,
-      segmentDeliveryUrl: `${MEDIA_ORIGIN}/v/${SESSION_ID}/${RENDITION_ID}/${msn}.m4s`,
-      segmentObjectKey: `live/${SESSION_ID}/${RENDITION_ID}/${msn}.m4s`,
+      segmentDeliveryUrl: segmentDeliveryUrl(msn),
+      segmentObjectKey: segmentObjectKey(msn),
     },
     bytes,
     commitId: `${SESSION_ID}_commit_${msn}_part_${partNumber}`,
@@ -295,13 +324,13 @@ function partObject(
     kind: "part",
     maxBytes: PART_BYTES_LENGTH,
     mediaSequenceNumber: msn,
-    objectKey: `live/${SESSION_ID}/${RENDITION_ID}/${msn}-part-${partNumber}.m4s`,
+    objectKeyNonce: segmentNonce(msn),
     partNumber,
     slotId: `${SESSION_ID}_slot_${msn}_part_${partNumber}`,
   };
 }
 
-function segmentObject(msn: number, totalBytes: number): ObjectFixture {
+function makeSegmentObject(msn: number, totalBytes: number): ObjectFixture {
   // The segment commit finalizes the byterange parts. Its own bytes are an
   // assembled concatenation; the Worker's /v/ route reads the parts back
   // from S3 rather than this object, so the actual content doesn't matter
@@ -315,7 +344,7 @@ function segmentObject(msn: number, totalBytes: number): ObjectFixture {
     kind: "segment",
     maxBytes: totalBytes,
     mediaSequenceNumber: msn,
-    objectKey: `live/${SESSION_ID}/${RENDITION_ID}/${msn}.m4s`,
+    objectKeyNonce: segmentNonce(msn),
     slotId: `${SESSION_ID}_slot_${msn}`,
   };
 }
