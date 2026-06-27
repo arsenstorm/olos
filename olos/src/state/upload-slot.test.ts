@@ -165,7 +165,7 @@ describe("upload slot issuance", () => {
         mediaSequenceNumber: 3810,
         objectKey: "live/session/v1080/3810.m4s",
         renditionId: "v1080",
-        session: { ...session, state: "created" },
+        session: { ...session, state: "ended" },
         slotId: "slot_1",
       })
     ).toThrow("session.state must be live");

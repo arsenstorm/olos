@@ -40,19 +40,7 @@ describe("runtime HTTP client", () => {
       baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
       mediaBaseUrl,
-      session: { ...session, state: "created" },
-    });
-    const transitioned = await transitionRuntimeSession({
-      baseUrl: RUNTIME_BASE_URL,
-      fetch: clientFetch,
-      sessionId: session.sessionId,
-      state: "starting",
-    });
-    const live = await transitionRuntimeSession({
-      baseUrl: RUNTIME_BASE_URL,
-      fetch: clientFetch,
-      sessionId: session.sessionId,
-      state: "live",
+      session: { ...session, state: "live" },
     });
     const issued = await issueRuntimeSlot({
       baseUrl: RUNTIME_BASE_URL,
@@ -91,11 +79,6 @@ describe("runtime HTTP client", () => {
 
     expect(created.response.status).toBe(201);
     expect(created.sessionId).toBe(session.sessionId);
-    expect(transitioned).toMatchObject({
-      sessionId: session.sessionId,
-      state: "starting",
-    });
-    expect(live.state).toBe("live");
     expect(issued.response.status).toBe(201);
     expect(issued.slot.slotId).toBe("slot_init");
     expect(committed.response.status).toBe(201);

@@ -13,14 +13,13 @@ import {
   type RuntimeFetch,
   RuntimeHttpError,
   sendRuntimePublisherHeartbeat,
-  transitionRuntimeSession,
 } from "@arsenstorm/olos/runtime";
 import { describe, expect, test } from "vitest";
 import { createTestSession, TEST_MEDIA_BASE_URL } from "./protocol-fixtures";
 import { waitFor } from "./wait-for";
 
 const latency = createRuntimeObjectLowLatencyProfile();
-const session = createTestSession({ state: "created" });
+const session = createTestSession({ state: "live" });
 const mediaBaseUrl = TEST_MEDIA_BASE_URL;
 
 describe("runtime public client flow", () => {
@@ -38,19 +37,6 @@ describe("runtime public client flow", () => {
       fetch,
       mediaBaseUrl,
       session,
-    });
-
-    await transitionRuntimeSession({
-      baseUrl: "https://edge.example.com",
-      fetch,
-      sessionId: session.sessionId,
-      state: "starting",
-    });
-    const live = await transitionRuntimeSession({
-      baseUrl: "https://edge.example.com",
-      fetch,
-      sessionId: session.sessionId,
-      state: "live",
     });
 
     const init = await issueRuntimeSlot({
@@ -151,7 +137,6 @@ describe("runtime public client flow", () => {
     });
 
     expect(created.sessionId).toBe(session.sessionId);
-    expect(live.state).toBe("live");
     expect(initCommit.commit.slotId).toBe("slot_init");
     expect(segmentCommit.cursor?.window).toEqual({
       firstMediaSequenceNumber: 3810,
@@ -186,18 +171,6 @@ describe("runtime public client flow", () => {
       fetch,
       mediaBaseUrl,
       session,
-    });
-    await transitionRuntimeSession({
-      baseUrl: "https://edge.example.com",
-      fetch,
-      sessionId: session.sessionId,
-      state: "starting",
-    });
-    await transitionRuntimeSession({
-      baseUrl: "https://edge.example.com",
-      fetch,
-      sessionId: session.sessionId,
-      state: "live",
     });
     await publishObject(fetch, {
       commitId: "commit_init",
@@ -284,18 +257,6 @@ describe("runtime public client flow", () => {
       fetch,
       mediaBaseUrl,
       session,
-    });
-    await transitionRuntimeSession({
-      baseUrl: "https://edge.example.com",
-      fetch,
-      sessionId: session.sessionId,
-      state: "starting",
-    });
-    await transitionRuntimeSession({
-      baseUrl: "https://edge.example.com",
-      fetch,
-      sessionId: session.sessionId,
-      state: "live",
     });
     await publishObject(fetch, {
       commitId: "commit_init",

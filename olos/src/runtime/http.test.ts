@@ -415,8 +415,7 @@ describe("stored coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(sessionResponse)).resolves.toEqual({
       body: {
         error: {
-          message:
-            "session.state must be one of: created, starting, live, ending, ended, aborted, expired",
+          message: "session.state must be one of: live, ending, ended, aborted",
         },
       },
       status: 400,
@@ -445,8 +444,7 @@ describe("stored coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
       body: {
         error: {
-          message:
-            "state must be one of: created, starting, live, ending, ended, aborted, expired",
+          message: "state must be one of: live, ending, ended, aborted",
         },
       },
       status: 400,

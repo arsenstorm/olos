@@ -105,7 +105,6 @@ type HandledStoredSessionMutation = Extract<
 const HEARTBEAT_TERMINAL_SESSION_STATES = [
   "aborted",
   "ended",
-  "expired",
 ] as const satisfies readonly SessionState[];
 
 type HeartbeatTerminalSessionState =

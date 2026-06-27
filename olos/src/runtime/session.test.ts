@@ -19,7 +19,7 @@ import {
   transitionStoredCoordinatorSession,
 } from "./session";
 
-const session: Session = { ...testCoordinatorSession, state: "created" };
+const session: Session = { ...testCoordinatorSession, state: "live" };
 
 describe("stored session runtime", () => {
   test("creates and stores coordinator session state", async () => {
@@ -69,7 +69,7 @@ describe("stored session runtime", () => {
 
     const result = await transitionStoredCoordinatorSession({
       sessionId: session.sessionId,
-      state: "starting",
+      state: "ending",
       store,
     });
 
@@ -81,9 +81,9 @@ describe("stored session runtime", () => {
 
     const snapshot = await store.load(session.sessionId);
     expect(result.response.status).toBe(200);
-    expect(result.state.session.state).toBe("starting");
+    expect(result.state.session.state).toBe("ending");
     expect(result.state.cursor).toBeUndefined();
-    expect(snapshot?.state.session.state).toBe("starting");
+    expect(snapshot?.state.session.state).toBe("ending");
   });
 
   test("keeps cursor state aligned with session state", async () => {
@@ -231,7 +231,7 @@ describe("stored session runtime", () => {
     expect(result.status).toBe("rejected");
     expect(result.response.status).toBe(409);
     expect(await result.response.json()).toEqual({
-      error: { message: "Invalid session transition: created -> ended" },
+      error: { message: "Invalid session transition: live -> ended" },
     });
   });
 
@@ -240,7 +240,7 @@ describe("stored session runtime", () => {
 
     const invalidSessionId = await transitionStoredCoordinatorSession({
       sessionId: "../session",
-      state: "starting",
+      state: "ending",
       store,
     });
     const invalidState = await transitionStoredCoordinatorSession({
@@ -259,8 +259,7 @@ describe("stored session runtime", () => {
     expect(invalidState.response.status).toBe(409);
     expect(await invalidState.response.json()).toEqual({
       error: {
-        message:
-          "state must be one of: created, starting, live, ending, ended, aborted, expired",
+        message: "state must be one of: live, ending, ended, aborted",
       },
     });
   });
@@ -270,7 +269,7 @@ describe("stored session runtime", () => {
 
     const result = await transitionStoredCoordinatorSession({
       sessionId: "../session",
-      state: "starting",
+      state: "ending",
       store,
     });
 
@@ -281,7 +280,7 @@ describe("stored session runtime", () => {
   test("returns not found for missing stored session transitions", async () => {
     const result = await transitionStoredCoordinatorSession({
       sessionId: "missing",
-      state: "starting",
+      state: "ending",
       store: createMemoryCoordinatorStore(),
     });
 

@@ -1,18 +1,8 @@
-export const SESSION_STATES = [
-  "created",
-  "starting",
-  "live",
-  "ending",
-  "ended",
-  "aborted",
-  "expired",
-] as const;
+export const SESSION_STATES = ["live", "ending", "ended", "aborted"] as const;
 
 export const SESSION_TRANSITIONS = {
-  created: ["starting", "aborted"],
   ending: ["ended"],
-  live: ["ending", "aborted", "expired"],
-  starting: ["live", "aborted"],
+  live: ["ending", "aborted"],
 } as const;
 
 export const LATENCY_PROFILES = ["object-ll"] as const;
