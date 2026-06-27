@@ -44,7 +44,6 @@ const commit: Commit = {
   epoch: 0,
   mediaSequenceNumber: 3810,
   objectKey: "tenant/session/v1080/3810.m4s",
-  providerId: "provider_1",
   publicationMode: "direct-public",
   renditionId: "v1080",
   sessionId: "session_1",
@@ -59,22 +58,9 @@ describe("object publication", () => {
       deliveryUrl:
         "https://media.example.com/live/tenant/session/v1080/3810.m4s",
       objectKey: "tenant/session/v1080/3810.m4s",
-      providerId: "provider_1",
       publicationMode: "direct-public",
       slotId: "slot_1",
     });
-  });
-
-  test("rejects publication through a different provider", () => {
-    expect(() =>
-      createObjectPublication({
-        capability: {
-          ...capability,
-          providerId: "provider_2",
-        },
-        commit,
-      })
-    ).toThrow("commit.providerId must match providerCapability.providerId");
   });
 
   test("rejects direct-public commits when the provider cannot publish direct objects", () => {

@@ -15,7 +15,6 @@ export interface Commit {
   objectKey: string;
   partNumber?: PartNumber;
   programDateTime?: string;
-  providerId: string;
   publicationMode: PublicationMode;
   renditionId: OlosId;
   sessionId: OlosId;

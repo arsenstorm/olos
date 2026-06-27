@@ -15,13 +15,11 @@ export function createObjectPublication(
 ): ObjectPublication {
   assertCommit(options.commit);
   assertProviderCapabilityDocument(options.capability);
-  assertProviderOwnsCommit(options);
 
   return {
     commitId: options.commit.commitId,
     deliveryUrl: deliveryUrlForPublication(options),
     objectKey: options.commit.objectKey,
-    providerId: options.commit.providerId,
     publicationMode: options.commit.publicationMode,
     slotId: options.commit.slotId,
   };
@@ -96,16 +94,6 @@ function assertPrivatePromotionPublicationSupport(
   if (capability.publication.privateUploadPublicPromotion !== true) {
     throw new Error(
       "providerCapability.publication.privateUploadPublicPromotion must be true for private-upload-public-promotion commits"
-    );
-  }
-}
-
-function assertProviderOwnsCommit(
-  options: CreateObjectPublicationOptions
-): void {
-  if (options.commit.providerId !== options.capability.providerId) {
-    throw new Error(
-      "commit.providerId must match providerCapability.providerId"
     );
   }
 }

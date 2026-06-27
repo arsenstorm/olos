@@ -40,7 +40,6 @@ function assertCommitIdentifiers(value: Record<string, unknown>): void {
   assertUrlSafeField(value, "slotId", "commit");
   assertUrlSafeField(value, "sessionId", "commit");
   assertUrlSafeField(value, "renditionId", "commit");
-  assertUrlSafeField(value, "providerId", "commit");
 }
 
 function assertCommitSequenceFields(value: Record<string, unknown>): void {

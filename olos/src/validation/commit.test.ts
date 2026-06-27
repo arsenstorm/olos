@@ -16,7 +16,6 @@ const validCommit: Commit = {
   objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
   partNumber: 3,
   programDateTime: "2026-06-08T12:00:05.500Z",
-  providerId: "r2-primary",
   publicationMode: "direct-public",
   renditionId: "v1080",
   sessionId: "sess_01JZLIVE",

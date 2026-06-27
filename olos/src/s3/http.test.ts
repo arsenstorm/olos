@@ -1658,7 +1658,6 @@ describe("stored S3 coordinator runtime handler", () => {
 
     expect(response.status).toBe(201);
     expect(body.commit).toMatchObject({
-      providerId: "s3_primary",
       slotId: "slot_3810",
     });
     expect(headObjectInputs).toEqual([

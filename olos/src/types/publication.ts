@@ -5,7 +5,6 @@ export interface ObjectPublication {
   commitId: OlosId;
   deliveryUrl: string;
   objectKey: string;
-  providerId: OlosId;
   publicationMode: PublicationMode;
   slotId: OlosId;
 }
