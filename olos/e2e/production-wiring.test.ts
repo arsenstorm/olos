@@ -181,7 +181,6 @@ const session = {
   segmentTarget: latency.segmentTarget,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
 } satisfies Session;
 
 const mediaBaseUrl = "https://media.example.com";
@@ -247,8 +246,6 @@ async function issueObject(
       maxBytes: object.maxBytes,
       mediaSequenceNumber: object.mediaSequenceNumber,
       objectKey: object.objectKey,
-      publicationMode: "direct-public",
-      publisherInstanceId: "publisher_1",
       renditionId: "v1080",
       slotId: object.slotId,
     })

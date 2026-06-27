@@ -80,7 +80,6 @@ const session = {
   segmentTarget: latency.segmentTarget,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
 } satisfies Session;
 
 const multiRenditionSession = {

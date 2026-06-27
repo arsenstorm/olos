@@ -30,6 +30,5 @@ export function createTestSession(options: TestSessionOptions = {}): Session {
     segmentTarget: latency.segmentTarget,
     sessionId: "session_1",
     state: options.state ?? "live",
-    tenantId: "tenant_1",
   };
 }

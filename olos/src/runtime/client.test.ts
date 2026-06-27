@@ -427,7 +427,7 @@ describe("runtime HTTP client", () => {
         },
         sessionId: session.sessionId,
       })
-    ).rejects.toThrow("commitId");
+    ).rejects.toThrow('commit contains unknown property "status"');
   });
 
   test("validates session health response payloads", async () => {

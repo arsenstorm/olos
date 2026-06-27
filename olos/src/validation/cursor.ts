@@ -8,10 +8,31 @@ import {
   assertIsoDateField,
   assertNonNegativeIntegerField,
   assertOneOfField,
+  assertOnlyKnownFields,
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
 } from "./fields";
+
+const CURSOR_FIELDS = [
+  "committedWindow",
+  "epoch",
+  "latencyProfile",
+  "mediaBaseUrl",
+  "olos",
+  "partTarget",
+  "segmentTarget",
+  "sessionId",
+  "state",
+  "updatedAt",
+  "window",
+] as const;
+
+const CURSOR_WINDOW_FIELDS = [
+  "firstMediaSequenceNumber",
+  "lastMediaSequenceNumber",
+  "lastPartNumber",
+] as const;
 
 export function isCursor(value: unknown): value is Cursor {
   try {
@@ -31,6 +52,7 @@ export function assertCursor(value: unknown): asserts value is Cursor {
     throw new Error(`cursor.olos must be ${OLOS_WIRE_VERSION}`);
   }
 
+  assertOnlyKnownFields(value, CURSOR_FIELDS, "cursor");
   assertCursorFields(value);
   assertSafeDeliveryUrl(value.mediaBaseUrl, "cursor.mediaBaseUrl");
 
@@ -90,6 +112,7 @@ export function assertCursorWindow(
     throw new Error(`${name} must be an object`);
   }
 
+  assertOnlyKnownFields(value, CURSOR_WINDOW_FIELDS, name);
   assertNonNegativeIntegerField(value, "firstMediaSequenceNumber", name);
   assertNonNegativeIntegerField(value, "lastMediaSequenceNumber", name);
   assertCursorWindowSequence(value, name);

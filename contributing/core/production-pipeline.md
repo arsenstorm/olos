@@ -16,7 +16,7 @@ Use four application-owned surfaces:
 
 | Surface | Owns | OLOS helps with |
 | --- | --- | --- |
-| Control API | Auth, tenant limits, session creation, kill switches | Session validation and transitions |
+| Control API | Auth, session creation, kill switches | Session validation and transitions |
 | Publisher API | Publisher auth, slot/grant routes, upload callbacks | Slot issuance, S3 grants, commits |
 | Playback API | Viewer auth, manifest routes, cursor waits | HLS rendering and blocking reload decisions |
 | Jobs | Recovery, retention, alerts, leases | Reconciliation, retention plans, live-health status |
@@ -26,11 +26,13 @@ transactional adapter so cursor updates are monotonic.
 
 ## Live Path
 
-1. The control API creates a session and pathways after authenticating the
-   tenant and publisher.
+1. The control API creates a live session with a `mediaBaseUrl` after
+   authenticating the application-level publisher.
 2. The publisher loop asks OLOS for the next object plan from the current
    cursor window.
-3. OLOS issues an exact-key, short-lived S3 upload grant.
+3. OLOS issues an exact-key, short-lived S3 upload grant. The publisher may
+   either submit a fully-formed slot request or omit `objectKey` and
+   `deliveryUrl` and let the coordinator derive them from `mediaBaseUrl`.
 4. The application uploads encoder bytes through the granted URL.
 5. OLOS observes the exact object with S3 `HeadObject` or a normalized provider
    event.
@@ -148,7 +150,7 @@ OLOS does not authenticate users, authorize viewers, provision buckets, enforce
 CDN rules, scan media bytes, or moderate content. The application must provide:
 
 - publisher and viewer authentication
-- tenant/session quotas
+- per-session quotas and rate limits
 - object key secrecy or read gating
 - media-only delivery headers
 - unknown-extension and top-level document blocks
