@@ -72,20 +72,13 @@ function resolveSlotObjectAddress(options: IssueCoordinatorSlotOptions): {
     );
   }
 
-  const nonce = resolveSlotObjectKeyNonce(options);
   const objectKey = createPublisherObjectKey({
-    ...(options.extension === undefined
-      ? {}
-      : { extension: options.extension }),
+    extension: options.extension,
     kind: options.kind,
     mediaSequenceNumber: options.mediaSequenceNumber,
-    ...(nonce === undefined ? {} : { objectKeyNonce: nonce }),
-    ...(options.objectKeyPrefix === undefined
-      ? {}
-      : { objectKeyPrefix: options.objectKeyPrefix }),
-    ...(options.partNumber === undefined
-      ? {}
-      : { partNumber: options.partNumber }),
+    objectKeyNonce: resolveSlotObjectKeyNonce(options),
+    objectKeyPrefix: options.objectKeyPrefix,
+    partNumber: options.partNumber,
     renditionId: options.renditionId,
   });
   const deliveryUrl = createPublisherDeliveryUrl(

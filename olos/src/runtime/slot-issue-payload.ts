@@ -25,7 +25,7 @@ export function parseRuntimeSlotIssuePayload(
   assertNoLegacyAddressFields(value);
   const kind = oneOfStringField(value, "kind", MEDIA_OBJECT_KINDS);
   const partNumber = optionalNonNegativeIntegerField(value, "partNumber");
-  assertPartNumberKindMatch(kind, partNumber);
+  assertPartNumberKindMatch(kind, partNumber.partNumber);
 
   return {
     contentType: stringField(value, "contentType"),
@@ -55,13 +55,13 @@ function assertNoLegacyAddressFields(value: Record<string, unknown>): void {
 
 function assertPartNumberKindMatch(
   kind: MediaObjectKind,
-  partNumber: { partNumber?: number }
+  partNumber: number | undefined
 ): void {
-  if (kind === "part" && partNumber.partNumber === undefined) {
+  if (kind === "part" && partNumber === undefined) {
     throw new Error('partNumber is required when kind is "part"');
   }
 
-  if (kind !== "part" && partNumber.partNumber !== undefined) {
+  if (kind !== "part" && partNumber !== undefined) {
     throw new Error("partNumber is only valid for parts");
   }
 }
