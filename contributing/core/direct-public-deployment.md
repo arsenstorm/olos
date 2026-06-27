@@ -12,10 +12,17 @@ OLOS No-Scan Mode does not prove uploaded media bytes are safe or decodable.
 
 ## Required Controls
 
-- Generate object keys in the coordinator; reject publisher-supplied keys.
+- Generate object keys in the coordinator. The slot-issue request should omit
+  `objectKey` and `deliveryUrl`; OLOS derives both server-side from the
+  configured `mediaBaseUrl` plus an unguessable nonce. The wire still accepts
+  publisher-supplied values for compatibility, but a direct-public deployment
+  should treat that as a transitional escape hatch and audit calls that use
+  it.
 - Include enough per-slot entropy that future object URLs are not guessable.
-  Pass the app-generated nonce into OLOS publisher planning helpers; use at
-  least 16 random bytes before formatting it.
+  When `publicationMode === "direct-public"` the coordinator generates a
+  fresh 16-byte nonce automatically; for read-gated or
+  private-upload-public-promotion deployments, the publisher remains
+  responsible for nonce policy.
 - Issue short-lived, exact-key, method-bound upload grants.
 - Bind content type and create-if-absent headers where the provider supports
   signed headers.
@@ -61,7 +68,7 @@ The application must provide:
 
 - publisher authentication
 - viewer authorization where required
-- tenant and session quotas
+- per-session quotas and rate limits
 - max slots per minute
 - max uncommitted bytes
 - max failed uploads
@@ -74,7 +81,7 @@ A kill switch must be able to:
 
 1. Stop issuing new upload slots.
 2. Reject completion hints.
-3. Ignore provider events for the affected session or tenant.
+3. Ignore provider events for the affected session.
 4. Freeze cursor advancement.
 5. Revoke viewer access where applicable.
 6. Block the affected media prefix at the delivery layer.

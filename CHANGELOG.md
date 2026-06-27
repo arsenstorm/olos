@@ -4,6 +4,20 @@ Notable package changes are documented here.
 
 This project follows semantic versioning for the published `olos` package.
 
+## 0.2.1
+
+Follow-up cleanup to the 0.2.0 simplification. No protocol shape change.
+
+- Re-export `createPublisherObjectKey`, `createPublisherDeliveryUrl`,
+  `CreatePublisherObjectKeyOptions`, and `DerivableMediaObjectKind` from
+  `olos/runtime`, matching the 0.2.0 changelog.
+- Core validators (`assertSession`, `assertUploadSlot`, `assertCommit`,
+  `assertCursor`, `assertCursorWindow`, `assertRendition`) now reject
+  unknown properties, matching the JSON schemas' `additionalProperties:
+  false` declaration.
+- Removed stale `tenantId`, `publicationMode`, and `publisherInstanceId`
+  references from the e2e fixtures and `contributing/core` docs.
+
 ## 0.2.0
 
 Core surface simplification. Breaking changes throughout core types,

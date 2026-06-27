@@ -6,11 +6,31 @@ import {
   assertIsoDateField,
   assertNonEmptyStringField,
   assertNonNegativeIntegerField,
+  assertOnlyKnownFields,
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
 } from "./fields";
 import { assertSafeObjectKey } from "./object-key";
+
+const COMMIT_FIELDS = [
+  "byterange",
+  "commitId",
+  "committedAt",
+  "deliveryUrl",
+  "duration",
+  "epoch",
+  "etag",
+  "independent",
+  "mediaSequenceNumber",
+  "objectKey",
+  "partNumber",
+  "programDateTime",
+  "renditionId",
+  "sessionId",
+  "size",
+  "slotId",
+] as const;
 
 export function isCommit(value: unknown): value is Commit {
   try {
@@ -26,6 +46,7 @@ export function assertCommit(value: unknown): asserts value is Commit {
     throw new Error("commit must be an object");
   }
 
+  assertOnlyKnownFields(value, COMMIT_FIELDS, "commit");
   assertCommitIdentifiers(value);
   assertCommitSequenceFields(value);
   assertCommitObjectFields(value);

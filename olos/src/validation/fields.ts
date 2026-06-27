@@ -22,6 +22,18 @@ export function nonEmptyArray<T = unknown>(value: unknown, name: string): T[] {
   return value as T[];
 }
 
+export function assertOnlyKnownFields(
+  value: Record<string, unknown>,
+  allowed: readonly string[],
+  name: string
+): void {
+  for (const key of Object.keys(value)) {
+    if (!allowed.includes(key)) {
+      throw new Error(`${name} contains unknown property "${key}"`);
+    }
+  }
+}
+
 export function assertUrlSafeField(
   value: Record<string, unknown>,
   field: string,

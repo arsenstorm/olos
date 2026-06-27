@@ -172,6 +172,12 @@ export {
   serveStoredCoordinatorManifest,
 } from "./runtime/stored";
 export {
+  type CreatePublisherObjectKeyOptions,
+  createPublisherDeliveryUrl,
+  createPublisherObjectKey,
+  type DerivableMediaObjectKind,
+} from "./state/object-key-derivation";
+export {
   type CreateRuntimePublisherObjectKeyNonceOptions,
   createRuntimePublisherObjectKeyNonce,
   RUNTIME_PUBLISHER_OBJECT_KEY_NONCE_MIN_BYTES,

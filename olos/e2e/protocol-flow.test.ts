@@ -36,13 +36,10 @@ const slot: UploadSlot = {
   maxBytes: 100_000,
   mediaSequenceNumber: 3810,
   objectKey: "media/v1080/3810.m4s",
-  publicationMode: "direct-public",
-  publisherInstanceId: "pub_1",
   renditionId: "v1080",
   sessionId: "session_1",
   slotId: "slot_3810",
   state: "upload_observed",
-  tenantId: "tenant_1",
 };
 
 const mediaObject: MediaObject = createObservedUpload({
@@ -131,7 +128,6 @@ describe("protocol flow", () => {
       segmentTarget: latency.segmentTarget,
       sessionId: "session_1",
       state: "live",
-      tenantId: "tenant_1",
       updatedAt: "2026-01-01T00:00:02.000Z",
     });
 

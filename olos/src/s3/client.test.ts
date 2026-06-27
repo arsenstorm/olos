@@ -272,7 +272,7 @@ describe("S3 runtime HTTP client", () => {
         },
         sessionId: session.sessionId,
       })
-    ).rejects.toThrow("commitId");
+    ).rejects.toThrow('commit contains unknown property "status"');
   });
 
   test("validates malformed upload completion responses", async () => {

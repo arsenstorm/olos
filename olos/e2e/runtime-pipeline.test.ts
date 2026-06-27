@@ -50,7 +50,6 @@ const session = {
   segmentTarget: latency.segmentTarget,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
 } satisfies Session;
 
 const mediaBaseUrl = "https://media.example.com";
@@ -107,7 +106,6 @@ describe("runtime pipeline", () => {
       objectKeyNonce: initNonce,
       objectKeyPrefix: "media",
       publicationMode: "direct-public",
-      publisherInstanceId: "pub_1",
       renditionId: "v1080",
       targetLatency: publisherOptions.expiry.targetLatency,
     });
@@ -120,7 +118,6 @@ describe("runtime pipeline", () => {
       objectKeyNonce: segmentNonce,
       objectKeyPrefix: "media",
       publicationMode: "direct-public",
-      publisherInstanceId: "pub_1",
       renditionId: "v1080",
       startMediaSequenceNumber: 3810,
       targetLatency: publisherOptions.expiry.targetLatency,
@@ -243,7 +240,6 @@ async function expectStoredCoordinatorLifecycle(
     objectKeyNonce: "slot_init",
     objectKeyPrefix: "media",
     publicationMode: "direct-public",
-    publisherInstanceId: "pub_1",
     renditionId: "v1080",
   });
   const segmentPlan = createRuntimePublisherObjectPlan({
@@ -258,7 +254,6 @@ async function expectStoredCoordinatorLifecycle(
     objectKeyNonce: "slot_s3810",
     objectKeyPrefix: "media",
     publicationMode: "direct-public",
-    publisherInstanceId: "pub_1",
     renditionId: "v1080",
   });
   const nextPlan = createRuntimePublisherObjectPlan({
@@ -273,7 +268,6 @@ async function expectStoredCoordinatorLifecycle(
     objectKeyNonce: "slot_s3811",
     objectKeyPrefix: "media",
     publicationMode: "direct-public",
-    publisherInstanceId: "pub_1",
     renditionId: "v1080",
   });
 

@@ -8,11 +8,31 @@ import {
   assertIsoDateField,
   assertNonNegativeIntegerField,
   assertOneOfField,
+  assertOnlyKnownFields,
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
 } from "./fields";
 import { assertSafeMediaObjectKey } from "./object-key";
+
+const UPLOAD_SLOT_FIELDS = [
+  "byterange",
+  "contentType",
+  "deliveryUrl",
+  "duration",
+  "epoch",
+  "expiresAt",
+  "kind",
+  "maxBytes",
+  "mediaSequenceNumber",
+  "minBytes",
+  "objectKey",
+  "partNumber",
+  "renditionId",
+  "sessionId",
+  "slotId",
+  "state",
+] as const;
 
 export function isUploadSlot(value: unknown): value is UploadSlot {
   try {
@@ -28,6 +48,7 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
     throw new Error("uploadSlot must be an object");
   }
 
+  assertOnlyKnownFields(value, UPLOAD_SLOT_FIELDS, "uploadSlot");
   assertUploadSlotIdentifiers(value);
   assertUploadSlotSequenceFields(value);
   assertUploadSlotByteFields(value);

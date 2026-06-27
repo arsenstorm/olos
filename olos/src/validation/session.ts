@@ -10,12 +10,37 @@ import {
   assertNonEmptyStringField,
   assertNonNegativeIntegerField,
   assertOneOfField,
+  assertOnlyKnownFields,
   assertPositiveIntegerField,
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
   nonEmptyArray,
 } from "./fields";
+
+const SESSION_FIELDS = [
+  "createdAt",
+  "epoch",
+  "latencyProfile",
+  "olos",
+  "partTarget",
+  "renditions",
+  "segmentTarget",
+  "sessionId",
+  "state",
+] as const;
+
+const RENDITION_FIELDS = [
+  "bitrate",
+  "channels",
+  "codec",
+  "frameRate",
+  "height",
+  "kind",
+  "renditionId",
+  "sampleRate",
+  "width",
+] as const;
 
 const OPTIONAL_RENDITION_INTEGER_FIELDS = [
   "bitrate",
@@ -43,6 +68,7 @@ export function assertSession(value: unknown): asserts value is Session {
     throw new Error(`session.olos must be ${OLOS_WIRE_VERSION}`);
   }
 
+  assertOnlyKnownFields(value, SESSION_FIELDS, "session");
   assertUrlSafeField(value, "sessionId", "session");
   assertNonNegativeIntegerField(value, "epoch", "session");
   assertOneOfField(value, "state", SESSION_STATES, "session");
@@ -74,6 +100,7 @@ function assertRendition(value: unknown): asserts value is Rendition {
     throw new Error("session.renditions[] must be an object");
   }
 
+  assertOnlyKnownFields(value, RENDITION_FIELDS, "session.renditions[]");
   assertUrlSafeField(value, "renditionId", "session.renditions[]");
   assertOneOfField(value, "kind", RENDITION_KINDS, "session.renditions[]");
   assertNonEmptyStringField(value, "codec", "session.renditions[]");
