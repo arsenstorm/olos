@@ -27,6 +27,7 @@ describe("runtime public client flow", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
+      publicationMode: "read-gated",
       now: () => "2026-01-01T00:00:03.000Z",
       store,
     });
@@ -151,6 +152,7 @@ describe("runtime public client flow", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
+      publicationMode: "read-gated",
       maxHealthCursorAgeMs: 10_000,
       now: () => now,
       publisherLeaseTtlMs: 3000,
@@ -232,6 +234,7 @@ describe("runtime public client flow", () => {
     let waits = 0;
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
+      publicationMode: "read-gated",
       blockingReload: {
         timeoutMs: 1000,
         waitForCursor: (context) => {
@@ -299,6 +302,7 @@ describe("runtime public client flow", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
+      publicationMode: "read-gated",
       store,
     });
     const fetch = runtimeFetchFor(handle);

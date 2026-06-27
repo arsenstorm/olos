@@ -25,6 +25,7 @@ describe("production object pipeline wiring", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: ["https://media.example.com"],
+      publicationMode: "read-gated",
       blockingReload: {
         timeoutMs: latency.blockingReloadTimeoutMs,
         waitForCursor: (context) => notifier.waitForCursor(context),
