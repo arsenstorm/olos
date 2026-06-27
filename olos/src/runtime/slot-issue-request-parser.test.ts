@@ -4,13 +4,11 @@ import { parseRuntimeSlotIssuePayloadRequest } from "./slot-issue-request-parser
 
 const slotPayload = {
   contentType: "video/mp4",
-  deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
   duration: 2,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
   mediaSequenceNumber: 3810,
-  objectKey: "live/session/v1080/3810.m4s",
   renditionId: "v1080",
   slotId: "slot_3810",
 } as const;

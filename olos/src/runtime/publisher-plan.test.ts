@@ -4,7 +4,6 @@ import { createRuntimePublisherObjectPlan } from "./publisher-plan";
 describe("runtime publisher object plan", () => {
   test("creates a segment slot payload and commit id", () => {
     const plan = createRuntimePublisherObjectPlan({
-      baseUrl: "https://media.example.com",
       contentType: "video/iso.segment",
       duration: 2,
       expiresAt: "2026-01-01T00:00:05.000Z",
@@ -19,16 +18,16 @@ describe("runtime publisher object plan", () => {
 
     expect(plan).toEqual({
       commitId: "commit_v1080_s3810",
+      objectKey: "media/session_1/v1080/s3810.m4s",
       slot: {
         contentType: "video/iso.segment",
-        deliveryUrl:
-          "https://media.example.com/media/session_1/v1080/s3810.m4s",
         duration: 2,
         expiresAt: "2026-01-01T00:00:05.000Z",
+        extension: "m4s",
         kind: "segment",
         maxBytes: 100_000,
         mediaSequenceNumber: 3810,
-        objectKey: "media/session_1/v1080/s3810.m4s",
+        objectKeyPrefix: "media/session_1",
         renditionId: "v1080",
         slotId: "slot_v1080_s3810",
       },
@@ -37,7 +36,6 @@ describe("runtime publisher object plan", () => {
 
   test("creates a part slot payload", () => {
     const plan = createRuntimePublisherObjectPlan({
-      baseUrl: "https://media.example.com/live/",
       contentType: "video/iso.segment",
       duration: 0.5,
       expiresAt: "2026-01-01T00:00:05.000Z",
@@ -53,11 +51,9 @@ describe("runtime publisher object plan", () => {
     });
 
     expect(plan.commitId).toBe("commit_v1080_s3810_p2");
+    expect(plan.objectKey).toBe("media/session_1/v1080/s3810/p2.m4s");
     expect(plan.slot).toMatchObject({
-      deliveryUrl:
-        "https://media.example.com/live/media/session_1/v1080/s3810/p2.m4s",
       kind: "part",
-      objectKey: "media/session_1/v1080/s3810/p2.m4s",
       partNumber: 2,
       slotId: "upload_v1080_s3810_p2",
     });
@@ -82,21 +78,11 @@ describe("runtime publisher object plan", () => {
       partNumber: 2,
     });
 
-    expect(init.slot.objectKey).toBe(
-      "media/session_1/v1080/init-slot_01JZ.mp4"
-    );
-    expect(init.slot.deliveryUrl).toBe(
-      "https://media.example.com/media/session_1/v1080/init-slot_01JZ.mp4"
-    );
-    expect(segment.slot.objectKey).toBe(
+    expect(init.objectKey).toBe("media/session_1/v1080/init-slot_01JZ.mp4");
+    expect(segment.objectKey).toBe(
       "media/session_1/v1080/s3810/segment-slot_01K0.m4s"
     );
-    expect(part.slot.objectKey).toBe(
-      "media/session_1/v1080/s3810/p2-slot_01K1.m4s"
-    );
-    expect(part.slot.deliveryUrl).toBe(
-      "https://media.example.com/media/session_1/v1080/s3810/p2-slot_01K1.m4s"
-    );
+    expect(part.objectKey).toBe("media/session_1/v1080/s3810/p2-slot_01K1.m4s");
   });
 
   test("rejects direct-public object plans without a nonce", () => {
@@ -120,7 +106,6 @@ describe("runtime publisher object plan", () => {
 
   test("creates an init slot payload", () => {
     const plan = createRuntimePublisherObjectPlan({
-      baseUrl: "https://media.example.com",
       contentType: "video/mp4",
       duration: 1,
       expiresAt: "2026-01-01T00:00:05.000Z",
@@ -134,7 +119,7 @@ describe("runtime publisher object plan", () => {
     });
 
     expect(plan.commitId).toBe("commit_init_v1080");
-    expect(plan.slot.objectKey).toBe("media/session_1/v1080/init.mp4");
+    expect(plan.objectKey).toBe("media/session_1/v1080/init.mp4");
     expect(plan.slot.slotId).toBe("slot_init_v1080");
   });
 
@@ -180,20 +165,6 @@ describe("runtime publisher object plan", () => {
     expect(() =>
       createRuntimePublisherObjectPlan({
         ...validSegmentPlan(),
-        baseUrl: "ftp://media.example.com",
-      })
-    ).toThrow("baseUrl must be an absolute HTTP(S) URL");
-
-    expect(() =>
-      createRuntimePublisherObjectPlan({
-        ...validSegmentPlan(),
-        baseUrl: "not a url",
-      })
-    ).toThrow("baseUrl must be an absolute HTTP(S) URL");
-
-    expect(() =>
-      createRuntimePublisherObjectPlan({
-        ...validSegmentPlan(),
         objectKeyNonce: "../slot",
       })
     ).toThrow("objectKeyNonce must be a non-empty URL-safe identifier");
@@ -225,7 +196,6 @@ describe("runtime publisher object plan", () => {
 
 function validSegmentPlan() {
   return {
-    baseUrl: "https://media.example.com",
     contentType: "video/iso.segment",
     duration: 2,
     expiresAt: "2026-01-01T00:00:05.000Z",

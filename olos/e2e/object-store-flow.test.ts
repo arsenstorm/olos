@@ -304,7 +304,7 @@ describe("object-store flow", () => {
       firstMediaSequenceNumber: 3810,
       lastMediaSequenceNumber: 3810,
     });
-    expect(media?.body).toContain(step.plan.slot.deliveryUrl);
+    expect(media?.body).toContain(step.slot?.deliveryUrl);
     expect(uploadedUrls).toHaveLength(1);
     expect(headObjectInputs).toEqual([
       {
@@ -313,7 +313,7 @@ describe("object-store flow", () => {
       },
       {
         Bucket: "media",
-        Key: step.plan.slot.objectKey,
+        Key: step.plan.objectKey,
       },
     ]);
   });
@@ -402,15 +402,15 @@ describe("object-store flow", () => {
       firstMediaSequenceNumber: 3810,
       lastMediaSequenceNumber: 3811,
     });
-    expect(media?.body).toContain(init.plan.slot.deliveryUrl);
-    expect(media?.body).toContain(firstSegment.plan.slot.deliveryUrl);
-    expect(media?.body).toContain(nextSegment.plan.slot.deliveryUrl);
+    expect(media?.body).toContain(init.slot?.deliveryUrl);
+    expect(media?.body).toContain(firstSegment.slot?.deliveryUrl);
+    expect(media?.body).toContain(nextSegment.slot?.deliveryUrl);
     expect(uploadedUrls).toHaveLength(3);
     expect(summaries).toEqual([
       {
         commitId: "commit_init_v1080",
         commitStatus: "committed",
-        objectKey: init.plan.slot.objectKey,
+        objectKey: init.plan.objectKey,
         ok: true,
         slotId: "slot_init_v1080",
         status: "committed",
@@ -418,7 +418,7 @@ describe("object-store flow", () => {
       {
         commitId: "commit_v1080_s3810",
         commitStatus: "committed",
-        objectKey: firstSegment.plan.slot.objectKey,
+        objectKey: firstSegment.plan.objectKey,
         ok: true,
         slotId: "slot_v1080_s3810",
         status: "committed",
@@ -426,7 +426,7 @@ describe("object-store flow", () => {
       {
         commitId: "commit_v1080_s3811",
         commitStatus: "committed",
-        objectKey: nextSegment.plan.slot.objectKey,
+        objectKey: nextSegment.plan.objectKey,
         ok: true,
         slotId: "slot_v1080_s3811",
         status: "committed",
@@ -435,15 +435,15 @@ describe("object-store flow", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: init.plan.slot.objectKey,
+        Key: init.plan.objectKey,
       },
       {
         Bucket: "media",
-        Key: firstSegment.plan.slot.objectKey,
+        Key: firstSegment.plan.objectKey,
       },
       {
         Bucket: "media",
-        Key: nextSegment.plan.slot.objectKey,
+        Key: nextSegment.plan.objectKey,
       },
     ]);
   });

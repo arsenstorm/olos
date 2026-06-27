@@ -58,10 +58,9 @@ export type RuntimePublisherPlannedObjectDefaults = Record<
 >;
 
 export interface CreateRuntimePublisherObjectPlanInputOptions {
-  baseUrl: string;
   defaults: RuntimePublisherPlannedObjectDefaults;
   objectKeyNonce?: string;
-  objectKeyPrefix: string;
+  objectKeyPrefix?: string;
   position: RuntimePublisherObjectPosition;
   publicationMode?: PublicationMode;
   renditionId: string;
@@ -148,18 +147,17 @@ export function createRuntimePublisherObjectPlanInput(
   const defaults = options.defaults[options.position.kind];
 
   return {
-    baseUrl: options.baseUrl,
     contentType: defaults.contentType,
     duration: defaults.duration,
     extension: defaults.extension,
     kind: options.position.kind,
     maxBytes: defaults.maxBytes,
     mediaSequenceNumber: options.position.mediaSequenceNumber,
-    objectKeyPrefix: options.objectKeyPrefix,
     publicationMode: options.publicationMode,
     renditionId: options.renditionId,
     ...optionalField("minBytes", defaults.minBytes),
     ...optionalField("objectKeyNonce", options.objectKeyNonce),
+    ...optionalField("objectKeyPrefix", options.objectKeyPrefix),
     ...optionalField("partNumber", options.position.partNumber),
   };
 }

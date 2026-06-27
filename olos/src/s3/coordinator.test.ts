@@ -143,7 +143,6 @@ describe("s3 coordinator uploads", () => {
       targetLatency,
     });
     const plan = createRuntimePublisherObjectPlan({
-      baseUrl: "https://media.example.com",
       contentType: "video/iso.segment",
       duration: 0.5,
       expiresAt: expiry.expiresAt,
@@ -176,12 +175,12 @@ describe("s3 coordinator uploads", () => {
 
     expect(issue.slot).toMatchObject({
       kind: "part",
-      objectKey: plan.slot.objectKey,
+      objectKey: plan.objectKey,
       partNumber: 0,
       slotId: plan.slot.slotId,
     });
     expect(issue.grant.slotId).toBe(plan.slot.slotId);
-    expect(url.pathname).toBe(`/media/${plan.slot.objectKey}`);
+    expect(url.pathname).toBe(`/media/${plan.objectKey}`);
     expect(stored?.state.slots).toEqual([issue.slot]);
   });
 

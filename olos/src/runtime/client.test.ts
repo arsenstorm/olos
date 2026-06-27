@@ -47,13 +47,12 @@ describe("runtime HTTP client", () => {
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
-        deliveryUrl: "https://media.example.com/init.mp4",
         duration: 1,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "init",
         maxBytes: 2048,
         mediaSequenceNumber: 0,
-        objectKey: "media/init-slot_1.mp4",
+        objectKeyNonce: "slot_1",
         renditionId: "v1080",
         slotId: "slot_init",
       },
@@ -67,7 +66,7 @@ describe("runtime HTTP client", () => {
         committedAt: "2026-01-01T00:00:02.000Z",
         object: {
           contentType: "video/mp4",
-          objectKey: "media/init-slot_1.mp4",
+          objectKey: issued.slot.objectKey,
           observedAt: "2026-01-01T00:00:02.000Z",
           providerId: "s3_primary",
           size: 1024,

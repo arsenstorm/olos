@@ -144,7 +144,6 @@ describe("runtime publisher cadence", () => {
   test("creates plan input from a resolved segment position", () => {
     expect(
       createRuntimePublisherObjectPlanInput({
-        baseUrl: "https://media.example.com",
         defaults: objectDefaults,
         objectKeyPrefix: "media/session_1",
         position: {
@@ -155,7 +154,6 @@ describe("runtime publisher cadence", () => {
         renditionId: "v1080",
       })
     ).toEqual({
-      baseUrl: "https://media.example.com",
       contentType: "video/mp4",
       duration: 2,
       extension: "m4s",
@@ -171,7 +169,6 @@ describe("runtime publisher cadence", () => {
   test("creates plan input from a resolved part position", () => {
     expect(
       createRuntimePublisherObjectPlanInput({
-        baseUrl: "https://media.example.com",
         defaults: objectDefaults,
         objectKeyPrefix: "media/session_1",
         position: {
@@ -196,7 +193,6 @@ describe("runtime publisher cadence", () => {
   test("passes an object key nonce into the next object plan", () => {
     expect(
       createRuntimePublisherNextObjectPlan({
-        baseUrl: "https://media.example.com",
         cursorWindow: {
           firstMediaSequenceNumber: 3810,
           lastMediaSequenceNumber: 3811,
@@ -208,14 +204,13 @@ describe("runtime publisher cadence", () => {
         publicationMode: "direct-public",
         renditionId: "v1080",
         targetLatency: 3,
-      }).plan.slot.objectKey
+      }).plan.objectKey
     ).toBe("media/session_1/v1080/s3812/segment-slot_01JZ.m4s");
   });
 
   test("applies minimum TTL when creating the next object plan", () => {
     expect(
       createRuntimePublisherNextObjectPlan({
-        baseUrl: "https://media.example.com",
         defaults: objectDefaults,
         minTtlSeconds: 30,
         now: "2026-01-01T00:00:00.000Z",
@@ -234,7 +229,6 @@ describe("runtime publisher cadence", () => {
   test("creates the next object plan from cursor cadence", () => {
     expect(
       createRuntimePublisherNextObjectPlan({
-        baseUrl: "https://media.example.com",
         cursorWindow: {
           firstMediaSequenceNumber: 3810,
           lastMediaSequenceNumber: 3811,
@@ -254,16 +248,17 @@ describe("runtime publisher cadence", () => {
       },
       plan: {
         commitId: "commit_v1080_s3812",
+        objectKey: "media/session_1/v1080/s3812/segment-slot_01JZ.m4s",
         slot: {
           contentType: "video/mp4",
-          deliveryUrl:
-            "https://media.example.com/media/session_1/v1080/s3812/segment-slot_01JZ.m4s",
           duration: 2,
           expiresAt: "2026-01-01T00:00:05.000Z",
+          extension: "m4s",
           kind: "segment",
           maxBytes: 100_000,
           mediaSequenceNumber: 3812,
-          objectKey: "media/session_1/v1080/s3812/segment-slot_01JZ.m4s",
+          objectKeyNonce: "slot_01JZ",
+          objectKeyPrefix: "media/session_1",
           renditionId: "v1080",
           slotId: "slot_v1080_s3812",
         },
@@ -278,7 +273,6 @@ describe("runtime publisher cadence", () => {
   test("creates the next low-latency part plan", () => {
     expect(
       createRuntimePublisherNextObjectPlan({
-        baseUrl: "https://media.example.com",
         cursorWindow: {
           firstMediaSequenceNumber: 3810,
           lastMediaSequenceNumber: 3811,
@@ -301,9 +295,9 @@ describe("runtime publisher cadence", () => {
       },
       plan: {
         commitId: "commit_v1080_s3811_p1",
+        objectKey: "media/session_1/v1080/s3811/p1-slot_01K0.m4s",
         slot: {
           kind: "part",
-          objectKey: "media/session_1/v1080/s3811/p1-slot_01K0.m4s",
           partNumber: 1,
         },
       },

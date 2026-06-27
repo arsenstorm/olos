@@ -1,8 +1,5 @@
 import { PUBLICATION_MODES } from "../config/publication";
-import {
-  createPublisherDeliveryUrl,
-  createPublisherObjectKey,
-} from "../state/object-key-derivation";
+import { createPublisherObjectKey } from "../state/object-key-derivation";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
 import {
@@ -15,24 +12,25 @@ import { assertSafePath, assertSafePathSegment } from "./path";
 import { positiveNumber, timestampMs } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
-// Publisher plan policies define where runtime-generated object keys and delivery
-// URLs are constructed. This is an internal generation boundary, distinct from
-// inbound public validation: we normalize prefixes/segments and build safe keys
-// from trusted publisher inputs.
+// Publisher plan policies record the publisher's intent for the next object
+// and a client-side preview of the object key the coordinator will derive
+// from that intent. The wire payload (`slot`) does not carry objectKey or
+// deliveryUrl; the coordinator chooses them server-side. The preview field
+// lets a publisher SDK that supplies its own nonce predict the eventual
+// address before issuance.
 
 export interface CreateRuntimePublisherObjectPlanOptions {
-  baseUrl: string;
   commitIdPrefix?: string;
   contentType: string;
   duration: number;
   expiresAt: string;
-  extension: string;
+  extension?: string;
   kind: RuntimePublisherPlannedObjectKind;
   maxBytes: number;
   mediaSequenceNumber: number;
   minBytes?: number;
   objectKeyNonce?: string;
-  objectKeyPrefix: string;
+  objectKeyPrefix?: string;
   partNumber?: number;
   publicationMode?: PublicationMode;
   renditionId: string;
@@ -46,6 +44,7 @@ export type RuntimePublisherPlannedObjectKind = Extract<
 
 export interface RuntimePublisherObjectPlan {
   commitId: string;
+  objectKey: string;
   slot: RuntimeSlotIssuePayload;
 }
 
@@ -67,23 +66,25 @@ export function createRuntimePublisherObjectPlan(
 ): RuntimePublisherObjectPlan {
   assertPlanOptions(options);
 
-  const objectKey = createPublisherObjectKey(options);
   const slotId = createObjectId(options, options.slotIdPrefix ?? "slot");
+  const objectKey = createPublisherObjectKey(options);
 
   return {
     commitId: createObjectId(options, options.commitIdPrefix ?? "commit"),
+    objectKey,
     slot: {
       contentType: options.contentType,
-      deliveryUrl: createPublisherDeliveryUrl(options.baseUrl, objectKey),
       duration: options.duration,
       expiresAt: options.expiresAt,
       kind: options.kind,
       maxBytes: options.maxBytes,
       mediaSequenceNumber: options.mediaSequenceNumber,
-      objectKey,
       renditionId: options.renditionId,
       slotId,
+      ...optionalField("extension", options.extension),
       ...optionalField("minBytes", options.minBytes),
+      ...optionalField("objectKeyNonce", options.objectKeyNonce),
+      ...optionalField("objectKeyPrefix", options.objectKeyPrefix),
       ...optionalField("partNumber", options.partNumber),
     },
   };
@@ -98,9 +99,14 @@ function assertPlanOptions(
   assertOptionalUrlSafeIdentifier(options.objectKeyNonce, "objectKeyNonce");
   assertPublicationNoncePolicy(options);
 
-  assertSafePath(options.objectKeyPrefix, "objectKeyPrefix");
-  assertSafePathSegment(options.extension, "extension");
-  assertSupportedMediaExtension(options.extension, options.kind, "extension");
+  if (options.objectKeyPrefix !== undefined) {
+    assertSafePath(options.objectKeyPrefix, "objectKeyPrefix");
+  }
+
+  if (options.extension !== undefined) {
+    assertSafePathSegment(options.extension, "extension");
+    assertSupportedMediaExtension(options.extension, options.kind, "extension");
+  }
 
   assertPlanPartNumber(options);
 
@@ -113,8 +119,6 @@ function assertPlanOptions(
   timestampMs(options.expiresAt, "expiresAt");
 
   assertPlanByteBounds(options);
-
-  createPublisherDeliveryUrl(options.baseUrl, "probe");
 }
 
 function assertPlanPartNumber(
