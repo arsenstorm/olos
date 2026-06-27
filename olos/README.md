@@ -89,7 +89,32 @@ The handler mounts:
 | `GET` | `/sessions/:id/health` | Live / starting / stale summary. |
 | `GET` | `/v1/live/:id/.../media.m3u8` | LL-HLS playlist with `_HLS_msn` blocking reload. |
 
-## Scope
+## Layers
+
+OLOS is a layered protocol. Each layer answers a different question and can
+be reused, extended, or replaced independently.
+
+**Core.** What makes an uploaded object an officially committed part of the
+live stream. Slots, observations, commits, cursors, `CommittedWindow`. The
+invariant: object exists ≠ object is stream state. Media-agnostic; no HLS,
+no S3, no HTTP.
+
+**LL-HLS Profile.** How the committed window renders into a playable
+LL-HLS manifest with blocking reload. Currently video-first;
+`RENDITION_KINDS` is open to audio / text / metadata for future profiles.
+
+**S3-Compatible Binding.** The minimum a storage backend must provide:
+exact-key uploads, conditional create, `HeadObject` consistency, optional
+event notifications. Works with S3, R2, GCS-S3, or any compatible store.
+
+**Direct-Public Deployment Profile.** The configuration that says committed
+media bytes are served directly from the media origin. Requires a
+cookieless media origin, negative cache for 404s, and no document
+navigation to media URLs. The manifest is the gate.
+
+**Runtime Guidance.** Heartbeats, retention, reconciliation, live health,
+publisher loops. The operational glue that lives in the runtime layer, not
+in the protocol-essential commit semantics.
 
 **OLOS owns** slot rules, commit idempotency, S3 object observation, cursor
 sequencing, manifest rendering, retention planning, blocking-reload boundary,
@@ -98,13 +123,6 @@ and the conformance suite.
 **Your app owns** authentication, the coordinator store backend, S3
 credentials, cursor wake-up mechanism, publisher scheduling, viewer routing,
 cache purge, and tenant quotas.
-
-## Beyond video
-
-The core — slot, commit, cursor, blocking-read — is media-agnostic. LL-HLS
-is one binding. The same substrate could carry audio-only streams,
-captions, AI inference output, telemetry tails, or any append-only stream
-over object storage. Only the HLS rendering module assumes video.
 
 ## Further reading
 

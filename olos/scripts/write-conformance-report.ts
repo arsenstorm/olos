@@ -12,7 +12,7 @@ import { repoRoot } from "./script-paths";
 const reportRoot = join(repoRoot, "out", "conformance");
 const reportPath = join(reportRoot, "conformance.md");
 
-const levels = ["core", "object", "hls", "security"] as const;
+const levels = ["core", "runtime", "object", "hls", "security"] as const;
 const coveredAssertionIds = new Set(
   OLOS_CONFORMANCE_COVERAGE.map((entry) => entry.id)
 );
@@ -187,6 +187,10 @@ function labelLevel(level: OlosConformanceLevel): string {
 function levelFromAssertionId(
   id: OlosConformanceAssertionId
 ): OlosConformanceLevel {
+  if (id.startsWith("CORE-RUNTIME-")) {
+    return "runtime";
+  }
+
   if (id.startsWith("CORE-")) {
     return "core";
   }

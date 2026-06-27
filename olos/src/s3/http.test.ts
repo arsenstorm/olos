@@ -3204,19 +3204,30 @@ interface CommittedSlotFixtureOptions extends SlotPayloadOptions {
 function slotPayload(options: SlotPayloadOptions) {
   return {
     contentType: "video/mp4",
-    deliveryUrl: options.deliveryUrl,
     duration: options.duration,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: options.kind,
     maxBytes: options.maxBytes,
     mediaSequenceNumber: options.mediaSequenceNumber,
     ...(options.minBytes === undefined ? {} : { minBytes: options.minBytes }),
-    objectKey: options.objectKey,
     ...(options.partNumber === undefined
       ? {}
       : { partNumber: options.partNumber }),
     renditionId: "v1080",
     slotId: options.slotId,
+    ...slotPayloadDerivationHints(options),
+  };
+}
+
+function slotPayloadDerivationHints(options: SlotPayloadOptions) {
+  if (options.objectKey === undefined) {
+    return {};
+  }
+  return {
+    objectKey: options.objectKey,
+    ...(options.deliveryUrl === undefined
+      ? {}
+      : { deliveryUrl: options.deliveryUrl }),
   };
 }
 

@@ -4,6 +4,29 @@ Notable package changes are documented here.
 
 This project follows semantic versioning for the published `olos` package.
 
+## 0.3.0
+
+Spec-completion release. Breaking SDK changes; wire stays soft-compatible.
+
+- Publisher SDK is now intent-first. `CreateRuntimePublisherObjectPlanOptions`
+  no longer requires `baseUrl` or `extension`; the coordinator chooses the
+  `objectKey` and `deliveryUrl` from intent plus its configured
+  `mediaBaseUrl`. The plan still exposes a client-side `objectKey` preview
+  field (computed from the same derivation) so publishers can predict the
+  eventual address when they supply their own nonce.
+- `IssueCoordinatorSlotOptions` still accepts optional `objectKey` /
+  `deliveryUrl` for tests and advanced SDK use, but the wire-side parser
+  treats them as compat-mode hints — the strict path through the
+  coordinator is intent + derivation. Direct-public deployments should
+  rely on derivation and audit any compat use.
+- Conformance bucket re-cut. `CORE-RUNTIME-*` assertions moved out of
+  `core` into a new `runtime` level. Core now holds only the
+  protocol-essential 38 assertions (slot issuance, commit idempotency,
+  cursor monotonicity, window ordering, etc.). The total stays 127.
+- `README` names the layered model — Core, LL-HLS Profile, S3 Binding,
+  Direct-Public Deployment, Runtime Guidance — so the substrate framing
+  is explicit instead of implied.
+
 ## 0.2.1
 
 Follow-up cleanup to the 0.2.0 simplification. No protocol shape change.

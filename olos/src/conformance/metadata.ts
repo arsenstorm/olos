@@ -10,7 +10,12 @@ import {
 export type { OlosConformanceAssertionId } from "./assertion-ids";
 export const OLOS_CONFORMANCE_ASSERTION_IDS = assertionIds;
 
-export type OlosConformanceLevel = "core" | "hls" | "object" | "security";
+export type OlosConformanceLevel =
+  | "core"
+  | "hls"
+  | "object"
+  | "runtime"
+  | "security";
 export type OlosConformanceCoverageStatus = "covered" | "partial";
 
 export interface OlosConformanceCoverage {

@@ -142,7 +142,7 @@ describe("runtime pipeline", () => {
     const initCommit = await commitStoredCoordinatorUploadFromRequest({
       request: commitPayload({
         commitId: init.plan.commitId,
-        objectKey: init.plan.slot.objectKey,
+        objectKey: init.plan.objectKey,
         size: 1024,
         slotId: init.plan.slot.slotId,
       }),
@@ -153,7 +153,7 @@ describe("runtime pipeline", () => {
       request: {
         ...commitPayload({
           commitId: next.plan.commitId,
-          objectKey: next.plan.slot.objectKey,
+          objectKey: next.plan.objectKey,
           size: 98_304,
           slotId: next.plan.slot.slotId,
         }),
@@ -176,14 +176,14 @@ describe("runtime pipeline", () => {
       kind: "init",
       mediaSequenceNumber: 0,
     });
-    expect(init.plan.slot.objectKey).toBe(
+    expect(init.plan.objectKey).toBe(
       "media/v1080/init-slot_01010101010101010101010101010101.mp4"
     );
     expect(next.position).toEqual({
       kind: "segment",
       mediaSequenceNumber: 3810,
     });
-    expect(next.plan.slot.objectKey).toBe(
+    expect(next.plan.objectKey).toBe(
       "media/v1080/s3810/segment-slot_02020202020202020202020202020202.m4s"
     );
     expect(next.expiry).toEqual({
@@ -213,7 +213,6 @@ describe("runtime pipeline", () => {
     expect(body).toContain("#EXT-X-TARGETDURATION:2");
     expect(body).toContain("#EXT-X-PART-INF:PART-TARGET=0.5");
     expect(body).toContain("#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES");
-    expect(body).toContain(next.plan.slot.deliveryUrl);
   });
 });
 
@@ -294,7 +293,7 @@ async function expectStoredCoordinatorLifecycle(
   const initCommit = await commitStoredCoordinatorUploadFromRequest({
     request: commitPayload({
       commitId: initPlan.commitId,
-      objectKey: initPlan.slot.objectKey,
+      objectKey: initPlan.objectKey,
       size: 1024,
       slotId: initPlan.slot.slotId,
     }),
@@ -305,7 +304,7 @@ async function expectStoredCoordinatorLifecycle(
     request: {
       ...commitPayload({
         commitId: segmentPlan.commitId,
-        objectKey: segmentPlan.slot.objectKey,
+        objectKey: segmentPlan.objectKey,
         size: 98_304,
         slotId: segmentPlan.slot.slotId,
       }),
@@ -359,7 +358,7 @@ async function expectStoredCoordinatorLifecycle(
   ensureEqual(media.status, 200, "media manifest should be served");
   ensureIncludes(
     await media.text(),
-    segmentPlan.slot.deliveryUrl,
+    `${mediaBaseUrl}/${segmentPlan.objectKey}`,
     "media manifest should include segment"
   );
 

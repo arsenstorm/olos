@@ -7,11 +7,19 @@ Current manifest snapshot:
 
 | Level | Covered assertions |
 | --- | ---: |
-| Core | 62 |
+| Core | 38 |
+| Runtime | 24 |
 | Object | 41 |
 | HLS | 17 |
 | Security | 7 |
 | Total | 127 |
+
+The Core bucket holds the protocol-essential assertions: slot issuance, slot
+expiry, object/slot mismatch rejection, size rejection, duplicate-commit
+idempotency, late-commit rejection, cursor monotonicity, and `CommittedWindow`
+ordering. The Runtime bucket holds heartbeats, health, retention,
+reconciliation, and session lifecycle — the operational glue that lives in
+the runtime layer, not in the protocol-essential commit semantics.
 
 Coverage means an assertion ID is mapped to a deterministic test file in
 `OLOS_CONFORMANCE_COVERAGE`. It does not mean a deployment is production-ready;

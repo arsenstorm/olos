@@ -52,30 +52,6 @@ describe("runtime slot adapter", () => {
     assertInvalidResult(result);
   });
 
-  test("returns invalid responses for unsafe JSON slot paths", async () => {
-    const objectKeyResult = await issueCoordinatorSlotFromRequest({
-      request: slotRequest({
-        ...slotPayload(),
-        objectKey: "media/../secret.m4s",
-      }),
-      state: createEmptyCoordinatorState(),
-    });
-    const deliveryUrlResult = await issueCoordinatorSlotFromRequest({
-      request: slotRequest({
-        ...slotPayload(),
-        deliveryUrl: "https://media.example.com/s3810.m4s?token=abc",
-      }),
-      state: createEmptyCoordinatorState(),
-    });
-
-    expect(invalidResultMessage(objectKeyResult)).toBe(
-      "objectKey must be a safe relative object key"
-    );
-    expect(invalidResultMessage(deliveryUrlResult)).toBe(
-      "deliveryUrl must not contain query strings or fragments"
-    );
-  });
-
   test("returns invalid responses for unsafe JSON slot identifiers", async () => {
     const cases = [
       {

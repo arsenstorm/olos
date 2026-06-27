@@ -199,17 +199,19 @@ describe("object-store flow", () => {
     });
     expect(resolvedMedia).toEqual(media?.response);
     expect(media?.response.body).toContain(
-      `#EXT-X-MAP:URI="${issued.initPlan.slot.deliveryUrl}"`
+      `#EXT-X-MAP:URI="${mediaBaseUrl}/${issued.initPlan.objectKey}"`
     );
-    expect(media?.response.body).toContain(issued.segmentPlan.slot.deliveryUrl);
+    expect(media?.response.body).toContain(
+      `${mediaBaseUrl}/${issued.segmentPlan.objectKey}`
+    );
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: issued.initPlan.slot.objectKey,
+        Key: issued.initPlan.objectKey,
       },
       {
         Bucket: "media",
-        Key: issued.segmentPlan.slot.objectKey,
+        Key: issued.segmentPlan.objectKey,
       },
     ]);
   });
@@ -304,16 +306,16 @@ describe("object-store flow", () => {
       firstMediaSequenceNumber: 3810,
       lastMediaSequenceNumber: 3810,
     });
-    expect(media?.body).toContain(step.plan.slot.deliveryUrl);
+    expect(media?.body).toContain(step.slot?.deliveryUrl);
     expect(uploadedUrls).toHaveLength(1);
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: initPlan.slot.objectKey,
+        Key: initPlan.objectKey,
       },
       {
         Bucket: "media",
-        Key: step.plan.slot.objectKey,
+        Key: step.plan.objectKey,
       },
     ]);
   });
@@ -402,15 +404,15 @@ describe("object-store flow", () => {
       firstMediaSequenceNumber: 3810,
       lastMediaSequenceNumber: 3811,
     });
-    expect(media?.body).toContain(init.plan.slot.deliveryUrl);
-    expect(media?.body).toContain(firstSegment.plan.slot.deliveryUrl);
-    expect(media?.body).toContain(nextSegment.plan.slot.deliveryUrl);
+    expect(media?.body).toContain(init.slot?.deliveryUrl);
+    expect(media?.body).toContain(firstSegment.slot?.deliveryUrl);
+    expect(media?.body).toContain(nextSegment.slot?.deliveryUrl);
     expect(uploadedUrls).toHaveLength(3);
     expect(summaries).toEqual([
       {
         commitId: "commit_init_v1080",
         commitStatus: "committed",
-        objectKey: init.plan.slot.objectKey,
+        objectKey: init.plan.objectKey,
         ok: true,
         slotId: "slot_init_v1080",
         status: "committed",
@@ -418,7 +420,7 @@ describe("object-store flow", () => {
       {
         commitId: "commit_v1080_s3810",
         commitStatus: "committed",
-        objectKey: firstSegment.plan.slot.objectKey,
+        objectKey: firstSegment.plan.objectKey,
         ok: true,
         slotId: "slot_v1080_s3810",
         status: "committed",
@@ -426,7 +428,7 @@ describe("object-store flow", () => {
       {
         commitId: "commit_v1080_s3811",
         commitStatus: "committed",
-        objectKey: nextSegment.plan.slot.objectKey,
+        objectKey: nextSegment.plan.objectKey,
         ok: true,
         slotId: "slot_v1080_s3811",
         status: "committed",
@@ -435,15 +437,15 @@ describe("object-store flow", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: init.plan.slot.objectKey,
+        Key: init.plan.objectKey,
       },
       {
         Bucket: "media",
-        Key: firstSegment.plan.slot.objectKey,
+        Key: firstSegment.plan.objectKey,
       },
       {
         Bucket: "media",
-        Key: nextSegment.plan.slot.objectKey,
+        Key: nextSegment.plan.objectKey,
       },
     ]);
   });
@@ -492,10 +494,10 @@ describe("object-store flow", () => {
       bucket: "media",
       client: createTestHeadObjectClientFor(
         new Map([
-          [issued.initPlan.slot.objectKey, 1024],
-          [issued.segmentPlan.slot.objectKey, 98_304],
-          [issued.nextSegmentPlan.slot.objectKey, 99_000],
-          [thirdSegmentPlan.slot.objectKey, 99_500],
+          [issued.initPlan.objectKey, 1024],
+          [issued.segmentPlan.objectKey, 98_304],
+          [issued.nextSegmentPlan.objectKey, 99_000],
+          [thirdSegmentPlan.objectKey, 99_500],
         ]),
         headObjectInputs
       ),
@@ -566,7 +568,7 @@ describe("object-store flow", () => {
     expect(retention.plan.retiredObjects).toEqual([
       {
         commitId: issued.segmentPlan.commitId,
-        objectKey: issued.segmentPlan.slot.objectKey,
+        objectKey: issued.segmentPlan.objectKey,
         slotId: issued.segmentPlan.slot.slotId,
       },
     ]);
@@ -575,25 +577,25 @@ describe("object-store flow", () => {
     expect(deletedObjects).toEqual([
       {
         Bucket: "media",
-        Key: issued.segmentPlan.slot.objectKey,
+        Key: issued.segmentPlan.objectKey,
       },
     ]);
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: issued.initPlan.slot.objectKey,
+        Key: issued.initPlan.objectKey,
       },
       {
         Bucket: "media",
-        Key: issued.segmentPlan.slot.objectKey,
+        Key: issued.segmentPlan.objectKey,
       },
       {
         Bucket: "media",
-        Key: issued.nextSegmentPlan.slot.objectKey,
+        Key: issued.nextSegmentPlan.objectKey,
       },
       {
         Bucket: "media",
-        Key: thirdSegmentPlan.slot.objectKey,
+        Key: thirdSegmentPlan.objectKey,
       },
     ]);
   });
@@ -632,8 +634,8 @@ describe("object-store flow", () => {
                 name: "media",
               },
               object: {
-                eTag: `"${issued.segmentPlan.slot.objectKey}"`,
-                key: issued.segmentPlan.slot.objectKey,
+                eTag: `"${issued.segmentPlan.objectKey}"`,
+                key: issued.segmentPlan.objectKey,
                 sequencer: "0065A4",
                 size: 98_304,
               },
@@ -696,16 +698,20 @@ describe("object-store flow", () => {
           )
         : undefined;
 
-    expect(playlist).toContain(issued.segmentPlan.slot.deliveryUrl);
-    expect(response?.body).toContain(issued.segmentPlan.slot.deliveryUrl);
+    expect(playlist).toContain(
+      `${mediaBaseUrl}/${issued.segmentPlan.objectKey}`
+    );
+    expect(response?.body).toContain(
+      `${mediaBaseUrl}/${issued.segmentPlan.objectKey}`
+    );
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: issued.initPlan.slot.objectKey,
+        Key: issued.initPlan.objectKey,
       },
       {
         Bucket: "media",
-        Key: issued.segmentPlan.slot.objectKey,
+        Key: issued.segmentPlan.objectKey,
       },
     ]);
   });
@@ -733,7 +739,7 @@ describe("object-store flow", () => {
     await routeUploadEvent({
       headObjectInputs,
       independent: true,
-      objectKey: issued.segmentPlan.slot.objectKey,
+      objectKey: issued.segmentPlan.objectKey,
       size: 98_304,
       store,
     });
@@ -741,7 +747,7 @@ describe("object-store flow", () => {
       eventId: "evt_3811_0",
       headObjectInputs,
       independent: true,
-      objectKey: issued.part0Plan.slot.objectKey,
+      objectKey: issued.part0Plan.objectKey,
       size: 24_000,
       store,
     });
@@ -749,7 +755,7 @@ describe("object-store flow", () => {
       eventId: "evt_3811_1",
       eventTime: "2026-01-01T00:00:02.500Z",
       headObjectInputs,
-      objectKey: issued.part1Plan.slot.objectKey,
+      objectKey: issued.part1Plan.objectKey,
       size: 24_000,
       store,
     });
@@ -783,27 +789,27 @@ describe("object-store flow", () => {
       "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=3.000,HOLD-BACK=3.000"
     );
     expect(playlist).toContain(
-      `#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="${issued.part0Plan.slot.deliveryUrl}"`
+      `#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="${mediaBaseUrl}/${issued.part0Plan.objectKey}"`
     );
     expect(playlist).toContain(
-      `#EXT-X-PART:DURATION=0.500,URI="${issued.part1Plan.slot.deliveryUrl}"`
+      `#EXT-X-PART:DURATION=0.500,URI="${mediaBaseUrl}/${issued.part1Plan.objectKey}"`
     );
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: issued.initPlan.slot.objectKey,
+        Key: issued.initPlan.objectKey,
       },
       {
         Bucket: "media",
-        Key: issued.segmentPlan.slot.objectKey,
+        Key: issued.segmentPlan.objectKey,
       },
       {
         Bucket: "media",
-        Key: issued.part0Plan.slot.objectKey,
+        Key: issued.part0Plan.objectKey,
       },
       {
         Bucket: "media",
-        Key: issued.part1Plan.slot.objectKey,
+        Key: issued.part1Plan.objectKey,
       },
     ]);
   });
@@ -830,7 +836,7 @@ describe("object-store flow", () => {
     await routeUploadEvent({
       headObjectInputs,
       independent: true,
-      objectKey: issued.segmentPlan.slot.objectKey,
+      objectKey: issued.segmentPlan.objectKey,
       size: 98_304,
       store,
     });
@@ -863,7 +869,7 @@ describe("object-store flow", () => {
           eventTime: "2026-01-01T00:00:04.000Z",
           headObjectInputs,
           independent: true,
-          objectKey: issued.nextSegmentPlan.slot.objectKey,
+          objectKey: issued.nextSegmentPlan.objectKey,
           size: 99_000,
           store,
         });
@@ -890,20 +896,20 @@ describe("object-store flow", () => {
       lastMediaSequenceNumber: 3811,
     });
     expect(result.response.body).toContain(
-      issued.nextSegmentPlan.slot.deliveryUrl
+      `${mediaBaseUrl}/${issued.nextSegmentPlan.objectKey}`
     );
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: issued.initPlan.slot.objectKey,
+        Key: issued.initPlan.objectKey,
       },
       {
         Bucket: "media",
-        Key: issued.segmentPlan.slot.objectKey,
+        Key: issued.segmentPlan.objectKey,
       },
       {
         Bucket: "media",
-        Key: issued.nextSegmentPlan.slot.objectKey,
+        Key: issued.nextSegmentPlan.objectKey,
       },
     ]);
   });
@@ -998,29 +1004,33 @@ describe("object-store flow", () => {
     expect(master?.body).toContain("/v1/live/session_1/v1080/media.m3u8");
     expect(master?.body).toContain("/v1/live/session_1/v720/media.m3u8");
     expect(v1080?.body).toContain(
-      `#EXT-X-MAP:URI="${issued.v1080InitPlan.slot.deliveryUrl}"`
+      `#EXT-X-MAP:URI="${mediaBaseUrl}/${issued.v1080InitPlan.objectKey}"`
     );
-    expect(v1080?.body).toContain(issued.v1080SegmentPlan.slot.deliveryUrl);
+    expect(v1080?.body).toContain(
+      `${mediaBaseUrl}/${issued.v1080SegmentPlan.objectKey}`
+    );
     expect(v720?.body).toContain(
-      `#EXT-X-MAP:URI="${issued.v720InitPlan.slot.deliveryUrl}"`
+      `#EXT-X-MAP:URI="${mediaBaseUrl}/${issued.v720InitPlan.objectKey}"`
     );
-    expect(v720?.body).toContain(issued.v720SegmentPlan.slot.deliveryUrl);
+    expect(v720?.body).toContain(
+      `${mediaBaseUrl}/${issued.v720SegmentPlan.objectKey}`
+    );
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: issued.v1080InitPlan.slot.objectKey,
+        Key: issued.v1080InitPlan.objectKey,
       },
       {
         Bucket: "media",
-        Key: issued.v720InitPlan.slot.objectKey,
+        Key: issued.v720InitPlan.objectKey,
       },
       {
         Bucket: "media",
-        Key: issued.v1080SegmentPlan.slot.objectKey,
+        Key: issued.v1080SegmentPlan.objectKey,
       },
       {
         Bucket: "media",
-        Key: issued.v720SegmentPlan.slot.objectKey,
+        Key: issued.v720SegmentPlan.objectKey,
       },
     ]);
   });

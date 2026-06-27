@@ -49,7 +49,6 @@ describe("stored S3 publisher upload step", () => {
       independent: true,
       now: "2026-01-01T00:00:00.000Z",
       plan: {
-        baseUrl: "https://media.example.com",
         contentType: "video/mp4",
         duration: 2,
         extension: "m4s",
@@ -85,9 +84,9 @@ describe("stored S3 publisher upload step", () => {
       ttlSeconds: 5,
     });
     expect(step.plan.commitId).toBe("commit_v1080_s3810");
+    expect(step.plan.objectKey).toBe("media/v1080/s3810/segment-slot_01JZ.m4s");
     expect(step.plan.slot).toMatchObject({
       expiresAt: step.expiry.expiresAt,
-      objectKey: "media/v1080/s3810/segment-slot_01JZ.m4s",
       slotId: "slot_v1080_s3810",
     });
     expect(uploadedUrls).toHaveLength(1);
@@ -120,7 +119,6 @@ describe("stored S3 publisher upload step", () => {
       minTtlSeconds: 30,
       now: "2026-01-01T00:00:00.000Z",
       plan: {
-        baseUrl: "https://media.example.com",
         contentType: "video/mp4",
         duration: 2,
         extension: "m4s",
@@ -166,7 +164,6 @@ describe("stored S3 publisher upload step", () => {
     await savePublisherState(store);
 
     const step = await runNextStoredS3PublisherUploadStep({
-      baseUrl: "https://media.example.com",
       bucket: "media",
       client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
@@ -203,9 +200,7 @@ describe("stored S3 publisher upload step", () => {
       expiresAt: "2026-01-01T00:00:05.000Z",
       ttlSeconds: 5,
     });
-    expect(step.plan.slot.objectKey).toBe(
-      "media/v1080/s3810/segment-slot_01K0.m4s"
-    );
+    expect(step.plan.objectKey).toBe("media/v1080/s3810/segment-slot_01K0.m4s");
     expect(uploadedUrls).toHaveLength(1);
     expect(headObjectInputs).toEqual([
       {
@@ -410,7 +405,6 @@ describe("stored S3 publisher upload step", () => {
       ),
       now: "2026-01-01T00:00:00.000Z",
       plan: {
-        baseUrl: "https://media.example.com",
         contentType: "video/mp4",
         duration: 2,
         extension: "m4s",
@@ -500,7 +494,6 @@ describe("stored S3 publisher upload step", () => {
       committedAt: "2026-01-01T00:00:02.000Z",
       now: "2026-01-01T00:00:00.000Z",
       plan: {
-        baseUrl: "https://media.example.com",
         contentType: "video/mp4",
         duration: 0.5,
         extension: "m4s",
@@ -534,8 +527,8 @@ describe("stored S3 publisher upload step", () => {
       slotId: "slot_v1080_s3810_p1",
       status: "upload_failed",
     });
+    expect(step.plan.objectKey).toBe("media/v1080/s3810/p1-slot_01K2.m4s");
     expect(step.plan.slot).toMatchObject({
-      objectKey: "media/v1080/s3810/p1-slot_01K2.m4s",
       partNumber: 1,
     });
   });
@@ -742,7 +735,6 @@ function nextStepOptions(options: {
   store: ReturnType<typeof createMemoryCoordinatorStore>;
 }) {
   return {
-    baseUrl: "https://media.example.com",
     bucket: "media",
     client: createTestS3Client(),
     committedAt: "2026-01-01T00:00:02.000Z",
