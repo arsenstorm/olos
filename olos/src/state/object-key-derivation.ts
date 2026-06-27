@@ -2,8 +2,6 @@ import type { MediaObjectKind } from "../types/media-object";
 import { parseAbsoluteHttpUrl } from "../validation/fields";
 
 const LEADING_DOTS_PATTERN = /^\.+/;
-const LEADING_SLASHES = /^\/+/;
-const TRAILING_SLASHES = /\/+$/;
 
 const DEFAULT_EXTENSIONS: Record<MediaObjectKind, string> = {
   init: "mp4",
@@ -110,9 +108,21 @@ function createPartObjectKey(
 }
 
 function trimSlashes(value: string): string {
-  return value.replace(LEADING_SLASHES, "").replace(TRAILING_SLASHES, "");
+  let start = 0;
+  let end = value.length;
+  while (start < end && value.charCodeAt(start) === 47) {
+    start += 1;
+  }
+  while (end > start && value.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return start === 0 && end === value.length ? value : value.slice(start, end);
 }
 
 function trimTrailingSlash(value: string): string {
-  return value.replace(TRAILING_SLASHES, "");
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return end === value.length ? value : value.slice(0, end);
 }

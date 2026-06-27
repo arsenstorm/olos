@@ -4,15 +4,25 @@ import { hasControlCharacter } from "../validation/fields";
 // It rejects traversal and malformed segments; this is separate from storage
 // object-key validation.
 const URL_SCHEME_PREFIX = /^[A-Za-z][A-Za-z\d+.-]*:/;
-const LEADING_SLASHES = /^\/+/;
-const TRAILING_SLASHES = /\/+$/;
 
 export function trimSlashes(value: string): string {
-  return value.replace(LEADING_SLASHES, "").replace(TRAILING_SLASHES, "");
+  let start = 0;
+  let end = value.length;
+  while (start < end && value.charCodeAt(start) === 47) {
+    start += 1;
+  }
+  while (end > start && value.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return start === 0 && end === value.length ? value : value.slice(start, end);
 }
 
 export function trimTrailingSlash(value: string): string {
-  return value.replace(TRAILING_SLASHES, "");
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return end === value.length ? value : value.slice(0, end);
 }
 
 export function normalizedSafeRelativePath(
