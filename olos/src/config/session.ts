@@ -15,12 +15,6 @@ export const SESSION_TRANSITIONS = {
   starting: ["live", "aborted"],
 } as const;
 
-export const LATENCY_PROFILES = [
-  "object-standard",
-  "object-ll",
-  "object-experimental",
-  "origin-ll",
-  "relay-bridge",
-] as const;
+export const LATENCY_PROFILES = ["object-ll"] as const;
 
 export const RENDITION_KINDS = ["audio", "video", "text", "metadata"] as const;

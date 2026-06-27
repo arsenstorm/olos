@@ -1390,7 +1390,7 @@ describe("stored S3 coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
       body: {
         error: {
-          message: "kind must be one of: init, part, segment, sidecar",
+          message: "kind must be one of: init, part, segment",
         },
       },
       status: 400,

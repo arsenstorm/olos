@@ -894,7 +894,8 @@ describe("coordinator pipeline", () => {
         slotId: "slot_3810",
         state: "committed",
       },
-      message: "announced upload slots cannot be silently revoked",
+      message:
+        "upload slots reflected in the live cursor cannot be silently revoked",
     });
     expect(rejected.state).toBe(state);
   });
@@ -956,7 +957,8 @@ describe("coordinator pipeline", () => {
         slotId: "slot_3811_0",
         state: "committed",
       },
-      message: "announced upload slots cannot be silently revoked",
+      message:
+        "upload slots reflected in the live cursor cannot be silently revoked",
     });
     expect(rejected.state).toBe(state);
   });

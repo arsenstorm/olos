@@ -171,7 +171,7 @@ describe("runtime slot adapter", () => {
     });
 
     expect(invalidResultMessage(result)).toBe(
-      "kind must be one of: init, part, segment, sidecar"
+      "kind must be one of: init, part, segment"
     );
   });
 

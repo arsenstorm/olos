@@ -96,7 +96,7 @@ function resolveRevocableCoordinatorUpload(
     return {
       error: coordinatorError(
         "olos.invalid_state",
-        "announced upload slots cannot be silently revoked",
+        "upload slots reflected in the live cursor cannot be silently revoked",
         { slotId: slot.slotId, state: slot.state }
       ),
       state: options.state,

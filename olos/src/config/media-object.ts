@@ -1,6 +1,1 @@
-export const MEDIA_OBJECT_KINDS = [
-  "init",
-  "part",
-  "segment",
-  "sidecar",
-] as const;
+export const MEDIA_OBJECT_KINDS = ["init", "part", "segment"] as const;

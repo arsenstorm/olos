@@ -32,8 +32,8 @@ export function assertByterange(
 
 /**
  * When a part's commit/slot carries a `byterange`, the value's `kind` must be
- * `"part"`. Per OLOS, segment / init / sidecar objects are never expressed as
- * a byte range into a virtual segment.
+ * `"part"`. Per OLOS, segment and init objects are never expressed as a byte
+ * range into a virtual segment.
  */
 export function assertByterangeKind(kind: string, name: string): void {
   if (kind !== "part") {
