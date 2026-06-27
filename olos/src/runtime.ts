@@ -77,11 +77,6 @@ export {
   serveCoordinatorManifest,
 } from "./runtime/manifest";
 export {
-  type CreateRuntimePublisherObjectKeyNonceOptions,
-  createRuntimePublisherObjectKeyNonce,
-  RUNTIME_PUBLISHER_OBJECT_KEY_NONCE_MIN_BYTES,
-} from "./runtime/object-key-nonce";
-export {
   type ResolveRuntimePublisherLoopDecisionOptions,
   type RunRuntimePublisherUploadStepOptions,
   type RuntimePublisherCommitResult,
@@ -176,3 +171,8 @@ export {
   serveStoredBlockingCoordinatorManifest,
   serveStoredCoordinatorManifest,
 } from "./runtime/stored";
+export {
+  type CreateRuntimePublisherObjectKeyNonceOptions,
+  createRuntimePublisherObjectKeyNonce,
+  RUNTIME_PUBLISHER_OBJECT_KEY_NONCE_MIN_BYTES,
+} from "./state/object-key-nonce";

@@ -1,23 +1,19 @@
 import { PUBLICATION_MODES } from "../config/publication";
+import {
+  createPublisherDeliveryUrl,
+  createPublisherObjectKey,
+} from "../state/object-key-derivation";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
-import { parseAbsoluteHttpUrl } from "../validation/fields";
 import {
   assertUrlSafeIdentifier,
   isNonNegativeInteger,
 } from "../validation/ids";
 import { assertSupportedMediaExtension } from "../validation/object-key";
 import { optionalField } from "./optional-field";
-import {
-  assertSafePath,
-  assertSafePathSegment,
-  trimSlashes,
-  trimTrailingSlash,
-} from "./path";
+import { assertSafePath, assertSafePathSegment } from "./path";
 import { positiveNumber, timestampMs } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
-
-const LEADING_DOTS_PATTERN = /^\.+/;
 
 // Publisher plan policies define where runtime-generated object keys and delivery
 // URLs are constructed. This is an internal generation boundary, distinct from
@@ -72,14 +68,14 @@ export function createRuntimePublisherObjectPlan(
 ): RuntimePublisherObjectPlan {
   assertPlanOptions(options);
 
-  const objectKey = createObjectKey(options);
+  const objectKey = createPublisherObjectKey(options);
   const slotId = createObjectId(options, options.slotIdPrefix ?? "slot");
 
   return {
     commitId: createObjectId(options, options.commitIdPrefix ?? "commit"),
     slot: {
       contentType: options.contentType,
-      deliveryUrl: createDeliveryUrl(options.baseUrl, objectKey),
+      deliveryUrl: createPublisherDeliveryUrl(options.baseUrl, objectKey),
       duration: options.duration,
       expiresAt: options.expiresAt,
       kind: options.kind,
@@ -121,7 +117,7 @@ function assertPlanOptions(
 
   assertPlanByteBounds(options);
 
-  createDeliveryUrl(options.baseUrl, "probe");
+  createPublisherDeliveryUrl(options.baseUrl, "probe");
 }
 
 function assertPlanPartNumber(
@@ -175,68 +171,6 @@ function assertPublicationNoncePolicy(
   }
 }
 
-function createObjectKey(
-  options: CreateRuntimePublisherObjectPlanOptions
-): string {
-  const prefix = trimSlashes(options.objectKeyPrefix);
-  const extension = options.extension.replace(LEADING_DOTS_PATTERN, "");
-
-  if (isInitPublisherObjectPlan(options)) {
-    return createInitObjectKey(options, prefix, extension);
-  }
-
-  if (isSegmentPublisherObjectPlan(options)) {
-    return createSegmentObjectKey(options, prefix, extension);
-  }
-
-  if (isPartPublisherObjectPlan(options)) {
-    return createPartObjectKey(options, prefix, extension);
-  }
-
-  throw new Error("unsupported publisher object kind");
-}
-
-function createInitObjectKey(
-  options: InitPublisherObjectPlanOptions,
-  prefix: string,
-  extension: string
-): string {
-  const fileName =
-    options.objectKeyNonce === undefined
-      ? `init.${extension}`
-      : `init-${options.objectKeyNonce}.${extension}`;
-
-  return `${prefix}/${options.renditionId}/${fileName}`;
-}
-
-function createSegmentObjectKey(
-  options: SegmentPublisherObjectPlanOptions,
-  prefix: string,
-  extension: string
-): string {
-  const fileName =
-    options.objectKeyNonce === undefined
-      ? `s${options.mediaSequenceNumber}.${extension}`
-      : `segment-${options.objectKeyNonce}.${extension}`;
-
-  return options.objectKeyNonce === undefined
-    ? `${prefix}/${options.renditionId}/${fileName}`
-    : `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}/${fileName}`;
-}
-
-function createPartObjectKey(
-  options: PartPublisherObjectPlanOptions,
-  prefix: string,
-  extension: string
-): string {
-  const fileName =
-    options.objectKeyNonce === undefined
-      ? `p${options.partNumber}.${extension}`
-      : `p${options.partNumber}-${options.objectKeyNonce}.${extension}`;
-
-  return `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}/${fileName}`;
-}
-
 function createObjectId(
   options: CreateRuntimePublisherObjectPlanOptions,
   prefix: string
@@ -268,18 +202,6 @@ function isSegmentPublisherObjectPlan(
   options: CreateRuntimePublisherObjectPlanOptions
 ): options is SegmentPublisherObjectPlanOptions {
   return options.kind === "segment";
-}
-
-function createDeliveryUrl(baseUrl: string, objectKey: string): string {
-  const url = parseAbsoluteHttpUrl(baseUrl, "baseUrl", {
-    allowQueryOrFragment: true,
-  });
-
-  url.pathname = `${trimTrailingSlash(url.pathname)}/${objectKey}`;
-  url.search = "";
-  url.hash = "";
-
-  return url.toString();
 }
 
 function assertOptionalUrlSafeIdentifier(

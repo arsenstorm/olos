@@ -16,10 +16,10 @@ import {
 export interface RuntimeSlotIssuePayload
   extends Omit<IssueCoordinatorSlotOptions, "state"> {}
 
-type RuntimeSlotIssueObjectFields = Pick<
-  RuntimeSlotIssuePayload,
-  "deliveryUrl" | "kind" | "objectKey"
->;
+type RuntimeSlotIssueObjectFields = Pick<RuntimeSlotIssuePayload, "kind"> & {
+  deliveryUrl?: string;
+  objectKey?: string;
+};
 
 export function parseRuntimeSlotIssuePayload(
   value: Record<string, unknown>
@@ -60,15 +60,19 @@ function runtimeSlotIssueObjectFields(
   value: Record<string, unknown>
 ): RuntimeSlotIssueObjectFields {
   const kind = oneOfStringField(value, "kind", MEDIA_OBJECT_KINDS);
-  const deliveryUrl = stringField(value, "deliveryUrl");
-  const objectKey = stringField(value, "objectKey");
+  const fields: RuntimeSlotIssueObjectFields = { kind };
 
-  assertSafeDeliveryUrl(deliveryUrl, "deliveryUrl");
-  assertSafeMediaObjectKey(objectKey, kind, "objectKey");
+  if (value.deliveryUrl !== undefined) {
+    const deliveryUrl = stringField(value, "deliveryUrl");
+    assertSafeDeliveryUrl(deliveryUrl, "deliveryUrl");
+    fields.deliveryUrl = deliveryUrl;
+  }
 
-  return {
-    deliveryUrl,
-    kind,
-    objectKey,
-  };
+  if (value.objectKey !== undefined) {
+    const objectKey = stringField(value, "objectKey");
+    assertSafeMediaObjectKey(objectKey, kind, "objectKey");
+    fields.objectKey = objectKey;
+  }
+
+  return fields;
 }

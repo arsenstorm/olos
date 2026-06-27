@@ -109,7 +109,15 @@ export type CoordinatorPipelineMutation =
     };
 
 export interface IssueCoordinatorSlotOptions
-  extends Omit<CreateIssuedUploadSlotOptions, "session"> {
+  extends Omit<
+    CreateIssuedUploadSlotOptions,
+    "deliveryUrl" | "objectKey" | "session"
+  > {
+  deliveryUrl?: string;
+  extension?: string;
+  objectKey?: string;
+  objectKeyNonce?: string;
+  objectKeyPrefix?: string;
   publicationControl?: PublicationControlPolicy;
   state: CoordinatorPipelineState;
 }
