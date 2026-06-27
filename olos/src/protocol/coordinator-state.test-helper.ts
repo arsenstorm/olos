@@ -97,23 +97,19 @@ function commitTestCoordinatorSlot(
   state: CoordinatorPipelineState,
   slot: TestCoordinatorSlot & { commitId: string; size: number }
 ): CoordinatorPipelineState {
-  const issued = issueTestCoordinatorSlot(state, slot);
-
   return commitIssuedTestCoordinatorSlot(
-    issued.state,
-    slot,
-    issued.slot.objectKey
+    issueTestCoordinatorSlot(state, slot).state,
+    slot
   );
 }
 
 function commitIssuedTestCoordinatorSlot(
   state: CoordinatorPipelineState,
-  slot: TestCoordinatorSlot & { commitId: string; size: number },
-  issuedObjectKey?: string
+  slot: TestCoordinatorSlot & { commitId: string; size: number }
 ): CoordinatorPipelineState {
-  const objectKey =
-    issuedObjectKey ??
-    state.slots.find((s) => s.slotId === slot.slotId)?.objectKey;
+  const objectKey = state.slots.find(
+    (s) => s.slotId === slot.slotId
+  )?.objectKey;
 
   if (objectKey === undefined) {
     throw new Error(`missing slot ${slot.slotId} for commit`);

@@ -44,16 +44,12 @@ export function parseRuntimeSlotIssuePayload(
 }
 
 function assertNoLegacyAddressFields(value: Record<string, unknown>): void {
-  if (value.objectKey !== undefined) {
-    throw new Error(
-      "slot issue payload must not include objectKey (the coordinator derives it)"
-    );
-  }
-
-  if (value.deliveryUrl !== undefined) {
-    throw new Error(
-      "slot issue payload must not include deliveryUrl (the coordinator derives it)"
-    );
+  for (const field of ["objectKey", "deliveryUrl"] as const) {
+    if (value[field] !== undefined) {
+      throw new Error(
+        `slot issue payload must not include ${field} (the coordinator derives it)`
+      );
+    }
   }
 }
 
@@ -74,32 +70,27 @@ function optionalDerivationHints(
   value: Record<string, unknown>,
   kind: MediaObjectKind
 ): { extension?: string; objectKeyNonce?: string; objectKeyPrefix?: string } {
-  const hints: {
-    extension?: string;
-    objectKeyNonce?: string;
-    objectKeyPrefix?: string;
-  } = {};
+  return {
+    ...checkedOptionalString(value, "extension", (v, name) => {
+      assertSafePathSegment(v, name);
+      assertSupportedMediaExtension(v, kind, name);
+    }),
+    ...checkedOptionalString(value, "objectKeyNonce", assertUrlSafeIdentifier),
+    ...checkedOptionalString(value, "objectKeyPrefix", assertSafePath),
+  };
+}
 
-  const extension = optionalStringField(value, "extension").extension;
-  if (extension !== undefined) {
-    assertSafePathSegment(extension, "extension");
-    assertSupportedMediaExtension(extension, kind, "extension");
-    hints.extension = extension;
+function checkedOptionalString<Field extends string>(
+  value: Record<string, unknown>,
+  field: Field,
+  check: (v: string, name: string) => void
+): { [K in Field]?: string } {
+  const parsed = optionalStringField(value, field);
+  const v = parsed[field];
+  if (v !== undefined) {
+    check(v, field);
   }
-
-  const nonce = optionalStringField(value, "objectKeyNonce").objectKeyNonce;
-  if (nonce !== undefined) {
-    assertUrlSafeIdentifier(nonce, "objectKeyNonce");
-    hints.objectKeyNonce = nonce;
-  }
-
-  const prefix = optionalStringField(value, "objectKeyPrefix").objectKeyPrefix;
-  if (prefix !== undefined) {
-    assertSafePath(prefix, "objectKeyPrefix");
-    hints.objectKeyPrefix = prefix;
-  }
-
-  return hints;
+  return parsed;
 }
 
 function optionalSlotByterange(
