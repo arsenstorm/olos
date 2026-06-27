@@ -2,11 +2,8 @@ import {
   commitS3RuntimeUpload,
   issueS3RuntimeUploadGrant,
 } from "@arsenstorm/olos/s3";
-import type { Byterange, Pathway, Session } from "@arsenstorm/olos/types";
+import type { Byterange, Session } from "@arsenstorm/olos/types";
 
-const TENANT_ID = "tenant_streamer";
-const PUBLISHER_INSTANCE_ID = "streamer_obs";
-const PROVIDER_ID = "example_primary";
 // Slot expiry must be >= the Worker's upload-grant TTL (5s). 10s is a
 // comfortable margin so the slot doesn't lapse before ffmpeg finishes
 // writing the segment and we PUT it.
@@ -174,21 +171,10 @@ async function createSession(
     segmentTarget,
     sessionId: options.sessionId,
     state: "live",
-    tenantId: TENANT_ID,
   };
 
-  const pathways: Pathway[] = [
-    {
-      baseUrl: options.mediaOrigin,
-      pathwayId: "primary",
-      priority: 0,
-      providerId: PROVIDER_ID,
-      state: "active",
-    },
-  ];
-
   const response = await fetch(`${options.baseUrl}/sessions`, {
-    body: JSON.stringify({ pathways, session }),
+    body: JSON.stringify({ mediaBaseUrl: options.mediaOrigin, session }),
     headers: ingestHeaders,
     method: "POST",
   });
@@ -223,8 +209,6 @@ async function publish(
       mediaSequenceNumber: spec.mediaSequenceNumber,
       objectKey: spec.objectKey,
       ...(spec.partNumber === undefined ? {} : { partNumber: spec.partNumber }),
-      publicationMode: "direct-public",
-      publisherInstanceId: PUBLISHER_INSTANCE_ID,
       renditionId: options.renditionId,
       slotId: spec.slotId,
     },

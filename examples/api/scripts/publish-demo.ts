@@ -2,15 +2,13 @@ import {
   commitS3RuntimeUpload,
   issueS3RuntimeUploadGrant,
 } from "@arsenstorm/olos/s3";
-import type { Byterange, Pathway, Session } from "@arsenstorm/olos/types";
+import type { Byterange, Session } from "@arsenstorm/olos/types";
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:8787";
 const INGEST_KEY = process.env.INGEST_KEY ?? "dev-key";
 const MEDIA_ORIGIN = process.env.MEDIA_ORIGIN ?? "https://localhost:8787";
 const SESSION_ID = `demo_${Date.now()}`;
-const TENANT_ID = "tenant_demo";
 const RENDITION_ID = "v1080";
-const PUBLISHER_INSTANCE_ID = "publisher_demo";
 const FIRST_SEGMENT_MSN = 1000;
 const PARTS_PER_SEGMENT = 4;
 const PART_SECONDS = 0.5;
@@ -96,21 +94,10 @@ async function createSession(): Promise<void> {
     segmentTarget: SEGMENT_SECONDS,
     sessionId: SESSION_ID,
     state: "live",
-    tenantId: TENANT_ID,
   };
 
-  const pathways: Pathway[] = [
-    {
-      baseUrl: MEDIA_ORIGIN,
-      pathwayId: "primary",
-      priority: 0,
-      providerId: "example_primary",
-      state: "active",
-    },
-  ];
-
   const response = await fetch(`${BASE_URL}/sessions`, {
-    body: JSON.stringify({ pathways, session }),
+    body: JSON.stringify({ mediaBaseUrl: MEDIA_ORIGIN, session }),
     headers: ingestHeaders,
     method: "POST",
   });
@@ -163,8 +150,6 @@ async function issueGrant(object: ObjectFixture): Promise<{
       ...(object.partNumber === undefined
         ? {}
         : { partNumber: object.partNumber }),
-      publicationMode: "direct-public",
-      publisherInstanceId: PUBLISHER_INSTANCE_ID,
       renditionId: RENDITION_ID,
       slotId: object.slotId,
     },

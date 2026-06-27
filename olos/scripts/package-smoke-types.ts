@@ -277,7 +277,6 @@ const session: Session = {
   segmentTarget: profile.segmentTarget,
   sessionId: "session_1",
   state: "live",
-  tenantId: "tenant_1",
 };
 
 assertSession(session);
@@ -321,12 +320,10 @@ const slot: UploadSlot = {
   maxBytes: 100_000,
   mediaSequenceNumber: 3810,
   objectKey: "live/session/v1080/3810.m4s",
-  publisherInstanceId: "publisher_1",
   renditionId: "v1080",
   sessionId: session.sessionId,
   slotId: "slot_3810",
   state: "issued",
-  tenantId: session.tenantId,
 };
 
 const grant: UploadGrant = createS3UploadGrant({
@@ -357,7 +354,6 @@ const s3RuntimeGrantOptions = {
     maxBytes: slot.maxBytes,
     mediaSequenceNumber: slot.mediaSequenceNumber,
     objectKey: slot.objectKey,
-    publisherInstanceId: slot.publisherInstanceId,
     renditionId: slot.renditionId,
     slotId: slot.slotId,
   },
