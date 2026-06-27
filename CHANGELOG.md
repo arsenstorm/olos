@@ -4,6 +4,44 @@ Notable package changes are documented here.
 
 This project follows semantic versioning for the published `olos` package.
 
+## 0.2.0
+
+Core surface simplification. Breaking changes throughout core types,
+schemas, and the runtime APIs. No migration shims — pre-1.0; consumers
+re-pin and rebuild.
+
+- Dropped dead enum members: `MEDIA_OBJECT_KINDS` no longer includes
+  `"sidecar"`; `UPLOAD_SLOT_STATES` drops `"announced"` (and its
+  `committed → announced` transition); `LATENCY_PROFILES` trims to
+  `["object-ll"]`; `SESSION_STATES` trims to
+  `["live", "ending", "ended", "aborted"]` with the orchestration
+  states (`created`, `starting`, `expired`) and their transitions
+  removed. Sessions are created directly in `"live"`.
+- Removed `providerId` from `Commit` and `ObjectPublication`. Provider
+  identity stays on `MediaObject`, `ProviderCapability`, and the S3
+  binding internals.
+- Lifted `publicationMode` from `UploadSlot`, `Commit`, and
+  `ObjectPublication` into coordinator-runtime configuration. The
+  stored coordinator runtime handler now accepts `publicationMode`
+  once at construction.
+- Collapsed `Cursor.pathways` to a single `mediaBaseUrl: string`. The
+  `Pathway` type, `PATHWAY_STATES`, `OLOS_PATHWAY_SCHEMA`,
+  `resolvePathwayFailover`, and the pathway validators are removed
+  from the public surface. Session-create requests and
+  `createRuntimeSession` take `mediaBaseUrl` instead of `pathways`.
+- The coordinator derives `objectKey` and `deliveryUrl` server-side
+  when omitted from the slot-issue request, using the same key scheme
+  as the publisher-plan SDK plus a generated nonce in direct-public
+  mode. Publisher-supplied values continue to be accepted and
+  validated.
+- Removed `tenantId` from `Session`, `UploadSlot`, `Cursor`, and
+  `CoordinatorPublisherLease`. Removed `publisherInstanceId` from
+  `UploadSlot` (it stays on the lease record and heartbeat payload,
+  where it identifies the lease).
+- Moved `createRuntimePublisherObjectKeyNonce` and the new
+  `createPublisherObjectKey` / `createPublisherDeliveryUrl` helpers
+  into `olos/src/state/`. The public `olos/runtime` re-exports them.
+
 ## 0.1.1
 
 - Updated GitHub Actions workflows to use npm provenance OIDC for package
