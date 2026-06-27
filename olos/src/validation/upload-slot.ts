@@ -1,5 +1,4 @@
 import { MEDIA_OBJECT_KINDS } from "../config/media-object";
-import { PUBLICATION_MODES } from "../config/publication";
 import { UPLOAD_SLOT_STATES } from "../config/upload-slot";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertByterange, assertByterangeKind } from "./byterange";
@@ -34,7 +33,6 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
   assertUploadSlotByteFields(value);
   assertUploadSlotMediaFields(value);
   assertUploadSlotByterange(value);
-  assertOneOfField(value, "publicationMode", PUBLICATION_MODES, "uploadSlot");
   assertOneOfField(value, "state", UPLOAD_SLOT_STATES, "uploadSlot");
 }
 

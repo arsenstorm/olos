@@ -153,7 +153,6 @@ function issueTestCoordinatorSlot(
     maxBytes: slot.maxBytes,
     mediaSequenceNumber: slot.mediaSequenceNumber,
     objectKey: slot.objectKey,
-    publicationMode: "direct-public",
     publisherInstanceId: "pub_1",
     renditionId: "v1080",
     slotId: slot.slotId,

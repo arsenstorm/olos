@@ -1,4 +1,3 @@
-import { PUBLICATION_MODES } from "../config/publication";
 import type { Commit } from "../types/commit";
 import { assertByterange } from "./byterange";
 import { assertSafeDeliveryUrl } from "./delivery-url";
@@ -7,7 +6,6 @@ import {
   assertIsoDateField,
   assertNonEmptyStringField,
   assertNonNegativeIntegerField,
-  assertOneOfField,
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
@@ -32,7 +30,6 @@ export function assertCommit(value: unknown): asserts value is Commit {
   assertCommitSequenceFields(value);
   assertCommitObjectFields(value);
   assertCommitOptionalFields(value);
-  assertOneOfField(value, "publicationMode", PUBLICATION_MODES, "commit");
 }
 
 function assertCommitIdentifiers(value: Record<string, unknown>): void {

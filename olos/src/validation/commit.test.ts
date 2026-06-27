@@ -16,7 +16,6 @@ const validCommit: Commit = {
   objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
   partNumber: 3,
   programDateTime: "2026-06-08T12:00:05.500Z",
-  publicationMode: "direct-public",
   renditionId: "v1080",
   sessionId: "sess_01JZLIVE",
   size: 312_500,
@@ -135,11 +134,5 @@ describe("commit validation", () => {
     expect(() => assertCommit({ ...validCommit, etag: "" })).toThrow(
       "commit.etag must be a non-empty string"
     );
-  });
-
-  test("rejects unknown publication modes", () => {
-    expect(() =>
-      assertCommit({ ...validCommit, publicationMode: "unknown" })
-    ).toThrow("commit.publicationMode must be one of:");
   });
 });

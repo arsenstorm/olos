@@ -11,7 +11,7 @@ import type { OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
-import type { UploadSlot } from "../types/upload-slot";
+import type { PublicationMode, UploadSlot } from "../types/upload-slot";
 import { assertNonNegativeSafeInteger } from "../validation/ids";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { commitCoordinatorUpload as commitCoordinatorUploadInternal } from "./coordinator-commit";
@@ -47,6 +47,7 @@ export interface CoordinatorPipelineState {
   cursor?: Cursor;
   initCommits: readonly Commit[];
   pathways: readonly Pathway[];
+  publicationMode?: PublicationMode;
   publisherLeases: readonly CoordinatorPublisherLease[];
   session: Session;
   slots: readonly UploadSlot[];
@@ -59,6 +60,7 @@ export interface CoordinatorPipelineSnapshot {
 
 export interface CreateCoordinatorPipelineOptions {
   pathways: readonly Pathway[];
+  publicationMode?: PublicationMode;
   session: Session;
 }
 

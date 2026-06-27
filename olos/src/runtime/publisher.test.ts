@@ -570,7 +570,6 @@ function slotPayload(options: SlotPayloadOptions) {
     maxBytes: options.maxBytes,
     mediaSequenceNumber: options.mediaSequenceNumber,
     objectKey: options.objectKey,
-    publicationMode: "direct-public" as const,
     publisherInstanceId: "publisher_1",
     renditionId: "v1080",
     slotId: options.slotId,

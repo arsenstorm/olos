@@ -123,7 +123,6 @@ export async function assertCoordinatorPipelineStoreConformance(
     maxBytes: 2048,
     mediaSequenceNumber: 0,
     objectKey: "media/v1080/init.mp4",
-    publicationMode: "direct-public",
     publisherInstanceId: "pub_1",
     renditionId: "v1080",
     slotId: "slot_init",

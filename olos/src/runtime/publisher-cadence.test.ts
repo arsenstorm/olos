@@ -270,7 +270,6 @@ describe("runtime publisher cadence", () => {
           maxBytes: 100_000,
           mediaSequenceNumber: 3812,
           objectKey: "media/session_1/v1080/s3812/segment-slot_01JZ.m4s",
-          publicationMode: "direct-public",
           publisherInstanceId: "publisher_1",
           renditionId: "v1080",
           slotId: "slot_v1080_s3812",

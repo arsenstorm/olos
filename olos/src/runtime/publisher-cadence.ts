@@ -63,7 +63,7 @@ export interface CreateRuntimePublisherObjectPlanInputOptions {
   objectKeyNonce?: string;
   objectKeyPrefix: string;
   position: RuntimePublisherObjectPosition;
-  publicationMode: PublicationMode;
+  publicationMode?: PublicationMode;
   publisherInstanceId: string;
   renditionId: string;
 }

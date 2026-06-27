@@ -44,7 +44,6 @@ const commit: Commit = {
   epoch: 0,
   mediaSequenceNumber: 3810,
   objectKey: "tenant/session/v1080/3810.m4s",
-  publicationMode: "direct-public",
   renditionId: "v1080",
   sessionId: "session_1",
   size: 10_000,
@@ -58,7 +57,6 @@ describe("object publication", () => {
       deliveryUrl:
         "https://media.example.com/live/tenant/session/v1080/3810.m4s",
       objectKey: "tenant/session/v1080/3810.m4s",
-      publicationMode: "direct-public",
       slotId: "slot_1",
     });
   });
@@ -125,8 +123,8 @@ describe("object publication", () => {
         commit: {
           ...commit,
           deliveryUrl: "/gate/session/v1080/3810.m4s",
-          publicationMode: "read-gated",
         },
+        publicationMode: "read-gated",
       }).deliveryUrl
     ).toBe("/gate/session/v1080/3810.m4s");
   });
@@ -143,8 +141,8 @@ describe("object publication", () => {
         },
         commit: {
           ...commit,
-          publicationMode: "read-gated",
         },
+        publicationMode: "read-gated",
       })
     ).toThrow(
       "providerCapability.publication.readGateAvailable must be true for read-gated commits"
@@ -158,8 +156,8 @@ describe("object publication", () => {
         commit: {
           ...commit,
           deliveryUrl: "/promoted/session/v1080/3810.m4s",
-          publicationMode: "private-upload-public-promotion",
         },
+        publicationMode: "private-upload-public-promotion",
       }).deliveryUrl
     ).toBe("/promoted/session/v1080/3810.m4s");
   });
@@ -176,8 +174,8 @@ describe("object publication", () => {
         },
         commit: {
           ...commit,
-          publicationMode: "private-upload-public-promotion",
         },
+        publicationMode: "private-upload-public-promotion",
       })
     ).toThrow(
       "providerCapability.publication.privateUploadPublicPromotion must be true for private-upload-public-promotion commits"

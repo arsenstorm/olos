@@ -20,7 +20,6 @@ export interface UploadSlot {
   minBytes?: number;
   objectKey: string;
   partNumber?: PartNumber;
-  publicationMode: PublicationMode;
   publisherInstanceId: OlosId;
   renditionId: OlosId;
   sessionId: OlosId;

@@ -5,7 +5,6 @@ import {
   PROVIDER_EVENT_DELIVERY_MODES,
   PROVIDER_KINDS,
 } from "./config/provider-capability";
-import { PUBLICATION_MODES } from "./config/publication";
 import { LATENCY_PROFILES, SESSION_STATES } from "./config/session";
 import {
   OLOS_COMMIT_SCHEMA,
@@ -63,9 +62,6 @@ describe("OLOS JSON schemas", () => {
       pattern:
         "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
     });
-    expect(OLOS_COMMIT_SCHEMA.properties.publicationMode.enum).toEqual(
-      PUBLICATION_MODES
-    );
   });
 
   test("closes fixed-shape core objects", () => {

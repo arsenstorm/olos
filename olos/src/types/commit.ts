@@ -1,6 +1,5 @@
 import type { Byterange } from "./byterange";
 import type { Epoch, MediaSequenceNumber, OlosId, PartNumber } from "./ids";
-import type { PublicationMode } from "./upload-slot";
 
 export interface Commit {
   byterange?: Byterange;
@@ -15,7 +14,6 @@ export interface Commit {
   objectKey: string;
   partNumber?: PartNumber;
   programDateTime?: string;
-  publicationMode: PublicationMode;
   renditionId: OlosId;
   sessionId: OlosId;
   size: number;

@@ -13,7 +13,6 @@ const slot: UploadSlot = {
   maxBytes: 100_000,
   mediaSequenceNumber: 3810,
   objectKey: "tenant/session/v1080/3810.m4s",
-  publicationMode: "direct-public",
   publisherInstanceId: "pub_1",
   renditionId: "v1080",
   sessionId: "session_1",

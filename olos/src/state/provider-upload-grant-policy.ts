@@ -1,11 +1,12 @@
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
-import type { UploadSlot } from "../types/upload-slot";
+import type { PublicationMode, UploadSlot } from "../types/upload-slot";
 import { assertProviderCapabilityDocument } from "../validation/provider-capability";
 import { assertUploadSlot } from "../validation/upload-slot";
 
 export interface ProviderUploadGrantPolicyOptions {
   capability: ProviderCapabilityDocument;
   grantTtlSeconds?: number;
+  publicationMode?: PublicationMode;
   requireContentTypeBound?: boolean;
   requireCreateIfAbsent?: boolean;
   requireExactKey?: boolean;
@@ -16,11 +17,6 @@ export interface ProviderUploadGrantPolicyOptions {
   slot: UploadSlot;
 }
 
-type DirectPublicUploadSlot = UploadSlot & { publicationMode: "direct-public" };
-type PrivatePromotionUploadSlot = UploadSlot & {
-  publicationMode: "private-upload-public-promotion";
-};
-type ReadGatedUploadSlot = UploadSlot & { publicationMode: "read-gated" };
 type UploadGrantCapabilityOption =
   | "requireContentTypeBound"
   | "requireCreateIfAbsent"
@@ -106,9 +102,10 @@ export function assertProviderCanIssueUploadGrant(
 function assertProviderMatchesPublicationMode(
   options: ProviderUploadGrantPolicyOptions
 ): void {
-  const { capability, slot } = options;
+  const { capability } = options;
+  const publicationMode = options.publicationMode ?? "direct-public";
 
-  if (isDirectPublicUploadSlot(slot)) {
+  if (publicationMode === "direct-public") {
     if (!capability.publication.directObjectPublication) {
       throw new Error(
         "providerCapability.publication.directObjectPublication must be true for direct-public slots"
@@ -129,7 +126,7 @@ function assertProviderMatchesPublicationMode(
   }
 
   if (
-    isReadGatedUploadSlot(slot) &&
+    publicationMode === "read-gated" &&
     capability.publication.readGateAvailable !== true
   ) {
     throw new Error(
@@ -138,29 +135,13 @@ function assertProviderMatchesPublicationMode(
   }
 
   if (
-    isPrivatePromotionUploadSlot(slot) &&
+    publicationMode === "private-upload-public-promotion" &&
     capability.publication.privateUploadPublicPromotion !== true
   ) {
     throw new Error(
       "providerCapability.publication.privateUploadPublicPromotion must be true for private-upload-public-promotion slots"
     );
   }
-}
-
-function isDirectPublicUploadSlot(
-  slot: UploadSlot
-): slot is DirectPublicUploadSlot {
-  return slot.publicationMode === "direct-public";
-}
-
-function isPrivatePromotionUploadSlot(
-  slot: UploadSlot
-): slot is PrivatePromotionUploadSlot {
-  return slot.publicationMode === "private-upload-public-promotion";
-}
-
-function isReadGatedUploadSlot(slot: UploadSlot): slot is ReadGatedUploadSlot {
-  return slot.publicationMode === "read-gated";
 }
 
 function assertUploadGrantCapabilities(

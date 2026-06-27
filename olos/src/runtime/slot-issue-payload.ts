@@ -1,5 +1,4 @@
 import { MEDIA_OBJECT_KINDS } from "../config/media-object";
-import { PUBLICATION_MODES } from "../config/publication";
 import type { IssueCoordinatorSlotOptions } from "../protocol";
 import type { Byterange } from "../types/byterange";
 import { assertByterange, assertByterangeKind } from "../validation/byterange";
@@ -33,11 +32,6 @@ export function parseRuntimeSlotIssuePayload(
     expiresAt: stringField(value, "expiresAt"),
     maxBytes: positiveNumberField(value, "maxBytes"),
     mediaSequenceNumber: nonNegativeIntegerField(value, "mediaSequenceNumber"),
-    publicationMode: oneOfStringField(
-      value,
-      "publicationMode",
-      PUBLICATION_MODES
-    ),
     publisherInstanceId: urlSafeIdentifierField(value, "publisherInstanceId"),
     renditionId: urlSafeIdentifierField(value, "renditionId"),
     slotId: urlSafeIdentifierField(value, "slotId"),

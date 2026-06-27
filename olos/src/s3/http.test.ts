@@ -1314,48 +1314,6 @@ describe("stored S3 coordinator runtime handler", () => {
     }
   });
 
-  test("rejects invalid S3 slot publication modes", async () => {
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      bucket: S3_BUCKET,
-      client: createTestS3Client(),
-      expiresInSeconds: S3_GRANT_TTL_SECONDS,
-      store: createMemoryCoordinatorStore(),
-    });
-
-    await handle(
-      jsonRequest("https://edge.example.com/sessions", {
-        pathways,
-        session,
-      })
-    );
-
-    const response = await handle(
-      jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", {
-        ...slotPayload({
-          deliveryUrl: "https://media.example.com/live/session/v1080/3810.m4s",
-          duration: 2,
-          kind: "segment",
-          maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
-          objectKey: "live/session/v1080/3810.m4s",
-          slotId: "slot_3810",
-        }),
-        publicationMode: "unknown",
-      })
-    );
-
-    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
-      body: {
-        error: {
-          message:
-            "publicationMode must be one of: direct-public, read-gated, private-upload-public-promotion",
-        },
-      },
-      status: 400,
-    });
-  });
-
   test("rejects invalid S3 slot media object kinds", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedMediaOrigins: [MEDIA_ORIGIN],
@@ -3263,7 +3221,6 @@ function slotPayload(options: SlotPayloadOptions) {
     ...(options.partNumber === undefined
       ? {}
       : { partNumber: options.partNumber }),
-    publicationMode: "direct-public" as const,
     publisherInstanceId: "pub_1",
     renditionId: "v1080",
     slotId: options.slotId,

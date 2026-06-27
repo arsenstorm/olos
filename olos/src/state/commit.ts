@@ -147,7 +147,6 @@ export function createCommit(options: CreateCommitOptions): Commit {
     ...(options.programDateTime === undefined
       ? {}
       : { programDateTime: options.programDateTime }),
-    publicationMode: options.slot.publicationMode,
     renditionId: options.slot.renditionId,
     sessionId: options.slot.sessionId,
     size: options.mediaObject.size,
@@ -549,7 +548,6 @@ const COMMIT_IDEMPOTENCY_FIELDS = [
   "objectKey",
   "partNumber",
   "programDateTime",
-  "publicationMode",
   "renditionId",
   "sessionId",
   "size",

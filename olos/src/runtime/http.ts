@@ -11,6 +11,7 @@ import type { PublicationControlPolicy } from "../state";
 import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
+import type { PublicationMode } from "../types/upload-slot";
 import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
 import { positiveAttempts } from "./attempts";
@@ -103,6 +104,7 @@ export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   maxHealthCursorAgeMs?: number;
   now?: () => string;
   publicationControl?: PublicationControlPolicy;
+  publicationMode?: PublicationMode;
   publisherLeaseTtlMs?: number;
   response?: CreateHlsManifestArtifactResponseOptions;
   sessionPath?: string;
@@ -218,6 +220,7 @@ async function handleSessionRoute(
     return (
       await createStoredCoordinatorSession({
         pathways: parsed.pathways,
+        publicationMode: options.publicationMode ?? "direct-public",
         session: parsed.session,
         store: options.store,
       })

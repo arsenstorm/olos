@@ -28,7 +28,6 @@ export interface CreateIssuedUploadSlotOptions {
   minBytes?: number;
   objectKey: string;
   partNumber?: number;
-  publicationMode: UploadSlot["publicationMode"];
   publisherInstanceId: string;
   renditionId: string;
   session: Session;
@@ -114,7 +113,6 @@ export function createIssuedUploadSlot(
     maxBytes: options.maxBytes,
     mediaSequenceNumber: options.mediaSequenceNumber,
     objectKey: options.objectKey,
-    publicationMode: options.publicationMode,
     publisherInstanceId: options.publisherInstanceId,
     renditionId: options.renditionId,
     sessionId: options.session.sessionId,

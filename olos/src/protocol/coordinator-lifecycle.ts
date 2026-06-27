@@ -7,6 +7,7 @@ import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
 import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
+import type { PublicationMode } from "../types/upload-slot";
 import { assertSession } from "../validation/session";
 import type {
   CoordinatorManifestArtifacts,
@@ -18,6 +19,7 @@ import type {
 
 export function createCoordinatorPipeline(options: {
   pathways: readonly Pathway[];
+  publicationMode?: PublicationMode;
   session: Session;
 }): CoordinatorPipelineState {
   assertSession(options.session);
@@ -30,6 +32,7 @@ export function createCoordinatorPipeline(options: {
     commits: [],
     initCommits: [],
     pathways: [...options.pathways],
+    publicationMode: options.publicationMode ?? "direct-public",
     publisherLeases: [],
     session: options.session,
     slots: [],

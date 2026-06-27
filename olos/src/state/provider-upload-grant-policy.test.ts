@@ -58,7 +58,6 @@ const slot: UploadSlot = {
   maxBytes: 100_000,
   mediaSequenceNumber: 3810,
   objectKey: "tenant/session/v1080/3810.m4s",
-  publicationMode: "direct-public",
   publisherInstanceId: "pub_1",
   renditionId: "v1080",
   sessionId: "session_1",
@@ -334,7 +333,8 @@ describe("provider upload grant policy", () => {
             readGateAvailable: false,
           },
         },
-        slot: { ...slot, publicationMode: "read-gated" },
+        publicationMode: "read-gated",
+        slot,
       })
     ).toThrow(
       "providerCapability.publication.readGateAvailable must be true for read-gated slots"
@@ -351,7 +351,8 @@ describe("provider upload grant policy", () => {
             privateUploadPublicPromotion: false,
           },
         },
-        slot: { ...slot, publicationMode: "private-upload-public-promotion" },
+        publicationMode: "private-upload-public-promotion",
+        slot,
       })
     ).toThrow(
       "providerCapability.publication.privateUploadPublicPromotion must be true for private-upload-public-promotion slots"

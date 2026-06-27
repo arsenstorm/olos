@@ -6,7 +6,6 @@ import {
   PROVIDER_EVENT_DELIVERY_MODES,
   PROVIDER_KINDS,
 } from "./config/provider-capability";
-import { PUBLICATION_MODES } from "./config/publication";
 import {
   LATENCY_PROFILES,
   RENDITION_KINDS,
@@ -336,7 +335,6 @@ export const OLOS_UPLOAD_SLOT_SCHEMA = {
     minBytes: nonNegativeInteger,
     objectKey,
     partNumber: nonNegativeInteger,
-    publicationMode: stringEnum(PUBLICATION_MODES),
     publisherInstanceId: id,
     renditionId: id,
     sessionId: id,
@@ -354,7 +352,6 @@ export const OLOS_UPLOAD_SLOT_SCHEMA = {
     "maxBytes",
     "mediaSequenceNumber",
     "objectKey",
-    "publicationMode",
     "publisherInstanceId",
     "renditionId",
     "sessionId",
@@ -382,7 +379,6 @@ export const OLOS_COMMIT_SCHEMA = {
     objectKey,
     partNumber: nonNegativeInteger,
     programDateTime: timestamp,
-    publicationMode: stringEnum(PUBLICATION_MODES),
     renditionId: id,
     sessionId: id,
     size: positiveNumber,
@@ -396,7 +392,6 @@ export const OLOS_COMMIT_SCHEMA = {
     "epoch",
     "mediaSequenceNumber",
     "objectKey",
-    "publicationMode",
     "renditionId",
     "sessionId",
     "size",

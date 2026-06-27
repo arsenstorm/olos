@@ -38,7 +38,7 @@ export interface CreateRuntimePublisherObjectPlanOptions {
   objectKeyNonce?: string;
   objectKeyPrefix: string;
   partNumber?: number;
-  publicationMode: PublicationMode;
+  publicationMode?: PublicationMode;
   publisherInstanceId: string;
   renditionId: string;
   slotIdPrefix?: string;
@@ -86,7 +86,6 @@ export function createRuntimePublisherObjectPlan(
       maxBytes: options.maxBytes,
       mediaSequenceNumber: options.mediaSequenceNumber,
       objectKey,
-      publicationMode: options.publicationMode,
       publisherInstanceId: options.publisherInstanceId,
       renditionId: options.renditionId,
       slotId,
@@ -162,19 +161,18 @@ function assertPublicationMode(value: PublicationMode): void {
 function assertPublicationNoncePolicy(
   options: CreateRuntimePublisherObjectPlanOptions
 ): void {
-  assertPublicationMode(options.publicationMode);
+  const publicationMode = options.publicationMode ?? "direct-public";
 
-  if (requiresObjectKeyNonce(options) && options.objectKeyNonce === undefined) {
+  assertPublicationMode(publicationMode);
+
+  if (
+    publicationMode === "direct-public" &&
+    options.objectKeyNonce === undefined
+  ) {
     throw new Error(
       "objectKeyNonce is required for direct-public object plans"
     );
   }
-}
-
-function requiresObjectKeyNonce(
-  options: CreateRuntimePublisherObjectPlanOptions
-): boolean {
-  return options.publicationMode === "direct-public";
 }
 
 function createObjectKey(

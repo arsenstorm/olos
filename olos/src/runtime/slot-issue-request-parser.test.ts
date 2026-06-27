@@ -11,7 +11,6 @@ const slotPayload = {
   maxBytes: 100_000,
   mediaSequenceNumber: 3810,
   objectKey: "live/session/v1080/3810.m4s",
-  publicationMode: "direct-public",
   publisherInstanceId: "publisher_1",
   renditionId: "v1080",
   slotId: "slot_3810",

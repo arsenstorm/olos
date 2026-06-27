@@ -147,20 +147,6 @@ describe("runtime slot adapter", () => {
     }
   });
 
-  test("returns invalid responses for invalid JSON publication modes", async () => {
-    const result = await issueCoordinatorSlotFromRequest({
-      request: slotRequest({
-        ...slotPayload(),
-        publicationMode: "unknown",
-      }),
-      state: createEmptyCoordinatorState(),
-    });
-
-    expect(invalidResultMessage(result)).toBe(
-      "publicationMode must be one of: direct-public, read-gated, private-upload-public-promotion"
-    );
-  });
-
   test("returns invalid responses for invalid JSON media object kinds", async () => {
     const result = await issueCoordinatorSlotFromRequest({
       request: slotRequest({
@@ -200,7 +186,6 @@ function slotPayload() {
     maxBytes: 100_000,
     mediaSequenceNumber: 3810,
     objectKey: "media/s3810.m4s",
-    publicationMode: "direct-public" as const,
     publisherInstanceId: "pub_1",
     renditionId: "v1080",
     slotId: "slot_3810",

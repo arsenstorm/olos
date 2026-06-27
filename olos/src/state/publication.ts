@@ -1,6 +1,7 @@
 import type { Commit } from "../types/commit";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
 import type { ObjectPublication } from "../types/publication";
+import type { PublicationMode } from "../types/upload-slot";
 import { assertCommit } from "../validation/commit";
 import { assertSafeObjectKey } from "../validation/object-key";
 import { assertProviderCapabilityDocument } from "../validation/provider-capability";
@@ -8,6 +9,7 @@ import { assertProviderCapabilityDocument } from "../validation/provider-capabil
 export interface CreateObjectPublicationOptions {
   capability: ProviderCapabilityDocument;
   commit: Commit;
+  publicationMode?: PublicationMode;
 }
 
 export function createObjectPublication(
@@ -20,7 +22,6 @@ export function createObjectPublication(
     commitId: options.commit.commitId,
     deliveryUrl: deliveryUrlForPublication(options),
     objectKey: options.commit.objectKey,
-    publicationMode: options.commit.publicationMode,
     slotId: options.commit.slotId,
   };
 }
@@ -29,10 +30,11 @@ function deliveryUrlForPublication(
   options: CreateObjectPublicationOptions
 ): string {
   const { capability, commit } = options;
+  const publicationMode = options.publicationMode ?? "direct-public";
 
-  assertPublicationModeSupport(capability, commit);
+  assertPublicationModeSupport(capability, publicationMode);
 
-  if (commit.publicationMode !== "direct-public") {
+  if (publicationMode !== "direct-public") {
     return commit.deliveryUrl;
   }
 
@@ -41,9 +43,9 @@ function deliveryUrlForPublication(
 
 function assertPublicationModeSupport(
   capability: ProviderCapabilityDocument,
-  commit: Commit
+  publicationMode: PublicationMode
 ): void {
-  switch (commit.publicationMode) {
+  switch (publicationMode) {
     case "direct-public":
       assertDirectPublicPublicationSupport(capability);
       return;
@@ -54,7 +56,7 @@ function assertPublicationModeSupport(
       assertReadGatedPublicationSupport(capability);
       return;
     default:
-      assertUnsupportedPublicationMode(commit.publicationMode);
+      assertUnsupportedPublicationMode(publicationMode);
   }
 }
 
