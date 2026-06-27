@@ -40,7 +40,6 @@ export const conformanceSession = {
   segmentTarget: latency.segmentTarget,
   sessionId: "sess_01JZLIVE",
   state: "live",
-  tenantId: "tenant_acme",
 } satisfies Session;
 
 export const conformanceCommittedWindow = {

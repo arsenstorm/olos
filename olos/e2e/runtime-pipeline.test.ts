@@ -98,26 +98,22 @@ describe("runtime pipeline", () => {
       bytes: nonceBytes(2),
     });
     const init = createRuntimePublisherNextObjectPlan({
-      baseUrl: "https://media.example.com",
       defaults,
       initPublished: false,
       minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
       now: publishNow,
       objectKeyNonce: initNonce,
       objectKeyPrefix: "media",
-      publicationMode: "direct-public",
       renditionId: "v1080",
       targetLatency: publisherOptions.expiry.targetLatency,
     });
     const next = createRuntimePublisherNextObjectPlan({
-      baseUrl: "https://media.example.com",
       defaults,
       initPublished: true,
       minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
       now: publishNow,
       objectKeyNonce: segmentNonce,
       objectKeyPrefix: "media",
-      publicationMode: "direct-public",
       renditionId: "v1080",
       startMediaSequenceNumber: 3810,
       targetLatency: publisherOptions.expiry.targetLatency,
@@ -228,7 +224,6 @@ async function expectStoredCoordinatorLifecycle(
   ensureEqual(created.status, "created", "session should be created");
 
   const initPlan = createRuntimePublisherObjectPlan({
-    baseUrl: "https://media.example.com",
     contentType: "video/mp4",
     duration: 1,
     expiresAt: plannedExpiry(1).expiresAt,
@@ -238,11 +233,9 @@ async function expectStoredCoordinatorLifecycle(
     mediaSequenceNumber: 0,
     objectKeyNonce: "slot_init",
     objectKeyPrefix: "media",
-    publicationMode: "direct-public",
     renditionId: "v1080",
   });
   const segmentPlan = createRuntimePublisherObjectPlan({
-    baseUrl: "https://media.example.com",
     contentType: "video/mp4",
     duration: 2,
     expiresAt: plannedExpiry(2).expiresAt,
@@ -252,11 +245,9 @@ async function expectStoredCoordinatorLifecycle(
     mediaSequenceNumber: 3810,
     objectKeyNonce: "slot_s3810",
     objectKeyPrefix: "media",
-    publicationMode: "direct-public",
     renditionId: "v1080",
   });
   const nextPlan = createRuntimePublisherObjectPlan({
-    baseUrl: "https://media.example.com",
     contentType: "video/mp4",
     duration: 2,
     expiresAt: plannedExpiry(2).expiresAt,
@@ -266,7 +257,6 @@ async function expectStoredCoordinatorLifecycle(
     mediaSequenceNumber: 3811,
     objectKeyNonce: "slot_s3811",
     objectKeyPrefix: "media",
-    publicationMode: "direct-public",
     renditionId: "v1080",
   });
 

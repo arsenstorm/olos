@@ -66,26 +66,28 @@ const session = {
   latencyProfile: latency.latencyProfile,
   olos: "1.0",
   partTarget: latency.partTarget,
-  renditions: [
-    {
-      bitrate: 5_000_000,
-      codec: "avc1.640028",
-      frameRate: 30,
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
-    },
-  ],
+  renditions: [v1080Rendition()],
   segmentTarget: latency.segmentTarget,
   sessionId: "session_1",
   state: "live",
 } satisfies Session;
 
+function v1080Rendition() {
+  return {
+    bitrate: 5_000_000,
+    codec: "avc1.640028",
+    frameRate: 30,
+    height: 1080,
+    kind: "video",
+    renditionId: "v1080",
+    width: 1920,
+  } as const;
+}
+
 const multiRenditionSession = {
   ...session,
   renditions: [
-    session.renditions[0],
+    v1080Rendition(),
     {
       bitrate: 2_800_000,
       codec: "avc1.64001f",
@@ -243,7 +245,6 @@ describe("object-store flow", () => {
     const storedBeforeStep = await store.load(session.sessionId);
 
     const step = await runNextStoredS3PublisherUploadStep({
-      baseUrl: "https://media.example.com",
       bucket: "media",
       client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
@@ -260,7 +261,6 @@ describe("object-store flow", () => {
       objectKeyPrefix: "media",
       providerId: "s3_primary",
       publicationMode: "direct-public",
-      publisherInstanceId: "pub_1",
       renditionId: "v1080",
       sessionId: session.sessionId,
       startMediaSequenceNumber: 3810,
@@ -287,6 +287,13 @@ describe("object-store flow", () => {
 
     if (step.status !== "committed") {
       throw new Error("expected planned publisher step to commit");
+    }
+
+    if (
+      step.commit.status !== "committed" &&
+      step.commit.status !== "idempotent"
+    ) {
+      throw new Error("expected committed commit result");
     }
 
     const stored = await store.load(session.sessionId);
@@ -382,8 +389,19 @@ describe("object-store flow", () => {
       mediaSequenceNumber: 3811,
     });
 
-    if (nextSegment.status !== "committed") {
-      throw new Error("expected next segment to commit");
+    if (
+      init.status !== "committed" ||
+      firstSegment.status !== "committed" ||
+      nextSegment.status !== "committed"
+    ) {
+      throw new Error("expected committed publisher steps");
+    }
+
+    if (
+      nextSegment.commit.status !== "committed" &&
+      nextSegment.commit.status !== "idempotent"
+    ) {
+      throw new Error("expected committed commit result");
     }
 
     stored = await store.load(session.sessionId);
@@ -404,9 +422,9 @@ describe("object-store flow", () => {
       firstMediaSequenceNumber: 3810,
       lastMediaSequenceNumber: 3811,
     });
-    expect(media?.body).toContain(init.slot?.deliveryUrl);
-    expect(media?.body).toContain(firstSegment.slot?.deliveryUrl);
-    expect(media?.body).toContain(nextSegment.slot?.deliveryUrl);
+    expect(media?.body).toContain(init.slot.deliveryUrl);
+    expect(media?.body).toContain(firstSegment.slot.deliveryUrl);
+    expect(media?.body).toContain(nextSegment.slot.deliveryUrl);
     expect(uploadedUrls).toHaveLength(3);
     expect(summaries).toEqual([
       {
@@ -646,11 +664,10 @@ describe("object-store flow", () => {
       providerId: "s3_primary",
     });
 
-    expect(event).toBeDefined();
-    expect(event.status).toBe("object_created");
     if (event?.status !== "object_created") {
       throw new Error("expected object-created event");
     }
+    expect(event.status).toBe("object_created");
 
     const segmentCommit = await routeStoredS3CoordinatorUploadEvent({
       bucket: "media",
@@ -1180,7 +1197,6 @@ function createUploadPlan(options: {
   });
 
   return createRuntimePublisherObjectPlan({
-    baseUrl: "https://media.example.com",
     contentType: "video/mp4",
     duration,
     expiresAt: expiry.expiresAt,
@@ -1192,7 +1208,6 @@ function createUploadPlan(options: {
     objectKeyPrefix: "media",
     partNumber: options.partNumber,
     publicationMode: "direct-public",
-    publisherInstanceId: "pub_1",
     renditionId: options.renditionId ?? "v1080",
   });
 }
@@ -1254,7 +1269,6 @@ function publisherLoopOptions(options: {
   uploadedUrls: string[];
 }) {
   return {
-    baseUrl: "https://media.example.com",
     bucket: "media",
     client: createTestS3Client(),
     defaults: publisherDefaults,
@@ -1273,7 +1287,6 @@ function publisherLoopOptions(options: {
     objectKeyPrefix: "media",
     providerId: "s3_primary",
     publicationMode: "direct-public" as const,
-    publisherInstanceId: "pub_1",
     renditionId: "v1080",
     sessionId: session.sessionId,
     startMediaSequenceNumber: 3810,

@@ -4,7 +4,12 @@ import type { Byterange } from "../types/byterange";
 import type { MediaObjectKind } from "../types/media-object";
 import { assertByterange, assertByterangeKind } from "../validation/byterange";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
-import { assertSafeMediaObjectKey } from "../validation/object-key";
+import { assertUrlSafeIdentifier } from "../validation/ids";
+import {
+  assertSafeMediaObjectKey,
+  assertSupportedMediaExtension,
+} from "../validation/object-key";
+import { assertSafePath, assertSafePathSegment } from "./path";
 import {
   nonNegativeIntegerField,
   oneOfStringField,
@@ -28,6 +33,8 @@ export function parseRuntimeSlotIssuePayload(
 ): RuntimeSlotIssuePayload {
   const kind = oneOfStringField(value, "kind", MEDIA_OBJECT_KINDS);
   const objectFields = runtimeSlotIssueObjectFields(value, kind);
+  const partNumber = optionalNonNegativeIntegerField(value, "partNumber");
+  assertPartNumberKindMatch(kind, partNumber);
 
   return {
     contentType: stringField(value, "contentType"),
@@ -40,12 +47,55 @@ export function parseRuntimeSlotIssuePayload(
     slotId: urlSafeIdentifierField(value, "slotId"),
     ...objectFields,
     ...optionalNonNegativeIntegerField(value, "minBytes"),
-    ...optionalNonNegativeIntegerField(value, "partNumber"),
-    ...optionalStringField(value, "extension"),
-    ...optionalStringField(value, "objectKeyNonce"),
-    ...optionalStringField(value, "objectKeyPrefix"),
+    ...partNumber,
+    ...optionalDerivationHints(value, kind),
     ...optionalSlotByterange(value, kind),
   };
+}
+
+function assertPartNumberKindMatch(
+  kind: MediaObjectKind,
+  partNumber: { partNumber?: number }
+): void {
+  if (kind === "part" && partNumber.partNumber === undefined) {
+    throw new Error('partNumber is required when kind is "part"');
+  }
+
+  if (kind !== "part" && partNumber.partNumber !== undefined) {
+    throw new Error("partNumber is only valid for parts");
+  }
+}
+
+function optionalDerivationHints(
+  value: Record<string, unknown>,
+  kind: MediaObjectKind
+): { extension?: string; objectKeyNonce?: string; objectKeyPrefix?: string } {
+  const hints: {
+    extension?: string;
+    objectKeyNonce?: string;
+    objectKeyPrefix?: string;
+  } = {};
+
+  const extension = optionalStringField(value, "extension").extension;
+  if (extension !== undefined) {
+    assertSafePathSegment(extension, "extension");
+    assertSupportedMediaExtension(extension, kind, "extension");
+    hints.extension = extension;
+  }
+
+  const nonce = optionalStringField(value, "objectKeyNonce").objectKeyNonce;
+  if (nonce !== undefined) {
+    assertUrlSafeIdentifier(nonce, "objectKeyNonce");
+    hints.objectKeyNonce = nonce;
+  }
+
+  const prefix = optionalStringField(value, "objectKeyPrefix").objectKeyPrefix;
+  if (prefix !== undefined) {
+    assertSafePath(prefix, "objectKeyPrefix");
+    hints.objectKeyPrefix = prefix;
+  }
+
+  return hints;
 }
 
 function runtimeSlotIssueObjectFields(
