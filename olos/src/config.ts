@@ -2,7 +2,6 @@
 
 export { OLOS_ERROR_CODES } from "./config/errors";
 export { MEDIA_OBJECT_KINDS } from "./config/media-object";
-export { PATHWAY_STATES } from "./config/pathway";
 export {
   PROVIDER_CONSISTENCY_LEVELS,
   PROVIDER_EVENT_DELIVERY_MODES,

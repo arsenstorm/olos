@@ -126,16 +126,8 @@ describe("protocol flow", () => {
     const cursor = createCursor({
       committedWindow,
       latencyProfile: latency.latencyProfile,
+      mediaBaseUrl: "https://media.example.com",
       partTarget: latency.partTarget,
-      pathways: [
-        {
-          baseUrl: "https://media.example.com",
-          pathwayId: "primary",
-          priority: 0,
-          providerId: "r2_primary",
-          state: "active",
-        },
-      ],
       segmentTarget: latency.segmentTarget,
       sessionId: "session_1",
       state: "live",

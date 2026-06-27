@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  createEmptyCoordinatorState,
-  testCoordinatorPathways as pathways,
-} from "../protocol/coordinator-state.test-helper";
+import { createEmptyCoordinatorState } from "../protocol/coordinator-state.test-helper";
 import type { Cursor } from "../types/cursor";
 import {
   resolveRuntimeLiveHealth,
@@ -273,8 +270,8 @@ function cursor(updatedAt = "2026-01-01T00:00:00.000Z"): Cursor {
     epoch: 1,
     latencyProfile: "object-ll",
     olos: "1.0",
+    mediaBaseUrl: "https://media.example.com",
     partTarget: 0.5,
-    pathways,
     segmentTarget: 2,
     sessionId: "session_1",
     state: "live",

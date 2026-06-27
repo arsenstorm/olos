@@ -9,7 +9,7 @@ import {
 } from "../protocol";
 import {
   createEmptyCoordinatorState,
-  testCoordinatorPathways as pathways,
+  TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import {
@@ -158,7 +158,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -224,7 +224,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     const created = await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -375,7 +375,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -458,7 +458,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -530,7 +530,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -601,7 +601,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -673,7 +673,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -737,7 +737,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -830,7 +830,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -909,7 +909,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -1135,7 +1135,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -1201,7 +1201,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -1256,7 +1256,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -1325,7 +1325,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -1367,7 +1367,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -1418,7 +1418,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -1509,7 +1509,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -1585,7 +1585,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -1646,7 +1646,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -2035,7 +2035,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -2156,7 +2156,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -2265,7 +2265,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -2412,7 +2412,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -2514,7 +2514,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -2706,7 +2706,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -2807,7 +2807,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -2905,7 +2905,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -2977,7 +2977,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -3044,7 +3044,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -3114,7 +3114,7 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );

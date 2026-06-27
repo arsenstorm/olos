@@ -70,11 +70,6 @@ export {
   type UploadEvidenceResolution,
 } from "./state/observed-upload";
 export {
-  type PathwayFailoverResolution,
-  type ResolvePathwayFailoverOptions,
-  resolvePathwayFailover,
-} from "./state/pathway";
-export {
   assertProviderCanIssueUploadGrant,
   canProviderIssueUploadGrant,
   type ProviderUploadGrantPolicyOptions,

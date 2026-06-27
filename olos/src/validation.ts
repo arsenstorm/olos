@@ -22,7 +22,6 @@ export {
   type ObservedUploadMatchOptions,
   observedUploadMatchesSlot,
 } from "./validation/observed-upload";
-export { assertPathway, isPathway } from "./validation/pathway";
 export {
   assertProviderCapabilityDocument,
   isProviderCapabilityDocument,

@@ -77,8 +77,8 @@ function makeCursor(parts: readonly CommittedPart[]): Cursor {
     epoch: 1,
     latencyProfile: "object-ll",
     olos: "1.0",
+    mediaBaseUrl: "https://media.example.com",
     partTarget: 0.5,
-    pathways: [],
     segmentTarget: 2,
     sessionId: SESSION_ID,
     state: "live",
@@ -154,7 +154,7 @@ async function seedStore(
       commits: [],
       cursor: makeCursor(parts),
       initCommits: [],
-      pathways: [],
+      mediaBaseUrl: "https://media.example.com",
       publisherLeases: [],
       session: {
         createdAt: "2026-06-26T00:00:00.000Z",

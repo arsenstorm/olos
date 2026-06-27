@@ -32,7 +32,7 @@ import {
   summarizeStoredS3PublisherUploadStep,
 } from "@arsenstorm/olos/s3";
 import { normalizeUploadEvent } from "@arsenstorm/olos/state";
-import type { Pathway, Session } from "@arsenstorm/olos/types";
+import type { Session } from "@arsenstorm/olos/types";
 import { assertCursor } from "@arsenstorm/olos/validation";
 import { describe, expect, test } from "vitest";
 import {
@@ -99,15 +99,7 @@ const multiRenditionSession = {
   ],
 } satisfies Session;
 
-const pathways = [
-  {
-    baseUrl: "https://media.example.com",
-    pathwayId: "primary",
-    priority: 0,
-    providerId: "s3_primary",
-    state: "active",
-  },
-] satisfies Pathway[];
+const mediaBaseUrl = "https://media.example.com";
 
 const publishNow = "2026-01-01T00:00:00.000Z";
 describe("object-store flow", () => {
@@ -1039,7 +1031,7 @@ async function createStoredPipeline(activeSession: Session = session) {
   const store = createMemoryCoordinatorStore();
   await store.save({
     sessionId: activeSession.sessionId,
-    state: createCoordinatorPipeline({ pathways, session: activeSession }),
+    state: createCoordinatorPipeline({ mediaBaseUrl, session: activeSession }),
   });
 
   return store;

@@ -1,5 +1,4 @@
 import { createObservedUpload } from "../state/observed-upload";
-import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import {
   type CoordinatorPipelineState,
@@ -31,19 +30,11 @@ export const testCoordinatorSession: Session = {
   tenantId: "tenant_1",
 };
 
-export const testCoordinatorPathways: Pathway[] = [
-  {
-    baseUrl: "https://media.example.com",
-    pathwayId: "primary",
-    priority: 0,
-    providerId: "s3_primary",
-    state: "active",
-  },
-];
+export const TEST_COORDINATOR_MEDIA_BASE_URL = "https://media.example.com";
 
 export function createEmptyCoordinatorState(): CoordinatorPipelineState {
   return createCoordinatorPipeline({
-    pathways: testCoordinatorPathways,
+    mediaBaseUrl: TEST_COORDINATOR_MEDIA_BASE_URL,
     session: testCoordinatorSession,
   });
 }

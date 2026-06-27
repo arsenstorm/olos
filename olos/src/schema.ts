@@ -1,6 +1,5 @@
 import { OLOS_ERROR_CODES } from "./config/errors";
 import { MEDIA_OBJECT_KINDS } from "./config/media-object";
-import { PATHWAY_STATES } from "./config/pathway";
 import {
   PROVIDER_CONSISTENCY_LEVELS,
   PROVIDER_EVENT_DELIVERY_MODES,
@@ -432,21 +431,6 @@ export const OLOS_MEDIA_OBJECT_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
-export const OLOS_PATHWAY_SCHEMA = {
-  $schema: JSON_SCHEMA_DRAFT,
-  additionalProperties: false,
-  properties: {
-    baseUrl: pathwayBaseUrl,
-    pathwayId: id,
-    priority: nonNegativeInteger,
-    providerId: id,
-    state: stringEnum(PATHWAY_STATES),
-  },
-  required: ["baseUrl", "pathwayId", "priority", "providerId", "state"],
-  title: "OLOS Pathway",
-  type: "object",
-} as const satisfies OlosJsonSchema;
-
 export const OLOS_PROVIDER_CAPABILITY_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -526,9 +510,9 @@ export const OLOS_CURSOR_SCHEMA = {
     committedWindow: OLOS_COMMITTED_WINDOW_SCHEMA,
     epoch: nonNegativeInteger,
     latencyProfile: stringEnum(LATENCY_PROFILES),
+    mediaBaseUrl: deliveryUrl,
     olos: { const: "1.0" },
     partTarget: positiveNumber,
-    pathways: { items: OLOS_PATHWAY_SCHEMA, type: "array" },
     segmentTarget: positiveNumber,
     sessionId: id,
     state: stringEnum(SESSION_STATES),
@@ -549,9 +533,9 @@ export const OLOS_CURSOR_SCHEMA = {
     "committedWindow",
     "epoch",
     "latencyProfile",
+    "mediaBaseUrl",
     "olos",
     "partTarget",
-    "pathways",
     "segmentTarget",
     "sessionId",
     "state",
@@ -569,7 +553,6 @@ export const OLOS_JSON_SCHEMAS = {
   cursor: OLOS_CURSOR_SCHEMA,
   error: OLOS_ERROR_SCHEMA,
   mediaObject: OLOS_MEDIA_OBJECT_SCHEMA,
-  pathway: OLOS_PATHWAY_SCHEMA,
   providerCapability: OLOS_PROVIDER_CAPABILITY_SCHEMA,
   session: OLOS_SESSION_SCHEMA,
   uploadGrant: OLOS_UPLOAD_GRANT_SCHEMA,

@@ -21,7 +21,6 @@ export type {
   PartNumber,
 } from "./types/ids";
 export type { MediaObject, MediaObjectKind } from "./types/media-object";
-export type { Pathway, PathwayState } from "./types/pathway";
 export type {
   ProviderApiCapabilities,
   ProviderCapabilityDocument,

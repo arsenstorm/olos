@@ -138,16 +138,8 @@ function cursorAt(
     epoch,
     latencyProfile: "object-ll",
     olos: "1.0",
+    mediaBaseUrl: "https://media.example.com",
     partTarget: 0.5,
-    pathways: [
-      {
-        baseUrl: "https://media.example.com",
-        pathwayId: "primary",
-        priority: 0,
-        providerId: "s3_primary",
-        state: "active",
-      },
-    ],
     segmentTarget: 2,
     sessionId: "session_1",
     state: "live",

@@ -11,7 +11,7 @@ import {
   createStoredS3CoordinatorRuntimeHandler,
   issueS3RuntimeUploadGrant,
 } from "@arsenstorm/olos/s3";
-import type { Pathway, Session } from "@arsenstorm/olos/types";
+import type { Session } from "@arsenstorm/olos/types";
 import { describe, expect, test } from "vitest";
 import {
   createTestDeleteObjectClient,
@@ -62,15 +62,7 @@ const multiRenditionSession = {
   ],
 } satisfies Session;
 
-const pathways = [
-  {
-    baseUrl: "https://media.example.com",
-    pathwayId: "primary",
-    priority: 0,
-    providerId: "s3_primary",
-    state: "active",
-  },
-] satisfies Pathway[];
+const mediaBaseUrl = "https://media.example.com";
 
 describe("S3 HTTP pipeline", () => {
   test("publishes and serves a live HLS session through the Fetch handler", async () => {
@@ -81,7 +73,10 @@ describe("S3 HTTP pipeline", () => {
     const clientFetch = runtimeFetchFor(handle);
 
     const created = await handle(
-      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        session,
+      })
     );
     const initGrant = await issueS3RuntimeUploadGrant({
       baseUrl: "https://edge.example.com",
@@ -219,7 +214,10 @@ describe("S3 HTTP pipeline", () => {
     });
 
     await handle(
-      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        session,
+      })
     );
     await handle(
       jsonRequest(
@@ -354,7 +352,7 @@ describe("S3 HTTP pipeline", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session: multiRenditionSession,
       })
     );
@@ -421,7 +419,10 @@ describe("S3 HTTP pipeline", () => {
     const { handle } = createS3HttpPipeline();
 
     await handle(
-      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        session,
+      })
     );
 
     const unsafeKey = await handle(
@@ -474,7 +475,10 @@ describe("S3 HTTP pipeline", () => {
     });
 
     await handle(
-      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        session,
+      })
     );
     await handle(
       jsonRequest(
@@ -533,7 +537,10 @@ describe("S3 HTTP pipeline", () => {
     });
 
     await handle(
-      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        session,
+      })
     );
     await handle(
       jsonRequest(
@@ -599,7 +606,10 @@ describe("S3 HTTP pipeline", () => {
     });
 
     await handle(
-      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        session,
+      })
     );
     await handle(
       jsonRequest(
@@ -781,7 +791,10 @@ describe("S3 HTTP pipeline", () => {
     const { deleteInputs, handle } = createRetentionPipeline();
 
     await handle(
-      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        session,
+      })
     );
 
     for (const object of retentionObjects()) {
@@ -858,7 +871,10 @@ describe("S3 HTTP pipeline", () => {
     });
 
     await handle(
-      jsonRequest("https://edge.example.com/sessions", { pathways, session })
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        session,
+      })
     );
 
     for (const object of retentionObjects()) {

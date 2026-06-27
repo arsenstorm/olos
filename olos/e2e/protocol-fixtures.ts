@@ -1,7 +1,9 @@
 import { createRuntimeObjectLowLatencyProfile } from "@arsenstorm/olos/runtime";
-import type { Pathway, Session } from "@arsenstorm/olos/types";
+import type { Session } from "@arsenstorm/olos/types";
 
 const latency = createRuntimeObjectLowLatencyProfile();
+
+export const TEST_MEDIA_BASE_URL = "https://media.example.com";
 
 export interface TestSessionOptions {
   state?: Session["state"];
@@ -30,16 +32,4 @@ export function createTestSession(options: TestSessionOptions = {}): Session {
     state: options.state ?? "live",
     tenantId: "tenant_1",
   };
-}
-
-export function createTestPathways(): Pathway[] {
-  return [
-    {
-      baseUrl: "https://media.example.com",
-      pathwayId: "primary",
-      priority: 0,
-      providerId: "s3_primary",
-      state: "active",
-    },
-  ];
 }

@@ -2,7 +2,6 @@ import { SESSION_STATES } from "../config/session";
 import type { CoordinatorRetentionPlan } from "../protocol";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
-import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertCommit, assertUploadSlot } from "../validation";
@@ -72,7 +71,7 @@ export interface RuntimePublisherHeartbeatOptions
 }
 
 export interface RuntimeCreateSessionOptions extends RuntimeHttpClientOptions {
-  pathways: readonly Pathway[];
+  mediaBaseUrl: string;
   session: Session;
 }
 
@@ -181,7 +180,7 @@ export async function createRuntimeSession(
   const response = await fetchFor(options)(
     sessionsUrl(options.baseUrl),
     jsonPost({
-      pathways: options.pathways,
+      mediaBaseUrl: options.mediaBaseUrl,
       session: options.session,
     })
   );

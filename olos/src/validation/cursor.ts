@@ -2,8 +2,8 @@ import { LATENCY_PROFILES, SESSION_STATES } from "../config/session";
 import { OLOS_WIRE_VERSION } from "../index";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor, CursorWindow } from "../types/cursor";
-import type { Pathway } from "../types/pathway";
 import { assertCommittedWindow } from "./committed-window";
+import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
   assertIsoDateField,
   assertNonNegativeIntegerField,
@@ -11,9 +11,7 @@ import {
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
-  nonEmptyArray,
 } from "./fields";
-import { assertPathway } from "./pathway";
 
 export function isCursor(value: unknown): value is Cursor {
   try {
@@ -34,7 +32,7 @@ export function assertCursor(value: unknown): asserts value is Cursor {
   }
 
   assertCursorFields(value);
-  assertPathways(value.pathways);
+  assertSafeDeliveryUrl(value.mediaBaseUrl, "cursor.mediaBaseUrl");
 
   const cursorWindow = value.window;
   assertCursorWindow(cursorWindow);
@@ -113,32 +111,5 @@ function assertCursorWindowSequence(
     throw new Error(
       `${name}.firstMediaSequenceNumber must be less than or equal to lastMediaSequenceNumber`
     );
-  }
-}
-
-function assertPathways(value: unknown): asserts value is Pathway[] {
-  const pathways = nonEmptyArray<Pathway>(value, "cursor.pathways");
-  const seenPathways = new Set<string>();
-
-  for (const pathway of pathways) {
-    assertUniquePathway(pathway, seenPathways);
-  }
-}
-
-function assertUniquePathway(
-  pathway: Pathway,
-  seenPathways: Set<string>
-): void {
-  assertPathway(pathway);
-  assertPathwayIdHasNotBeenSeen(pathway.pathwayId, seenPathways);
-  seenPathways.add(pathway.pathwayId);
-}
-
-function assertPathwayIdHasNotBeenSeen(
-  pathwayId: string,
-  seenPathways: Set<string>
-): void {
-  if (seenPathways.has(pathwayId)) {
-    throw new Error("cursor.pathways must not contain duplicate pathway IDs");
   }
 }

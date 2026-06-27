@@ -5,9 +5,9 @@ import {
 } from "../state/retention";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
-import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import type { PublicationMode } from "../types/upload-slot";
+import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import { assertSession } from "../validation/session";
 import type {
   CoordinatorManifestArtifacts,
@@ -18,20 +18,17 @@ import type {
 } from "./coordinator";
 
 export function createCoordinatorPipeline(options: {
-  pathways: readonly Pathway[];
+  mediaBaseUrl: string;
   publicationMode?: PublicationMode;
   session: Session;
 }): CoordinatorPipelineState {
   assertSession(options.session);
-
-  if (options.pathways.length === 0) {
-    throw new Error("pathways must be a non-empty array");
-  }
+  assertSafeDeliveryUrl(options.mediaBaseUrl, "mediaBaseUrl");
 
   return {
     commits: [],
     initCommits: [],
-    pathways: [...options.pathways],
+    mediaBaseUrl: options.mediaBaseUrl,
     publicationMode: options.publicationMode ?? "direct-public",
     publisherLeases: [],
     session: options.session,

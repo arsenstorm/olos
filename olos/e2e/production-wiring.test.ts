@@ -5,7 +5,7 @@ import {
   createRuntimeObjectLowLatencyProfile,
 } from "@arsenstorm/olos/runtime";
 import { createStoredS3CoordinatorRuntimeHandler } from "@arsenstorm/olos/s3";
-import type { Pathway, Session } from "@arsenstorm/olos/types";
+import type { Session } from "@arsenstorm/olos/types";
 import { describe, expect, test } from "vitest";
 import {
   createTestDeleteObjectClient,
@@ -54,7 +54,7 @@ describe("production object pipeline wiring", () => {
       await status(
         handle(
           jsonRequest("https://edge.example.com/sessions", {
-            pathways,
+            mediaBaseUrl,
             session,
           })
         )
@@ -184,15 +184,7 @@ const session = {
   tenantId: "tenant_1",
 } satisfies Session;
 
-const pathways = [
-  {
-    baseUrl: "https://media.example.com",
-    pathwayId: "primary",
-    priority: 0,
-    providerId: "s3_primary",
-    state: "active",
-  },
-] satisfies Pathway[];
+const mediaBaseUrl = "https://media.example.com";
 
 interface ObjectFixture {
   commitId: string;

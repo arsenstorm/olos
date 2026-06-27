@@ -7,7 +7,7 @@ import {
 } from "../protocol";
 import type { CoordinatorPipelineState } from "../protocol/coordinator";
 import {
-  testCoordinatorPathways as pathways,
+  TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
   testCoordinatorSession,
 } from "../protocol/coordinator-state.test-helper";
 import { savedStoreResult } from "../protocol/test-store.test-helper";
@@ -26,7 +26,7 @@ describe("stored session runtime", () => {
     const store = createMemoryCoordinatorStore();
 
     const result = await createStoredCoordinatorSession({
-      pathways,
+      mediaBaseUrl,
       session,
       store,
     });
@@ -46,7 +46,7 @@ describe("stored session runtime", () => {
 
     expect(result.etag).toBe(snapshot.etag);
     expect(snapshot.state.session).toEqual(session);
-    expect(snapshot.state.pathways).toEqual(pathways);
+    expect(snapshot.state.mediaBaseUrl).toBe(mediaBaseUrl);
   });
 
   test("rejects duplicate coordinator session creation", async () => {
@@ -54,7 +54,7 @@ describe("stored session runtime", () => {
     await seedCreatedSession(store);
 
     const result = await createStoredCoordinatorSession({
-      pathways,
+      mediaBaseUrl,
       session,
       store,
     });
@@ -90,7 +90,7 @@ describe("stored session runtime", () => {
     const store = createMemoryCoordinatorStore();
     await seedStore(store, {
       ...createCoordinatorPipeline({
-        pathways,
+        mediaBaseUrl,
         session: { ...session, state: "live" },
       }),
       cursor: cursor("live"),
@@ -202,7 +202,7 @@ describe("stored session runtime", () => {
     await seedStore(
       store,
       createCoordinatorPipeline({
-        pathways,
+        mediaBaseUrl,
         session: { ...session, state: "ended" },
       })
     );
@@ -368,7 +368,7 @@ describe("stored session runtime", () => {
 async function seedCreatedSession(
   store: ReturnType<typeof createMemoryCoordinatorStore>
 ): Promise<void> {
-  await seedStore(store, createCoordinatorPipeline({ pathways, session }));
+  await seedStore(store, createCoordinatorPipeline({ mediaBaseUrl, session }));
 }
 
 async function seedStore(
@@ -437,8 +437,8 @@ function cursor(state: Cursor["state"]): Cursor {
     epoch: session.epoch,
     latencyProfile: session.latencyProfile,
     olos: "1.0",
+    mediaBaseUrl: "https://media.example.com",
     partTarget: session.partTarget,
-    pathways,
     segmentTarget: session.segmentTarget,
     sessionId: session.sessionId,
     state,

@@ -22,7 +22,7 @@ import {
   serveStoredCoordinatorManifest,
   transitionStoredCoordinatorSession,
 } from "@arsenstorm/olos/runtime";
-import type { Pathway, Session } from "@arsenstorm/olos/types";
+import type { Session } from "@arsenstorm/olos/types";
 import { assertCursor } from "@arsenstorm/olos/validation";
 import { describe, expect, test } from "vitest";
 
@@ -53,15 +53,7 @@ const session = {
   tenantId: "tenant_1",
 } satisfies Session;
 
-const pathways = [
-  {
-    baseUrl: "https://media.example.com",
-    pathwayId: "primary",
-    priority: 0,
-    providerId: "s3_primary",
-    state: "active",
-  },
-] satisfies Pathway[];
+const mediaBaseUrl = "https://media.example.com";
 
 const publishNow = "2026-01-01T00:00:00.000Z";
 
@@ -135,7 +127,7 @@ describe("runtime pipeline", () => {
     });
 
     await createStoredCoordinatorSession({
-      pathways,
+      mediaBaseUrl,
       session,
       store,
     });
@@ -232,7 +224,7 @@ async function expectStoredCoordinatorLifecycle(
   store: CoordinatorPipelineStore
 ) {
   const created = await createStoredCoordinatorSession({
-    pathways,
+    mediaBaseUrl,
     session,
     store,
   });

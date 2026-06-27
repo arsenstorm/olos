@@ -297,8 +297,8 @@ function commitIntoState(options: {
   const candidateCursor = createCursor({
     committedWindow,
     latencyProfile: options.state.session.latencyProfile,
+    mediaBaseUrl: options.state.mediaBaseUrl,
     partTarget: options.state.session.partTarget,
-    pathways: options.state.pathways,
     segmentTarget: options.state.session.segmentTarget,
     sessionId: options.state.session.sessionId,
     state: options.state.session.state,

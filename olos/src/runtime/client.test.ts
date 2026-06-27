@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createMemoryCoordinatorStore } from "../protocol";
 import {
-  testCoordinatorPathways as pathways,
+  TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import {
@@ -39,7 +39,7 @@ describe("runtime HTTP client", () => {
     const created = await createRuntimeSession({
       baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
-      pathways,
+      mediaBaseUrl,
       session: { ...session, state: "created" },
     });
     const transitioned = await transitionRuntimeSession({
@@ -114,7 +114,7 @@ describe("runtime HTTP client", () => {
 
     await handle(
       jsonPostRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -272,7 +272,7 @@ describe("runtime HTTP client", () => {
       createRuntimeSession({
         baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
-        pathways,
+        mediaBaseUrl,
         session,
       })
     ).rejects.toThrow("session create failed with status 404");

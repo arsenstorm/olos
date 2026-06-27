@@ -171,16 +171,8 @@ const validCursor = {
   epoch: 1,
   latencyProfile: "object-ll",
   olos: "1.0",
+  mediaBaseUrl: "https://media.example.com",
   partTarget: 0.333,
-  pathways: [
-    {
-      baseUrl: "https://media.example.com",
-      pathwayId: "primary",
-      priority: 0,
-      providerId: "provider_1",
-      state: "active",
-    },
-  ],
   segmentTarget: 1,
   sessionId: "session_1",
   state: "live",

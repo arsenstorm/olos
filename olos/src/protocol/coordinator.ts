@@ -9,7 +9,6 @@ import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
-import type { Pathway } from "../types/pathway";
 import type { Session } from "../types/session";
 import type { PublicationMode, UploadSlot } from "../types/upload-slot";
 import { assertNonNegativeSafeInteger } from "../validation/ids";
@@ -46,7 +45,7 @@ export interface CoordinatorPipelineState {
   commits: readonly Commit[];
   cursor?: Cursor;
   initCommits: readonly Commit[];
-  pathways: readonly Pathway[];
+  mediaBaseUrl: string;
   publicationMode?: PublicationMode;
   publisherLeases: readonly CoordinatorPublisherLease[];
   session: Session;
@@ -59,7 +58,7 @@ export interface CoordinatorPipelineSnapshot {
 }
 
 export interface CreateCoordinatorPipelineOptions {
-  pathways: readonly Pathway[];
+  mediaBaseUrl: string;
   publicationMode?: PublicationMode;
   session: Session;
 }

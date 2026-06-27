@@ -9,10 +9,8 @@ import type {
 } from "../protocol";
 import type { PublicationControlPolicy } from "../state";
 import type { Cursor } from "../types/cursor";
-import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
 import type { PublicationMode } from "../types/upload-slot";
-import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
 import { positiveAttempts } from "./attempts";
 import {
@@ -219,7 +217,7 @@ async function handleSessionRoute(
 
     return (
       await createStoredCoordinatorSession({
-        pathways: parsed.pathways,
+        mediaBaseUrl: parsed.mediaBaseUrl,
         publicationMode: options.publicationMode ?? "direct-public",
         session: parsed.session,
         store: options.store,
@@ -554,7 +552,7 @@ function liveManifestOptions(
 
 async function parseSessionCreateRequest(request: Request): Promise<
   RuntimeHttpRequestParse<{
-    pathways: readonly Pathway[];
+    mediaBaseUrl: string;
     session: Session;
   }>
 > {
@@ -567,26 +565,18 @@ async function parseSessionCreateRequest(request: Request): Promise<
 
     assertSession(payload.session);
 
+    if (typeof payload.mediaBaseUrl !== "string") {
+      throw new Error("mediaBaseUrl must be a string");
+    }
+
     return {
-      pathways: parsePathways(payload.pathways),
+      mediaBaseUrl: payload.mediaBaseUrl,
       session: payload.session,
       status: "valid",
     };
   } catch (error) {
     return invalid(errorMessage(error, "invalid session create request"));
   }
-}
-
-function parsePathways(value: unknown): readonly Pathway[] {
-  if (!Array.isArray(value) || value.length === 0) {
-    throw new Error("pathways must be a non-empty array");
-  }
-
-  for (const pathway of value) {
-    assertPathway(pathway);
-  }
-
-  return value;
 }
 
 async function parseTransitionRequest(

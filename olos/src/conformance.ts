@@ -14,7 +14,6 @@ import {
   createCoordinatorPipeline,
   issueCoordinatorSlot,
 } from "./protocol/coordinator";
-import type { Pathway } from "./types/pathway";
 import type { Session } from "./types/session";
 
 export const getOlosConformanceCoverage = metadataGetOlosConformanceCoverage;
@@ -36,7 +35,7 @@ export async function assertCoordinatorPipelineStoreConformance(
 ): Promise<void> {
   const store = await options.createStore();
   const initial = createCoordinatorPipeline({
-    pathways: conformancePathways,
+    mediaBaseUrl: CONFORMANCE_MEDIA_BASE_URL,
     session: conformanceSession,
   });
 
@@ -78,12 +77,6 @@ export async function assertCoordinatorPipelineStoreConformance(
     initial.session,
     "loaded session must not reuse the saved session object"
   );
-  expectStoreDifferent(
-    loaded.state.pathways,
-    initial.pathways,
-    "loaded pathways must not reuse the saved pathways array"
-  );
-
   const stale = await store.save({
     expectedEtag: "stale",
     sessionId: conformanceSession.sessionId,
@@ -220,12 +213,4 @@ const conformanceSession: Session = {
   tenantId: "tenant_1",
 };
 
-const conformancePathways: Pathway[] = [
-  {
-    baseUrl: "https://media.example.com",
-    pathwayId: "primary",
-    priority: 0,
-    providerId: "s3_primary",
-    state: "active",
-  },
-];
+const CONFORMANCE_MEDIA_BASE_URL = "https://media.example.com";

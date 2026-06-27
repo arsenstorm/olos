@@ -170,7 +170,6 @@ describe("coordinator pipeline", () => {
 
     expect(first.state).not.toBe(second.state);
     expect(first.state.session).not.toBe(second.state.session);
-    expect(first.state.pathways).not.toBe(second.state.pathways);
   });
 
   test("clones coordinator snapshots for external stores", () => {
@@ -206,7 +205,7 @@ describe("coordinator pipeline", () => {
       state: {
         commits: state.commits,
         initCommits: state.initCommits,
-        pathways: state.pathways,
+        mediaBaseUrl: state.mediaBaseUrl,
         session: state.session,
         slots: state.slots,
       },
@@ -238,12 +237,10 @@ describe("coordinator pipeline", () => {
         etag: "1",
         state: {
           ...createEmptyCoordinatorState(),
-          pathways: ["not-a-pathway"],
+          mediaBaseUrl: undefined,
         },
       })
-    ).toThrow(
-      "coordinator pipeline state pathways must contain valid pathway at index 0"
-    );
+    ).toThrow("coordinator pipeline state mediaBaseUrl");
     expect(() =>
       parseCoordinatorPipelineSnapshot({
         etag: "1",

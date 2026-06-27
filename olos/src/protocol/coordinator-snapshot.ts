@@ -1,13 +1,12 @@
 import type { Commit } from "../types/commit";
-import type { Cursor } from "../types/cursor";
 import { assertCommit } from "../validation/commit";
 import { assertCursor } from "../validation/cursor";
+import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import {
   assertIsoDateField,
   assertUrlSafeField,
   isRecord,
 } from "../validation/fields";
-import { assertPathway } from "../validation/pathway";
 import { assertSession } from "../validation/session";
 import { assertUploadSlot } from "../validation/upload-slot";
 import type {
@@ -32,14 +31,11 @@ export function cloneCoordinatorPipelineState(
     ...state,
     commits: state.commits.map((commit) => ({ ...commit })),
     initCommits: state.initCommits.map((commit) => ({ ...commit })),
-    pathways: state.pathways.map((pathway) => ({ ...pathway })),
     publisherLeases: (state.publisherLeases ?? []).map((lease) => ({
       ...lease,
     })),
     slots: state.slots.map((slot) => ({ ...slot })),
-    ...(state.cursor === undefined
-      ? {}
-      : { cursor: cloneCursor(state.cursor) }),
+    ...(state.cursor === undefined ? {} : { cursor: { ...state.cursor } }),
     session: {
       ...state.session,
       renditions: state.session.renditions.map((rendition) => ({
@@ -63,13 +59,6 @@ export function parseCoordinatorPipelineSnapshot(
   assertCoordinatorPipelineSnapshot(parsed);
 
   return cloneCoordinatorPipelineSnapshot(parsed);
-}
-
-function cloneCursor(cursor: Cursor): Cursor {
-  return {
-    ...cursor,
-    pathways: cursor.pathways.map((pathway) => ({ ...pathway })),
-  };
 }
 
 function assertCoordinatorPipelineSnapshot(
@@ -96,7 +85,10 @@ function assertCoordinatorPipelineState(
   }
 
   assertSession(value.session);
-  assertPathways(value.pathways);
+  assertSafeDeliveryUrl(
+    value.mediaBaseUrl,
+    "coordinator pipeline state mediaBaseUrl"
+  );
   assertUploadSlots(value.slots);
   assertCommits(value.initCommits, "coordinator pipeline state initCommits");
   assertCommits(value.commits, "coordinator pipeline state commits");
@@ -124,21 +116,6 @@ function assertCommits(
     } catch (error) {
       throw new Error(
         `${name} must contain valid commit at index ${index}: ${(error as Error).message}`
-      );
-    }
-  });
-}
-
-function assertPathways(value: unknown): void {
-  assertArray(value, "coordinator pipeline state pathways");
-  value.forEach((pathway, index) => {
-    try {
-      assertPathway(pathway);
-    } catch (error) {
-      throw new Error(
-        `coordinator pipeline state pathways must contain valid pathway at index ${index}: ${
-          (error as Error).message
-        }`
       );
     }
   });

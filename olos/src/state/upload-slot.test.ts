@@ -104,17 +104,9 @@ const cursor: Cursor = {
   },
   epoch: 0,
   latencyProfile: "object-ll",
+  mediaBaseUrl: "https://media.example.com",
   olos: "1.0",
   partTarget: 0.5,
-  pathways: [
-    {
-      baseUrl: "https://media.example.com",
-      pathwayId: "primary",
-      priority: 0,
-      providerId: "s3_primary",
-      state: "active",
-    },
-  ],
   segmentTarget: 2,
   sessionId: "session_1",
   state: "live",

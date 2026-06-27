@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { createMemoryCoordinatorStore } from "../protocol";
 import {
-  testCoordinatorPathways as pathways,
+  TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import { createPublicationKillSwitch } from "../state";
@@ -98,7 +98,7 @@ describe("stored coordinator runtime handler", () => {
 
     const created = await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -227,7 +227,7 @@ describe("stored coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -407,14 +407,8 @@ describe("stored coordinator runtime handler", () => {
 
     const sessionResponse = await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session: { ...session, state: "paused" },
-      })
-    );
-    const pathwayResponse = await handle(
-      jsonRequest("https://edge.example.com/sessions", {
-        pathways: [{ ...pathways[0], state: "warming" }],
-        session,
       })
     );
 
@@ -423,15 +417,6 @@ describe("stored coordinator runtime handler", () => {
         error: {
           message:
             "session.state must be one of: created, starting, live, ending, ended, aborted, expired",
-        },
-      },
-      status: 400,
-    });
-    await expect(jsonResponseStatusAndBody(pathwayResponse)).resolves.toEqual({
-      body: {
-        error: {
-          message:
-            "pathway.state must be one of: active, degraded, draining, disabled",
         },
       },
       status: 400,
@@ -446,7 +431,7 @@ describe("stored coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -482,7 +467,7 @@ describe("stored coordinator runtime handler", () => {
 
     await setup(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -530,7 +515,7 @@ describe("stored coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -579,7 +564,7 @@ describe("stored coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -637,7 +622,7 @@ describe("stored coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -675,7 +660,7 @@ describe("stored coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -705,7 +690,7 @@ describe("stored coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -735,7 +720,7 @@ describe("stored coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        pathways,
+        mediaBaseUrl,
         session,
       })
     );
@@ -984,7 +969,7 @@ async function seedRuntimeStore(
 
   await handle(
     jsonRequest("https://edge.example.com/sessions", {
-      pathways,
+      mediaBaseUrl,
       session,
     })
   );

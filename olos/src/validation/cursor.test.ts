@@ -44,17 +44,9 @@ const validCursor: Cursor = {
   },
   epoch: 4,
   latencyProfile: "object-ll",
+  mediaBaseUrl: "https://media.example.com",
   olos: "1.0",
   partTarget: 0.333,
-  pathways: [
-    {
-      baseUrl: "https://media.example.com",
-      pathwayId: "primary",
-      priority: 0,
-      providerId: "provider_1",
-      state: "active",
-    },
-  ],
   segmentTarget: 1,
   sessionId: "session_1",
   state: "live",
@@ -107,43 +99,12 @@ describe("cursor validation", () => {
     ).toThrow("cursor.updatedAt must be a valid timestamp");
   });
 
-  test("rejects empty pathways", () => {
-    expect(() => assertCursor({ ...validCursor, pathways: [] })).toThrow(
-      "cursor.pathways must be a non-empty array"
+  test("rejects unsafe mediaBaseUrl", () => {
+    expect(() =>
+      assertCursor({ ...validCursor, mediaBaseUrl: "javascript:alert(1)" })
+    ).toThrow(
+      "cursor.mediaBaseUrl must be an absolute HTTP(S) URL or safe relative path"
     );
-  });
-
-  test("rejects duplicate pathway IDs", () => {
-    expect(() =>
-      assertCursor({
-        ...validCursor,
-        pathways: [validCursor.pathways[0], validCursor.pathways[0]],
-      })
-    ).toThrow("cursor.pathways must not contain duplicate pathway IDs");
-  });
-
-  test("rejects duplicate pathway IDs across distinct pathway objects", () => {
-    expect(() =>
-      assertCursor({
-        ...validCursor,
-        pathways: [
-          validCursor.pathways[0],
-          {
-            ...validCursor.pathways[0],
-            providerId: "provider_2",
-          },
-        ],
-      })
-    ).toThrow("cursor.pathways must not contain duplicate pathway IDs");
-  });
-
-  test("rejects invalid pathway state", () => {
-    expect(() =>
-      assertCursor({
-        ...validCursor,
-        pathways: [{ ...validCursor.pathways[0], state: "warming" }],
-      })
-    ).toThrow("pathway.state must be one of:");
   });
 
   test("rejects non-monotonic cursor windows", () => {

@@ -11,7 +11,6 @@ import {
 } from "../protocol";
 import { assertSessionTransition } from "../state/session";
 import type { OlosId } from "../types/ids";
-import type { Pathway } from "../types/pathway";
 import type { Session, SessionState } from "../types/session";
 import type { PublicationMode } from "../types/upload-slot";
 import { assertUrlSafeIdentifier } from "../validation/ids";
@@ -24,7 +23,7 @@ import { jsonErrorResponse, jsonResponse } from "./response";
 import { isStringLiteral } from "./string-literals";
 
 export interface CreateStoredCoordinatorSessionOptions {
-  pathways: readonly Pathway[];
+  mediaBaseUrl: string;
   publicationMode?: PublicationMode;
   session: Session;
   store: CoordinatorPipelineStore;
@@ -122,7 +121,7 @@ export async function createStoredCoordinatorSession(
   }
 
   const state = createCoordinatorPipeline({
-    pathways: options.pathways,
+    mediaBaseUrl: options.mediaBaseUrl,
     publicationMode: options.publicationMode,
     session: options.session,
   });

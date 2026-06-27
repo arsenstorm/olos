@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createMemoryCoordinatorStore } from "../protocol";
 import {
-  testCoordinatorPathways as pathways,
+  TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import { createRuntimeSession, type RuntimeFetch } from "../runtime";
@@ -870,7 +870,7 @@ async function createS3RuntimeClientHarness(options: {
   await createRuntimeSession({
     baseUrl: RUNTIME_BASE_URL,
     fetch: clientFetch,
-    pathways,
+    mediaBaseUrl,
     session,
   });
 
