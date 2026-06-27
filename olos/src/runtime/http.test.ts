@@ -925,25 +925,28 @@ describe("stored coordinator runtime handler", () => {
 });
 
 interface SlotPayloadOptions {
-  deliveryUrl: string;
+  /**
+   * Legacy. The coordinator derives the deliveryUrl; this is kept on the
+   * options shape so call sites can document what address they expect.
+   */
+  deliveryUrl?: string;
   duration: number;
   kind: "init" | "segment";
   maxBytes: number;
   mediaSequenceNumber: number;
-  objectKey: string;
+  /** Legacy; see `deliveryUrl`. */
+  objectKey?: string;
   slotId: string;
 }
 
 function slotPayload(options: SlotPayloadOptions) {
   return {
     contentType: "video/mp4",
-    deliveryUrl: options.deliveryUrl,
     duration: options.duration,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: options.kind,
     maxBytes: options.maxBytes,
     mediaSequenceNumber: options.mediaSequenceNumber,
-    objectKey: options.objectKey,
     renditionId: "v1080",
     slotId: options.slotId,
   };

@@ -22,6 +22,7 @@ export interface RuntimeSlotIssuePayload
 export function parseRuntimeSlotIssuePayload(
   value: Record<string, unknown>
 ): RuntimeSlotIssuePayload {
+  assertNoLegacyAddressFields(value);
   const kind = oneOfStringField(value, "kind", MEDIA_OBJECT_KINDS);
   const partNumber = optionalNonNegativeIntegerField(value, "partNumber");
   assertPartNumberKindMatch(kind, partNumber);
@@ -40,6 +41,20 @@ export function parseRuntimeSlotIssuePayload(
     ...optionalDerivationHints(value, kind),
     ...optionalSlotByterange(value, kind),
   };
+}
+
+function assertNoLegacyAddressFields(value: Record<string, unknown>): void {
+  if (value.objectKey !== undefined) {
+    throw new Error(
+      "slot issue payload must not include objectKey (the coordinator derives it)"
+    );
+  }
+
+  if (value.deliveryUrl !== undefined) {
+    throw new Error(
+      "slot issue payload must not include deliveryUrl (the coordinator derives it)"
+    );
+  }
 }
 
 function assertPartNumberKindMatch(

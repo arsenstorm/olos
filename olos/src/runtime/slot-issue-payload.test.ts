@@ -69,22 +69,40 @@ describe("runtime slot issue payload parser", () => {
     });
   });
 
-  test("ignores publisher-supplied objectKey and deliveryUrl in the wire payload", () => {
-    const payload = parseRuntimeSlotIssuePayload({
-      contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/anything.m4s",
-      duration: 2,
-      expiresAt: "2026-01-01T00:00:00.000Z",
-      kind: "segment",
-      maxBytes: 1_000_000,
-      mediaSequenceNumber: 3810,
-      objectKey: "any/key.m4s",
-      renditionId: "v1080",
-      slotId: "slot_3810",
-    });
+  test("rejects publisher-supplied objectKey in the wire payload", () => {
+    expect(() =>
+      parseRuntimeSlotIssuePayload({
+        contentType: "video/mp4",
+        duration: 2,
+        expiresAt: "2026-01-01T00:00:00.000Z",
+        kind: "segment",
+        maxBytes: 1_000_000,
+        mediaSequenceNumber: 3810,
+        objectKey: "any/key.m4s",
+        renditionId: "v1080",
+        slotId: "slot_3810",
+      })
+    ).toThrow(
+      "slot issue payload must not include objectKey (the coordinator derives it)"
+    );
+  });
 
-    expect(payload).not.toHaveProperty("objectKey");
-    expect(payload).not.toHaveProperty("deliveryUrl");
+  test("rejects publisher-supplied deliveryUrl in the wire payload", () => {
+    expect(() =>
+      parseRuntimeSlotIssuePayload({
+        contentType: "video/mp4",
+        deliveryUrl: "https://media.example.com/anything.m4s",
+        duration: 2,
+        expiresAt: "2026-01-01T00:00:00.000Z",
+        kind: "segment",
+        maxBytes: 1_000_000,
+        mediaSequenceNumber: 3810,
+        renditionId: "v1080",
+        slotId: "slot_3810",
+      })
+    ).toThrow(
+      "slot issue payload must not include deliveryUrl (the coordinator derives it)"
+    );
   });
 
   test("rejects partNumber on non-part kinds", () => {

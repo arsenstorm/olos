@@ -10,18 +10,23 @@ Hard-removes the wire compat for publisher-supplied object addresses. The
 SDK has been intent-first since 0.3.0; 0.4.0 makes the wire match.
 
 - `IssueCoordinatorSlotOptions` no longer accepts `objectKey` or
-  `deliveryUrl`. `parseRuntimeSlotIssuePayload` strips both from the wire
-  shape — the coordinator is the sole authority on object addresses,
-  every time. Publishers send intent (`kind`, `mediaSequenceNumber`,
+  `deliveryUrl`. `parseRuntimeSlotIssuePayload` now **rejects** both — old
+  clients fail fast at the wire boundary rather than later at commit
+  time. Publishers send intent (`kind`, `mediaSequenceNumber`,
   `renditionId`, `slotId`, optional `partNumber` /
   `objectKeyNonce` / `objectKeyPrefix` / `extension`); the coordinator
   derives `objectKey` and `deliveryUrl` from intent plus its configured
-  `mediaBaseUrl`.
+  `mediaBaseUrl`, every time.
 - The `examples/streamer` (OBS bridge) and `examples/api/scripts/publish-demo`
   scripts now omit `objectKey` / `deliveryUrl` on slot requests, read the
   derived address from the issued slot, and pass shared per-segment
   `objectKeyNonce` values for byterange parts so the part slots and the
   segment slot agree on the segment object address.
+- `Byterange.segmentObjectKey` and `Byterange.segmentDeliveryUrl` are
+  documented as virtual byterange identifiers used by the manifest
+  renderer and the application's virtual-segment route — **not**
+  object-store publication authority. Publishers SHOULD derive them with
+  `createPublisherObjectKey` and a shared per-segment `objectKeyNonce`.
 
 ## 0.3.1
 

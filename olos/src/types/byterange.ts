@@ -10,9 +10,18 @@
  * players can hold a Range request open against the segment URL.
  *
  * `byterange.offset` is the part's first byte within the virtual segment,
- * `byterange.length` is its byte count. `segmentObjectKey` /
- * `segmentDeliveryUrl` identify the virtual segment the part contributes
- * to; the segment itself is synthesised on demand from its part objects.
+ * `byterange.length` is its byte count.
+ *
+ * Authority: `segmentObjectKey` and `segmentDeliveryUrl` are virtual
+ * byterange identifiers used by the manifest renderer and the application's
+ * virtual-segment serving route. They are NOT object-store publication
+ * authority — no upload grant or commit is issued against them. The
+ * publisher MUST set them so the part slots and the eventual segment slot
+ * agree on the segment address; the convention is to derive them from a
+ * shared per-segment `objectKeyNonce` using
+ * `createPublisherObjectKey({ kind: "segment", mediaSequenceNumber,
+ * objectKeyNonce, renditionId })`. Future revisions may move derivation
+ * server-side; for now they are publisher-supplied.
  */
 export interface Byterange {
   length: number;

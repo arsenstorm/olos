@@ -946,13 +946,11 @@ function renditionObject(
 function slotPayload(options: SlotPayloadOptions) {
   return {
     contentType: "video/mp4",
-    deliveryUrl: options.deliveryUrl,
     duration: options.duration,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: options.kind,
     maxBytes: options.maxBytes,
     mediaSequenceNumber: options.mediaSequenceNumber,
-    objectKey: options.objectKey,
     renditionId: options.renditionId ?? "v1080",
     slotId: options.slotId,
   };

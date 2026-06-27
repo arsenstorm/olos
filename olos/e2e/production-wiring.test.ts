@@ -240,13 +240,11 @@ async function issueObject(
   const response = await handle(
     jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", {
       contentType: "video/mp4",
-      deliveryUrl: object.deliveryUrl,
       duration: object.duration,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: object.kind,
       maxBytes: object.maxBytes,
       mediaSequenceNumber: object.mediaSequenceNumber,
-      objectKey: object.objectKey,
       renditionId: "v1080",
       slotId: object.slotId,
     })

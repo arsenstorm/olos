@@ -3092,19 +3092,6 @@ function slotPayload(options: SlotPayloadOptions) {
       : { partNumber: options.partNumber }),
     renditionId: "v1080",
     slotId: options.slotId,
-    ...slotPayloadDerivationHints(options),
-  };
-}
-
-function slotPayloadDerivationHints(options: SlotPayloadOptions) {
-  if (options.objectKey === undefined) {
-    return {};
-  }
-  return {
-    objectKey: options.objectKey,
-    ...(options.deliveryUrl === undefined
-      ? {}
-      : { deliveryUrl: options.deliveryUrl }),
   };
 }
 
