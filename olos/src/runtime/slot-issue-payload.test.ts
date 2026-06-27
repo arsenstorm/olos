@@ -104,4 +104,29 @@ describe("runtime slot issue payload parser", () => {
       })
     ).toThrow("objectKey must be a safe relative object key");
   });
+
+  test("rejects unsafe derivation hints", () => {
+    const base = {
+      contentType: "video/mp4",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      kind: "segment",
+      maxBytes: 1_000_000,
+      mediaSequenceNumber: 3810,
+      renditionId: "v1080",
+      slotId: "slot_3810",
+    };
+
+    expect(() =>
+      parseRuntimeSlotIssuePayload({ ...base, objectKeyPrefix: "../escape" })
+    ).toThrow("objectKeyPrefix must be a safe relative path");
+
+    expect(() =>
+      parseRuntimeSlotIssuePayload({ ...base, objectKeyNonce: "../slot" })
+    ).toThrow("objectKeyNonce must be a non-empty URL-safe identifier");
+
+    expect(() =>
+      parseRuntimeSlotIssuePayload({ ...base, extension: "html" })
+    ).toThrow("extension must use a supported media extension");
+  });
 });

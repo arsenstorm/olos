@@ -21,6 +21,10 @@ ordering. The Runtime bucket holds heartbeats, health, retention,
 reconciliation, and session lifecycle — the operational glue that lives in
 the runtime layer, not in the protocol-essential commit semantics.
 
+Assertion identifiers prefixed `CORE-RUNTIME-` are historical: the strings
+predate the bucket split and are kept stable. The `level` field on each
+coverage row is authoritative; the prefix is not.
+
 Coverage means an assertion ID is mapped to a deterministic test file in
 `OLOS_CONFORMANCE_COVERAGE`. It does not mean a deployment is production-ready;
 applications still need their own authentication, storage policy, monitoring,

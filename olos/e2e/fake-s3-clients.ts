@@ -48,7 +48,8 @@ function toObjectSizeResolver(sizes: ObjectSizeFixtures): ObjectSizeResolver {
     return (objectKey) => sizes.get(objectKey);
   }
 
-  return (objectKey) => sizes[objectKey];
+  const record = sizes as Record<string, number>;
+  return (objectKey: string) => record[objectKey];
 }
 
 export function createTestDeleteObjectClient(

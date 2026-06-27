@@ -4,6 +4,23 @@ Notable package changes are documented here.
 
 This project follows semantic versioning for the published `olos` package.
 
+## 0.3.1
+
+Cleanup release. No protocol shape change.
+
+- The `olos` package `tsconfig.json` now type-checks `e2e/**/*.ts` against
+  the source via path mappings. Stale fields (`baseUrl`,
+  `publisherInstanceId`, `publicationMode`) and missing narrows were
+  fixed in the surfaced e2e files.
+- The wire parser (`parseRuntimeSlotIssuePayload`) now validates the
+  optional derivation hints — `extension`, `objectKeyNonce`,
+  `objectKeyPrefix` — using the same rules the publisher SDK applies, so
+  bad hints fail at the boundary instead of being caught later by the
+  generated slot's validator.
+- `contributing/core/conformance.md` notes that `CORE-RUNTIME-*`
+  assertion identifiers are legacy-labelled; the `level` field is
+  authoritative.
+
 ## 0.3.0
 
 Spec-completion release. Breaking SDK changes; wire stays soft-compatible.

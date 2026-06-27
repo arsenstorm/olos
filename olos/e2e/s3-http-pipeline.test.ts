@@ -29,26 +29,28 @@ const session = {
   latencyProfile: latency.latencyProfile,
   olos: "1.0",
   partTarget: latency.partTarget,
-  renditions: [
-    {
-      bitrate: 5_000_000,
-      codec: "avc1.640028",
-      frameRate: 30,
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
-    },
-  ],
+  renditions: [v1080Rendition()],
   segmentTarget: latency.segmentTarget,
   sessionId: "session_1",
   state: "live",
 } satisfies Session;
 
+function v1080Rendition() {
+  return {
+    bitrate: 5_000_000,
+    codec: "avc1.640028",
+    frameRate: 30,
+    height: 1080,
+    kind: "video",
+    renditionId: "v1080",
+    width: 1920,
+  } as const;
+}
+
 const multiRenditionSession = {
   ...session,
   renditions: [
-    session.renditions[0],
+    v1080Rendition(),
     {
       bitrate: 2_800_000,
       codec: "avc1.64001f",
@@ -62,6 +64,7 @@ const multiRenditionSession = {
 } satisfies Session;
 
 const mediaBaseUrl = "https://media.example.com";
+const BASE_URL = "https://edge.example.com";
 
 describe("S3 HTTP pipeline", () => {
   test("publishes and serves a live HLS session through the Fetch handler", async () => {
@@ -78,7 +81,7 @@ describe("S3 HTTP pipeline", () => {
       })
     );
     const initGrant = await issueS3RuntimeUploadGrant({
-      baseUrl: "https://edge.example.com",
+      baseUrl: BASE_URL,
       fetch: clientFetch,
       payload: slotPayload({
         deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
@@ -92,7 +95,7 @@ describe("S3 HTTP pipeline", () => {
       sessionId: session.sessionId,
     });
     const segmentGrant = await issueS3RuntimeUploadGrant({
-      baseUrl: "https://edge.example.com",
+      baseUrl: BASE_URL,
       fetch: clientFetch,
       payload: slotPayload({
         deliveryUrl: "https://media.example.com/media/v1080/3810.m4s",
@@ -106,7 +109,7 @@ describe("S3 HTTP pipeline", () => {
       sessionId: session.sessionId,
     });
     const initCommit = await commitS3RuntimeUpload({
-      baseUrl: "https://edge.example.com",
+      baseUrl: BASE_URL,
       fetch: clientFetch,
       payload: {
         commitId: "commit_init",
@@ -116,7 +119,7 @@ describe("S3 HTTP pipeline", () => {
       sessionId: session.sessionId,
     });
     const segmentCommit = await completeS3RuntimeUpload({
-      baseUrl: "https://edge.example.com",
+      baseUrl: BASE_URL,
       fetch: clientFetch,
       payload: {
         commitId: "commit_3810",
@@ -999,8 +1002,6 @@ function slotPayload(options: SlotPayloadOptions) {
     maxBytes: options.maxBytes,
     mediaSequenceNumber: options.mediaSequenceNumber,
     objectKey: options.objectKey,
-    publicationMode: "direct-public" as const,
-    publisherInstanceId: "publisher_1",
     renditionId: options.renditionId ?? "v1080",
     slotId: options.slotId,
   };
