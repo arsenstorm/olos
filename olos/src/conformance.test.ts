@@ -71,9 +71,10 @@ describe("conformance manifest", () => {
 
   test("matches the documented coverage snapshot", () => {
     expect(countCoverageByLevel()).toEqual({
-      core: 62,
+      core: 38,
       hls: 17,
       object: 41,
+      runtime: 24,
       security: 7,
       total: 127,
     });
@@ -83,7 +84,8 @@ describe("conformance manifest", () => {
       "utf8"
     );
 
-    expect(guide).toContain("| Core | 62 |");
+    expect(guide).toContain("| Core | 38 |");
+    expect(guide).toContain("| Runtime | 24 |");
     expect(guide).toContain("| Object | 41 |");
     expect(guide).toContain("| HLS | 17 |");
     expect(guide).toContain("| Security | 7 |");
@@ -228,6 +230,7 @@ function countCoverageByLevel() {
     core: countCoverage("core"),
     hls: countCoverage("hls"),
     object: countCoverage("object"),
+    runtime: countCoverage("runtime"),
     security: countCoverage("security"),
     total: OLOS_CONFORMANCE_COVERAGE.length,
   };
