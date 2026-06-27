@@ -69,7 +69,7 @@ describe("runtime slot issue payload parser", () => {
     });
   });
 
-  test("accepts publisher-supplied objectKey and deliveryUrl as compat hints", () => {
+  test("ignores publisher-supplied objectKey and deliveryUrl in the wire payload", () => {
     const payload = parseRuntimeSlotIssuePayload({
       contentType: "video/mp4",
       deliveryUrl: "https://media.example.com/anything.m4s",
@@ -83,24 +83,8 @@ describe("runtime slot issue payload parser", () => {
       slotId: "slot_3810",
     });
 
-    expect(payload.objectKey).toBe("any/key.m4s");
-    expect(payload.deliveryUrl).toBe("https://media.example.com/anything.m4s");
-  });
-
-  test("rejects unsafe objectKey", () => {
-    expect(() =>
-      parseRuntimeSlotIssuePayload({
-        contentType: "video/mp4",
-        duration: 2,
-        expiresAt: "2026-01-01T00:00:00.000Z",
-        kind: "segment",
-        maxBytes: 1_000_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/../secret.m4s",
-        renditionId: "v1080",
-        slotId: "slot_3810",
-      })
-    ).toThrow("objectKey must be a safe relative object key");
+    expect(payload).not.toHaveProperty("objectKey");
+    expect(payload).not.toHaveProperty("deliveryUrl");
   });
 
   test("rejects partNumber on non-part kinds", () => {

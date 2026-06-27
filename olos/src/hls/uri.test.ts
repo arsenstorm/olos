@@ -34,7 +34,7 @@ describe("HLS URI helpers", () => {
 
   test("validates relative and allowed absolute media URIs", () => {
     expect(() =>
-      assertSafeMediaUri("/live/session/v1080/3810.m4s", {}, "uri")
+      assertSafeMediaUri("/media/v1080/s3810.m4s", {}, "uri")
     ).not.toThrow();
     expect(() =>
       assertSafeMediaUri(

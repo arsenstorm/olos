@@ -57,7 +57,7 @@ describe("createTestHeadObjectClient", () => {
   test("supports metadata and custom missing-object errors", async () => {
     const headObjectInputs: unknown[] = [];
     const client = createTestHeadObjectClientForSingle(
-      "media/v1080/3810.m4s",
+      "media/v1080/s3810.m4s",
       98_304,
       headObjectInputs,
       "video/mp4",
@@ -70,14 +70,14 @@ describe("createTestHeadObjectClient", () => {
     await client.send({
       input: {
         Bucket: "media",
-        Key: "media/v1080/3810.m4s",
+        Key: "media/v1080/s3810.m4s",
       },
     } as HeadObjectCommand);
 
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/3810.m4s",
+        Key: "media/v1080/s3810.m4s",
       },
     ]);
 
@@ -99,7 +99,7 @@ describe("createTestHeadObjectClient", () => {
     const output = await client.send({
       input: {
         Bucket: "media",
-        Key: "media/v1080/3810.m4s",
+        Key: "media/v1080/s3810.m4s",
       },
     } as HeadObjectCommand);
 

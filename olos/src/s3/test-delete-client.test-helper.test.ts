@@ -10,14 +10,14 @@ describe("createTestS3DeleteObjectClient", () => {
     await client.send(
       new DeleteObjectCommand({
         Bucket: "media",
-        Key: "media/s3810.m4s",
+        Key: "media/v1080/s3810.m4s",
       })
     );
 
     expect(inputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/s3810.m4s",
+        Key: "media/v1080/s3810.m4s",
       },
     ]);
   });

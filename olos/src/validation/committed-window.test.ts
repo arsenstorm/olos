@@ -151,7 +151,7 @@ describe("committed window validation", () => {
             ...validRendition(),
             init: {
               ...validRendition().init,
-              deliveryUrl: "media/init.mp4",
+              deliveryUrl: "media/v1080/init.mp4",
             },
           },
         },
@@ -221,7 +221,7 @@ describe("committed window validation", () => {
             ...validRendition(),
             init: {
               ...validRendition().init,
-              objectKey: "/media/init.mp4",
+              objectKey: "/media/v1080/init.mp4",
             },
           },
         },

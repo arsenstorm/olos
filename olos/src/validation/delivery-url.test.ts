@@ -8,7 +8,7 @@ const acceptedDeliveryUrlCases = [
   },
   {
     label: "safe relative path",
-    value: "/live/session/v1080/3810.m4s",
+    value: "/media/v1080/s3810.m4s",
   },
 ] as const;
 

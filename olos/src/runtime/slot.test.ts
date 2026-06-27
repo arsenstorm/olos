@@ -151,13 +151,13 @@ describe("runtime slot adapter", () => {
 function slotPayload() {
   return {
     contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/s3810.m4s",
+    deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
     duration: 2,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment" as const,
     maxBytes: 100_000,
     mediaSequenceNumber: 3810,
-    objectKey: "media/s3810.m4s",
+    objectKey: "media/v1080/s3810.m4s",
     renditionId: "v1080",
     slotId: "slot_3810",
   };

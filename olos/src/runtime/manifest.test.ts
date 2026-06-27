@@ -26,7 +26,7 @@ describe("runtime manifest adapter", () => {
       "application/vnd.apple.mpegurl"
     );
     expect(await response.text()).toContain(
-      "https://media.example.com/s3810.m4s"
+      "https://media.example.com/media/v1080/s3810.m4s"
     );
   });
 

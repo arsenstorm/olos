@@ -99,13 +99,11 @@ describe("serialized coordinator store", () => {
 
     const next = issueCoordinatorSlot({
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/init.mp4",
       duration: 1,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
       mediaSequenceNumber: 0,
-      objectKey: "media/init.mp4",
       renditionId: "v1080",
       slotId: "slot_init",
       state,
@@ -165,13 +163,11 @@ describe("serialized coordinator store", () => {
 
     const issued = issueCoordinatorSlot({
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/init.mp4",
       duration: 1,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
       mediaSequenceNumber: 0,
-      objectKey: "media/init.mp4",
       renditionId: "v1080",
       slotId: "slot_init",
       state,

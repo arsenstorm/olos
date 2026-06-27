@@ -81,13 +81,11 @@ describe("coordinator pipeline", () => {
 
     const next = issueCoordinatorSlot({
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/init.mp4",
       duration: 1,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
       mediaSequenceNumber: 0,
-      objectKey: "media/init.mp4",
       renditionId: "v1080",
       slotId: "slot_init",
       state,
@@ -366,13 +364,11 @@ describe("coordinator pipeline", () => {
       mutate: (current) =>
         issueCoordinatorSlot({
           contentType: "video/mp4",
-          deliveryUrl: "https://media.example.com/init.mp4",
           duration: 1,
           expiresAt: "2026-01-01T00:00:05.000Z",
           kind: "init",
           maxBytes: 2048,
           mediaSequenceNumber: 0,
-          objectKey: "media/init.mp4",
           renditionId: "v1080",
           slotId: "slot_init",
           state: current,
@@ -456,13 +452,11 @@ describe("coordinator pipeline", () => {
                 ...current.slots,
                 issueCoordinatorSlot({
                   contentType: "video/mp4",
-                  deliveryUrl: "https://media.example.com/init.mp4",
                   duration: 1,
                   expiresAt: "2026-01-01T00:00:05.000Z",
                   kind: "init",
                   maxBytes: 2048,
                   mediaSequenceNumber: 0,
-                  objectKey: "media/init.mp4",
                   renditionId: "v1080",
                   slotId: "slot_init",
                   state: current,
@@ -474,13 +468,11 @@ describe("coordinator pipeline", () => {
 
         return issueCoordinatorSlot({
           contentType: "video/mp4",
-          deliveryUrl: "https://media.example.com/s3810.m4s",
           duration: 2,
           expiresAt: "2026-01-01T00:00:05.000Z",
           kind: "segment",
           maxBytes: 100_000,
           mediaSequenceNumber: 3810,
-          objectKey: "media/s3810.m4s",
           renditionId: "v1080",
           slotId: "slot_3810",
           state: current,
@@ -507,13 +499,11 @@ describe("coordinator pipeline", () => {
 
     const initIssue = issueCoordinatorSlot({
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/init.mp4",
       duration: 1,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
       mediaSequenceNumber: 0,
-      objectKey: "media/init.mp4",
       renditionId: "v1080",
       slotId: "slot_init",
       state,
@@ -525,7 +515,7 @@ describe("coordinator pipeline", () => {
       committedAt: "2026-01-01T00:00:01.000Z",
       object: createObservedUpload({
         contentType: "video/mp4",
-        objectKey: "media/init.mp4",
+        objectKey: "media/v1080/init.mp4",
         observedAt: "2026-01-01T00:00:01.000Z",
         providerId: "s3_primary",
         size: 1024,
@@ -543,13 +533,11 @@ describe("coordinator pipeline", () => {
 
     const segmentIssue = issueCoordinatorSlot({
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3810.m4s",
       duration: 2,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      objectKey: "media/s3810.m4s",
       renditionId: "v1080",
       slotId: "slot_3810",
       state,
@@ -562,7 +550,7 @@ describe("coordinator pipeline", () => {
       independent: true,
       object: createObservedUpload({
         contentType: "video/mp4",
-        objectKey: "media/s3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         observedAt: "2026-01-01T00:00:02.000Z",
         providerId: "s3_primary",
         size: 98_304,
@@ -589,7 +577,7 @@ describe("coordinator pipeline", () => {
       independent: true,
       object: createObservedUpload({
         contentType: "video/mp4",
-        objectKey: "media/s3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         observedAt: "2026-01-01T00:00:02.000Z",
         providerId: "s3_primary",
         size: 98_304,
@@ -606,13 +594,11 @@ describe("coordinator pipeline", () => {
     let state = createEmptyCoordinatorState();
     const issued = issueCoordinatorSlot({
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3810.m4s",
       duration: 2,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      objectKey: "media/s3810.m4s",
       renditionId: "v1080",
       slotId: "slot_3810",
       state,
@@ -625,7 +611,7 @@ describe("coordinator pipeline", () => {
       independent: true,
       object: createObservedUpload({
         contentType: "video/mp4",
-        objectKey: "media/s3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         observedAt: "2026-01-01T00:00:02.000Z",
         providerId: "s3_primary",
         size: 98_304,
@@ -644,7 +630,7 @@ describe("coordinator pipeline", () => {
       independent: false,
       object: createObservedUpload({
         contentType: "video/mp4",
-        objectKey: "media/s3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         observedAt: "2026-01-01T00:00:02.000Z",
         providerId: "s3_primary",
         size: 98_304,
@@ -689,7 +675,7 @@ describe("coordinator pipeline", () => {
       independent: true,
       object: createObservedUpload({
         contentType: "video/mp4",
-        objectKey: "media/s3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         observedAt: "2026-01-01T00:00:02.000Z",
         providerId: "s3_primary",
         size: 98_304,
@@ -716,13 +702,11 @@ describe("coordinator pipeline", () => {
     let state = createEmptyCoordinatorState();
     const issued = issueCoordinatorSlot({
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/init.mp4",
       duration: 1,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
       mediaSequenceNumber: 0,
-      objectKey: "media/init.mp4",
       renditionId: "v1080",
       slotId: "slot_init",
       state,
@@ -735,7 +719,7 @@ describe("coordinator pipeline", () => {
       lateToleranceMs: 1000,
       object: createObservedUpload({
         contentType: "video/mp4",
-        objectKey: "media/init.mp4",
+        objectKey: "media/v1080/init.mp4",
         observedAt: "2026-01-01T00:00:05.500Z",
         providerId: "s3_primary",
         size: 1024,
@@ -772,13 +756,11 @@ describe("coordinator pipeline", () => {
     let state = createEmptyCoordinatorState();
     const issued = issueCoordinatorSlot({
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3810.m4s",
       duration: 2,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      objectKey: "media/s3810.m4s",
       renditionId: "v1080",
       slotId: "slot_3810",
       state,
@@ -791,7 +773,7 @@ describe("coordinator pipeline", () => {
       independent: true,
       object: createObservedUpload({
         contentType: "video/mp4",
-        objectKey: "media/s3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         observedAt: "2026-01-01T00:00:02.000Z",
         providerId: "s3_primary",
         size: 98_304,
@@ -833,23 +815,23 @@ describe("coordinator pipeline", () => {
     state = commitSlot(state, {
       commitId: "commit_init",
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/init.mp4",
+      deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
       duration: 1,
       maxBytes: 2048,
       mediaSequenceNumber: 0,
-      objectKey: "media/init.mp4",
+      objectKey: "media/v1080/init.mp4",
       slotId: "slot_init",
       size: 1024,
     });
     state = commitSlot(state, {
       commitId: "commit_3810",
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3810.m4s",
+      deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
       duration: 2,
       independent: true,
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      objectKey: "media/s3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       slotId: "slot_3810",
       size: 98_304,
     });
@@ -882,36 +864,36 @@ describe("coordinator pipeline", () => {
     state = commitSlot(state, {
       commitId: "commit_init",
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/init.mp4",
+      deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
       duration: 1,
       maxBytes: 2048,
       mediaSequenceNumber: 0,
-      objectKey: "media/init.mp4",
+      objectKey: "media/v1080/init.mp4",
       slotId: "slot_init",
       size: 1024,
     });
     state = commitSlot(state, {
       commitId: "commit_3810",
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3810.m4s",
+      deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
       duration: 2,
       independent: true,
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      objectKey: "media/s3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       slotId: "slot_3810",
       size: 98_304,
     });
     state = commitSlot(state, {
       commitId: "commit_3811_0",
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3811.p0.m4s",
+      deliveryUrl: "https://media.example.com/media/v1080/s3811/p0.m4s",
       duration: 0.5,
       independent: true,
       kind: "part",
       maxBytes: 25_000,
       mediaSequenceNumber: 3811,
-      objectKey: "media/s3811.p0.m4s",
+      objectKey: "media/v1080/s3811/p0.m4s",
       partNumber: 0,
       slotId: "slot_3811_0",
       size: 24_000,
@@ -945,36 +927,36 @@ describe("coordinator pipeline", () => {
     state = commitSlot(state, {
       commitId: "commit_init",
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/init.mp4",
+      deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
       duration: 1,
       maxBytes: 2048,
       mediaSequenceNumber: 0,
-      objectKey: "media/init.mp4",
+      objectKey: "media/v1080/init.mp4",
       slotId: "slot_init",
       size: 1024,
     });
     state = commitSlot(state, {
       commitId: "commit_3810",
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3810.m4s",
+      deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
       duration: 2,
       independent: true,
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      objectKey: "media/s3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       slotId: "slot_3810",
       size: 98_304,
     });
     state = commitSlot(state, {
       commitId: "commit_3811_0",
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3811.p0.m4s",
+      deliveryUrl: "https://media.example.com/media/v1080/s3811/p0.m4s",
       duration: 0.5,
       independent: true,
       kind: "part",
       maxBytes: 25_000,
       mediaSequenceNumber: 3811,
-      objectKey: "media/s3811.p0.m4s",
+      objectKey: "media/v1080/s3811/p0.m4s",
       partNumber: 0,
       slotId: "slot_3811_0",
       size: 24_000,
@@ -982,12 +964,12 @@ describe("coordinator pipeline", () => {
     state = commitSlot(state, {
       commitId: "commit_3811_1",
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3811.p1.m4s",
+      deliveryUrl: "https://media.example.com/media/v1080/s3811/p1.m4s",
       duration: 0.5,
       kind: "part",
       maxBytes: 25_000,
       mediaSequenceNumber: 3811,
-      objectKey: "media/s3811.p1.m4s",
+      objectKey: "media/v1080/s3811/p1.m4s",
       partNumber: 1,
       slotId: "slot_3811_1",
       size: 24_000,
@@ -1015,10 +997,10 @@ describe("coordinator pipeline", () => {
 
     expect(playlist).toContain("#EXT-X-PART-INF:PART-TARGET=0.500");
     expect(playlist).toContain(
-      '#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="https://media.example.com/s3811.p0.m4s"'
+      '#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="https://media.example.com/media/v1080/s3811/p0.m4s"'
     );
     expect(playlist).toContain(
-      '#EXT-X-PART:DURATION=0.500,URI="https://media.example.com/s3811.p1.m4s"'
+      '#EXT-X-PART:DURATION=0.500,URI="https://media.example.com/media/v1080/s3811/p1.m4s"'
     );
     expect(
       state.slots
@@ -1033,11 +1015,11 @@ describe("coordinator pipeline", () => {
     state = commitSlot(state, {
       commitId: "commit_init",
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/init.mp4",
+      deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
       duration: 1,
       maxBytes: 2048,
       mediaSequenceNumber: 0,
-      objectKey: "media/init.mp4",
+      objectKey: "media/v1080/init.mp4",
       slotId: "slot_init",
       size: 1024,
     });
@@ -1054,12 +1036,12 @@ describe("coordinator pipeline", () => {
     state = commitSlot(state, {
       commitId: "commit_3810",
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3810.m4s",
+      deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
       duration: 2,
       independent: true,
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      objectKey: "media/s3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       slotId: "slot_3810",
       size: 98_304,
     });
@@ -1080,7 +1062,7 @@ describe("coordinator pipeline", () => {
       "/v1/live/session_1/v1080/media.m3u8",
     ]);
     expect(manifests.artifacts[1]?.body).toContain(
-      "https://media.example.com/s3810.m4s"
+      "https://media.example.com/media/v1080/s3810.m4s"
     );
   });
 
@@ -1090,23 +1072,23 @@ describe("coordinator pipeline", () => {
     state = commitSlot(state, {
       commitId: "commit_init",
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/init.mp4",
+      deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
       duration: 1,
       maxBytes: 2048,
       mediaSequenceNumber: 0,
-      objectKey: "media/init.mp4",
+      objectKey: "media/v1080/init.mp4",
       slotId: "slot_init",
       size: 1024,
     });
     state = commitSlot(state, {
       commitId: "commit_3810",
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3810.m4s",
+      deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
       duration: 2,
       independent: true,
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      objectKey: "media/s3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       slotId: "slot_3810",
       size: 98_304,
     });
@@ -1138,13 +1120,11 @@ describe("coordinator pipeline", () => {
 
     state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3813.m4s",
       duration: 2,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
       mediaSequenceNumber: 3813,
-      objectKey: "media/s3813.m4s",
       renditionId: "v1080",
       slotId: "slot_3813",
       state,
@@ -1163,7 +1143,7 @@ describe("coordinator pipeline", () => {
     expect(plan.retiredObjects).toEqual([
       {
         commitId: "commit_3810",
-        objectKey: "media/s3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         slotId: "slot_3810",
       },
     ]);
@@ -1196,14 +1176,12 @@ describe("coordinator pipeline", () => {
   test("rejects uploads smaller than slot minimum bytes", () => {
     const state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3810.m4s",
       duration: 2,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
       minBytes: 100_000,
-      objectKey: "media/s3810.m4s",
       renditionId: "v1080",
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
@@ -1214,7 +1192,7 @@ describe("coordinator pipeline", () => {
       committedAt: "2026-01-01T00:00:02.000Z",
       object: createObservedUpload({
         contentType: "video/mp4",
-        objectKey: "media/s3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         observedAt: "2026-01-01T00:00:02.000Z",
         providerId: "s3_primary",
         size: 50,
@@ -1232,7 +1210,7 @@ describe("coordinator pipeline", () => {
       code: "olos.object_too_small",
       details: {
         minBytes: 100_000,
-        objectKey: "media/s3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         size: 50,
         slotId: "slot_3810",
       },
@@ -1243,13 +1221,11 @@ describe("coordinator pipeline", () => {
   test("applies app-owned commit policy before new commits", () => {
     const state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/s3810.m4s",
       duration: 2,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
       mediaSequenceNumber: 3810,
-      objectKey: "media/s3810.m4s",
       renditionId: "v1080",
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
@@ -1269,7 +1245,7 @@ describe("coordinator pipeline", () => {
       committedAt: "2026-01-01T00:00:02.000Z",
       object: createObservedUpload({
         contentType: "video/mp4",
-        objectKey: "media/s3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         observedAt: "2026-01-01T00:00:02.000Z",
         providerId: "s3_primary",
         size: 98_304,
@@ -1298,13 +1274,11 @@ describe("coordinator pipeline", () => {
     expect(() =>
       issueCoordinatorSlot({
         contentType: "video/mp4",
-        deliveryUrl: "https://media.example.com/init.mp4",
         duration: 1,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "init",
         maxBytes: 2048,
         mediaSequenceNumber: 0,
-        objectKey: "media/init.mp4",
         publicationControl: policy,
         renditionId: "v1080",
         slotId: "slot_init",
@@ -1314,13 +1288,11 @@ describe("coordinator pipeline", () => {
 
     const issued = issueCoordinatorSlot({
       contentType: "video/mp4",
-      deliveryUrl: "https://media.example.com/init.mp4",
       duration: 1,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
       mediaSequenceNumber: 0,
-      objectKey: "media/init.mp4",
       renditionId: "v1080",
       slotId: "slot_init",
       state,
@@ -1330,7 +1302,7 @@ describe("coordinator pipeline", () => {
       committedAt: "2026-01-01T00:00:02.000Z",
       object: createObservedUpload({
         contentType: "video/mp4",
-        objectKey: "media/init.mp4",
+        objectKey: "media/v1080/init.mp4",
         observedAt: "2026-01-01T00:00:02.000Z",
         providerId: "s3_primary",
         size: 1024,
@@ -1378,13 +1350,11 @@ function commitSlot(
 ): CoordinatorPipelineState {
   const issued = issueCoordinatorSlot({
     contentType: options.contentType,
-    deliveryUrl: options.deliveryUrl,
     duration: options.duration,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: options.kind ?? (options.slotId === "slot_init" ? "init" : "segment"),
     maxBytes: options.maxBytes,
     mediaSequenceNumber: options.mediaSequenceNumber,
-    objectKey: options.objectKey,
     partNumber: options.partNumber,
     renditionId: "v1080",
     slotId: options.slotId,
@@ -1397,7 +1367,7 @@ function commitSlot(
     maxSegments: options.maxSegments,
     object: createObservedUpload({
       contentType: options.contentType,
-      objectKey: options.objectKey,
+      objectKey: issued.slot.objectKey,
       observedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
       size: options.size,

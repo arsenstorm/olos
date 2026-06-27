@@ -3,12 +3,8 @@ import type { IssueCoordinatorSlotOptions } from "../protocol";
 import type { Byterange } from "../types/byterange";
 import type { MediaObjectKind } from "../types/media-object";
 import { assertByterange, assertByterangeKind } from "../validation/byterange";
-import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import { assertUrlSafeIdentifier } from "../validation/ids";
-import {
-  assertSafeMediaObjectKey,
-  assertSupportedMediaExtension,
-} from "../validation/object-key";
+import { assertSupportedMediaExtension } from "../validation/object-key";
 import { assertSafePath, assertSafePathSegment } from "./path";
 import {
   nonNegativeIntegerField,
@@ -23,16 +19,10 @@ import {
 export interface RuntimeSlotIssuePayload
   extends Omit<IssueCoordinatorSlotOptions, "state"> {}
 
-interface RuntimeSlotIssueObjectFields {
-  deliveryUrl?: string;
-  objectKey?: string;
-}
-
 export function parseRuntimeSlotIssuePayload(
   value: Record<string, unknown>
 ): RuntimeSlotIssuePayload {
   const kind = oneOfStringField(value, "kind", MEDIA_OBJECT_KINDS);
-  const objectFields = runtimeSlotIssueObjectFields(value, kind);
   const partNumber = optionalNonNegativeIntegerField(value, "partNumber");
   assertPartNumberKindMatch(kind, partNumber);
 
@@ -45,7 +35,6 @@ export function parseRuntimeSlotIssuePayload(
     mediaSequenceNumber: nonNegativeIntegerField(value, "mediaSequenceNumber"),
     renditionId: urlSafeIdentifierField(value, "renditionId"),
     slotId: urlSafeIdentifierField(value, "slotId"),
-    ...objectFields,
     ...optionalNonNegativeIntegerField(value, "minBytes"),
     ...partNumber,
     ...optionalDerivationHints(value, kind),
@@ -96,27 +85,6 @@ function optionalDerivationHints(
   }
 
   return hints;
-}
-
-function runtimeSlotIssueObjectFields(
-  value: Record<string, unknown>,
-  kind: MediaObjectKind
-): RuntimeSlotIssueObjectFields {
-  const fields: RuntimeSlotIssueObjectFields = {};
-
-  if (value.deliveryUrl !== undefined) {
-    const deliveryUrl = stringField(value, "deliveryUrl");
-    assertSafeDeliveryUrl(deliveryUrl, "deliveryUrl");
-    fields.deliveryUrl = deliveryUrl;
-  }
-
-  if (value.objectKey !== undefined) {
-    const objectKey = stringField(value, "objectKey");
-    assertSafeMediaObjectKey(objectKey, kind, "objectKey");
-    fields.objectKey = objectKey;
-  }
-
-  return fields;
 }
 
 function optionalSlotByterange(

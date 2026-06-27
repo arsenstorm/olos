@@ -33,7 +33,10 @@ describe("issueCoordinatorSlot derived addresses", () => {
   });
 
   test("generates a nonce in direct-public mode", () => {
-    const state = createEmptyCoordinatorState();
+    const state = {
+      ...createEmptyCoordinatorState(),
+      publicationMode: "direct-public" as const,
+    };
     const result = issueCoordinatorSlot({
       ...baseOptions,
       kind: "init",
@@ -48,26 +51,11 @@ describe("issueCoordinatorSlot derived addresses", () => {
     );
   });
 
-  test("preserves publisher-supplied objectKey and deliveryUrl", () => {
-    const state = createEmptyCoordinatorState();
-    const result = issueCoordinatorSlot({
-      ...baseOptions,
-      deliveryUrl: "https://media.example.com/explicit/key.m4s",
-      kind: "segment",
-      mediaSequenceNumber: 3810,
-      objectKey: "explicit/key.m4s",
-      slotId: "slot_explicit",
-      state,
-    });
-
-    expect(result.slot.objectKey).toBe("explicit/key.m4s");
-    expect(result.slot.deliveryUrl).toBe(
-      "https://media.example.com/explicit/key.m4s"
-    );
-  });
-
   test("honors a publisher-supplied nonce in direct-public mode", () => {
-    const state = createEmptyCoordinatorState();
+    const state = {
+      ...createEmptyCoordinatorState(),
+      publicationMode: "direct-public" as const,
+    };
     const result = issueCoordinatorSlot({
       ...baseOptions,
       kind: "segment",

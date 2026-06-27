@@ -38,7 +38,7 @@ describe("object key validation", () => {
 
   test("accepts supported media object extensions", () => {
     expect(() =>
-      assertSafeMediaObjectKey("media/init.mp4", "init", "objectKey")
+      assertSafeMediaObjectKey("media/v1080/init.mp4", "init", "objectKey")
     ).not.toThrow();
     expect(() =>
       assertSafeMediaObjectKey("media/3810.m4s", "segment", "objectKey")

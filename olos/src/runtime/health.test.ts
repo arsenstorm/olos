@@ -242,8 +242,8 @@ function cursor(updatedAt = "2026-01-01T00:00:00.000Z"): Cursor {
         v1080: {
           init: {
             commitId: "commit_init",
-            deliveryUrl: "https://media.example.com/init.mp4",
-            objectKey: "media/init.mp4",
+            deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+            objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
           renditionId: "v1080",
@@ -254,8 +254,8 @@ function cursor(updatedAt = "2026-01-01T00:00:00.000Z"): Cursor {
               mediaSequenceNumber: 3810,
               segment: {
                 commitId: "commit_3810",
-                deliveryUrl: "https://media.example.com/s3810.m4s",
-                objectKey: "media/s3810.m4s",
+                deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
+                objectKey: "media/v1080/s3810.m4s",
                 slotId: "slot_3810",
               },
             },

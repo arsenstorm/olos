@@ -11,7 +11,7 @@ const committedWindow: CommittedWindow = {
     v1080: {
       init: {
         commitId: "commit_init",
-        deliveryUrl: "/media/init.mp4",
+        deliveryUrl: "/media/v1080/init.mp4",
         objectKey: "tenant/session/v1080/init.mp4",
         slotId: "slot_init",
       },
@@ -89,7 +89,7 @@ const alternateRendition: CommittedWindow["renditions"][string] = {
       mediaSequenceNumber: 3810,
       segment: {
         commitId: "commit_v720_3810",
-        deliveryUrl: "/media/v720/3810.m4s",
+        deliveryUrl: "/media/v720/s3810.m4s",
         objectKey: "tenant/session/v720/3810.m4s",
         slotId: "slot_v720_3810",
       },

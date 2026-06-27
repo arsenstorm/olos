@@ -13,7 +13,7 @@ describe("s3 object observation", () => {
   test("creates an observed upload from HeadObject output", () => {
     expect(
       createObservedUploadFromS3HeadObject({
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         observedAt: "2026-01-01T00:00:02.000Z",
         output: {
           $metadata: {},
@@ -32,7 +32,7 @@ describe("s3 object observation", () => {
       metadata: {
         "x-olos-slot-id": "slot_3810",
       },
-      objectKey: "live/session/v1080/3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       observedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
       size: 98_304,
@@ -42,7 +42,7 @@ describe("s3 object observation", () => {
   test("normalizes S3 slot metadata to OLOS metadata", () => {
     expect(
       createObservedUploadFromS3HeadObject({
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         observedAt: "2026-01-01T00:00:02.000Z",
         output: {
           $metadata: {},
@@ -63,7 +63,7 @@ describe("s3 object observation", () => {
   test("uses LastModified when no observation time is provided", () => {
     expect(
       createObservedUploadFromS3HeadObject({
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         output: {
           $metadata: {},
           ContentLength: 98_304,
@@ -78,7 +78,7 @@ describe("s3 object observation", () => {
   test("prefers explicit observation time over LastModified", () => {
     expect(
       createObservedUploadFromS3HeadObject({
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         observedAt: "2026-01-01T00:00:02.000Z",
         output: {
           $metadata: {},
@@ -94,7 +94,7 @@ describe("s3 object observation", () => {
   test("uses injected now when no observation time or LastModified are provided", () => {
     expect(
       createObservedUploadFromS3HeadObject({
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         now: "2026-01-01T00:00:03.000Z",
         output: {
           $metadata: {},
@@ -109,7 +109,7 @@ describe("s3 object observation", () => {
   test("uses injected clock when no observation time, now, or LastModified are provided", () => {
     expect(
       createObservedUploadFromS3HeadObject({
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         clock: () => "2026-01-01T00:00:04.000Z",
         output: {
           $metadata: {},
@@ -124,7 +124,7 @@ describe("s3 object observation", () => {
   test("prefers injected now over injected clock", () => {
     expect(
       createObservedUploadFromS3HeadObject({
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         clock: () => "2026-01-01T00:00:05.000Z",
         now: "2026-01-01T00:00:04.000Z",
         output: {
@@ -142,7 +142,7 @@ describe("s3 object observation", () => {
       send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
         expect(command.input).toEqual({
           Bucket: "media",
-          Key: "live/session/v1080/3810.m4s",
+          Key: "media/v1080/s3810.m4s",
           VersionId: "version_1",
         });
 
@@ -157,13 +157,13 @@ describe("s3 object observation", () => {
     const object = await observeS3Object({
       bucket: "media",
       client,
-      objectKey: "live/session/v1080/3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       observedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
       versionId: "version_1",
     });
 
-    expect(object.objectKey).toBe("live/session/v1080/3810.m4s");
+    expect(object.objectKey).toBe("media/v1080/s3810.m4s");
     expect(object.size).toBe(98_304);
   });
 
@@ -172,7 +172,7 @@ describe("s3 object observation", () => {
       send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
         expect(command.input).toEqual({
           Bucket: "media",
-          Key: "live/session/v1080/3810.m4s",
+          Key: "media/v1080/s3810.m4s",
         });
 
         return Promise.resolve({
@@ -187,12 +187,12 @@ describe("s3 object observation", () => {
       bucket: "media",
       client,
       clock: () => "2026-01-01T00:00:04.000Z",
-      objectKey: "live/session/v1080/3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       providerId: "s3_primary",
     });
 
     expect(object.observedAt).toBe("2026-01-01T00:00:04.000Z");
-    expect(object.objectKey).toBe("live/session/v1080/3810.m4s");
+    expect(object.objectKey).toBe("media/v1080/s3810.m4s");
   });
 
   test("rejects invalid S3 object observation options before HeadObject", async () => {
@@ -211,7 +211,7 @@ describe("s3 object observation", () => {
     const options = {
       bucket: "media",
       client,
-      objectKey: "live/session/v1080/3810.m4s",
+      objectKey: "media/v1080/s3810.m4s",
       observedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
     };
@@ -240,7 +240,7 @@ describe("s3 object observation", () => {
   test("rejects incomplete HeadObject output", () => {
     expect(() =>
       createObservedUploadFromS3HeadObject({
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         output: {
           $metadata: {},
           ContentType: "video/mp4",
@@ -251,7 +251,7 @@ describe("s3 object observation", () => {
 
     expect(() =>
       createObservedUploadFromS3HeadObject({
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         output: {
           $metadata: {},
           ContentLength: 98_304,
@@ -264,7 +264,7 @@ describe("s3 object observation", () => {
   test("rejects invalid HeadObject observation timestamps", () => {
     expect(() =>
       createObservedUploadFromS3HeadObject({
-        objectKey: "live/session/v1080/3810.m4s",
+        objectKey: "media/v1080/s3810.m4s",
         observedAt: "soon",
         output: {
           $metadata: {},

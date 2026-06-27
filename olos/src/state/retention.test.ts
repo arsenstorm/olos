@@ -26,11 +26,11 @@ const slot: UploadSlot = {
 const initCommit: Commit = {
   commitId: "commit_init",
   committedAt: "2026-01-01T00:00:00.000Z",
-  deliveryUrl: "/media/init.mp4",
+  deliveryUrl: "/media/v1080/init.mp4",
   duration: 1,
   epoch: 1,
   mediaSequenceNumber: 0,
-  objectKey: "media/init.mp4",
+  objectKey: "media/v1080/init.mp4",
   renditionId: "v1080",
   sessionId: "session_1",
   size: 1024,
