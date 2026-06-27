@@ -12,7 +12,6 @@ describe("runtime slot issue payload parser", () => {
       maxBytes: 1_000_000,
       mediaSequenceNumber: 3810,
       minBytes: 1,
-      partNumber: 10,
       renditionId: "v1080",
       slotId: "slot_3810",
     });
@@ -25,7 +24,6 @@ describe("runtime slot issue payload parser", () => {
       maxBytes: 1_000_000,
       mediaSequenceNumber: 3810,
       minBytes: 1,
-      partNumber: 10,
       renditionId: "v1080",
       slotId: "slot_3810",
     });
@@ -103,6 +101,37 @@ describe("runtime slot issue payload parser", () => {
         slotId: "slot_3810",
       })
     ).toThrow("objectKey must be a safe relative object key");
+  });
+
+  test("rejects partNumber on non-part kinds", () => {
+    expect(() =>
+      parseRuntimeSlotIssuePayload({
+        contentType: "video/mp4",
+        duration: 2,
+        expiresAt: "2026-01-01T00:00:00.000Z",
+        kind: "segment",
+        maxBytes: 1_000_000,
+        mediaSequenceNumber: 3810,
+        partNumber: 0,
+        renditionId: "v1080",
+        slotId: "slot_3810",
+      })
+    ).toThrow("partNumber is only valid for parts");
+  });
+
+  test("requires partNumber when kind is part", () => {
+    expect(() =>
+      parseRuntimeSlotIssuePayload({
+        contentType: "video/mp4",
+        duration: 0.5,
+        expiresAt: "2026-01-01T00:00:00.000Z",
+        kind: "part",
+        maxBytes: 25_000,
+        mediaSequenceNumber: 3810,
+        renditionId: "v1080",
+        slotId: "slot_3810_p0",
+      })
+    ).toThrow('partNumber is required when kind is "part"');
   });
 
   test("rejects unsafe derivation hints", () => {

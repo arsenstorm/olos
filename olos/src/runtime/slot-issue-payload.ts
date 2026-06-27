@@ -33,6 +33,8 @@ export function parseRuntimeSlotIssuePayload(
 ): RuntimeSlotIssuePayload {
   const kind = oneOfStringField(value, "kind", MEDIA_OBJECT_KINDS);
   const objectFields = runtimeSlotIssueObjectFields(value, kind);
+  const partNumber = optionalNonNegativeIntegerField(value, "partNumber");
+  assertPartNumberKindMatch(kind, partNumber);
 
   return {
     contentType: stringField(value, "contentType"),
@@ -45,10 +47,23 @@ export function parseRuntimeSlotIssuePayload(
     slotId: urlSafeIdentifierField(value, "slotId"),
     ...objectFields,
     ...optionalNonNegativeIntegerField(value, "minBytes"),
-    ...optionalNonNegativeIntegerField(value, "partNumber"),
+    ...partNumber,
     ...optionalDerivationHints(value, kind),
     ...optionalSlotByterange(value, kind),
   };
+}
+
+function assertPartNumberKindMatch(
+  kind: MediaObjectKind,
+  partNumber: { partNumber?: number }
+): void {
+  if (kind === "part" && partNumber.partNumber === undefined) {
+    throw new Error('partNumber is required when kind is "part"');
+  }
+
+  if (kind !== "part" && partNumber.partNumber !== undefined) {
+    throw new Error("partNumber is only valid for parts");
+  }
 }
 
 function optionalDerivationHints(
