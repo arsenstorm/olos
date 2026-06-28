@@ -1098,6 +1098,99 @@ describe("coordinator pipeline", () => {
     ).toEqual(["part", "part"]);
   });
 
+  test("tolerates out-of-order part commits without retiring future objects", () => {
+    let state = createEmptyCoordinatorState();
+
+    state = commitSlot(state, {
+      commitId: "commit_init",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+      duration: 1,
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/v1080/init.mp4",
+      slotId: "slot_init",
+      size: 1024,
+    });
+    state = commitSlot(state, {
+      commitId: "commit_3810",
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
+      duration: 2,
+      independent: true,
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      objectKey: "media/v1080/s3810.m4s",
+      slotId: "slot_3810",
+      size: 98_304,
+    });
+
+    // Land part 3 of segment 3811 first — out-of-order. Cursor must stay at
+    // 3810, the part must remain in state.commits, and nothing may surface as
+    // a retired object (the backing R2 object is needed once 0–2 arrive).
+    const partCommits: Array<{ partNumber: number; slotId: string }> = [
+      { partNumber: 3, slotId: "slot_3811_3" },
+      { partNumber: 0, slotId: "slot_3811_0" },
+      { partNumber: 1, slotId: "slot_3811_1" },
+      { partNumber: 2, slotId: "slot_3811_2" },
+    ];
+
+    for (const [index, { partNumber, slotId }] of partCommits.entries()) {
+      const issued = issueCoordinatorSlot({
+        contentType: "video/mp4",
+        duration: 0.5,
+        expiresAt: "2026-01-01T00:00:30.000Z",
+        kind: "part",
+        maxBytes: 25_000,
+        mediaSequenceNumber: 3811,
+        partNumber,
+        renditionId: "v1080",
+        slotId,
+        state,
+      });
+      state = issued.state;
+
+      const committed = commitCoordinatorUpload({
+        commitId: `commit_3811_${partNumber}`,
+        committedAt: `2026-01-01T00:00:0${3 + index}.000Z`,
+        independent: partNumber === 0,
+        object: createObservedUpload({
+          contentType: "video/mp4",
+          objectKey: `media/v1080/s3811/p${partNumber}.m4s`,
+          observedAt: `2026-01-01T00:00:0${3 + index}.000Z`,
+          providerId: "s3_primary",
+          size: 24_000,
+        }),
+        slotId,
+        state,
+      });
+      if (committed.status !== "committed") {
+        throw new Error(`expected commit at part ${partNumber}`);
+      }
+      expect(committed.retiredObjects ?? []).toEqual([]);
+      state = committed.state;
+
+      if (partNumber === 3) {
+        // Cursor stays at the last visible segment until 0-2 arrive.
+        expect(state.cursor?.window).toEqual({
+          firstMediaSequenceNumber: 3810,
+          lastMediaSequenceNumber: 3810,
+        });
+      }
+    }
+
+    // After the contiguous prefix forms, all four parts are visible.
+    expect(state.cursor?.window).toEqual({
+      firstMediaSequenceNumber: 3810,
+      lastMediaSequenceNumber: 3811,
+      lastPartNumber: 3,
+    });
+    expect(
+      state.commits.filter((commit) => commit.mediaSequenceNumber === 3811)
+        .length
+    ).toBe(4);
+  });
+
   test("derives manifest artifacts from the current cursor", () => {
     let state = createEmptyCoordinatorState();
 

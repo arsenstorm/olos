@@ -68,6 +68,35 @@ export function tryCreateCommittedWindow(
   return window;
 }
 
+// Returns the highest part number on the visible window's last segment
+// across all renditions, or undefined when the last segment is a full
+// segment (no parts) or no segments exist.
+export function lastVisiblePartNumber(
+  window: CommittedWindow
+): number | undefined {
+  let max: number | undefined;
+
+  for (const rendition of Object.values(window.renditions)) {
+    const lastSegment = rendition.segments.at(-1);
+
+    if (lastSegment?.mediaSequenceNumber !== window.lastMediaSequenceNumber) {
+      continue;
+    }
+
+    const lastPart = lastSegment.parts?.at(-1);
+
+    if (lastPart === undefined) {
+      continue;
+    }
+
+    if (max === undefined || lastPart.partNumber > max) {
+      max = lastPart.partNumber;
+    }
+  }
+
+  return max;
+}
+
 function validateCommits(
   commits: readonly Commit[],
   options: CreateCommittedWindowOptions

@@ -54,10 +54,22 @@ function isIssuedUploadSlot(slot: UploadSlot): slot is IssuedUploadSlot {
 export function selectRetiredCommittedObjects(
   options: SelectRetiredCommittedObjectsOptions
 ): RetiredCommittedObject[] {
+  // Only retire commits whose media sequence is strictly older than the
+  // retained window. Commits at or beyond firstMediaSequenceNumber may still
+  // become visible (out-of-order parts that haven't formed a contiguous
+  // prefix yet, or future MSNs racing ahead of the cursor) — retiring them
+  // would delete backing objects that the next contiguous commit needs.
+  // The slot-id check guards init commits if a caller passes them in
+  // alongside media commits (in practice they live in state.initCommits).
   const retainedSlotIds = retainedWindowSlotIds(options.retainedWindow);
+  const { firstMediaSequenceNumber } = options.retainedWindow;
 
   return options.commits
-    .filter((commit) => !retainedSlotIds.has(commit.slotId))
+    .filter(
+      (commit) =>
+        commit.mediaSequenceNumber < firstMediaSequenceNumber &&
+        !retainedSlotIds.has(commit.slotId)
+    )
     .map(retiredCommittedObject);
 }
 
