@@ -1,5 +1,8 @@
+import type { Cursor } from "../types/cursor";
 import type { OlosId } from "../types/ids";
+import type { Session } from "../types/session";
 import {
+  type CoordinatorCursorView,
   type CoordinatorPipelineState,
   type CoordinatorPipelineStore,
   type CoordinatorStoreSave,
@@ -14,16 +17,29 @@ export interface SerializedCoordinatorStoreRecord {
   snapshot: string;
 }
 
+// Hot-path view of the persisted state. Backends that store it as a
+// separate, smaller record can serve manifest GETs without parsing the
+// full snapshot — critical on Workers Free where the per-request CPU
+// budget is ~10ms.
+export interface SerializedCursorViewRecord {
+  etag: string;
+  view: string;
+}
+
 export interface SerializedCoordinatorStoreBackend {
   load(
     sessionId: OlosId
   ): Promise<SerializedCoordinatorStoreRecord | undefined>;
+  loadCursorView?(
+    sessionId: OlosId
+  ): Promise<SerializedCursorViewRecord | undefined>;
   save(
     options: SaveSerializedCoordinatorStoreOptions
   ): Promise<SerializedCoordinatorStoreSave>;
 }
 
 export interface SaveSerializedCoordinatorStoreOptions {
+  cursorView?: SerializedCursorViewRecord;
   expectedEtag?: string;
   record: SerializedCoordinatorStoreRecord;
   sessionId: OlosId;
@@ -66,11 +82,24 @@ export function createSerializedCoordinatorStore(
 
       return record === undefined ? undefined : parseRecord(record);
     },
+    async loadCursor(sessionId) {
+      if (backend.loadCursorView !== undefined) {
+        const view = await backend.loadCursorView(sessionId);
+        return view === undefined ? undefined : parseCursorViewRecord(view);
+      }
+
+      const record = await backend.load(sessionId);
+      return record === undefined
+        ? undefined
+        : cursorViewFromSnapshot(parseRecord(record));
+    },
     async save(options) {
       const current = await backend.load(options.sessionId);
       const etag = createNextCoordinatorPipelineEtag(current?.etag);
       const record = createRecord(etag, options.state);
+      const cursorView = createCursorViewRecord(etag, options.state);
       const saved = await backend.save({
+        cursorView,
         expectedEtag: options.expectedEtag,
         record,
         sessionId: options.sessionId,
@@ -132,7 +161,9 @@ export async function assertSerializedCoordinatorStoreBackendConformance(
   const backend = await options.createBackend();
   const sessionId = "serialized_store_conformance";
   const first = record("1");
+  const firstView = cursorView("1");
   const second = record("2");
+  const secondView = cursorView("2");
 
   expectSerializedBackendValue(
     await backend.load(sessionId),
@@ -141,11 +172,15 @@ export async function assertSerializedCoordinatorStoreBackendConformance(
   );
 
   assertSerializedBackendSaved(
-    await backend.save({ record: first, sessionId }),
+    await backend.save({ cursorView: firstView, record: first, sessionId }),
     "insert without expected etag must save"
   );
 
-  const duplicateInsert = await backend.save({ record: first, sessionId });
+  const duplicateInsert = await backend.save({
+    cursorView: firstView,
+    record: first,
+    sessionId,
+  });
   assertSerializedBackendStatus(
     duplicateInsert.status,
     "conflict",
@@ -161,6 +196,7 @@ export async function assertSerializedCoordinatorStoreBackendConformance(
   }
 
   const staleUpdate = await backend.save({
+    cursorView: secondView,
     expectedEtag: "stale",
     record: second,
     sessionId,
@@ -173,6 +209,7 @@ export async function assertSerializedCoordinatorStoreBackendConformance(
 
   assertSerializedBackendSaved(
     await backend.save({
+      cursorView: secondView,
       expectedEtag: first.etag,
       record: second,
       sessionId,
@@ -186,7 +223,16 @@ export async function assertSerializedCoordinatorStoreBackendConformance(
     "matching expected etag update must publish the new record"
   );
 
+  if (backend.loadCursorView !== undefined) {
+    expectSerializedBackendValue(
+      (await backend.loadCursorView(sessionId))?.etag,
+      second.etag,
+      "loadCursorView must reflect the latest saved etag"
+    );
+  }
+
   const missingUpdate = await backend.save({
+    cursorView: firstView,
     expectedEtag: "1",
     record: first,
     sessionId: "missing_serialized_store_conformance",
@@ -254,10 +300,59 @@ function parseRecord(record: SerializedCoordinatorStoreRecord) {
   return snapshot;
 }
 
+interface ParsedCursorView {
+  cursor?: Cursor;
+  session: Session;
+}
+
+function createCursorViewRecord(
+  etag: string,
+  state: CoordinatorPipelineState
+): SerializedCursorViewRecord {
+  const view: ParsedCursorView = {
+    ...(state.cursor === undefined ? {} : { cursor: state.cursor }),
+    session: state.session,
+  };
+
+  return { etag, view: JSON.stringify(view) };
+}
+
+function parseCursorViewRecord(
+  record: SerializedCursorViewRecord
+): CoordinatorCursorView {
+  const parsed = JSON.parse(record.view) as ParsedCursorView;
+
+  return {
+    ...(parsed.cursor === undefined ? {} : { cursor: parsed.cursor }),
+    etag: record.etag,
+    session: parsed.session,
+  };
+}
+
+function cursorViewFromSnapshot(snapshot: {
+  etag: string;
+  state: CoordinatorPipelineState;
+}): CoordinatorCursorView {
+  return {
+    ...(snapshot.state.cursor === undefined
+      ? {}
+      : { cursor: snapshot.state.cursor }),
+    etag: snapshot.etag,
+    session: snapshot.state.session,
+  };
+}
+
 function record(etag: string): SerializedCoordinatorStoreRecord {
   return {
     etag,
     snapshot: `{"etag":"${etag}"}`,
+  };
+}
+
+function cursorView(etag: string): SerializedCursorViewRecord {
+  return {
+    etag,
+    view: "{}",
   };
 }
 

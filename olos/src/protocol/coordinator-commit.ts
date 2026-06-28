@@ -4,14 +4,20 @@ import {
   resolveDuplicateCommit,
   resolveObjectSlotMismatch,
 } from "../state/commit";
-import { createCommittedWindow } from "../state/committed-window";
+import { tryCreateCommittedWindow } from "../state/committed-window";
 import { createCursor, resolveCursorUpdate } from "../state/cursor";
 import {
   type PublicationControlResolution,
   resolvePublicationControl,
 } from "../state/publication-control";
+import {
+  type RetiredCommittedObject,
+  selectExpiredUploadSlots,
+  selectRetiredCommittedObjects,
+} from "../state/retention";
 import { observeUpload } from "../state/upload-slot";
 import type { Commit } from "../types/commit";
+import type { Cursor } from "../types/cursor";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
@@ -113,7 +119,7 @@ export function commitCoordinatorUpload(
     };
   }
 
-  const state = commitIntoState({
+  const { state, retiredObjects } = commitIntoState({
     commit: resolved.commit,
     maxSegments: options.maxSegments,
     slot: resolved.slot,
@@ -138,6 +144,7 @@ export function commitCoordinatorUpload(
   return {
     commit: resolved.commit,
     cursor: state.cursor,
+    retiredObjects,
     state,
     status: "committed",
   };
@@ -257,12 +264,17 @@ function rejectCoordinatorCommitPolicy({
   };
 }
 
+interface CommitIntoStateResult {
+  retiredObjects: readonly RetiredCommittedObject[];
+  state: CoordinatorPipelineState;
+}
+
 function commitIntoState(options: {
   commit: Commit;
   maxSegments?: number;
   slot: UploadSlot;
   state: CoordinatorPipelineState;
-}): CoordinatorPipelineState {
+}): CommitIntoStateResult {
   const slots = options.state.slots.map((slot) =>
     slot.slotId === options.slot.slotId ? options.slot : slot
   );
@@ -283,16 +295,25 @@ function commitIntoState(options: {
   };
 
   if (initCommits.length === 0 || commits.length === 0) {
-    return nextState;
+    return { retiredObjects: [], state: nextState };
   }
 
-  const committedWindow = createCommittedWindow({
+  const committedWindow = tryCreateCommittedWindow({
     commits,
     epoch: options.state.session.epoch,
     initCommits,
     maxSegments: options.maxSegments,
     sessionId: options.state.session.sessionId,
   });
+
+  // Out-of-order commit at the same media sequence — the contiguous-prefix
+  // rule means no parts qualify for the manifest yet. The commit is still
+  // recorded in state.commits; the cursor stays at whatever it was, and
+  // the next contiguous commit will advance it.
+  if (committedWindow === undefined) {
+    return { retiredObjects: [], state: nextState };
+  }
+
   const partNumber = lastPartNumber(commits);
   const candidateCursor = createCursor({
     committedWindow,
@@ -306,22 +327,76 @@ function commitIntoState(options: {
     ...(partNumber === undefined ? {} : { lastPartNumber: partNumber }),
   });
 
-  if (options.state.cursor === undefined) {
-    return {
-      ...nextState,
-      cursor: candidateCursor,
-    };
+  const cursor = resolveNextCursor(options.state.cursor, candidateCursor);
+  return retainCommitsWithinWindow(
+    { ...nextState, cursor },
+    options.commit.committedAt
+  );
+}
+
+function resolveNextCursor(
+  current: Cursor | undefined,
+  candidate: Cursor
+): Cursor {
+  if (current === undefined) {
+    return candidate;
   }
 
   const update = resolveCursorUpdate({
-    candidateCursor,
-    currentCursor: options.state.cursor,
+    candidateCursor: candidate,
+    currentCursor: current,
   });
 
+  return update.status === "regression" ? current : update.cursor;
+}
+
+// Drop commits whose slots have fallen out of the live window AND their
+// matching slots from `state.slots`; also drop issued slots whose grant
+// expired without an upload. Without this both arrays accumulate forever,
+// the persisted snapshot grows linearly with session age, and every read
+// pays O(session-age) JSON parse + scan. The pruned commits surface as
+// `retiredObjects` so the runtime can delete their backing objects from
+// storage in the same operation; expired-issued slot grants have no
+// uploaded object so they don't appear in retiredObjects.
+function retainCommitsWithinWindow(
+  state: CoordinatorPipelineState,
+  now: string
+): CommitIntoStateResult {
+  if (state.cursor === undefined) {
+    return { retiredObjects: [], state };
+  }
+
+  const retiredObjects = selectRetiredCommittedObjects({
+    commits: state.commits,
+    retainedWindow: state.cursor.committedWindow,
+  });
+  const expiredSlots = selectExpiredUploadSlots({
+    now,
+    slots: state.slots,
+  });
+
+  if (retiredObjects.length === 0 && expiredSlots.length === 0) {
+    return { retiredObjects: [], state };
+  }
+
+  const obsoleteSlotIds = new Set([
+    ...retiredObjects.map((object) => object.slotId),
+    ...expiredSlots.map((slot) => slot.slotId),
+  ]);
+  const retainedCommits = state.commits.filter(
+    (commit) => !obsoleteSlotIds.has(commit.slotId)
+  );
+  const retainedSlots = state.slots.filter(
+    (slot) => !obsoleteSlotIds.has(slot.slotId)
+  );
+
   return {
-    ...nextState,
-    cursor:
-      update.status === "regression" ? options.state.cursor : update.cursor,
+    retiredObjects,
+    state: {
+      ...state,
+      commits: retainedCommits,
+      slots: retainedSlots,
+    },
   };
 }
 

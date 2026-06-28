@@ -590,6 +590,95 @@ describe("coordinator pipeline", () => {
     expect(duplicateCommit.state.commits).toHaveLength(1);
   });
 
+  test("prunes commits that fall behind the manifest window", () => {
+    let state = createEmptyCoordinatorState();
+
+    const initIssue = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      duration: 1,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      renditionId: "v1080",
+      slotId: "slot_init",
+      state,
+    });
+    state = initIssue.state;
+
+    const initCommit = commitCoordinatorUpload({
+      commitId: "commit_init",
+      committedAt: "2026-01-01T00:00:01.000Z",
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "media/v1080/init.mp4",
+        observedAt: "2026-01-01T00:00:01.000Z",
+        providerId: "s3_primary",
+        size: 1024,
+      }),
+      slotId: "slot_init",
+      state,
+    });
+    if (initCommit.status !== "committed") {
+      throw new Error("expected init commit");
+    }
+    state = initCommit.state;
+
+    const retired: string[] = [];
+    for (let msn = 3810; msn < 3818; msn += 1) {
+      const slotId = `slot_${msn}`;
+      const issued = issueCoordinatorSlot({
+        contentType: "video/mp4",
+        duration: 2,
+        expiresAt: "2026-01-01T00:00:30.000Z",
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: msn,
+        renditionId: "v1080",
+        slotId,
+        state,
+      });
+      state = issued.state;
+
+      const committed = commitCoordinatorUpload({
+        commitId: `commit_${msn}`,
+        committedAt: `2026-01-01T00:00:${String(msn - 3805).padStart(2, "0")}.000Z`,
+        independent: true,
+        maxSegments: 3,
+        object: createObservedUpload({
+          contentType: "video/mp4",
+          objectKey: `media/v1080/s${msn}.m4s`,
+          observedAt: `2026-01-01T00:00:${String(msn - 3805).padStart(2, "0")}.000Z`,
+          providerId: "s3_primary",
+          size: 98_304,
+        }),
+        slotId,
+        state,
+      });
+      if (committed.status !== "committed") {
+        throw new Error(`expected commit at ${msn}`);
+      }
+      for (const object of committed.retiredObjects ?? []) {
+        retired.push(object.slotId);
+      }
+      state = committed.state;
+    }
+
+    expect(state.commits).toHaveLength(3);
+    expect(state.commits.map((commit) => commit.mediaSequenceNumber)).toEqual([
+      3815, 3816, 3817,
+    ]);
+    expect(state.cursor?.committedWindow.firstMediaSequenceNumber).toBe(3815);
+    expect(state.cursor?.committedWindow.lastMediaSequenceNumber).toBe(3817);
+    expect(retired).toEqual([
+      "slot_3810",
+      "slot_3811",
+      "slot_3812",
+      "slot_3813",
+      "slot_3814",
+    ]);
+  });
+
   test("rejects duplicate uploads that conflict with the existing commit", () => {
     let state = createEmptyCoordinatorState();
     const issued = issueCoordinatorSlot({
@@ -1140,13 +1229,9 @@ describe("coordinator pipeline", () => {
       lastMediaSequenceNumber: 3812,
     });
     expect(plan.expiredSlots.map((slot) => slot.slotId)).toEqual(["slot_3813"]);
-    expect(plan.retiredObjects).toEqual([
-      {
-        commitId: "commit_3810",
-        objectKey: "media/v1080/s3810.m4s",
-        slotId: "slot_3810",
-      },
-    ]);
+    // commit-time pruning already retired commit_3810 via the commit response;
+    // planCoordinatorRetention only surfaces commits still resident in state.
+    expect(plan.retiredObjects).toEqual([]);
   });
 
   test("rejects uploads for unknown slots", () => {

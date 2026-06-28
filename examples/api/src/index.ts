@@ -24,7 +24,11 @@ const PROVIDER_ID = "example_primary";
 const TARGET_LATENCY_SECONDS = 1.5;
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<Response> {
     const url = new URL(request.url);
 
     if (isPublicRoute(url.pathname) && request.method === "OPTIONS") {
@@ -68,7 +72,7 @@ export default {
       targetLatency: TARGET_LATENCY_SECONDS,
     });
 
-    const response = await handle(request);
+    const response = await handle(request, ctx);
     return isPublicRoute(url.pathname) ? withCors(response) : response;
   },
 } satisfies ExportedHandler<Env>;

@@ -3,6 +3,7 @@ import type {
   SerializedCoordinatorStoreBackend,
   SerializedCoordinatorStoreRecord,
   SerializedCoordinatorStoreSave,
+  SerializedCursorViewRecord,
 } from "@arsenstorm/olos/protocol";
 import type { StreamCoordinator } from "./coordinator-do";
 
@@ -14,6 +15,11 @@ export function createCoordinatorStoreBackend(
       sessionId: string
     ): Promise<SerializedCoordinatorStoreRecord | undefined> {
       return stubFor(namespace, sessionId).load();
+    },
+    loadCursorView(
+      sessionId: string
+    ): Promise<SerializedCursorViewRecord | undefined> {
+      return stubFor(namespace, sessionId).loadCursorView();
     },
     save(
       options: SaveSerializedCoordinatorStoreOptions

@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import type { Commit } from "../types/commit";
-import { createCommittedWindow } from "./committed-window";
+import {
+  createCommittedWindow,
+  tryCreateCommittedWindow,
+} from "./committed-window";
 
 const initCommit: Commit = {
   commitId: "commit_init",
@@ -309,6 +312,28 @@ describe("committed window builder", () => {
         sessionId: "session_1",
       })
     ).toThrow("commits must not contain duplicate segment positions");
+  });
+
+  test("tryCreateCommittedWindow returns undefined when only non-contiguous parts have landed", () => {
+    expect(
+      tryCreateCommittedWindow({
+        commits: [partCommit(3)],
+        epoch: 1,
+        initCommits: [initCommit],
+        sessionId: "session_1",
+      })
+    ).toBeUndefined();
+  });
+
+  test("createCommittedWindow still throws when no contiguous prefix exists", () => {
+    expect(() =>
+      createCommittedWindow({
+        commits: [partCommit(3)],
+        epoch: 1,
+        initCommits: [initCommit],
+        sessionId: "session_1",
+      })
+    ).toThrow("commits must produce at least one segment");
   });
 
   test("rejects duplicate part commits", () => {

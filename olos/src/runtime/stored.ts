@@ -5,7 +5,9 @@ import type {
 } from "../protocol";
 import { runStoredCoordinatorMutationWithAdaptersAndResponse } from "../protocol/mutate-coordinator-store";
 import type { PublicationControlPolicy } from "../state/publication-control";
+import type { Cursor } from "../types/cursor";
 import type { OlosId } from "../types/ids";
+import type { Session } from "../types/session";
 import {
   commitCoordinatorUploadFromRequest,
   type RuntimeCommitRequest,
@@ -112,9 +114,9 @@ export type StoredRuntimeUploadCommit =
 export async function serveStoredCoordinatorManifest(
   options: ServeStoredCoordinatorManifestOptions
 ): Promise<Response> {
-  const snapshot = await options.store.load(options.sessionId);
+  const view = await loadCursorView(options.store, options.sessionId);
 
-  if (snapshot === undefined) {
+  if (view === undefined) {
     return manifestNotFound();
   }
 
@@ -122,16 +124,16 @@ export async function serveStoredCoordinatorManifest(
 
   return serveCoordinatorManifest({
     ...manifest,
-    state: snapshot.state,
+    state: { cursor: view.cursor, session: view.session },
   });
 }
 
 export async function serveStoredBlockingCoordinatorManifest(
   options: ServeStoredBlockingCoordinatorManifestOptions
 ): Promise<Response> {
-  const snapshot = await options.store.load(options.sessionId);
+  const view = await loadCursorView(options.store, options.sessionId);
 
-  if (snapshot === undefined) {
+  if (view === undefined) {
     return manifestNotFound();
   }
 
@@ -139,8 +141,38 @@ export async function serveStoredBlockingCoordinatorManifest(
 
   return serveBlockingCoordinatorManifest({
     ...manifest,
-    state: snapshot.state,
+    state: { cursor: view.cursor, session: view.session },
   });
+}
+
+// Manifest rendering only consumes cursor + session. Prefer the store's
+// hot-path read when available; fall back to a full load+extract for
+// stores that don't implement it.
+async function loadCursorView(
+  store: CoordinatorPipelineStore,
+  sessionId: OlosId
+): Promise<{ cursor?: Cursor; session: Session } | undefined> {
+  if (store.loadCursor !== undefined) {
+    const view = await store.loadCursor(sessionId);
+    if (view === undefined) {
+      return;
+    }
+    return {
+      ...(view.cursor === undefined ? {} : { cursor: view.cursor }),
+      session: view.session,
+    };
+  }
+
+  const snapshot = await store.load(sessionId);
+  if (snapshot === undefined) {
+    return;
+  }
+  return {
+    ...(snapshot.state.cursor === undefined
+      ? {}
+      : { cursor: snapshot.state.cursor }),
+    session: snapshot.state.session,
+  };
 }
 
 export function issueStoredCoordinatorSlotFromRequest(

@@ -2951,30 +2951,27 @@ describe("stored S3 coordinator runtime handler", () => {
       await jsonResponseBody<StoredS3CoordinatorRetentionResponse>(response);
 
     expect(response.status).toBe(202);
+    // The retired object was deleted from S3 inline when the commit that
+    // pushed it out of the live window landed; the explicit retention call
+    // finds nothing left to retire.
     expect(deleteInputs).toEqual([
       {
         Bucket: S3_BUCKET,
         Key: "media/v1080/s3810.m4s",
       },
     ]);
-    expect(body.plan.retiredObjects).toEqual([
-      {
-        commitId: "commit_3810",
-        objectKey: "media/v1080/s3810.m4s",
-        slotId: "slot_3810",
-      },
-    ]);
+    expect(body.plan.retiredObjects).toEqual([]);
     expect(body.result).toEqual({
-      deletedObjects: body.plan.retiredObjects,
+      deletedObjects: [],
       failedObjects: [],
     });
     expect(body.summary).toEqual({
-      deleted: 1,
+      deleted: 0,
       failed: 0,
       failedObjectKeys: [],
       failedSlotIds: [],
       ok: true,
-      planned: 1,
+      planned: 0,
     });
   });
 
@@ -3023,6 +3020,9 @@ describe("stored S3 coordinator runtime handler", () => {
     const after = await store.load(session.sessionId);
 
     expect(response.status).toBe(202);
+    // Commit-time auto-retention attempted the delete and the S3 client
+    // failed it — best-effort, the orphan is left for the bucket lifecycle to
+    // sweep. State was already pruned, so the retention call finds nothing.
     expect(deleteInputs).toEqual([
       {
         Bucket: S3_BUCKET,
@@ -3031,24 +3031,15 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
     expect(body.result).toEqual({
       deletedObjects: [],
-      failedObjects: [
-        {
-          error: "delete failed",
-          object: {
-            commitId: "commit_3810",
-            objectKey: "media/v1080/s3810.m4s",
-            slotId: "slot_3810",
-          },
-        },
-      ],
+      failedObjects: [],
     });
     expect(body.summary).toEqual({
       deleted: 0,
-      failed: 1,
-      failedObjectKeys: ["media/v1080/s3810.m4s"],
-      failedSlotIds: ["slot_3810"],
-      ok: false,
-      planned: 1,
+      failed: 0,
+      failedObjectKeys: [],
+      failedSlotIds: [],
+      ok: true,
+      planned: 0,
     });
     expect(after?.state.cursor).toEqual(before?.state.cursor);
   });

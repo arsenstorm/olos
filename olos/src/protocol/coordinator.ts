@@ -56,6 +56,12 @@ export interface CoordinatorPipelineSnapshot {
   state: CoordinatorPipelineState;
 }
 
+export interface CoordinatorCursorView {
+  cursor?: Cursor;
+  etag: string;
+  session: Session;
+}
+
 export interface CreateCoordinatorPipelineOptions {
   mediaBaseUrl: string;
   publicationMode?: PublicationMode;
@@ -64,6 +70,7 @@ export interface CreateCoordinatorPipelineOptions {
 
 export interface CoordinatorPipelineStore {
   load(sessionId: OlosId): Promise<CoordinatorPipelineSnapshot | undefined>;
+  loadCursor?(sessionId: OlosId): Promise<CoordinatorCursorView | undefined>;
   save(options: SaveCoordinatorPipelineOptions): Promise<CoordinatorStoreSave>;
 }
 
@@ -164,7 +171,7 @@ export interface RevokeCoordinatorUploadOptions {
 
 export interface CreateCoordinatorManifestArtifactsOptions
   extends CreateHlsManifestArtifactsOptions {
-  state: CoordinatorPipelineState;
+  state: Pick<CoordinatorPipelineState, "cursor" | "session">;
 }
 
 export interface CoordinatorManifestArtifacts {
@@ -187,6 +194,7 @@ export type CoordinatorUploadCommit =
   | {
       commit: Commit;
       cursor?: Cursor;
+      retiredObjects?: readonly RetiredCommittedObject[];
       state: CoordinatorPipelineState;
       status: "committed" | "idempotent";
     }

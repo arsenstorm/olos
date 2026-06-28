@@ -95,19 +95,19 @@ Worker code is unchanged. Two prerequisites:
    wrangler secret put S3_ACCESS_KEY_ID
    wrangler secret put S3_SECRET_ACCESS_KEY
    wrangler secret put INGEST_KEY
-   wrangler secret put USE_R2_BINDING            # set to "true"
+   wrangler secret put MEDIA_ORIGIN              # https://<worker>.workers.dev or custom domain
+   wrangler secret put USE_R2_BINDING            # "true"
    ```
 
-   Setting `USE_R2_BINDING=true` flips the Worker's GetObject path
-   (`/media/*` and `/v/*`) to use `env.MEDIA.get(...)` directly — no AWS
-   SigV4 signing CPU, slightly cheaper class B operations. The streamer's
-   presigned PUT flow still uses the S3 endpoint regardless. In local dev
-   `USE_R2_BINDING` is `"false"` (set in `wrangler.jsonc` vars), because
-   Miniflare's R2 emulator is a separate bucket from MinIO so the binding
-   would always miss.
+   `MEDIA_ORIGIN` is the viewer-facing origin baked into manifest URLs;
+   `USE_R2_BINDING=true` flips the Worker's GetObject path (`/media/*` and
+   `/v/*`) to `env.MEDIA.get(...)` directly — no AWS SigV4 signing CPU,
+   slightly cheaper class B operations. The streamer's presigned PUT flow
+   still uses the S3 endpoint regardless. In local dev both values come from
+   `.dev.vars` (`https://localhost:8787` and `false`), because Miniflare's R2
+   emulator is a separate bucket from MinIO so the binding would always miss.
 
-Then edit `wrangler.jsonc` `vars.MEDIA_ORIGIN` to your viewer-facing origin
-and deploy:
+Then deploy:
 
 ```bash
 bun run deploy                 # vite build && wrangler deploy
