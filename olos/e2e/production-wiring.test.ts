@@ -133,19 +133,17 @@ describe("production object pipeline wiring", () => {
       })
     );
 
+    // Out-of-window segment was deleted inline at commit time; the explicit
+    // retention call finds nothing left in state to plan against.
     expect(await retention.json()).toMatchObject({
       plan: {
-        retiredObjects: [
-          {
-            objectKey: firstSegment.objectKey,
-            slotId: firstSegment.slotId,
-          },
-        ],
+        retiredObjects: [],
       },
       summary: {
-        deleted: 1,
+        deleted: 0,
         failed: 0,
         ok: true,
+        planned: 0,
       },
     });
     expect(deleteInputs).toEqual([

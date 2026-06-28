@@ -1,5 +1,6 @@
 import { assertNonNegativeSafeInteger } from "../validation/ids";
 import type {
+  CoordinatorCursorView,
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineStore,
   SaveCoordinatorPipelineOptions,
@@ -20,6 +21,13 @@ export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
         snapshot === undefined
           ? undefined
           : cloneCoordinatorPipelineSnapshot(snapshot)
+      );
+    },
+    loadCursor(sessionId): Promise<CoordinatorCursorView | undefined> {
+      const snapshot = entries.get(sessionId);
+
+      return Promise.resolve(
+        snapshot === undefined ? undefined : cursorViewFromSnapshot(snapshot)
       );
     },
     save(options: SaveCoordinatorPipelineOptions) {
@@ -69,6 +77,18 @@ function conflictingCoordinatorStoreSave(
   return {
     ...(current === undefined ? {} : { current }),
     status: "conflict",
+  };
+}
+
+function cursorViewFromSnapshot(
+  snapshot: CoordinatorPipelineSnapshot
+): CoordinatorCursorView {
+  return {
+    ...(snapshot.state.cursor === undefined
+      ? {}
+      : { cursor: snapshot.state.cursor }),
+    etag: snapshot.etag,
+    session: snapshot.state.session,
   };
 }
 

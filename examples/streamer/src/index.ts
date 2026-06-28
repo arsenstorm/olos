@@ -154,60 +154,152 @@ async function publishPendingParts(
   availableParts: readonly AvailablePart[],
   state: DrainState
 ): Promise<void> {
-  for (const { index, file } of availableParts) {
-    if (index < state.nextPartIndex) {
-      continue;
-    }
-    if (index !== state.nextPartIndex) {
-      // A gap. Wait for the missing part to land rather than skipping
-      // ahead and confusing OLOS's part ordering.
-      break;
-    }
-
-    const bytes = await readFile(join(outDir, file));
-    if (bytes.length === 0) {
-      break;
+  // Drain a segment at a time, publishing all available contiguous parts of
+  // that segment in parallel. Server-side createCommittedWindow tolerates
+  // out-of-order commits (the cursor waits for the contiguous prefix), so
+  // the four part publishes can race safely. At ~400 ms per publish on
+  // Workers Free, serial would lose ~250 ms per 2 s segment cycle —
+  // parallel collapses the four parts into one ~600 ms wall window.
+  while (true) {
+    const batch = collectNextSegmentBatch(availableParts, state.nextPartIndex);
+    if (batch === undefined) {
+      return;
     }
 
-    const mediaSequenceNumber = Math.floor(index / PARTS_PER_SEGMENT);
-    const partNumber = index % PARTS_PER_SEGMENT;
-
-    // /v/ prefix lands on the Worker's byterange virtual-segment route.
-    const segmentPath = `live/${SESSION_ID}/${RENDITION_ID}/${mediaSequenceNumber}.m4s`;
-    await olos.publishPart({
-      byterange: {
-        length: bytes.length,
-        offset: state.segmentBytesPublished,
-        segmentDeliveryUrl: `${MEDIA_ORIGIN}/v/${SESSION_ID}/${RENDITION_ID}/${mediaSequenceNumber}.m4s`,
-        segmentObjectKey: segmentPath,
-      },
-      bytes,
-      duration: PART_SECONDS,
-      // OBS keyframe interval = 0.5s → every micro-segment is keyframe-aligned.
-      independent: true,
-      mediaSequenceNumber,
-      partNumber,
-    });
-    state.segmentBytesPublished += bytes.length;
-    console.log(
-      `part msn=${mediaSequenceNumber} part=${partNumber} (${bytes.length}B, offset=${state.segmentBytesPublished - bytes.length})`
+    const chunks = await Promise.all(
+      batch.parts.map((part) => readFile(join(outDir, part.file)))
     );
-    state.nextPartIndex = index + 1;
+    if (chunks.some((bytes) => bytes.length === 0)) {
+      return;
+    }
 
-    if (partNumber === PARTS_PER_SEGMENT - 1) {
-      const segmentBytes = await assembleSegment(outDir, mediaSequenceNumber);
+    let runningOffset = state.segmentBytesPublished;
+    const publishes = batch.parts.map((part, i) => {
+      const bytes = chunks[i] as Uint8Array;
+      const offset = runningOffset;
+      runningOffset += bytes.length;
+      return { bytes, offset, partNumber: part.index % PARTS_PER_SEGMENT };
+    });
+
+    // Phase 1: serial grants. Each /s3/slots call mutates coordinator
+    // state; running them in parallel races the etag and exhausts the
+    // mutation retry budget on Workers Free.
+    const grants: Awaited<ReturnType<typeof olos.issueGrant>>[] = [];
+    for (const { bytes, offset, partNumber } of publishes) {
+      grants.push(
+        await olos.issueGrant({
+          byterange: {
+            length: bytes.length,
+            offset,
+            segmentDeliveryUrl: `${MEDIA_ORIGIN}/v/${SESSION_ID}/${RENDITION_ID}/${batch.mediaSequenceNumber}.m4s`,
+            segmentObjectKey: `live/${SESSION_ID}/${RENDITION_ID}/${batch.mediaSequenceNumber}.m4s`,
+          },
+          bytes,
+          duration: PART_SECONDS,
+          // OBS keyframe interval = 0.5s → every micro-segment is keyframe-aligned.
+          independent: true,
+          mediaSequenceNumber: batch.mediaSequenceNumber,
+          partNumber,
+        })
+      );
+    }
+
+    // Phase 2: parallel R2 PUTs. No coordinator state — pure I/O.
+    const pending = await Promise.all(
+      grants.map((grant) => olos.uploadGranted(grant))
+    );
+
+    // Phase 3: serial commits. Same state-mutation reason as the grants.
+    for (const item of pending) {
+      await olos.commitPublication(item);
+    }
+
+    for (const { bytes, offset, partNumber } of publishes) {
+      console.log(
+        `part msn=${batch.mediaSequenceNumber} part=${partNumber} (${bytes.length}B, offset=${offset})`
+      );
+    }
+    state.segmentBytesPublished = runningOffset;
+    state.nextPartIndex = (batch.parts.at(-1) as AvailablePart).index + 1;
+
+    const lastPartNumber =
+      (batch.parts.at(-1) as AvailablePart).index % PARTS_PER_SEGMENT;
+    if (lastPartNumber === PARTS_PER_SEGMENT - 1) {
+      const segmentBytes = await assembleSegment(
+        outDir,
+        batch.mediaSequenceNumber
+      );
       await olos.publishSegment({
         bytes: segmentBytes,
         duration: SEGMENT_SECONDS,
-        mediaSequenceNumber,
+        mediaSequenceNumber: batch.mediaSequenceNumber,
       });
       console.log(
-        `segment msn=${mediaSequenceNumber} (${segmentBytes.length}B)`
+        `segment msn=${batch.mediaSequenceNumber} (${segmentBytes.length}B)`
       );
-      await deleteSegmentParts(outDir, mediaSequenceNumber);
+      await deleteSegmentParts(outDir, batch.mediaSequenceNumber);
       state.segmentBytesPublished = 0;
     }
   }
+}
+
+interface SegmentBatch {
+  mediaSequenceNumber: number;
+  parts: readonly AvailablePart[];
+}
+
+// Pull the longest contiguous run of available parts that all belong to the
+// same segment, starting at `nextPartIndex`. Returns undefined when there's
+// no progress to make (gap, or no parts ≥ nextPartIndex).
+function collectNextSegmentBatch(
+  availableParts: readonly AvailablePart[],
+  nextPartIndex: number
+): SegmentBatch | undefined {
+  let expected = nextPartIndex;
+  const targetMsn = Math.floor(expected / PARTS_PER_SEGMENT);
+  const parts: AvailablePart[] = [];
+  for (const part of availableParts) {
+    if (part.index < expected) {
+      continue;
+    }
+    if (part.index !== expected) {
+      break;
+    }
+    if (Math.floor(part.index / PARTS_PER_SEGMENT) !== targetMsn) {
+      break;
+    }
+    parts.push(part);
+    expected += 1;
+  }
+  if (parts.length === 0) {
+    return;
+  }
+  return { mediaSequenceNumber: targetMsn, parts };
+}
+
+async function assembleSegment(
+  outDir: string,
+  mediaSequenceNumber: number
+): Promise<Uint8Array> {
+  const firstIndex = mediaSequenceNumber * PARTS_PER_SEGMENT;
+  const chunks: Uint8Array[] = await Promise.all(
+    Array.from({ length: PARTS_PER_SEGMENT }, (_, part) =>
+      readFile(
+        join(outDir, `part-${String(firstIndex + part).padStart(5, "0")}.m4s`)
+      )
+    )
+  );
+  let length = 0;
+  for (const chunk of chunks) {
+    length += chunk.length;
+  }
+  const segment = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    segment.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return segment;
 }
 
 function collectAvailableParts(files: readonly string[]): AvailablePart[] {
@@ -235,26 +327,4 @@ async function deleteSegmentParts(
       // Already gone — fine, ffmpeg might never have written it on shutdown.
     }
   }
-}
-
-async function assembleSegment(
-  outDir: string,
-  mediaSequenceNumber: number
-): Promise<Uint8Array> {
-  const firstIndex = mediaSequenceNumber * PARTS_PER_SEGMENT;
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-  for (let part = 0; part < PARTS_PER_SEGMENT; part += 1) {
-    const file = `part-${String(firstIndex + part).padStart(5, "0")}.m4s`;
-    const bytes = await readFile(join(outDir, file));
-    chunks.push(bytes);
-    length += bytes.length;
-  }
-  const segment = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    segment.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return segment;
 }

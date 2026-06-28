@@ -70,13 +70,9 @@ describe("stored runtime retention", () => {
     expect(result.plan.expiredSlots.map((slot) => slot.slotId)).toEqual([
       "slot_3813",
     ]);
-    expect(result.plan.retiredObjects).toEqual([
-      {
-        commitId: "commit_3810",
-        objectKey: "media/v1080/s3810.m4s",
-        slotId: "slot_3810",
-      },
-    ]);
+    // commit-time pruning already returned commit_3810 via the commit response;
+    // planCoordinatorRetention only surfaces commits still resident in state.
+    expect(result.plan.retiredObjects).toEqual([]);
     expect(await result.response.json()).toEqual({ plan: result.plan });
   });
 

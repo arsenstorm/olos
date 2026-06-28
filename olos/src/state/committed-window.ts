@@ -24,6 +24,21 @@ export interface CreateCommittedWindowOptions {
 export function createCommittedWindow(
   options: CreateCommittedWindowOptions
 ): CommittedWindow {
+  const window = tryCreateCommittedWindow(options);
+  if (window === undefined) {
+    throw new Error("commits must produce at least one segment");
+  }
+  return window;
+}
+
+// Like createCommittedWindow but returns undefined when no contiguous prefix
+// of parts has landed yet. Used by the state machine to tolerate out-of-order
+// commits at the same media-sequence-number — the new commit is recorded in
+// state.commits but the cursor doesn't advance until the contiguous prefix
+// is complete.
+export function tryCreateCommittedWindow(
+  options: CreateCommittedWindowOptions
+): CommittedWindow | undefined {
   const initCommits = validateCommits(options.initCommits, options);
   const mediaCommits = validateCommits(options.commits, options);
 
@@ -37,6 +52,9 @@ export function createCommittedWindow(
 
   const renditions = createRenditions(initCommits, mediaCommits, options);
   const mediaSequenceRange = committedWindowMediaSequenceRange(renditions);
+  if (mediaSequenceRange === undefined) {
+    return;
+  }
 
   const window: CommittedWindow = {
     discontinuitySequence: options.discontinuitySequence ?? 0,
@@ -98,16 +116,18 @@ function createRenditions(
 
 function committedWindowMediaSequenceRange(
   renditions: Record<string, RenditionWindow>
-): Pick<
-  CommittedWindow,
-  "firstMediaSequenceNumber" | "lastMediaSequenceNumber"
-> {
+):
+  | Pick<
+      CommittedWindow,
+      "firstMediaSequenceNumber" | "lastMediaSequenceNumber"
+    >
+  | undefined {
   const mediaSequenceNumbers = Object.values(renditions).flatMap((rendition) =>
     rendition.segments.map((segment) => segment.mediaSequenceNumber)
   );
 
   if (mediaSequenceNumbers.length === 0) {
-    throw new Error("commits must produce at least one segment");
+    return;
   }
 
   return {

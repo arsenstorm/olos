@@ -488,20 +488,16 @@ describe("S3 runtime HTTP client", () => {
     });
 
     expect(retained.response.status).toBe(202);
-    expect(retained.plan.retiredObjects).toEqual([
-      {
-        commitId: "commit_3810",
-        objectKey: "media/v1080/s3810.m4s",
-        slotId: "slot_3810",
-      },
-    ]);
+    // The retired object was deleted inline at commit time; explicit retention
+    // finds nothing left in state to plan against.
+    expect(retained.plan.retiredObjects).toEqual([]);
     expect(retained.summary).toEqual({
-      deleted: 1,
+      deleted: 0,
       failed: 0,
       failedObjectKeys: [],
       failedSlotIds: [],
       ok: true,
-      planned: 1,
+      planned: 0,
     });
     expect(deleteInputs).toEqual([
       {

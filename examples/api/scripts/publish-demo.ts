@@ -19,6 +19,7 @@ const PART_SECONDS = 0.5;
 const SEGMENT_SECONDS = PART_SECONDS * PARTS_PER_SEGMENT;
 const PART_BYTES_LENGTH = 4096;
 const INIT_BYTES = new Uint8Array(1024);
+const LIVE_WINDOW_SEGMENTS = 6;
 
 const ingestHeaders = {
   authorization: `Bearer ${INGEST_KEY}`,
@@ -197,6 +198,7 @@ async function commitObject(
       commitId: object.commitId,
       committedAt: new Date().toISOString(),
       independent: object.independent,
+      maxSegments: LIVE_WINDOW_SEGMENTS,
       objectKey,
       slotId: object.slotId,
     },

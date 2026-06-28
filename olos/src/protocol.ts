@@ -11,6 +11,7 @@ export {
   type CoordinatorCommitPolicy,
   type CoordinatorCommitPolicyContext,
   type CoordinatorCommitPolicyDecision,
+  type CoordinatorCursorView,
   type CoordinatorManifestArtifacts,
   type CoordinatorPipelineMutation,
   type CoordinatorPipelineSnapshot,
@@ -53,6 +54,7 @@ export {
   type SerializedCoordinatorStoreBackend,
   type SerializedCoordinatorStoreRecord,
   type SerializedCoordinatorStoreSave,
+  type SerializedCursorViewRecord,
 } from "./protocol/serialized-store";
 export {
   type CreateSqliteSerializedCoordinatorStoreBackendOptions,
