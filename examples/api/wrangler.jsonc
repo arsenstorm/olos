@@ -28,17 +28,17 @@
     }
   ],
   "vars": {
-    "MEDIA_ORIGIN": "https://localhost:8787",
     "S3_BUCKET": "olos-example-media",
-    "S3_REGION": "auto",
-    "USE_R2_BINDING": "false"
+    "S3_REGION": "auto"
   },
   "secrets": {
     "required": [
       "S3_ACCESS_KEY_ID",
       "S3_SECRET_ACCESS_KEY",
       "S3_ENDPOINT_URL",
-      "INGEST_KEY"
+      "INGEST_KEY",
+      "MEDIA_ORIGIN",
+      "USE_R2_BINDING"
     ]
   }
 }

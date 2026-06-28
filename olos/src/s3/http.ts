@@ -87,8 +87,16 @@ export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
   retentionClient?: S3DeleteObjectClient;
 }
 
+// Subset of Cloudflare's ExecutionContext. When provided, the handler routes
+// retention-side S3 deletes through waitUntil so SigV4 signing CPU is paid
+// outside the request's CPU budget — essential on Workers Free's ~10 ms cap.
+export interface StoredS3CoordinatorRuntimeHandlerContext {
+  waitUntil(promise: Promise<unknown>): void;
+}
+
 export type StoredS3CoordinatorRuntimeHandler = (
-  request: Request
+  request: Request,
+  ctx?: StoredS3CoordinatorRuntimeHandlerContext
 ) => Promise<Response>;
 
 interface InvalidS3HttpRequestParse {
@@ -107,7 +115,7 @@ export function createStoredS3CoordinatorRuntimeHandler(
 
   const baseHandler = createStoredCoordinatorRuntimeHandler(options);
 
-  return async (request) => {
+  return async (request, ctx) => {
     const route = s3Route(request, options);
 
     if (route.status === "not_s3") {
@@ -127,7 +135,7 @@ export function createStoredS3CoordinatorRuntimeHandler(
     }
 
     if (route.action === S3_ROUTE_ACTIONS.commits) {
-      return await handleS3Commit(request, route.sessionId, options);
+      return await handleS3Commit(request, route.sessionId, options, ctx);
     }
 
     if (route.action === "completion-hint") {
@@ -135,12 +143,13 @@ export function createStoredS3CoordinatorRuntimeHandler(
         request,
         route.sessionId,
         route.slotId,
-        options
+        options,
+        ctx
       );
     }
 
     if (route.action === S3_ROUTE_ACTIONS.events) {
-      return await handleS3Events(request, route.sessionId, options);
+      return await handleS3Events(request, route.sessionId, options, ctx);
     }
 
     if (route.action === S3_ROUTE_ACTIONS.reconcilePlan) {
@@ -155,7 +164,7 @@ export function createStoredS3CoordinatorRuntimeHandler(
       return await handleS3Retention(request, route.sessionId, options);
     }
 
-    return await handleS3Reconciliation(request, route.sessionId, options);
+    return await handleS3Reconciliation(request, route.sessionId, options, ctx);
   };
 }
 
@@ -225,7 +234,8 @@ async function handleS3SlotGrant(
 async function handleS3Commit(
   request: Request,
   sessionId: string,
-  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
+  ctx: StoredS3CoordinatorRuntimeHandlerContext | undefined
 ): Promise<Response> {
   const parsed = await parseS3CommitRequest(request, options);
 
@@ -244,6 +254,7 @@ async function handleS3Commit(
     store: options.store,
   });
 
+  await scheduleRetiredObjectDeletes(result, options, ctx);
   return s3CommitResponse(result, options);
 }
 
@@ -251,7 +262,8 @@ async function handleS3CompletionHint(
   request: Request,
   sessionId: string,
   slotId: string,
-  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
+  ctx: StoredS3CoordinatorRuntimeHandlerContext | undefined
 ): Promise<Response> {
   const parsed = await parseS3CompletionHintRequest(request, options, slotId);
 
@@ -270,7 +282,42 @@ async function handleS3CompletionHint(
     store: options.store,
   });
 
+  await scheduleRetiredObjectDeletes(result, options, ctx);
   return s3CommitResponse(result, options);
+}
+
+// Drop the storage-side objects for commits the state machine pruned. When
+// a waitUntil-capable context is supplied (Cloudflare Workers), the deletes
+// run after the response goes out so SigV4 signing CPU stays outside the
+// request budget — required on Workers Free's ~10 ms cap. Without a ctx,
+// the deletes await inline (correct, just costs request CPU; that's the
+// path tests and non-CF runtimes take).
+async function scheduleRetiredObjectDeletes(
+  result: Awaited<ReturnType<typeof completeStoredS3CoordinatorUpload>>,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
+  ctx: StoredS3CoordinatorRuntimeHandlerContext | undefined
+): Promise<void> {
+  if (!isSuccessfulS3MutationResult(result)) {
+    return;
+  }
+
+  const objects = result.retiredObjects;
+  if (objects === undefined || objects.length === 0) {
+    return;
+  }
+
+  const work = deleteRetiredS3CoordinatorObjects({
+    bucket: options.bucket,
+    client: options.retentionClient ?? options.client,
+    objects,
+  });
+
+  if (ctx === undefined) {
+    await work;
+    return;
+  }
+
+  ctx.waitUntil(work);
 }
 
 function s3CommitResponse(
@@ -316,7 +363,8 @@ function notifyCursor(
 async function handleS3Events(
   request: Request,
   sessionId: string,
-  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
+  ctx: StoredS3CoordinatorRuntimeHandlerContext | undefined
 ): Promise<Response> {
   if (options.providerId === undefined) {
     return jsonBadRequestResponse(
@@ -353,6 +401,7 @@ async function handleS3Events(
 
     if (isSuccessfulS3MutationResult(result)) {
       notifyCursor(options.cursorNotifier, result.cursor);
+      await scheduleRetiredObjectDeletes(result, options, ctx);
     }
 
     results.push(eventRouteResult(result));
@@ -390,7 +439,8 @@ async function handleS3ReconciliationPlan(
 async function handleS3Reconciliation(
   request: Request,
   sessionId: string,
-  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
+  ctx: StoredS3CoordinatorRuntimeHandlerContext | undefined
 ): Promise<Response> {
   const parsed = await parseS3ReconciliationRequest(request, options);
 
@@ -416,6 +466,7 @@ async function handleS3Reconciliation(
   for (const entry of result.results) {
     if (isSuccessfulS3MutationResult(entry)) {
       notifyCursor(options.cursorNotifier, entry.commit.cursor);
+      await scheduleRetiredObjectDeletes(entry.commit, options, ctx);
     }
   }
 

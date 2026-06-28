@@ -7,3 +7,7 @@ INGEST_KEY=dev-key
 # In local dev, the Worker actually serves http://localhost:8787; manifest URLs
 # bake in https://localhost:8787 as a content placeholder. Set up an HTTPS
 # tunnel or local cert if you want real viewer playback.
+MEDIA_ORIGIN=https://localhost:8787
+# USE_R2_BINDING=false locally because Miniflare's R2 emulator is a separate
+# bucket from MinIO; in production set "true" via `wrangler secret put`.
+USE_R2_BINDING=false

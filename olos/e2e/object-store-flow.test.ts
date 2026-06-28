@@ -583,21 +583,12 @@ describe("object-store flow", () => {
       objects: retention.plan.retiredObjects,
     });
 
-    expect(retention.plan.retiredObjects).toEqual([
-      {
-        commitId: issued.segmentPlan.commitId,
-        objectKey: issued.segmentPlan.objectKey,
-        slotId: issued.segmentPlan.slot.slotId,
-      },
-    ]);
+    // commit-time pruning already retired the out-of-window segment;
+    // planStoredCoordinatorRetention only surfaces commits still in state.
+    expect(retention.plan.retiredObjects).toEqual([]);
     expect(deleted.failedObjects).toEqual([]);
-    expect(deleted.deletedObjects).toEqual(retention.plan.retiredObjects);
-    expect(deletedObjects).toEqual([
-      {
-        Bucket: "media",
-        Key: issued.segmentPlan.objectKey,
-      },
-    ]);
+    expect(deleted.deletedObjects).toEqual([]);
+    expect(deletedObjects).toEqual([]);
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",

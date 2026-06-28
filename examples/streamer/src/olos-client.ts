@@ -9,6 +9,11 @@ import type { Byterange, Session } from "@arsenstorm/olos/types";
 // writing the segment and we PUT it.
 const GRANT_EXPIRY_SECONDS = 10;
 
+// Sliding live window. Bounds the coordinator's persisted commit history so
+// manifest rendering stays O(window) instead of O(session-age). 6 segments
+// × 2 s = 12 s of DVR, comfortably above LL-HLS minimums.
+const LIVE_WINDOW_SEGMENTS = 6;
+
 type IngestFetch = (
   input: Request | URL | string,
   init?: RequestInit
@@ -50,12 +55,39 @@ export interface PublishPartOptions {
   partNumber: number;
 }
 
+export interface IssuedGrant {
+  bytes: Uint8Array;
+  commitId: string;
+  independent: boolean;
+  objectKey: string;
+  requiredHeaders: Record<string, string>;
+  slotId: string;
+  uploadUrl: string;
+}
+
+export interface PendingPublication {
+  commitId: string;
+  independent: boolean;
+  objectKey: string;
+  slotId: string;
+}
+
 export interface OlosClient {
+  commitPublication(pending: PendingPublication): Promise<void>;
   createSession(options: CreateSessionOptions): Promise<void>;
   endSession(): Promise<void>;
+  // Three-phase publish for the part hot path.
+  //   issueGrant runs the slot grant (a coordinator state mutation —
+  //     callers must serialize across concurrent parts to avoid
+  //     etag-conflict retry storms on Workers Free's ~10 ms CPU cap).
+  //   uploadGranted runs the R2 PUT (no state contention — parallel-safe).
+  //   commitPublication finalises the commit (same serialization constraint
+  //     as issueGrant).
+  issueGrant(options: PublishPartOptions): Promise<IssuedGrant>;
   publishInit(options: PublishInitOptions): Promise<void>;
   publishPart(options: PublishPartOptions): Promise<void>;
   publishSegment(options: PublishSegmentOptions): Promise<void>;
+  uploadGranted(grant: IssuedGrant): Promise<PendingPublication>;
 }
 
 interface PublishSpec {
@@ -131,6 +163,32 @@ export function createOlosClient(options: OlosClientOptions): OlosClient {
     endSession() {
       return endSession(options, ingestHeaders);
     },
+    issueGrant({
+      byterange,
+      bytes,
+      duration,
+      independent,
+      mediaSequenceNumber,
+      partNumber,
+    }) {
+      return issueGrant(options, ingestFetch, {
+        byterange,
+        bytes,
+        commitId: `${options.sessionId}_commit_${mediaSequenceNumber}_part_${partNumber}`,
+        duration,
+        independent,
+        kind: "part",
+        mediaSequenceNumber,
+        partNumber,
+        slotId: `${options.sessionId}_slot_${mediaSequenceNumber}_part_${partNumber}`,
+      });
+    },
+    uploadGranted(grant) {
+      return uploadGranted(grant);
+    },
+    commitPublication(pending) {
+      return commitPublication(options, ingestFetch, pending);
+    },
   };
 }
 
@@ -180,6 +238,16 @@ async function publish(
   ingestFetch: IngestFetch,
   spec: PublishSpec
 ): Promise<void> {
+  const grant = await issueGrant(options, ingestFetch, spec);
+  const pending = await uploadGranted(grant);
+  await commitPublication(options, ingestFetch, pending);
+}
+
+async function issueGrant(
+  options: OlosClientOptions,
+  ingestFetch: IngestFetch,
+  spec: PublishSpec
+): Promise<IssuedGrant> {
   const expiresAt = new Date(
     Date.now() + GRANT_EXPIRY_SECONDS * 1000
   ).toISOString();
@@ -202,27 +270,53 @@ async function publish(
     sessionId: options.sessionId,
   });
 
-  const upload = await fetch(granted.grant.url, {
-    body: spec.bytes,
-    headers: granted.grant.requiredHeaders ?? {},
+  return {
+    bytes: spec.bytes,
+    commitId: spec.commitId,
+    independent: spec.independent,
+    objectKey: granted.slot.objectKey,
+    requiredHeaders: granted.grant.requiredHeaders ?? {},
+    slotId: spec.slotId,
+    uploadUrl: granted.grant.url,
+  };
+}
+
+async function uploadGranted(grant: IssuedGrant): Promise<PendingPublication> {
+  const upload = await fetch(grant.uploadUrl, {
+    body: grant.bytes,
+    headers: grant.requiredHeaders,
     method: "PUT",
   });
 
   if (!upload.ok) {
     throw new Error(
-      `PUT ${granted.slot.objectKey} ${upload.status}: ${await upload.text()}`
+      `PUT ${grant.objectKey} ${upload.status}: ${await upload.text()}`
     );
   }
 
+  return {
+    commitId: grant.commitId,
+    independent: grant.independent,
+    objectKey: grant.objectKey,
+    slotId: grant.slotId,
+  };
+}
+
+async function commitPublication(
+  options: OlosClientOptions,
+  ingestFetch: IngestFetch,
+  pending: PendingPublication
+): Promise<void> {
   await commitS3RuntimeUpload({
     baseUrl: options.baseUrl,
     fetch: ingestFetch,
     payload: {
-      commitId: spec.commitId,
+      commitId: pending.commitId,
       committedAt: new Date().toISOString(),
-      independent: spec.independent,
-      objectKey: granted.slot.objectKey,
-      slotId: spec.slotId,
+      independent: pending.independent,
+      maxSegments: LIVE_WINDOW_SEGMENTS,
+      objectKey: pending.objectKey,
+      slotId: pending.slotId,
     },
     sessionId: options.sessionId,
   });

@@ -798,15 +798,11 @@ describe("S3 HTTP pipeline", () => {
     const mediaBody = await media.text();
 
     expect(retention.status).toBe(202);
-    expect(retentionBody.plan.retiredObjects).toEqual([
-      {
-        commitId: "commit_3810",
-        objectKey: "media/v1080/s3810.m4s",
-        slotId: "slot_3810",
-      },
-    ]);
+    // Commit-time pruning auto-deleted the orphan; explicit retention is now
+    // a no-op for sessions that opted in via maxSegments.
+    expect(retentionBody.plan.retiredObjects).toEqual([]);
     expect(retentionBody.result).toEqual({
-      deletedObjects: retentionBody.plan.retiredObjects,
+      deletedObjects: [],
       failedObjects: [],
     });
     expect(deleteInputs).toEqual([
@@ -880,29 +876,23 @@ describe("S3 HTTP pipeline", () => {
     const after = await store.load(session.sessionId);
 
     expect(retention.status).toBe(202);
+    // Commit-time auto-retention attempted the delete; the S3 client failed
+    // it best-effort and the orphan is left for bucket lifecycle to sweep.
+    // State was already pruned, so the explicit retention call finds nothing.
     expect(deleteInputs).toEqual([
       { Bucket: "media", Key: "media/v1080/s3810.m4s" },
     ]);
     expect(retentionBody.result).toEqual({
       deletedObjects: [],
-      failedObjects: [
-        {
-          error: "delete failed",
-          object: {
-            commitId: "commit_3810",
-            objectKey: "media/v1080/s3810.m4s",
-            slotId: "slot_3810",
-          },
-        },
-      ],
+      failedObjects: [],
     });
     expect(retentionBody.summary).toEqual({
       deleted: 0,
-      failed: 1,
-      failedObjectKeys: ["media/v1080/s3810.m4s"],
-      failedSlotIds: ["slot_3810"],
-      ok: false,
-      planned: 1,
+      failed: 0,
+      failedObjectKeys: [],
+      failedSlotIds: [],
+      ok: true,
+      planned: 0,
     });
     expect(after?.state.cursor).toEqual(before?.state.cursor);
   });
