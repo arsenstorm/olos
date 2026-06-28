@@ -4,6 +4,24 @@ Notable package changes are documented here.
 
 This project follows semantic versioning for the published `olos` package.
 
+## 0.5.1
+
+Tightens the out-of-order commit path 0.5.0 introduced.
+
+- **Retention no longer retires future-but-not-visible commits.**
+  `selectRetiredCommittedObjects` now requires
+  `commit.mediaSequenceNumber < retainedWindow.firstMediaSequenceNumber`.
+  Without this, a parallel-publisher commit landing ahead of the
+  contiguous prefix (e.g. part 3 of segment N before parts 0–2) had its
+  slot pruned and its backing object scheduled for delete; once the
+  earlier parts arrived, the missing part broke the manifest. Same fix
+  applies to `planCoordinatorRetention`.
+- **`cursor.window.lastPartNumber` derives from the visible window.**
+  `commitCoordinatorUpload` previously took `Math.max(...partNumbers)` over
+  raw commits, which leaked an out-of-order future part number into the
+  cursor while the window's last segment was still the previous MSN.
+  Replaced with `lastVisiblePartNumber(committedWindow)`.
+
 ## 0.5.0
 
 Makes the deploy story Workers-Free-viable. 0.4.0 bounded the persisted

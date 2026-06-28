@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { Commit } from "../types/commit";
 import {
   createCommittedWindow,
+  lastVisiblePartNumber,
   tryCreateCommittedWindow,
 } from "./committed-window";
 
@@ -334,6 +335,32 @@ describe("committed window builder", () => {
         sessionId: "session_1",
       })
     ).toThrow("commits must produce at least one segment");
+  });
+
+  test("lastVisiblePartNumber returns the highest contiguous part on the last segment", () => {
+    const window = createCommittedWindow({
+      commits: [segmentCommit, partCommit(0), partCommit(1)],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    expect(lastVisiblePartNumber(window)).toBe(1);
+  });
+
+  test("lastVisiblePartNumber ignores out-of-order parts that aren't yet contiguous", () => {
+    // Segment 3810 is visible; segment 3811 has part 3 but not parts 0-2.
+    // The contiguous-prefix rule drops 3811 from the window, so the last
+    // visible segment is 3810 (no parts) — partNumber must be undefined.
+    const window = createCommittedWindow({
+      commits: [segmentCommit, partCommit(3)],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    expect(window.lastMediaSequenceNumber).toBe(3810);
+    expect(lastVisiblePartNumber(window)).toBeUndefined();
   });
 
   test("rejects duplicate part commits", () => {

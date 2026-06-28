@@ -4,7 +4,10 @@ import {
   resolveDuplicateCommit,
   resolveObjectSlotMismatch,
 } from "../state/commit";
-import { tryCreateCommittedWindow } from "../state/committed-window";
+import {
+  lastVisiblePartNumber,
+  tryCreateCommittedWindow,
+} from "../state/committed-window";
 import { createCursor, resolveCursorUpdate } from "../state/cursor";
 import {
   type PublicationControlResolution,
@@ -314,7 +317,11 @@ function commitIntoState(options: {
     return { retiredObjects: [], state: nextState };
   }
 
-  const partNumber = lastPartNumber(commits);
+  // Derive from the visible window, not raw commits: an out-of-order future
+  // commit (e.g. part 3 arriving before parts 0–2) is filtered out of the
+  // window by the contiguous-prefix rule, so its partNumber must not leak
+  // into the cursor.
+  const partNumber = lastVisiblePartNumber(committedWindow);
   const candidateCursor = createCursor({
     committedWindow,
     latencyProfile: options.state.session.latencyProfile,
@@ -414,23 +421,6 @@ function findCommit(
   return [...state.initCommits, ...state.commits].find(
     (commit) => commit.slotId === slotId
   );
-}
-
-function lastPartNumber(commits: readonly Commit[]): number | undefined {
-  const lastMediaSequenceNumber = Math.max(
-    ...commits.map((commit) => commit.mediaSequenceNumber)
-  );
-  const partNumbers = commits
-    .filter((commit) => commit.mediaSequenceNumber === lastMediaSequenceNumber)
-    .flatMap((commit) =>
-      commit.partNumber === undefined ? [] : [commit.partNumber]
-    );
-
-  if (partNumbers.length === 0) {
-    return;
-  }
-
-  return Math.max(...partNumbers);
 }
 
 function isConflictingDuplicateCommit(

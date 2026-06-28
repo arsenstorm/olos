@@ -1,6 +1,6 @@
 {
   "name": "@arsenstorm/olos",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Open Live Object Streaming protocol primitives.",
   "type": "module",
   "license": "MIT",
