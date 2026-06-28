@@ -5,7 +5,8 @@
       "@arsenstorm/olos": ["./src/index.ts"],
       "@arsenstorm/olos/*": ["./src/*.ts"]
     },
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "types": ["bun"]
   },
   "include": ["src/**/*.ts", "e2e/**/*.ts"]
 }

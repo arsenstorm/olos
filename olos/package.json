@@ -87,6 +87,7 @@
     "check-types": "tsc --project tsconfig.json --noEmit",
     "conformance:check": "bun scripts/check-conformance.ts",
     "conformance:report": "bun scripts/write-conformance-report.ts",
+    "benchmark": "bun benchmarks/index.ts",
     "pack:dry": "bun scripts/dry-pack.ts",
     "pack:artifact": "bun run build && bun scripts/create-package-artifact.ts",
     "pack:smoke": "bun run build && bun scripts/package-smoke.ts",
