@@ -25,6 +25,7 @@
   "workspaces": [
     "examples/*",
     "packages/*",
+    "benchmarks",
     "olos"
   ],
   "private": true
