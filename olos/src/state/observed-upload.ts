@@ -1,7 +1,7 @@
 import type { OlosError } from "../types/errors";
 import { createOlosError } from "../types/errors";
 import type { UploadSlot } from "../types/upload-slot";
-import { timestampMs } from "../validation/fields";
+import { timestampMs, timestampString } from "../validation/fields";
 import { isOptionalHttpHeaderStringMap } from "../validation/http-header";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
@@ -585,12 +585,12 @@ function assertUploadCompletionHintType(
   }
 }
 
+// Strict RFC 3339, not the lenient `timestampMs`: a completion hint's
+// eventTime lands verbatim in commit timestamps, so looser provider formats
+// (HTTP dates and the like) must be normalized before they get here — see
+// `headObjectTimestamp` for the one deliberately lenient site.
 function assertUploadCompletionHintTime(eventTime: unknown): void {
-  if (typeof eventTime !== "string") {
-    throw new Error("uploadCompletionHint.eventTime must be a valid timestamp");
-  }
-
-  timestampMs(eventTime, "uploadCompletionHint.eventTime");
+  timestampString(eventTime, "uploadCompletionHint.eventTime");
 }
 
 function headObjectTimestamp(value: string | Date): string {

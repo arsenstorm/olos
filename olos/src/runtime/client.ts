@@ -4,21 +4,21 @@ import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { Session, SessionState } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
-import { assertCommit } from "../validation/commit";
-import { assertCursor } from "../validation/cursor";
+import { parseCommit } from "../validation/commit";
+import { parseCursor } from "../validation/cursor";
 import { errorMessage, isAllowedString, isRecord } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
-import { assertUploadSlot } from "../validation/upload-slot";
+import { parseUploadSlot } from "../validation/upload-slot";
 import type { RuntimeCommitPayload } from "./commit";
 import type { RuntimeLiveHealth } from "./health";
 import {
   fetchFor,
   jsonPost,
   normalizedBaseUrl,
-  optionalRecordPayload,
+  optionalParsedPayload,
   type RuntimeHttpFetch,
-  recordPayload,
   requiredArrayField,
+  requiredParsedPayload,
   requiredRecordField,
   requiredRecordPayload,
   requiredStringField,
@@ -501,25 +501,24 @@ function transitionPayload(
 }
 
 function slotPayload(value: unknown): UploadSlot {
-  return requiredRecordPayload<UploadSlot>(
+  return requiredParsedPayload<UploadSlot>(
     value,
     "slot",
     "slot issue response must include a slot",
-    assertUploadSlot
+    parseUploadSlot
   );
 }
 
 function commitPayload(
   value: unknown
 ): Omit<RuntimeCommitUploadResponse, "response"> {
-  const commit = requiredRecordField(
-    value,
-    "commit",
-    "upload commit response must include a commit"
-  );
-
   return {
-    commit: recordPayload<Commit>(commit, assertCommit),
+    commit: requiredParsedPayload<Commit>(
+      value,
+      "commit",
+      "upload commit response must include a commit",
+      parseCommit
+    ),
     ...optionalCursorPayload(value),
   };
 }
@@ -527,7 +526,7 @@ function commitPayload(
 function optionalCursorPayload(
   value: unknown
 ): Pick<RuntimeCommitUploadResponse, "cursor"> | Record<string, never> {
-  return optionalRecordPayload<"cursor", Cursor>(value, "cursor", assertCursor);
+  return optionalParsedPayload<"cursor", Cursor>(value, "cursor", parseCursor);
 }
 
 function healthPayload(value: unknown): RuntimeLiveHealth {
@@ -540,48 +539,44 @@ function healthPayload(value: unknown): RuntimeLiveHealth {
 }
 
 function retentionPayload(value: unknown): CoordinatorRetentionPlan {
-  return requiredRecordPayload<CoordinatorRetentionPlan>(
-    value,
-    "plan",
-    "session retention response must include a plan",
-    assertCoordinatorRetentionPlan
+  return coordinatorRetentionPlanPayload(
+    requiredRecordField(
+      value,
+      "plan",
+      "session retention response must include a plan"
+    )
   );
 }
 
-function assertCoordinatorRetentionPlan(
-  value: unknown
-): asserts value is CoordinatorRetentionPlan {
-  if (!isRecord(value)) {
-    throw new Error("runtime session retention plan must be an object");
-  }
+function coordinatorRetentionPlanPayload(
+  value: Record<string, unknown>
+): CoordinatorRetentionPlan {
+  const cursor = optionalRetentionPlanCursor(value);
 
-  assertRetentionPlanExpiredSlots(value);
-  assertRetentionPlanRetiredObjects(value);
-  assertOptionalRetentionPlanCursor(value);
+  return {
+    expiredSlots: retentionPlanExpiredSlots(value),
+    retiredObjects: retentionPlanRetiredObjects(value),
+    ...(cursor === undefined ? {} : { cursor }),
+  };
 }
 
-function assertRetentionPlanExpiredSlots(value: Record<string, unknown>): void {
-  const expiredSlots = requiredArrayField(
+function retentionPlanExpiredSlots(
+  value: Record<string, unknown>
+): UploadSlot[] {
+  return requiredArrayField(
     value,
     "expiredSlots",
     "runtime session retention plan must include expiredSlots"
-  );
-
-  for (const [index, slot] of expiredSlots.entries()) {
-    assertRetentionPlanExpiredSlot(slot, index);
-  }
+  ).map((slot, index) => retentionPlanExpiredSlot(slot, index));
 }
 
-function assertRetentionPlanExpiredSlot(
-  value: unknown,
-  index: number
-): asserts value is UploadSlot {
+function retentionPlanExpiredSlot(value: unknown, index: number): UploadSlot {
   if (!isRecord(value)) {
     throw new Error(retentionPlanExpiredSlotObjectMessage(index));
   }
 
   try {
-    assertUploadSlot(value);
+    return parseUploadSlot(value);
   } catch (error) {
     throw new Error(
       retentionPlanExpiredSlotValidMessage(
@@ -592,54 +587,57 @@ function assertRetentionPlanExpiredSlot(
   }
 }
 
-function assertRetentionPlanRetiredObjects(
+function retentionPlanRetiredObjects(
   value: Record<string, unknown>
-): void {
-  const retiredObjects = requiredArrayField(
+): CoordinatorRetentionPlan["retiredObjects"] {
+  return requiredArrayField(
     value,
     "retiredObjects",
     "runtime session retention plan must include retiredObjects"
+  ).map((retiredObject, index) =>
+    retentionPlanRetiredObject(retiredObject, index)
   );
-
-  for (const [index, retiredObject] of retiredObjects.entries()) {
-    assertRetentionPlanRetiredObject(retiredObject, index);
-  }
 }
 
-function assertRetentionPlanRetiredObject(value: unknown, index: number): void {
+function retentionPlanRetiredObject(
+  value: unknown,
+  index: number
+): CoordinatorRetentionPlan["retiredObjects"][number] {
   if (!isRecord(value)) {
     throw new Error(retentionPlanRetiredObjectObjectMessage(index));
   }
 
-  requiredStringField(
-    value,
-    "commitId",
-    retentionPlanRetiredObjectFieldMessage(index, "commitId")
-  );
-  requiredStringField(
-    value,
-    "objectKey",
-    retentionPlanRetiredObjectFieldMessage(index, "objectKey")
-  );
-  requiredStringField(
-    value,
-    "slotId",
-    retentionPlanRetiredObjectFieldMessage(index, "slotId")
-  );
+  return {
+    commitId: requiredStringField(
+      value,
+      "commitId",
+      retentionPlanRetiredObjectFieldMessage(index, "commitId")
+    ),
+    objectKey: requiredStringField(
+      value,
+      "objectKey",
+      retentionPlanRetiredObjectFieldMessage(index, "objectKey")
+    ),
+    slotId: requiredStringField(
+      value,
+      "slotId",
+      retentionPlanRetiredObjectFieldMessage(index, "slotId")
+    ),
+  };
 }
 
-function assertOptionalRetentionPlanCursor(
+function optionalRetentionPlanCursor(
   value: Record<string, unknown>
-): void {
-  if (value.cursor !== undefined) {
-    if (!isRecord(value.cursor)) {
-      throw new Error(
-        "runtime session retention plan cursor must be an object"
-      );
-    }
-
-    assertCursor(value.cursor);
+): Cursor | undefined {
+  if (value.cursor === undefined) {
+    return;
   }
+
+  if (!isRecord(value.cursor)) {
+    throw new Error("runtime session retention plan cursor must be an object");
+  }
+
+  return parseCursor(value.cursor);
 }
 
 function retentionPlanExpiredSlotObjectMessage(index: number): string {

@@ -84,6 +84,110 @@ describe("runtime HTTP client", () => {
     expect(committed.commit.slotId).toBe("slot_init");
   });
 
+  test("ignores unknown fields in slot, commit, and cursor responses", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      store,
+    });
+    const handlerFetch = runtimeFetchFor(handle);
+    // Spec §11.2: consumers must ignore unknown fields. Simulate a newer
+    // coordinator by injecting extras into every payload the client parses.
+    const clientFetch: RuntimeFetch = async (input, init) => {
+      const response = await handlerFetch(input, init);
+      const body = await response.json();
+
+      return new Response(JSON.stringify(withUnknownResponseFields(body)), {
+        headers: { "content-type": "application/json" },
+        status: response.status,
+      });
+    };
+
+    await createRuntimeSession({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      mediaBaseUrl,
+      session: { ...session, state: "live" },
+    });
+    const issuedInit = await issueRuntimeSlot({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      payload: {
+        contentType: "video/mp4",
+        duration: 1,
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "init",
+        maxBytes: 2048,
+        mediaSequenceNumber: 0,
+        objectKeyNonce: "slot_1",
+        renditionId: "v1080",
+        slotId: "slot_init",
+      },
+      sessionId: session.sessionId,
+    });
+    await commitRuntimeUpload({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      payload: {
+        commitId: "commit_init",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        object: {
+          contentType: "video/mp4",
+          objectKey: issuedInit.slot.objectKey,
+          observedAt: "2026-01-01T00:00:02.000Z",
+          providerId: "s3_primary",
+          size: 1024,
+        },
+        slotId: "slot_init",
+      },
+      sessionId: session.sessionId,
+    });
+    const issuedSegment = await issueRuntimeSlot({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      payload: {
+        contentType: "video/mp4",
+        duration: 1,
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "segment",
+        maxBytes: 200_000,
+        mediaSequenceNumber: 0,
+        objectKeyNonce: "slot_2",
+        renditionId: "v1080",
+        slotId: "slot_seg",
+      },
+      sessionId: session.sessionId,
+    });
+    const committed = await commitRuntimeUpload({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      payload: {
+        commitId: "commit_seg",
+        committedAt: "2026-01-01T00:00:03.000Z",
+        object: {
+          contentType: "video/mp4",
+          objectKey: issuedSegment.slot.objectKey,
+          observedAt: "2026-01-01T00:00:03.000Z",
+          providerId: "s3_primary",
+          size: 4096,
+        },
+        slotId: "slot_seg",
+      },
+      sessionId: session.sessionId,
+    });
+
+    expect(issuedSegment.slot.slotId).toBe("slot_seg");
+    expect("extra" in issuedSegment.slot).toBe(false);
+    expect(committed.commit.slotId).toBe("slot_seg");
+    expect("extra" in committed.commit).toBe(false);
+
+    if (committed.cursor === undefined) {
+      throw new Error("expected a cursor after the segment commit");
+    }
+
+    expect("extra" in committed.cursor).toBe(false);
+  });
+
   test("sends publisher heartbeats and reads stored health", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
@@ -422,7 +526,7 @@ describe("runtime HTTP client", () => {
         },
         sessionId: session.sessionId,
       })
-    ).rejects.toThrow('commit contains unknown property "status"');
+    ).rejects.toThrow("commit.commitId");
   });
 
   test("validates session health response payloads", async () => {
@@ -601,3 +705,22 @@ describe("runtime HTTP client", () => {
     );
   });
 });
+
+function withUnknownResponseFields(body: unknown): unknown {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return body;
+  }
+
+  const record = body as Record<string, unknown>;
+  const noisy: Record<string, unknown> = { ...record, extra: 1 };
+
+  for (const field of ["commit", "cursor", "slot"] as const) {
+    const value = record[field];
+
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      noisy[field] = { ...value, extra: 1 };
+    }
+  }
+
+  return noisy;
+}

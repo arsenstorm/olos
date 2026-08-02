@@ -3,6 +3,7 @@ import type { Commit } from "../types/commit";
 import {
   createCommittedWindow,
   lastVisiblePartNumber,
+  renditionWindowBounds,
   tryCreateCommittedWindow,
 } from "./committed-window";
 
@@ -407,6 +408,85 @@ describe("committed window builder", () => {
         mediaSequenceNumber: 3811,
       }),
     ]);
+  });
+
+  test("renditionWindowBounds tracks a lagging rendition's own live edge", () => {
+    const audioInitCommit: Commit = {
+      ...initCommit,
+      commitId: "commit_init_a128",
+      deliveryUrl: "/media/a128/init.mp4",
+      objectKey: "media/a128/init.mp4",
+      renditionId: "a128",
+      slotId: "slot_init_a128",
+    };
+    const audioSegmentCommit: Commit = {
+      ...segmentCommit,
+      commitId: "commit_a128_3810",
+      deliveryUrl: "/media/a128/s3810.m4s",
+      objectKey: "media/a128/s3810.m4s",
+      renditionId: "a128",
+      slotId: "slot_a128_3810",
+    };
+
+    const window = createCommittedWindow({
+      commits: [
+        segmentCommit,
+        partCommit(0),
+        partCommit(1),
+        audioSegmentCommit,
+      ],
+      epoch: 1,
+      initCommits: [initCommit, audioInitCommit],
+      sessionId: "session_1",
+    });
+
+    // The lagging audio rendition's live edge is its own last segment, not
+    // the window-global last media sequence number.
+    expect(window.lastMediaSequenceNumber).toBe(3811);
+    expect(renditionWindowBounds(window, "a128")).toEqual({
+      lastMediaSequenceNumber: 3810,
+    });
+    expect(renditionWindowBounds(window, "v1080")).toEqual({
+      lastMediaSequenceNumber: 3811,
+      lastPartNumber: 1,
+    });
+  });
+
+  test("renditionWindowBounds omits lastPartNumber for full-segment tails", () => {
+    const partsWindow = createCommittedWindow({
+      commits: [segmentCommit, partCommit(0)],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+    const fullSegmentWindow = createCommittedWindow({
+      commits: [segmentCommit],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    expect(renditionWindowBounds(partsWindow, "v1080")).toEqual({
+      lastMediaSequenceNumber: 3811,
+      lastPartNumber: 0,
+    });
+    expect(renditionWindowBounds(fullSegmentWindow, "v1080")).toEqual({
+      lastMediaSequenceNumber: 3810,
+    });
+    expect(
+      renditionWindowBounds(fullSegmentWindow, "v1080")?.lastPartNumber
+    ).toBeUndefined();
+  });
+
+  test("renditionWindowBounds returns undefined for unknown renditions", () => {
+    const window = createCommittedWindow({
+      commits: [segmentCommit],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    expect(renditionWindowBounds(window, "v720")).toBeUndefined();
   });
 
   test("rejects duplicate part commits", () => {

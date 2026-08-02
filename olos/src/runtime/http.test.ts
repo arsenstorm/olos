@@ -325,12 +325,111 @@ describe("stored coordinator runtime handler", () => {
 
     expect(routeNotFound).toHaveProperty("status", 404);
     expect(methodNotAllowed).toHaveProperty("status", 405);
+    expect(methodNotAllowed.headers.get("allow")).toBe("POST");
     expect(unknownAction).toHaveProperty("status", 405);
+    expect(unknownAction.headers.get("allow")).toBe("GET");
     expect(liveNotFound).toHaveProperty("status", 404);
     await expectOlosErrorEnvelope(routeNotFound);
     await expectOlosErrorEnvelope(methodNotAllowed);
     await expectOlosErrorEnvelope(unknownAction);
     await expectOlosErrorEnvelope(liveNotFound);
+  });
+
+  test("rejects malformed retention now query parameters", async () => {
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const response = await handle(
+      new Request(
+        "https://edge.example.com/sessions/session_1/retention?now=garbage"
+      )
+    );
+
+    await expectOlosErrorEnvelope(response);
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          code: "olos.invalid_request",
+          message: "now must be a valid timestamp",
+        },
+      },
+      status: 400,
+    });
+  });
+
+  test("rejects unsafe session create media base URLs", async () => {
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl: "javascript:alert(1)",
+        session,
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expectOlosErrorEnvelope(response);
+    const body = (await response.json()) as {
+      error: { code: string };
+    };
+    expect(body.error.code).toBe("olos.invalid_request");
+  });
+
+  test("answers unexpected store failures with an opaque 500 envelope", async () => {
+    const store = createMemoryCoordinatorStore();
+    const failingStore = {
+      ...store,
+      load: () => Promise.reject(new Error("D1_ERROR: connection refused")),
+    };
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      store: failingStore,
+    });
+
+    const response = await handle(
+      new Request("https://edge.example.com/sessions/session_1/health")
+    );
+
+    await expectOlosErrorEnvelope(response);
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: { code: "olos.internal", message: "internal error" },
+      },
+      status: 500,
+    });
+  });
+
+  test("rejects request bodies above the configured byte cap with 413", async () => {
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      maxBodyBytes: 64,
+      publicationMode: "read-gated",
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        padding: "x".repeat(256),
+        session,
+      })
+    );
+
+    expect(response.status).toBe(413);
+    await expectOlosErrorEnvelope(response);
+    const body = (await response.json()) as {
+      error: { code: string; message: string };
+    };
+    expect(body.error.code).toBe("olos.invalid_request");
+    expect(body.error.message).toBe("request body is too large");
   });
 
   test("returns specific errors for missing runtime sessions", async () => {

@@ -14,10 +14,12 @@ import {
   hasControlCharacter,
   isAllowedString,
   isRecord,
+  type KnownFieldsShape,
   nonEmptyArray,
   nonNegativeNumber,
   parseAbsoluteHttpUrl,
   positiveNumber,
+  pruneUnknownFields,
   recordValue,
   stringValue,
   timestampMs,
@@ -146,6 +148,15 @@ describe("validation field helpers", () => {
     );
   });
 
+  test("timestampString accepts leap-day dates in leap years", () => {
+    expect(timestampString("2024-02-29T00:00:00Z", "updatedAt")).toBe(
+      "2024-02-29T00:00:00Z"
+    );
+    expect(timestampString("2000-02-29T00:00:00Z", "updatedAt")).toBe(
+      "2000-02-29T00:00:00Z"
+    );
+  });
+
   test("timestampString rejects non-RFC 3339 Date.parse-able strings", () => {
     expect(() => timestampString("2026-01-01", "updatedAt")).toThrow(
       "updatedAt must be a valid timestamp"
@@ -159,6 +170,42 @@ describe("validation field helpers", () => {
     expect(() => timestampString("2026-13-01T00:00:00Z", "updatedAt")).toThrow(
       "updatedAt must be a valid timestamp"
     );
+  });
+
+  test("timestampString rejects impossible calendar dates", () => {
+    expect(() => timestampString("2026-02-30T00:00:00Z", "updatedAt")).toThrow(
+      "updatedAt must be a valid timestamp"
+    );
+    expect(() => timestampString("2026-04-31T00:00:00Z", "updatedAt")).toThrow(
+      "updatedAt must be a valid timestamp"
+    );
+    expect(() => timestampString("2026-02-29T00:00:00Z", "updatedAt")).toThrow(
+      "updatedAt must be a valid timestamp"
+    );
+    expect(() => timestampString("2100-02-29T00:00:00Z", "updatedAt")).toThrow(
+      "updatedAt must be a valid timestamp"
+    );
+    expect(() => timestampString("2026-00-01T00:00:00Z", "updatedAt")).toThrow(
+      "updatedAt must be a valid timestamp"
+    );
+    expect(() => timestampString("2026-01-00T00:00:00Z", "updatedAt")).toThrow(
+      "updatedAt must be a valid timestamp"
+    );
+  });
+
+  test("timestampString rejects times epoch milliseconds cannot represent", () => {
+    expect(() => timestampString("2026-01-01T24:00:00Z", "updatedAt")).toThrow(
+      "updatedAt must be a valid timestamp"
+    );
+    expect(() => timestampString("2026-12-31T23:59:60Z", "updatedAt")).toThrow(
+      "updatedAt must be a valid timestamp"
+    );
+    expect(() =>
+      timestampString("2026-01-01T00:00:00+0100", "updatedAt")
+    ).toThrow("updatedAt must be a valid timestamp");
+    expect(() =>
+      timestampString("2026-01-01T00:00:00+24:00", "updatedAt")
+    ).toThrow("updatedAt must be a valid timestamp");
   });
 
   test("timestampMs returns milliseconds for valid timestamps", () => {
@@ -224,5 +271,58 @@ describe("validation field helpers", () => {
 
     expect(url.search).toBe("?x=1");
     expect(url.hash).toBe("#frag");
+  });
+});
+
+describe("pruneUnknownFields", () => {
+  const shape: KnownFieldsShape = {
+    fields: ["entries", "id", "labels", "nested"],
+    nested: {
+      entries: { kind: "array", shape: { fields: ["value"] } },
+      labels: { kind: "map", shape: { fields: ["name"] } },
+      nested: { kind: "object", shape: { fields: ["value"] } },
+    },
+  };
+
+  test("returns non-record inputs unchanged", () => {
+    expect(pruneUnknownFields(null, shape)).toBeNull();
+    expect(pruneUnknownFields("value", shape)).toBe("value");
+    expect(pruneUnknownFields([1], shape)).toEqual([1]);
+  });
+
+  test("copies only known fields into a fresh record", () => {
+    const value = { extra: 1, id: "a" };
+    const pruned = pruneUnknownFields(value, shape);
+
+    expect(pruned).toEqual({ id: "a" });
+    expect(pruned).not.toBe(value);
+  });
+
+  test("recurses into object, array, and map fields", () => {
+    expect(
+      pruneUnknownFields(
+        {
+          entries: [{ extra: 1, value: 1 }, { value: 2 }],
+          id: "a",
+          labels: { one: { extra: 1, name: "first" } },
+          nested: { extra: 1, value: 3 },
+        },
+        shape
+      )
+    ).toEqual({
+      entries: [{ value: 1 }, { value: 2 }],
+      id: "a",
+      labels: { one: { name: "first" } },
+      nested: { value: 3 },
+    });
+  });
+
+  test("returns mistyped nested values as-is for the closed validator", () => {
+    expect(
+      pruneUnknownFields(
+        { entries: "not-an-array", labels: [], nested: "not-a-record" },
+        shape
+      )
+    ).toEqual({ entries: "not-an-array", labels: [], nested: "not-a-record" });
   });
 });

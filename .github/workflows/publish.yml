@@ -58,7 +58,20 @@ jobs:
       - name: Publish check
         run: bun run publish:check
 
+      # A re-run after a flaked post-publish step must complete the
+      # remaining steps instead of dying on a publish conflict.
+      - name: Check whether the version is already published
+        id: published
+        run: |
+          version=$(jq -r .version olos/package.json)
+          if npm view "@arsenstorm/olos@${version}" version >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to npm
+        if: steps.published.outputs.already == 'false'
         # setup-node writes a placeholder NODE_AUTH_TOKEN into the temp .npmrc;
         # remove it so npm falls back to OIDC and matches Trusted Publisher.
         run: |
@@ -80,4 +93,9 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME already exists; skipping"
+          else
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+          fi

@@ -10,12 +10,14 @@ import type { PublicationControlPolicy } from "../state/publication-control";
 import type { Cursor } from "../types/cursor";
 import type { Session, SessionState } from "../types/session";
 import type { PublicationMode } from "../types/upload-slot";
+import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import {
   errorMessage,
   isAllowedString,
   isRecord,
   nonNegativeNumber,
   positiveNumber,
+  timestampString,
 } from "../validation/fields";
 import { assertSession } from "../validation/session";
 import {
@@ -27,8 +29,13 @@ import { resolveRuntimeLiveHealthFromState } from "./health";
 import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "./latency-profile-defaults";
 import { stringField, urlSafeIdentifierField } from "./request-fields";
 import {
+  boundedJsonRequestBody,
+  isRuntimeJsonBodyTooLarge,
+} from "./request-json";
+import {
   jsonBadRequestResponse,
   jsonErrorResponse,
+  jsonInternalErrorResponse,
   jsonMethodNotAllowedResponse,
   jsonNotFoundResponse,
   jsonResponse,
@@ -66,7 +73,7 @@ const defaultRuntimeNow = () => new Date().toISOString();
 
 interface InvalidRuntimeHttpRequestParse {
   message: string;
-  status: "invalid";
+  status: "invalid" | "too_large";
 }
 
 type RuntimeHttpRequestParse<Valid extends object> =
@@ -111,6 +118,11 @@ export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   livePath?: string;
   /** Max optimistic-save attempts per mutation; defaults to 2. */
   maxAttempts?: number;
+  /**
+   * Largest accepted JSON request body, in bytes; defaults to 1 MiB.
+   * Oversized bodies are rejected with 413 before parsing.
+   */
+  maxBodyBytes?: number;
   /** Cursor age at which health reports stale, in ms; defaults to 5000. */
   maxHealthCursorAgeMs?: number;
   /**
@@ -151,7 +163,16 @@ export function createStoredCoordinatorRuntimeHandler(
 ): StoredCoordinatorRuntimeHandler {
   assertRuntimeHandlerOptions(options);
 
-  return async (request) => handleStoredRuntimeRequest(request, options);
+  return async (request) => {
+    // Last-resort guard: no request input may crash the handler. Expected
+    // failures resolve to 4xx envelopes before reaching here; anything else
+    // becomes an opaque 500 `olos.internal` envelope.
+    try {
+      return await handleStoredRuntimeRequest(request, options);
+    } catch {
+      return jsonInternalErrorResponse();
+    }
+  };
 }
 
 function assertRuntimeHandlerOptions(
@@ -184,6 +205,10 @@ function assertRuntimeHandlerOptions(
       options.blockingReload.timeoutMs,
       "blockingReload.timeoutMs"
     );
+  }
+
+  if (options.maxBodyBytes !== undefined) {
+    positiveNumber(options.maxBodyBytes, "maxBodyBytes");
   }
 }
 
@@ -241,7 +266,7 @@ async function handleSessionRoute(
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
   if (request.method === "POST" && parts.length === 0) {
-    const parsed = await parseSessionCreateRequest(request);
+    const parsed = await parseSessionCreateRequest(request, options);
 
     if (isInvalidRuntimeHttpRequestParse(parsed)) {
       return invalidRuntimeHttpRequestParseResponse(parsed);
@@ -296,7 +321,7 @@ async function handleSessionActionRoute(
     );
   }
 
-  return jsonMethodNotAllowedResponse();
+  return jsonMethodNotAllowedResponse(["GET", "POST"]);
 }
 
 async function handlePostSessionActionRoute(
@@ -321,7 +346,7 @@ async function handlePostSessionActionRoute(
     return await handlePostHeartbeatRoute(request, sessionId, options);
   }
 
-  return jsonMethodNotAllowedResponse();
+  return jsonMethodNotAllowedResponse(["GET"]);
 }
 
 async function handlePostSlotRoute(
@@ -367,7 +392,7 @@ async function handlePostTransitionRoute(
   sessionId: string,
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
-  const parsed = await parseTransitionRequest(request);
+  const parsed = await parseTransitionRequest(request, options);
 
   if (isInvalidRuntimeHttpRequestParse(parsed)) {
     return invalidRuntimeHttpRequestParseResponse(parsed);
@@ -388,7 +413,7 @@ async function handlePostHeartbeatRoute(
   sessionId: string,
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
-  const parsed = await parseHeartbeatRequest(request);
+  const parsed = await parseHeartbeatRequest(request, options);
 
   if (isInvalidRuntimeHttpRequestParse(parsed)) {
     return invalidRuntimeHttpRequestParseResponse(parsed);
@@ -413,9 +438,16 @@ async function handleGetSessionActionRoute(
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
   if (action === SESSION_ROUTE_ACTIONS.retention) {
+    const now = retentionNow(request, options);
+
+    if (typeof now !== "string") {
+      return invalidRuntimeHttpRequestParseResponse(now);
+    }
+
     return (
       await planStoredCoordinatorRetention({
-        now: retentionNow(request, options),
+        lateToleranceMs: options.lateToleranceMs,
+        now,
         sessionId,
         store: options.store,
       })
@@ -426,7 +458,7 @@ async function handleGetSessionActionRoute(
     return await handleGetHealthRoute(request, sessionId, options);
   }
 
-  return jsonMethodNotAllowedResponse();
+  return jsonMethodNotAllowedResponse(["POST"]);
 }
 
 async function handleGetHealthRoute(
@@ -490,12 +522,16 @@ function isSuccessfulRuntimeCommitResult<
 function isInvalidRuntimeHttpRequestParse(
   parsed: RuntimeHttpRequestParse<object>
 ): parsed is InvalidRuntimeHttpRequestParse {
-  return parsed.status === "invalid";
+  return parsed.status === "invalid" || parsed.status === "too_large";
 }
 
 function invalidRuntimeHttpRequestParseResponse(
   parsed: InvalidRuntimeHttpRequestParse
 ): Response {
+  if (parsed.status === "too_large") {
+    return jsonErrorResponse("olos.invalid_request", parsed.message, 413);
+  }
+
   return jsonBadRequestResponse(parsed.message);
 }
 
@@ -505,7 +541,7 @@ async function handleLiveRoute(
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
   if (request.method !== "GET") {
-    return jsonMethodNotAllowedResponse();
+    return jsonMethodNotAllowedResponse(["GET"]);
   }
 
   const route = liveManifestRoute(parts);
@@ -582,14 +618,17 @@ function liveManifestOptions(
   };
 }
 
-async function parseSessionCreateRequest(request: Request): Promise<
+async function parseSessionCreateRequest(
+  request: Request,
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
+): Promise<
   RuntimeHttpRequestParse<{
     mediaBaseUrl: string;
     session: Session;
   }>
 > {
   try {
-    const payload = await request.json();
+    const payload = await boundedJsonRequestBody(request, options.maxBodyBytes);
 
     if (!isRecord(payload)) {
       return invalid("session create request must be a JSON object");
@@ -601,21 +640,26 @@ async function parseSessionCreateRequest(request: Request): Promise<
       throw new Error("mediaBaseUrl must be a string");
     }
 
+    // Validated at parse time so a hostile URL is a 400, not a throw from
+    // the pipeline constructor.
+    assertSafeDeliveryUrl(payload.mediaBaseUrl, "mediaBaseUrl");
+
     return {
       mediaBaseUrl: payload.mediaBaseUrl,
       session: payload.session,
       status: "valid",
     };
   } catch (error) {
-    return invalid(errorMessage(error, "invalid session create request"));
+    return invalidParse(error, "invalid session create request");
   }
 }
 
 async function parseTransitionRequest(
-  request: Request
+  request: Request,
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<RuntimeHttpRequestParse<{ state: SessionState }>> {
   try {
-    const payload = await request.json();
+    const payload = await boundedJsonRequestBody(request, options.maxBodyBytes);
 
     if (!isRecord(payload)) {
       return invalid("session transition request must be a JSON object");
@@ -626,7 +670,7 @@ async function parseTransitionRequest(
       status: "valid",
     };
   } catch (error) {
-    return invalid(errorMessage(error, "invalid session transition request"));
+    return invalidParse(error, "invalid session transition request");
   }
 }
 
@@ -641,10 +685,11 @@ function sessionStateField(value: Record<string, unknown>): SessionState {
 }
 
 async function parseHeartbeatRequest(
-  request: Request
+  request: Request,
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<RuntimeHttpRequestParse<{ publisherInstanceId: string }>> {
   try {
-    const payload = await request.json();
+    const payload = await boundedJsonRequestBody(request, options.maxBodyBytes);
 
     if (!isRecord(payload)) {
       return invalid("publisher heartbeat request must be a JSON object");
@@ -658,17 +703,27 @@ async function parseHeartbeatRequest(
       status: "valid",
     };
   } catch (error) {
-    return invalid(errorMessage(error, "invalid publisher heartbeat request"));
+    return invalidParse(error, "invalid publisher heartbeat request");
   }
 }
 
 function retentionNow(
   request: Request,
   options: CreateStoredCoordinatorRuntimeHandlerOptions
-): string {
-  const url = new URL(request.url);
+): string | InvalidRuntimeHttpRequestParse {
+  const queryNow = new URL(request.url).searchParams.get("now");
 
-  return url.searchParams.get("now") ?? currentNow(options);
+  if (queryNow === null) {
+    return currentNow(options);
+  }
+
+  // A caller-supplied `now` is untrusted input: a malformed value is a 400
+  // `olos.invalid_request`, not a throw from the retention planner.
+  try {
+    return timestampString(queryNow, "now");
+  } catch (error) {
+    return invalid(errorMessage(error, "invalid retention now"));
+  }
 }
 
 function currentNow(options: CreateStoredCoordinatorRuntimeHandlerOptions) {
@@ -709,6 +764,17 @@ function routePublisherInstanceIdError(
 
 function invalid(message: string): InvalidRuntimeHttpRequestParse {
   return { message, status: "invalid" };
+}
+
+function invalidParse(
+  error: unknown,
+  fallbackMessage: string
+): InvalidRuntimeHttpRequestParse {
+  if (isRuntimeJsonBodyTooLarge(error)) {
+    return { message: error.message, status: "too_large" };
+  }
+
+  return invalid(errorMessage(error, fallbackMessage));
 }
 
 function notFound(): Response {

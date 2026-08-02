@@ -17,8 +17,10 @@ Every URI emitted into a playlist (init map, segment, part, preload
 hint) MUST be a root-relative path or an absolute HTTPS URL. An
 absolute URL's origin MUST be in the deployment's allow-list of media
 origins (Section 10.2). Playlist rendering MUST fail rather than emit
-a URI that violates this policy. The renderer escapes attribute values
-with the playlist quoting rules of RFC 8216.
+a URI that violates this policy. Quoted attribute values MUST NOT
+contain double quotes, carriage returns, or line feeds — RFC 8216
+Section 4.2 quoted-strings have no escape mechanism — and rendering
+MUST fail rather than emit such a value.
 
 ## 8.2 Master playlist
 
@@ -84,10 +86,20 @@ An audio rendition joins the audio group when it declares `groupId`
   MUST declare it.
 - **One default.** The group's default is the first audio rendition
   with `defaultRendition: true`. When no rendition carries the flag,
-  the first grouped audio rendition is the default. The election runs
-  over the rendered (window-present) renditions, so when the declared
-  default has no committed media yet, the first available grouped
-  rendition is the default.
+  the first **declared** grouped audio rendition is the default. The
+  election runs over the session declaration and MUST NOT change with
+  committed-window availability: while the elected default has no
+  committed media, every rendered member carries
+  `DEFAULT=NO,AUTOSELECT=NO` (deterministic and spec-legal — RFC 8216
+  makes `DEFAULT=YES` optional); once the elected default has
+  committed media it renders `DEFAULT=YES,AUTOSELECT=YES`
+  permanently. Re-electing a stand-in default would flip the player's
+  selection back once the real default appears.
+- **Distinct names.** The effective `NAME` of a grouped audio
+  rendition is its `name`, or its `renditionId` when unset. Effective
+  names MUST be distinct within the group; duplicates are a
+  validation and rendering error. The full group is checked, so any
+  availability-filtered subset stays distinct.
 - **Legacy ungrouped audio.** When no audio rendition declares
   `groupId`, the renderer emits no `EXT-X-MEDIA` lines. It muxes every
   audio codec into every variant's `CODECS` attribute. Audio
@@ -111,8 +123,8 @@ DEFAULT=<YES|NO>,AUTOSELECT=<YES|NO>[,CHANNELS="<channels>"],URI="<uri>"
 | `TYPE` | Always `AUDIO`. |
 | `GROUP-ID` | The shared group id, quoted. |
 | `NAME` | The rendition's `name`, or its `renditionId` when unset. |
-| `DEFAULT` | `YES` for the group default, `NO` otherwise. |
-| `AUTOSELECT` | `YES` for the group default, `NO` otherwise. Renditions carry no `LANGUAGE`, `ASSOC-LANGUAGE`, `FORCED`, or `CHARACTERISTICS` attributes, so RFC 8216 Section 4.3.4.1.1 permits only one `AUTOSELECT=YES` member per group. |
+| `DEFAULT` | `YES` for the session-elected default (Section 8.3.1), `NO` otherwise. While the elected default is not rendered, every member is `NO`. |
+| `AUTOSELECT` | Matches `DEFAULT`. Renditions carry no `LANGUAGE`, `ASSOC-LANGUAGE`, `FORCED`, or `CHARACTERISTICS` attributes, so RFC 8216 Section 4.3.4.1.1 permits only one `AUTOSELECT=YES` member per group. |
 | `CHANNELS` | Emitted only when the rendition declares `channels`. |
 | `URI` | The rendition's media playlist URI (Section 8.1). |
 
@@ -263,27 +275,44 @@ omitted (Section 8.4). The window can still slide as retention prunes.
 Media playlist requests MAY carry `_HLS_msn` and `_HLS_part` query
 parameters (RFC 8216 LL-HLS blocking reload).
 
-Parsing:
+Routing and parsing:
 
+- The request path MUST resolve to the master playlist or one
+  rendition's media playlist using the same path resolution rendering
+  uses. A path matching no artifact is `404` **immediately** — the
+  server MUST NOT hold an unroutable request open.
+- `_HLS_msn` / `_HLS_part` on the **master** playlist path is `400`:
+  delivery directives apply to media playlist requests (RFC 8216bis
+  Section 6.2.5.1). Master requests without directives are served
+  immediately, never held.
 - Absent parameters mean "serve immediately".
 - Present parameters MUST be non-negative integers. Anything else is
   `400`.
 - `_HLS_part` without `_HLS_msn` is invalid (`400`).
 
-Resolution against the cursor (`cursor.window` is the live edge, see
-Section 5):
+Resolution is keyed to the **requested rendition's own live edge**:
+`last` is the media sequence number of that rendition's last visible
+segment in the cursor's committed window, and `lastPart` is that
+segment's last visible part number (absent when the tail is a full
+segment). A lagging rendition therefore blocks until *its own*
+playlist changes, not until any rendition commits. Requests resolved
+without a rendition context (the reference resolver's legacy
+window-global mode, when no `renditionId` is attached) use the
+`cursor.window` bounds instead (Section 5).
 
 | Condition | Result |
 | --- | --- |
 | No `_HLS_msn` | ready |
-| `_HLS_msn > window.lastMediaSequenceNumber` | block |
-| `_HLS_msn < window.lastMediaSequenceNumber` | ready (regardless of `_HLS_part`) |
+| Rendition absent from the committed window | block (its route is `404` before any wait starts, Section 8.4) |
+| `_HLS_msn > last + 2` | `400` (RFC 8216bis Section 6.2.5.2). Evaluated once, on the request's entry cursor; `_HLS_msn == last + 2` blocks. |
+| `_HLS_msn > last` | block |
+| `_HLS_msn < last` | ready (regardless of `_HLS_part`) |
 | `_HLS_msn == last` and no `_HLS_part` | ready |
-| `_HLS_msn == last` and `_HLS_part > window.lastPartNumber` | block |
-| `_HLS_msn == last` and `_HLS_part <= window.lastPartNumber` | ready |
+| `_HLS_msn == last` and `_HLS_part > lastPart` | block |
+| `_HLS_msn == last` and `_HLS_part <= lastPart` | ready |
 
-On a segment-only window (`window.lastPartNumber` absent), part
-requests at the last MSN never block. The segment is already complete.
+On a full-segment tail (`lastPart` absent), part requests at the last
+MSN never block. The segment is already complete.
 
 Blocking behavior:
 
@@ -310,6 +339,10 @@ Blocking behavior:
   from the cursor returned by the wait (never a stale pre-wait
   snapshot). End-of-stream detection (Section 8.5.2) MUST use that
   cursor's state.
+- Only the requested artifact is rendered per request: a media
+  playlist request renders that one rendition's playlist, and a
+  master request renders the master playlist. The server does not
+  rebuild the session's full playlist set to answer one request.
 
 ## 8.7 Examples (informative)
 

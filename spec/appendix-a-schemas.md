@@ -51,6 +51,7 @@ document name.
     },
     "committedAt": {
       "format": "date-time",
+      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
       "type": "string"
     },
     "deliveryUrl": {
@@ -88,6 +89,7 @@ document name.
     },
     "programDateTime": {
       "format": "date-time",
+      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
       "type": "string"
     },
     "renditionId": {
@@ -301,6 +303,7 @@ document name.
                       },
                       "programDateTime": {
                         "format": "date-time",
+                        "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
                         "type": "string"
                       }
                     },
@@ -318,6 +321,7 @@ document name.
                 },
                 "programDateTime": {
                   "format": "date-time",
+                  "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
                   "type": "string"
                 },
                 "segment": {
@@ -573,6 +577,7 @@ document name.
                           },
                           "programDateTime": {
                             "format": "date-time",
+                            "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
                             "type": "string"
                           }
                         },
@@ -590,6 +595,7 @@ document name.
                     },
                     "programDateTime": {
                       "format": "date-time",
+                      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
                       "type": "string"
                     },
                     "segment": {
@@ -708,6 +714,7 @@ document name.
     },
     "updatedAt": {
       "format": "date-time",
+      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
       "type": "string"
     },
     "window": {
@@ -779,7 +786,8 @@ document name.
             "olos.invalid_request",
             "olos.not_found",
             "olos.method_not_allowed",
-            "olos.conflict"
+            "olos.conflict",
+            "olos.internal"
           ],
           "type": "string"
         },
@@ -828,6 +836,7 @@ document name.
     },
     "observedAt": {
       "format": "date-time",
+      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
       "type": "string"
     },
     "providerId": {
@@ -1135,6 +1144,7 @@ document name.
   "properties": {
     "createdAt": {
       "format": "date-time",
+      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
       "type": "string"
     },
     "epoch": {
@@ -1298,6 +1308,7 @@ document name.
   "properties": {
     "expiresAt": {
       "format": "date-time",
+      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
       "type": "string"
     },
     "method": {
@@ -1390,6 +1401,7 @@ document name.
     },
     "expiresAt": {
       "format": "date-time",
+      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
       "type": "string"
     },
     "kind": {

@@ -1,6 +1,6 @@
 import type { Rendition, Session } from "../types/session";
 import { isUrlSafeIdentifier } from "../validation/ids";
-import { escapePlaylistValue, formatFrameRate } from "./format";
+import { formatFrameRate, quotedPlaylistValue } from "./format";
 import { assertSafeRelativePath } from "./uri";
 
 /** Options for `renderMasterPlaylist`. */
@@ -128,10 +128,14 @@ function masterPlaylistRenditions(
   };
 }
 
-// Grouped audio renditions absent from the availability set are dropped and
-// DEFAULT is re-elected among the survivors; a group with no survivors is
-// not advertised at all. Ungrouped (muxed) audio renditions describe codecs
-// inside the video segments, so they are never filtered.
+// Grouped audio renditions absent from the availability set are dropped
+// from rendering, but the session-elected default keeps its seat: while the
+// elected default has no committed media, every rendered member carries
+// DEFAULT=NO,AUTOSELECT=NO (spec-legal and deterministic) instead of
+// re-electing a temporary default that would flip back once the elected
+// default commits. A group with no available member is not advertised at
+// all. Ungrouped (muxed) audio renditions describe codecs inside the video
+// segments, so they are never filtered.
 function filterAudioGroup(
   group: AudioGroup | undefined,
   available: ReadonlySet<string>
@@ -143,18 +147,13 @@ function filterAudioGroup(
   const renditions = group.renditions.filter((rendition) =>
     available.has(rendition.renditionId)
   );
-  const [first] = renditions;
 
-  if (first === undefined) {
+  if (renditions.length === 0) {
     return;
   }
 
-  const defaultRendition =
-    renditions.find((rendition) => rendition.defaultRendition === true) ??
-    first;
-
   return {
-    defaultRenditionId: defaultRendition.renditionId,
+    defaultRenditionId: group.defaultRenditionId,
     groupId: group.groupId,
     renditions,
   };
@@ -199,6 +198,8 @@ function resolveAudioGroup(
     throw new Error("multiple audio groups are not supported");
   }
 
+  assertDistinctAudioRenditionNames(grouped);
+
   const defaultRendition =
     grouped.find((rendition) => rendition.defaultRendition === true) ?? first;
 
@@ -207,6 +208,28 @@ function resolveAudioGroup(
     groupId: first.groupId,
     renditions: grouped,
   };
+}
+
+// Render-time defense for sessions that skipped assertSession: duplicate
+// effective NAMEs (name ?? renditionId) within a group are ambiguous to
+// players (RFC 8216 §4.3.4.1.1). The full group is checked, so any
+// availability-filtered subset of distinct names stays distinct.
+function assertDistinctAudioRenditionNames(
+  renditions: readonly GroupedAudioRendition[]
+): void {
+  const names = new Set<string>();
+
+  for (const rendition of renditions) {
+    const name = rendition.name ?? rendition.renditionId;
+
+    if (names.has(name)) {
+      throw new Error(
+        "session.renditions must have distinct audio rendition names within a group"
+      );
+    }
+
+    names.add(name);
+  }
 }
 
 function renderAudioGroupEntries(
@@ -236,15 +259,18 @@ function renderAudioMediaEntry(
 
   const attributes = [
     "TYPE=AUDIO",
-    `GROUP-ID="${escapePlaylistValue(group.groupId)}"`,
-    `NAME="${escapePlaylistValue(rendition.name ?? rendition.renditionId)}"`,
+    `GROUP-ID="${quotedPlaylistValue(group.groupId, "audio group id")}"`,
+    `NAME="${quotedPlaylistValue(
+      rendition.name ?? rendition.renditionId,
+      `rendition ${rendition.renditionId} name`
+    )}"`,
     `DEFAULT=${rendition.renditionId === group.defaultRenditionId ? "YES" : "NO"}`,
     // RFC 8216 §4.3.4.1.1: AUTOSELECT=YES members of a group must be
     // distinct on LANGUAGE/ASSOC-LANGUAGE/FORCED/CHARACTERISTICS. Renditions
     // carry none of those attributes, so only the default may auto-select.
     `AUTOSELECT=${rendition.renditionId === group.defaultRenditionId ? "YES" : "NO"}`,
     ...channelsAttributes(rendition),
-    `URI="${escapePlaylistValue(path)}"`,
+    `URI="${quotedPlaylistValue(path, "media playlist path")}"`,
   ];
 
   return `#EXT-X-MEDIA:${attributes.join(",")}`;
@@ -292,7 +318,7 @@ function renderStreamAttributes(
 function audioGroupAttributes(group: AudioGroup | undefined): string[] {
   return group === undefined
     ? []
-    : [`AUDIO="${escapePlaylistValue(group.groupId)}"`];
+    : [`AUDIO="${quotedPlaylistValue(group.groupId, "audio group id")}"`];
 }
 
 function requiredBandwidth(rendition: VideoRendition): number {
@@ -309,8 +335,9 @@ function codecsAttribute(
   rendition: VideoRendition,
   audioCodecs: readonly string[]
 ): string {
-  return `CODECS="${escapePlaylistValue(
-    [rendition.codec, ...audioCodecs].join(",")
+  return `CODECS="${quotedPlaylistValue(
+    [rendition.codec, ...audioCodecs].join(","),
+    `rendition ${rendition.renditionId} codecs`
   )}"`;
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { UploadSlot } from "../types/upload-slot";
-import { assertUploadSlot, isUploadSlot } from "./upload-slot";
+import { assertUploadSlot, isUploadSlot, parseUploadSlot } from "./upload-slot";
 
 const validUploadSlot: UploadSlot = {
   contentType: "video/mp4",
@@ -171,5 +171,40 @@ describe("upload slot validation", () => {
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, state: "unknown" })
     ).toThrow("uploadSlot.state must be one of:");
+  });
+});
+
+describe("tolerant upload slot parsing", () => {
+  test("strips unknown fields and returns a fresh slot", () => {
+    const parsed = parseUploadSlot({ ...validUploadSlot, extra: 1 });
+
+    expect(parsed).toEqual(validUploadSlot);
+    expect(parsed).not.toBe(validUploadSlot);
+  });
+
+  test("strips unknown fields inside the byterange", () => {
+    const slotWithByterange: UploadSlot = {
+      ...validUploadSlot,
+      byterange: {
+        length: 12_500,
+        offset: 0,
+        segmentDeliveryUrl:
+          "https://media.example.com/media/tenant/sess/e1/v1080/s3812.m4s",
+        segmentObjectKey: "media/tenant/sess/e1/v1080/s3812.m4s",
+      },
+    };
+
+    const parsed = parseUploadSlot({
+      ...slotWithByterange,
+      byterange: { ...slotWithByterange.byterange, extra: 1 },
+    });
+
+    expect(parsed).toEqual(slotWithByterange);
+  });
+
+  test("still rejects invalid known fields", () => {
+    expect(() =>
+      parseUploadSlot({ ...validUploadSlot, extra: 1, maxBytes: 0 })
+    ).toThrow("uploadSlot.maxBytes");
   });
 });

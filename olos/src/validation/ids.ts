@@ -1,10 +1,10 @@
 const URL_SAFE_IDENTIFIER_PATTERN = /^[A-Za-z0-9._-]+$/;
 
-interface IntegerPredicateOptions {
-  safe?: boolean;
-}
-
-/** Returns whether `value` is an integer >= 0. */
+/**
+ * Returns whether `value` is a safe integer >= 0. Wire integers must stay
+ * within `Number.MAX_SAFE_INTEGER` — JSON numbers above it lose precision
+ * before any bound can be compared, so the unsafe range is always rejected.
+ */
 export function isNonNegativeInteger(value: unknown): value is number {
   return isIntegerAtLeast(value, 0);
 }
@@ -13,12 +13,14 @@ export function isPositiveInteger(value: unknown): value is number {
   return isIntegerAtLeast(value, 1);
 }
 
+/** Alias of `isNonNegativeInteger` — every integer check is safe-bounded. */
 export function isNonNegativeSafeInteger(value: unknown): value is number {
-  return isIntegerAtLeast(value, 0, { safe: true });
+  return isIntegerAtLeast(value, 0);
 }
 
+/** Alias of `isPositiveInteger` — every integer check is safe-bounded. */
 export function isPositiveSafeInteger(value: unknown): value is number {
-  return isIntegerAtLeast(value, 1, { safe: true });
+  return isIntegerAtLeast(value, 1);
 }
 
 /**
@@ -53,15 +55,9 @@ export function assertPositiveSafeInteger(
   assertInteger(value, name, isPositiveSafeInteger, "positive");
 }
 
-function isIntegerAtLeast(
-  value: unknown,
-  minimum: number,
-  options: IntegerPredicateOptions = {}
-): value is number {
+function isIntegerAtLeast(value: unknown, minimum: number): value is number {
   return (
-    typeof value === "number" &&
-    (options.safe ? Number.isSafeInteger(value) : Number.isInteger(value)) &&
-    value >= minimum
+    typeof value === "number" && Number.isSafeInteger(value) && value >= minimum
   );
 }
 

@@ -357,6 +357,29 @@ describe("object created event normalization", () => {
       },
       status: "invalid_event",
     });
+
+    // eventTime is strict RFC 3339: formats Date.parse happens to accept
+    // (HTTP dates, date-only strings) must be normalized by the caller, not
+    // smuggled into commit timestamps.
+    expect(
+      normalizeUploadEvent({
+        event: {
+          eventId: "hint_1",
+          eventTime: "Mon, 08 Jun 2026 12:00:00 GMT",
+          eventType: "upload.completed",
+          objectKey: "media/session/v1080/3810.m4s",
+          slotId: "slot_1",
+        },
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          message: "uploadCompletionHint.eventTime must be a valid timestamp",
+        },
+      },
+      status: "invalid_event",
+    });
   });
 
   test("matches object-created events to known object keys", () => {

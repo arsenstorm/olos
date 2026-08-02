@@ -249,7 +249,7 @@ Behavior:
 | Request | Status | Headers | Body |
 | --- | --- | --- | --- |
 | No range | `200` | no `content-range` / `content-length` | full aggregate, streamed |
-| Open-ended (`start` only) | `200` | no `content-range` / `content-length` | bytes from `start`, streamed live |
+| Open-ended (`start` only) | `206` | `content-range: bytes <start>-9007199254740991/*`, no `content-length` | bytes from `start`, streamed live |
 | Bounded (`start`–`end`) | `206` | `content-range: bytes <start>-<end>/*`, `content-length` | exactly the promised bytes |
 | Negative `start`, or `end < start` | `416` | — | — |
 | Unknown session or no cursor | `404` | — | — |
@@ -260,9 +260,15 @@ All success responses carry `accept-ranges: bytes`,
 - Bounded responses use the RFC 9110 `content-range` form with an
   unknown complete length (`bytes <first>-<last>/*`), because the
   virtual segment still grows.
-- Open-ended responses MUST NOT carry `content-range` or
-  `content-length` (RFC 9110 requires a last-byte-pos, which is
-  unknown for a live aggregate). They are `200`, not `206`.
+- Open-ended responses are `206`, not `200`: a `200` would claim a
+  complete representation from offset 0. RFC 8673 prescribes `206`
+  with a very large last-byte-pos for live open-ended ranges;
+  `9007199254740991` (`Number.MAX_SAFE_INTEGER`) is that value here.
+  They MUST NOT carry `content-length`; the body streams to the live
+  edge and a clean close marks the end of the available content.
+- The service MUST release an in-flight part fetch (and any pending
+  cursor wait) when the viewer disconnects or cancels the response
+  body, so an abandoned response does not hold sockets open.
 - When a requested range extends past the committed bytes, the service
   SHOULD hold the response open and continue to stream as new parts
   commit (bounded by a wait timeout, default 3000 ms). This behavior

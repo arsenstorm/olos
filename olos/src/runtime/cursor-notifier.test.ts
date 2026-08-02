@@ -98,6 +98,43 @@ describe("runtime cursor notifier", () => {
 
     await expect(waiting).resolves.toBeUndefined();
   });
+
+  test("evicts the latest cursor once a session turns terminal", async () => {
+    const notifier = createMemoryRuntimeCursorNotifier();
+
+    notifier.notify(cursorAt(3811));
+    notifier.notify({ ...cursorAt(3812), state: "ended" });
+
+    // Without the tracked cursor, a later wait behind the evicted position
+    // blocks instead of resolving from memory; terminal sessions resolve
+    // from the stored cursor before ever reaching the notifier.
+    const controller = new AbortController();
+    const waiting = notifier.waitForCursor({
+      cursor: cursorAt(3810),
+      request: { mediaSequenceNumber: 3811 },
+      signal: controller.signal,
+    });
+
+    controller.abort();
+
+    await expect(waiting).resolves.toBeUndefined();
+  });
+
+  test("still resolves live waiters from a terminal cursor notification", async () => {
+    const notifier = createMemoryRuntimeCursorNotifier();
+    const waiting = notifier.waitForCursor({
+      cursor: cursorAt(3810),
+      request: { mediaSequenceNumber: 3811 },
+      signal: new AbortController().signal,
+    });
+
+    notifier.notify({ ...cursorAt(3811), state: "ended" });
+
+    await expect(waiting).resolves.toMatchObject({
+      state: "ended",
+      window: { lastMediaSequenceNumber: 3811 },
+    });
+  });
 });
 
 function cursorAt(
@@ -121,16 +158,34 @@ function cursorAt(
           },
           renditionId: "v1080",
           segments: [
-            {
-              duration: 2,
-              mediaSequenceNumber,
-              segment: {
-                commitId: `commit_${mediaSequenceNumber}`,
-                deliveryUrl: `https://media.example.com/${mediaSequenceNumber}.m4s`,
-                objectKey: `media/${mediaSequenceNumber}.m4s`,
-                slotId: `slot_${mediaSequenceNumber}`,
-              },
-            },
+            lastPartNumber === undefined
+              ? {
+                  duration: 2,
+                  mediaSequenceNumber,
+                  segment: {
+                    commitId: `commit_${mediaSequenceNumber}`,
+                    deliveryUrl: `https://media.example.com/${mediaSequenceNumber}.m4s`,
+                    objectKey: `media/${mediaSequenceNumber}.m4s`,
+                    slotId: `slot_${mediaSequenceNumber}`,
+                  },
+                }
+              : {
+                  duration: (lastPartNumber + 1) * 0.5,
+                  mediaSequenceNumber,
+                  // The window must show every claimed part (§3.8).
+                  parts: Array.from(
+                    { length: lastPartNumber + 1 },
+                    (_, partNumber) => ({
+                      commitId: `commit_${mediaSequenceNumber}_${partNumber}`,
+                      deliveryUrl: `https://media.example.com/${mediaSequenceNumber}.${partNumber}.m4s`,
+                      duration: 0.5,
+                      ...(partNumber === 0 ? { independent: true } : {}),
+                      objectKey: `media/${mediaSequenceNumber}.${partNumber}.m4s`,
+                      partNumber,
+                      slotId: `slot_${mediaSequenceNumber}_${partNumber}`,
+                    })
+                  ),
+                },
           ],
         },
       },

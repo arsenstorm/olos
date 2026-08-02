@@ -12,6 +12,7 @@ import {
 } from "./config/session";
 import { UPLOAD_SLOT_STATES } from "./config/upload-slot";
 import { CONTENT_TYPE_SCHEMA_PATTERN } from "./validation/content-type";
+import { RFC3339_TIMESTAMP_SCHEMA_PATTERN } from "./validation/fields";
 import { HTTP_HEADER_NAME_SCHEMA_PATTERN } from "./validation/http-header";
 
 /**
@@ -37,7 +38,15 @@ const contentType = {
 const nonNegativeInteger = { minimum: 0, type: "integer" } as const;
 const positiveInteger = { exclusiveMinimum: 0, type: "integer" } as const;
 const positiveNumber = { exclusiveMinimum: 0, type: "number" } as const;
-const timestamp = { format: "date-time", type: "string" } as const;
+// `pattern` narrows `format` to the strict grammar the runtime validators
+// enforce (no leap seconds, hour 24, space separators, or colon-less
+// offsets); "full" format validation still rejects impossible calendar
+// dates the pattern cannot express.
+const timestamp = {
+  format: "date-time",
+  pattern: RFC3339_TIMESTAMP_SCHEMA_PATTERN,
+  type: "string",
+} as const;
 const absoluteHttpUrl = {
   format: "uri",
   minLength: 1,

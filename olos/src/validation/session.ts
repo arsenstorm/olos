@@ -60,6 +60,10 @@ const OPTIONAL_RENDITION_INTEGER_FIELDS = [
 
 const RENDITION_DIMENSION_FIELDS = ["width", "height"] as const;
 
+// RFC 8216 §4.2: quoted-string attribute values (EXT-X-MEDIA NAME) have no
+// escape mechanism, so these characters cannot be rendered.
+const PLAYLIST_QUOTED_STRING_FORBIDDEN = /["\r\n]/;
+
 /** Returns whether `value` is a valid `Session` (see `assertSession`). */
 export function isSession(value: unknown): value is Session {
   try {
@@ -76,8 +80,9 @@ export function isSession(value: unknown): value is Session {
  * rejects unknown fields, and enforces rendition invariants JSON Schema
  * cannot express: audio-group fields (`groupId`, `name`,
  * `defaultRendition`) only on audio renditions, no mixing of grouped and
- * ungrouped audio, a single audio group per session, and at most one
- * default rendition within it.
+ * ungrouped audio, a single audio group per session, at most one default
+ * rendition within it, and distinct effective names (`name ??
+ * renditionId`) within the group.
  */
 export function assertSession(value: unknown): asserts value is Session {
   if (!isRecord(value)) {
@@ -148,6 +153,29 @@ function assertAudioGroup(renditions: readonly Rendition[]): void {
       "session.renditions must not flag multiple default audio renditions"
     );
   }
+
+  assertDistinctAudioRenditionNames(grouped);
+}
+
+// The effective EXT-X-MEDIA NAME is `name ?? renditionId`; duplicates
+// within a group are ambiguous to players (RFC 8216 §4.3.4.1.1). The full
+// group is checked, so any availability-filtered subset stays distinct.
+function assertDistinctAudioRenditionNames(
+  grouped: readonly Rendition[]
+): void {
+  const names = new Set<string>();
+
+  for (const rendition of grouped) {
+    const name = rendition.name ?? rendition.renditionId;
+
+    if (names.has(name)) {
+      throw new Error(
+        "session.renditions must have distinct audio rendition names within a group"
+      );
+    }
+
+    names.add(name);
+  }
 }
 
 function assertRendition(value: unknown): asserts value is Rendition {
@@ -178,6 +206,12 @@ function assertOptionalAudioGroupFields(value: Record<string, unknown>): void {
 
   if (value.name !== undefined) {
     assertNonEmptyStringField(value, "name", "session.renditions[]");
+
+    if (PLAYLIST_QUOTED_STRING_FORBIDDEN.test(String(value.name))) {
+      throw new Error(
+        "session.renditions[].name must not contain double quotes or line breaks"
+      );
+    }
   }
 
   if (value.defaultRendition !== undefined) {

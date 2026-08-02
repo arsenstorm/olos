@@ -4,11 +4,21 @@ import type {
   CommittedWindow,
 } from "../types/committed-window";
 import type { UploadSlot } from "../types/upload-slot";
-import { timestampMs as validTimestampMs } from "../validation/fields";
+import {
+  nonNegativeNumber,
+  timestampMs as validTimestampMs,
+} from "../validation/fields";
 import { assertUploadSlot } from "../validation/upload-slot";
 
 /** Options for {@link selectExpiredUploadSlots}. */
 export interface SelectExpiredUploadSlotsOptions {
+  /**
+   * Grace period in milliseconds added to each slot's `expiresAt` before it
+   * counts as expired; defaults to 0. Match it to the commit path's
+   * `lateToleranceMs` so a retention sweep never prunes a slot whose late
+   * upload would still commit.
+   */
+  lateToleranceMs?: number;
   /** ISO timestamp used as "now" for the expiry comparison. */
   now: string;
   slots: readonly UploadSlot[];
@@ -36,29 +46,36 @@ type IssuedUploadSlot = UploadSlot & { state: "issued" };
 
 /**
  * Select the slots eligible for expiry: those still in the `issued` state
- * whose `expiresAt` is at or before `now`. Slots in any other state —
- * including `upload_observed` — are never selected. Pure; throws on
- * invalid slots or timestamps.
+ * whose `expiresAt` plus `lateToleranceMs` (default 0) is at or before
+ * `now`. Slots in any other state — including `upload_observed` — are
+ * never selected. Pure; throws on invalid slots, timestamps, or a negative
+ * tolerance.
  */
 export function selectExpiredUploadSlots(
   options: SelectExpiredUploadSlotsOptions
 ): UploadSlot[] {
   const now = isoTimestampMs(options.now, "now");
+  const lateToleranceMs = nonNegativeNumber(
+    options.lateToleranceMs ?? 0,
+    "lateToleranceMs"
+  );
 
   return options.slots.filter((slot) => {
     assertUploadSlot(slot);
 
-    return isExpiredIssuedUploadSlot(slot, now);
+    return isExpiredIssuedUploadSlot(slot, now, lateToleranceMs);
   });
 }
 
 function isExpiredIssuedUploadSlot(
   slot: UploadSlot,
-  now: number
+  now: number,
+  lateToleranceMs: number
 ): slot is IssuedUploadSlot {
   return (
     isIssuedUploadSlot(slot) &&
-    isoTimestampMs(slot.expiresAt, "uploadSlot.expiresAt") <= now
+    isoTimestampMs(slot.expiresAt, "uploadSlot.expiresAt") + lateToleranceMs <=
+      now
   );
 }
 

@@ -6,7 +6,7 @@ import type {
 } from "../types/committed-window";
 import { assertCommittedWindow } from "../validation/committed-window";
 import { positiveNumber } from "../validation/fields";
-import { escapePlaylistValue, formatSeconds } from "./format";
+import { formatSeconds, quotedPlaylistValue } from "./format";
 import { assertSafeMediaUri, type MediaUriPolicy } from "./uri";
 
 /** Options for `renderMediaPlaylist`. */
@@ -219,7 +219,7 @@ function renderMediaUri(
   name: string
 ): string {
   assertSafeMediaUri(value, policy, name);
-  return escapePlaylistValue(value);
+  return quotedPlaylistValue(value, name);
 }
 
 function resolveHoldBackOptions(options: RenderMediaPlaylistOptions): {

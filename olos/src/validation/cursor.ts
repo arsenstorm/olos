@@ -2,7 +2,11 @@ import { LATENCY_PROFILES, SESSION_STATES } from "../config/session";
 import { OLOS_WIRE_VERSION } from "../index";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor, CursorWindow } from "../types/cursor";
-import { assertCommittedWindow } from "./committed-window";
+import {
+  assertCommittedWindow,
+  COMMITTED_WINDOW_SHAPE,
+  lastVisiblePartNumber,
+} from "./committed-window";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
   assertIsoDateField,
@@ -12,6 +16,8 @@ import {
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
+  type KnownFieldsShape,
+  pruneUnknownFields,
 } from "./fields";
 
 const CURSOR_FIELDS = [
@@ -33,6 +39,14 @@ const CURSOR_WINDOW_FIELDS = [
   "lastMediaSequenceNumber",
   "lastPartNumber",
 ] as const;
+
+const CURSOR_SHAPE: KnownFieldsShape = {
+  fields: CURSOR_FIELDS,
+  nested: {
+    committedWindow: { kind: "object", shape: COMMITTED_WINDOW_SHAPE },
+    window: { kind: "object", shape: { fields: CURSOR_WINDOW_FIELDS } },
+  },
+};
 
 /** Returns whether `value` is a valid `Cursor` (see `assertCursor`). */
 export function isCursor(value: unknown): value is Cursor {
@@ -67,6 +81,21 @@ export function assertCursor(value: unknown): asserts value is Cursor {
   assertCursorWindow(cursorWindow);
   assertCommittedWindow(value.committedWindow);
   assertCursorCommittedWindow(value, cursorWindow, value.committedWindow);
+}
+
+/**
+ * Tolerant read-path parser for a wire-format `Cursor` (spec §11.2):
+ * unknown fields — at the top level and inside the embedded committed
+ * window — are stripped from a fresh copy, which is then validated by the
+ * unchanged closed `assertCursor` and returned. Known fields are still
+ * rejected when invalid.
+ */
+export function parseCursor(value: unknown): Cursor {
+  const pruned = pruneUnknownFields(value, CURSOR_SHAPE);
+
+  assertCursor(pruned);
+
+  return pruned;
 }
 
 function assertCursorFields(value: Record<string, unknown>): void {
@@ -108,6 +137,17 @@ function assertCursorWindowMatchesCommittedWindow(
       committedWindow.lastMediaSequenceNumber
   ) {
     throw new Error("cursor.window must match committedWindow media sequence");
+  }
+
+  // §3.8: when present, lastPartNumber MUST equal the committed window's
+  // last visible part number; absence is always allowed.
+  if (
+    cursorWindow.lastPartNumber !== undefined &&
+    cursorWindow.lastPartNumber !== lastVisiblePartNumber(committedWindow)
+  ) {
+    throw new Error(
+      "cursor.window.lastPartNumber must equal the committed window's last visible part number"
+    );
   }
 }
 

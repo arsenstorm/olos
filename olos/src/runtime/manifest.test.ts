@@ -174,6 +174,43 @@ describe("runtime manifest adapter", () => {
     expect(await response.text()).toBe("manifest not found");
   });
 
+  test("rejects master-path directives and unknown paths without waiting", async () => {
+    let waiterCalls = 0;
+    const waitForCursor = () => {
+      waiterCalls += 1;
+      return Promise.reject(new Error("waiter should not be called"));
+    };
+
+    const invalid = await serveBlockingCoordinatorManifest({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: testCoordinatorSession.partTarget,
+      request: "/v1/live/session_1/master.m3u8?_HLS_msn=3810",
+      segmentTarget: testCoordinatorSession.segmentTarget,
+      state: createCoordinatorStateWithCommittedSegment(),
+      timeoutMs: 3_600_000,
+      waitForCursor,
+    });
+
+    expect(invalid.status).toBe(400);
+    expect(await invalid.text()).toBe(
+      "_HLS_msn/_HLS_part apply to media playlist requests"
+    );
+
+    const notFound = await serveBlockingCoordinatorManifest({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: testCoordinatorSession.partTarget,
+      request: "/v1/live/session_1/bogus.m3u8?_HLS_msn=9999",
+      segmentTarget: testCoordinatorSession.segmentTarget,
+      state: createCoordinatorStateWithCommittedSegment(),
+      timeoutMs: 3_600_000,
+      waitForCursor,
+    });
+
+    expect(notFound.status).toBe(404);
+    expect(await notFound.text()).toBe("manifest not found");
+    expect(waiterCalls).toBe(0);
+  });
+
   test("returns invalid responses for malformed blocking reload requests", async () => {
     const response = await serveBlockingCoordinatorManifest({
       allowedMediaOrigins: [MEDIA_ORIGIN],

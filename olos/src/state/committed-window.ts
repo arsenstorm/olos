@@ -6,6 +6,7 @@ import type {
   CommittedWindow,
   RenditionWindow,
 } from "../types/committed-window";
+import type { MediaSequenceNumber, PartNumber } from "../types/ids";
 import { assertCommit } from "../validation/commit";
 import { assertCommittedWindow } from "../validation/committed-window";
 import { assertPositiveInteger } from "../validation/ids";
@@ -85,35 +86,44 @@ export function tryCreateCommittedWindow(
   return window;
 }
 
+// Re-exported from the validation layer, where `assertCursor` also uses it
+// to pin `cursor.window.lastPartNumber` to the committed window (§3.8).
+// biome-ignore lint/performance/noBarrelFile: single deliberate re-export keeping the state-layer import path stable
+export { lastVisiblePartNumber } from "../validation/committed-window";
+
 /**
- * Returns the highest part number on the visible window's last segment
- * across all renditions, or undefined when the last segment is a full
- * segment (no parts) or no segments exist.
+ * One rendition's live edge within a committed window: the media sequence
+ * number of its last visible segment and, when that segment is parts-only,
+ * the last visible part number.
  */
-export function lastVisiblePartNumber(
-  window: CommittedWindow
-): number | undefined {
-  let max: number | undefined;
+export interface RenditionWindowBounds {
+  lastMediaSequenceNumber: MediaSequenceNumber;
+  /** Absent when the rendition's last segment is a full segment. */
+  lastPartNumber?: PartNumber;
+}
 
-  for (const rendition of Object.values(window.renditions)) {
-    const lastSegment = rendition.segments.at(-1);
+/**
+ * Returns the given rendition's own live edge within the committed window,
+ * or undefined when the rendition is absent or has no visible segments.
+ * Deliberately not compared against the window-global last media sequence
+ * number — a lagging rendition's own last segment is its live edge.
+ */
+export function renditionWindowBounds(
+  window: CommittedWindow,
+  renditionId: string
+): RenditionWindowBounds | undefined {
+  const lastSegment = window.renditions[renditionId]?.segments.at(-1);
 
-    if (lastSegment?.mediaSequenceNumber !== window.lastMediaSequenceNumber) {
-      continue;
-    }
-
-    const lastPart = lastSegment.parts?.at(-1);
-
-    if (lastPart === undefined) {
-      continue;
-    }
-
-    if (max === undefined || lastPart.partNumber > max) {
-      max = lastPart.partNumber;
-    }
+  if (lastSegment === undefined) {
+    return;
   }
 
-  return max;
+  const lastPart = lastSegment.parts?.at(-1);
+
+  return {
+    lastMediaSequenceNumber: lastSegment.mediaSequenceNumber,
+    ...(lastPart === undefined ? {} : { lastPartNumber: lastPart.partNumber }),
+  };
 }
 
 function validateCommits(

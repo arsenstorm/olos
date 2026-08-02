@@ -1,7 +1,11 @@
 import { MEDIA_OBJECT_KINDS } from "../config/media-object";
 import { UPLOAD_SLOT_STATES } from "../config/upload-slot";
 import type { UploadSlot } from "../types/upload-slot";
-import { assertByterange, assertByterangeKind } from "./byterange";
+import {
+  assertByterange,
+  assertByterangeKind,
+  BYTERANGE_FIELDS,
+} from "./byterange";
 import { assertContentType } from "./content-type";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
@@ -13,6 +17,8 @@ import {
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
+  type KnownFieldsShape,
+  pruneUnknownFields,
 } from "./fields";
 import { assertSafeMediaObjectKey } from "./object-key";
 
@@ -34,6 +40,13 @@ const UPLOAD_SLOT_FIELDS = [
   "slotId",
   "state",
 ] as const;
+
+const UPLOAD_SLOT_SHAPE: KnownFieldsShape = {
+  fields: UPLOAD_SLOT_FIELDS,
+  nested: {
+    byterange: { kind: "object", shape: { fields: BYTERANGE_FIELDS } },
+  },
+};
 
 /**
  * Returns whether `value` is a valid `UploadSlot` (see `assertUploadSlot`).
@@ -65,6 +78,20 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
   assertUploadSlotMediaFields(value);
   assertUploadSlotByterange(value);
   assertOneOfField(value, "state", UPLOAD_SLOT_STATES, "uploadSlot");
+}
+
+/**
+ * Tolerant read-path parser for an `UploadSlot` (spec §11.2): unknown
+ * fields — including inside `byterange` — are stripped from a fresh copy,
+ * which is then validated by the unchanged closed `assertUploadSlot` and
+ * returned. Known fields are still rejected when invalid.
+ */
+export function parseUploadSlot(value: unknown): UploadSlot {
+  const pruned = pruneUnknownFields(value, UPLOAD_SLOT_SHAPE);
+
+  assertUploadSlot(pruned);
+
+  return pruned;
 }
 
 function assertUploadSlotByterange(value: Record<string, unknown>): void {

@@ -76,7 +76,8 @@ export interface CreateCoordinatorPipelineOptions {
 /**
  * Persistence contract for coordinator pipeline snapshots, keyed by session
  * id, with etag-based optimistic concurrency on save. Implementations must
- * satisfy `assertCoordinatorStoreConformance` from `olos/conformance`.
+ * satisfy `assertCoordinatorPipelineStoreConformance` from
+ * `olos/conformance`.
  */
 export interface CoordinatorPipelineStore {
   load(sessionId: OlosId): Promise<CoordinatorPipelineSnapshot | undefined>;
@@ -253,6 +254,13 @@ export interface RevokeCoordinatorUploadOptions {
 
 /** Options for `planCoordinatorRetention`. */
 export interface PlanCoordinatorRetentionOptions {
+  /**
+   * Grace period in milliseconds added to each slot's `expiresAt` before it
+   * counts as expired; defaults to 0. Match it to the commit path's
+   * `lateToleranceMs` so retention never prunes a slot whose late upload
+   * would still commit.
+   */
+  lateToleranceMs?: number;
   /** ISO timestamp used to decide which issued slots have expired. */
   now: string;
   state: CoordinatorPipelineState;

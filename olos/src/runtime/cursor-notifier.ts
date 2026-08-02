@@ -1,4 +1,5 @@
 import type { HlsCursorWaitContext } from "../hls/blocking-reload";
+import { isEndOfStreamSessionState } from "../state/session";
 import type { Cursor } from "../types/cursor";
 import { assertCursor } from "../validation/cursor";
 
@@ -44,7 +45,15 @@ export function createMemoryRuntimeCursorNotifier(): RuntimeCursorNotifier {
   return {
     notify(cursor) {
       assertCursor(cursor);
-      latest.set(cursor.sessionId, cursor);
+
+      // Terminal cursors evict the session so a long-lived notifier does
+      // not accumulate an entry per session ever seen; blocking reloads
+      // resolve terminal sessions from the stored cursor, not from here.
+      if (isEndOfStreamSessionState(cursor.state)) {
+        latest.delete(cursor.sessionId);
+      } else {
+        latest.set(cursor.sessionId, cursor);
+      }
 
       const sessionWaiters = waiters.get(cursor.sessionId);
       if (sessionWaiters === undefined) {
@@ -95,6 +104,7 @@ function waitForAdvancedCursor(
     };
     const abort = () => {
       sessionWaiters.delete(waiter);
+      deleteEmptyWaiterSet(waiters, context.cursor.sessionId, sessionWaiters);
       resolve(undefined);
     };
 

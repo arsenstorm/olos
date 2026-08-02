@@ -73,6 +73,25 @@ describe("retention planning", () => {
     ).toEqual(["slot_3810"]);
   });
 
+  test("keeps issued slots within the late tolerance window", () => {
+    // expiresAt is 00:00:05; with 5s tolerance the slot survives until
+    // 00:00:10 and is pruned exactly at the tolerated boundary.
+    expect(
+      selectExpiredUploadSlots({
+        lateToleranceMs: 5000,
+        now: "2026-01-01T00:00:09.999Z",
+        slots: [slot],
+      })
+    ).toEqual([]);
+    expect(
+      selectExpiredUploadSlots({
+        lateToleranceMs: 5000,
+        now: "2026-01-01T00:00:10.000Z",
+        slots: [slot],
+      }).map((expired) => expired.slotId)
+    ).toEqual(["slot_3810"]);
+  });
+
   test("rejects invalid retention timestamps", () => {
     expect(() =>
       selectExpiredUploadSlots({
@@ -80,6 +99,16 @@ describe("retention planning", () => {
         slots: [slot],
       })
     ).toThrow("now must be an ISO timestamp");
+  });
+
+  test("rejects negative late tolerances", () => {
+    expect(() =>
+      selectExpiredUploadSlots({
+        lateToleranceMs: -1,
+        now: "2026-01-01T00:00:05.000Z",
+        slots: [slot],
+      })
+    ).toThrow("lateToleranceMs must be a non-negative number");
   });
 
   test("selects committed media outside the retained window", () => {

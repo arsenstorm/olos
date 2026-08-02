@@ -247,7 +247,11 @@ describe("serialized coordinator store", () => {
     const state = createCoordinatorStateWithCommittedSegment();
     const store = createSerializedCoordinatorStore(
       cursorViewBackend(
-        JSON.stringify({ cursor: state.cursor, session: state.session })
+        JSON.stringify({
+          cursor: state.cursor,
+          etag: "1",
+          session: state.session,
+        })
       )
     );
 
@@ -312,7 +316,9 @@ describe("serialized coordinator store", () => {
   });
 
   test("rejects cursor views with a missing session", async () => {
-    const store = createSerializedCoordinatorStore(cursorViewBackend("{}"));
+    const store = createSerializedCoordinatorStore(
+      cursorViewBackend(JSON.stringify({ etag: "1" }))
+    );
 
     await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
       "session must be an object"
@@ -321,7 +327,9 @@ describe("serialized coordinator store", () => {
 
   test("rejects cursor views with an invalid session", async () => {
     const store = createSerializedCoordinatorStore(
-      cursorViewBackend(JSON.stringify({ session: { ...session, olos: 1 } }))
+      cursorViewBackend(
+        JSON.stringify({ etag: "1", session: { ...session, olos: 1 } })
+      )
     );
 
     await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
@@ -331,11 +339,31 @@ describe("serialized coordinator store", () => {
 
   test("rejects cursor views with a malformed cursor", async () => {
     const store = createSerializedCoordinatorStore(
-      cursorViewBackend(JSON.stringify({ cursor: {}, session }))
+      cursorViewBackend(JSON.stringify({ cursor: {}, etag: "1", session }))
     );
 
     await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
       "cursor.olos must be"
+    );
+  });
+
+  test("rejects cursor views without an embedded etag", async () => {
+    const store = createSerializedCoordinatorStore(
+      cursorViewBackend(JSON.stringify({ session }))
+    );
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      "serialized cursor view must include an etag"
+    );
+  });
+
+  test("rejects cursor views whose etag does not match the record", async () => {
+    const store = createSerializedCoordinatorStore(
+      cursorViewBackend(JSON.stringify({ etag: "2", session }))
+    );
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      "serialized cursor view etag must match record"
     );
   });
 });

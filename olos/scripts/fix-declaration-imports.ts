@@ -5,7 +5,11 @@ import { isCliEntry } from "./script-entry";
 import { packageRoot } from "./script-paths";
 
 const distRoot = join(packageRoot, "dist");
-const relativeImportPattern = /(from\s+["'])(\.[^"']+)(["'])/g;
+// Covers static `from "..."`, side-effect `import "..."`, and dynamic
+// `import("...")` specifiers — Node's ESM resolver rejects every
+// extensionless relative form, not just the `from` clause.
+const relativeImportPattern =
+  /((?:from\s+|import\s+|import\(\s*)["'])(\.[^"']+)(["'])/g;
 
 if (isCliEntry(import.meta.url)) {
   await fixDeclarationImports();

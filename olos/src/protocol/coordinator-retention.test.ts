@@ -58,6 +58,80 @@ describe("coordinator retention application", () => {
     expect(applied.state).toBe(state);
   });
 
+  test("keeps issued slots within the late tolerance and prunes past it", () => {
+    const state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3813,
+      renditionId: "v1080",
+      slotId: "slot_3813",
+      state: committedWindowState().state,
+    }).state;
+
+    const tolerated = applyCoordinatorRetention({
+      lateToleranceMs: 5000,
+      now: "2026-01-01T00:00:09.999Z",
+      state,
+    });
+
+    expect(tolerated.expiredSlots).toEqual([]);
+    expect(tolerated.state).toBe(state);
+
+    const pruned = applyCoordinatorRetention({
+      lateToleranceMs: 5000,
+      now: "2026-01-01T00:00:10.000Z",
+      state,
+    });
+
+    expect(pruned.expiredSlots.map((slot) => slot.slotId)).toEqual([
+      "slot_3813",
+    ]);
+  });
+
+  test("lets a late commit land after a tolerant retention sweep", () => {
+    // Slot expires at 00:00:05. A sweep 1ms later with the commit path's
+    // tolerance must not prune it, so a late upload at expiry+4s commits.
+    const issued = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3813,
+      renditionId: "v1080",
+      slotId: "slot_3813",
+      state: committedWindowState().state,
+    });
+
+    const swept = applyCoordinatorRetention({
+      lateToleranceMs: 5000,
+      now: "2026-01-01T00:00:05.001Z",
+      state: issued.state,
+    });
+
+    expect(swept.expiredSlots).toEqual([]);
+
+    const committed = commitCoordinatorUpload({
+      commitId: "commit_3813",
+      committedAt: "2026-01-01T00:00:09.000Z",
+      lateToleranceMs: 5000,
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: issued.slot.objectKey,
+        observedAt: "2026-01-01T00:00:09.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3813",
+      state: swept.state,
+    });
+
+    expect(committed.status).toBe("committed");
+  });
+
   test("retires commits behind the window and prunes their slots", () => {
     const { state, staleCommit, staleSlot } = committedWindowState();
     // Re-introduce the commit + slot that commit-time auto-retention already

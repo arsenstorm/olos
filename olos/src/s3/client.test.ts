@@ -123,6 +123,93 @@ describe("S3 runtime HTTP client", () => {
     ]);
   });
 
+  test("ignores unknown fields in grant, slot, and commit responses", async () => {
+    // Spec §11.2: consumers must ignore unknown fields a newer coordinator
+    // may add to its response payloads.
+    const grant = {
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      method: "PUT",
+      slotId: "slot_init",
+      url: "https://upload.example.com/session/slot_init",
+    } as const;
+    const slot = {
+      contentType: "video/mp4",
+      deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+      duration: 1,
+      epoch: 1,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "init",
+      maxBytes: 2048,
+      mediaSequenceNumber: 0,
+      objectKey: "media/v1080/init.mp4",
+      renditionId: "v1080",
+      sessionId: session.sessionId,
+      slotId: "slot_init",
+      state: "issued",
+    } as const;
+    const commit = {
+      commitId: "commit_init",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+      duration: 1,
+      epoch: 1,
+      mediaSequenceNumber: 0,
+      objectKey: "media/v1080/init.mp4",
+      renditionId: "v1080",
+      sessionId: session.sessionId,
+      size: 1024,
+      slotId: "slot_init",
+    } as const;
+
+    const grantFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            grant: { ...grant, extra: 1 },
+            slot: { ...slot, extra: 1 },
+          }),
+          { status: 201 }
+        )
+      );
+    const issued = await issueS3RuntimeUploadGrant({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: grantFetch,
+      payload: {
+        contentType: "video/mp4",
+        duration: 1,
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "init",
+        maxBytes: 2048,
+        mediaSequenceNumber: 0,
+        renditionId: "v1080",
+        slotId: "slot_init",
+      },
+      sessionId: session.sessionId,
+    });
+
+    expect(issued.grant).toEqual(grant);
+    expect(issued.slot).toEqual(slot);
+
+    const commitFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ commit: { ...commit, extra: 1 } }), {
+          status: 201,
+        })
+      );
+    const committed = await commitS3RuntimeUpload({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: commitFetch,
+      payload: {
+        commitId: "commit_init",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        slotId: "slot_init",
+      },
+      sessionId: session.sessionId,
+    });
+
+    expect(committed.commit).toEqual(commit);
+  });
+
   test("throws typed errors for failed S3 runtime responses", async () => {
     const clientFetch: RuntimeFetch = () =>
       Promise.resolve(jsonErrorTestResponse("missing", 404));
@@ -264,7 +351,7 @@ describe("S3 runtime HTTP client", () => {
         },
         sessionId: session.sessionId,
       })
-    ).rejects.toThrow('commit contains unknown property "status"');
+    ).rejects.toThrow("commit.commitId");
   });
 
   test("validates malformed upload completion responses", async () => {
@@ -579,6 +666,112 @@ describe("S3 runtime HTTP client", () => {
       })
     ).rejects.toThrow(
       "S3 reconciliation response results[0] status must be committed, idempotent, or failed"
+    );
+  });
+
+  test("surfaces per-slot failure details from reconciliation responses", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            results: [
+              {
+                error: {
+                  code: "olos.invalid_state",
+                  details: { objectKey: "media/v1080/s3810.m4s" },
+                  message: "object does not match slot",
+                },
+                resultStatus: "rejected",
+                slotId: "slot_3810",
+                status: "failed",
+              },
+              {
+                slotId: "slot_3811",
+                status: "failed",
+              },
+            ],
+            summary: {
+              committed: 0,
+              failed: 2,
+              failedErrorCodes: ["olos.invalid_state"],
+              failedSlotIds: ["slot_3810", "slot_3811"],
+              idempotent: 0,
+              ok: false,
+              planned: 2,
+              slotIds: ["slot_3810", "slot_3811"],
+              status: "reconciled",
+            },
+          }),
+          { status: 202 }
+        )
+      );
+
+    const reconciled = await reconcileS3RuntimeUploads({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      payload: {
+        committedAt: "2026-01-01T00:00:02.000Z",
+      },
+      sessionId: session.sessionId,
+    });
+
+    expect(reconciled.results).toEqual([
+      {
+        error: {
+          code: "olos.invalid_state",
+          details: { objectKey: "media/v1080/s3810.m4s" },
+          message: "object does not match slot",
+        },
+        resultStatus: "rejected",
+        slotId: "slot_3810",
+        status: "failed",
+      },
+      {
+        slotId: "slot_3811",
+        status: "failed",
+      },
+    ]);
+  });
+
+  test("rejects malformed reconciliation failure details", async () => {
+    const clientFetch: RuntimeFetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            results: [
+              {
+                error: { code: "not_an_olos_code", message: "boom" },
+                slotId: "slot_3810",
+                status: "failed",
+              },
+            ],
+            summary: {
+              committed: 0,
+              failed: 1,
+              failedErrorCodes: [],
+              failedSlotIds: ["slot_3810"],
+              idempotent: 0,
+              ok: false,
+              planned: 1,
+              slotIds: ["slot_3810"],
+              status: "reconciled",
+            },
+          }),
+          { status: 202 }
+        )
+      );
+
+    await expect(
+      reconcileS3RuntimeUploads({
+        baseUrl: RUNTIME_BASE_URL,
+        fetch: clientFetch,
+        payload: {
+          committedAt: "2026-01-01T00:00:02.000Z",
+        },
+        sessionId: session.sessionId,
+      })
+    ).rejects.toThrow(
+      "S3 reconciliation response results[0].error.code must be an OLOS error code"
     );
   });
 

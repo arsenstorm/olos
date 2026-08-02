@@ -129,13 +129,10 @@ function leaseStatusField(
 }
 
 function cursorAgeMsSince(cursor: Cursor, nowMs: number): number {
-  const cursorAgeMs = nowMs - timestampMs(cursor.updatedAt, "cursor.updatedAt");
-
-  if (cursorAgeMs < 0) {
-    throw new Error("now must be after or equal to cursor.updatedAt");
-  }
-
-  return cursorAgeMs;
+  // `cursor.updatedAt` comes from the publisher-supplied `committedAt`, so
+  // it can run ahead of this server's clock; clamp to a fresh age instead
+  // of failing every health check on skew.
+  return Math.max(0, nowMs - timestampMs(cursor.updatedAt, "cursor.updatedAt"));
 }
 
 function cursorFreshnessForAge(

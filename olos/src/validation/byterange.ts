@@ -2,10 +2,19 @@ import type { Byterange } from "../types/byterange";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
   assertNonNegativeIntegerField,
+  assertOnlyKnownFields,
   assertPositiveIntegerField,
   isRecord,
 } from "./fields";
 import { assertSafeObjectKey } from "./object-key";
+
+/** Every field the wire-format `Byterange` object may carry. */
+export const BYTERANGE_FIELDS = [
+  "length",
+  "offset",
+  "segmentDeliveryUrl",
+  "segmentObjectKey",
+] as const;
 
 export function isByterange(value: unknown): value is Byterange {
   try {
@@ -24,6 +33,7 @@ export function assertByterange(
     throw new Error(`${name} must be an object`);
   }
 
+  assertOnlyKnownFields(value, BYTERANGE_FIELDS, name);
   assertNonNegativeIntegerField(value, "offset", name);
   assertPositiveIntegerField(value, "length", name);
   assertSafeObjectKey(value.segmentObjectKey, `${name}.segmentObjectKey`);

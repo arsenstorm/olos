@@ -83,6 +83,31 @@ describe("stored runtime retention", () => {
     expect(await result.response.json()).toEqual({ plan: result.plan });
   });
 
+  test("keeps tolerated slots out of stored retention plans", async () => {
+    const store = createMemoryCoordinatorStore();
+    const saved = await store.save({
+      sessionId: session.sessionId,
+      state: retentionState(),
+    });
+
+    savedStoreResult(saved, "expected stored coordinator state");
+
+    // slot_3813 expires at 00:00:05; a 5s tolerance keeps it plannable for
+    // the same grace window the commit path's lateToleranceMs allows.
+    const result = await planStoredCoordinatorRetention({
+      lateToleranceMs: 5000,
+      now: "2026-01-01T00:00:06.000Z",
+      sessionId: session.sessionId,
+      store,
+    });
+
+    if (result.status !== "planned") {
+      throw new Error("expected retention plan");
+    }
+
+    expect(result.plan.expiredSlots).toEqual([]);
+  });
+
   test("returns not found for missing stored retention state", async () => {
     const result = await planStoredCoordinatorRetention({
       now: "2026-01-01T00:00:06.000Z",

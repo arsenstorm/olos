@@ -74,9 +74,10 @@ describe("runtime JSON responses", () => {
   });
 
   test("jsonMethodNotAllowedResponse creates 405 JSON errors", async () => {
-    const response = jsonMethodNotAllowedResponse();
+    const response = jsonMethodNotAllowedResponse(["GET", "POST"]);
 
     expect(response.status).toBe(405);
+    expect(response.headers.get("allow")).toBe("GET, POST");
     expect(response.headers.get("content-type")).toBe(
       "application/json; charset=utf-8"
     );

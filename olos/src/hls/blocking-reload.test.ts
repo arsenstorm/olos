@@ -111,6 +111,76 @@ const advancedCursor: Cursor = {
   },
 };
 
+// The audio rendition lags behind v1080: its own live edge is a full
+// segment at 3811 while the window-global edge is 3812 part 1.
+const laggingAudioCursor: Cursor = {
+  ...cursor,
+  committedWindow: {
+    ...cursor.committedWindow,
+    renditions: {
+      ...cursor.committedWindow.renditions,
+      a128: {
+        init: {
+          commitId: "commit_init_a128",
+          deliveryUrl: "/media/a128/init.mp4",
+          objectKey: "media/a128/init.mp4",
+          slotId: "slot_init_a128",
+        },
+        renditionId: "a128",
+        segments: [
+          {
+            duration: 2,
+            mediaSequenceNumber: 3811,
+            segment: {
+              commitId: "commit_a128_3811",
+              deliveryUrl: "/media/a128/3811.m4s",
+              objectKey: "media/a128/3811.m4s",
+              slotId: "slot_a128_3811",
+            },
+          },
+        ],
+      },
+    },
+  },
+};
+
+function laggingAudioRendition() {
+  const rendition = laggingAudioCursor.committedWindow.renditions.a128;
+
+  if (!rendition) {
+    throw new Error("missing a128 test fixture");
+  }
+
+  return rendition;
+}
+
+const caughtUpAudioCursor: Cursor = {
+  ...laggingAudioCursor,
+  committedWindow: {
+    ...laggingAudioCursor.committedWindow,
+    renditions: {
+      ...laggingAudioCursor.committedWindow.renditions,
+      a128: {
+        ...laggingAudioRendition(),
+        segments: [
+          ...laggingAudioRendition().segments,
+          {
+            duration: 2,
+            mediaSequenceNumber: 3812,
+            segment: {
+              commitId: "commit_a128_3812",
+              deliveryUrl: "/media/a128/3812.m4s",
+              objectKey: "media/a128/3812.m4s",
+              slotId: "slot_a128_3812",
+            },
+          },
+        ],
+      },
+    },
+  },
+  updatedAt: "2026-01-01T00:00:02.500Z",
+};
+
 describe("HLS blocking reload", () => {
   test("parses blocking reload query params", () => {
     expect(
@@ -228,6 +298,127 @@ describe("HLS blocking reload", () => {
       },
       status: "ready",
     });
+  });
+
+  test("resolves per-rendition bounds when a renditionId is set", () => {
+    expect(
+      resolveHlsBlockingReload(laggingAudioCursor, {
+        mediaSequenceNumber: 3812,
+        renditionId: "a128",
+      })
+    ).toEqual({
+      request: { mediaSequenceNumber: 3812, renditionId: "a128" },
+      status: "block",
+    });
+
+    // The same request without a rendition context resolves against the
+    // window-global live edge and is already servable.
+    expect(
+      resolveHlsBlockingReload(laggingAudioCursor, {
+        mediaSequenceNumber: 3812,
+      })
+    ).toEqual({
+      request: { mediaSequenceNumber: 3812 },
+      status: "ready",
+    });
+  });
+
+  test("waits until the requested rendition itself reaches the position", async () => {
+    const result = await waitForHlsBlockingReload({
+      cursor: laggingAudioCursor,
+      request: { mediaSequenceNumber: 3812, renditionId: "a128" },
+      timeoutMs: 100,
+      waitForCursor: () => Promise.resolve(caughtUpAudioCursor),
+    });
+
+    expect(result).toEqual({
+      cursor: caughtUpAudioCursor,
+      request: { mediaSequenceNumber: 3812, renditionId: "a128" },
+      status: "ready",
+    });
+  });
+
+  test("treats a full-segment rendition tail as a segment-only live edge", () => {
+    // cursor.window.lastPartNumber is 1 (set by v1080), but a128's own tail
+    // is a full segment — part requests at its live edge never block.
+    expect(
+      resolveHlsBlockingReload(laggingAudioCursor, {
+        mediaSequenceNumber: 3811,
+        partNumber: 4,
+        renditionId: "a128",
+      })
+    ).toEqual({
+      request: {
+        mediaSequenceNumber: 3811,
+        partNumber: 4,
+        renditionId: "a128",
+      },
+      status: "ready",
+    });
+  });
+
+  test("blocks for renditions absent from the window until they appear", async () => {
+    expect(
+      resolveHlsBlockingReload(cursor, {
+        mediaSequenceNumber: 3810,
+        renditionId: "a128",
+      })
+    ).toEqual({
+      request: { mediaSequenceNumber: 3810, renditionId: "a128" },
+      status: "block",
+    });
+
+    const result = await waitForHlsBlockingReload({
+      cursor,
+      request: { mediaSequenceNumber: 3810, renditionId: "a128" },
+      timeoutMs: 100,
+      waitForCursor: () => Promise.resolve(laggingAudioCursor),
+    });
+
+    expect(result).toEqual({
+      cursor: laggingAudioCursor,
+      request: { mediaSequenceNumber: 3810, renditionId: "a128" },
+      status: "ready",
+    });
+  });
+
+  test("resolves immediately when a terminal cursor arrives mid-wait", async () => {
+    const terminalCursor: Cursor = { ...cursor, state: "ended" };
+    let waiterCalls = 0;
+
+    const result = await waitForHlsBlockingReload({
+      cursor,
+      request: { mediaSequenceNumber: 3814 },
+      timeoutMs: 10_000,
+      waitForCursor: () => {
+        waiterCalls += 1;
+        return Promise.resolve(terminalCursor);
+      },
+    });
+
+    expect(waiterCalls).toBe(1);
+    expect(result).toEqual({
+      cursor: terminalCursor,
+      request: { mediaSequenceNumber: 3814 },
+      status: "timeout",
+    });
+  });
+
+  test("throws when waitForCursor produces a malformed cursor", async () => {
+    await expect(
+      waitForHlsBlockingReload({
+        cursor,
+        request: { mediaSequenceNumber: 3813 },
+        timeoutMs: 100,
+        waitForCursor: () =>
+          Promise.resolve({
+            ...cursor,
+            window: { ...cursor.window, lastPartNumber: 7 },
+          }),
+      })
+    ).rejects.toThrow(
+      "cursor.window.lastPartNumber must equal the committed window's last visible part number"
+    );
   });
 
   test("rejects part-only blocking requests", () => {

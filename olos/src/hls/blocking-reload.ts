@@ -1,3 +1,7 @@
+import {
+  type RenditionWindowBounds,
+  renditionWindowBounds,
+} from "../state/committed-window";
 import { isEndOfStreamSessionState } from "../state/session";
 import type { Cursor } from "../types/cursor";
 import type { MediaSequenceNumber, PartNumber } from "../types/ids";
@@ -20,6 +24,14 @@ const SEGMENT_ONLY_LIVE_EDGE_PART = Number.MAX_SAFE_INTEGER;
 export interface HlsBlockingReloadRequest {
   mediaSequenceNumber?: MediaSequenceNumber;
   partNumber?: PartNumber;
+  /**
+   * When set, comparisons use this rendition's own committed-window bounds
+   * (its last visible segment and part) instead of the window-global
+   * `cursor.window` bounds — a lagging rendition then blocks until its own
+   * playlist changes. `parseHlsBlockingReloadRequest` never sets this;
+   * callers attach it after matching the request path to a rendition.
+   */
+  renditionId?: string;
 }
 
 /**
@@ -146,8 +158,8 @@ export function parseHlsBlockingReloadRequest(
  * `aborted`) resolves immediately as `timeout` — nothing further commits,
  * so the final ENDLIST playlist is served without waiting. A `timeout`
  * result still carries the most recent cursor so callers can serve the
- * current playlist. Throws if `cursor` is malformed or `timeoutMs` is
- * negative.
+ * current playlist. Throws if `cursor` (or a cursor produced by
+ * `waitForCursor`) is malformed or `timeoutMs` is negative.
  */
 export async function waitForHlsBlockingReload(
   options: WaitForHlsBlockingReloadOptions
@@ -159,7 +171,10 @@ export async function waitForHlsBlockingReload(
   let cursor = options.cursor;
 
   for (;;) {
-    const resolution = resolveHlsBlockingReload(cursor, options.request);
+    const resolution = resolveHlsBlockingReloadValidated(
+      cursor,
+      options.request
+    );
 
     if (isInvalidHlsBlockingReloadResolution(resolution)) {
       return resolution;
@@ -188,6 +203,7 @@ export async function waitForHlsBlockingReload(
       return timeoutHlsBlockingReloadResult(cursor, options.request);
     }
 
+    assertCursor(nextCursor);
     cursor = nextCursor;
   }
 }
@@ -222,10 +238,13 @@ function remainingHlsBlockingReloadMs(
  * Synchronously decides whether a blocking reload request is servable against
  * the given cursor. Requests without `mediaSequenceNumber` are `ready`
  * immediately (`_HLS_part` alone is `invalid`). A request is `block` when its
- * media sequence number is past the window's last committed one, or when it
- * targets the last committed segment and asks for a part beyond that
- * segment's live edge; part requests never block on segment-only windows
- * (no committed parts). Throws if `cursor` is malformed.
+ * media sequence number is past the live edge's last committed one, or when
+ * it targets the last committed segment and asks for a part beyond that
+ * segment's live edge; part requests never block on segment-only edges (no
+ * committed parts). The live edge is `cursor.window`, or — when the request
+ * carries a `renditionId` — that rendition's own committed-window bounds
+ * (a rendition absent from the window blocks any `_HLS_msn` request).
+ * Throws if `cursor` is malformed.
  */
 export function resolveHlsBlockingReload(
   cursor: Cursor,
@@ -233,6 +252,15 @@ export function resolveHlsBlockingReload(
 ): HlsBlockingReloadResolution {
   assertCursor(cursor);
 
+  return resolveHlsBlockingReloadValidated(cursor, request);
+}
+
+// The assertion-free core of `resolveHlsBlockingReload`, used by
+// `waitForHlsBlockingReload` which validates each cursor exactly once.
+function resolveHlsBlockingReloadValidated(
+  cursor: Cursor,
+  request: HlsBlockingReloadRequest
+): HlsBlockingReloadResolution {
   if (isPartOnlyBlockingRequest(request)) {
     return {
       message: "_HLS_part requires _HLS_msn",
@@ -244,7 +272,15 @@ export function resolveHlsBlockingReload(
     return { request, status: "ready" };
   }
 
-  const mediaSequenceStatus = resolveMediaSequenceReloadStatus(cursor, request);
+  const bounds = blockingReloadBounds(cursor, request);
+
+  // The requested rendition has no committed media yet, so any requested
+  // position is beyond its live edge.
+  if (bounds === undefined) {
+    return { request, status: "block" };
+  }
+
+  const mediaSequenceStatus = resolveMediaSequenceReloadStatus(bounds, request);
 
   if (mediaSequenceStatus !== undefined) {
     return { request, status: mediaSequenceStatus };
@@ -252,8 +288,27 @@ export function resolveHlsBlockingReload(
 
   return {
     request,
-    status: resolveLiveEdgePartStatus(cursor, request),
+    status: resolveLiveEdgePartStatus(bounds, request),
   };
+}
+
+// Requests without a rendition context resolve against the window-global
+// live edge; per-rendition requests use the rendition's own last visible
+// segment and part.
+function blockingReloadBounds(
+  cursor: Cursor,
+  request: HlsBlockingReloadRequest
+): RenditionWindowBounds | undefined {
+  if (request.renditionId === undefined) {
+    return {
+      lastMediaSequenceNumber: cursor.window.lastMediaSequenceNumber,
+      ...(cursor.window.lastPartNumber === undefined
+        ? {}
+        : { lastPartNumber: cursor.window.lastPartNumber }),
+    };
+  }
+
+  return renditionWindowBounds(cursor.committedWindow, request.renditionId);
 }
 
 function isPartOnlyBlockingRequest(request: HlsBlockingReloadRequest): boolean {
@@ -264,18 +319,18 @@ function isPartOnlyBlockingRequest(request: HlsBlockingReloadRequest): boolean {
 }
 
 function resolveMediaSequenceReloadStatus(
-  cursor: Cursor,
+  bounds: RenditionWindowBounds,
   request: HlsBlockingReloadRequest
 ): "block" | "ready" | undefined {
   if (request.mediaSequenceNumber === undefined) {
     return;
   }
 
-  if (request.mediaSequenceNumber > cursor.window.lastMediaSequenceNumber) {
+  if (request.mediaSequenceNumber > bounds.lastMediaSequenceNumber) {
     return "block";
   }
 
-  if (request.mediaSequenceNumber < cursor.window.lastMediaSequenceNumber) {
+  if (request.mediaSequenceNumber < bounds.lastMediaSequenceNumber) {
     return "ready";
   }
 
@@ -294,18 +349,17 @@ function timeoutHlsBlockingReloadResult(
 }
 
 function resolveLiveEdgePartStatus(
-  cursor: Cursor,
+  bounds: RenditionWindowBounds,
   request: HlsBlockingReloadRequest
 ): "block" | "ready" {
-  return isRequestedPartBeyondLiveEdge(cursor, request) ? "block" : "ready";
+  return isRequestedPartBeyondLiveEdge(bounds, request) ? "block" : "ready";
 }
 
 function isRequestedPartBeyondLiveEdge(
-  cursor: Cursor,
+  bounds: RenditionWindowBounds,
   request: HlsBlockingReloadRequest
 ): boolean {
-  const liveEdgePart =
-    cursor.window.lastPartNumber ?? SEGMENT_ONLY_LIVE_EDGE_PART;
+  const liveEdgePart = bounds.lastPartNumber ?? SEGMENT_ONLY_LIVE_EDGE_PART;
 
   return request.partNumber !== undefined && request.partNumber > liveEdgePart;
 }

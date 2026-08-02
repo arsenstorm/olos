@@ -12,6 +12,7 @@ import type {
 } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
 import {
+  type ByterangeCursorWait,
   createByterangeSegmentResponse,
   type S3GetObjectClient,
 } from "./byterange-response";
@@ -164,6 +165,55 @@ async function readStreamError(
   ]);
 }
 
+/**
+ * Await `promise` or resolve with {@link TIMED_OUT}, so a regression that
+ * never settles fails the test instead of hanging it.
+ */
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs = 1000
+): Promise<T | typeof TIMED_OUT> {
+  return await Promise.race([
+    promise,
+    new Promise<typeof TIMED_OUT>((resolve) => {
+      setTimeout(() => resolve(TIMED_OUT), timeoutMs);
+    }),
+  ]);
+}
+
+/**
+ * Fake S3 client whose part body enqueues one chunk and then stalls forever,
+ * for tests that need a read in flight when the response is torn down.
+ * `bodyCancelled` resolves once the underlying part stream is cancelled.
+ */
+function createStallingS3(chunk: Uint8Array): {
+  bodyCancelled: Promise<void>;
+  client: S3GetObjectClient;
+} {
+  let resolveCancelled: () => void;
+  const bodyCancelled = new Promise<void>((resolve) => {
+    resolveCancelled = resolve;
+  });
+  const body = {
+    transformToWebStream(): ReadableStream<Uint8Array> {
+      return new ReadableStream({
+        start(controller) {
+          controller.enqueue(chunk);
+          // No close: the next read stalls until the stream is cancelled.
+        },
+        cancel() {
+          resolveCancelled();
+        },
+      });
+    },
+  };
+  const client: S3GetObjectClient = {
+    send: () =>
+      Promise.resolve({ Body: body } as unknown as GetObjectCommandOutput),
+  };
+  return { bodyCancelled, client };
+}
+
 async function seedStore(
   parts: readonly CommittedPart[]
 ): Promise<ReturnType<typeof createMemoryCoordinatorStore>> {
@@ -256,7 +306,7 @@ describe("createByterangeSegmentResponse", () => {
     }
   });
 
-  test("serves open-ended offset requests as 200 without range headers", async () => {
+  test("serves open-ended offset requests as 206 with an open-ended content-range", async () => {
     const parts = [makePart(0, 0, 100), makePart(1, 100, 80)];
     const store = await seedStore(parts);
     const client = createFakeS3(parts);
@@ -270,8 +320,10 @@ describe("createByterangeSegmentResponse", () => {
       store,
     });
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-range")).toBeNull();
+    expect(response.status).toBe(206);
+    expect(response.headers.get("content-range")).toBe(
+      "bytes 50-9007199254740991/*"
+    );
     expect(response.headers.get("content-length")).toBeNull();
     const body = new Uint8Array(await response.arrayBuffer());
     expect(body.length).toBe(130);
@@ -330,6 +382,69 @@ describe("createByterangeSegmentResponse", () => {
     expect((error as Error).message).toContain("returned no bytes");
   });
 
+  test("surfaces the Range error when a part object is shorter than its committed byterange", async () => {
+    // The window commits the part as 100 bytes, but only 60 landed in
+    // storage. After streaming the 60 real bytes the helper re-requests the
+    // missing tail with `Range: bytes=60-99`; a real S3 rejects that with an
+    // InvalidRange (416-style) error, which must error the stream instead of
+    // closing the bounded 206 short.
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const actualSize = 60;
+    const requestedRanges: (string | undefined)[] = [];
+    const client: S3GetObjectClient = {
+      send: (command) => {
+        requestedRanges.push(command.input.Range);
+        const rangeMatch = command.input.Range?.match(RANGE_PATTERN);
+        const start =
+          rangeMatch === null || rangeMatch === undefined
+            ? 0
+            : Number(rangeMatch[1]);
+        if (start >= actualSize) {
+          return Promise.reject(
+            new Error("InvalidRange: The requested range is not satisfiable")
+          );
+        }
+        const end = Math.min(
+          rangeMatch === null || rangeMatch === undefined
+            ? actualSize - 1
+            : Number(rangeMatch[2]),
+          actualSize - 1
+        );
+        const slice = new Uint8Array(end - start + 1);
+        const body = {
+          transformToWebStream(): ReadableStream<Uint8Array> {
+            return new ReadableStream({
+              start(controller) {
+                controller.enqueue(slice);
+                controller.close();
+              },
+            });
+          },
+        };
+        return Promise.resolve({
+          Body: body,
+        } as unknown as GetObjectCommandOutput);
+      },
+    };
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      range: { end: 99, start: 0 },
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    expect(response.status).toBe(206);
+    expect(response.headers.get("content-length")).toBe("100");
+    const error = await readStreamError(response);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("InvalidRange");
+    expect(requestedRanges).toEqual(["bytes=0-99", "bytes=60-99"]);
+  });
+
   test("errors a bounded range when the committed parts end early", async () => {
     const parts = [makePart(0, 0, 100)];
     const store = await seedStore(parts);
@@ -384,5 +499,130 @@ describe("createByterangeSegmentResponse", () => {
     });
 
     expect(response.status).toBe(416);
+  });
+
+  test("consumer cancellation cancels the in-flight part body", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const { bodyCancelled, client } = createStallingS3(new Uint8Array(10));
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    const body = response.body;
+    if (body === null) {
+      throw new Error("expected a response body");
+    }
+    const reader = body.getReader();
+    const first = await reader.read();
+    expect(first.done).toBe(false);
+    await reader.cancel();
+
+    expect(await withTimeout(bodyCancelled)).not.toBe(TIMED_OUT);
+  });
+
+  test("request signal abort cancels the in-flight part body", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const { bodyCancelled, client } = createStallingS3(new Uint8Array(10));
+    const viewer = new AbortController();
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      signal: viewer.signal,
+      store,
+    });
+
+    const body = response.body;
+    if (body === null) {
+      throw new Error("expected a response body");
+    }
+    const reader = body.getReader();
+    const first = await reader.read();
+    expect(first.done).toBe(false);
+    viewer.abort();
+
+    expect(await withTimeout(bodyCancelled)).not.toBe(TIMED_OUT);
+  });
+
+  test("pre-aborted signal never invokes cursorWait", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const client = createFakeS3(parts);
+    const viewer = new AbortController();
+    viewer.abort();
+    let waits = 0;
+    const cursorWait: ByterangeCursorWait = () => {
+      waits += 1;
+      return Promise.resolve(undefined);
+    };
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      cursorWait,
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      signal: viewer.signal,
+      store,
+    });
+
+    const body = await withTimeout(response.arrayBuffer());
+    expect(body).not.toBe(TIMED_OUT);
+    expect(new Uint8Array(body as ArrayBuffer).length).toBe(0);
+    expect(waits).toBe(0);
+    expect(client.inputs.length).toBe(0);
+  });
+
+  test("bounded 206 clamps a part body that overshoots the requested range", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    // A loose client that ignores `Range` and always returns the whole part.
+    const client: S3GetObjectClient = {
+      send: () => {
+        const partBytes = new Uint8Array(100);
+        for (let i = 0; i < partBytes.length; i += 1) {
+          partBytes[i] = i % 256;
+        }
+        const body = {
+          transformToWebStream(): ReadableStream<Uint8Array> {
+            return new ReadableStream({
+              start(controller) {
+                controller.enqueue(partBytes);
+                controller.close();
+              },
+            });
+          },
+        };
+        return Promise.resolve({
+          Body: body,
+        } as unknown as GetObjectCommandOutput);
+      },
+    };
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      range: { end: 49, start: 0 },
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    expect(response.status).toBe(206);
+    expect(response.headers.get("content-length")).toBe("50");
+    const body = new Uint8Array(await response.arrayBuffer());
+    expect(body.length).toBe(50);
+    for (let i = 0; i < body.length; i += 1) {
+      expect(body[i]).toBe(i % 256);
+    }
   });
 });

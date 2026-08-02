@@ -141,6 +141,19 @@ type HandledStoredSessionMutation = Extract<
   { status: "conflict" | "not_found" }
 >;
 
+/**
+ * Marks state-machine rejections raised inside a mutation callback. Only
+ * these map to 409 `olos.invalid_state` with their message in the body;
+ * any other throw (store I/O, snapshot corruption) propagates to the
+ * handler's opaque 500 instead of leaking its message as a 409.
+ */
+class StoredSessionRejectionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StoredSessionRejectionError";
+  }
+}
+
 const HEARTBEAT_TERMINAL_SESSION_STATES = [
   "aborted",
   "ended",
@@ -235,7 +248,11 @@ export async function transitionStoredCoordinatorSession(
       status: "transitioned",
     };
   } catch (error) {
-    return rejected(error);
+    if (error instanceof StoredSessionRejectionError) {
+      return rejected(error);
+    }
+
+    throw error;
   }
 }
 
@@ -294,7 +311,11 @@ export async function heartbeatStoredCoordinatorPublisher(
       status: "refreshed",
     };
   } catch (error) {
-    return rejectedHeartbeat(error);
+    if (error instanceof StoredSessionRejectionError) {
+      return rejectedHeartbeat(error);
+    }
+
+    throw error;
   }
 }
 
@@ -318,7 +339,15 @@ function transitionState(
   state: CoordinatorPipelineState,
   nextState: SessionState
 ): CoordinatorPipelineState {
-  assertSessionTransition(state.session.state, nextState);
+  try {
+    assertSessionTransition(state.session.state, nextState);
+  } catch (error) {
+    throw new StoredSessionRejectionError(
+      error instanceof Error
+        ? error.message
+        : "coordinator session transition was rejected"
+    );
+  }
 
   return {
     ...state,
@@ -411,7 +440,9 @@ function replacePublisherLease(
 
 function assertHeartbeatSessionState(state: SessionState): void {
   if (isHeartbeatTerminalSessionState(state)) {
-    throw new Error("publisher heartbeat is not allowed for terminal sessions");
+    throw new StoredSessionRejectionError(
+      "publisher heartbeat is not allowed for terminal sessions"
+    );
   }
 }
 

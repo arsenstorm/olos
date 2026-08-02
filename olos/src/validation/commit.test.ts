@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { Commit } from "../types/commit";
-import { assertCommit, isCommit } from "./commit";
+import { assertCommit, isCommit, parseCommit } from "./commit";
 
 const validCommit: Commit = {
   commitId: "commit_01JZ",
@@ -136,6 +136,41 @@ describe("commit validation", () => {
     );
     expect(() => assertCommit({ ...validCommit, etag: "" })).toThrow(
       "commit.etag must be a non-empty string"
+    );
+  });
+});
+
+describe("tolerant commit parsing", () => {
+  const commitWithByterange: Commit = {
+    ...validCommit,
+    byterange: {
+      length: 12_500,
+      offset: 0,
+      segmentDeliveryUrl:
+        "https://media.example.com/media/tenant/sess/e1/v1080/s3812.m4s",
+      segmentObjectKey: "media/tenant/sess/e1/v1080/s3812.m4s",
+    },
+  };
+
+  test("strips unknown fields and returns a fresh commit", () => {
+    const parsed = parseCommit({ ...validCommit, extra: 1 });
+
+    expect(parsed).toEqual(validCommit);
+    expect(parsed).not.toBe(validCommit);
+  });
+
+  test("strips unknown fields inside the byterange", () => {
+    const parsed = parseCommit({
+      ...commitWithByterange,
+      byterange: { ...commitWithByterange.byterange, extra: 1 },
+    });
+
+    expect(parsed).toEqual(commitWithByterange);
+  });
+
+  test("still rejects invalid known fields", () => {
+    expect(() => parseCommit({ ...validCommit, extra: 1, size: 0 })).toThrow(
+      "commit.size"
     );
   });
 });

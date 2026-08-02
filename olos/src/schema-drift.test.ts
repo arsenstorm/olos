@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
-import { OLOS_ERROR_CODES } from "./config/errors";
 import {
   OLOS_COMMIT_SCHEMA,
   OLOS_COMMITTED_WINDOW_SCHEMA,
@@ -18,12 +17,7 @@ import { createOlosError } from "./types/errors";
 import { assertCommit } from "./validation/commit";
 import { assertCommittedWindow } from "./validation/committed-window";
 import { assertCursor } from "./validation/cursor";
-import {
-  assertNonEmptyStringField,
-  assertOneOfField,
-  assertOnlyKnownFields,
-  isRecord,
-} from "./validation/fields";
+import { assertOlosErrorEnvelope } from "./validation/error-envelope";
 import { assertMediaObject } from "./validation/media-object";
 import { assertProviderCapabilityDocument } from "./validation/provider-capability";
 import { assertSession } from "./validation/session";
@@ -62,32 +56,6 @@ interface DriftSuite {
    * constraints only exist on the validator side.
    */
   validatorOnlyInvalid?: readonly InvalidPayload[];
-}
-
-const OLOS_ERROR_ENVELOPE_FIELDS = ["code", "details", "message"] as const;
-
-function assertOlosErrorEnvelope(value: unknown): void {
-  if (!isRecord(value)) {
-    throw new Error("olosError must be an object");
-  }
-
-  assertOnlyKnownFields(value, ["error"], "olosError");
-
-  if (!isRecord(value.error)) {
-    throw new Error("olosError.error must be an object");
-  }
-
-  assertOnlyKnownFields(
-    value.error,
-    OLOS_ERROR_ENVELOPE_FIELDS,
-    "olosError.error"
-  );
-  assertOneOfField(value.error, "code", OLOS_ERROR_CODES, "olosError.error");
-  assertNonEmptyStringField(value.error, "message", "olosError.error");
-
-  if (value.error.details !== undefined && !isRecord(value.error.details)) {
-    throw new Error("olosError.error.details must be an object");
-  }
 }
 
 const validVideoRendition = {
@@ -340,6 +308,10 @@ const suites: readonly DriftSuite[] = [
         payload: { ...validSession, createdAt: "2026-06-08" },
       },
       {
+        label: "impossible createdAt calendar date",
+        payload: { ...validSession, createdAt: "2026-02-30T12:00:00.000Z" },
+      },
+      {
         label: "audio group ID on a video rendition",
         payload: {
           ...validSession,
@@ -417,6 +389,16 @@ const suites: readonly DriftSuite[] = [
           deliveryUrl: "https://media.example.com/key.m4s?token=abc",
         },
       },
+      {
+        label: "hour-24 committedAt timestamp",
+        payload: { ...validCommit, committedAt: "2026-06-08T24:00:00.000Z" },
+      },
+    ],
+    validatorOnlyInvalid: [
+      {
+        label: "unsafe integer size",
+        payload: { ...validCommit, size: 2 ** 53 + 2 },
+      },
     ],
   },
   {
@@ -437,11 +419,19 @@ const suites: readonly DriftSuite[] = [
         label: "fractional maxBytes",
         payload: { ...validUploadSlot, maxBytes: 1024.5 },
       },
+      {
+        label: "leap-second expiresAt timestamp",
+        payload: { ...validUploadSlot, expiresAt: "2026-06-08T12:00:60Z" },
+      },
     ],
     validatorOnlyInvalid: [
       {
         label: "minBytes greater than maxBytes",
         payload: { ...validUploadSlot, maxBytes: 1024, minBytes: 2048 },
+      },
+      {
+        label: "unsafe integer maxBytes",
+        payload: { ...validUploadSlot, maxBytes: 2 ** 53 + 2 },
       },
     ],
   },
@@ -478,6 +468,36 @@ const suites: readonly DriftSuite[] = [
           },
         },
       },
+      {
+        label: "unknown extra field",
+        payload: { ...validCommittedWindow, extra: 1 },
+      },
+      {
+        label: "unknown extra field on a committed part",
+        payload: {
+          ...validCommittedWindow,
+          renditions: {
+            v1080: {
+              ...validCommittedWindow.renditions.v1080,
+              segments: [
+                ...validCommittedWindow.renditions.v1080.segments.slice(0, 2),
+                {
+                  ...validCommittedWindow.renditions.v1080.segments[2],
+                  parts: [
+                    {
+                      ...validCommittedWindow.renditions.v1080.segments[2]
+                        ?.parts?.[0],
+                      extra: 1,
+                    },
+                    validCommittedWindow.renditions.v1080.segments[2]
+                      ?.parts?.[1],
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      },
     ],
   },
   {
@@ -501,6 +521,18 @@ const suites: readonly DriftSuite[] = [
           window: {
             ...validCursor.window,
             lastPartNumber: "wrong",
+          },
+        },
+      },
+    ],
+    validatorOnlyInvalid: [
+      {
+        label: "window lastPartNumber not matching the committed window",
+        payload: {
+          ...validCursor,
+          window: {
+            ...validCursor.window,
+            lastPartNumber: 5,
           },
         },
       },
@@ -546,6 +578,14 @@ const suites: readonly DriftSuite[] = [
         label: "date-only observedAt timestamp",
         payload: { ...validMediaObject, observedAt: "2026-06-08" },
       },
+      {
+        label: "space-separated observedAt timestamp",
+        payload: { ...validMediaObject, observedAt: "2026-06-08 12:00:00Z" },
+      },
+      {
+        label: "unknown extra field",
+        payload: { ...validMediaObject, extra: 1 },
+      },
     ],
   },
   {
@@ -581,6 +621,17 @@ const suites: readonly DriftSuite[] = [
           },
         },
       },
+      {
+        label: "unknown extra field",
+        payload: { ...validProviderCapability, extra: 1 },
+      },
+      {
+        label: "unknown extra field on uploadGrants",
+        payload: {
+          ...validProviderCapability,
+          uploadGrants: { ...validProviderCapability.uploadGrants, extra: 1 },
+        },
+      },
     ],
   },
   {
@@ -600,6 +651,14 @@ const suites: readonly DriftSuite[] = [
       {
         label: "invalid upload URL",
         payload: { ...validUploadGrant, url: "not a url" },
+      },
+      {
+        label: "no-colon offset expiresAt timestamp",
+        payload: { ...validUploadGrant, expiresAt: "2026-06-08T12:00:05+0100" },
+      },
+      {
+        label: "unknown extra field",
+        payload: { ...validUploadGrant, extra: 1 },
       },
     ],
   },

@@ -207,14 +207,22 @@ describe("runtime live health", () => {
         now: "not-a-date",
       })
     ).toThrow("now must be a valid timestamp");
+  });
 
-    expect(() =>
+  test("clamps cursor age to fresh when the cursor is ahead of now", () => {
+    // A publisher's committedAt can run ahead of this server's clock;
+    // forward skew must read as a fresh cursor, not a failure.
+    expect(
       resolveRuntimeLiveHealth({
         cursor: cursor(),
         maxCursorAgeMs: 3000,
         now: "2025-12-31T23:59:59.999Z",
       })
-    ).toThrow("now must be after or equal to cursor.updatedAt");
+    ).toEqual({
+      cursorAgeMs: 0,
+      cursorFreshness: "fresh",
+      status: "active",
+    });
   });
 });
 

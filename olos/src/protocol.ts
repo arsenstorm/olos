@@ -67,6 +67,8 @@ export {
   type CreateSqliteSerializedCoordinatorStoreSchemaOptions,
   createSqliteSerializedCoordinatorStoreBackend,
   createSqliteSerializedCoordinatorStoreSchema,
+  type MigrateSqliteSerializedCoordinatorStoreSchemaOptions,
+  migrateSqliteSerializedCoordinatorStoreSchema,
   type SqliteSerializedCoordinatorStoreBoundStatement,
   type SqliteSerializedCoordinatorStoreDatabase,
   type SqliteSerializedCoordinatorStoreRunResult,

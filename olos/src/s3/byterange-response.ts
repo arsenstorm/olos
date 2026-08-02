@@ -68,6 +68,14 @@ interface ResolvedByterangeParts {
 }
 
 /**
+ * Last-byte-pos advertised in `content-range` for open-ended live ranges.
+ * RFC 8673 §2 has the server respond with "a very large value" for the last
+ * byte position when the representation is still growing; `MAX_SAFE_INTEGER`
+ * is that value here.
+ */
+const OPEN_ENDED_LAST_BYTE_POS = Number.MAX_SAFE_INTEGER;
+
+/**
  * Serve a Range request against the virtual segment identified by
  * `segmentObjectKey`. The helper looks up the part commits in OLOS's
  * coordinator state, fetches each part's S3 object, and streams the requested
@@ -80,18 +88,26 @@ interface ResolvedByterangeParts {
  * and `content-length`; if the committed parts run out before the promised
  * end, the stream errors rather than closing short. Open-ended requests
  * (no `range.end`, any offset) stream a live aggregate of unknown total
- * length and are served as 200 without `content-range`/`content-length`.
+ * length; any request that carried a Range header is a 206 (RFC 8673, with
+ * a very-large last-byte-pos in `content-range` and no `content-length`),
+ * and only rangeless requests are a plain 200.
  */
 export async function createByterangeSegmentResponse(
   options: CreateByterangeSegmentResponseOptions
 ): Promise<Response> {
-  const range = options.range ?? { start: 0 };
-  if (range.start < 0) {
+  const requested = options.range ?? { start: 0 };
+  if (requested.start < 0) {
     return new Response("invalid range", { status: 416 });
   }
-  if (range.end !== undefined && range.end < range.start) {
+  if (requested.end !== undefined && requested.end < requested.start) {
     return new Response("invalid range", { status: 416 });
   }
+  // A bounded end at or past the open-ended sentinel is a client spelling
+  // out RFC 8673's "very large value"; normalize it to an open-ended range.
+  const range: ByterangeRangeRequest =
+    requested.end !== undefined && requested.end >= OPEN_ENDED_LAST_BYTE_POS
+      ? { start: requested.start }
+      : requested;
 
   const initial = await resolveCommittedParts(
     options.store,
@@ -103,8 +119,8 @@ export async function createByterangeSegmentResponse(
   }
 
   const stream = createByterangeStream(options, initial, range);
-  const headers = responseHeaders(range);
-  const status = range.end === undefined ? 200 : 206;
+  const headers = responseHeaders(range, options.range !== undefined);
+  const status = options.range === undefined ? 200 : 206;
 
   return new Response(stream, { headers, status });
 }
@@ -127,17 +143,42 @@ function createByterangeStream(
     position: range.start,
   };
 
+  // One signal covers both termination paths: the viewer disconnecting
+  // (`options.signal`) and the consumer cancelling the response body.
+  const abort = new AbortController();
+  const onOuterAbort = () => abort.abort();
+  if (options.signal?.aborted) {
+    abort.abort();
+  } else {
+    options.signal?.addEventListener("abort", onOuterAbort, { once: true });
+  }
+
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
-        await drainByterange(options, controller, state, range, timeoutMs);
+        await drainByterange(
+          options,
+          controller,
+          state,
+          range,
+          timeoutMs,
+          abort.signal
+        );
         controller.close();
       } catch (error) {
-        controller.error(error);
+        // After an abort the stream is already dead; erroring it would only
+        // produce noise (and `close()` throws once the consumer cancels).
+        if (!abort.signal.aborted) {
+          controller.error(error);
+        }
+      } finally {
+        options.signal?.removeEventListener("abort", onOuterAbort);
       }
     },
     cancel() {
-      // Viewer disconnected. Pending S3 reads drop with the response.
+      // Consumer cancelled the body. Abort so in-flight S3 part reads and
+      // cursor waits release instead of holding their sockets open.
+      abort.abort();
     },
   });
 }
@@ -147,9 +188,13 @@ async function drainByterange(
   controller: ReadableStreamDefaultController<Uint8Array>,
   state: ByterangeStreamState,
   range: ByterangeRangeRequest,
-  timeoutMs: number
+  timeoutMs: number,
+  signal: AbortSignal
 ): Promise<void> {
   while (range.end === undefined || state.position <= range.end) {
+    if (signal.aborted) {
+      return;
+    }
     const next = nextPartCovering(state.parts, state.position);
     if (next !== undefined) {
       const written = await streamPart(
@@ -157,7 +202,8 @@ async function drainByterange(
         controller,
         next,
         state.position,
-        range.end
+        range.end,
+        signal
       );
       if (written === 0) {
         // `streamPart` throws before returning 0; guard against regressions
@@ -168,7 +214,7 @@ async function drainByterange(
       continue;
     }
 
-    if (!(await advanceCursor(options, state, timeoutMs))) {
+    if (!(await advanceCursor(options, state, timeoutMs, signal))) {
       if (range.end !== undefined && state.position <= range.end) {
         // A bounded response already promised `content-length`; erroring the
         // stream surfaces an aborted transfer instead of a silently short 206.
@@ -182,7 +228,8 @@ async function drainByterange(
 async function advanceCursor(
   options: CreateByterangeSegmentResponseOptions,
   state: ByterangeStreamState,
-  timeoutMs: number
+  timeoutMs: number,
+  signal: AbortSignal
 ): Promise<boolean> {
   if (options.cursorWait === undefined) {
     return false;
@@ -190,7 +237,7 @@ async function advanceCursor(
   const advanced = await waitForNextPart(
     options.cursorWait,
     state.cursor,
-    options.signal,
+    signal,
     timeoutMs
   );
   if (advanced === undefined) {
@@ -214,7 +261,8 @@ async function streamPart(
   controller: ReadableStreamDefaultController<Uint8Array>,
   part: CommittedPart,
   position: number,
-  rangeEnd: number | undefined
+  rangeEnd: number | undefined,
+  signal: AbortSignal
 ): Promise<number> {
   const byterange = part.byterange;
   if (byterange === undefined) {
@@ -240,16 +288,33 @@ async function streamPart(
   }
 
   const reader = response.Body.transformToWebStream().getReader();
+  // Cancelling the reader on abort resolves a pending `read()`, so a stalled
+  // part fetch cannot outlive the viewer.
+  const cancelReader = () => {
+    cancelQuietly(reader);
+  };
+  signal.addEventListener("abort", cancelReader, { once: true });
   let written = 0;
-  while (written < lengthInPart) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
+  try {
+    while (written < lengthInPart) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      // Clamp overshoot so a part fetch that ignores `Range` cannot push the
+      // response past its promised `content-length`.
+      const remaining = lengthInPart - written;
+      const chunk =
+        value.length > remaining ? value.subarray(0, remaining) : value;
+      controller.enqueue(chunk);
+      written += chunk.length;
     }
-    controller.enqueue(value);
-    written += value.length;
+  } finally {
+    signal.removeEventListener("abort", cancelReader);
+    // Cancel rather than release the lock: cancelling also lets the source
+    // destroy its pooled socket.
+    await cancelQuietly(reader);
   }
-  reader.releaseLock();
 
   if (written === 0) {
     throw new Error(
@@ -258,6 +323,22 @@ async function streamPart(
   }
 
   return written;
+}
+
+/**
+ * Best-effort cancel of a part body reader. Failures are swallowed: the
+ * source may already be closed or errored, and the cancellation must not
+ * mask the error that tore the stream down. Typed structurally because the
+ * SDK body reader carries the DOM reader type, not Bun's.
+ */
+async function cancelQuietly(reader: {
+  cancel(): Promise<unknown>;
+}): Promise<void> {
+  try {
+    await reader.cancel();
+  } catch {
+    // The source is already closed or errored; nothing left to release.
+  }
 }
 
 function nextPartCovering(
@@ -282,19 +363,24 @@ function nextPartCovering(
 async function waitForNextPart(
   cursorWait: ByterangeCursorWait,
   cursor: Cursor,
-  outerSignal: AbortSignal | undefined,
+  outerSignal: AbortSignal,
   timeoutMs: number
 ): Promise<Cursor | undefined> {
+  if (outerSignal.aborted) {
+    // The viewer is already gone; skip the wait entirely rather than hold a
+    // cursor subscription (and its timer) for a response nobody reads.
+    return;
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const onOuterAbort = () => controller.abort();
-  outerSignal?.addEventListener("abort", onOuterAbort, { once: true });
+  outerSignal.addEventListener("abort", onOuterAbort, { once: true });
 
   try {
     return await cursorWait({ cursor, signal: controller.signal });
   } finally {
     clearTimeout(timer);
-    outerSignal?.removeEventListener("abort", onOuterAbort);
+    outerSignal.removeEventListener("abort", onOuterAbort);
   }
 }
 
@@ -339,7 +425,10 @@ function rangeHeaderValue(start: number, end: number): string {
   return `bytes=${start}-${end}`;
 }
 
-function responseHeaders(range: ByterangeRangeRequest): Headers {
+function responseHeaders(
+  range: ByterangeRangeRequest,
+  explicitRange: boolean
+): Headers {
   const headers = new Headers({
     "accept-ranges": "bytes",
     "cache-control": "no-store",
@@ -348,9 +437,14 @@ function responseHeaders(range: ByterangeRangeRequest): Headers {
   if (range.end !== undefined) {
     headers.set("content-range", `bytes ${range.start}-${range.end}/*`);
     headers.set("content-length", String(range.end - range.start + 1));
+  } else if (explicitRange) {
+    // RFC 8673 §2: an open-ended live range answers with a very large
+    // last-byte-pos and no content-length; the body streams to the live edge
+    // and a clean close marks the end of the available content.
+    headers.set(
+      "content-range",
+      `bytes ${range.start}-${OPEN_ENDED_LAST_BYTE_POS}/*`
+    );
   }
-  // Open-ended requests stream a live aggregate of unknown total length, so
-  // they carry no content-range (RFC 9110 requires a last-byte-pos) and no
-  // content-length.
   return headers;
 }

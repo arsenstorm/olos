@@ -5,6 +5,13 @@ import type { CoordinatorPipelineState } from "./coordinator-types";
 
 /** Options for `applyCoordinatorRetention`. */
 export interface ApplyCoordinatorRetentionOptions {
+  /**
+   * Grace period in milliseconds added to each slot's `expiresAt` before it
+   * counts as expired; defaults to 0. Match it to the commit path's
+   * `lateToleranceMs` so pruning never removes a slot whose late upload
+   * would still commit.
+   */
+  lateToleranceMs?: number;
   /** ISO timestamp used to decide which issued slots have expired. */
   now: string;
   state: CoordinatorPipelineState;
@@ -37,6 +44,7 @@ export function applyCoordinatorRetention(
   options: ApplyCoordinatorRetentionOptions
 ): CoordinatorRetentionApplication {
   const plan = planCoordinatorRetention({
+    lateToleranceMs: options.lateToleranceMs,
     now: options.now,
     state: options.state,
   });

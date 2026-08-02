@@ -2,8 +2,10 @@ import type { MediaObject } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
 import { nonNegativeNumber } from "./fields";
 import { isOptionalHttpHeaderStringMap } from "./http-header";
-import { assertMediaObject } from "./media-object";
+import { assertMediaObject, MEDIA_OBJECT_FIELDS } from "./media-object";
 import { assertUploadSlot } from "./upload-slot";
+
+const OBSERVED_UPLOAD_FIELDS = [...MEDIA_OBJECT_FIELDS, "metadata"] as const;
 
 /**
  * A provider observation of an uploaded object, optionally carrying the
@@ -82,7 +84,7 @@ export function assertObservedUploadMatchesSlot(
 export function assertObservedUpload(
   value: unknown
 ): asserts value is ObservedUpload {
-  assertMediaObject(value);
+  assertMediaObject(value, OBSERVED_UPLOAD_FIELDS);
   assertOptionalObservedUploadMetadata(value);
 }
 

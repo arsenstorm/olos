@@ -79,7 +79,7 @@ describe("parseRuntimeJsonRequest", () => {
         "invalid request"
       )
     ).resolves.toEqual({
-      message: "Failed to parse JSON",
+      message: "JSON Parse error: Expected '}'",
       status: "invalid",
     });
   });
@@ -95,7 +95,26 @@ describe("parseRuntimeJsonRequest", () => {
         "invalid request"
       )
     ).resolves.toEqual({
-      message: "Unexpected end of JSON input",
+      message: "JSON Parse error: Unexpected EOF",
+      status: "invalid",
+    });
+  });
+
+  test("rejects request bodies larger than the byte cap", async () => {
+    const oversized = `{"padding":"${"x".repeat(1_048_576)}"}`;
+
+    await expect(
+      parseRuntimeJsonRequest(
+        new Request("https://edge.example.com", {
+          body: oversized,
+          method: "POST",
+        }),
+        parseObject,
+        invalidParse,
+        "invalid request"
+      )
+    ).resolves.toEqual({
+      message: "request body is too large",
       status: "invalid",
     });
   });

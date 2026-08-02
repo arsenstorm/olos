@@ -21,4 +21,5 @@ export const OLOS_ERROR_CODES = [
   "olos.not_found",
   "olos.method_not_allowed",
   "olos.conflict",
+  "olos.internal",
 ] as const;

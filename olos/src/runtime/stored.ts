@@ -358,10 +358,7 @@ function notFound(): StoredRuntimeMutation {
 }
 
 function manifestNotFound(): Response {
-  return new Response("manifest not found", {
-    headers: { "content-type": "text/plain; charset=utf-8" },
-    status: 404,
-  });
+  return jsonErrorResponse("olos.not_found", "manifest not found", 404);
 }
 
 function conflict(

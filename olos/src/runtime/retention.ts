@@ -43,6 +43,13 @@ export interface DeleteRetiredCoordinatorObjectsOptions {
 
 /** Options for `planStoredCoordinatorRetention`. */
 export interface PlanStoredCoordinatorRetentionOptions {
+  /**
+   * Grace period in milliseconds added to each slot's `expiresAt` before it
+   * counts as expired; defaults to 0. Match it to the commit path's
+   * `lateToleranceMs` so a sweep never prunes a slot whose late upload
+   * would still commit.
+   */
+  lateToleranceMs?: number;
   /** Time retention is evaluated at, as an ISO 8601 timestamp. */
   now: string;
   sessionId: OlosId;
@@ -257,6 +264,7 @@ export async function planStoredCoordinatorRetention(
   }
 
   const plan = planCoordinatorRetention({
+    lateToleranceMs: options.lateToleranceMs,
     now: options.now,
     state: snapshot.state,
   });
@@ -285,7 +293,12 @@ export async function applyStoredCoordinatorRetention(
     StoredRuntimeRetentionApplication
   >({
     maxAttempts: options.maxAttempts,
-    mutate: (state) => applyCoordinatorRetention({ now: options.now, state }),
+    mutate: (state) =>
+      applyCoordinatorRetention({
+        lateToleranceMs: options.lateToleranceMs,
+        now: options.now,
+        state,
+      }),
     sessionId: options.sessionId,
     store: options.store,
     decide: (applied, snapshot) =>

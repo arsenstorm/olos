@@ -20,6 +20,7 @@ const ANCHOR_PATTERN =
   /^<!--\s*olos-conformance:\s+(\d{1,2}(?:\.\d+)*)((?:\s+[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)+)\s*-->$/;
 const NUMBERED_SPEC_FILE_PATTERN = /^(\d{2})-.+\.md$/;
 const ANCHOR_ID_SEPARATOR_PATTERN = /\s+/;
+const SECTION_HEADING_PATTERN = /^#{1,6}\s+(\d{1,2}(?:\.\d+)*)\b/;
 
 interface SpecAnchorClaim {
   file: string;
@@ -65,6 +66,7 @@ async function listSpecFiles(): Promise<string[]> {
 
 async function collectFileAnchors(file: string): Promise<void> {
   const text = await readFile(join(specDir, file), "utf8");
+  const headings = collectSectionHeadings(text);
 
   for (const line of text.split("\n")) {
     if (!line.includes("olos-conformance")) {
@@ -83,13 +85,33 @@ async function collectFileAnchors(file: string): Promise<void> {
     recordAnchor(
       file,
       match[1],
-      match[2].trim().split(ANCHOR_ID_SEPARATOR_PATTERN)
+      match[2].trim().split(ANCHOR_ID_SEPARATOR_PATTERN),
+      headings
     );
   }
 }
 
-function recordAnchor(file: string, section: string, ids: string[]): void {
-  checkSectionPrefix(file, section);
+function collectSectionHeadings(text: string): ReadonlySet<string> {
+  const headings = new Set<string>();
+
+  for (const line of text.split("\n")) {
+    const match = line.match(SECTION_HEADING_PATTERN);
+
+    if (match?.[1] !== undefined) {
+      headings.add(match[1]);
+    }
+  }
+
+  return headings;
+}
+
+function recordAnchor(
+  file: string,
+  section: string,
+  ids: string[],
+  headings: ReadonlySet<string>
+): void {
+  checkSectionPrefix(file, section, headings);
 
   for (const id of ids) {
     if (!isOlosConformanceAssertionId(id)) {
@@ -110,7 +132,11 @@ function recordAnchor(file: string, section: string, ids: string[]): void {
   }
 }
 
-function checkSectionPrefix(file: string, section: string): void {
+function checkSectionPrefix(
+  file: string,
+  section: string,
+  headings: ReadonlySet<string>
+): void {
   const match = file.match(NUMBERED_SPEC_FILE_PATTERN);
 
   if (match?.[1] === undefined) {
@@ -125,6 +151,15 @@ function checkSectionPrefix(file: string, section: string): void {
   if (section !== filePrefix && !section.startsWith(`${filePrefix}.`)) {
     failures.push(
       `${file}: anchor section §${section} does not belong to section ${filePrefix}`
+    );
+    return;
+  }
+
+  // The numeric prefix alone cannot catch an anchor pointing at a
+  // sub-section that does not exist; require a matching heading.
+  if (section !== filePrefix && !headings.has(section)) {
+    failures.push(
+      `${file}: anchor section §${section} has no matching heading in the file`
     );
   }
 }

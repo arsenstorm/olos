@@ -418,7 +418,38 @@ describe("cursor update resolution", () => {
   });
 
   test("rejects candidates behind the current part number", () => {
-    const currentPartCursor = createCursor({ ...options, lastPartNumber: 1 });
+    // The current cursor's window must actually show part 1 (§3.8), so it
+    // extends the fixture's parts tail before claiming lastPartNumber 1.
+    const windowWithSecondPart: CommittedWindow = {
+      ...committedWindow,
+      renditions: {
+        v1080: {
+          ...v1080,
+          segments: [
+            firstSegment,
+            {
+              ...secondSegment,
+              parts: [
+                ...(secondSegment.parts ?? []),
+                {
+                  commitId: "commit_3811_1",
+                  deliveryUrl: "/media/3811.1.m4s",
+                  duration: 0.333,
+                  objectKey: "tenant/session/v1080/3811.1.m4s",
+                  partNumber: 1,
+                  slotId: "slot_3811_1",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const currentPartCursor = createCursor({
+      ...options,
+      committedWindow: windowWithSecondPart,
+      lastPartNumber: 1,
+    });
     const candidateCursor = createCursor({ ...options, lastPartNumber: 0 });
 
     expect(

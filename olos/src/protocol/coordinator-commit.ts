@@ -139,6 +139,7 @@ export function commitCoordinatorUpload(
 
   const { state, retiredObjects } = commitIntoState({
     commit: resolved.commit,
+    lateToleranceMs: options.lateToleranceMs,
     maxSegments: options.maxSegments,
     slot: resolved.slot,
     state: options.state,
@@ -289,6 +290,7 @@ interface CommitIntoStateResult {
 
 function commitIntoState(options: {
   commit: Commit;
+  lateToleranceMs?: number;
   maxSegments?: number;
   slot: UploadSlot;
   state: CoordinatorPipelineState;
@@ -352,9 +354,12 @@ function commitIntoState(options: {
   // Auto-retention on every window advance: the shared pruning core drops
   // out-of-window commits and expired issued slots so the persisted snapshot
   // stays bounded, surfacing the pruned commits as `retiredObjects` for the
-  // runtime to delete their backing objects in the same operation.
+  // runtime to delete their backing objects in the same operation. The
+  // commit's `lateToleranceMs` carries into pruning so a slot whose late
+  // upload would still commit is never expired here.
   const cursor = resolveNextCursor(options.state.cursor, candidateCursor);
   const retention = applyCoordinatorRetention({
+    lateToleranceMs: options.lateToleranceMs,
     now: options.commit.committedAt,
     state: { ...nextState, cursor },
   });

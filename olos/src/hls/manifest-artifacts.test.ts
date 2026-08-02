@@ -4,6 +4,7 @@ import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
 import type { Session } from "../types/session";
 import {
+  type CreateHlsManifestArtifactsOptions,
   createHlsManifestArtifactResponse,
   createHlsManifestArtifacts,
   createHlsManifestErrorWebResponse,
@@ -164,6 +165,87 @@ const groupedCommittedWindow: CommittedWindow = {
           },
         },
       ],
+    },
+  },
+};
+
+function advancedVideoRenditionWindow() {
+  const rendition = advancedCommittedWindow.renditions.v1080;
+
+  if (!rendition) {
+    throw new Error("missing advanced v1080 fixture");
+  }
+
+  return rendition;
+}
+
+function groupedAudioRenditionWindow() {
+  const rendition = groupedCommittedWindow.renditions.a128;
+
+  if (!rendition) {
+    throw new Error("missing a128 rendition fixture");
+  }
+
+  return rendition;
+}
+
+const audioSegment3811 = {
+  duration: 2,
+  mediaSequenceNumber: 3811,
+  segment: {
+    commitId: "commit_a128_3811",
+    deliveryUrl: "https://media.example.com/media/a128/3811.m4s",
+    objectKey: "media/a128/3811.m4s",
+    slotId: "slot_a128_3811",
+  },
+};
+
+// v1080 has reached 3811 while the grouped audio rendition still ends at
+// 3810 — the window-global live edge is ahead of a128's own live edge.
+const laggedAudioCursor: Cursor = {
+  ...cursor,
+  committedWindow: {
+    ...groupedCommittedWindow,
+    lastMediaSequenceNumber: 3811,
+    renditions: {
+      a128: groupedAudioRenditionWindow(),
+      v1080: advancedVideoRenditionWindow(),
+    },
+  },
+  updatedAt: "2026-01-01T00:00:04.000Z",
+  window: {
+    firstMediaSequenceNumber: 3810,
+    lastMediaSequenceNumber: 3811,
+  },
+};
+
+const caughtUpGroupedCursor: Cursor = {
+  ...laggedAudioCursor,
+  committedWindow: {
+    ...laggedAudioCursor.committedWindow,
+    renditions: {
+      a128: {
+        ...groupedAudioRenditionWindow(),
+        segments: [...groupedAudioRenditionWindow().segments, audioSegment3811],
+      },
+      v1080: advancedVideoRenditionWindow(),
+    },
+  },
+  updatedAt: "2026-01-01T00:00:06.000Z",
+};
+
+// a128's window starts at 3811 while the window-global minimum is 3810 —
+// its playlist must declare its own first segment's media sequence.
+const audioTailCursor: Cursor = {
+  ...laggedAudioCursor,
+  committedWindow: {
+    ...laggedAudioCursor.committedWindow,
+    renditions: {
+      a128: {
+        ...groupedAudioRenditionWindow(),
+        segments: [audioSegment3811],
+      },
+      v1080: advancedVideoRenditionWindow(),
     },
   },
 };
@@ -669,6 +751,263 @@ describe("HLS manifest artifacts", () => {
       message: "_HLS_msn must be a non-negative integer",
       status: "invalid",
     });
+  });
+
+  test("holds lagging grouped-audio reloads until the rendition catches up", async () => {
+    let waiterCalls = 0;
+
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor: laggedAudioCursor,
+      manifest: {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      // 3811 is already committed window-globally (v1080), but a128's own
+      // live edge is 3810 — the request must block on a128's playlist.
+      requestUrl: "/v1/live/session_1/a128/media.m3u8?_HLS_msn=3811",
+      session: groupedSession,
+      timeoutMs: 100,
+      waitForCursor: () => {
+        waiterCalls += 1;
+        return Promise.resolve(caughtUpGroupedCursor);
+      },
+    });
+
+    expect(waiterCalls).toBe(1);
+    expect(result.status).toBe("ready");
+
+    if (result.status === "ready" || result.status === "timeout") {
+      expect(result.cursor).toBe(caughtUpGroupedCursor);
+      expect(result.response.body).toContain(
+        "https://media.example.com/media/a128/3811.m4s"
+      );
+      expect(result.response.body).not.toContain("#EXT-X-STREAM-INF");
+    }
+  });
+
+  test("returns the rendition's own playlist on per-rendition timeout", async () => {
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor: audioTailCursor,
+      manifest: {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/a128/media.m3u8?_HLS_msn=3812",
+      session: groupedSession,
+      timeoutMs: 0,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result.status).toBe("timeout");
+
+    if (result.status === "ready" || result.status === "timeout") {
+      // Per-rendition media sequence: a128's own first segment (3811), not
+      // the window-global minimum (3810).
+      expect(result.response.body).toContain("#EXT-X-MEDIA-SEQUENCE:3811");
+      expect(result.response.body).toContain(
+        "https://media.example.com/media/a128/3811.m4s"
+      );
+    }
+  });
+
+  test("rejects delivery directives on the master playlist path", async () => {
+    let waiterCalls = 0;
+
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/master.m3u8?_HLS_msn=3810",
+      session,
+      timeoutMs: 100,
+      waitForCursor: () => {
+        waiterCalls += 1;
+        return Promise.reject(new Error("waiter should not be called"));
+      },
+    });
+
+    expect(result).toEqual({
+      message: "_HLS_msn/_HLS_part apply to media playlist requests",
+      status: "invalid",
+    });
+    expect(waiterCalls).toBe(0);
+  });
+
+  test("answers unknown paths immediately without consuming the timeout", async () => {
+    let waiterCalls = 0;
+
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/missing.m3u8?_HLS_msn=9999",
+      session,
+      // A held request would hang the test well past its own timeout — the
+      // immediate resolution proves no waiter was pinned.
+      timeoutMs: 3_600_000,
+      waitForCursor: () => {
+        waiterCalls += 1;
+        return Promise.reject(new Error("waiter should not be called"));
+      },
+    });
+
+    expect(result).toEqual({ status: "not_found" });
+    expect(waiterCalls).toBe(0);
+  });
+
+  test("rejects _HLS_msn more than two beyond the rendition's live edge", async () => {
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3813",
+      session,
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result).toEqual({
+      message: "_HLS_msn is beyond the live edge",
+      status: "invalid",
+    });
+  });
+
+  test("still blocks _HLS_msn exactly two beyond the rendition's live edge", async () => {
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3812",
+      session,
+      timeoutMs: 0,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result.status).toBe("timeout");
+  });
+
+  test("answers media paths for uncommitted renditions with not_found", async () => {
+    let waiterCalls = 0;
+
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      // The window only has v1080 — a128 is declared but uncommitted.
+      cursor,
+      manifest: {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/a128/media.m3u8?_HLS_msn=3810",
+      session: groupedSession,
+      timeoutMs: 100,
+      waitForCursor: () => {
+        waiterCalls += 1;
+        return Promise.reject(new Error("waiter should not be called"));
+      },
+    });
+
+    expect(result).toEqual({ status: "not_found" });
+    expect(waiterCalls).toBe(0);
+  });
+
+  test("serves the final ENDLIST playlist when a terminal cursor arrives mid-wait", async () => {
+    const endedCursor: Cursor = { ...cursor, state: "ended" };
+
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest: {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3811",
+      session,
+      timeoutMs: 10_000,
+      waitForCursor: () => Promise.resolve(endedCursor),
+    });
+
+    expect(result.status).toBe("timeout");
+
+    if (result.status === "ready" || result.status === "timeout") {
+      expect(result.cursor).toBe(endedCursor);
+      expect(result.response.status).toBe(200);
+      expect(result.response.body.endsWith("\n#EXT-X-ENDLIST\n")).toBe(true);
+    }
+  });
+
+  test("routes blocking requests through custom playlist paths", async () => {
+    const manifest: CreateHlsManifestArtifactsOptions = {
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      masterPath: "/live/session_1/index.m3u8",
+      mediaPlaylistPath: (_session, rendition) =>
+        `/live/session_1/${rendition.renditionId}.m3u8`,
+      partTarget: session.partTarget,
+      segmentTarget: session.segmentTarget,
+    };
+    const waitForCursor = () =>
+      Promise.reject(new Error("waiter should not be called"));
+
+    const media = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest,
+      requestUrl: "/live/session_1/v1080.m3u8?_HLS_msn=3810",
+      session,
+      timeoutMs: 100,
+      waitForCursor,
+    });
+
+    expect(media.status).toBe("ready");
+
+    if (media.status === "ready" || media.status === "timeout") {
+      expect(media.response.body).toContain(
+        "https://media.example.com/media/3810.m4s"
+      );
+    }
+
+    const master = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest,
+      requestUrl: "/live/session_1/index.m3u8",
+      session,
+      timeoutMs: 100,
+      waitForCursor,
+    });
+
+    expect(master.status).toBe("ready");
+
+    if (master.status === "ready" || master.status === "timeout") {
+      expect(master.response.body).toContain("/live/session_1/v1080.m3u8");
+    }
+
+    // The default paths are not routable once custom paths are configured —
+    // routing and rendering resolve paths identically.
+    const defaultPath = await resolveBlockingHlsManifestArtifactResponse({
+      cursor,
+      manifest,
+      requestUrl: "/v1/live/session_1/v1080/media.m3u8",
+      session,
+      timeoutMs: 100,
+      waitForCursor,
+    });
+
+    expect(defaultPath).toEqual({ status: "not_found" });
   });
 
   test("returns not_found for unknown manifest paths", async () => {

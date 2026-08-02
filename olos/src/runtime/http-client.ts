@@ -115,6 +115,33 @@ export function optionalRecordPayload<Field extends string, T>(
     : optionalField(field, recordPayload<T>(record, assert));
 }
 
+/**
+ * `optionalRecordPayload` for tolerant `parseX` parsers, which return a
+ * pruned copy of the record rather than asserting it in place.
+ */
+export function optionalParsedPayload<Field extends string, T>(
+  value: unknown,
+  field: Field,
+  parse: (value: unknown) => T
+): Partial<Record<Field, T>> {
+  const record = optionalRecordField(value, field);
+
+  return record === undefined ? {} : optionalField(field, parse(record));
+}
+
+/**
+ * `requiredRecordPayload` for tolerant `parseX` parsers, which return a
+ * pruned copy of the record rather than asserting it in place.
+ */
+export function requiredParsedPayload<T>(
+  value: unknown,
+  field: string,
+  message: string,
+  parse: (value: unknown) => T
+): T {
+  return parse(requiredRecordField(value, field, message));
+}
+
 export function recordPayload<T>(
   value: Record<string, unknown>,
   assert: RecordPayloadAssertion<T>

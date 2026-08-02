@@ -1921,6 +1921,42 @@ describe("stored S3 coordinator runtime handler", () => {
     ]);
   });
 
+  test("rejects S3 events whose request id is not a URL-safe commit id", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      bucket: S3_BUCKET,
+      client: createTestS3Client(),
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      providerId: "s3_primary",
+      store,
+    });
+
+    // The commit id derives from x-amz-request-id; an id that is not
+    // URL-safe must normalize to invalid_event instead of reaching the
+    // commit path.
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/events", {
+        Records: [s3EventRecord("media/v1080/s3810.m4s", "bad request id!")],
+      })
+    );
+    const body =
+      await jsonResponseBody<StoredS3CoordinatorEventRouteResponse>(response);
+
+    expect(response.status).toBe(202);
+    expect(body.results).toEqual([
+      {
+        error: {
+          code: "olos.invalid_state",
+          message:
+            "objectCreatedEvent.eventId must be a non-empty URL-safe identifier",
+        },
+        status: "invalid_event",
+      },
+    ]);
+  });
+
   test("routes S3 object-created event payloads", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
@@ -3018,6 +3054,67 @@ describe("stored S3 coordinator runtime handler", () => {
       failedSlotIds: [],
       ok: true,
       planned: 0,
+    });
+  });
+
+  test("returns 409 when S3 retention loses the optimistic save race", async () => {
+    const store = createMemoryCoordinatorStore();
+    let conflictSaves = false;
+    const racingStore: CoordinatorPipelineStore = {
+      load: (sessionId) => store.load(sessionId),
+      save: (options) =>
+        conflictSaves
+          ? Promise.resolve({ status: "conflict" as const })
+          : store.save(options),
+    };
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      bucket: S3_BUCKET,
+      client: createTestS3Client(),
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
+      store: racingStore,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        session,
+      })
+    );
+    // An issued slot that expires before the sweep so retention has state
+    // to prune (a no-op plan would skip the save entirely).
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "media/v1080/s3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    conflictSaves = true;
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/retention", {
+        now: "2026-01-01T00:00:06.000Z",
+      })
+    );
+    const body = await jsonResponseBody<{
+      error: { code: string; message: string };
+    }>(response);
+
+    expect(response.status).toBe(409);
+    expect(body.error).toEqual({
+      code: "olos.conflict",
+      message: "coordinator session changed during mutation",
     });
   });
 

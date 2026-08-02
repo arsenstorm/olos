@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { UploadGrant } from "../types/upload-grant";
-import { assertUploadGrant, isUploadGrant } from "./upload-grant";
+import {
+  assertUploadGrant,
+  isUploadGrant,
+  parseUploadGrant,
+} from "./upload-grant";
 
 const validUploadGrant: UploadGrant = {
   expiresAt: "2026-06-08T12:00:05.000Z",
@@ -114,5 +118,32 @@ describe("upload grant validation", () => {
         requiredHeaders: { "bad header": "video/iso.segment" },
       })
     ).toThrow("uploadGrant.requiredHeaders must be a string map");
+  });
+
+  test("rejects unknown fields", () => {
+    expect(() => assertUploadGrant({ ...validUploadGrant, extra: 1 })).toThrow(
+      'uploadGrant contains unknown property "extra"'
+    );
+  });
+});
+
+describe("tolerant upload grant parsing", () => {
+  test("strips unknown fields and returns a fresh grant", () => {
+    const parsed = parseUploadGrant({ ...validUploadGrant, extra: 1 });
+
+    expect(parsed).toEqual(validUploadGrant);
+    expect(parsed).not.toBe(validUploadGrant);
+  });
+
+  test("keeps the free-form required headers intact", () => {
+    const parsed = parseUploadGrant({ ...validUploadGrant, extra: 1 });
+
+    expect(parsed.requiredHeaders).toEqual(validUploadGrant.requiredHeaders);
+  });
+
+  test("still rejects invalid known fields", () => {
+    expect(() =>
+      parseUploadGrant({ ...validUploadGrant, extra: 1, method: "POST" })
+    ).toThrow("uploadGrant.method must be PUT");
   });
 });

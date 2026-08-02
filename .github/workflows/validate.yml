@@ -108,8 +108,16 @@ jobs:
       - name: Build package
         run: bun --filter '@arsenstorm/olos' build
 
+      - name: Check generated declarations
+        run: bun --filter '@arsenstorm/olos' check-types:dist
+
       - name: E2E tests
         run: bun --filter '@arsenstorm/olos' test:e2e
+
+      # publint + attw here so an exports-map or declaration break fails the
+      # PR instead of the tag-triggered publish run.
+      - name: Package checks
+        run: bun --filter '@arsenstorm/olos' pack:check
 
       - name: Package smoke test
         run: bun --filter '@arsenstorm/olos' pack:smoke

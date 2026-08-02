@@ -12,6 +12,7 @@ import { OLOS_CONFORMANCE_SPEC_REFS as specRefs } from "./conformance/spec-refs"
 import { createCoordinatorPipeline } from "./protocol/coordinator-lifecycle";
 import { issueCoordinatorSlot } from "./protocol/coordinator-slot";
 import type {
+  CoordinatorPipelineSnapshot,
   CoordinatorPipelineStore,
   CoordinatorStoreSave,
 } from "./protocol/coordinator-types";
@@ -74,9 +75,11 @@ export interface AssertCoordinatorPipelineStoreConformanceOptions {
 /**
  * Conformance harness for `CoordinatorPipelineStore` implementations:
  * verifies load/save round-trips, etag-mismatch and duplicate-insert
- * conflicts, and that the store never aliases caller state objects.
- * Throws an `Error` describing the first violated expectation. Run it in
- * the test suite of any custom store.
+ * conflicts, the optional `loadCursor` fast path (matching etag and
+ * session, no cursor before a commit), and that the store never aliases
+ * caller state objects — including between `loadCursor` views. Throws an
+ * `Error` describing the first violated expectation. Run it in the test
+ * suite of any custom store.
  */
 export async function assertCoordinatorPipelineStoreConformance(
   options: AssertCoordinatorPipelineStoreConformanceOptions
@@ -125,6 +128,9 @@ export async function assertCoordinatorPipelineStoreConformance(
     initial.session,
     "loaded session must not reuse the saved session object"
   );
+
+  await assertStoreLoadCursorConformance(store, loaded);
+
   const stale = await store.save({
     expectedEtag: "stale",
     sessionId: conformanceSession.sessionId,
@@ -199,6 +205,56 @@ export async function assertCoordinatorPipelineStoreConformance(
     missingUpdate.status,
     "conflict",
     "missing update must conflict"
+  );
+}
+
+async function assertStoreLoadCursorConformance(
+  store: CoordinatorPipelineStore,
+  loaded: CoordinatorPipelineSnapshot
+): Promise<void> {
+  if (store.loadCursor === undefined) {
+    return;
+  }
+
+  expectStoreValue(
+    await store.loadCursor("missing_session"),
+    undefined,
+    "loadCursor must not load missing sessions"
+  );
+
+  const view = await store.loadCursor(conformanceSession.sessionId);
+
+  if (view === undefined) {
+    throw new Error("loadCursor must return a view for saved sessions");
+  }
+
+  expectStoreValue(
+    view.etag,
+    loaded.etag,
+    "loadCursor etag must match the loaded snapshot etag"
+  );
+  expectStoreValue(
+    view.session.sessionId,
+    conformanceSession.sessionId,
+    "loadCursor session id must match the saved session"
+  );
+  expectStoreValue(
+    view.cursor,
+    undefined,
+    "loadCursor must not report a cursor before any commit"
+  );
+
+  const secondView = await store.loadCursor(conformanceSession.sessionId);
+
+  expectStoreDifferent(
+    view.session,
+    secondView?.session,
+    "loadCursor views must not share session objects"
+  );
+  expectStoreDifferent(
+    view.session,
+    loaded.state.session,
+    "loadCursor view must not reuse the loaded snapshot's session object"
   );
 }
 

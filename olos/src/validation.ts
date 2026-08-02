@@ -1,12 +1,16 @@
 // biome-ignore-all lint/performance/noBarrelFile: public validation facade for the olos/validation export
 
-export { assertCommit, isCommit } from "./validation/commit";
+export { assertCommit, isCommit, parseCommit } from "./validation/commit";
 export {
   assertCommittedWindow,
   isCommittedWindow,
 } from "./validation/committed-window";
-export { assertCursor, isCursor } from "./validation/cursor";
+export { assertCursor, isCursor, parseCursor } from "./validation/cursor";
 export { assertSafeDeliveryUrl } from "./validation/delivery-url";
+export {
+  assertOlosErrorEnvelope,
+  isOlosErrorEnvelope,
+} from "./validation/error-envelope";
 export {
   assertNonNegativeInteger,
   assertUrlSafeIdentifier,
@@ -30,5 +34,10 @@ export { assertSession, isSession } from "./validation/session";
 export {
   assertUploadGrant,
   isUploadGrant,
+  parseUploadGrant,
 } from "./validation/upload-grant";
-export { assertUploadSlot, isUploadSlot } from "./validation/upload-slot";
+export {
+  assertUploadSlot,
+  isUploadSlot,
+  parseUploadSlot,
+} from "./validation/upload-slot";

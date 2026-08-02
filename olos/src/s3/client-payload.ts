@@ -1,7 +1,6 @@
 import { OLOS_ERROR_CODES } from "../config/errors";
 import {
-  optionalRecordPayload,
-  recordPayload,
+  optionalParsedPayload,
   requiredArrayField,
   requiredRecord,
   requiredRecordField,
@@ -12,11 +11,11 @@ import type { Cursor } from "../types/cursor";
 import type { OlosErrorCode } from "../types/errors";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
-import { assertCommit } from "../validation/commit";
-import { assertCursor } from "../validation/cursor";
+import { parseCommit } from "../validation/commit";
+import { parseCursor } from "../validation/cursor";
 import { errorMessage, isAllowedString, isRecord } from "../validation/fields";
-import { assertUploadGrant } from "../validation/upload-grant";
-import { assertUploadSlot } from "../validation/upload-slot";
+import { parseUploadGrant } from "../validation/upload-grant";
+import { parseUploadSlot } from "../validation/upload-slot";
 import type {
   S3RuntimeCommitPayloadFields,
   S3RuntimeFailedReconciliationResultStatus,
@@ -50,6 +49,7 @@ import type {
 import type {
   StoredS3CoordinatorReconciliationResponse,
   StoredS3CoordinatorRetentionResponse,
+  StoredS3CoordinatorRouteError,
 } from "./http-types";
 import type { StoredS3CoordinatorReconciliationPlan } from "./reconciliation";
 
@@ -76,11 +76,11 @@ export function grantPayload(
 }
 
 function uploadGrantPayload(value: Record<string, unknown>): UploadGrant {
-  return recordPayload<UploadGrant>(value, assertUploadGrant);
+  return parseUploadGrant(value);
 }
 
 function uploadSlotPayload(value: Record<string, unknown>): UploadSlot {
-  return recordPayload<UploadSlot>(value, assertUploadSlot);
+  return parseUploadSlot(value);
 }
 
 function grantPayloadFields(value: unknown): S3RuntimeGrantPayloadFields {
@@ -110,7 +110,7 @@ export function commitPayload(
 }
 
 function commitResponsePayload(value: Record<string, unknown>): Commit {
-  return recordPayload<Commit>(value, assertCommit);
+  return parseCommit(value);
 }
 
 function commitPayloadFields(value: unknown): S3RuntimeCommitPayloadFields {
@@ -124,7 +124,7 @@ function commitPayloadFields(value: unknown): S3RuntimeCommitPayloadFields {
 }
 
 function optionalCursorPayload(value: unknown): S3RuntimeOptionalCursorPayload {
-  return optionalRecordPayload<"cursor", Cursor>(value, "cursor", assertCursor);
+  return optionalParsedPayload<"cursor", Cursor>(value, "cursor", parseCursor);
 }
 
 // --- shared summary payloads ---
@@ -323,14 +323,12 @@ function retentionExpiredSlotPayload(
   }
 
   try {
-    assertUploadSlot(value);
+    return parseUploadSlot(value);
   } catch (error) {
     throw new Error(
       `${indexedFieldContext(S3_RETENTION_PLAN_EXPIRED_SLOTS_CONTEXT, index)} must be valid: ${errorMessage(error, String(error))}`
     );
   }
-
-  return value;
 }
 
 function optionalRetentionPlanCursor(
@@ -344,8 +342,7 @@ function optionalRetentionPlanCursor(
     throw new Error(S3_RETENTION_PLAN_CURSOR_MESSAGE);
   }
 
-  assertCursor(value.cursor);
-  return value.cursor;
+  return parseCursor(value.cursor);
 }
 
 // --- retention result payloads ---
@@ -568,7 +565,12 @@ function reconciliationResultPayload(
     );
   }
 
-  return failedReconciliationResultPayload(status, slotId);
+  return failedReconciliationResultPayload(
+    resultRecord,
+    context,
+    slotId,
+    status
+  );
 }
 
 function reconciliationResultStatus(
@@ -608,13 +610,9 @@ function successfulReconciliationResultPayload(
   slotId: string,
   status: S3RuntimeSuccessfulReconciliationResultStatus
 ): S3RuntimeReconciliationResultPayload {
-  const commit = requiredRecordField(
-    value,
-    "commit",
-    `${context} must include commit`
+  const commit = parseCommit(
+    requiredRecordField(value, "commit", `${context} must include commit`)
   );
-
-  assertCommit(commit);
 
   return {
     commit,
@@ -625,10 +623,86 @@ function successfulReconciliationResultPayload(
 }
 
 function failedReconciliationResultPayload(
-  status: S3RuntimeFailedReconciliationResultStatus,
-  slotId: string
+  value: Record<string, unknown>,
+  context: string,
+  slotId: string,
+  status: S3RuntimeFailedReconciliationResultStatus
 ): S3RuntimeReconciliationResultPayload {
-  return { slotId, status };
+  return {
+    slotId,
+    status,
+    ...failedReconciliationErrorPayload(value, context),
+    ...failedReconciliationResultStatusPayload(value, context),
+  };
+}
+
+// The server attaches per-slot failure details (`error`, `resultStatus`)
+// when it can; surface them to the client instead of dropping them.
+function failedReconciliationErrorPayload(
+  value: Record<string, unknown>,
+  context: string
+): Partial<{ error: StoredS3CoordinatorRouteError }> {
+  if (value.error === undefined) {
+    return {};
+  }
+
+  const error = requiredRecord(
+    value.error,
+    `${context}.error must be an object`
+  );
+  const code = requiredStringField(
+    error,
+    "code",
+    `${context}.error must include code`
+  );
+
+  if (!isOlosErrorCode(code)) {
+    throw new Error(`${context}.error.code must be an OLOS error code`);
+  }
+
+  return {
+    error: {
+      code,
+      message: requiredStringField(
+        error,
+        "message",
+        `${context}.error must include message`
+      ),
+      ...failedReconciliationErrorDetailsPayload(error, context),
+    },
+  };
+}
+
+function failedReconciliationErrorDetailsPayload(
+  error: Record<string, unknown>,
+  context: string
+): Partial<{ details: Record<string, unknown> }> {
+  if (error.details === undefined) {
+    return {};
+  }
+
+  if (!isRecord(error.details)) {
+    throw new Error(`${context}.error.details must be an object`);
+  }
+
+  return { details: error.details };
+}
+
+function failedReconciliationResultStatusPayload(
+  value: Record<string, unknown>,
+  context: string
+): Partial<{ resultStatus: string }> {
+  if (value.resultStatus === undefined) {
+    return {};
+  }
+
+  return {
+    resultStatus: requiredStringField(
+      value,
+      "resultStatus",
+      `${context}.resultStatus must be a string`
+    ),
+  };
 }
 
 // --- reconciliation plan payloads ---
@@ -732,14 +806,12 @@ function reconciliationPlanSlots(
 
   return slots.map((slot, index) => {
     try {
-      assertUploadSlot(slot);
+      return parseUploadSlot(slot);
     } catch (error) {
       throw new Error(
         `${indexedFieldContext(S3_RECONCILIATION_PLAN_SLOTS_CONTEXT, index)} must be valid: ${errorMessage(error, String(error))}`
       );
     }
-
-    return slot;
   });
 }
 

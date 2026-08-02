@@ -128,7 +128,7 @@ export function createStoredS3CoordinatorRuntimeHandler(
     }
 
     if (route.status === "method_not_allowed") {
-      return jsonMethodNotAllowedResponse();
+      return jsonMethodNotAllowedResponse(["POST"]);
     }
 
     if (route.status === "invalid") {
@@ -501,6 +501,7 @@ async function handleS3Retention(
   // retry (deletes are idempotent); bucket lifecycle rules are the backstop
   // for orphaned objects.
   const applied = await applyStoredCoordinatorRetention({
+    lateToleranceMs: options.lateToleranceMs,
     maxAttempts: options.maxAttempts,
     now: parsed.payload.now,
     sessionId,

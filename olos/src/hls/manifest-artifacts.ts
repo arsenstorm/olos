@@ -2,6 +2,7 @@ import {
   type CreateDeliveryCachePolicyOptions,
   createDeliveryCachePolicy,
 } from "../state/cache-policy";
+import { renditionWindowBounds } from "../state/committed-window";
 import { isEndOfStreamSessionState } from "../state/session";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
@@ -412,12 +413,18 @@ export function resolveHlsManifestArtifactResponse(
 
 /**
  * Serves an LL-HLS playlist request end to end: parses the `_HLS_msn` /
- * `_HLS_part` parameters from `requestUrl`, holds the request open via
- * `waitForHlsBlockingReload` until the requested position is committed or
- * `timeoutMs` elapses, renders the playlists from the resulting cursor, and
- * matches the request path against them. A `timeout` resolution still
- * carries a servable response rendered from the latest cursor. Malformed
- * URLs or parameters resolve as `invalid` rather than throwing.
+ * `_HLS_part` parameters from `requestUrl`, resolves its pathname to the
+ * master playlist or one rendition's media playlist, and renders only that
+ * artifact. Unknown paths resolve as `not_found` immediately — they never
+ * hold a waiter open. Master requests are served immediately; carrying
+ * `_HLS_msn` / `_HLS_part` on the master path is `invalid` (RFC 8216bis
+ * §6.2.5.1). Media requests resolve against the requested rendition's own
+ * committed-window bounds: an `_HLS_msn` more than two beyond the
+ * rendition's live edge is `invalid` (RFC 8216bis §6.2.5.2), otherwise the
+ * request is held open via `waitForHlsBlockingReload` until the position is
+ * committed or `timeoutMs` elapses. A `timeout` resolution still carries a
+ * servable response rendered from the latest cursor. Malformed URLs or
+ * parameters resolve as `invalid` rather than throwing.
  */
 export async function resolveBlockingHlsManifestArtifactResponse(
   options: ResolveBlockingHlsManifestArtifactResponseOptions
@@ -428,9 +435,136 @@ export async function resolveBlockingHlsManifestArtifactResponse(
     return request;
   }
 
+  const pathname = parseRequestPath(options.requestUrl);
+
+  if (pathname === undefined) {
+    return { status: "not_found" };
+  }
+
+  const target = resolveHlsManifestRequestTarget(
+    options.session,
+    options.manifest,
+    pathname
+  );
+
+  if (target === undefined) {
+    return { status: "not_found" };
+  }
+
+  if (target.kind === "master") {
+    return resolveMasterManifestResponse(options, request);
+  }
+
+  return await resolveBlockingMediaManifestResponse(
+    options,
+    request,
+    target.rendition
+  );
+}
+
+/** The artifact a playlist request pathname addresses. */
+type HlsManifestRequestTarget =
+  | { kind: "master" }
+  | { kind: "media"; rendition: Rendition };
+
+// Resolves a request pathname to the master playlist or a rendition's media
+// playlist using the same path resolution rendering uses (custom or default
+// masterPath / mediaPlaylistPath, media playlists only for video and grouped
+// audio renditions), so routing and rendering can never disagree.
+function resolveHlsManifestRequestTarget(
+  session: Session,
+  manifestOptions: CreateHlsManifestArtifactsOptions,
+  pathname: string
+): HlsManifestRequestTarget | undefined {
+  const masterPath = manifestOptions.masterPath ?? defaultMasterPath(session);
+
+  if (pathname === masterPath) {
+    return { kind: "master" };
+  }
+
+  const mediaPlaylistPath =
+    manifestOptions.mediaPlaylistPath ?? defaultMediaPlaylistPath;
+  const rendition = session.renditions.find(
+    (candidate) =>
+      isMediaPlaylistRendition(candidate) &&
+      mediaPlaylistPath(session, candidate) === pathname
+  );
+
+  return rendition === undefined ? undefined : { kind: "media", rendition };
+}
+
+function resolveMasterManifestResponse(
+  options: ResolveBlockingHlsManifestArtifactResponseOptions,
+  request: HlsBlockingReloadRequest
+): BlockingHlsManifestArtifactResponseResolution {
+  // RFC 8216bis §6.2.5.1: delivery directives apply to media playlist
+  // requests. A master playlist request carrying them is malformed, not a
+  // reason to pin a waiter.
+  if (
+    request.mediaSequenceNumber !== undefined ||
+    request.partNumber !== undefined
+  ) {
+    return {
+      message: "_HLS_msn/_HLS_part apply to media playlist requests",
+      status: "invalid",
+    };
+  }
+
+  const availableRenditionIds = new Set(
+    Object.keys(options.cursor.committedWindow.renditions)
+  );
+
+  if (!hasAvailableVideoRendition(options.session, availableRenditionIds)) {
+    return { status: "not_found" };
+  }
+
+  const artifact = createMasterPlaylistArtifact(
+    options.session,
+    availableRenditionIds,
+    options.manifest.mediaPlaylistPath ?? defaultMediaPlaylistPath,
+    options.manifest.masterPath ?? defaultMasterPath(options.session)
+  );
+
+  return {
+    cursor: options.cursor,
+    response: createHlsManifestArtifactResponse(artifact, options.response),
+    status: "ready",
+  };
+}
+
+async function resolveBlockingMediaManifestResponse(
+  options: ResolveBlockingHlsManifestArtifactResponseOptions,
+  request: HlsBlockingReloadRequest,
+  rendition: Rendition
+): Promise<BlockingHlsManifestArtifactResponseResolution> {
+  const bounds = renditionWindowBounds(
+    options.cursor.committedWindow,
+    rendition.renditionId
+  );
+
+  // A session rendition with no committed media has no playlist yet; its
+  // route answers 404 until its first commit (Section 8.4).
+  if (bounds === undefined) {
+    return { status: "not_found" };
+  }
+
+  // RFC 8216bis §6.2.5.2: an _HLS_msn more than one segment beyond the
+  // rendition's live edge cannot be a legitimate blocking reload — reject
+  // instead of holding the request open. Evaluated on the entry cursor
+  // only; exactly last + 2 still blocks.
+  if (
+    request.mediaSequenceNumber !== undefined &&
+    request.mediaSequenceNumber > bounds.lastMediaSequenceNumber + 2
+  ) {
+    return {
+      message: "_HLS_msn is beyond the live edge",
+      status: "invalid",
+    };
+  }
+
   const wait = await waitForHlsBlockingReload({
     cursor: options.cursor,
-    request,
+    request: { ...request, renditionId: rendition.renditionId },
     timeoutMs: options.timeoutMs,
     waitForCursor: options.waitForCursor,
   });
@@ -439,27 +573,39 @@ export async function resolveBlockingHlsManifestArtifactResponse(
     return wait;
   }
 
-  return blockingHlsManifestArtifactResponseResolution(options, wait);
-}
-
-function blockingHlsManifestArtifactResponseResolution(
-  options: ResolveBlockingHlsManifestArtifactResponseOptions,
-  wait: ServableBlockingReloadWait
-): BlockingHlsManifestArtifactResponseResolution {
-  const response = resolveHlsManifestArtifactResponse(
-    createResponseArtifacts(options.session, wait.cursor, options),
-    options.requestUrl
-  );
-
-  if (!response) {
-    return { status: "not_found" };
-  }
-
   return {
     cursor: wait.cursor,
-    response,
+    response: createSingleMediaPlaylistResponse(
+      options.session,
+      wait.cursor,
+      rendition,
+      options
+    ),
     status: wait.status,
   };
+}
+
+// Renders only the requested rendition's playlist from the post-wait
+// cursor, with the endOfStream default derived from that cursor's state.
+function createSingleMediaPlaylistResponse(
+  session: Session,
+  cursor: Cursor,
+  rendition: Rendition,
+  options: ResolveBlockingHlsManifestArtifactResponseOptions
+): HlsManifestArtifactResponse {
+  const artifact = createMediaPlaylistArtifact(
+    session,
+    cursor.committedWindow,
+    rendition,
+    options.manifest.mediaPlaylistPath ?? defaultMediaPlaylistPath,
+    {
+      ...options.manifest,
+      endOfStream:
+        options.manifest.endOfStream ?? isEndOfStreamSessionState(cursor.state),
+    }
+  );
+
+  return createHlsManifestArtifactResponse(artifact, options.response);
 }
 
 function parseBlockingReloadRequest(
@@ -534,21 +680,6 @@ function parseAbsoluteRequestPath(value: string): string | undefined {
 
 function isHttpRequestUrl(url: URL): boolean {
   return url.protocol === "http:" || url.protocol === "https:";
-}
-
-function createResponseArtifacts(
-  session: Session,
-  cursor: Cursor,
-  options: ResolveBlockingHlsManifestArtifactResponseOptions
-): HlsManifestResponseArtifact[] {
-  return createHlsManifestArtifacts(session, cursor.committedWindow, {
-    ...options.manifest,
-    endOfStream:
-      options.manifest.endOfStream ?? isEndOfStreamSessionState(cursor.state),
-  }).map((artifact) => ({
-    ...artifact,
-    response: createHlsManifestArtifactResponse(artifact, options.response),
-  }));
 }
 
 function createHlsTextErrorWebResponse(

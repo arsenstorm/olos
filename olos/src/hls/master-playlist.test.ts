@@ -283,6 +283,51 @@ describe("master playlist rendering", () => {
     ).toThrow("multiple audio groups are not supported");
   });
 
+  test("rejects duplicate audio rendition names within a group", () => {
+    expect(() =>
+      renderMasterPlaylist({
+        ...groupedSession,
+        renditions: groupedSession.renditions.map((rendition) =>
+          rendition.kind === "audio"
+            ? { ...rendition, name: "English" }
+            : rendition
+        ),
+      })
+    ).toThrow(
+      "session.renditions must have distinct audio rendition names within a group"
+    );
+  });
+
+  test("rejects names colliding with another rendition's default name", () => {
+    // a64 has no name, so its effective NAME is its rendition id — an
+    // explicit NAME="a64" on a128 collides with it.
+    expect(() =>
+      renderMasterPlaylist({
+        ...groupedSession,
+        renditions: groupedSession.renditions.map((rendition) =>
+          rendition.renditionId === "a128"
+            ? { ...rendition, name: "a64" }
+            : rendition
+        ),
+      })
+    ).toThrow(
+      "session.renditions must have distinct audio rendition names within a group"
+    );
+  });
+
+  test("rejects audio rendition names quoted-strings cannot represent", () => {
+    expect(() =>
+      renderMasterPlaylist({
+        ...groupedSession,
+        renditions: groupedSession.renditions.map((rendition) =>
+          rendition.renditionId === "a128"
+            ? { ...rendition, name: 'English "TV"' }
+            : rendition
+        ),
+      })
+    ).toThrow("rendition a128 name must not contain double quotes");
+  });
+
   test("rejects unsafe audio group identifiers", () => {
     expect(() =>
       renderMasterPlaylist({
@@ -317,13 +362,17 @@ describe("master playlist rendering", () => {
     expect(playlist).toContain('CODECS="avc1.640028"');
   });
 
-  test("re-elects the default among available grouped renditions", () => {
+  test("keeps the session-elected default when it is unavailable", () => {
     const playlist = renderMasterPlaylist(groupedSession, {
       availableRenditionIds: ["v1080", "a64"],
     });
 
-    expect(playlist).toContain('NAME="a64",DEFAULT=YES,AUTOSELECT=YES');
+    // The elected default (a128) has no committed media yet: it does not
+    // render, and no other member is promoted in its place — every rendered
+    // member carries DEFAULT=NO,AUTOSELECT=NO until a128 appears.
+    expect(playlist).toContain('NAME="a64",DEFAULT=NO,AUTOSELECT=NO');
     expect(playlist).not.toContain('NAME="English"');
+    expect(playlist).not.toContain("DEFAULT=YES");
   });
 
   test("filters video variants absent from availableRenditionIds", () => {

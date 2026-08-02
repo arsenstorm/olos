@@ -38,8 +38,12 @@ export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
     loadCursor(sessionId): Promise<CoordinatorCursorView | undefined> {
       const snapshot = entries.get(sessionId);
 
+      // Clone before projecting so the returned view never aliases the
+      // stored snapshot (cursorViewFromSnapshot copies references).
       return Promise.resolve(
-        snapshot === undefined ? undefined : cursorViewFromSnapshot(snapshot)
+        snapshot === undefined
+          ? undefined
+          : cursorViewFromSnapshot(cloneCoordinatorPipelineSnapshot(snapshot))
       );
     },
     save(options: SaveCoordinatorPipelineOptions) {

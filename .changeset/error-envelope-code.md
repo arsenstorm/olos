@@ -13,7 +13,26 @@ requests from retryable state conflicts.
 
 All HTTP error responses now include the schema-required `error.code`
 next to `error.message`. Every error body now conforms to
-`OLOS_ERROR_SCHEMA`. Four new codes exist in `OLOS_ERROR_CODES`:
-`olos.invalid_request`, `olos.not_found`, `olos.method_not_allowed`, and
-`olos.conflict`. This change breaks consumers that match the previous
-`{ error: { message } }` shape.
+`OLOS_ERROR_SCHEMA`. Five new codes exist in `OLOS_ERROR_CODES`:
+`olos.invalid_request`, `olos.not_found`, `olos.method_not_allowed`,
+`olos.conflict`, and `olos.internal`. This change breaks consumers that
+match the previous `{ error: { message } }` shape.
+
+The runtime handler no longer crashes on unexpected failures: any throw
+that is not an expected 4xx becomes an opaque 500 `olos.internal`
+envelope with a fixed message, so store or infrastructure error text
+never reaches clients. Three request inputs that previously escaped as
+unhandled rejections now resolve to envelopes: a malformed
+`?now=` on the retention route and an unsafe `mediaBaseUrl` on session
+create are 400 `olos.invalid_request`, and a publisher `committedAt`
+ahead of the server clock reads as a fresh cursor in `/health` instead
+of failing the request.
+
+405 responses now carry the RFC 9110-required `Allow` header
+(`jsonMethodNotAllowedResponse` takes the allowed-method list). The live
+manifest 404 is now a JSON `olos.not_found` envelope instead of plain
+text. JSON request bodies are capped (new `maxBodyBytes` handler option,
+default 1 MiB); oversized bodies get 413 with an `olos.invalid_request`
+envelope. `assertOlosErrorEnvelope` / `isOlosErrorEnvelope` are exported
+from `@arsenstorm/olos/validation` for consumers that need to validate
+error bodies at runtime.

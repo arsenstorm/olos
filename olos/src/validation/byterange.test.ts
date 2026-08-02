@@ -61,6 +61,12 @@ describe("Byterange validation", () => {
     ).toThrow();
   });
 
+  test("rejects unknown fields", () => {
+    expect(() =>
+      assertByterange({ ...validByterange, extra: 1 }, "byterange")
+    ).toThrow('byterange contains unknown property "extra"');
+  });
+
   test("rejects non-object input", () => {
     expect(() => assertByterange(null, "byterange")).toThrow();
     expect(() => assertByterange("not an object", "byterange")).toThrow();

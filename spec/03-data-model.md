@@ -278,10 +278,13 @@ Schema: see Appendix A, `OLOS_CURSOR_SCHEMA`.
 |                           |     | `renditionId` MUST equal its key.    |
 
 Each rendition window carries an `init` committed object, its
-`renditionId`, and a non-empty ordered list of committed segments. The
-full structural invariants (monotonic unique segment MSNs, monotonic
-unique part numbers, the contiguous-parts prefix rule, and duration
-semantics) are defined in Section 5.
+`renditionId`, a non-empty ordered list of committed segments, and an
+OPTIONAL non-negative integer `discontinuitySequence` (the count of
+discontinuities trimmed out of that rendition's window; its HLS mapping
+is defined in Section 8.4.2). The full structural invariants (monotonic
+unique segment MSNs, monotonic unique part numbers, the
+contiguous-parts prefix rule, and duration semantics) are defined in
+Section 5.
 
 Schema: see Appendix A, `OLOS_COMMITTED_WINDOW_SCHEMA`.
 
@@ -333,6 +336,9 @@ OPTIONAL object of machine-readable context.
 | `olos.not_found`                 | Resource not found (HTTP 404).         |
 | `olos.method_not_allowed`        | HTTP method not allowed (HTTP 405).    |
 | `olos.conflict`                  | Concurrent-update conflict (HTTP 409). |
+| `olos.internal`                  | Unexpected coordinator failure (HTTP   |
+|                                  | 500). The message is fixed and never   |
+|                                  | carries internal error detail.         |
 
 HTTP status mapping is defined in Section 6.
 

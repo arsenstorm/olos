@@ -4,11 +4,19 @@ import {
   assertUrlSafeIdentifier,
 } from "./ids";
 
-// RFC 3339 date-time (matches the JSON Schema "date-time" format): full date,
-// "T" separator, full time, and a "Z" or numeric UTC offset. Date.parse keeps
-// running afterwards as the calendar sanity check (rejects e.g. month 13).
-const RFC3339_TIMESTAMP_PATTERN =
-  /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$/;
+// RFC 3339 date-time, strictly: full-date, "T"/"t" separator, full-time, and
+// a "Z"/"z" or "±hh:mm" offset. Deliberately narrower than the RFC's ABNF
+// where epoch milliseconds cannot represent the value: leap seconds (second
+// 60) and hour 24 are rejected, as are the space separator and colon-less
+// offsets some producers emit. The year/month/day captures feed the calendar
+// check in `timestampString`; the same pattern constrains the JSON schemas so
+// schema and validator agree.
+export const RFC3339_TIMESTAMP_SCHEMA_PATTERN =
+  "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt]" +
+  "(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?" +
+  "(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$";
+
+const RFC3339_TIMESTAMP_PATTERN = new RegExp(RFC3339_TIMESTAMP_SCHEMA_PATTERN);
 
 export function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -42,6 +50,88 @@ export function assertOnlyKnownFields(
       throw new Error(`${name} contains unknown property "${key}"`);
     }
   }
+}
+
+/**
+ * Declares how a nested field of a `KnownFieldsShape` recurses: a single
+ * `object`, an `array` of objects, or a `map` whose every value is an
+ * object — each pruned against the given `shape`.
+ */
+export type KnownNestedFieldShape =
+  | { kind: "array"; shape: KnownFieldsShape }
+  | { kind: "map"; shape: KnownFieldsShape }
+  | { kind: "object"; shape: KnownFieldsShape };
+
+/**
+ * Recursive description of a document's known fields, used by
+ * `pruneUnknownFields` to strip unknown properties on the tolerant read
+ * path. `fields` lists every allowed key; `nested` names the fields whose
+ * values are pruned recursively.
+ */
+export interface KnownFieldsShape {
+  fields: readonly string[];
+  nested?: Readonly<Record<string, KnownNestedFieldShape>>;
+}
+
+/**
+ * Return a fresh copy of `value` with any properties not listed in `shape`
+ * removed, recursing into the declared `nested` fields. Non-record inputs
+ * (and nested values of the wrong shape) are returned as-is so the closed
+ * validator that runs afterwards reports its usual error. This is the
+ * tolerant-reader half of the read path (spec §11.2): consumers prune
+ * unknown fields, then run the unchanged closed validator on the clone.
+ */
+export function pruneUnknownFields(
+  value: unknown,
+  shape: KnownFieldsShape
+): unknown {
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const pruned: Record<string, unknown> = {};
+
+  for (const field of shape.fields) {
+    if (field in value) {
+      pruned[field] = pruneNestedField(value[field], shape.nested?.[field]);
+    }
+  }
+
+  return pruned;
+}
+
+function pruneNestedField(
+  value: unknown,
+  nested: KnownNestedFieldShape | undefined
+): unknown {
+  if (nested === undefined) {
+    return value;
+  }
+
+  if (nested.kind === "array") {
+    return Array.isArray(value)
+      ? value.map((entry) => pruneUnknownFields(entry, nested.shape))
+      : value;
+  }
+
+  if (nested.kind === "map") {
+    return isRecord(value) ? pruneRecordValues(value, nested.shape) : value;
+  }
+
+  return pruneUnknownFields(value, nested.shape);
+}
+
+function pruneRecordValues(
+  value: Record<string, unknown>,
+  shape: KnownFieldsShape
+): Record<string, unknown> {
+  const pruned: Record<string, unknown> = {};
+
+  for (const [key, entry] of Object.entries(value)) {
+    pruned[key] = pruneUnknownFields(entry, shape);
+  }
+
+  return pruned;
 }
 
 export function assertUrlSafeField(
@@ -122,17 +212,42 @@ function isFiniteNumber(value: unknown): value is number {
 
 export function timestampString(value: unknown, name: string): string {
   const timestamp = stringValue(value, name);
+  const match = RFC3339_TIMESTAMP_PATTERN.exec(timestamp);
 
-  if (
-    !RFC3339_TIMESTAMP_PATTERN.test(timestamp) ||
-    Number.isNaN(Date.parse(timestamp))
-  ) {
+  if (match === null || !isCalendarDate(match)) {
     throw new Error(`${name} must be a valid timestamp`);
   }
 
   return timestamp;
 }
 
+// The pattern caps days at 31; this rejects the remainder (Feb 30, Apr 31,
+// Feb 29 outside leap years) without Date.parse, which silently rolls such
+// dates into the following month.
+function isCalendarDate(match: RegExpExecArray): boolean {
+  const day = Number(match[3]);
+
+  return day <= daysInMonth(Number(match[1]), Number(match[2]));
+}
+
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) {
+    return isLeapYear(year) ? 29 : 28;
+  }
+
+  return month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31;
+}
+
+function isLeapYear(year: number): boolean {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+/**
+ * Converts a timestamp string to epoch milliseconds. Deliberately lenient —
+ * `Date.parse` accepts more than RFC 3339 (e.g. HTTP dates). Use for strings
+ * already validated by `timestampString` and for normalization sites that
+ * accept provider formats such as `Last-Modified` headers.
+ */
 export function timestampMs(value: string, name: string): number {
   const timestamp = Date.parse(value);
 

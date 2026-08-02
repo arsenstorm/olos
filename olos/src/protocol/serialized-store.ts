@@ -178,8 +178,12 @@ export function createSerializedCoordinatorStore(
         : cursorViewFromSnapshot(parseRecord(record));
     },
     async save(options) {
-      const current = await backend.load(options.sessionId);
-      const etag = createNextCoordinatorPipelineEtag(current?.etag);
+      // The next etag derives from the caller's `expectedEtag` (undefined
+      // means insert, so "1") rather than a pre-load of the current record:
+      // the load would race concurrent writers anyway, and the backend's
+      // atomic etag check is what actually decides — a mismatch comes back
+      // as a conflict carrying the winning record.
+      const etag = nextSerializedCoordinatorStoreEtag(options.expectedEtag);
       const record = createRecord(etag, options.state);
       const cursorView = createCursorViewRecord(etag, options.state);
       const saved = await backend.save({
@@ -391,6 +395,17 @@ export async function assertSerializedCoordinatorStoreBackendConformance(
   );
 }
 
+function nextSerializedCoordinatorStoreEtag(expectedEtag?: string): string {
+  try {
+    return createNextCoordinatorPipelineEtag(expectedEtag);
+  } catch {
+    // A malformed expectedEtag can never match a stored etag (this store
+    // only ever writes numeric etags), so the backend save is guaranteed to
+    // conflict and the placeholder is never persisted.
+    return "0";
+  }
+}
+
 function createRecord(
   etag: string,
   state: CoordinatorPipelineState
@@ -449,6 +464,13 @@ function parseRecord(record: SerializedCoordinatorStoreRecord) {
 
 interface ParsedCursorView {
   cursor?: Cursor;
+  /**
+   * Etag duplicated inside the JSON body so a view row whose columns were
+   * torn apart (e.g. a partial copy pairing one session's etag with
+   * another's view) is detected on read, mirroring `parseRecord`'s
+   * snapshot-etag cross-check.
+   */
+  etag: string;
   session: Session;
 }
 
@@ -458,6 +480,7 @@ function createCursorViewRecord(
 ): SerializedCursorViewRecord {
   const view: ParsedCursorView = {
     ...(state.cursor === undefined ? {} : { cursor: state.cursor }),
+    etag,
     session: state.session,
   };
 
@@ -471,6 +494,10 @@ function parseCursorViewRecord(
 
   assertParsedCursorView(parsed);
 
+  if (parsed.etag !== record.etag) {
+    throw new Error("serialized cursor view etag must match record");
+  }
+
   return {
     ...(parsed.cursor === undefined ? {} : { cursor: parsed.cursor }),
     etag: record.etag,
@@ -483,6 +510,10 @@ function assertParsedCursorView(
 ): asserts value is ParsedCursorView {
   if (!isRecord(value)) {
     throw new Error("serialized cursor view must be an object");
+  }
+
+  if (typeof value.etag !== "string" || value.etag.length === 0) {
+    throw new Error("serialized cursor view must include an etag");
   }
 
   assertSession(value.session);

@@ -4,19 +4,103 @@ import type {
   CommittedSegment,
   CommittedWindow,
 } from "../types/committed-window";
-import { assertByterange } from "./byterange";
+import { assertByterange, BYTERANGE_FIELDS } from "./byterange";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
   assertBooleanField,
   assertIsoDateField,
   assertNonEmptyStringField,
   assertNonNegativeIntegerField,
+  assertOnlyKnownFields,
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
+  type KnownFieldsShape,
   nonEmptyArray,
 } from "./fields";
 import { assertSafeObjectKey } from "./object-key";
+
+const COMMITTED_WINDOW_FIELDS = [
+  "discontinuitySequence",
+  "epoch",
+  "firstMediaSequenceNumber",
+  "lastMediaSequenceNumber",
+  "renditions",
+] as const;
+
+const RENDITION_WINDOW_FIELDS = [
+  "discontinuitySequence",
+  "init",
+  "renditionId",
+  "segments",
+] as const;
+
+const COMMITTED_SEGMENT_FIELDS = [
+  "discontinuityBefore",
+  "duration",
+  "independent",
+  "mediaSequenceNumber",
+  "parts",
+  "programDateTime",
+  "segment",
+] as const;
+
+const COMMITTED_OBJECT_FIELDS = [
+  "commitId",
+  "contentType",
+  "deliveryUrl",
+  "duration",
+  "etag",
+  "objectKey",
+  "slotId",
+] as const;
+
+const COMMITTED_PART_FIELDS = [
+  ...COMMITTED_OBJECT_FIELDS,
+  "byterange",
+  "independent",
+  "partNumber",
+  "programDateTime",
+] as const;
+
+const COMMITTED_OBJECT_SHAPE: KnownFieldsShape = {
+  fields: COMMITTED_OBJECT_FIELDS,
+};
+
+const COMMITTED_PART_SHAPE: KnownFieldsShape = {
+  fields: COMMITTED_PART_FIELDS,
+  nested: {
+    byterange: { kind: "object", shape: { fields: BYTERANGE_FIELDS } },
+  },
+};
+
+const COMMITTED_SEGMENT_SHAPE: KnownFieldsShape = {
+  fields: COMMITTED_SEGMENT_FIELDS,
+  nested: {
+    parts: { kind: "array", shape: COMMITTED_PART_SHAPE },
+    segment: { kind: "object", shape: COMMITTED_OBJECT_SHAPE },
+  },
+};
+
+const RENDITION_WINDOW_SHAPE: KnownFieldsShape = {
+  fields: RENDITION_WINDOW_FIELDS,
+  nested: {
+    init: { kind: "object", shape: COMMITTED_OBJECT_SHAPE },
+    segments: { kind: "array", shape: COMMITTED_SEGMENT_SHAPE },
+  },
+};
+
+/**
+ * `KnownFieldsShape` of a wire-format `CommittedWindow`, for tolerant
+ * read-path pruning with `pruneUnknownFields` — renditions is a map of
+ * rendition windows, each with committed objects, segments, and parts.
+ */
+export const COMMITTED_WINDOW_SHAPE: KnownFieldsShape = {
+  fields: COMMITTED_WINDOW_FIELDS,
+  nested: {
+    renditions: { kind: "map", shape: RENDITION_WINDOW_SHAPE },
+  },
+};
 
 interface CommittedPartPositionTracker {
   previousPart: number;
@@ -26,6 +110,37 @@ interface CommittedPartPositionTracker {
 interface CommittedSegmentPositionTracker {
   previousSequence: number;
   seenSegments: Set<number>;
+}
+
+/**
+ * Returns the highest part number on the visible window's last segment
+ * across all renditions, or undefined when the last segment is a full
+ * segment (no parts) or no segments exist.
+ */
+export function lastVisiblePartNumber(
+  window: CommittedWindow
+): number | undefined {
+  let max: number | undefined;
+
+  for (const rendition of Object.values(window.renditions)) {
+    const lastSegment = rendition.segments.at(-1);
+
+    if (lastSegment?.mediaSequenceNumber !== window.lastMediaSequenceNumber) {
+      continue;
+    }
+
+    const lastPart = lastSegment.parts?.at(-1);
+
+    if (lastPart === undefined) {
+      continue;
+    }
+
+    if (max === undefined || lastPart.partNumber > max) {
+      max = lastPart.partNumber;
+    }
+  }
+
+  return max;
 }
 
 /**
@@ -43,10 +158,11 @@ export function isCommittedWindow(value: unknown): value is CommittedWindow {
 
 /**
  * Validates an untrusted value as a `CommittedWindow`, throwing an `Error`
- * naming the first offending field. Beyond field shapes, it enforces the
- * structural invariants manifests rely on: non-empty renditions whose keys
- * match their `renditionId`, monotonic and duplicate-free media sequence
- * numbers and part numbers, and a segment or parts on every position.
+ * naming the first offending field. Rejects unknown fields at every level.
+ * Beyond field shapes, it enforces the structural invariants manifests rely
+ * on: non-empty renditions whose keys match their `renditionId`, monotonic
+ * and duplicate-free media sequence numbers and part numbers, and a segment
+ * or parts on every position.
  */
 export function assertCommittedWindow(
   value: unknown
@@ -55,6 +171,7 @@ export function assertCommittedWindow(
     throw new Error("committedWindow must be an object");
   }
 
+  assertOnlyKnownFields(value, COMMITTED_WINDOW_FIELDS, "committedWindow");
   assertNonNegativeIntegerField(value, "epoch", "committedWindow");
   assertNonNegativeIntegerField(
     value,
@@ -103,6 +220,7 @@ function assertRenditionWindow(value: unknown, key: string): void {
     throw new Error(`${name} must be an object`);
   }
 
+  assertOnlyKnownFields(value, RENDITION_WINDOW_FIELDS, name);
   assertUrlSafeField(value, "renditionId", name);
 
   if (value.renditionId !== key) {
@@ -182,6 +300,7 @@ function assertCommittedSegment(
     throw new Error(`${name} must be an object`);
   }
 
+  assertOnlyKnownFields(value, COMMITTED_SEGMENT_FIELDS, name);
   assertNonNegativeIntegerField(value, "mediaSequenceNumber", name);
   assertPositiveNumberField(value, "duration", name);
   assertOptionalSegmentFields(value, name);
@@ -291,7 +410,7 @@ function assertCommittedPart(
     throw new Error(`${name} must be an object`);
   }
 
-  assertCommittedObject(value, name);
+  assertCommittedObject(value, name, COMMITTED_PART_FIELDS);
 
   assertNonNegativeIntegerField(value, "partNumber", name);
   assertPositiveNumberField(value, "duration", name);
@@ -315,14 +434,19 @@ function assertOptionalPartFields(
   }
 }
 
+// `allowed` widens the closed field set for callers that layer extra fields
+// on the shared object shape (committed parts); standalone committed objects
+// use the default list.
 function assertCommittedObject(
   value: unknown,
-  name: string
+  name: string,
+  allowed: readonly string[] = COMMITTED_OBJECT_FIELDS
 ): asserts value is CommittedObject {
   if (!isRecord(value)) {
     throw new Error(`${name} must be an object`);
   }
 
+  assertOnlyKnownFields(value, allowed, name);
   assertUrlSafeField(value, "commitId", name);
   assertUrlSafeField(value, "slotId", name);
   assertSafeObjectKey(value.objectKey, `${name}.objectKey`);

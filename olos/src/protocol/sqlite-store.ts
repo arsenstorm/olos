@@ -69,6 +69,16 @@ export interface CreateSqliteSerializedCoordinatorStoreSchemaOptions {
   tableName?: string;
 }
 
+/** Options for `migrateSqliteSerializedCoordinatorStoreSchema`. */
+export interface MigrateSqliteSerializedCoordinatorStoreSchemaOptions {
+  database: SqliteSerializedCoordinatorStoreDatabase;
+  /**
+   * Snapshot table name; defaults to `"olos_coordinator_snapshots"` and
+   * must be a plain SQLite identifier (letters, digits, underscores).
+   */
+  tableName?: string;
+}
+
 /**
  * Create a `SerializedCoordinatorStoreBackend` on top of a SQLite database
  * (Cloudflare D1 or any client matching the narrowed interface). Pair it
@@ -112,9 +122,13 @@ export function createSqliteSerializedCoordinatorStoreBackend(
 
 /**
  * Return the `create table if not exists` DDL for the snapshot table used
- * by `createSqliteSerializedCoordinatorStoreBackend`. Idempotent — safe to
- * run on every startup or migration. Throws when `tableName` is not a plain
- * SQLite identifier.
+ * by `createSqliteSerializedCoordinatorStoreBackend`. Idempotent for fresh
+ * installs only: `if not exists` leaves an existing table untouched, so a
+ * table created by 0.5.x (without the `cursor_view` column) is NOT
+ * upgraded by re-running this DDL — run
+ * `migrateSqliteSerializedCoordinatorStoreSchema` instead, which both
+ * creates the table and adds any missing columns. Throws when `tableName`
+ * is not a plain SQLite identifier.
  */
 export function createSqliteSerializedCoordinatorStoreSchema(
   options: CreateSqliteSerializedCoordinatorStoreSchemaOptions = {}
@@ -130,6 +144,72 @@ export function createSqliteSerializedCoordinatorStoreSchema(
   snapshot text not null,
   cursor_view text
 )`;
+}
+
+/**
+ * Create or upgrade the snapshot table in place: runs the
+ * `create table if not exists` DDL, then adds the `cursor_view` column when
+ * a pre-0.6 table lacks it. Idempotent and safe to run on every startup.
+ * Uses only prepared statements (no PRAGMA writes or transactional DDL),
+ * so it works on Cloudflare D1 as well as plain SQLite clients; a racing
+ * migrator's duplicate `alter table` is caught and ignored. Throws when
+ * `tableName` is not a plain SQLite identifier.
+ */
+export async function migrateSqliteSerializedCoordinatorStoreSchema(
+  options: MigrateSqliteSerializedCoordinatorStoreSchemaOptions
+): Promise<void> {
+  const tableName = sqliteIdentifier(
+    options.tableName ?? DEFAULT_TABLE_NAME,
+    "tableName"
+  );
+
+  await options.database
+    .prepare(createSqliteSerializedCoordinatorStoreSchema({ tableName }))
+    .bind()
+    .run();
+
+  if (await hasCursorViewColumn(options.database, tableName)) {
+    return;
+  }
+
+  await addCursorViewColumn(options.database, tableName);
+}
+
+async function hasCursorViewColumn(
+  database: SqliteSerializedCoordinatorStoreDatabase,
+  tableName: string
+): Promise<boolean> {
+  // `tableName` is identifier-validated above, so inlining it is safe.
+  const row = await database
+    .prepare(
+      `select name from pragma_table_info('${tableName}') where name = 'cursor_view'`
+    )
+    .bind()
+    .first<{ name: string }>();
+
+  return row !== null && row !== undefined;
+}
+
+async function addCursorViewColumn(
+  database: SqliteSerializedCoordinatorStoreDatabase,
+  tableName: string
+): Promise<void> {
+  try {
+    await database
+      .prepare(`alter table ${tableName} add column cursor_view text`)
+      .bind()
+      .run();
+  } catch (error) {
+    // A racing migrator added the column between the probe and the alter;
+    // that leaves the schema exactly as intended.
+    if (!isDuplicateColumnError(error)) {
+      throw error;
+    }
+  }
+}
+
+function isDuplicateColumnError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("duplicate column");
 }
 
 function statements(tableName: string) {

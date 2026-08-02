@@ -336,7 +336,9 @@ describe("stored runtime mutations", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(await response.text()).toBe("manifest not found");
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "olos.not_found", message: "manifest not found" },
+    });
   });
 
   test("serves blocking manifests from stored coordinator state", async () => {

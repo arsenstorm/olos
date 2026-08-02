@@ -48,6 +48,35 @@ describe("declaration import fixer", () => {
     });
   });
 
+  test("adds js extensions to side-effect and dynamic imports", async () => {
+    await withTemporaryDirectory("olos-dts-", async (directory) => {
+      const emitted = join(directory, "register.js");
+
+      await writeFile(
+        emitted,
+        [
+          'import "./polyfill";',
+          'const lazy = await import("./lazy/module");',
+          'import( "./spaced" );',
+          'import "side-effect-package";',
+          'const external = await import("external");',
+        ].join("\n")
+      );
+
+      await fixDeclarationImports(directory);
+
+      await expect(readFile(emitted, "utf8")).resolves.toBe(
+        [
+          'import "./polyfill.js";',
+          'const lazy = await import("./lazy/module.js");',
+          'import( "./spaced.js" );',
+          'import "side-effect-package";',
+          'const external = await import("external");',
+        ].join("\n")
+      );
+    });
+  });
+
   test("adds js extensions to relative runtime imports", async () => {
     await withTemporaryDirectory("olos-dts-", async (directory) => {
       const emitted = join(directory, "config.js");

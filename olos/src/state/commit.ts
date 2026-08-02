@@ -8,8 +8,10 @@ import type { Session } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertCommit } from "../validation/commit";
 import { nonNegativeNumber, timestampMs } from "../validation/fields";
-import { assertMediaObject } from "../validation/media-object";
-import type { ObservedUpload } from "../validation/observed-upload";
+import {
+  assertObservedUpload,
+  type ObservedUpload,
+} from "../validation/observed-upload";
 import { assertUploadSlot } from "../validation/upload-slot";
 import { assertUploadSlotTransition, observeUpload } from "./upload-slot";
 
@@ -182,7 +184,9 @@ export type DuplicateCommitResolution =
  */
 export function createCommit(options: CreateCommitOptions): Commit {
   assertUploadSlot(options.slot);
-  assertMediaObject(options.mediaObject);
+  // Observed-upload validation: commit evidence may carry the provider
+  // `metadata` map, which the closed wire `MediaObject` validator rejects.
+  assertObservedUpload(options.mediaObject);
   assertCommitPreconditions(options);
 
   const commit: Commit = {

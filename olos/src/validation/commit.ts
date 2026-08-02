@@ -1,5 +1,5 @@
 import type { Commit } from "../types/commit";
-import { assertByterange } from "./byterange";
+import { assertByterange, BYTERANGE_FIELDS } from "./byterange";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
   assertBooleanField,
@@ -11,6 +11,8 @@ import {
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
+  type KnownFieldsShape,
+  pruneUnknownFields,
 } from "./fields";
 import { assertSafeObjectKey } from "./object-key";
 
@@ -32,6 +34,13 @@ const COMMIT_FIELDS = [
   "size",
   "slotId",
 ] as const;
+
+const COMMIT_SHAPE: KnownFieldsShape = {
+  fields: COMMIT_FIELDS,
+  nested: {
+    byterange: { kind: "object", shape: { fields: BYTERANGE_FIELDS } },
+  },
+};
 
 /** Returns whether `value` is a valid `Commit` (see `assertCommit`). */
 export function isCommit(value: unknown): value is Commit {
@@ -59,6 +68,20 @@ export function assertCommit(value: unknown): asserts value is Commit {
   assertCommitSequenceFields(value);
   assertCommitObjectFields(value);
   assertCommitOptionalFields(value);
+}
+
+/**
+ * Tolerant read-path parser for a wire-format `Commit` (spec §11.2):
+ * unknown fields — including inside `byterange` — are stripped from a fresh
+ * copy, which is then validated by the unchanged closed `assertCommit` and
+ * returned. Known fields are still rejected when invalid.
+ */
+export function parseCommit(value: unknown): Commit {
+  const pruned = pruneUnknownFields(value, COMMIT_SHAPE);
+
+  assertCommit(pruned);
+
+  return pruned;
 }
 
 function assertCommitIdentifiers(value: Record<string, unknown>): void {

@@ -199,6 +199,83 @@ describe("session validation", () => {
     ).toThrow("session.renditions[].defaultRendition must be a boolean");
   });
 
+  test("rejects duplicate audio rendition names within a group", () => {
+    expect(() =>
+      assertSession({
+        ...validSession,
+        renditions: [
+          validSession.renditions[0],
+          {
+            codec: "mp4a.40.2",
+            groupId: "aac",
+            kind: "audio",
+            name: "English",
+            renditionId: "a128",
+          },
+          {
+            codec: "ec-3",
+            groupId: "aac",
+            kind: "audio",
+            name: "English",
+            renditionId: "a64",
+          },
+        ],
+      })
+    ).toThrow(
+      "session.renditions must have distinct audio rendition names within a group"
+    );
+  });
+
+  test("rejects names colliding with another rendition's default name", () => {
+    // a64 declares no name, so its effective NAME is its rendition id — an
+    // explicit NAME="a64" elsewhere in the group collides with it.
+    expect(() =>
+      assertSession({
+        ...validSession,
+        renditions: [
+          validSession.renditions[0],
+          {
+            codec: "mp4a.40.2",
+            groupId: "aac",
+            kind: "audio",
+            name: "a64",
+            renditionId: "a128",
+          },
+          {
+            codec: "ec-3",
+            groupId: "aac",
+            kind: "audio",
+            renditionId: "a64",
+          },
+        ],
+      })
+    ).toThrow(
+      "session.renditions must have distinct audio rendition names within a group"
+    );
+  });
+
+  test("rejects rendition names quoted-strings cannot represent", () => {
+    for (const name of ['English "TV"', "line\rreturn", "line\nfeed"]) {
+      expect(() =>
+        assertSession({
+          ...validSession,
+          renditions: [
+            validSession.renditions[0],
+            {
+              codec: "mp4a.40.2",
+              groupId: "aac",
+              kind: "audio",
+              name,
+              renditionId: "a128",
+            },
+          ],
+        })
+      ).toThrow(
+        "session.renditions[].name must not contain double quotes or line breaks"
+      );
+    }
+  });
+
   test("rejects multiple distinct audio groups", () => {
     expect(() =>
       assertSession({
