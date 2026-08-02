@@ -21,6 +21,7 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
+    "CHANGELOG.md",
     "LICENSE",
     "README.md"
   ],
@@ -85,24 +86,26 @@
   "scripts": {
     "build": "bun scripts/clean-dist.ts && tsc --project tsconfig.build.json && bun scripts/fix-declaration-imports.ts",
     "check-types": "tsc --project tsconfig.json --noEmit",
-    "conformance:check": "bun scripts/check-conformance.ts",
+    "check-types:dist": "tsc --project tsconfig.e2e.json --noEmit",
+    "conformance:check": "bun scripts/check-conformance.ts && bun scripts/check-spec-refs.ts",
     "conformance:report": "bun scripts/write-conformance-report.ts",
-    "pack:dry": "bun scripts/dry-pack.ts",
-    "pack:artifact": "bun run build && bun scripts/create-package-artifact.ts",
-    "pack:smoke": "bun run build && bun scripts/package-smoke.ts",
-    "publish:check": "bun run release:verify-changelog && bun run release:notes && bun run conformance:check && bun run check-types && bun run test && bun run test:e2e && bun run build && bun run pack:dry && bun run pack:smoke",
-    "release:verify-changelog": "bun scripts/verify-release-changelog.ts",
+    "pack:artifact": "bun scripts/create-package-artifact.ts",
+    "pack:check": "publint --strict && bun scripts/attw-check.ts",
+    "pack:smoke": "bun scripts/package-smoke.ts",
+    "publish:check": "bun run conformance:check && bun run check-types && bun run test && bun run build && bun run check-types:dist && bun run test:e2e && bun run pack:check && bun run pack:smoke",
     "release:verify-published": "bun scripts/verify-published-package.ts",
-    "release:verify-tag": "bun scripts/verify-release-tag.ts",
-    "release:notes": "bun scripts/write-release-notes.ts",
     "report:file-sizes": "bun scripts/report-file-sizes.ts",
+    "spec:generate": "bun scripts/write-spec-schemas.ts && bun scripts/write-conformance-report.ts",
     "test": "bun test src scripts --pass-with-no-tests --path-ignore-patterns 'e2e/**' --path-ignore-patterns '**/*.e2e.test.ts'",
-    "test:e2e": "bun run build && vitest run --config vitest.e2e.config.ts",
-    "test:live-s3": "bun run build && vitest run --config vitest.live-s3.config.ts",
-    "prepublishOnly": "bun run publish:check"
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:live-s3": "vitest run --config vitest.live-s3.config.ts"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "publint": "^0.3.22",
+    "typescript": "^5",
     "vitest": "^4.1.8"
   },
   "dependencies": {

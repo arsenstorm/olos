@@ -3,31 +3,38 @@
 Use GitHub branch protection on `main` so changes merge only after the
 validation workflow passes.
 
-Required status check:
+Required status checks:
 
 ```text
-Validate / Validate
+Validate / Checks
+Validate / Package (Node 22)
+Validate / Package (Node 24)
 ```
 
-That workflow verifies:
+The `Checks` job verifies:
 
 - frozen dependency install
-- dependency audit
+- dependency audit (blocking, all workspaces)
 - Ultracite linting
-- `publish:check`
-- conformance report generation
-- package artifact generation
+- type checking for every workspace (`olos` including `scripts/` and `live/`,
+  `benchmarks`, and all examples)
+- Bun unit tests
+- conformance coverage checking and report generation
 
-`publish:check` includes changelog verification, conformance coverage checking,
-type checking, Bun unit tests, Vitest E2E tests, build, export-map dry pack,
-and packed-package smoke testing.
+The `Package` job runs per Node version (22 and 24):
 
-The packed-package smoke test is also the public export guard. It verifies the
-documented subpaths and keeps root `olos` limited to protocol metadata
-constants, with runtime functionality exposed through explicit subpaths such as
-`olos/runtime`, `olos/protocol`, and `olos/s3`. It also type-checks consumer
-imports from the packed tarball so runtime, S3, schema, validation, and type
-subpaths stay usable after declaration generation.
+- package build
+- Vitest E2E tests against `dist`
+- `pack:check` — `publint --strict` plus `@arethetypeswrong/cli` against the
+  packed tarball
+- `pack:smoke` — installs the packed tarball into a scratch consumer and
+  imports every export subpath under Node
+- package artifact generation (Node 24 leg only)
+
+`publish:check` is the single-command local equivalent: conformance check,
+type checks (including `check-types:dist`, which type-checks the E2E suite
+against the generated `dist/*.d.ts`), unit tests, build, E2E tests,
+`pack:check`, and `pack:smoke`.
 
 `publish:check` is deterministic and does not require live cloud credentials.
 It proves the package build, public exports, protocol behavior, and local E2E
@@ -40,6 +47,8 @@ S3-compatible credentials before relying on a specific storage deployment.
 - Require the branch to be up to date before merging when practical.
 - Do not bypass failed validation for package, protocol, runtime, HLS, S3, or
   conformance changes.
+- User-visible changes must include a changeset (`bun changeset`); the
+  Release PR workflow folds merged changesets into the next version PR.
 
 ## Release Rules
 
@@ -49,9 +58,15 @@ Releases are published only from tags named:
 olos-vX.Y.Z
 ```
 
-The publish workflow verifies that the tag matches `olos/package.json`, reruns
-`publish:check`, publishes from `olos/` with npm provenance, then verifies the
-published package.
+Versioning is driven by Changesets: merging the "Version Packages" PR bumps
+`olos/package.json` and prepends the changelog section. After that merge, a
+maintainer pushes the matching `olos-v<version>` tag manually.
+
+The publish workflow verifies the tag commit is reachable from `main`, that
+the tag matches `olos/package.json` and the changelog has a matching section,
+reruns `publish:check`, publishes from `olos/` with npm provenance via OIDC
+trusted publishing (gated by the `npm` environment), then verifies the
+published package and creates the GitHub release from the changelog section.
 
 Protect release tags with the `olos-v*` pattern where the repository host
 supports tag protection. Only maintainers with npm publish access should create

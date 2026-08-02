@@ -1,0 +1,50 @@
+name: Release PR
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-pr-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version-pr:
+    name: Maintain version PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Maintains the "Version Packages" PR only. Publishing stays
+      # tag-triggered in publish.yml: after merging the version PR, push the
+      # matching olos-v<version> tag manually — tags pushed with GITHUB_TOKEN
+      # do not trigger workflows, and the manual tag plus the npm environment
+      # approval form the human release gate.
+      - name: Create or update version PR
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        with:
+          version: bun run changeset:version
+          commit: "chore: version @arsenstorm/olos"
+          title: "chore: version @arsenstorm/olos"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

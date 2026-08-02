@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@arsenstorm/olos": ["./dist/index.d.ts"],
+      "@arsenstorm/olos/*": ["./dist/*.d.ts"]
+    }
+  },
+  "include": ["e2e/**/*.ts"]
+}

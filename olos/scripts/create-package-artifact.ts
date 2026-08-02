@@ -1,11 +1,11 @@
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { packageArtifactPath } from "./release-metadata";
+import packageJson from "../package.json" with { type: "json" };
 import { packageRoot, repoRoot } from "./script-paths";
 import { runCommand } from "./script-runner";
 
 const artifactRoot = join(repoRoot, "out", "package-artifacts");
-const artifactPath = packageArtifactPath(artifactRoot);
+const artifactPath = join(artifactRoot, `olos-v${packageJson.version}.tgz`);
 
 await rm(artifactRoot, { force: true, recursive: true });
 await mkdir(artifactRoot, { recursive: true });

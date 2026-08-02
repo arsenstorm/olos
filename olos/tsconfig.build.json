@@ -3,10 +3,12 @@
   "compilerOptions": {
     "allowImportingTsExtensions": false,
     "declaration": true,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "noEmit": false,
     "outDir": "./dist",
     "rootDir": "./src",
-    "sourceMap": false
+    "sourceMap": false,
+    "types": []
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test-helper.ts"]
