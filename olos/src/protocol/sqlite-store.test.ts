@@ -106,7 +106,7 @@ describe("SQLite serialized coordinator store backend", () => {
     });
   });
 
-  test("returns undefined from loadCursorView when cursor_view is null", async () => {
+  test("returns a null-view record from loadCursorView when cursor_view is null", async () => {
     const backend = createSqliteSerializedCoordinatorStoreBackend({
       database: createDatabase(),
     });
@@ -117,9 +117,10 @@ describe("SQLite serialized coordinator store backend", () => {
         sessionId: "session_1",
       })
     ).resolves.toEqual({ status: "saved" });
-    await expect(
-      backend.loadCursorView?.("session_1")
-    ).resolves.toBeUndefined();
+    await expect(backend.loadCursorView?.("session_1")).resolves.toEqual({
+      etag: "1",
+      view: null,
+    });
     await expect(backend.load("session_1")).resolves.toEqual({
       etag: "1",
       snapshot: '{"etag":"1"}',

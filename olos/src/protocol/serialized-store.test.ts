@@ -258,6 +258,43 @@ describe("serialized coordinator store", () => {
     });
   });
 
+  test("falls back to the full snapshot when loadCursorView returns a null view", async () => {
+    const backend = createBackend();
+    const store = createSerializedCoordinatorStore(backend);
+    const state = createCoordinatorStateWithCommittedSegment();
+    const saved = savedStoreResult(
+      await store.save({ sessionId: session.sessionId, state }),
+      "expected saved state"
+    );
+
+    const nullViewBackend: SerializedCoordinatorStoreBackend = {
+      load: (sessionId) => backend.load(sessionId),
+      loadCursorView: () => Promise.resolve({ etag: saved.etag, view: null }),
+      save: (options) => backend.save(options),
+    };
+    const fallbackStore = createSerializedCoordinatorStore(nullViewBackend);
+
+    await expect(
+      fallbackStore.loadCursor?.(session.sessionId)
+    ).resolves.toEqual({
+      cursor: state.cursor,
+      etag: saved.etag,
+      session: state.session,
+    });
+  });
+
+  test("resolves undefined when a null view races a deleted session", async () => {
+    const store = createSerializedCoordinatorStore({
+      load: () => Promise.resolve(undefined),
+      loadCursorView: () => Promise.resolve({ etag: "1", view: null }),
+      save: () => Promise.resolve({ status: "saved" }),
+    });
+
+    await expect(
+      store.loadCursor?.(session.sessionId)
+    ).resolves.toBeUndefined();
+  });
+
   test("rejects cursor views with corrupt JSON", async () => {
     const store = createSerializedCoordinatorStore(cursorViewBackend("{"));
 

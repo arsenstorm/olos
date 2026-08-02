@@ -37,8 +37,13 @@ export interface SerializedCoordinatorStoreRecord {
  */
 export interface SerializedCursorViewRecord {
   etag: string;
-  /** JSON body of the cursor view; written by the store, treat as opaque. */
-  view: string;
+  /**
+   * JSON body of the cursor view; written by the store, treat as opaque.
+   * `null` means the session record exists but no view has been persisted
+   * for it (for example a sqlite row created before the `cursor_view`
+   * migration) — the store then falls back to the full snapshot.
+   */
+  view: string | null;
 }
 
 /**
@@ -54,9 +59,11 @@ export interface SerializedCoordinatorStoreBackend {
     sessionId: OlosId
   ): Promise<SerializedCoordinatorStoreRecord | undefined>;
   /**
-   * Optional fast path backing `CoordinatorPipelineStore.loadCursor`. When
-   * implemented it is the only source consulted — the store does not fall
-   * back to `load` — so it must return the view whenever the session exists.
+   * Optional fast path backing `CoordinatorPipelineStore.loadCursor`.
+   * Return `undefined` only when the session does not exist. When the
+   * session exists but no view is stored, return `{ etag, view: null }` —
+   * the store then falls back to the full-snapshot path. A string view is
+   * served as-is without consulting `load`.
    */
   loadCursorView?(
     sessionId: OlosId
@@ -135,7 +142,10 @@ export interface MemorySerializedCoordinatorStoreBackend
  * `loadCursor` has a fast path: when the backend implements
  * `loadCursorView`, only the small session-plus-cursor view record is
  * parsed and the full snapshot is never loaded; otherwise the store falls
- * back to loading and parsing the whole snapshot. Each `save` also writes a
+ * back to loading and parsing the whole snapshot. A null-view record
+ * (session exists, no persisted view — e.g. a pre-migration sqlite row)
+ * also falls back to the full snapshot, so manifest reads keep working
+ * until the next save rewrites the view. Each `save` also writes a
  * fresh cursor-view record so the fast path stays in sync. Conflict
  * semantics follow `CoordinatorStoreSave`, with the backend's conflicting
  * record parsed back into a snapshot when present.
@@ -152,7 +162,14 @@ export function createSerializedCoordinatorStore(
     async loadCursor(sessionId) {
       if (backend.loadCursorView !== undefined) {
         const view = await backend.loadCursorView(sessionId);
-        return view === undefined ? undefined : parseCursorViewRecord(view);
+        if (view === undefined) {
+          return;
+        }
+        if (view.view !== null) {
+          return parseCursorViewRecord({ etag: view.etag, view: view.view });
+        }
+        // Null view: the session record predates the cursor-view column.
+        // Fall through to the full-snapshot path below.
       }
 
       const record = await backend.load(sessionId);
@@ -238,7 +255,9 @@ export function createMemorySerializedCoordinatorStoreBackend(): MemorySerialize
  * as `undefined`, inserts without `expectedEtag` save, duplicate inserts
  * conflict (exposing the current etag when available), stale or missing
  * `expectedEtag` updates conflict, matching updates publish the new record,
- * and `loadCursorView` (when implemented) reflects the latest saved view.
+ * and `loadCursorView` (when implemented) reflects the latest saved view,
+ * resolves `undefined` only for missing sessions, and returns a null-view
+ * record when the session was saved without a cursor view.
  * Throws with a descriptive message on the first violated expectation.
  *
  * Writes test records under fixed conformance session ids, so run it
@@ -330,6 +349,33 @@ export async function assertSerializedCoordinatorStoreBackendConformance(
       undefined,
       "loadCursorView must not load missing sessions"
     );
+
+    const third = record("3");
+    assertSerializedBackendSaved(
+      await backend.save({
+        expectedEtag: second.etag,
+        record: third,
+        sessionId,
+      }),
+      "update without a cursor view must save"
+    );
+
+    const viewlessRecord = await backend.loadCursorView(sessionId);
+    if (viewlessRecord === undefined) {
+      throw new Error(
+        "loadCursorView must return a null-view record, not undefined, when the session exists without a stored view"
+      );
+    }
+    expectSerializedBackendValue(
+      viewlessRecord.etag,
+      third.etag,
+      "null-view loadCursorView record must carry the latest etag"
+    );
+    expectSerializedBackendValue(
+      viewlessRecord.view,
+      null,
+      "loadCursorView must return a null view when the session exists without a stored view"
+    );
   }
 
   const missingUpdate = await backend.save({
@@ -419,7 +465,7 @@ function createCursorViewRecord(
 }
 
 function parseCursorViewRecord(
-  record: SerializedCursorViewRecord
+  record: SerializedCursorViewRecord & { view: string }
 ): CoordinatorCursorView {
   const parsed: unknown = JSON.parse(record.view);
 

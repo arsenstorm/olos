@@ -79,8 +79,10 @@ export interface CreateSqliteSerializedCoordinatorStoreSchemaOptions {
  * `insert or ignore` and etag-checked updates a conditional `update`, with
  * zero changed rows reported as a conflict that carries the currently
  * stored record when one exists. Implements the `loadCursorView` fast path
- * from the `cursor_view` column. Throws when `tableName` is not a plain
- * SQLite identifier.
+ * from the `cursor_view` column; rows with a NULL `cursor_view` (created
+ * before the column migration) surface as null-view records so the wrapping
+ * store falls back to the full snapshot. Throws when `tableName` is not a
+ * plain SQLite identifier.
  */
 export function createSqliteSerializedCoordinatorStoreBackend(
   options: CreateSqliteSerializedCoordinatorStoreBackendOptions
@@ -178,13 +180,11 @@ async function loadCursorViewRecord(
     return;
   }
 
-  if (row.cursor_view === null || row.cursor_view === undefined) {
-    return;
-  }
-
   return {
     etag: row.etag,
-    view: row.cursor_view,
+    // NULL cursor_view (a pre-migration row) surfaces as a null view so the
+    // wrapping store falls back to the full snapshot.
+    view: row.cursor_view ?? null,
   };
 }
 
