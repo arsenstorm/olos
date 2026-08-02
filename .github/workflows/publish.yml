@@ -7,10 +7,16 @@ on:
 
 permissions: read-all
 
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     name: Publish npm package
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: npm
     permissions:
       contents: write # gh release create
       id-token: write # npm provenance OIDC
@@ -18,9 +24,16 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag commit is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
 
       - name: Set up npm registry
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -28,11 +41,22 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
+      - name: Cache bun install cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Verify release tag
-        run: bun --filter '@arsenstorm/olos' release:verify-tag
+        run: |
+          version=$(jq -r .version olos/package.json)
+          test "$GITHUB_REF_NAME" = "olos-v${version}"
+          grep -q "^## ${version}\$" olos/CHANGELOG.md
 
       - name: Publish check
         run: bun run publish:check
@@ -49,10 +73,14 @@ jobs:
       - name: Verify published package
         run: bun --filter '@arsenstorm/olos' release:verify-published
 
-      - name: Write release notes
-        run: bun --filter '@arsenstorm/olos' release:notes
+      - name: Extract release notes
+        run: |
+          version="${GITHUB_REF_NAME#olos-v}"
+          awk -v ver="$version" '$0 == "## " ver { found = 1; next } /^## / && found { exit } found { print }' \
+            olos/CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          test -s "$RUNNER_TEMP/notes.md"
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file out/release/notes.md
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"

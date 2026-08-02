@@ -4,20 +4,38 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 10
     groups:
       github-actions:
         patterns:
           - "*"
 
-  - package-ecosystem: npm
+  # The bun ecosystem regenerates bun.lock alongside package.json, which the
+  # npm ecosystem does not — npm-ecosystem PRs always failed the
+  # `bun install --frozen-lockfile` CI gate.
+  - package-ecosystem: bun
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 10
     groups:
       aws-sdk:
         patterns:
           - "@aws-sdk/*"
+          - "@smithy/*"
       cloudflare:
         patterns:
           - "@cloudflare/*"
           - "wrangler"
+          - "miniflare"
+      dev-tooling:
+        patterns:
+          - "@biomejs/*"
+          - "ultracite"
+          - "typescript"
+          - "vitest"
+          - "husky"
+          - "@types/*"
+      changesets:
+        patterns:
+          - "@changesets/*"
