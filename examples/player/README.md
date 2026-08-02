@@ -36,9 +36,10 @@ arrive.
   through hls.js with `lowLatencyMode: true`, `liveSyncDuration: 0.5`, and
   `maxLiveSyncPlaybackRate: 1.5`. With `examples/streamer` producing 500 ms
   LL-HLS parts, hls.js's blocking-reload path holds requests open for
-  `_HLS_msn=N&_HLS_part=M` until OLOS commits that part — typical
-  end-to-end glass-to-glass latency on the local stack is ~1.5–2.5 s (see
-  [benchmarks](../../benchmarks/README.md#reference-numbers)).
+  `_HLS_msn=N&_HLS_part=M` until OLOS commits that part — the design
+  target for end-to-end glass-to-glass latency on the local stack is
+  ~1.5–2.5 s (a curated measured baseline is pending; see the
+  [benchmarks guide](../../benchmarks/README.md#reference-numbers)).
 - Wraps hls.js's default loader to rewrite segment URLs: OLOS bakes the
   configured `MEDIA_ORIGIN` (`https://localhost:8787`) into the manifest,
   but the local Worker actually serves over HTTP. The loader swaps the
@@ -64,9 +65,9 @@ arrive.
 | hls.js holds Range request via `EXT-X-PRELOAD-HINT`, Worker streams bytes | ~0.1 s |
 | hls.js decodes + plays one part behind live | ~0.4 s |
 
-Target glass-to-glass: **~2 s** (see
-[benchmarks](../../benchmarks/README.md#reference-numbers)) with the
-byterange LL-HLS path. OLOS now
+Design-target glass-to-glass: **~2 s** with the byterange LL-HLS path (a
+curated measured baseline is pending; see the
+[benchmarks guide](../../benchmarks/README.md#reference-numbers)). OLOS now
 emits `#EXT-X-PART:BYTERANGE="L@O"` against a virtual segment URL and a
 `#EXT-X-PRELOAD-HINT:TYPE=PART,BYTERANGE-START=N` line after the last
 in-progress part; the Worker's `/v/:session/:rendition/:msn.m4s` route

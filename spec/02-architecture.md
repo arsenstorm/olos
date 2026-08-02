@@ -1,4 +1,4 @@
-# 02 Architecture
+# 2. Architecture
 
 ## 2.1 Layer model
 
@@ -27,11 +27,11 @@ cursors, and the committed window. It is media-agnostic. It references no
 HLS, no S3, and no HTTP. Everything normative about what constitutes
 stream state is defined here.
 
-**The LL-HLS profile** (Section 08) renders the committed window into
+**The LL-HLS profile** (Section 8) renders the committed window into
 media and multivariant playlists with blocking reload, partial segments,
 byterange parts, and audio groups.
 
-**The S3-compatible binding** (Section 07) specifies the minimum storage
+**The S3-compatible binding** (Section 7) specifies the minimum storage
 contract: exact-key uploads, conditional create, `HeadObject` consistency,
 and optional event notifications. Any S3-compatible store (S3, R2, GCS-S3,
 MinIO) can satisfy it. A store declares what it satisfies in a provider

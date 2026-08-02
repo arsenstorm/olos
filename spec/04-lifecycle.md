@@ -1,4 +1,4 @@
-# 04 Lifecycle
+# 4. Lifecycle
 
 This section defines the normative state machine that turns uploads into
 stream state. It covers session states, slot issuance, upload observation,
@@ -48,7 +48,7 @@ A slot is the only way to reserve a position in a session's timeline.
   `media/<renditionId>/init[-<nonce>].mp4`,
   `media/<renditionId>/s<msn>[-<nonce>].m4s`, or
   `media/<renditionId>/s<msn>/p<part>[-<nonce>].m4s` (layout details in
-  Section 07). To derive `deliveryUrl`, the coordinator appends the
+  Section 7). To derive `deliveryUrl`, the coordinator appends the
   object key to the session's media base URL.
 - In the direct-public publication mode, if the caller supplies no
   `objectKeyNonce`, the coordinator MUST generate a cryptographically
@@ -59,7 +59,7 @@ A slot is the only way to reserve a position in a session's timeline.
   MUST NOT change for the lifetime of the slot. `byterange` is only valid
   on `part`-kind slots (Section 3.3.1).
 
-Upload grants for issued slots are covered in Section 07.
+Upload grants for issued slots are covered in Section 7.
 
 ## 4.3 Slot states and expiry
 
@@ -98,7 +98,7 @@ Rules:
 The coordinator learns that an object exists through one of three paths:
 
 1. **Storage read** — a direct read of object metadata (for
-   S3-compatible stores, `HeadObject`, Section 07). The read is
+   S3-compatible stores, `HeadObject`, Section 7). The read is
    normalized into an observed upload whose `observedAt` is the object's
    last-modified time.
 2. **Provider event** — an `object.created` event delivered by the
@@ -182,9 +182,9 @@ operation:
 - move the slot to `committed`
 - record the commit (init commits are tracked separately from media
   commits)
-- recompute the committed window (Section 05)
+- recompute the committed window (Section 5)
 - if the window advanced, advance the cursor (Section 4.7)
-- apply retention (Section 09)
+- apply retention (Section 9)
 
 The accepted commit copies its positional and addressing fields from the
 slot and its `size` and `etag` from the evidence (Section 3.4).
@@ -249,7 +249,7 @@ competing publishers can detect an active holder. A lease carries
   session. A refresh replaces the previous lease record.
 
 Lease TTL selection and publisher-loop guidance are runtime concerns
-(Section 06, Section 09).
+(Section 6, Section 9).
 
 ## 4.7 Cursor advancement
 
@@ -295,7 +295,7 @@ object becomes viewer-visible.
 - A slot whose object is referenced by the live cursor's committed
   window (as an init object, a segment, or a part) MUST NOT be revoked.
   Such an attempt MUST be rejected with `olos.invalid_state`. Announced
-  media can leave the window only through retention (Section 09) or a
+  media can leave the window only through retention (Section 9) or a
   discontinuity. It never leaves silently.
 - Otherwise a slot in state `issued`, `upload_observed`, or `committed`
   MAY be revoked. Revocation deletes any commits recorded for the slot
@@ -308,4 +308,4 @@ On every cursor advance the coordinator applies retention. Commits whose
 objects fell behind the retained committed window are pruned from state.
 Issued slots past their expiry are also pruned. The pruned objects are
 surfaced for storage deletion. Retention planning, deletion, and
-reconciliation are specified in Section 09.
+reconciliation are specified in Section 9.

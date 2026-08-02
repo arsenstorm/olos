@@ -1,4 +1,4 @@
-# 03 Data model
+# 3. Data model
 
 This section defines every wire object normatively, field by field. The
 machine-readable JSON Schemas in Appendix A are generated from the
@@ -10,8 +10,10 @@ These prose constraints are equally binding.
 
 <!-- olos-conformance: 3.1 CORE-SCHEMA-001 -->
 
-- Every wire object is a JSON object. All objects are closed. Receivers
-  MUST reject unknown properties (Section 1.2).
+- Every wire object is a JSON object. All objects are closed on the write
+  path: the coordinator MUST reject unknown properties in inbound payloads
+  and in stored documents it re-validates, while clients MUST ignore
+  unknown fields in what they read (Section 1.2, Section 11.2).
 - Field types follow the conventions of Section 1.2: RFC 3339 timestamps,
   URL-safe identifiers, integer byte sizes, and durations in seconds.
 - Each object defined below has a published JSON Schema. An implementation
@@ -54,7 +56,7 @@ A session declares one live stream.
 
 `groupId`, `name`, and `defaultRendition` describe HLS audio-group
 membership through `EXT-X-MEDIA` `GROUP-ID`, `NAME`, and `DEFAULT`
-(Section 08). They MUST NOT appear on a rendition whose `kind` is not
+(Section 8). They MUST NOT appear on a rendition whose `kind` is not
 `audio`.
 
 The following constraints span sibling renditions and MUST be enforced
@@ -115,7 +117,7 @@ A byterange MUST only appear on `part`-kind slots and on commits that
 carry a `partNumber`. Init and segment objects are never expressed as byte
 ranges. The segment address fields identify the virtual segment for
 manifest rendering. They carry no upload or publication authority of their
-own (Section 08).
+own (Section 8).
 
 Schema: see Appendix A, `OLOS_UPLOAD_SLOT_SCHEMA`.
 
@@ -166,7 +168,7 @@ An upload grant authorizes the single upload a slot reserves.
 
 Grant issuance rules, the required-header baseline (exact content type,
 conditional create, slot-id metadata), and provider binding are defined in
-Section 07.
+Section 7.
 
 Schema: see Appendix A, `OLOS_UPLOAD_GRANT_SCHEMA`.
 
@@ -231,7 +233,7 @@ Cross-field preconditions:
   also declare `consistency.headAfterCreate: "strong"`,
   `delivery.negativeCachingPolicyDeclared: true`, and
   `publication.manifestGatedPublication: true`, and MUST NOT declare
-  `publication.overwritesAllowed: true` (Section 07, Section 10).
+  `publication.overwritesAllowed: true` (Section 7, Section 10).
 
 Schema: see Appendix A, `OLOS_PROVIDER_CAPABILITY_SCHEMA`.
 
@@ -279,7 +281,7 @@ Each rendition window carries an `init` committed object, its
 `renditionId`, and a non-empty ordered list of committed segments. The
 full structural invariants (monotonic unique segment MSNs, monotonic
 unique part numbers, the contiguous-parts prefix rule, and duration
-semantics) are defined in Section 05.
+semantics) are defined in Section 5.
 
 Schema: see Appendix A, `OLOS_COMMITTED_WINDOW_SCHEMA`.
 
@@ -332,6 +334,6 @@ OPTIONAL object of machine-readable context.
 | `olos.method_not_allowed`        | HTTP method not allowed (HTTP 405).    |
 | `olos.conflict`                  | Concurrent-update conflict (HTTP 409). |
 
-HTTP status mapping is defined in Section 06.
+HTTP status mapping is defined in Section 6.
 
 Schema: see Appendix A, `OLOS_ERROR_SCHEMA`.

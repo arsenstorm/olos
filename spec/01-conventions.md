@@ -1,4 +1,4 @@
-# 01 Conventions and terminology
+# 1. Conventions and terminology
 
 ## 1.1 Requirement keywords
 
@@ -23,8 +23,12 @@ shown here.
   milliseconds.
 - **Byte sizes** (`size`, `minBytes`, `maxBytes`, byterange `offset` and
   `length`) are JSON integers. Fractional byte counts are invalid.
-- **Unknown fields.** Wire objects are closed. A receiver MUST reject a
-  payload that carries a property not defined for that object.
+- **Unknown fields.** Wire objects are closed on the write path: a
+  coordinator MUST reject an inbound payload, or a stored document it
+  re-validates, that carries a property not defined for that object.
+  Clients MUST instead ignore unknown fields in responses and stored
+  documents they read — that tolerance is what makes additive response
+  fields non-breaking (Section 11.2).
 
 ## 1.3 Terminology
 
@@ -95,7 +99,7 @@ media. The window carries per-rendition init objects and ordered segment
 lists bounded by a first and last MSN, together with an epoch and a
 discontinuity sequence.
 Only content in the committed window is rendered into manifests
-(Section 05).
+(Section 5).
 
 **media origin** — the HTTP origin (or origins) from which committed media
 objects are served to viewers, rooted at the session's media base URL. In

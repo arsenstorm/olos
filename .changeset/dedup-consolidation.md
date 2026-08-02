@@ -24,7 +24,12 @@ Dedup and consolidation pass:
   Objects stored under the old form are not re-derived. Keys derive at slot
   issuance, so new sessions get the new layout automatically. To migrate an
   existing archive, re-derive the stored keys with
-  `createPublisherObjectKey`.
+  `createPublisherObjectKey`. Sessions live across the deploy are a hazard:
+  a virtual segment whose part slots were issued under both layouts derives
+  two different `byterange.segmentObjectKey` aggregate addresses, so the
+  byterange service can serve a truncated segment. Drain or restart live
+  sessions around the upgrade. External tooling keyed to the old directory
+  layout (bucket lifecycle rules, CDN path rules) also needs updating.
 - Internal consolidation (shared path, timestamp, and error-message
   helpers, the S3 client payload parser collapse, facade-import cleanup,
   and stored coordinator mutation type-threading) keeps behavior the same.

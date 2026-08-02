@@ -35,9 +35,10 @@ virtual segment URL. If a Range extends past committed parts, the Worker
 holds the response open via the per-session DO cursor waiter until the
 next commit lands — the `EXT-X-PRELOAD-HINT` mechanism.
 
-End-to-end glass-to-glass latency on a local stack: **~1.5–2.5 s** (see
-[benchmarks](../../benchmarks/README.md#reference-numbers)), with the
-manifest looking exactly like Apple's reference LL-HLS form.
+Design-target end-to-end glass-to-glass latency on a local stack:
+**~1.5–2.5 s** (a curated measured baseline is pending; see the
+[benchmarks guide](../../benchmarks/README.md#reference-numbers)), with
+the manifest looking exactly like Apple's reference LL-HLS form.
 
 ### Why not Shaka Packager?
 

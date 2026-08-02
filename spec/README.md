@@ -36,7 +36,7 @@ The specification defines:
 
 Authentication, authorization, tenant quotas, storage-backend selection, and
 viewer routing are application concerns. They are out of scope (see
-Section 02).
+Section 2).
 
 ## Conformance levels
 
@@ -62,19 +62,19 @@ authoritative.
 
 ## Reading order
 
-| Section                                                    | Contents |
-| ---------------------------------------------------------- | -------- |
-| [01 Conventions](./01-conventions.md)                      | Keywords, terminology |
-| [02 Architecture](./02-architecture.md)                    | Layers, core invariant |
-| [03 Data model](./03-data-model.md)                        | Wire objects, errors |
-| [04 Lifecycle](./04-lifecycle.md)                          | State machine |
-| [05 Committed window](./05-committed-window.md)            | Window invariants |
-| 06 HTTP API                                                | Routes, envelopes |
-| 07 S3 binding                                              | Grants, layout, events |
-| 08 HLS mapping                                             | Playlist rendering |
-| 09 Retention and reconciliation                            | Pruning, recovery |
-| 10 Security                                                | Direct-public profile |
-| 11 Versioning                                              | Wire-version policy |
+| Section                                                                      | Contents |
+| ---------------------------------------------------------------------------- | -------- |
+| [1. Conventions and terminology](./01-conventions.md)                        | Keywords, terminology |
+| [2. Architecture](./02-architecture.md)                                      | Layers, core invariant |
+| [3. Data model](./03-data-model.md)                                          | Wire objects, errors |
+| [4. Lifecycle](./04-lifecycle.md)                                            | State machine |
+| [5. Committed window](./05-committed-window.md)                              | Window invariants |
+| [6. HTTP API](./06-http-api.md)                                              | Routes, envelopes |
+| [7. Storage-provider binding (S3 profile)](./07-s3-binding.md)               | Grants, layout, events |
+| [8. LL-HLS mapping](./08-hls-mapping.md)                                     | Playlist rendering |
+| [9. Retention and reconciliation](./09-retention-reconciliation.md)          | Pruning, recovery |
+| [10. Security profile: direct-public deployment](./10-security.md)           | Direct-public profile |
+| [11. Versioning and compatibility](./11-versioning.md)                       | Wire-version policy |
 
 Appendix A (JSON Schemas) and Appendix B (conformance assertion catalogue)
 are generated from the reference implementation. They MUST NOT be edited by
