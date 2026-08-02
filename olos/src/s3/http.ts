@@ -105,9 +105,13 @@ function invalid(message: string): InvalidS3HttpRequestParse {
  * (`olos.invalid_session`), 409 for concurrency conflicts, and rejections
  * mapped from their error code. Successful commits delete retired S3
  * objects as a side effect (via `ctx.waitUntil` when available), and
- * retention persists the pruned state before deleting objects so a failed
- * delete can be retried by the next sweep. Throws synchronously when
- * `bucket`, `expiresInSeconds`, or `providerId` options are invalid.
+ * retention persists the pruned state before deleting objects. A failed
+ * delete is NOT re-planned by later sweeps — the pruned state no longer
+ * references it. Failures surface in the 202 response body
+ * (`result.failedObjects` and the `summary`) for caller-driven retry;
+ * configure a bucket lifecycle rule as the backstop for orphans. Throws
+ * synchronously when `bucket`, `expiresInSeconds`, or `providerId` options
+ * are invalid.
  */
 export function createStoredS3CoordinatorRuntimeHandler(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
@@ -490,10 +494,12 @@ async function handleS3Retention(
     return jsonBadRequestResponse(parsed.message);
   }
 
-  // Persist the pruned coordinator state BEFORE deleting remote objects: a
-  // delete failure then cannot lose the plan (deletes are idempotent against
-  // already-missing objects and can be retried by the next sweep, while an
-  // unpruned snapshot would keep growing).
+  // Persist the pruned coordinator state BEFORE deleting remote objects so
+  // an unpruned snapshot cannot keep growing. The trade-off: a failed
+  // delete is never re-planned (the pruned state no longer references the
+  // object). Failures are reported in the response body for the caller to
+  // retry (deletes are idempotent); bucket lifecycle rules are the backstop
+  // for orphaned objects.
   const applied = await applyStoredCoordinatorRetention({
     maxAttempts: options.maxAttempts,
     now: parsed.payload.now,

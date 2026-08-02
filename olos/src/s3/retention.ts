@@ -33,9 +33,9 @@ export interface DeleteRetiredS3CoordinatorObjectsOptions {
  * Delete retired coordinator objects from S3. Each delete failure is
  * isolated and summarized — the returned result lists `deletedObjects` and
  * `failedObjects` (with error messages) in input order instead of throwing.
- * S3 deletes are idempotent against already-missing objects, so failed
- * entries can safely be retried by a later sweep. Throws only for an
- * invalid bucket or object key.
+ * S3 deletes are idempotent against already-missing objects, so the caller
+ * can safely retry failed entries. Throws only for an invalid bucket or
+ * object key.
  */
 export async function deleteRetiredS3CoordinatorObjects(
   options: DeleteRetiredS3CoordinatorObjectsOptions

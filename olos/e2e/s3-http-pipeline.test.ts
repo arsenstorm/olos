@@ -740,7 +740,7 @@ describe("S3 HTTP pipeline", () => {
     ]);
   });
 
-  test("deletes retired S3 objects through the retention route", async () => {
+  test("reports an empty retention plan after commit-time auto-retention already deleted", async () => {
     const { deleteInputs, handle } = createRetentionPipeline();
 
     await handle(
@@ -814,7 +814,7 @@ describe("S3 HTTP pipeline", () => {
     expect(mediaBody).toContain("media/v1080/s3812.m4s");
   });
 
-  test("reports failed S3 retention deletes without changing the cursor", async () => {
+  test("leaves failed auto-retention deletes orphaned and keeps the cursor unchanged", async () => {
     const { deleteInputs, handle, store } = createRetentionPipeline({
       failingDeleteKey: "media/v1080/s3810.m4s",
     });
