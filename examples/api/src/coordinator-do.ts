@@ -106,6 +106,11 @@ export class StreamCoordinator extends DurableObject<Env> {
 }
 
 function cursorFromView(view: SerializedCursorViewRecord): Cursor | undefined {
+  // A null view (session saved without a cursor view) carries no cursor.
+  if (view.view === null) {
+    return;
+  }
+
   try {
     const parsed = JSON.parse(view.view) as { cursor?: Cursor };
     return parsed.cursor;
