@@ -5,6 +5,10 @@ on:
     branches:
       - main
   pull_request:
+  # Manual runs unblock the changesets "Version Packages" PR: pushes made
+  # with GITHUB_TOKEN trigger no workflows, so required checks on that PR
+  # are satisfied by dispatching this workflow (and Validate) on its branch.
+  workflow_dispatch:
 
 permissions: {}
 
@@ -30,3 +34,8 @@ jobs:
 
       - name: Run zizmor
         uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          # Fork PRs run with a read-only token, so the SARIF upload to code
+          # scanning would fail; fall back to workflow annotations there.
+          advanced-security: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          annotations: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}

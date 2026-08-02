@@ -31,9 +31,18 @@ The `Release PR` workflow (`.github/workflows/release.yml`) maintains a
 changesets into `olos/CHANGELOG.md`. It also regenerates `bun.lock` so that
 the PR passes the frozen lockfile install.
 
+**The Version Packages PR starts with no check runs.** The workflow pushes
+its branch with `GITHUB_TOKEN`, and GitHub does not trigger workflows for
+events created with that token. When branch protection requires status
+checks, satisfy them by manually dispatching the `Validate` and `Zizmor`
+workflows on the `changeset-release/main` branch (Actions tab → workflow →
+"Run workflow"). The check runs attach to the branch head commit and count
+toward the required checks.
+
 ## Cutting a release
 
-1. Merge the "Version Packages" PR once its CI is green.
+1. Dispatch `Validate` and `Zizmor` on `changeset-release/main`, then merge
+   the "Version Packages" PR once those runs are green.
 2. Pull `main` and push the matching tag:
 
    ```bash
@@ -77,6 +86,12 @@ generated `dist` declarations), the Bun unit tests, the build, the Vitest
 E2E tests, `publint` + `@arethetypeswrong/cli` against the packed tarball,
 and the packed-package smoke test. It is the deterministic release gate. It
 does not contact a live S3-compatible provider.
+
+There is no `prepublishOnly` hook: a local `npm publish` runs no gates and
+ships no provenance. Never publish from a workstation — publishes go
+through the tag-triggered workflow only. Configure npm Trusted Publishing
+for this repository and disallow token-based publishes so a workstation
+publish cannot authenticate.
 
 If a release changes S3 upload grants, object observation, provider
 events, reconciliation, or retention, run `bun run test:live-s3` against a
