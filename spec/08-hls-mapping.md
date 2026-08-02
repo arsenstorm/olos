@@ -8,24 +8,24 @@ blocking playlist reload protocol. The normative reference is
 
 Playlists MUST be served with content type
 `application/vnd.apple.mpegurl` and the manifest cache policy of
-Section 10.4. Rendering MUST be deterministic: the same session and
+Section 10.4. Rendering MUST be deterministic. The same session and
 committed window MUST produce byte-identical playlists.
 
 ## 8.1 Media URIs
 
 Every URI emitted into a playlist (init map, segment, part, preload
-hint) MUST be either a root-relative path or an absolute HTTPS URL
-whose origin is in the deployment's allow-list of media origins
-(Section 10.2). Playlist rendering MUST fail rather than emit a URI
-that violates this policy. Attribute values are escaped per the
-playlist quoting rules of RFC 8216.
+hint) MUST be a root-relative path or an absolute HTTPS URL. An
+absolute URL's origin MUST be in the deployment's allow-list of media
+origins (Section 10.2). Playlist rendering MUST fail rather than emit
+a URI that violates this policy. The renderer escapes attribute values
+with the playlist quoting rules of RFC 8216.
 
 ## 8.2 Master playlist
 
 <!-- olos-conformance: 8.2 HLS-GOLDEN-001 HLS-GOLDEN-009 -->
 
-The master playlist is rendered from the session document alone. It
-MUST begin:
+The renderer builds the master playlist from the session document
+alone. It MUST begin:
 
 ```
 #EXTM3U
@@ -33,8 +33,9 @@ MUST begin:
 #EXT-X-INDEPENDENT-SEGMENTS
 ```
 
-followed by the audio-group `EXT-X-MEDIA` lines (Section 8.3), if any,
-then one variant entry per **video** rendition, in session order:
+The audio-group `EXT-X-MEDIA` lines (Section 8.3) follow, if any.
+Then one variant entry per **video** rendition follows, in session
+order:
 
 ```
 #EXT-X-STREAM-INF:<attributes>
@@ -44,17 +45,18 @@ then one variant entry per **video** rendition, in session order:
 Variant attribute rules:
 
 - `BANDWIDTH` and `AVERAGE-BANDWIDTH` are REQUIRED and both equal the
-  rendition's `bitrate`; a video rendition without `bitrate` is a
+  rendition's `bitrate`. A video rendition without `bitrate` is a
   rendering error.
-- `CODECS` is REQUIRED: the video rendition's `codec` followed by the
-  session's audio codecs (Section 8.3.2), comma-separated, quoted.
-- `RESOLUTION` (`<width>x<height>`) is emitted when the rendition
-  declares dimensions; `width` and `height` MUST be declared together
-  or not at all.
-- `FRAME-RATE` is emitted when the rendition declares `frameRate`,
-  formatted with up to three decimals.
-- `AUDIO="<group-id>"` is emitted on every variant when the session
-  has an audio group.
+- `CODECS` is REQUIRED. Its value is the video rendition's `codec`
+  followed by the session's audio codecs (Section 8.3.2),
+  comma-separated and quoted.
+- The renderer emits `RESOLUTION` (`<width>x<height>`) when the
+  rendition declares dimensions. `width` and `height` MUST be declared
+  together or not at all.
+- The renderer emits `FRAME-RATE` when the rendition declares
+  `frameRate`. The value has up to three decimals.
+- When the session has an audio group, the renderer emits
+  `AUDIO="<group-id>"` on every variant.
 
 A session MUST include at least one video rendition. Content-steering
 and rendition-report tags are not emitted.
@@ -65,22 +67,22 @@ and rendition-report tags are not emitted.
 
 ### 8.3.1 Grouping constraints
 
-An audio rendition joins the audio group by declaring `groupId`
+An audio rendition joins the audio group when it declares `groupId`
 (a URL-safe identifier). The rules:
 
 - **One group.** All grouped audio renditions MUST share the same
-  `groupId`; multiple distinct audio group ids are a rendering error.
+  `groupId`. Multiple distinct audio group ids are a rendering error.
 - **No mixing.** A session MUST NOT mix grouped and ungrouped audio
-  renditions: once any audio rendition declares `groupId`, all of them
-  MUST.
+  renditions. If any audio rendition declares `groupId`, all of them
+  MUST declare it.
 - **One default.** The group's default is the first audio rendition
-  with `defaultRendition: true`; when none is flagged, the first
-  grouped audio rendition is the default.
+  with `defaultRendition: true`. When no rendition carries the flag,
+  the first grouped audio rendition is the default.
 - **Legacy ungrouped audio.** When no audio rendition declares
-  `groupId`, no `EXT-X-MEDIA` lines are emitted, every audio codec is
-  muxed into every variant's `CODECS` attribute, and audio renditions
-  get no standalone media playlists. This preserves pre-audio-group
-  behavior.
+  `groupId`, the renderer emits no `EXT-X-MEDIA` lines. It muxes every
+  audio codec into every variant's `CODECS` attribute. Audio
+  renditions get no standalone media playlists. This rule preserves
+  pre-audio-group behavior.
 
 ### 8.3.2 EXT-X-MEDIA rendering
 
@@ -91,7 +93,7 @@ Each grouped audio rendition renders one line, in session order:
 DEFAULT=<YES|NO>,AUTOSELECT=YES[,CHANNELS="<channels>"],URI="<uri>"
 ```
 
-(one physical line; wrapped here for width). Attribute by attribute:
+(one physical line, wrapped here for width). Attribute by attribute:
 
 | Attribute | Value |
 | --- | --- |
@@ -105,16 +107,16 @@ DEFAULT=<YES|NO>,AUTOSELECT=YES[,CHANNELS="<channels>"],URI="<uri>"
 
 With an audio group, each variant's `CODECS` is the video codec plus
 the **distinct** codecs of the grouped audio renditions, deduplicated
-in group order. Grouped audio renditions DO get standalone media
-playlists rendered from the committed window like video renditions.
+in group order. Grouped audio renditions get standalone media
+playlists, rendered from the committed window like video renditions.
 
 ## 8.4 Media playlist
 
 <!-- olos-conformance: 8.4 HLS-GOLDEN-002 HLS-GOLDEN-003 HLS-GOLDEN-004 HLS-GOLDEN-005 HLS-GOLDEN-006 HLS-GOLDEN-007 HLS-GOLDEN-008 HLS-GOLDEN-010 HLS-GOLDEN-011 -->
 
-A media playlist is rendered per rendition from the committed window.
-Rendering for an unknown rendition id is an error (the HTTP route
-answers 404). The header block, in order:
+The renderer builds a media playlist per rendition from the committed
+window. Rendering for an unknown rendition id is an error (the HTTP
+route answers 404). The header block, in order:
 
 | Tag | Normative value |
 | --- | --- |
@@ -127,14 +129,13 @@ answers 404). The header block, in order:
 | `#EXT-X-DISCONTINUITY-SEQUENCE` | `committedWindow.discontinuitySequence`. |
 | `#EXT-X-MAP` | `URI="<rendition init deliveryUrl>"`. |
 
-A blank line separates the header from the segment list.
-`EXT-X-PLAYLIST-TYPE` is deliberately never emitted: an OLOS playlist
-is always a sliding window — old segments fall off — which the `VOD`
-and `EVENT` playlist types forbid, including after end of stream.
-`EXT-X-GAP` is not emitted by this revision: gaps in the committed
-window are represented by the absence of entries, never by GAP tags.
-Rendition reports (`EXT-X-RENDITION-REPORT`) and content steering are
-not emitted.
+A blank line separates the header from the segment list. The renderer
+never emits `EXT-X-PLAYLIST-TYPE`. An OLOS playlist is always a
+sliding window, and old segments fall off. The `VOD` and `EVENT`
+playlist types forbid this behavior, including after end of stream.
+This revision does not emit `EXT-X-GAP`. Gaps in the committed window
+appear as absent entries, never as GAP tags. Rendition reports
+(`EXT-X-RENDITION-REPORT`) and content steering are not emitted.
 
 ### 8.4.1 SERVER-CONTROL and hold-back floor
 
@@ -144,27 +145,27 @@ not emitted.
 #EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=<p>,HOLD-BACK=<h>
 ```
 
-- `CAN-BLOCK-RELOAD=YES` is always advertised; the server MUST
-  implement Section 8.6.
+- The playlist always advertises `CAN-BLOCK-RELOAD=YES`. The server
+  MUST implement Section 8.6.
 - `HOLD-BACK` is the deployment's target latency in seconds
   (default 3).
 - `PART-HOLD-BACK` defaults to `max(3 × partTarget, targetLatency)`.
   A deployment MAY set it explicitly, but the value MUST be at least
-  `3 × partTarget` (the RFC 8216 LL-HLS floor); lower values are a
+  `3 × partTarget` (the RFC 8216 LL-HLS floor). Lower values are a
   rendering error, not a silent clamp.
-- Both are formatted as three-decimal seconds.
+- Both values are formatted as three-decimal seconds.
 
 ### 8.4.2 Per-rendition MEDIA-SEQUENCE
 
 `#EXT-X-MEDIA-SEQUENCE` MUST equal the media sequence number of the
-**rendered rendition's own first segment** — the MSN of its first
-`#EXTINF`/part entry — falling back to
-`committedWindow.firstMediaSequenceNumber` only when the rendition has
-no segments. Renditions can diverge from the window-global minimum
-when per-rendition trimming or empty-media segments drop leading
-segments; declaring the global minimum there would desynchronize the
+**rendered rendition's own first segment**. That number is the MSN of
+its first `#EXTINF`/part entry. When the rendition has no segments,
+the value falls back to `committedWindow.firstMediaSequenceNumber`.
+Renditions can diverge from the window-global minimum when
+per-rendition trimming or empty-media segments delete leading
+segments. A global-minimum declaration there desynchronizes the
 declared sequence from the first listed segment. (This per-rendition
-rule is the 0.6.0 behavior; earlier revisions declared the global
+rule is the 0.6.0 behavior. Earlier revisions declared the global
 window minimum.)
 
 ### 8.4.3 Segment entries
@@ -174,11 +175,11 @@ Segments render in window order. For each segment:
 1. `#EXT-X-DISCONTINUITY` when the segment is marked
    `discontinuityBefore` (epoch changes, Section 5).
 2. `#EXT-X-PROGRAM-DATE-TIME:<timestamp>` when the segment carries a
-   `programDateTime`; segments without one emit no PDT tag.
+   `programDateTime`. Segments without one emit no PDT tag.
 3. Then either:
    - **Full segment** (a committed segment object exists):
      `#EXTINF:<duration>,` (three-decimal seconds, trailing comma)
-     followed by the segment's delivery URI on the next line; or
+     followed by the segment's delivery URI on the next line, or
    - **Partial segment** (in-progress, parts only): one `#EXT-X-PART`
      line per committed part (Section 8.5), followed by at most one
      `#EXT-X-PRELOAD-HINT` (Section 8.5.1).
@@ -194,16 +195,16 @@ Each committed part renders as:
 ```
 
 - `DURATION` is the part duration, three-decimal seconds.
-- `INDEPENDENT=YES` is emitted iff the part was committed
-  `independent` (starts with an independent frame).
-- Per-part-URI sessions: `URI` is the part's own delivery URL and no
+- The renderer emits `INDEPENDENT=YES` when, and only when, the part
+  was committed `independent` (starts with an independent frame).
+- Per-part-URI sessions: `URI` is the part's own delivery URL. No
   `BYTERANGE` attribute is emitted.
 - Byterange sessions: `URI` is the **virtual segment's** delivery URL
   (`byterange.segmentDeliveryUrl`) and
   `BYTERANGE="<length>@<offset>"` addresses the part within it. A
   byterange MUST have a non-negative integer `offset`, a positive
   integer `length`, a safe `segmentObjectKey`, and a safe
-  `segmentDeliveryUrl`; byteranges are valid only on parts.
+  `segmentDeliveryUrl`. Byteranges are valid only on parts.
 
 ### 8.5.1 PRELOAD-HINT
 
@@ -211,24 +212,25 @@ Each committed part renders as:
 #EXT-X-PRELOAD-HINT:TYPE=PART,URI="<uri>",BYTERANGE-START=<offset+length>
 ```
 
-Emitted only when the last committed part of the in-progress (partial)
-segment uses byterange addressing. `URI` is the virtual segment URL
-and `BYTERANGE-START` is that part's `offset + length` — the byte at
-which the next part will land. No `BYTERANGE-LENGTH` is emitted (the
-next part's size is unknown), so the hinted request is open-ended and
-is served per Section 7.10. Per-part-URI sessions emit no preload
-hints: future per-part URLs would be deterministic guesses whose 404s
-could poison caches (Section 10.4).
+The renderer emits this hint only when the last committed part of the
+in-progress (partial) segment uses byterange addressing. `URI` is the
+virtual segment URL. `BYTERANGE-START` is that part's
+`offset + length`, the byte at which the next part will land. No
+`BYTERANGE-LENGTH` is emitted, because the next part's size is
+unknown. The hinted request is therefore open-ended and is served as
+Section 7.10 defines. Per-part-URI sessions emit no preload hints. A
+future per-part URL is a deterministic guess, and its 404s can poison
+caches (Section 10.4).
 
 ## 8.5.2 End of stream
 
 <!-- olos-conformance: 8.5.2 HLS-ENDLIST-001 -->
 
-When the session (equivalently, the cursor's `state`) is terminal —
-`ended` or `aborted` — every media playlist MUST end with
-`#EXT-X-ENDLIST` so players stop polling. Live states MUST NOT emit
+When the session (equivalently, the cursor's `state`) is terminal
+(`ended` or `aborted`), every media playlist MUST end with
+`#EXT-X-ENDLIST`. Players then stop polling. Live states MUST NOT emit
 it. Even with `EXT-X-ENDLIST` present, `EXT-X-PLAYLIST-TYPE` remains
-omitted (Section 8.4): the window may still slide as retention prunes.
+omitted (Section 8.4). The window can still slide as retention prunes.
 
 ## 8.6 Blocking playlist reload
 
@@ -240,11 +242,11 @@ parameters (RFC 8216 LL-HLS blocking reload).
 Parsing:
 
 - Absent parameters mean "serve immediately".
-- Present parameters MUST be non-negative integers; anything else is
+- Present parameters MUST be non-negative integers. Anything else is
   `400`.
-- `_HLS_part` without `_HLS_msn` is invalid: `400`.
+- `_HLS_part` without `_HLS_msn` is invalid (`400`).
 
-Resolution against the cursor (`cursor.window` is the live edge; see
+Resolution against the cursor (`cursor.window` is the live edge, see
 Section 5):
 
 | Condition | Result |
@@ -257,33 +259,34 @@ Section 5):
 | `_HLS_msn == last` and `_HLS_part <= window.lastPartNumber` | ready |
 
 On a segment-only window (`window.lastPartNumber` absent), part
-requests at the last MSN never block: the segment is already complete.
+requests at the last MSN never block. The segment is already complete.
 
 Blocking behavior:
 
-- A blocked request MUST be held open until a newer cursor satisfies
-  the resolution, or the configured timeout elapses. Each new cursor
-  is re-resolved with the same table.
+- The coordinator MUST hold a blocked request open until a newer
+  cursor satisfies the resolution or the configured timeout elapses.
+  It re-resolves each new cursor with the same table.
 - A successful commit that advances the cursor MUST wake waiting
-  requests (Section 6.5.2); rejected commits MUST NOT wake anyone.
-- **Timeout is not an error**: the response is `200` with the playlist
-  rendered from the latest cursor observed, exactly as a non-blocking
-  request would have received.
+  requests (Section 6.5.2). Rejected commits MUST NOT wake any
+  request.
+- **Timeout is not an error.** The response is `200` with the playlist
+  rendered from the latest observed cursor. A non-blocking request
+  receives exactly the same response.
 - A zero timeout degrades to non-blocking behavior.
 - The wait deadline is computed from a monotonic-enough clock in epoch
   milliseconds. Implementations MAY inject this clock (the `now`
-  option of the reference waiter) — deadline arithmetic MUST use it
-  consistently for both the initial deadline and remaining-time
-  checks, so tests and embedders can drive time deterministically.
+  option of the reference waiter). Deadline arithmetic MUST use the
+  injected clock for both the initial deadline and remaining-time
+  checks. Tests and embedders can then drive time deterministically.
 - After a `ready` or `timeout` wait, the playlist MUST be rendered
   from the cursor returned by the wait (never a stale pre-wait
-  snapshot), and end-of-stream detection (Section 8.5.2) MUST use that
+  snapshot). End-of-stream detection (Section 8.5.2) MUST use that
   cursor's state.
 
 ## 8.7 Examples (informative)
 
 The examples below are normative *illustrations* of the rules above,
-not byte-golden requirements; URLs and identifiers are placeholders.
+not byte-golden requirements. URLs and identifiers are placeholders.
 
 Master playlist with an audio group:
 
@@ -300,7 +303,7 @@ Master playlist with an audio group:
 ```
 
 Media playlist (two full segments, one in-progress segment with two
-per-part-URI parts; nonce-bearing object keys per Section 7.5):
+per-part-URI parts, and nonce-bearing object keys as in Section 7.5):
 
 ```
 #EXTM3U
@@ -323,6 +326,6 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
 #EXT-X-PART:DURATION=0.500,URI="https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p1-slot_3812_1.m4s"
 ```
 
-Note `#EXT-X-MEDIA-SEQUENCE:3810` matches the first listed segment's
-MSN (Section 8.4.2), and no preload hint appears because the parts use
-per-part URIs (Section 8.5.1).
+Note that `#EXT-X-MEDIA-SEQUENCE:3810` matches the first listed
+segment's MSN (Section 8.4.2). No preload hint appears because the
+parts use per-part URIs (Section 8.5.1).

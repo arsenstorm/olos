@@ -53,9 +53,9 @@ chunked output later.
 ## Prerequisites
 
 - Bun
-- A workspace install and build at the repository root (`bun install`, then
-  `bun run build` — the workspace `@arsenstorm/olos` dependency resolves to
-  `olos/dist/`)
+- A workspace install and build at the repository root: `bun install`,
+  then `bun run build`. The workspace `@arsenstorm/olos` dependency
+  resolves to `olos/dist/`.
 - `ffmpeg` on PATH (`brew install ffmpeg`, `apt install ffmpeg`, etc.)
 - The `examples/api` Worker running (`bun run dev` in `examples/api`)
 - MinIO running (`docker compose up -d` in `examples/api`)

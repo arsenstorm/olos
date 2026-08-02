@@ -91,10 +91,10 @@ The handler mounts:
 | `GET` | `/v1/live/:id/master.m3u8` | Master playlist (variants, audio groups). |
 | `GET` | `/v1/live/:id/.../media.m3u8` | LL-HLS playlist with `_HLS_msn` blocking reload. |
 
-The `/sessions` and `/v1/live` prefixes are the defaults; both are
-configurable through the handler's `sessionPath` and `livePath` options.
-Error responses always carry `error.code` from the registered
-`OLOS_ERROR_CODES` set alongside `error.message`.
+The `/sessions` and `/v1/live` prefixes are the defaults. The handler's
+`sessionPath` and `livePath` options configure them. Error responses always
+carry `error.code` from the registered `OLOS_ERROR_CODES` set, next to
+`error.message`.
 
 ## Layers
 

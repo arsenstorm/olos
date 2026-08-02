@@ -11,15 +11,15 @@ Validate / Package (Node 22)
 Validate / Package (Node 24)
 ```
 
-The `Checks` job verifies:
+The `Checks` job runs:
 
 - frozen dependency install
 - dependency audit (blocking, all workspaces)
-- Ultracite linting
-- type checking for every workspace (`olos` including `scripts/` and `live/`,
+- Ultracite lint
+- type checks for every workspace (`olos` with `scripts/` and `live/`,
   `benchmarks`, and all examples)
 - Bun unit tests
-- conformance coverage checking and report generation
+- conformance coverage checks and report generation
 
 The `Package` job runs per Node version (22 and 24):
 
@@ -31,15 +31,15 @@ The `Package` job runs per Node version (22 and 24):
   imports every export subpath under Node
 - package artifact generation (Node 24 leg only)
 
-`publish:check` is the single-command local equivalent: conformance check,
-type checks (including `check-types:dist`, which type-checks the E2E suite
-against the generated `dist/*.d.ts`), unit tests, build, E2E tests,
-`pack:check`, and `pack:smoke`.
+`publish:check` is the single-command local equivalent. It runs the
+conformance checks, the type checks, the unit tests, the build,
+`check-types:dist` (the E2E suite against the generated `dist/*.d.ts`), the
+E2E tests, `pack:check`, and `pack:smoke`.
 
-`publish:check` is deterministic and does not require live cloud credentials.
-It proves the package build, public exports, protocol behavior, and local E2E
-flows. Provider compatibility still needs `bun run test:live-s3` with real
-S3-compatible credentials before relying on a specific storage deployment.
+`publish:check` is deterministic and needs no live cloud credentials. It
+proves the package build, the public exports, the protocol behavior, and
+the local E2E flows. Before you rely on a specific storage deployment, run
+`bun run test:live-s3` with real S3-compatible credentials.
 
 ## Merge Rules
 
@@ -47,7 +47,7 @@ S3-compatible credentials before relying on a specific storage deployment.
 - Require the branch to be up to date before merging when practical.
 - Do not bypass failed validation for package, protocol, runtime, HLS, S3, or
   conformance changes.
-- User-visible changes must include a changeset (`bun changeset`); the
+- A user-visible change must include a changeset (`bun changeset`). The
   Release PR workflow folds merged changesets into the next version PR.
 
 ## Release Rules
@@ -58,16 +58,17 @@ Releases are published only from tags named:
 olos-vX.Y.Z
 ```
 
-Versioning is driven by Changesets: merging the "Version Packages" PR bumps
-`olos/package.json` and prepends the changelog section. After that merge, a
-maintainer pushes the matching `olos-v<version>` tag manually.
+Changesets drives versioning. When the "Version Packages" PR merges, it
+bumps `olos/package.json` and prepends the changelog section. After that
+merge, a maintainer pushes the matching `olos-v<version>` tag manually.
 
-The publish workflow verifies the tag commit is reachable from `main`, that
-the tag matches `olos/package.json` and the changelog has a matching section,
-reruns `publish:check`, publishes from `olos/` with npm provenance via OIDC
-trusted publishing (gated by the `npm` environment), then verifies the
-published package and creates the GitHub release from the changelog section.
+The publish workflow makes sure that the tag commit is reachable from
+`main`, that the tag matches `olos/package.json`, and that the changelog
+has a matching section. It reruns `publish:check`. It publishes from
+`olos/` with npm provenance through OIDC trusted publishing, gated by the
+`npm` environment. It then checks the published package and creates the
+GitHub release from the changelog section.
 
 Protect release tags with the `olos-v*` pattern where the repository host
-supports tag protection. Only maintainers with npm publish access should create
+supports tag protection. Only maintainers with npm publish access can create
 or move release tags.

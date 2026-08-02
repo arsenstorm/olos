@@ -6,16 +6,16 @@
 
 Infrastructure and tooling:
 
-- Versioning and changelogs migrate to Changesets; package validation
-  migrates to `publint` + `@arethetypeswrong/cli` plus a slim packed-tarball
-  smoke test that runs under Node, replacing ~25 hand-rolled release
-  scripts.
-- CI restructured: full-workspace type checking (including `olos/scripts`,
-  `olos/live`, benchmarks, and examples), a Node 22/24 matrix for the
-  packed package and E2E suite, dependency caching, concurrency groups, and
-  job timeouts. Dependabot now regenerates `bun.lock`, and the audit gate is
-  clear again.
-- Publishing is hardened with an `npm` environment gate and a
-  tag-on-main ancestor check, keeping npm OIDC trusted publishing.
+- Versioning and changelogs migrate to Changesets. Package validation
+  migrates to `publint` and `@arethetypeswrong/cli`, plus a slim
+  packed-tarball smoke test that runs under Node. These replace about 25
+  hand-rolled release scripts.
+- CI is restructured. Type checks cover every workspace, including
+  `olos/scripts`, `olos/live`, benchmarks, and the examples. A Node 22/24
+  matrix builds the package and runs the E2E suite. The workflows gain
+  dependency caching, concurrency groups, and job timeouts. Dependabot now
+  regenerates `bun.lock`, and the audit gate is clear again.
+- Publishing gains an `npm` environment gate and a tag-on-main ancestor
+  check. npm OIDC trusted publishing stays in place.
 
-Library changes are documented in their own changesets as they land.
+The library changes have their own changesets.

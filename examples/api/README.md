@@ -37,10 +37,10 @@ R2 bucket in production — the Worker code does not change.
 
 ## Local dev
 
-Prerequisites: Bun, Docker (for MinIO), Node ≥22.18 (for Wrangler deploy),
-and a workspace install plus build at the repo root (`bun install`, then
-`bun run build` — the workspace `@arsenstorm/olos` dependency resolves to
-`olos/dist/`).
+Prerequisites: Bun, Docker (for MinIO), Node ≥22.18 (for Wrangler
+deploy), and a workspace install plus build at the repo root. Run
+`bun install`, then `bun run build`. The workspace `@arsenstorm/olos`
+dependency resolves to `olos/dist/`.
 
 ```bash
 cd examples/api
@@ -68,13 +68,14 @@ cd examples/api
 bun run publish-demo
 ```
 
-The demo creates a session, publishes an init object plus two segments built
-from four byterange parts each, then opens an LL-HLS blocking reload request
-(`_HLS_msn=N+1`) and publishes the next segment's parts concurrently,
-asserting the reload returns within the timeout once those parts land.
-Finally it fetches the first virtual segment (`/v/:session/:rendition/:msn.m4s`)
-with both a full GET and an interior `Range` GET and asserts the aggregated
-bytes match what was published. It's the only programmatic check that the in-DO cursor
+The demo creates a session and publishes an init object plus two
+segments, each built from four byterange parts. It then opens an LL-HLS
+blocking reload request (`_HLS_msn=N+1`) and publishes the next segment's
+parts at the same time. The reload must return within the timeout once
+those parts land. Finally, the demo fetches the first virtual segment
+(`/v/:session/:rendition/:msn.m4s`) with a full GET and an interior `Range`
+GET. The aggregated bytes must match the published bytes. It is the only
+programmatic check that the in-DO cursor
 waiter wired through `createCursorWaiter` actually wakes the blocking
 manifest handler — useful when iterating on `coordinator-do.ts` or
 `cursor-notifier.ts` without having to spin up OBS.
@@ -87,8 +88,8 @@ bun run minio:up               # docker compose up -d
 bun run minio:down             # docker compose down -v
 ```
 
-Stop `bun run dev` **before** running `reset` — wrangler holds open file
-handles on `.wrangler/state` that block the removal.
+Stop `bun run dev` **before** you run `reset`. Wrangler holds open file
+handles on `.wrangler/state`, and these handles block the removal.
 
 ## Production deployment
 

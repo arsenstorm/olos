@@ -1,8 +1,9 @@
 # OLOS benchmarks
 
-Glass-to-glass latency harness for OLOS. It measures how long a video frame
-takes to travel from capture to render through a real encode → publish →
-LL-HLS → decode pipeline, with every OLOS stage timestamped along the way.
+Glass-to-glass latency harness for OLOS. It measures the time a video
+frame takes from capture to render. The frame travels through a real
+encode → publish → LL-HLS → decode pipeline. The harness timestamps every
+OLOS stage on the way.
 
 ## What it measures
 
@@ -11,21 +12,21 @@ high-contrast barcode (`src/barcode.ts`: 48 data bits of epoch milliseconds,
 sized to survive H.264 4:2:0 subsampling). The pipeline is:
 
 1. A frame timer paints barcode frames and feeds them to a real `ffmpeg`
-   H.264 encoder producing fMP4 fragments.
+   H.264 encoder that produces fMP4 fragments.
 2. The producer publishes each fragment (init, parts, segments) through an
-   in-memory local OLOS coordinator (`src/local-olos.ts`) — the real
-   `createStoredS3CoordinatorRuntimeHandler` from `@arsenstorm/olos/s3`, with
-   uploaded bytes held in a Map and served from a loopback TLS media origin
-   on `127.0.0.1`.
+   in-memory local OLOS coordinator (`src/local-olos.ts`). This is the real
+   `createStoredS3CoordinatorRuntimeHandler` from `@arsenstorm/olos/s3`. A
+   Map holds the uploaded bytes, and a loopback TLS media origin on
+   `127.0.0.1` serves them.
 3. The consumer plays the stream back over LL-HLS blocking reload
-   (`_HLS_msn`), fetching manifests and media exactly like a player would.
+   (`_HLS_msn`). It fetches manifests and media in the same way as a player.
 4. A pool of streaming ffmpeg decoders reads the barcode back out of the
-   rendered frames, recovering the original capture time.
+   rendered frames and recovers the original capture time.
 
-Because the capture clock rides inside the frame itself, no encoder
-start-clock calibration is needed. Every sample records five timestamps —
-`captureAt`, `uploadedAt`, `committedAt`, `playlistVisibleAt`, `renderedAt` —
-which the report aggregates into per-stage percentiles:
+Because the capture clock rides inside the frame, the harness does not
+need encoder start-clock calibration. Every sample records five timestamps:
+`captureAt`, `uploadedAt`, `committedAt`, `playlistVisibleAt`, and
+`renderedAt`. The report aggregates them into per-stage percentiles:
 
 | Stage | Definition |
 | --- | --- |
@@ -35,8 +36,9 @@ which the report aggregates into per-stage percentiles:
 | fetch | `renderedAt − playlistVisibleAt` |
 | glass-to-glass | `renderedAt − captureAt` |
 
-Everything runs on one machine. No S3/R2 account, no credentials, no egress:
-the S3 client only presigns URLs locally and is never sent to.
+Everything runs on one machine. The harness needs no S3/R2 account,
+credentials, or egress. The S3 client presigns URLs locally and sends no
+requests.
 
 ## Prerequisites
 
@@ -49,8 +51,8 @@ bun install
 bun run build
 ```
 
-The workspace `@arsenstorm/olos` dependency resolves to `olos/dist/`, so the
-package must be built before the harness can import it.
+The workspace `@arsenstorm/olos` dependency resolves to `olos/dist/`.
+Build the package before you run the harness.
 
 ## Run
 
@@ -61,13 +63,14 @@ bun run benchmark:worker   # a single session, no orchestrator
 ```
 
 `bun run benchmark` (`src/orchestrator.ts`) spawns `OLOS_BENCH_CONCURRENCY`
-worker subprocesses — each a full bench session with its own ffmpeg, port
-(`OLOS_BENCH_PORT + workerId`), and in-memory coordinator — splits the sample
-target across them, and aggregates their progress into one live panel. With
-the default concurrency of 1 it is a thin shim over a single worker.
+worker subprocesses. Each worker is a full bench session with its own
+ffmpeg, port (`OLOS_BENCH_PORT + workerId`), and in-memory coordinator. The
+orchestrator splits the sample target across the workers and aggregates
+their progress into one live panel. With the default concurrency of 1, it
+is a thin shim over a single worker.
 
-`bun run benchmark:worker` (`src/index.ts`) runs one session directly with a
-live terminal UI. `SIGINT`/`SIGTERM` drain the decoder pool cleanly, so an
+`bun run benchmark:worker` (`src/index.ts`) runs one session directly with
+a live terminal UI. `SIGINT`/`SIGTERM` drain the decoder pool, so an
 interrupted run still writes its results.
 
 ## Environment
@@ -91,12 +94,12 @@ All knobs are `OLOS_BENCH_*` environment variables.
 
 Both outputs are gitignored (see `.gitignore`: `results.csv`, `runs/`).
 
-- `results.csv` — append-only per-sample log, shared across runs and
+- `results.csv`: append-only per-sample log, shared across runs and
   workers. Header:
   `runId,workerId,seq,msn,partNumber,captureAt,uploadedAt,committedAt,playlistVisibleAt,renderedAt,latencyMs`.
-- `runs/<runId>.json` — one sidecar per run with the config knobs, machine
-  info (CPU, memory, Bun/Node versions), the repo commit when available,
-  and the aggregated percentile results.
+- `runs/<runId>.json`: one sidecar per run with the configuration knobs,
+  machine info (CPU, memory, Bun/Node versions), the repo commit when
+  available, and the aggregated percentile results.
 
 A non-worker run also prints a text report: end-to-end p50/p95/p99/mean,
 estimated OLOS overhead (p50 minus the fragment duration), and the per-stage
@@ -104,24 +107,22 @@ breakdown.
 
 ## Local-only TLS
 
-The harness is loopback-only by construction, and two guards keep it that
-way:
+Two guards keep the harness loopback-only:
 
 - `src/index.ts` sets `NODE_TLS_REJECT_UNAUTHORIZED=0` **process-wide**
-  before importing the harness, so the consumer accepts the self-signed
-  loopback certificate without wiring a trust store (and the harness module
-  itself stays side-effect-free for other importers).
+  before it imports the harness. The consumer then accepts the self-signed
+  loopback certificate without a trust store, and the harness module stays
+  side-effect-free for other importers.
 - `assertLoopback` (`src/cert.ts`) rejects any media origin whose host is
   not `127.0.0.1` or `localhost`.
 
-Because certificate verification is disabled for the whole process, the
-harness must never be pointed at a remote origin. It is a measurement rig,
-not a client.
+Certificate verification is off for the whole process. Do not point the
+harness at a remote origin.
 
 ## Reference numbers
 
-Reference numbers come from a curated committed baseline, not from ad-hoc
-runs. No baseline has been committed yet, so the table below is a skeleton.
+Reference numbers come from a curated, committed baseline. There is no
+committed baseline yet, so the table below is a skeleton.
 
 _pending first curated baseline run_
 
@@ -133,7 +134,7 @@ _pending first curated baseline run_
 | playlist-visible → rendered (fetch) | — | — | — |
 | glass-to-glass | — | — | — |
 
-To establish (or refresh) the baseline:
+To create or refresh the baseline:
 
 1. Run `bun run benchmark` on an otherwise idle machine with default knobs.
 2. Copy the run sidecar from `runs/<runId>.json` to

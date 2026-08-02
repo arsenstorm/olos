@@ -3,44 +3,44 @@
 This directory contains the specification for OLOS (Open Live Object
 Streaming), wire version `1.0`.
 
-OLOS is a protocol for live adaptive media in which encoded media is
-published as immutable, time-indexed CMAF objects on S3-compatible object
-stores and exposed to viewers through LL-HLS with blocking reload. A
-coordinator turns exact-key object uploads into stream state; only committed
+OLOS is a protocol for live adaptive media. The publisher publishes encoded
+media as immutable, time-indexed CMAF objects on S3-compatible object
+stores. Viewers receive the media through LL-HLS with blocking reload. A
+coordinator turns exact-key object uploads into stream state. Only committed
 media is rendered into manifests.
 
 ## Status
 
 This specification is a **draft**. The authoritative status string is the
-`OLOS_SPEC_STATUS` constant exported from `olos/src/index.ts` in the
-reference implementation; the text in this directory mirrors that constant
-and is superseded by it whenever the two disagree. The wire version is the
-`OLOS_WIRE_VERSION` constant (`"1.0"`), carried by every session and cursor
-in the `olos` field.
+`OLOS_SPEC_STATUS` constant that the reference implementation exports from
+`olos/src/index.ts`. The text in this directory mirrors that constant. If
+the two disagree, the constant supersedes the text. The wire version is the
+`OLOS_WIRE_VERSION` constant (`"1.0"`). Every session and cursor carries
+the wire version in the `olos` field.
 
-While the specification is in draft, the reference implementation
+While the specification is a draft, the reference implementation
 (`@arsenstorm/olos`), its JSON Schemas (`@arsenstorm/olos/schema`), and its
 conformance assertions (`@arsenstorm/olos/conformance`) remain the normative
-surface. Where this text and the reference implementation disagree, the
-implementation wins and the text has a bug.
+surface. If this text and the reference implementation disagree, the
+implementation wins. The text then has a bug.
 
 ## Scope
 
 The specification defines:
 
-- the wire objects exchanged between publishers, coordinators, and viewers;
-- the state machine that turns uploads into committed stream state;
-- the committed-window invariants that gate what viewers can see;
+- the wire objects exchanged between publishers, coordinators, and viewers
+- the state machine that turns uploads into committed stream state
+- the committed-window invariants that gate what viewers can see
 - the HTTP API, the S3-compatible storage binding, the LL-HLS mapping, and
-  the direct-public security profile.
+  the direct-public security profile
 
 Authentication, authorization, tenant quotas, storage-backend selection, and
-viewer routing are application concerns and are out of scope (see
+viewer routing are application concerns. They are out of scope (see
 Section 02).
 
 ## Conformance levels
 
-Conformance assertions are grouped into five levels, mirroring the
+Conformance assertions are grouped into five levels. The levels mirror the
 `OlosConformanceLevel` type in `olos/src/conformance/metadata.ts`:
 
 | Level      | Meaning                                                        |
@@ -56,8 +56,9 @@ Conformance assertions are grouped into five levels, mirroring the
 | `security` | The direct-public deployment profile: origin allow-lists,      |
 |            | unguessable keys, response-header policy.                      |
 
-Assertion identifiers prefixed `CORE-RUNTIME-` are historical; the level
-recorded in the coverage table is authoritative, not the prefix.
+Assertion identifiers with the prefix `CORE-RUNTIME-` are historical. The
+level recorded in the coverage table is authoritative. The prefix is not
+authoritative.
 
 ## Reading order
 
@@ -76,7 +77,7 @@ recorded in the coverage table is authoritative, not the prefix.
 | 11 Versioning                                              | Wire-version policy |
 
 Appendix A (JSON Schemas) and Appendix B (conformance assertion catalogue)
-are generated from the reference implementation and MUST NOT be edited by
+are generated from the reference implementation. They MUST NOT be edited by
 hand.
 
 ## Requirement keywords
