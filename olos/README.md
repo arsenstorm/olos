@@ -83,11 +83,18 @@ The handler mounts:
 | `POST` | `/sessions/:id/s3/events` | Accept S3 object-created events. |
 | `POST` | `/sessions/:id/s3/reconcile-plan` | List in-flight slots for recovery. |
 | `POST` | `/sessions/:id/s3/reconcile` | Recover slots after missed events. |
-| `POST` | `/sessions/:id/s3/retention` | Plan and delete retired media. |
+| `POST` | `/sessions/:id/s3/retention` | Prune retired state and delete retired media. |
+| `POST` | `/sessions/:id/upload-slots/:slotId/complete` | Publisher completion hint (alternative to waiting for events). |
 | `POST` | `/sessions/:id/transition` | Advance session state. |
 | `POST` | `/sessions/:id/heartbeat` | Publisher liveness ping. |
 | `GET` | `/sessions/:id/health` | Live / starting / stale summary. |
+| `GET` | `/v1/live/:id/master.m3u8` | Master playlist (variants, audio groups). |
 | `GET` | `/v1/live/:id/.../media.m3u8` | LL-HLS playlist with `_HLS_msn` blocking reload. |
+
+The `/sessions` and `/v1/live` prefixes are the defaults; both are
+configurable through the handler's `sessionPath` and `livePath` options.
+Error responses always carry `error.code` from the registered
+`OLOS_ERROR_CODES` set alongside `error.message`.
 
 ## Layers
 
