@@ -64,7 +64,7 @@ export const sleep = (ms: number): Promise<void> =>
 // subtractable from `captureAt`) while dropping the integer-ms quantization of
 // `Date.now()`. This is the precision floor for the in-process stages.
 //
-// ponytail: fractional ms, not epoch-ns. True nanoseconds can't ride the
+// Note: fractional ms, not epoch-ns. True nanoseconds can't ride the
 // measurement path — `captureAt` is carried through the H.264 frame as a
 // barcode integer decoded into a JS double, and epoch-ns (~1.8e18) exceeds
 // Number.MAX_SAFE_INTEGER (9.0e15). For ns on the capture leg, widen the

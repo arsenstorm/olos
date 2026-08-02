@@ -14,13 +14,16 @@ R2 bucket in production — the Worker code does not change.
 - LL-HLS blocking reload (`_HLS_msn=N`) backed by in-DO cursor waiters, so a
   playback request that asks for a segment one beyond the live edge returns as
   soon as the next commit lands.
+- LL-HLS `#EXT-X-PART` byterange parts: the
+  `GET /v/:session/:rendition/:msn.m4s` virtual-segment route
+  (`src/virtual-segment-proxy.ts`) aggregates per-part S3 objects on the fly
+  to satisfy full and Range requests against the logical segment URL.
 - The S3 client (`@aws-sdk/client-s3`) pointed at a configurable endpoint:
   MinIO for local dev, R2's S3-compatible endpoint for production.
 
 ## What it intentionally does not show
 
 - Multiple renditions.
-- LL-HLS `#EXT-X-PART` parts (segments only).
 - Recovery and retention jobs (`/s3/reconcile-plan`, `/s3/reconcile`,
   `/s3/retention`). The routes are mounted by the OLOS handler; cron wiring is
   left to the application.
@@ -35,7 +38,9 @@ R2 bucket in production — the Worker code does not change.
 ## Local dev
 
 Prerequisites: Bun, Docker (for MinIO), Node ≥22.18 (for Wrangler deploy),
-and a workspace install at the repo root (`bun install`).
+and a workspace install plus build at the repo root (`bun install`, then
+`bun run build` — the workspace `@arsenstorm/olos` dependency resolves to
+`olos/dist/`).
 
 ```bash
 cd examples/api
@@ -63,13 +68,27 @@ cd examples/api
 bun run publish-demo
 ```
 
-The demo creates a session, publishes an init object plus three segments, then
-opens an LL-HLS blocking reload request (`_HLS_msn=N+1`) concurrently with the
-final commit and asserts that the reload returns within the timeout with the
-new segment listed. It's the only programmatic check that the in-DO cursor
+The demo creates a session, publishes an init object plus two segments built
+from four byterange parts each, then opens an LL-HLS blocking reload request
+(`_HLS_msn=N+1`) and publishes the next segment's parts concurrently,
+asserting the reload returns within the timeout once those parts land.
+Finally it fetches the first virtual segment (`/v/:session/:rendition/:msn.m4s`)
+with both a full GET and an interior `Range` GET and asserts the aggregated
+bytes match what was published. It's the only programmatic check that the in-DO cursor
 waiter wired through `createCursorWaiter` actually wakes the blocking
 manifest handler — useful when iterating on `coordinator-do.ts` or
 `cursor-notifier.ts` without having to spin up OBS.
+
+### Reset the local stack
+
+```bash
+bun run reset                  # wipe MinIO volume + Durable Object state
+bun run minio:up               # docker compose up -d
+bun run minio:down             # docker compose down -v
+```
+
+Stop `bun run dev` **before** running `reset` — wrangler holds open file
+handles on `.wrangler/state` that block the removal.
 
 ## Production deployment
 
@@ -132,8 +151,13 @@ routes.
 - `src/cursor-notifier.ts` — adapter forwarding `waitForCursor` to the DO.
 - `src/s3-client.ts` — `@aws-sdk/client-s3` factory.
 - `src/media-proxy.ts` — `GET /media/:key` proxy (demo-only).
+- `src/virtual-segment-proxy.ts` — `GET /v/:session/:rendition/:msn.m4s`;
+  aggregates committed byterange parts into the logical segment, honoring
+  Range requests and holding responses for not-yet-committed ranges.
 - `scripts/publish-demo.ts` — smoke test: publishes fixture bytes and asserts
   the LL-HLS blocking-reload path returns when the next commit lands.
+- `scripts/reset.ts` — one-shot local reset: wipes the MinIO volume and the
+  Worker's Durable Object state, then restarts MinIO.
 - `vite.config.ts` — Vite + `@cloudflare/vite-plugin` (classic mode).
 - `wrangler.jsonc` — bindings, DO migrations, vars.
 - `docker-compose.yml` — MinIO + bucket bootstrap.

@@ -33,7 +33,12 @@ bun run build
 
 - [Pull request descriptions](./contributing/repository/pull-request-descriptions.md)
 - [Releases](./contributing/repository/releases.md)
+- [Checks](./contributing/repository/checks.md)
+
+## Core
+
 - [Testing](./contributing/core/testing.md)
+- [Conformance](./contributing/core/conformance.md)
 - [Code structure](./contributing/core/code-structure.md)
 - [Store adapters](./contributing/core/store-adapters.md)
 - [Production object pipeline](./contributing/core/production-pipeline.md)

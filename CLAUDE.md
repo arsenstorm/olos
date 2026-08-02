@@ -6,7 +6,7 @@ automation guidance.
 Project-specific priorities:
 
 - keep the root `olos` import minimal
-- prefer explicit subpath exports such as `olos/core`
+- prefer explicit subpath exports such as `@arsenstorm/olos/protocol` and `@arsenstorm/olos/state`
 - avoid barrel files
 - keep provider-specific code out of core protocol modules
 - preserve the npm package contract in `olos/package.json`

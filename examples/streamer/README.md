@@ -35,8 +35,9 @@ virtual segment URL. If a Range extends past committed parts, the Worker
 holds the response open via the per-session DO cursor waiter until the
 next commit lands — the `EXT-X-PRELOAD-HINT` mechanism.
 
-End-to-end glass-to-glass latency on a local stack: **~1.5–2.5 s**, with
-the manifest looking exactly like Apple's reference LL-HLS form.
+End-to-end glass-to-glass latency on a local stack: **~1.5–2.5 s** (see
+[benchmarks](../../benchmarks/README.md#reference-numbers)), with the
+manifest looking exactly like Apple's reference LL-HLS form.
 
 ### Why not Shaka Packager?
 
@@ -52,6 +53,9 @@ chunked output later.
 ## Prerequisites
 
 - Bun
+- A workspace install and build at the repository root (`bun install`, then
+  `bun run build` — the workspace `@arsenstorm/olos` dependency resolves to
+  `olos/dist/`)
 - `ffmpeg` on PATH (`brew install ffmpeg`, `apt install ffmpeg`, etc.)
 - The `examples/api` Worker running (`bun run dev` in `examples/api`)
 - MinIO running (`docker compose up -d` in `examples/api`)
@@ -128,12 +132,6 @@ ffmpeg -re -i some-clip.mp4 \
 - Re-encode at the streamer side. `-c:v copy -c:a copy` passes OBS
   H.264 + AAC through. If your encoder uses a different codec, ffmpeg
   will fail at startup.
-- Byte-range LL-HLS parts (Apple's preferred form). OLOS's `CommittedPart`
-  expects one URL per part, so we publish each part as its own S3 object
-  rather than as a byte range inside the segment file. The wire result
-  is identical from hls.js's perspective; the cost is more S3 round-trips.
-- `#EXT-X-PRELOAD-HINT`. OLOS's manifest renderer can emit it, but it's
-  not wired up in `examples/api`.
 - Concurrent streams. `ffmpeg -listen 1` accepts exactly one RTMP
   connection then exits; re-run for the next stream.
 - Publisher heartbeat / lease.

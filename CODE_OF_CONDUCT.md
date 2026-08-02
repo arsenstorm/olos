@@ -45,7 +45,12 @@ individual is officially representing the project in public spaces.
 ## Enforcement
 
 Report abusive, harassing, or otherwise unacceptable behavior privately to the
-repository maintainers. Do not open public issues for private conduct reports.
+repository maintainers through GitHub's private reporting flow for this
+repository:
+
+https://github.com/arsenstorm/olos/security
+
+Do not open public issues for private conduct reports.
 
 Reports will be reviewed and investigated promptly and fairly. Maintainers will
 respect the privacy and security of the reporter.

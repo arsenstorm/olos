@@ -8,6 +8,7 @@ served by Bun on `http://localhost:8788/`; uses [hls.js](https://github.com/vide
 ## Prerequisites
 
 - Bun
+- A workspace install at the repo root (`bun install`)
 - The `examples/api` Worker running on `http://localhost:8787`
 - A live session to watch — either `examples/streamer` connected from OBS,
   or `examples/api/scripts/publish-demo.ts` for fixture bytes
@@ -16,8 +17,14 @@ served by Bun on `http://localhost:8788/`; uses [hls.js](https://github.com/vide
 
 ```bash
 cd examples/player
-bun run start          # → http://localhost:8788/
+bun run start          # → http://localhost:8788/ (override with PORT)
 ```
+
+## Environment
+
+| Var | Default | Notes |
+| --- | --- | --- |
+| `PORT` | `8788` | Port for the Bun static server (`src/serve.ts`) |
 
 Open the page, paste the session ID printed by the streamer (or the demo
 script), click Play. The log pane shows part and segment loads as they
@@ -30,7 +37,8 @@ arrive.
   `maxLiveSyncPlaybackRate: 1.5`. With `examples/streamer` producing 500 ms
   LL-HLS parts, hls.js's blocking-reload path holds requests open for
   `_HLS_msn=N&_HLS_part=M` until OLOS commits that part — typical
-  end-to-end glass-to-glass latency on the local stack is ~1.5–2.5 s.
+  end-to-end glass-to-glass latency on the local stack is ~1.5–2.5 s (see
+  [benchmarks](../../benchmarks/README.md#reference-numbers)).
 - Wraps hls.js's default loader to rewrite segment URLs: OLOS bakes the
   configured `MEDIA_ORIGIN` (`https://localhost:8787`) into the manifest,
   but the local Worker actually serves over HTTP. The loader swaps the
@@ -56,7 +64,9 @@ arrive.
 | hls.js holds Range request via `EXT-X-PRELOAD-HINT`, Worker streams bytes | ~0.1 s |
 | hls.js decodes + plays one part behind live | ~0.4 s |
 
-Target glass-to-glass: **~2 s** with the byterange LL-HLS path. OLOS now
+Target glass-to-glass: **~2 s** (see
+[benchmarks](../../benchmarks/README.md#reference-numbers)) with the
+byterange LL-HLS path. OLOS now
 emits `#EXT-X-PART:BYTERANGE="L@O"` against a virtual segment URL and a
 `#EXT-X-PRELOAD-HINT:TYPE=PART,BYTERANGE-START=N` line after the last
 in-progress part; the Worker's `/v/:session/:rendition/:msn.m4s` route
@@ -76,4 +86,4 @@ would block the cross-origin fetch from `localhost:8788` to
 ## Files
 
 - `index.html` — single-page player. Loads hls.js from jsDelivr.
-- `src/serve.ts` — Bun static server on port 8788.
+- `src/serve.ts` — Bun static server on the configured port (default 8788).
