@@ -10,7 +10,7 @@ on:
   schedule:
     - cron: "0 6 * * 1"
 
-permissions: read-all
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -29,6 +29,8 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2

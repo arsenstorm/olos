@@ -41,6 +41,22 @@ proves the package build, the public exports, the protocol behavior, and
 the local E2E flows. Before you rely on a specific storage deployment, run
 `bun run test:live-s3` with real S3-compatible credentials.
 
+## Workflow security
+
+- Every workflow starts from `permissions: {}`. Each job grants only what it
+  needs.
+- All actions are pinned to full commit SHAs. The Zizmor workflow audits the
+  workflow files on every push and pull request.
+- Checkouts set `persist-credentials: false`. The one exception is
+  `release.yml`, because `changesets/action` pushes with the checked-out
+  credentials. The exception is recorded in `.github/zizmor.yml`.
+- The publish workflow uses no caches. A poisoned cache entry must not be
+  able to reach a published artifact.
+- Dependabot waits 7 days after an upstream release before it opens an
+  update PR. A compromised release is usually found and pulled within days.
+- The workflows do not use the `pull_request_target` or `workflow_run`
+  triggers.
+
 ## Merge Rules
 
 - Require pull requests before merging to `main`.
