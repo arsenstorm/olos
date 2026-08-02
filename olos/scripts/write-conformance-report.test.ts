@@ -9,7 +9,7 @@ describe("conformance report writer", () => {
   test("includes summary counts and mapped assertion rows", () => {
     const report = buildConformanceReport();
 
-    expect(report).toContain("| Total | 132 | 132 | 132 | 0 | 0 |");
+    expect(report).toContain("| Total | 133 | 133 | 133 | 0 | 0 |");
     expect(report).toContain("## Mapped Assertions");
     expect(report).toContain("### Object");
     expect(report).toContain("| ID | Spec § | Status | Test file |");
@@ -49,9 +49,9 @@ describe("conformance report writer", () => {
 
   test("summarizes release-gated conformance coverage", () => {
     expect(summarizeConformance()).toEqual({
-      covered: 132,
-      known: 132,
-      mapped: 132,
+      covered: 133,
+      known: 133,
+      mapped: 133,
       partial: 0,
       unmapped: 0,
     });

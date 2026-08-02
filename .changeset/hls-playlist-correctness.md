@@ -16,3 +16,24 @@ HLS playlist correctness fixes:
 - A parts-only in-progress segment now reports the sum of its contiguous
   part durations instead of the duration of the first part. A full-segment
   commit keeps its authoritative duration.
+- Blocking reloads against a terminal (`ended`/`aborted`) cursor resolve
+  immediately with the final ENDLIST playlist instead of holding the
+  request open for the full timeout — no further cursor can ever satisfy
+  the request. The internal `isEndOfStreamSessionState` helper moved from
+  the HLS manifest artifact module to `olos/src/state/session.ts` (it was
+  never part of a public facade).
+- `#EXT-X-DISCONTINUITY-SEQUENCE` is per-rendition too: `RenditionWindow`
+  gains an optional `discontinuitySequence` that the renderer prefers over
+  the window-global value, and window construction counts trimmed leading
+  segments marked `discontinuityBefore` into it. Windows built from commits
+  keep the field absent (commits carry no discontinuity markers yet).
+- The master playlist and the manifest artifact set now include only
+  renditions present in the committed window. A rendition that has not
+  committed media yet (init-only, or not yet publishing) no longer makes
+  playlist rendering throw and fail every playlist request for the
+  session; its media route is 404 until media commits, and the master
+  picks it up on the next request after its first commit. A session with
+  committed audio but no committed video serves no master playlist yet
+  (404). `renderMasterPlaylist` gains the optional `availableRenditionIds`
+  option that implements the filter; omitted, it renders every session
+  rendition as before.

@@ -10,9 +10,9 @@ Current manifest snapshot:
 | Core | 38 |
 | Runtime | 25 |
 | Object | 41 |
-| HLS | 21 |
+| HLS | 22 |
 | Security | 7 |
-| Total | 132 |
+| Total | 133 |
 
 The Core bucket holds the protocol-essential assertions: slot issuance, slot
 expiry, object/slot mismatch rejection, size rejection, duplicate-commit

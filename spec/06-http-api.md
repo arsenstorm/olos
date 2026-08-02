@@ -398,7 +398,10 @@ missing or invalid `now`.
 Section 8 with content type `application/vnd.apple.mpegurl` and the
 manifest cache policy of Section 10.4. Only `GET` is allowed (`405`
 otherwise). Unknown sessions are `404`. A session without a cursor has
-no playlists yet and is also `404`.
+no playlists yet and is also `404`. A rendition with no committed
+media has no media playlist yet — its route is `404` and the master
+does not advertise it. A session whose committed window contains no
+video rendition has no master playlist yet — also `404` (Section 8.2).
 
 Media playlist requests MAY carry the LL-HLS blocking reload query
 parameters `_HLS_msn` and `_HLS_part`. When the coordinator has

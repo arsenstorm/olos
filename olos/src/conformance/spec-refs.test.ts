@@ -3,7 +3,7 @@ import { OLOS_CONFORMANCE_ASSERTION_IDS } from "./assertion-ids";
 import { OLOS_CONFORMANCE_SPEC_REFS } from "./spec-refs";
 
 const SECTION_NUMBER_PATTERN = /^\d{1,2}(\.\d+)*$/;
-const EXPECTED_MAPPED_COUNT = 100;
+const EXPECTED_MAPPED_COUNT = 101;
 
 describe("conformance spec refs", () => {
   test("covers every assertion id exactly once", () => {

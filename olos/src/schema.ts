@@ -285,6 +285,7 @@ const committedSegmentSchema = {
 const renditionWindowSchema = {
   additionalProperties: false,
   properties: {
+    discontinuitySequence: nonNegativeInteger,
     init: committedObjectSchema,
     renditionId: id,
     segments: { items: committedSegmentSchema, type: "array" },

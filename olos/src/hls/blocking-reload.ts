@@ -1,3 +1,4 @@
+import { isEndOfStreamSessionState } from "../state/session";
 import type { Cursor } from "../types/cursor";
 import type { MediaSequenceNumber, PartNumber } from "../types/ids";
 import { assertCursor } from "../validation/cursor";
@@ -141,9 +142,12 @@ export function parseHlsBlockingReloadRequest(
  * sequence number and part are committed, the request turns out to be
  * immediately servable, or `timeoutMs` elapses. Repeatedly resolves the
  * request against the latest cursor and calls `waitForCursor` while it
- * resolves to `block`. A `timeout` result still carries the most recent
- * cursor so callers can serve the current playlist. Throws if `cursor` is
- * malformed or `timeoutMs` is negative.
+ * resolves to `block`. A cursor in a terminal session state (`ended` or
+ * `aborted`) resolves immediately as `timeout` — nothing further commits,
+ * so the final ENDLIST playlist is served without waiting. A `timeout`
+ * result still carries the most recent cursor so callers can serve the
+ * current playlist. Throws if `cursor` is malformed or `timeoutMs` is
+ * negative.
  */
 export async function waitForHlsBlockingReload(
   options: WaitForHlsBlockingReloadOptions
@@ -163,6 +167,13 @@ export async function waitForHlsBlockingReload(
 
     if (isReadyHlsBlockingReloadResolution(resolution)) {
       return readyHlsBlockingReloadResult(cursor, options.request);
+    }
+
+    // A terminal session commits nothing further, so a blocked request can
+    // never be satisfied — resolve immediately with the final (ENDLIST)
+    // playlist instead of pinning the request until the deadline.
+    if (isEndOfStreamSessionState(cursor.state)) {
+      return timeoutHlsBlockingReloadResult(cursor, options.request);
     }
 
     const remainingMs = remainingHlsBlockingReloadMs(deadline, options);

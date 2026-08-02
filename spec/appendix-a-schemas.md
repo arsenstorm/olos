@@ -155,6 +155,10 @@ document name.
       "additionalProperties": {
         "additionalProperties": false,
         "properties": {
+          "discontinuitySequence": {
+            "minimum": 0,
+            "type": "integer"
+          },
           "init": {
             "additionalProperties": false,
             "properties": {
@@ -423,6 +427,10 @@ document name.
           "additionalProperties": {
             "additionalProperties": false,
             "properties": {
+              "discontinuitySequence": {
+                "minimum": 0,
+                "type": "integer"
+              },
               "init": {
                 "additionalProperties": false,
                 "properties": {

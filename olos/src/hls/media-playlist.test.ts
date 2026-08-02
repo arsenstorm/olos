@@ -474,6 +474,44 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
 https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3811.m4s`);
   });
 
+  test("renders the rendition's own discontinuity sequence when set", () => {
+    const playlist = renderMediaPlaylist(
+      {
+        ...committedWindow,
+        discontinuitySequence: 1,
+        renditions: {
+          v1080: {
+            ...validRendition(),
+            discontinuitySequence: 3,
+          },
+        },
+      },
+      {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+      }
+    );
+
+    expect(playlist).toContain("#EXT-X-DISCONTINUITY-SEQUENCE:3");
+    expect(playlist).not.toContain("#EXT-X-DISCONTINUITY-SEQUENCE:1");
+  });
+
+  test("falls back to the window discontinuity sequence when the rendition sets none", () => {
+    const playlist = renderMediaPlaylist(
+      { ...committedWindow, discontinuitySequence: 2 },
+      {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+      }
+    );
+
+    expect(playlist).toContain("#EXT-X-DISCONTINUITY-SEQUENCE:2");
+  });
+
   test("rejects absolute media URLs without an allowed origin", () => {
     expect(() =>
       renderMediaPlaylist(committedWindow, {

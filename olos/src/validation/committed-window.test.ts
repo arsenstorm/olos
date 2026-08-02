@@ -112,6 +112,30 @@ describe("committed window validation", () => {
     expect(() => assertCommittedWindow(validWindow)).not.toThrow();
   });
 
+  test("accepts an optional rendition discontinuity sequence", () => {
+    expect(
+      isCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: { ...validRendition(), discontinuitySequence: 2 },
+        },
+      })
+    ).toBe(true);
+  });
+
+  test("rejects invalid rendition discontinuity sequences", () => {
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        renditions: {
+          v1080: { ...validRendition(), discontinuitySequence: -1 },
+        },
+      })
+    ).toThrow(
+      "committedWindow.renditions.v1080.discontinuitySequence must be a non-negative integer"
+    );
+  });
+
   test("rejects non-object values", () => {
     expect(isCommittedWindow(null)).toBe(false);
     expect(() => assertCommittedWindow(null)).toThrow(

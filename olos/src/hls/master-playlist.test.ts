@@ -195,7 +195,7 @@ describe("master playlist rendering", () => {
 #EXT-X-VERSION:10
 #EXT-X-INDEPENDENT-SEGMENTS
 #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="English",DEFAULT=YES,AUTOSELECT=YES,CHANNELS="2",URI="/v1/live/sess_01JZLIVE/a128/media.m3u8"
-#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="a64",DEFAULT=NO,AUTOSELECT=YES,URI="/v1/live/sess_01JZLIVE/a64/media.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="a64",DEFAULT=NO,AUTOSELECT=NO,URI="/v1/live/sess_01JZLIVE/a64/media.m3u8"
 #EXT-X-STREAM-INF:BANDWIDTH=5000000,AVERAGE-BANDWIDTH=5000000,CODECS="avc1.640028,mp4a.40.2,ec-3",RESOLUTION=1920x1080,FRAME-RATE=30,AUDIO="aac"
 /v1/live/sess_01JZLIVE/v1080/media.m3u8
 #EXT-X-STREAM-INF:BANDWIDTH=2800000,AVERAGE-BANDWIDTH=2800000,CODECS="avc1.4d401f,mp4a.40.2,ec-3",RESOLUTION=1280x720,FRAME-RATE=30,AUDIO="aac"
@@ -294,6 +294,78 @@ describe("master playlist rendering", () => {
         ),
       })
     ).toThrow("groupId must be a non-empty URL-safe identifier");
+  });
+
+  test("filters renditions absent from availableRenditionIds", () => {
+    const playlist = renderMasterPlaylist(groupedSession, {
+      availableRenditionIds: ["v1080", "v720", "a128"],
+    });
+
+    expect(playlist).toContain('NAME="English"');
+    expect(playlist).not.toContain('NAME="a64"');
+    expect(playlist).not.toContain("ec-3");
+    expect(playlist).toContain('AUDIO="aac"');
+  });
+
+  test("omits the audio group when no grouped rendition is available", () => {
+    const playlist = renderMasterPlaylist(groupedSession, {
+      availableRenditionIds: ["v1080", "v720"],
+    });
+
+    expect(playlist).not.toContain("#EXT-X-MEDIA");
+    expect(playlist).not.toContain("AUDIO=");
+    expect(playlist).toContain('CODECS="avc1.640028"');
+  });
+
+  test("re-elects the default among available grouped renditions", () => {
+    const playlist = renderMasterPlaylist(groupedSession, {
+      availableRenditionIds: ["v1080", "a64"],
+    });
+
+    expect(playlist).toContain('NAME="a64",DEFAULT=YES,AUTOSELECT=YES');
+    expect(playlist).not.toContain('NAME="English"');
+  });
+
+  test("filters video variants absent from availableRenditionIds", () => {
+    const playlist = renderMasterPlaylist(session, {
+      availableRenditionIds: ["v720", "a128"],
+    });
+
+    expect(playlist).toContain("/v1/live/sess_01JZLIVE/v720/media.m3u8");
+    expect(playlist).not.toContain("v1080");
+  });
+
+  test("keeps ungrouped audio codecs when filtering", () => {
+    const playlist = renderMasterPlaylist(session, {
+      availableRenditionIds: ["v1080"],
+    });
+
+    expect(playlist).toContain('CODECS="avc1.640028,mp4a.40.2"');
+  });
+
+  test("rejects filters that remove every video rendition", () => {
+    expect(() =>
+      renderMasterPlaylist(groupedSession, {
+        availableRenditionIds: ["a128"],
+      })
+    ).toThrow("no video rendition is available to render");
+  });
+
+  test("still validates grouping rules on filtered-out renditions", () => {
+    expect(() =>
+      renderMasterPlaylist(
+        {
+          ...groupedSession,
+          renditions: [
+            ...groupedSession.renditions,
+            { codec: "mp4a.40.2", kind: "audio", renditionId: "a32" },
+          ],
+        },
+        { availableRenditionIds: ["v1080", "a128"] }
+      )
+    ).toThrow(
+      "session.renditions must not mix grouped and ungrouped audio renditions"
+    );
   });
 
   test("rejects video renditions with partial resolution dimensions", () => {

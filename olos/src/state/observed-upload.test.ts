@@ -149,6 +149,18 @@ describe("head object normalization", () => {
     ).toBe("2026-01-01T00:00:01.000Z");
   });
 
+  test("normalizes HTTP-date last-modified strings to RFC 3339", () => {
+    expect(
+      createObservedUploadFromHeadObject({
+        contentLength: 98_304,
+        contentType: "video/mp4",
+        lastModified: "Thu, 01 Jan 2026 00:00:01 GMT",
+        objectKey: "media/session/v1080/3810.m4s",
+        providerId: "s3_primary",
+      }).observedAt
+    ).toBe("2026-01-01T00:00:01.000Z");
+  });
+
   test("rejects missing content length", () => {
     expect(() =>
       createObservedUploadFromHeadObject({
@@ -170,7 +182,7 @@ describe("head object normalization", () => {
         objectKey: "media/session/v1080/3810.m4s",
         providerId: "s3_primary",
       })
-    ).toThrow("mediaObject.observedAt must be a valid timestamp");
+    ).toThrow("lastModified must be a valid timestamp");
   });
 });
 

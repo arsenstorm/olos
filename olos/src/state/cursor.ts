@@ -245,6 +245,7 @@ function sameRendition(
   second: RenditionWindow
 ): boolean {
   return (
+    first.discontinuitySequence === second.discontinuitySequence &&
     first.renditionId === second.renditionId &&
     sameCommittedObject(first.init, second.init) &&
     sameSegments(first.segments, second.segments)

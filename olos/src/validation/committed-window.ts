@@ -109,6 +109,10 @@ function assertRenditionWindow(value: unknown, key: string): void {
     throw new Error(`${name}.renditionId must match its renditions key`);
   }
 
+  if (value.discontinuitySequence !== undefined) {
+    assertNonNegativeIntegerField(value, "discontinuitySequence", name);
+  }
+
   assertCommittedObject(value.init, `${name}.init`);
 
   assertMonotonicSegments(

@@ -76,6 +76,7 @@ export const OLOS_CONFORMANCE_SPEC_REFS: Record<
   "CORE-WINDOW-007": "5.2",
   "HLS-AUDIO-001": "8.3",
   "HLS-AUDIO-002": "8.3",
+  "HLS-AVAIL-001": "8.2",
   "HLS-BLOCK-001": "8.6",
   "HLS-BLOCK-002": "8.6",
   "HLS-BLOCK-003": "8.6",

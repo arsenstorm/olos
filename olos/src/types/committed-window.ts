@@ -61,6 +61,13 @@ export interface CommittedWindow {
 
 /** One rendition's slice of the committed window. */
 export interface RenditionWindow {
+  /**
+   * Number of discontinuities that have dropped off the front of this
+   * rendition's window. Rendered as the rendition's
+   * `EXT-X-DISCONTINUITY-SEQUENCE`; when absent, the window-global
+   * `discontinuitySequence` applies.
+   */
+  discontinuitySequence?: number;
   init: CommittedObject;
   renditionId: OlosId;
   segments: CommittedSegment[];

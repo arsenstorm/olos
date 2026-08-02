@@ -151,6 +151,7 @@ section that claims it and the test file that covers it.
 | `HLS-BYTERANGE-003` | §8.5 | `src/hls/media-playlist.test.ts` |
 | `HLS-AUDIO-001` | §8.3 | `src/hls/master-playlist.test.ts` |
 | `HLS-AUDIO-002` | §8.3 | `src/hls/master-playlist.test.ts` |
+| `HLS-AVAIL-001` | §8.2 | `src/hls/manifest-artifacts.test.ts` |
 
 ## Security
 

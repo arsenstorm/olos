@@ -137,6 +137,9 @@ describe("committed window builder", () => {
     expect(window.firstMediaSequenceNumber).toBe(3811);
     expect(window.lastMediaSequenceNumber).toBe(3811);
     expect(window.renditions.v1080?.segments).toHaveLength(1);
+    // Commits carry no discontinuity markers, so trimming accrues nothing
+    // and the rendition keeps the window-global discontinuity sequence.
+    expect(window.renditions.v1080?.discontinuitySequence).toBeUndefined();
   });
 
   test("rejects invalid committed window segment limits", () => {

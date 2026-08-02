@@ -33,6 +33,15 @@ export function assertSessionTransition(
   throw new Error(invalidSessionTransitionMessage(from, to));
 }
 
+/**
+ * Whether a session state is terminal (`ended` or `aborted`): no further
+ * transitions or commits can occur, and media playlists emit
+ * `#EXT-X-ENDLIST`. Pure.
+ */
+export function isEndOfStreamSessionState(state: SessionState): boolean {
+  return state === "ended" || state === "aborted";
+}
+
 function allowedSessionTransitions(
   from: SessionState
 ): readonly SessionState[] {

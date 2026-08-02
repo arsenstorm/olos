@@ -14,8 +14,8 @@ const ASSERTION_ID_PATTERN = /^(CORE|OBJ|HLS|SEC)-[A-Z]+-\d{3}$/;
 
 describe("conformance manifest", () => {
   test("keeps public metadata exports on the conformance facade", () => {
-    expect(OLOS_CONFORMANCE_ASSERTION_IDS).toHaveLength(132);
-    expect(OLOS_CONFORMANCE_COVERAGE).toHaveLength(132);
+    expect(OLOS_CONFORMANCE_ASSERTION_IDS).toHaveLength(133);
+    expect(OLOS_CONFORMANCE_COVERAGE).toHaveLength(133);
     expect(getOlosConformanceCoverage("CORE-STORE-001")?.testFile).toBe(
       "src/conformance.test.ts"
     );
@@ -72,11 +72,11 @@ describe("conformance manifest", () => {
   test("matches the documented coverage snapshot", () => {
     expect(countCoverageByLevel()).toEqual({
       core: 38,
-      hls: 21,
+      hls: 22,
       object: 41,
       runtime: 25,
       security: 7,
-      total: 132,
+      total: 133,
     });
 
     const guide = readFileSync(
@@ -87,9 +87,9 @@ describe("conformance manifest", () => {
     expect(guide).toContain("| Core | 38 |");
     expect(guide).toContain("| Runtime | 25 |");
     expect(guide).toContain("| Object | 41 |");
-    expect(guide).toContain("| HLS | 21 |");
+    expect(guide).toContain("| HLS | 22 |");
     expect(guide).toContain("| Security | 7 |");
-    expect(guide).toContain("| Total | 132 |");
+    expect(guide).toContain("| Total | 133 |");
   });
 
   test("finds coverage by assertion identifier", () => {

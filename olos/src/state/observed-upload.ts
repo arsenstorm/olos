@@ -598,7 +598,9 @@ function headObjectTimestamp(value: string | Date): string {
     return value.toISOString();
   }
 
-  return value;
+  // Normalize string inputs (e.g. an HTTP `Last-Modified` header) to RFC
+  // 3339 — downstream validation accepts nothing looser.
+  return new Date(timestampMs(value, "lastModified")).toISOString();
 }
 
 function hasObservedEvent(

@@ -6,6 +6,15 @@ import { assertSafeRelativePath } from "./uri";
 /** Options for `renderMasterPlaylist`. */
 export interface RenderMasterPlaylistOptions {
   /**
+   * When set, only video and grouped-audio renditions whose id is in this
+   * set render as variants or `#EXT-X-MEDIA` entries — typically the
+   * rendition ids present in the committed window, so the master only
+   * advertises playlists that resolve. Ungrouped (muxed) audio renditions
+   * are codec metadata and are never filtered. Omitted, every session
+   * rendition renders.
+   */
+  availableRenditionIds?: readonly string[];
+  /**
    * Maps a rendition to the media playlist path written into the playlist.
    * Defaults to `/v1/live/{sessionId}/{renditionId}/media.m3u8`. Paths must
    * be safe root-relative paths.
@@ -36,10 +45,12 @@ interface MasterPlaylistRenditions {
  * variants reference the group through their `AUDIO` attribute; without
  * group IDs, every audio codec is folded into every variant's `CODECS`
  * attribute (legacy muxed audio) and no `#EXT-X-MEDIA` lines are emitted.
+ * `availableRenditionIds` narrows the rendered set (session shape and
+ * grouping rules are still validated against the full session first).
  * Throws when the session shape is invalid, there is no video rendition, a
  * video rendition lacks `bitrate` or defines only one of `width`/`height`,
- * grouped and ungrouped audio renditions are mixed, or more than one audio
- * group is declared.
+ * grouped and ungrouped audio renditions are mixed, more than one audio
+ * group is declared, or the filter removes every video rendition.
  */
 export function renderMasterPlaylist(
   session: Session,
@@ -47,7 +58,10 @@ export function renderMasterPlaylist(
 ): string {
   assertSessionShape(session);
 
-  const renditions = masterPlaylistRenditions(session);
+  const renditions = masterPlaylistRenditions(
+    session,
+    options.availableRenditionIds
+  );
   const mediaPlaylistPath =
     options.mediaPlaylistPath ?? defaultMediaPlaylistPath;
   const lines = ["#EXTM3U", "#EXT-X-VERSION:10", "#EXT-X-INDEPENDENT-SEGMENTS"];
@@ -65,7 +79,10 @@ export function renderMasterPlaylist(
   return `${lines.join("\n")}\n`;
 }
 
-function masterPlaylistRenditions(session: Session): MasterPlaylistRenditions {
+function masterPlaylistRenditions(
+  session: Session,
+  availableRenditionIds?: readonly string[]
+): MasterPlaylistRenditions {
   const audioRenditions = session.renditions.filter(isAudioRendition);
   const videoRenditions = session.renditions.filter(isVideoRendition);
 
@@ -75,15 +92,86 @@ function masterPlaylistRenditions(session: Session): MasterPlaylistRenditions {
     );
   }
 
+  // Grouping rules are validated against the full session; the availability
+  // filter below only narrows what renders.
   const audioGroup = resolveAudioGroup(audioRenditions);
 
+  if (availableRenditionIds === undefined) {
+    return {
+      audioGroup,
+      variantAudioCodecs: audioGroup
+        ? distinct(audioGroup.renditions.map((rendition) => rendition.codec))
+        : audioRenditions.map((rendition) => rendition.codec),
+      videoRenditions,
+    };
+  }
+
+  const available = new Set(availableRenditionIds);
+  const availableVideoRenditions = videoRenditions.filter((rendition) =>
+    available.has(rendition.renditionId)
+  );
+
+  if (availableVideoRenditions.length === 0) {
+    throw new Error("no video rendition is available to render");
+  }
+
+  const availableAudioGroup = filterAudioGroup(audioGroup, available);
+
   return {
-    audioGroup,
-    variantAudioCodecs: audioGroup
-      ? distinct(audioGroup.renditions.map((rendition) => rendition.codec))
-      : audioRenditions.map((rendition) => rendition.codec),
-    videoRenditions,
+    audioGroup: availableAudioGroup,
+    variantAudioCodecs: resolveVariantAudioCodecs(
+      audioGroup,
+      availableAudioGroup,
+      audioRenditions
+    ),
+    videoRenditions: availableVideoRenditions,
   };
+}
+
+// Grouped audio renditions absent from the availability set are dropped and
+// DEFAULT is re-elected among the survivors; a group with no survivors is
+// not advertised at all. Ungrouped (muxed) audio renditions describe codecs
+// inside the video segments, so they are never filtered.
+function filterAudioGroup(
+  group: AudioGroup | undefined,
+  available: ReadonlySet<string>
+): AudioGroup | undefined {
+  if (group === undefined) {
+    return;
+  }
+
+  const renditions = group.renditions.filter((rendition) =>
+    available.has(rendition.renditionId)
+  );
+  const [first] = renditions;
+
+  if (first === undefined) {
+    return;
+  }
+
+  const defaultRendition =
+    renditions.find((rendition) => rendition.defaultRendition === true) ??
+    first;
+
+  return {
+    defaultRenditionId: defaultRendition.renditionId,
+    groupId: group.groupId,
+    renditions,
+  };
+}
+
+function resolveVariantAudioCodecs(
+  audioGroup: AudioGroup | undefined,
+  availableAudioGroup: AudioGroup | undefined,
+  audioRenditions: readonly AudioRendition[]
+): readonly string[] {
+  if (audioGroup === undefined) {
+    return audioRenditions.map((rendition) => rendition.codec);
+  }
+
+  return availableAudioGroup === undefined
+    ? []
+    : distinct(availableAudioGroup.renditions.map((r) => r.codec));
 }
 
 // Sessions without audio group IDs keep the legacy rendering: every audio
@@ -151,7 +239,10 @@ function renderAudioMediaEntry(
     `GROUP-ID="${escapePlaylistValue(group.groupId)}"`,
     `NAME="${escapePlaylistValue(rendition.name ?? rendition.renditionId)}"`,
     `DEFAULT=${rendition.renditionId === group.defaultRenditionId ? "YES" : "NO"}`,
-    "AUTOSELECT=YES",
+    // RFC 8216 §4.3.4.1.1: AUTOSELECT=YES members of a group must be
+    // distinct on LANGUAGE/ASSOC-LANGUAGE/FORCED/CHARACTERISTICS. Renditions
+    // carry none of those attributes, so only the default may auto-select.
+    `AUTOSELECT=${rendition.renditionId === group.defaultRenditionId ? "YES" : "NO"}`,
     ...channelsAttributes(rendition),
     `URI="${escapePlaylistValue(path)}"`,
   ];

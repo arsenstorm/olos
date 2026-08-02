@@ -22,10 +22,17 @@ with the playlist quoting rules of RFC 8216.
 
 ## 8.2 Master playlist
 
-<!-- olos-conformance: 8.2 HLS-GOLDEN-001 HLS-GOLDEN-009 -->
+<!-- olos-conformance: 8.2 HLS-GOLDEN-001 HLS-GOLDEN-009 HLS-AVAIL-001 -->
 
-The renderer builds the master playlist from the session document
-alone. It MUST begin:
+The renderer builds the master playlist from the session document plus
+the set of rendition ids present in the committed window. A video or
+grouped-audio rendition absent from the committed window (no media
+commits yet) MUST NOT render — the master only advertises URIs that
+resolve, and the rendition appears on the next render after its first
+commit. Ungrouped (muxed) audio renditions are codec metadata and are
+never filtered. When no video rendition has committed media, the
+session has no master playlist yet and the master route answers 404
+(Section 6.7). The playlist MUST begin:
 
 ```
 #EXTM3U
@@ -77,7 +84,10 @@ An audio rendition joins the audio group when it declares `groupId`
   MUST declare it.
 - **One default.** The group's default is the first audio rendition
   with `defaultRendition: true`. When no rendition carries the flag,
-  the first grouped audio rendition is the default.
+  the first grouped audio rendition is the default. The election runs
+  over the rendered (window-present) renditions, so when the declared
+  default has no committed media yet, the first available grouped
+  rendition is the default.
 - **Legacy ungrouped audio.** When no audio rendition declares
   `groupId`, the renderer emits no `EXT-X-MEDIA` lines. It muxes every
   audio codec into every variant's `CODECS` attribute. Audio
@@ -86,11 +96,12 @@ An audio rendition joins the audio group when it declares `groupId`
 
 ### 8.3.2 EXT-X-MEDIA rendering
 
-Each grouped audio rendition renders one line, in session order:
+Each grouped audio rendition present in the committed window renders
+one line, in session order:
 
 ```
 #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="<groupId>",NAME="<name>",\
-DEFAULT=<YES|NO>,AUTOSELECT=YES[,CHANNELS="<channels>"],URI="<uri>"
+DEFAULT=<YES|NO>,AUTOSELECT=<YES|NO>[,CHANNELS="<channels>"],URI="<uri>"
 ```
 
 (one physical line, wrapped here for width). Attribute by attribute:
@@ -101,14 +112,17 @@ DEFAULT=<YES|NO>,AUTOSELECT=YES[,CHANNELS="<channels>"],URI="<uri>"
 | `GROUP-ID` | The shared group id, quoted. |
 | `NAME` | The rendition's `name`, or its `renditionId` when unset. |
 | `DEFAULT` | `YES` for the group default, `NO` otherwise. |
-| `AUTOSELECT` | Always `YES`. |
+| `AUTOSELECT` | `YES` for the group default, `NO` otherwise. Renditions carry no `LANGUAGE`, `ASSOC-LANGUAGE`, `FORCED`, or `CHARACTERISTICS` attributes, so RFC 8216 Section 4.3.4.1.1 permits only one `AUTOSELECT=YES` member per group. |
 | `CHANNELS` | Emitted only when the rendition declares `channels`. |
 | `URI` | The rendition's media playlist URI (Section 8.1). |
 
 With an audio group, each variant's `CODECS` is the video codec plus
-the **distinct** codecs of the grouped audio renditions, deduplicated
-in group order. Grouped audio renditions get standalone media
-playlists, rendered from the committed window like video renditions.
+the **distinct** codecs of the rendered grouped audio renditions,
+deduplicated in group order. Grouped audio renditions get standalone
+media playlists, rendered from the committed window like video
+renditions. When no grouped audio rendition has committed media, the
+variants omit the `AUDIO` attribute and `CODECS` carries only the
+video codec.
 
 ## 8.4 Media playlist
 
@@ -116,7 +130,10 @@ playlists, rendered from the committed window like video renditions.
 
 The renderer builds a media playlist per rendition from the committed
 window. Rendering for an unknown rendition id is an error (the HTTP
-route answers 404). The header block, in order:
+route answers 404). A session rendition absent from the committed
+window produces no media playlist artifact and its route answers 404,
+mirroring its exclusion from the master playlist (Section 8.2). The
+header block, in order:
 
 | Tag | Normative value |
 | --- | --- |
@@ -126,7 +143,7 @@ route answers 404). The header block, in order:
 | `#EXT-X-PART-INF` | `PART-TARGET=<session.partTarget>`, three-decimal seconds. |
 | `#EXT-X-SERVER-CONTROL` | See Section 8.4.1. |
 | `#EXT-X-MEDIA-SEQUENCE` | See Section 8.4.2. |
-| `#EXT-X-DISCONTINUITY-SEQUENCE` | `committedWindow.discontinuitySequence`. |
+| `#EXT-X-DISCONTINUITY-SEQUENCE` | The rendition window's `discontinuitySequence`, or `committedWindow.discontinuitySequence` when unset (Section 8.4.2). |
 | `#EXT-X-MAP` | `URI="<rendition init deliveryUrl>"`. |
 
 A blank line separates the header from the segment list. The renderer
@@ -167,6 +184,13 @@ segments. A global-minimum declaration there desynchronizes the
 declared sequence from the first listed segment. (This per-rendition
 rule is the 0.6.0 behavior. Earlier revisions declared the global
 window minimum.)
+
+`#EXT-X-DISCONTINUITY-SEQUENCE` follows the same per-rendition rule:
+the value is the rendition window's own `discontinuitySequence` when
+set, falling back to `committedWindow.discontinuitySequence`. When a
+rendition trims a leading segment marked `discontinuityBefore`, that
+rendition's discontinuity sequence MUST count it (RFC 8216
+Section 6.2.2) while other renditions keep the window-global value.
 
 ### 8.4.3 Segment entries
 
@@ -266,6 +290,10 @@ Blocking behavior:
 - The coordinator MUST hold a blocked request open until a newer
   cursor satisfies the resolution or the configured timeout elapses.
   It re-resolves each new cursor with the same table.
+- When the cursor's session state is terminal (`ended` or `aborted`),
+  a blocked request MUST resolve immediately: nothing further commits,
+  so the response is `200` with the final playlist (which carries
+  `#EXT-X-ENDLIST`, Section 8.5.2) instead of waiting out the timeout.
 - A successful commit that advances the cursor MUST wake waiting
   requests (Section 6.5.2). Rejected commits MUST NOT wake any
   request.
@@ -285,7 +313,7 @@ Blocking behavior:
 
 ## 8.7 Examples (informative)
 
-The examples below are normative *illustrations* of the rules above,
+The examples below are informative illustrations of the rules above,
 not byte-golden requirements. URLs and identifiers are placeholders.
 
 Master playlist with an audio group:
@@ -295,7 +323,7 @@ Master playlist with an audio group:
 #EXT-X-VERSION:10
 #EXT-X-INDEPENDENT-SEGMENTS
 #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="English",DEFAULT=YES,AUTOSELECT=YES,CHANNELS="2",URI="/v1/live/sess_01JZLIVE/a128/media.m3u8"
-#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="a64",DEFAULT=NO,AUTOSELECT=YES,URI="/v1/live/sess_01JZLIVE/a64/media.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="a64",DEFAULT=NO,AUTOSELECT=NO,URI="/v1/live/sess_01JZLIVE/a64/media.m3u8"
 #EXT-X-STREAM-INF:BANDWIDTH=5000000,AVERAGE-BANDWIDTH=5000000,CODECS="avc1.640028,mp4a.40.2,ec-3",RESOLUTION=1920x1080,FRAME-RATE=30,AUDIO="aac"
 /v1/live/sess_01JZLIVE/v1080/media.m3u8
 #EXT-X-STREAM-INF:BANDWIDTH=2800000,AVERAGE-BANDWIDTH=2800000,CODECS="avc1.4d401f,mp4a.40.2,ec-3",RESOLUTION=1280x720,FRAME-RATE=30,AUDIO="aac"

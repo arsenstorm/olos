@@ -153,6 +153,7 @@ function createRenditions(
 
     renditions[renditionId] = createRenditionWindow({
       commits,
+      discontinuitySequence: options.discontinuitySequence ?? 0,
       init,
       maxSegments: options.maxSegments,
       renditionId,
@@ -202,19 +203,37 @@ function createInitCommitsByRendition(
 
 function createRenditionWindow({
   commits,
+  discontinuitySequence,
   init,
   maxSegments,
   renditionId,
 }: {
   commits: readonly Commit[];
+  discontinuitySequence: number;
   init: Commit;
   maxSegments?: number;
   renditionId: string;
 }): RenditionWindow {
+  const segments = finalizeCommittedSegments(createSegmentsBySequence(commits));
+  const visibleSegments = limitCommittedSegments(segments, maxSegments);
+  // Trimmed leading segments take their discontinuity markers with them;
+  // count them into this rendition's discontinuity sequence (RFC 8216
+  // §6.2.2). The field stays absent while it matches the window-global
+  // value so unchanged windows keep their serialized shape.
+  const trimmedCount = segments.length - visibleSegments.length;
+  const renditionDiscontinuitySequence =
+    discontinuitySequence +
+    segments
+      .slice(0, trimmedCount)
+      .filter((segment) => segment.discontinuityBefore === true).length;
+
   return {
+    ...(renditionDiscontinuitySequence === discontinuitySequence
+      ? {}
+      : { discontinuitySequence: renditionDiscontinuitySequence }),
     init: committedObject(init),
     renditionId,
-    segments: createSegments(commits, maxSegments),
+    segments: visibleSegments,
   };
 }
 
@@ -232,15 +251,6 @@ function groupByRendition(commits: readonly Commit[]): Map<string, Commit[]> {
   }
 
   return groups;
-}
-
-function createSegments(
-  commits: readonly Commit[],
-  maxSegments: number | undefined
-): CommittedSegment[] {
-  const segments = finalizeCommittedSegments(createSegmentsBySequence(commits));
-
-  return limitCommittedSegments(segments, maxSegments);
 }
 
 function createSegmentsBySequence(

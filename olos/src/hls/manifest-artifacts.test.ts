@@ -226,6 +226,84 @@ describe("HLS manifest artifacts", () => {
     );
   });
 
+  test("excludes grouped audio renditions with no committed media", () => {
+    // groupedSession declares a128 in the "aac" group, but the window only
+    // has v1080 — the pre-fix behavior threw and 500ed every playlist.
+    const artifacts = createHlsManifestArtifacts(
+      groupedSession,
+      committedWindow,
+      {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      }
+    );
+
+    expect(artifacts.map((artifact) => artifact.path)).toEqual([
+      "/v1/live/session_1/master.m3u8",
+      "/v1/live/session_1/v1080/media.m3u8",
+    ]);
+    expect(artifacts[0]?.body).not.toContain("#EXT-X-MEDIA");
+    expect(artifacts[0]?.body).not.toContain("AUDIO=");
+  });
+
+  test("excludes video renditions with no committed media", () => {
+    const twoVideoSession: Session = {
+      ...session,
+      renditions: [
+        ...session.renditions,
+        {
+          bitrate: 2_800_000,
+          codec: "avc1.4d401f",
+          frameRate: 30,
+          height: 720,
+          kind: "video",
+          renditionId: "v720",
+          width: 1280,
+        },
+      ],
+    };
+
+    const artifacts = createHlsManifestArtifacts(
+      twoVideoSession,
+      committedWindow,
+      {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      }
+    );
+
+    expect(artifacts.map((artifact) => artifact.path)).toEqual([
+      "/v1/live/session_1/master.m3u8",
+      "/v1/live/session_1/v1080/media.m3u8",
+    ]);
+    expect(artifacts[0]?.body).not.toContain("v720");
+  });
+
+  test("omits the master artifact when no video rendition has committed media", () => {
+    const audioOnlyWindow: CommittedWindow = {
+      ...groupedCommittedWindow,
+      renditions: {
+        a128: groupedCommittedWindow.renditions.a128 ?? missingRendition(),
+      },
+    };
+
+    const artifacts = createHlsManifestArtifacts(
+      groupedSession,
+      audioOnlyWindow,
+      {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      }
+    );
+
+    expect(artifacts.map((artifact) => artifact.path)).toEqual([
+      "/v1/live/session_1/a128/media.m3u8",
+    ]);
+  });
+
   test("does not create media playlist artifacts for ungrouped audio renditions", () => {
     const artifacts = createHlsManifestArtifacts(session, committedWindow, {
       allowedMediaOrigins: [MEDIA_ORIGIN],
@@ -642,4 +720,8 @@ function requiredManifestArtifact(
 
 function missingInit(): never {
   throw new Error("missing v1080 init fixture");
+}
+
+function missingRendition(): never {
+  throw new Error("missing a128 rendition fixture");
 }

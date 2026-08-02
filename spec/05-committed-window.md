@@ -1,10 +1,10 @@
-# 05 Committed window
+# 5. Committed window
 
 The committed window is the retained, viewer-visible span of committed
 media (Section 3.9). This section defines how the window is derived from
 accepted commits. It also defines the invariants that every window MUST
 satisfy. Manifests are rendered exclusively from the committed window
-(Section 2.3, Section 08).
+(Section 2.3, Section 8).
 
 ## 5.1 Structure and validity
 
@@ -62,7 +62,7 @@ A commit at a position that is not yet contiguous is not an error:
   in a single step.
 - A recorded out-of-order commit MUST NOT trigger retention of the
   waiting object. An object ahead of the live edge is not "behind the
-  window" (Section 09).
+  window" (Section 9).
 
 Out-of-order commits remain subject to the lateness rules of
 Section 4.5.3. Only positions ahead of the cursor can wait.
@@ -80,7 +80,7 @@ Each timeline position accepts at most one committed object per role:
   `partNumber`). A duplicate part position MUST be rejected.
 - A full segment and parts MAY coexist at the same MSN. The parts
   describe the in-progress segment. The full segment describes its
-  completed form (Section 5.5, Section 08).
+  completed form (Section 5.5, Section 8).
 
 Re-commits of the same slot are resolved by the idempotency rules of
 Section 4.5.2 before any duplicate-position check applies.
@@ -116,7 +116,7 @@ MUST be a positive integer:
 - Trimming MUST preserve the ordering and uniqueness invariants of
   Section 5.1.
 - Objects trimmed out of the window become eligible for retention
-  (Section 09).
+  (Section 9).
 
 ## 5.8 Media sequence range
 
@@ -129,11 +129,15 @@ The window's MSN bounds are derived from its renditions:
   (per-rendition trimming or empty-media segments can drop leading
   segments), so a rendition's first segment MSN MAY exceed
   `firstMediaSequenceNumber`.
+- A session rendition MAY be entirely absent from the window until its
+  first media commit lands. Renderers MUST NOT treat that absence as an
+  error; the playlist mapping for absent renditions is specified in
+  Section 8.
 - As a result, each rendition's media playlist MUST declare its media
   sequence from that rendition's own first rendered segment, not from
   the window-global minimum. The playlist mapping is specified in
-  Section 08.
+  Section 8.
 
 The `epoch` and `discontinuitySequence` fields carried by the window are
 defined in Section 3.9. Discontinuity signaling in playlists is covered
-in Section 08.
+in Section 8.

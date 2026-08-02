@@ -149,6 +149,7 @@ export const OLOS_CONFORMANCE_COVERAGE_ROWS = [
   ["HLS-BYTERANGE-003", "hls", "src/hls/media-playlist.test.ts"],
   ["HLS-AUDIO-001", "hls", "src/hls/master-playlist.test.ts"],
   ["HLS-AUDIO-002", "hls", "src/hls/master-playlist.test.ts"],
+  ["HLS-AVAIL-001", "hls", "src/hls/manifest-artifacts.test.ts"],
   ["SEC-DIRECT-004", "security", "src/s3/http.test.ts"],
   [
     "SEC-DIRECT-001",

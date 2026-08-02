@@ -96,7 +96,10 @@ function renderMediaPlaylistHeaders(
     // entry — renditions can diverge from the window-global minimum when
     // per-rendition trimming or empty-media segments drop leading segments.
     `#EXT-X-MEDIA-SEQUENCE:${rendition.segments[0]?.mediaSequenceNumber ?? committedWindow.firstMediaSequenceNumber}`,
-    `#EXT-X-DISCONTINUITY-SEQUENCE:${committedWindow.discontinuitySequence}`,
+    // Like the media sequence, the discontinuity sequence is per-rendition:
+    // a rendition that trimmed a flagged segment counts it here while other
+    // renditions keep the window-global value.
+    `#EXT-X-DISCONTINUITY-SEQUENCE:${rendition.discontinuitySequence ?? committedWindow.discontinuitySequence}`,
     `#EXT-X-MAP:URI="${renderMediaUri(rendition.init.deliveryUrl, options, "rendition.init.deliveryUrl")}"`,
     "",
   ];
