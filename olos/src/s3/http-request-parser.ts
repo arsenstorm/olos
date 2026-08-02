@@ -1,22 +1,23 @@
 import {
-  type ParsedS3CommitPayload,
-  type ParsedS3ReconciliationPayload,
   parseCommitTimestamp,
   parseCommitTimestampOrNow,
   parseOptionalUrlSafeIdentifierArrayField,
-  parseS3CommitPayload,
-  parseS3CommitPayloadRequest,
-  parseS3ReconciliationPayloadRequest,
 } from "../runtime/commit-payload-parser";
-import { errorMessage } from "../runtime/errors";
 import {
-  isRecord,
   optionalNonNegativeNumberField,
   optionalStringField,
   timestampField,
 } from "../runtime/request-fields";
+import { errorMessage, isRecord } from "../validation/fields";
+import {
+  type ParsedS3CommitPayload,
+  type ParsedS3ReconciliationPayload,
+  parseS3CommitPayload,
+  parseS3CommitPayloadRequest,
+  parseS3ReconciliationPayloadRequest,
+} from "./commit-payload-parser";
 import { createCompletionHintDefaults } from "./completion-hint";
-import type { CreateStoredS3CoordinatorRuntimeHandlerOptions } from "./http";
+import type { CreateStoredS3CoordinatorRuntimeHandlerOptions } from "./http-types";
 
 interface InvalidS3HttpRequestParse {
   message: string;

@@ -1,10 +1,5 @@
-import { optionalField } from "./optional-field";
-import {
-  recordValue,
-  isRecord as requestFieldIsRecord,
-} from "./request-fields";
-
-export const isRecord = requestFieldIsRecord;
+import { recordValue } from "../validation/fields";
+import { optionalField } from "./request-fields";
 
 export type RuntimeHttpFetch = (
   input: Request | URL | string,

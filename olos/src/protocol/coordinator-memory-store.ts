@@ -1,15 +1,27 @@
-import { assertNonNegativeSafeInteger } from "../validation/ids";
+import {
+  cloneCoordinatorPipelineSnapshot,
+  cloneCoordinatorPipelineState,
+  createNextCoordinatorPipelineEtag,
+  cursorViewFromSnapshot,
+} from "./coordinator-snapshot";
 import type {
   CoordinatorCursorView,
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineStore,
   SaveCoordinatorPipelineOptions,
-} from "./coordinator";
-import {
-  cloneCoordinatorPipelineSnapshot,
-  cloneCoordinatorPipelineState,
-} from "./coordinator-snapshot";
+} from "./coordinator-types";
 
+/**
+ * Create an in-memory `CoordinatorPipelineStore` for tests and single-process
+ * runtimes. Nothing is persisted beyond the returned store's lifetime.
+ *
+ * Implements the full store contract: monotonically increasing numeric
+ * etags, the `loadCursor` fast path, and etag-checked saves — omitting
+ * `expectedEtag` inserts (conflicting when the session already exists),
+ * providing it updates (conflicting on mismatch or a missing record, with
+ * the current snapshot attached when one exists). Loads and saves deep-clone
+ * state so callers can never alias the stored snapshot.
+ */
 export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
   const entries = new Map<string, CoordinatorPipelineSnapshot>();
 
@@ -54,7 +66,7 @@ export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
       }
 
       const snapshot = {
-        etag: nextEtag(current),
+        etag: createNextCoordinatorPipelineEtag(current?.etag),
         state: cloneCoordinatorPipelineState(options.state),
       };
       entries.set(options.sessionId, snapshot);
@@ -78,28 +90,4 @@ function conflictingCoordinatorStoreSave(
     ...(current === undefined ? {} : { current }),
     status: "conflict",
   };
-}
-
-function cursorViewFromSnapshot(
-  snapshot: CoordinatorPipelineSnapshot
-): CoordinatorCursorView {
-  return {
-    ...(snapshot.state.cursor === undefined
-      ? {}
-      : { cursor: snapshot.state.cursor }),
-    etag: snapshot.etag,
-    session: snapshot.state.session,
-  };
-}
-
-function nextEtag(current: CoordinatorPipelineSnapshot | undefined): string {
-  if (current === undefined) {
-    return "1";
-  }
-
-  const value = Number(current.etag);
-
-  assertNonNegativeSafeInteger(value, "coordinator pipeline etag");
-
-  return String(value + 1);
 }

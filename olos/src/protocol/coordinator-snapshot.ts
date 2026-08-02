@@ -5,16 +5,24 @@ import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import {
   assertIsoDateField,
   assertUrlSafeField,
+  errorMessage,
   isRecord,
 } from "../validation/fields";
+import { assertNonNegativeSafeInteger } from "../validation/ids";
 import { assertSession } from "../validation/session";
 import { assertUploadSlot } from "../validation/upload-slot";
 import type {
+  CoordinatorCursorView,
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineState,
   CoordinatorPublisherLease,
-} from "./coordinator";
+} from "./coordinator-types";
 
+/**
+ * Deep-clone a snapshot (etag plus state) so the copy shares no mutable
+ * objects with the original. Store implementations use this to keep cached
+ * snapshots isolated from caller mutations.
+ */
 export function cloneCoordinatorPipelineSnapshot(
   snapshot: CoordinatorPipelineSnapshot
 ): CoordinatorPipelineSnapshot {
@@ -24,6 +32,11 @@ export function cloneCoordinatorPipelineSnapshot(
   };
 }
 
+/**
+ * Deep-clone a pipeline state: commits, slots, leases, cursor, and session
+ * renditions are all copied. A missing `publisherLeases` array is normalized
+ * to an empty one, so clones of pre-lease snapshots are always well formed.
+ */
 export function cloneCoordinatorPipelineState(
   state: CoordinatorPipelineState
 ): CoordinatorPipelineState {
@@ -45,12 +58,24 @@ export function cloneCoordinatorPipelineState(
   };
 }
 
+/**
+ * Serialize a snapshot to the JSON wire form that
+ * `parseCoordinatorPipelineSnapshot` accepts. The snapshot is cloned first,
+ * so serialization never observes concurrent caller mutations.
+ */
 export function serializeCoordinatorPipelineSnapshot(
   snapshot: CoordinatorPipelineSnapshot
 ): string {
   return JSON.stringify(cloneCoordinatorPipelineSnapshot(snapshot));
 }
 
+/**
+ * Parse and validate a snapshot from untrusted input — a JSON string (as
+ * produced by `serializeCoordinatorPipelineSnapshot`) or an already-parsed
+ * value. Every field is validated (session, slots, commits, leases, cursor,
+ * etag); invalid input throws with a message naming the offending field.
+ * Returns a defensive deep clone, never the input value itself.
+ */
 export function parseCoordinatorPipelineSnapshot(
   value: unknown
 ): CoordinatorPipelineSnapshot {
@@ -59,6 +84,36 @@ export function parseCoordinatorPipelineSnapshot(
   assertCoordinatorPipelineSnapshot(parsed);
 
   return cloneCoordinatorPipelineSnapshot(parsed);
+}
+
+/**
+ * Compute the etag for the next saved snapshot version: `"1"` for a fresh
+ * session, otherwise the current numeric etag incremented by one. Throws
+ * when `current` is not a non-negative safe integer string. Store
+ * implementations use this to keep etags monotonically increasing.
+ */
+export function createNextCoordinatorPipelineEtag(current?: string): string {
+  if (current === undefined) {
+    return "1";
+  }
+
+  const value = Number(current);
+
+  assertNonNegativeSafeInteger(value, "coordinator pipeline etag");
+
+  return String(value + 1);
+}
+
+export function cursorViewFromSnapshot(
+  snapshot: CoordinatorPipelineSnapshot
+): CoordinatorCursorView {
+  return {
+    ...(snapshot.state.cursor === undefined
+      ? {}
+      : { cursor: snapshot.state.cursor }),
+    etag: snapshot.etag,
+    session: snapshot.state.session,
+  };
 }
 
 function assertCoordinatorPipelineSnapshot(
@@ -115,7 +170,7 @@ function assertCommits(
       assertCommit(entry);
     } catch (error) {
       throw new Error(
-        `${name} must contain valid commit at index ${index}: ${(error as Error).message}`
+        `${name} must contain valid commit at index ${index}: ${errorMessage(error, String(error))}`
       );
     }
   });
@@ -128,9 +183,7 @@ function assertUploadSlots(value: unknown): void {
       assertUploadSlot(slot);
     } catch (error) {
       throw new Error(
-        `coordinator pipeline state slots must contain valid uploadSlot at index ${index}: ${
-          (error as Error).message
-        }`
+        `coordinator pipeline state slots must contain valid uploadSlot at index ${index}: ${errorMessage(error, String(error))}`
       );
     }
   });

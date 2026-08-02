@@ -2,7 +2,7 @@ import type { OlosConformanceAssertionId } from "./assertion-ids";
 import type {
   OlosConformanceCoverageStatus,
   OlosConformanceLevel,
-} from "./metadata";
+} from "./coverage-types";
 
 export type OlosConformanceCoverageRow = readonly [
   OlosConformanceAssertionId,
@@ -74,6 +74,7 @@ export const OLOS_CONFORMANCE_COVERAGE_ROWS = [
   ["CORE-RUNTIME-022", "runtime", "src/runtime/http.test.ts"],
   ["CORE-RUNTIME-023", "runtime", "src/runtime/http.test.ts"],
   ["CORE-RUNTIME-024", "runtime", "src/runtime/http.test.ts"],
+  ["CORE-RUNTIME-025", "runtime", "src/runtime/response.test.ts"],
   ["OBJ-LAYOUT-001", "object", "src/runtime/publisher-plan.test.ts"],
   ["OBJ-GRANT-001", "object", "src/s3/upload-grant.test.ts"],
   ["OBJ-GRANT-002", "object", "src/s3/upload-grant.test.ts"],
@@ -137,6 +138,8 @@ export const OLOS_CONFORMANCE_COVERAGE_ROWS = [
   ["HLS-GOLDEN-008", "hls", "src/hls/media-playlist.test.ts"],
   ["HLS-GOLDEN-009", "hls", "src/hls/master-playlist.test.ts"],
   ["HLS-GOLDEN-010", "hls", "src/hls/media-playlist.test.ts"],
+  ["HLS-GOLDEN-011", "hls", "src/hls/media-playlist.test.ts"],
+  ["HLS-ENDLIST-001", "hls", "src/hls/manifest-artifacts.test.ts"],
   ["HLS-HOLDBACK-001", "hls", "src/hls/media-playlist.test.ts"],
   ["HLS-BLOCK-001", "hls", "src/hls/blocking-reload.test.ts"],
   ["HLS-BLOCK-002", "hls", "src/hls/manifest-artifacts.test.ts"],
@@ -144,6 +147,8 @@ export const OLOS_CONFORMANCE_COVERAGE_ROWS = [
   ["HLS-BYTERANGE-001", "hls", "src/validation/byterange.test.ts"],
   ["HLS-BYTERANGE-002", "hls", "src/hls/media-playlist.test.ts"],
   ["HLS-BYTERANGE-003", "hls", "src/hls/media-playlist.test.ts"],
+  ["HLS-AUDIO-001", "hls", "src/hls/master-playlist.test.ts"],
+  ["HLS-AUDIO-002", "hls", "src/hls/master-playlist.test.ts"],
   ["SEC-DIRECT-004", "security", "src/s3/http.test.ts"],
   [
     "SEC-DIRECT-001",

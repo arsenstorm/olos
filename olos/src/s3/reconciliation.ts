@@ -1,16 +1,15 @@
 import type {
   CoordinatorCommitPolicy,
   CoordinatorPipelineStore,
-} from "../protocol";
-import { errorMessage } from "../runtime/errors";
-import { optionalField } from "../runtime/optional-field";
-import { isStringLiteral } from "../runtime/string-literals";
+} from "../protocol/coordinator-types";
+import { optionalField } from "../runtime/request-fields";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosErrorCode } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
+import { errorMessage, isAllowedString } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertS3BucketName } from "./bucket";
 import {
@@ -38,11 +37,17 @@ type RejectedS3CoordinatorUploadCommit = Extract<
   { status: "rejected" }
 >;
 
+/**
+ * Options for {@link reconcileStoredS3CoordinatorUploads}. Per-commit
+ * fields may be a fixed value or a function of the slot being reconciled.
+ */
 export interface ReconcileStoredS3CoordinatorUploadsOptions {
   bucket: string;
   client: S3HeadObjectClient;
+  /** Commit id per slot (default: `reconcile_{slotId}`). */
   commitId?: SlotValue<OlosId>;
   commitPolicy?: CoordinatorCommitPolicy;
+  /** Commit timestamp, fixed or derived per slot. */
   committedAt: SlotValue<string>;
   independent?: SlotValue<boolean | undefined>;
   lateToleranceMs?: SlotValue<number | undefined>;
@@ -53,17 +58,24 @@ export interface ReconcileStoredS3CoordinatorUploadsOptions {
   providerId: OlosId;
   publicationControl?: PublicationControlPolicy;
   sessionId: OlosId;
+  /** Restricts the sweep to these slots; omitted, every eligible slot. */
   slotIds?: readonly OlosId[];
   store: CoordinatorPipelineStore;
   versionId?: string;
 }
 
+/** Options for {@link planStoredS3CoordinatorReconciliation}. */
 export interface PlanStoredS3CoordinatorReconciliationOptions {
   sessionId: OlosId;
+  /** Restricts the plan to these slots; omitted, every eligible slot. */
   slotIds?: readonly OlosId[];
   store: CoordinatorPipelineStore;
 }
 
+/**
+ * Dry-run reconciliation result: the slots a sweep would attempt to commit
+ * (`planned`), or `not_found` when the session does not exist.
+ */
 export type StoredS3CoordinatorReconciliationPlan =
   | {
       slotIds: readonly OlosId[];
@@ -74,6 +86,10 @@ export type StoredS3CoordinatorReconciliationPlan =
       status: "not_found";
     };
 
+/**
+ * Result of a reconciliation sweep: per-slot results in plan order
+ * (`reconciled`), or `not_found` when the session does not exist.
+ */
 export type StoredS3CoordinatorUploadReconciliation =
   | {
       results: readonly StoredS3CoordinatorUploadReconciliationResult[];
@@ -83,6 +99,10 @@ export type StoredS3CoordinatorUploadReconciliation =
       status: "not_found";
     };
 
+/**
+ * Outcome of reconciling one slot: the commit it produced, or `failed` with
+ * the thrown error's message and/or the unsuccessful commit result.
+ */
 export type StoredS3CoordinatorUploadReconciliationResult =
   | {
       commit: StoredS3CoordinatorUploadReconciliationCommit;
@@ -96,6 +116,7 @@ export type StoredS3CoordinatorUploadReconciliationResult =
       status: "failed";
     };
 
+/** Stored commit result narrowed to the successful reconciliation statuses. */
 export type StoredS3CoordinatorUploadReconciliationCommit =
   StoredS3CoordinatorUploadCommit & {
     commit: Commit;
@@ -118,6 +139,12 @@ type MissingStoredS3CoordinatorReconciliationPlan = Extract<
   { status: "not_found" }
 >;
 
+/**
+ * Aggregate counts for a reconciliation sweep produced by
+ * {@link summarizeStoredS3CoordinatorUploadReconciliation}. `ok` is true
+ * when no slot failed; `failedErrorCodes` collects the `olos.*` codes of
+ * rejected commits (thrown errors contribute a slot id but no code).
+ */
 export interface StoredS3CoordinatorUploadReconciliationSummary {
   committed: number;
   failed: number;
@@ -147,6 +174,16 @@ interface StoredS3CoordinatorUploadReconciliationSummaryContribution {
   idempotent: number;
 }
 
+/**
+ * Sweep a stored session's unresolved slots (state `issued` or
+ * `upload_observed`, optionally narrowed by `slotIds`) and attempt to
+ * commit each one in turn via S3 `HeadObject` observation. Commit ids
+ * default to `reconcile_{slotId}`, so re-running a sweep is idempotent for
+ * slots that already committed. Per-slot failures — including thrown errors
+ * — are captured in the results rather than aborting the sweep. This
+ * applies changes; use {@link planStoredS3CoordinatorReconciliation} for a
+ * dry run.
+ */
 export async function reconcileStoredS3CoordinatorUploads(
   options: ReconcileStoredS3CoordinatorUploadsOptions
 ): Promise<StoredS3CoordinatorUploadReconciliation> {
@@ -171,6 +208,11 @@ function assertReconciliationOptions(
   assertUrlSafeIdentifier(options.providerId, "providerId");
 }
 
+/**
+ * Reduce a reconciliation result to aggregate counts and failure lists for
+ * logs and HTTP responses. A `not_found` result summarizes to zero counts
+ * with `ok: false`.
+ */
 export function summarizeStoredS3CoordinatorUploadReconciliation(
   result: StoredS3CoordinatorUploadReconciliation
 ): StoredS3CoordinatorUploadReconciliationSummary {
@@ -296,6 +338,12 @@ function completedStoredS3CoordinatorUploadReconciliationSummary(
   };
 }
 
+/**
+ * Dry-run counterpart of {@link reconcileStoredS3CoordinatorUploads}:
+ * report which slots a sweep would attempt to commit without observing S3
+ * objects or mutating stored state. Returns `not_found` when the session
+ * does not exist.
+ */
 export function planStoredS3CoordinatorReconciliation(
   options: PlanStoredS3CoordinatorReconciliationOptions
 ): Promise<StoredS3CoordinatorReconciliationPlan> {
@@ -416,7 +464,7 @@ function isSuccessfulS3ReconciliationCommit<
 >(
   result: Result
 ): result is Extract<Result, { status: SuccessfulS3ReconciliationStatus }> {
-  return isStringLiteral(result.status, SUCCESSFUL_S3_RECONCILIATION_STATUSES);
+  return isAllowedString(result.status, SUCCESSFUL_S3_RECONCILIATION_STATUSES);
 }
 
 function isRejectedS3CoordinatorUploadCommit(

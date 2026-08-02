@@ -1,15 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import type { HeadObjectCommandOutput } from "@aws-sdk/client-s3";
-import {
-  type CoordinatorPipelineStore,
-  createMemoryCoordinatorStore,
-  issueCoordinatorSlot,
-} from "../protocol/coordinator";
+import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
+import { issueCoordinatorSlot } from "../protocol/coordinator-slot";
 import {
   createCoordinatorStateWithIssuedSegment,
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
+import type { CoordinatorPipelineStore } from "../protocol/coordinator-types";
 import { resolveRuntimePublisherObjectExpiry } from "../runtime/publisher-expiry";
 import { createRuntimePublisherObjectPlan } from "../runtime/publisher-plan";
 import { normalizeUploadEvent } from "../state/observed-upload";

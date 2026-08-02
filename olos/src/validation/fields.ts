@@ -4,6 +4,16 @@ import {
   assertUrlSafeIdentifier,
 } from "./ids";
 
+// RFC 3339 date-time (matches the JSON Schema "date-time" format): full date,
+// "T" separator, full time, and a "Z" or numeric UTC offset. Date.parse keeps
+// running afterwards as the calendar sanity check (rejects e.g. month 13).
+const RFC3339_TIMESTAMP_PATTERN =
+  /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$/;
+
+export function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -113,7 +123,20 @@ function isFiniteNumber(value: unknown): value is number {
 export function timestampString(value: unknown, name: string): string {
   const timestamp = stringValue(value, name);
 
-  if (Number.isNaN(Date.parse(timestamp))) {
+  if (
+    !RFC3339_TIMESTAMP_PATTERN.test(timestamp) ||
+    Number.isNaN(Date.parse(timestamp))
+  ) {
+    throw new Error(`${name} must be a valid timestamp`);
+  }
+
+  return timestamp;
+}
+
+export function timestampMs(value: string, name: string): number {
+  const timestamp = Date.parse(value);
+
+  if (Number.isNaN(timestamp)) {
     throw new Error(`${name} must be a valid timestamp`);
   }
 

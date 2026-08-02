@@ -73,7 +73,10 @@ describe("S3 HTTP response mapping", () => {
         status: "failed",
       })
     ).toEqual({
-      error: { message: "missing object: media/v1080/s3810.m4s" },
+      error: {
+        code: "olos.invalid_state",
+        message: "missing object: media/v1080/s3810.m4s",
+      },
       slotId: "slot_3810",
       status: "failed",
     });
@@ -106,7 +109,10 @@ describe("S3 HTTP response mapping", () => {
     } satisfies StoredS3CoordinatorUploadReconciliationResult;
 
     expect(reconciliationResult(result)).toEqual({
-      error: { message: "missing object: media/v1080/s3810.m4s" },
+      error: {
+        code: "olos.invalid_state",
+        message: "missing object: media/v1080/s3810.m4s",
+      },
       resultStatus: "conflict",
       slotId: "slot_3810",
       status: "failed",

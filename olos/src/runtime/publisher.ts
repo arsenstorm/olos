@@ -1,53 +1,84 @@
 import type { UploadSlot } from "../types/upload-slot";
+import { errorMessage, isAllowedString } from "../validation/fields";
 import type {
   RuntimeCommitPayload,
   RuntimeObservedUploadPayload,
 } from "./commit";
-import { errorMessage } from "./errors";
-import { optionalField } from "./optional-field";
-import { nonNegativeSafeInteger, positiveSafeInteger } from "./request-fields";
+import {
+  nonNegativeSafeInteger,
+  optionalField,
+  positiveSafeInteger,
+} from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
-import { isStringLiteral } from "./string-literals";
 
+/**
+ * Result of a publisher's slot-issue callback. Any status other than
+ * `issued`, or a missing `slot`, counts as a failed issue phase.
+ */
 export interface RuntimePublisherIssueResult {
   slot?: UploadSlot;
   status: string;
 }
 
+/**
+ * Result of a publisher's commit callback. Only `committed` and
+ * `idempotent` count as success; anything else fails the commit phase.
+ */
 export interface RuntimePublisherCommitResult {
   status: string;
 }
 
+/**
+ * Result of a publisher's heartbeat callback. Only `refreshed` counts as
+ * success; anything else fails the step before a slot is issued.
+ */
 export interface RuntimePublisherHeartbeatResult {
   status: string;
 }
 
+/**
+ * Options for `runRuntimePublisherUploadStep`: the transport callbacks for
+ * each phase plus the commit fields the step should send.
+ */
 export interface RunRuntimePublisherUploadStepOptions {
+  /** Commits the uploaded object (e.g. via `commitRuntimeUpload`). */
   commit(payload: RuntimeCommitPayload): Promise<RuntimePublisherCommitResult>;
   commitId: string;
+  /** Commit timestamp sent in the payload, as an ISO 8601 string. */
   committedAt: string;
+  /** Optional lease refresh, run first; a failure aborts the step. */
   heartbeat?(): Promise<RuntimePublisherHeartbeatResult>;
+  /** Mark the committed segment as independent (a keyframe boundary). */
   independent?: boolean;
+  /** Issues the upload slot (e.g. via `issueRuntimeSlot`). */
   issueSlot(
     payload: RuntimeSlotIssuePayload
   ): Promise<RuntimePublisherIssueResult>;
+  /** Commit late tolerance forwarded in the payload, in milliseconds. */
   lateToleranceMs?: number;
   maxSegments?: number;
   programDateTime?: string;
+  /** Slot issue payload describing the object about to be uploaded. */
   slot: RuntimeSlotIssuePayload;
+  /** Uploads the object to the issued slot and reports what was stored. */
   upload(slot: UploadSlot): Promise<RuntimeObservedUploadPayload>;
 }
 
+/** Options for `resolveRuntimePublisherLoopDecision`. */
 export interface ResolveRuntimePublisherLoopDecisionOptions {
+  /** Zero-based attempt index of the step that just ran. */
   attempt: number;
+  /** Total attempts allowed per object, including the first. */
   maxAttempts: number;
   step: RuntimePublisherStepStatus;
 }
 
+/** The part of an upload step the loop decision looks at: its status. */
 export interface RuntimePublisherStepStatus {
   status: RuntimePublisherUploadStepStatus;
 }
 
+/** Status discriminant of `RuntimePublisherUploadStep`. */
 export type RuntimePublisherUploadStepStatus =
   RuntimePublisherUploadStep["status"];
 
@@ -60,6 +91,11 @@ const PUBLISHER_STEP_STATUSES = [
   "commit_failed",
 ] as const satisfies readonly RuntimePublisherUploadStepStatus[];
 
+/**
+ * What the publisher loop should do next: `continue` to the next object,
+ * `retry` the same object as `nextAttempt`, or `stop` because the attempt
+ * budget is exhausted.
+ */
 export type RuntimePublisherLoopDecision =
   | {
       action: "continue";
@@ -73,6 +109,12 @@ export type RuntimePublisherLoopDecision =
       reason: "attempts_exhausted";
     };
 
+/**
+ * Outcome of one publisher upload step. `committed` / `idempotent` carry
+ * everything the step produced (slot, observed upload, commit result);
+ * the `*_failed` variants identify the phase that failed and preserve
+ * whatever earlier phases yielded, with `error` set when the phase threw.
+ */
 export type RuntimePublisherUploadStep =
   | {
       commit: RuntimePublisherCommitResult;
@@ -160,6 +202,13 @@ const SUCCESSFUL_PUBLISHER_STEP_STATUSES = [
   "idempotent",
 ] as const satisfies readonly SuccessfulRuntimePublisherUploadStep["status"][];
 
+/**
+ * Run one publisher iteration — optional heartbeat, then slot issue,
+ * upload, and commit — stopping at the first failed phase. Callback throws
+ * are caught and folded into the corresponding `*_failed` step rather than
+ * propagated, so the caller can feed every outcome straight into
+ * `resolveRuntimePublisherLoopDecision`.
+ */
 export async function runRuntimePublisherUploadStep(
   options: RunRuntimePublisherUploadStepOptions
 ): Promise<RuntimePublisherUploadStep> {
@@ -421,6 +470,13 @@ function heartbeatResult(
   return heartbeat === undefined ? {} : { heartbeat };
 }
 
+/**
+ * Decide how the publisher loop proceeds after a step: `continue` on
+ * `committed` or `idempotent`, otherwise `retry` with the incremented
+ * attempt while `attempt + 1 < maxAttempts`, else `stop` with
+ * `attempts_exhausted`. Throws on unknown step statuses or invalid
+ * attempt counts.
+ */
 export function resolveRuntimePublisherLoopDecision(
   options: ResolveRuntimePublisherLoopDecisionOptions
 ): RuntimePublisherLoopDecision {
@@ -448,7 +504,7 @@ export function resolveRuntimePublisherLoopDecision(
 }
 
 function assertPublisherStepStatus(status: string): void {
-  if (isStringLiteral(status, PUBLISHER_STEP_STATUSES)) {
+  if (isAllowedString(status, PUBLISHER_STEP_STATUSES)) {
     return;
   }
 
@@ -458,7 +514,7 @@ function assertPublisherStepStatus(status: string): void {
 function isSuccessfulPublisherStepStatus(
   status: string
 ): status is SuccessfulRuntimePublisherUploadStep["status"] {
-  return isStringLiteral(status, SUCCESSFUL_PUBLISHER_STEP_STATUSES);
+  return isAllowedString(status, SUCCESSFUL_PUBLISHER_STEP_STATUSES);
 }
 
 function isFailedRuntimePublisherIssueStep(

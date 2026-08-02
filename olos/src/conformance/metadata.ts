@@ -6,17 +6,17 @@ import {
   OLOS_CONFORMANCE_COVERAGE_ROWS,
   type OlosConformanceCoverageRow,
 } from "./coverage-rows";
+import type {
+  OlosConformanceCoverageStatus,
+  OlosConformanceLevel,
+} from "./coverage-types";
 
 export type { OlosConformanceAssertionId } from "./assertion-ids";
+export type {
+  OlosConformanceCoverageStatus,
+  OlosConformanceLevel,
+} from "./coverage-types";
 export const OLOS_CONFORMANCE_ASSERTION_IDS = assertionIds;
-
-export type OlosConformanceLevel =
-  | "core"
-  | "hls"
-  | "object"
-  | "runtime"
-  | "security";
-export type OlosConformanceCoverageStatus = "covered" | "partial";
 
 export interface OlosConformanceCoverage {
   id: OlosConformanceAssertionId;

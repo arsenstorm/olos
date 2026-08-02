@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
+// biome-ignore lint/style/noRestrictedImports: conformance.ts is the defining module, not a facade
 import { assertCoordinatorPipelineStoreConformance } from "../conformance";
-import { issueCoordinatorSlot } from "./coordinator";
+import { issueCoordinatorSlot } from "./coordinator-slot";
 import {
   createCoordinatorStateWithCommittedSegment,
   createEmptyCoordinatorState,
@@ -241,6 +242,65 @@ describe("serialized coordinator store", () => {
       "cursor.epoch must match committedWindow.epoch"
     );
   });
+
+  test("parses valid cursor views from loadCursorView backends", async () => {
+    const state = createCoordinatorStateWithCommittedSegment();
+    const store = createSerializedCoordinatorStore(
+      cursorViewBackend(
+        JSON.stringify({ cursor: state.cursor, session: state.session })
+      )
+    );
+
+    await expect(store.loadCursor?.(session.sessionId)).resolves.toEqual({
+      cursor: state.cursor,
+      etag: "1",
+      session: state.session,
+    });
+  });
+
+  test("rejects cursor views with corrupt JSON", async () => {
+    const store = createSerializedCoordinatorStore(cursorViewBackend("{"));
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      SyntaxError
+    );
+  });
+
+  test("rejects cursor views that are not objects", async () => {
+    const store = createSerializedCoordinatorStore(cursorViewBackend("[]"));
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      "serialized cursor view must be an object"
+    );
+  });
+
+  test("rejects cursor views with a missing session", async () => {
+    const store = createSerializedCoordinatorStore(cursorViewBackend("{}"));
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      "session must be an object"
+    );
+  });
+
+  test("rejects cursor views with an invalid session", async () => {
+    const store = createSerializedCoordinatorStore(
+      cursorViewBackend(JSON.stringify({ session: { ...session, olos: 1 } }))
+    );
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      "session.olos must be"
+    );
+  });
+
+  test("rejects cursor views with a malformed cursor", async () => {
+    const store = createSerializedCoordinatorStore(
+      cursorViewBackend(JSON.stringify({ cursor: {}, session }))
+    );
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      "cursor.olos must be"
+    );
+  });
 });
 
 function createBackend(): SerializedCoordinatorStoreBackend & {
@@ -253,5 +313,13 @@ function record(etag: string): SerializedCoordinatorStoreRecord {
   return {
     etag,
     snapshot: `{"etag":"${etag}"}`,
+  };
+}
+
+function cursorViewBackend(view: string): SerializedCoordinatorStoreBackend {
+  return {
+    load: () => Promise.resolve(undefined),
+    loadCursorView: () => Promise.resolve({ etag: "1", view }),
+    save: () => Promise.resolve({ status: "saved" }),
   };
 }

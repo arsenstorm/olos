@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { createMemoryCoordinatorStore } from "../protocol";
+import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
 import {
   TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
-import { createRuntimeSession, type RuntimeFetch } from "../runtime";
+import { createRuntimeSession, type RuntimeFetch } from "../runtime/client";
 import { runtimeFetchFor } from "../runtime/test-fetch.test-helper";
 import { jsonErrorTestResponse } from "../runtime/test-http.test-helper";
 import {
@@ -14,8 +14,8 @@ import {
   issueS3RuntimeUploadGrant,
   planS3RuntimeReconciliation,
   reconcileS3RuntimeUploads,
-  S3RuntimeHttpError,
 } from "./client";
+import { S3RuntimeHttpError } from "./client-error";
 import { createStoredS3CoordinatorRuntimeHandler } from "./http";
 import {
   createTestHeadObjectClientFor,

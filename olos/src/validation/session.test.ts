@@ -127,6 +127,140 @@ describe("session validation", () => {
     ).not.toThrow();
   });
 
+  test("accepts a grouped audio session", () => {
+    expect(() =>
+      assertSession({
+        ...validSession,
+        renditions: [
+          validSession.renditions[0],
+          {
+            codec: "mp4a.40.2",
+            defaultRendition: true,
+            groupId: "aac",
+            kind: "audio",
+            name: "English",
+            renditionId: "a128",
+          },
+          {
+            codec: "ec-3",
+            groupId: "aac",
+            kind: "audio",
+            renditionId: "a64",
+          },
+        ],
+      })
+    ).not.toThrow();
+  });
+
+  test("rejects audio group fields on non-audio renditions", () => {
+    for (const field of ["defaultRendition", "groupId", "name"] as const) {
+      expect(() =>
+        assertSession({
+          ...validSession,
+          renditions: [
+            {
+              ...validSession.renditions[0],
+              [field]: field === "defaultRendition" ? true : "aac",
+            },
+          ],
+        })
+      ).toThrow(
+        `session.renditions[].${field} is only allowed on audio renditions`
+      );
+    }
+  });
+
+  test("rejects invalid audio group fields", () => {
+    const audioRendition = validSession.renditions[1];
+
+    expect(() =>
+      assertSession({
+        ...validSession,
+        renditions: [{ ...audioRendition, groupId: "not a group" }],
+      })
+    ).toThrow(
+      "session.renditions[].groupId must be a non-empty URL-safe identifier"
+    );
+
+    expect(() =>
+      assertSession({
+        ...validSession,
+        renditions: [{ ...audioRendition, groupId: "aac", name: "" }],
+      })
+    ).toThrow("session.renditions[].name must be a non-empty string");
+
+    expect(() =>
+      assertSession({
+        ...validSession,
+        renditions: [
+          { ...audioRendition, defaultRendition: "yes", groupId: "aac" },
+        ],
+      })
+    ).toThrow("session.renditions[].defaultRendition must be a boolean");
+  });
+
+  test("rejects multiple distinct audio groups", () => {
+    expect(() =>
+      assertSession({
+        ...validSession,
+        renditions: [
+          validSession.renditions[0],
+          { ...validSession.renditions[1], groupId: "aac" },
+          {
+            codec: "ec-3",
+            groupId: "aac-alt",
+            kind: "audio",
+            renditionId: "a64",
+          },
+        ],
+      })
+    ).toThrow("multiple audio groups are not supported");
+  });
+
+  test("rejects multiple default audio renditions", () => {
+    expect(() =>
+      assertSession({
+        ...validSession,
+        renditions: [
+          validSession.renditions[0],
+          {
+            ...validSession.renditions[1],
+            defaultRendition: true,
+            groupId: "aac",
+          },
+          {
+            codec: "ec-3",
+            defaultRendition: true,
+            groupId: "aac",
+            kind: "audio",
+            renditionId: "a64",
+          },
+        ],
+      })
+    ).toThrow(
+      "session.renditions must not flag multiple default audio renditions"
+    );
+  });
+
+  test("rejects mixed grouped and ungrouped audio renditions", () => {
+    expect(() =>
+      assertSession({
+        ...validSession,
+        renditions: [
+          validSession.renditions[0],
+          { ...validSession.renditions[1], groupId: "aac" },
+          {
+            codec: "ec-3",
+            kind: "audio",
+            renditionId: "a64",
+          },
+        ],
+      })
+    ).toThrow(
+      "session.renditions must not mix grouped and ungrouped audio renditions"
+    );
+  });
+
   test("rejects invalid rendition fields", () => {
     expect(() =>
       assertSession({

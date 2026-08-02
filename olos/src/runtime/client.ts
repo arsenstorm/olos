@@ -1,17 +1,18 @@
 import { SESSION_STATES } from "../config/session";
-import type { CoordinatorRetentionPlan } from "../protocol";
+import type { CoordinatorRetentionPlan } from "../protocol/coordinator-types";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { Session, SessionState } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
-import { assertCommit, assertUploadSlot } from "../validation";
+import { assertCommit } from "../validation/commit";
 import { assertCursor } from "../validation/cursor";
+import { errorMessage, isAllowedString, isRecord } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
+import { assertUploadSlot } from "../validation/upload-slot";
 import type { RuntimeCommitPayload } from "./commit";
 import type { RuntimeLiveHealth } from "./health";
 import {
   fetchFor,
-  isRecord,
   jsonPost,
   normalizedBaseUrl,
   optionalRecordPayload,
@@ -37,22 +38,45 @@ import {
   sessionRoutePathFromOptions,
 } from "./route";
 import type { RuntimeSlotIssuePayload } from "./slot";
-import { isStringLiteral } from "./string-literals";
 
 const HEALTH_CURSOR_FRESHNESS_VALUES = ["fresh", "stale", "missing"] as const;
 const HEALTH_STATUS_VALUES = ["active", "stale", "starting"] as const;
 const HEALTH_LEASE_STATUS_VALUES = ["active", "stale"] as const;
 
+/**
+ * Fetch-compatible function the runtime HTTP client uses to send requests.
+ * Defaults to the global `fetch`; override it to add authentication,
+ * retries, or to route requests in tests.
+ */
 export type RuntimeFetch = RuntimeHttpFetch;
 
+/** Connection options shared by every runtime HTTP client call. */
 export interface RuntimeHttpClientOptions {
+  /**
+   * Coordinator base URL. A trailing slash is added when missing so route
+   * paths resolve underneath it.
+   */
   baseUrl: string;
+  /** Transport override; defaults to the global `fetch`. */
   fetch?: RuntimeFetch;
 }
 
+/**
+ * Error thrown by the runtime HTTP client when the coordinator returns a
+ * non-2xx response. Client calls never return structured error results; any
+ * failed response surfaces as this throw. The response body is read from a
+ * clone and exposed as `body`: parsed JSON when possible — for coordinator
+ * errors an envelope whose `error.code` is an `olos.*` code — otherwise the
+ * raw text, or `undefined` when the body is empty.
+ */
 export class RuntimeHttpError extends Error {
+  /**
+   * Response body: parsed JSON when possible, otherwise the raw text;
+   * `undefined` when the body is empty.
+   */
   readonly body: unknown;
   readonly response: Response;
+  /** HTTP status code, mirrored from `response.status`. */
   readonly status: number;
 
   constructor(message: string, response: Response, body: unknown) {
@@ -64,98 +88,138 @@ export class RuntimeHttpError extends Error {
   }
 }
 
+/** Options for `sendRuntimePublisherHeartbeat`. */
 export interface RuntimePublisherHeartbeatOptions
   extends RuntimeHttpClientOptions {
   publisherInstanceId: string;
   sessionId: string;
 }
 
+/** Options for `createRuntimeSession`. */
 export interface RuntimeCreateSessionOptions extends RuntimeHttpClientOptions {
+  /** Public base URL that delivery URLs for the session's media resolve to. */
   mediaBaseUrl: string;
   session: Session;
 }
 
+/** Options for `transitionRuntimeSession`. */
 export interface RuntimeTransitionSessionOptions
   extends RuntimeHttpClientOptions {
   sessionId: string;
+  /** Target session state to transition to. */
   state: SessionState;
 }
 
+/** Options for `issueRuntimeSlot`. */
 export interface RuntimeIssueSlotOptions extends RuntimeHttpClientOptions {
   payload: RuntimeSlotIssuePayload;
   sessionId: string;
 }
 
+/** Options for `commitRuntimeUpload`. */
 export interface RuntimeCommitUploadOptions extends RuntimeHttpClientOptions {
   payload: RuntimeCommitPayload;
   sessionId: string;
 }
 
+/** Options for `getRuntimeSessionHealth`. */
 export interface RuntimeSessionHealthOptions extends RuntimeHttpClientOptions {
+  /**
+   * Scope the health check to one publisher's lease instead of the most
+   * recently seen lease.
+   */
   publisherInstanceId?: string;
   sessionId: string;
 }
 
+/** Options for `getRuntimeSessionRetentionPlan`. */
 export interface RuntimeSessionRetentionOptions
   extends RuntimeHttpClientOptions {
+  /**
+   * Timestamp the retention plan is evaluated at, as an ISO 8601 string.
+   * Defaults to the coordinator's current time.
+   */
   now?: string;
   sessionId: string;
 }
 
+/** Options for `getRuntimeMasterPlaylist`. */
 export interface RuntimeMasterPlaylistOptions extends RuntimeHttpClientOptions {
+  /** Live route prefix relative to `baseUrl`; defaults to `v1/live`. */
   livePath?: string;
   sessionId: string;
 }
 
+/** Options for `getRuntimeMediaPlaylist`. */
 export interface RuntimeMediaPlaylistOptions
   extends RuntimeMasterPlaylistOptions {
+  /** `_HLS_msn` blocking-reload parameter (media sequence number). */
   hlsMsn?: number;
+  /** `_HLS_part` blocking-reload parameter (part number). */
   hlsPart?: number;
   renditionId: string;
 }
 
+/** Result of `sendRuntimePublisherHeartbeat`: the refreshed lease. */
 export interface RuntimePublisherHeartbeatResponse {
   lease: RuntimePublisherLease;
   response: Response;
 }
 
+/** Result of `createRuntimeSession`: the created session's id. */
 export interface RuntimeCreateSessionResponse {
   response: Response;
   sessionId: string;
 }
 
+/** Result of `transitionRuntimeSession`: the session's new state. */
 export interface RuntimeTransitionSessionResponse {
   response: Response;
   sessionId: string;
   state: SessionState;
 }
 
+/** Result of `issueRuntimeSlot`: the issued upload slot. */
 export interface RuntimeIssueSlotResponse {
   response: Response;
   slot: UploadSlot;
 }
 
+/** Result of `commitRuntimeUpload`. */
 export interface RuntimeCommitUploadResponse {
   commit: Commit;
+  /**
+   * Session cursor after the commit; absent when the coordinator response
+   * did not include one (for example an idempotent replay).
+   */
   cursor?: Cursor;
   response: Response;
 }
 
+/** Result of `getRuntimeSessionHealth`: the resolved live health. */
 export interface RuntimeSessionHealthResponse {
   health: RuntimeLiveHealth;
   response: Response;
 }
 
+/** Result of `getRuntimeSessionRetentionPlan`. */
 export interface RuntimeSessionRetentionResponse {
   plan: CoordinatorRetentionPlan;
   response: Response;
 }
 
+/** Result of a playlist fetch: the raw M3U8 text. */
 export interface RuntimePlaylistResponse {
   playlist: string;
   response: Response;
 }
 
+/**
+ * Refresh a publisher's lease over HTTP by POSTing to the coordinator's
+ * heartbeat route. Returns the validated lease from the response body.
+ * Throws `RuntimeHttpError` on any non-2xx response — including 409 when the
+ * session is in a terminal state.
+ */
 export async function sendRuntimePublisherHeartbeat(
   options: RuntimePublisherHeartbeatOptions
 ): Promise<RuntimePublisherHeartbeatResponse> {
@@ -174,6 +238,11 @@ export async function sendRuntimePublisherHeartbeat(
   };
 }
 
+/**
+ * Create a coordinator session over HTTP by POSTing to the sessions route.
+ * Throws `RuntimeHttpError` on any non-2xx response — including 409 when a
+ * session with the same id already exists.
+ */
 export async function createRuntimeSession(
   options: RuntimeCreateSessionOptions
 ): Promise<RuntimeCreateSessionResponse> {
@@ -193,6 +262,11 @@ export async function createRuntimeSession(
   };
 }
 
+/**
+ * Transition a session's lifecycle state over HTTP. Throws
+ * `RuntimeHttpError` on any non-2xx response — including 409 when the
+ * coordinator rejects the transition as invalid from the current state.
+ */
 export async function transitionRuntimeSession(
   options: RuntimeTransitionSessionOptions
 ): Promise<RuntimeTransitionSessionResponse> {
@@ -211,6 +285,11 @@ export async function transitionRuntimeSession(
   };
 }
 
+/**
+ * Issue an upload slot over HTTP. The returned slot carries the
+ * coordinator-derived object key and delivery URL. Throws
+ * `RuntimeHttpError` on any non-2xx response.
+ */
 export async function issueRuntimeSlot(
   options: RuntimeIssueSlotOptions
 ): Promise<RuntimeIssueSlotResponse> {
@@ -227,6 +306,12 @@ export async function issueRuntimeSlot(
   };
 }
 
+/**
+ * Commit an observed upload over HTTP, advancing the session's cursor.
+ * Committing the same `commitId` again is idempotent on the coordinator
+ * side. Throws `RuntimeHttpError` on any non-2xx response — including 409
+ * when the coordinator rejects the commit.
+ */
 export async function commitRuntimeUpload(
   options: RuntimeCommitUploadOptions
 ): Promise<RuntimeCommitUploadResponse> {
@@ -243,6 +328,11 @@ export async function commitRuntimeUpload(
   };
 }
 
+/**
+ * Fetch and validate a session's live health over HTTP. Pass
+ * `publisherInstanceId` to evaluate a specific publisher's lease. Throws
+ * `RuntimeHttpError` on any non-2xx response.
+ */
 export async function getRuntimeSessionHealth(
   options: RuntimeSessionHealthOptions
 ): Promise<RuntimeSessionHealthResponse> {
@@ -262,6 +352,12 @@ export async function getRuntimeSessionHealth(
   };
 }
 
+/**
+ * Fetch and validate a session's retention plan over HTTP — the expired
+ * slots and retired objects eligible for cleanup at `now` (a read-only
+ * preview; nothing is deleted). Throws `RuntimeHttpError` on any non-2xx
+ * response.
+ */
 export async function getRuntimeSessionRetentionPlan(
   options: RuntimeSessionRetentionOptions
 ): Promise<RuntimeSessionRetentionResponse> {
@@ -281,6 +377,10 @@ export async function getRuntimeSessionRetentionPlan(
   };
 }
 
+/**
+ * Fetch a session's HLS master playlist over HTTP. Throws
+ * `RuntimeHttpError` on any non-2xx response.
+ */
 export async function getRuntimeMasterPlaylist(
   options: RuntimeMasterPlaylistOptions
 ): Promise<RuntimePlaylistResponse> {
@@ -294,6 +394,12 @@ export async function getRuntimeMasterPlaylist(
   };
 }
 
+/**
+ * Fetch a rendition's HLS media playlist over HTTP. Pass `hlsMsn` /
+ * `hlsPart` to issue a low-latency blocking reload; the coordinator holds
+ * the response until the playlist reaches that position or its blocking
+ * timeout elapses. Throws `RuntimeHttpError` on any non-2xx response.
+ */
 export async function getRuntimeMediaPlaylist(
   options: RuntimeMediaPlaylistOptions
 ): Promise<RuntimePlaylistResponse> {
@@ -478,7 +584,10 @@ function assertRetentionPlanExpiredSlot(
     assertUploadSlot(value);
   } catch (error) {
     throw new Error(
-      retentionPlanExpiredSlotValidMessage(index, (error as Error).message)
+      retentionPlanExpiredSlotValidMessage(
+        index,
+        errorMessage(error, String(error))
+      )
     );
   }
 }
@@ -605,7 +714,7 @@ function requiredStringLiteralField<const Allowed extends readonly string[]>(
 ): Allowed[number] {
   const fieldValue = requiredStringField(value, field, missingMessage);
 
-  if (!isStringLiteral(fieldValue, allowed)) {
+  if (!isAllowedString(fieldValue, allowed)) {
     throw new Error(invalidMessage);
   }
 
@@ -625,7 +734,7 @@ function assertOptionalStringLiteralField<
 
   if (
     fieldValue !== undefined &&
-    (typeof fieldValue !== "string" || !isStringLiteral(fieldValue, allowed))
+    (typeof fieldValue !== "string" || !isAllowedString(fieldValue, allowed))
   ) {
     throw new Error(invalidMessage);
   }
@@ -647,7 +756,7 @@ function assertOptionalFiniteNumberField(
 }
 
 function assertSessionState(value: string): SessionState {
-  if (!isStringLiteral(value, SESSION_STATES)) {
+  if (!isAllowedString(value, SESSION_STATES)) {
     throw new Error(
       `session transition response state must be one of: ${SESSION_STATES.join(", ")}`
     );

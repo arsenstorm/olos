@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { isRecord } from "../validation/fields";
 import {
-  isRecord,
   jsonPost,
   normalizedBaseUrl,
   optionalRecordField,

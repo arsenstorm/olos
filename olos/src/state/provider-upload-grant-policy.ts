@@ -3,9 +3,20 @@ import type { PublicationMode, UploadSlot } from "../types/upload-slot";
 import { assertProviderCapabilityDocument } from "../validation/provider-capability";
 import { assertUploadSlot } from "../validation/upload-slot";
 
+/**
+ * Options for {@link canProviderIssueUploadGrant} and
+ * {@link assertProviderCanIssueUploadGrant}. Every `require*` flag
+ * defaults to true; set one to `false` to waive that capability check.
+ */
 export interface ProviderUploadGrantPolicyOptions {
   capability: ProviderCapabilityDocument;
+  /**
+   * Requested grant TTL in seconds. Must be a positive finite number and
+   * must not exceed the provider's
+   * `uploadGrants.maxRecommendedTtlSeconds` when declared.
+   */
   grantTtlSeconds?: number;
+  /** Publication mode the slot will use (default `direct-public`). */
   publicationMode?: PublicationMode;
   requireContentTypeBound?: boolean;
   requireCreateIfAbsent?: boolean;
@@ -78,6 +89,11 @@ const UPLOAD_GRANT_CAPABILITY_REQUIREMENTS = [
   },
 ] satisfies readonly UploadGrantCapabilityRequirement[];
 
+/**
+ * Non-throwing variant of {@link assertProviderCanIssueUploadGrant}:
+ * whether the provider's capability document permits issuing an upload
+ * grant for the slot under the given policy. Pure.
+ */
 export function canProviderIssueUploadGrant(
   options: ProviderUploadGrantPolicyOptions
 ): boolean {
@@ -89,6 +105,14 @@ export function canProviderIssueUploadGrant(
   }
 }
 
+/**
+ * Assert that a provider's capability document permits issuing an upload
+ * grant for the slot. Checks publication-mode support (`direct-public`
+ * additionally requires manifest-gated publication and a declared
+ * negative-caching policy), each upload-grant capability required by the
+ * non-waived `require*` flags, and the grant TTL bounds. Throws an
+ * `Error` naming the first failed requirement.
+ */
 export function assertProviderCanIssueUploadGrant(
   options: ProviderUploadGrantPolicyOptions
 ): void {

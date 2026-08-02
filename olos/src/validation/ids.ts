@@ -4,6 +4,7 @@ interface IntegerPredicateOptions {
   safe?: boolean;
 }
 
+/** Returns whether `value` is an integer >= 0. */
 export function isNonNegativeInteger(value: unknown): value is number {
   return isIntegerAtLeast(value, 0);
 }
@@ -20,6 +21,10 @@ export function isPositiveSafeInteger(value: unknown): value is number {
   return isIntegerAtLeast(value, 1, { safe: true });
 }
 
+/**
+ * Throws `Error("<name> must be a non-negative integer")` unless `value` is
+ * an integer >= 0.
+ */
 export function assertNonNegativeInteger(
   value: unknown,
   name: string
@@ -73,6 +78,11 @@ function assertInteger(
   throw new Error(`${name} must be a ${description} integer`);
 }
 
+/**
+ * Returns whether `value` is a non-empty string of URL-safe identifier
+ * characters (`[A-Za-z0-9._-]`) — the character set every `OlosId` must
+ * use.
+ */
 export function isUrlSafeIdentifier(value: unknown): value is string {
   return isNonEmptyString(value) && hasUrlSafeIdentifierCharacters(value);
 }
@@ -85,6 +95,10 @@ function hasUrlSafeIdentifierCharacters(value: string): boolean {
   return URL_SAFE_IDENTIFIER_PATTERN.test(value);
 }
 
+/**
+ * Throws `Error("<name> must be a non-empty URL-safe identifier")` unless
+ * `value` satisfies `isUrlSafeIdentifier`.
+ */
 export function assertUrlSafeIdentifier(
   value: unknown,
   name: string

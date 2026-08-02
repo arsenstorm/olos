@@ -31,7 +31,7 @@ describe("runtime command response helpers", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
-      error: { message: "invalid request" },
+      error: { code: "olos.invalid_request", message: "invalid request" },
     });
   });
 

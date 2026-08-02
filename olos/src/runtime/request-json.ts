@@ -1,4 +1,4 @@
-import { errorMessage } from "./errors";
+import { errorMessage } from "../validation/fields";
 
 export type RuntimeJsonRequestParse<Value, Invalid> =
   | { status: "valid"; value: Value }

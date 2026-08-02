@@ -4,8 +4,8 @@ import type {
   GetObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import type { CoordinatorPipelineSnapshot } from "../protocol";
-import { createMemoryCoordinatorStore } from "../protocol";
+import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
+import type { CoordinatorPipelineSnapshot } from "../protocol/coordinator-types";
 import type {
   CommittedPart,
   CommittedSegment,
@@ -142,6 +142,28 @@ function createFakeS3(parts: readonly CommittedPart[]): FakeS3 {
   };
 }
 
+const TIMED_OUT = Symbol("timed out");
+
+/**
+ * Read the response body to completion, resolving with the stream error (or
+ * `undefined` on a clean read). The timeout guard makes a regression that
+ * loops forever fail the test instead of hanging it.
+ */
+async function readStreamError(
+  response: Response,
+  timeoutMs = 1000
+): Promise<unknown> {
+  return await Promise.race([
+    response.arrayBuffer().then(
+      () => undefined,
+      (cause: unknown) => cause
+    ),
+    new Promise((resolve) => {
+      setTimeout(() => resolve(TIMED_OUT), timeoutMs);
+    }),
+  ]);
+}
+
 async function seedStore(
   parts: readonly CommittedPart[]
 ): Promise<ReturnType<typeof createMemoryCoordinatorStore>> {
@@ -225,11 +247,109 @@ describe("createByterangeSegmentResponse", () => {
     });
 
     expect(response.status).toBe(206);
+    expect(response.headers.get("content-range")).toBe("bytes 80-119/*");
+    expect(response.headers.get("content-length")).toBe("40");
     const body = new Uint8Array(await response.arrayBuffer());
     expect(body.length).toBe(40);
     for (let i = 0; i < body.length; i += 1) {
       expect(body[i]).toBe((80 + i) % 256);
     }
+  });
+
+  test("serves open-ended offset requests as 200 without range headers", async () => {
+    const parts = [makePart(0, 0, 100), makePart(1, 100, 80)];
+    const store = await seedStore(parts);
+    const client = createFakeS3(parts);
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      range: { start: 50 },
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-range")).toBeNull();
+    expect(response.headers.get("content-length")).toBeNull();
+    const body = new Uint8Array(await response.arrayBuffer());
+    expect(body.length).toBe(130);
+    for (let i = 0; i < body.length; i += 1) {
+      expect(body[i]).toBe((50 + i) % 256);
+    }
+  });
+
+  test("errors the stream when a part object returns no body", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const client: S3GetObjectClient = {
+      send: () => Promise.resolve({} as GetObjectCommandOutput),
+    };
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    const error = await readStreamError(response);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("returned no body");
+  });
+
+  test("errors the stream when a part object returns zero bytes", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const body = {
+      transformToWebStream(): ReadableStream<Uint8Array> {
+        return new ReadableStream({
+          start(controller) {
+            controller.close();
+          },
+        });
+      },
+    };
+    const client: S3GetObjectClient = {
+      send: () =>
+        Promise.resolve({ Body: body } as unknown as GetObjectCommandOutput),
+    };
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    const error = await readStreamError(response);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("returned no bytes");
+  });
+
+  test("errors a bounded range when the committed parts end early", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const client = createFakeS3(parts);
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      range: { end: 149, start: 0 },
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    expect(response.status).toBe(206);
+    expect(response.headers.get("content-range")).toBe("bytes 0-149/*");
+    expect(response.headers.get("content-length")).toBe("150");
+    const error = await readStreamError(response);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("ended before requested end");
   });
 
   test("404s when the virtual segment has no committed parts", async () => {

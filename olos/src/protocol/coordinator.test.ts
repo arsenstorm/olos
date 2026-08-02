@@ -1,29 +1,30 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { createCoordinatorManifestArtifacts } from "../hls/manifest-artifacts";
 import { renderMediaPlaylist } from "../hls/media-playlist";
 import { createObservedUpload } from "../state/observed-upload";
 import { createPublicationKillSwitch } from "../state/publication-control";
 import type { MediaObjectKind } from "../types/media-object";
+import { commitCoordinatorUpload } from "./coordinator-commit";
+import { planCoordinatorRetention } from "./coordinator-lifecycle";
+import { createMemoryCoordinatorStore } from "./coordinator-memory-store";
+import { mutateCoordinatorPipeline } from "./coordinator-mutation";
 import {
-  type CoordinatorPipelineState,
-  cloneCoordinatorPipelineSnapshot,
-  commitCoordinatorUpload,
-  createCoordinatorManifestArtifacts,
-  createMemoryCoordinatorStore,
-  createNextCoordinatorPipelineEtag,
   issueCoordinatorSlot,
-  mutateCoordinatorPipeline,
-  parseCoordinatorPipelineSnapshot,
-  planCoordinatorRetention,
   revokeCoordinatorUpload,
+} from "./coordinator-slot";
+import {
+  cloneCoordinatorPipelineSnapshot,
+  createNextCoordinatorPipelineEtag,
+  parseCoordinatorPipelineSnapshot,
   serializeCoordinatorPipelineSnapshot,
-} from "./coordinator";
+} from "./coordinator-snapshot";
 import {
   createCoordinatorStateWithCommittedSegment,
   createCoordinatorStateWithIssuedSegment,
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "./coordinator-state.test-helper";
+import type { CoordinatorPipelineState } from "./coordinator-types";
 import {
   conflictingStoreResult,
   savedStoreResult,
@@ -32,24 +33,6 @@ import {
 const mediaOrigin = "https://media.example.com";
 
 describe("coordinator pipeline", () => {
-  test("keeps the coordinator module as a facade over concern modules", () => {
-    const source = readFileSync(
-      new URL("./coordinator.ts", import.meta.url),
-      "utf8"
-    );
-
-    expect(source).toContain("./coordinator-commit");
-    expect(source).toContain("./coordinator-lifecycle");
-    expect(source).toContain("./coordinator-memory-store");
-    expect(source).toContain("./coordinator-mutation");
-    expect(source).toContain("./coordinator-slot");
-    expect(source).toContain("./coordinator-snapshot");
-    expect(source).toContain("commitCoordinatorUploadInternal(...args)");
-    expect(source).toContain(
-      "parseCoordinatorPipelineSnapshotFromStore(value)"
-    );
-  });
-
   test("saves and loads coordinator state snapshots", async () => {
     const store = createMemoryCoordinatorStore();
     const state = createEmptyCoordinatorState();

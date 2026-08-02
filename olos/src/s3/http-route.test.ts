@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { s3Route } from "./http-route";
 import {
   S3_ROUTE_ACTIONS,
   s3CompletionHintRoutePathFromOptions,
   s3RoutePathFromOptions,
-} from "../runtime/route";
-import { s3Route } from "./http-route";
+} from "./route";
 
 const routeOptions = {
   sessionPath: "/sessions",

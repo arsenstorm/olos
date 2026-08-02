@@ -3,12 +3,24 @@ import type {
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineState,
   MutateCoordinatorPipelineOptions,
-} from "./coordinator";
+} from "./coordinator-types";
 import {
   positiveMutationAttempts,
   runStoredCoordinatorMutationWithAdapters,
 } from "./mutate-coordinator-store";
 
+/**
+ * Run an optimistic read-modify-write cycle against a coordinator store:
+ * load the session's snapshot, apply `mutate` to its state, and save with
+ * the loaded etag as `expectedEtag`.
+ *
+ * When the save conflicts because another writer won, the cycle retries
+ * against the winning snapshot — `mutate` runs again on the fresh state —
+ * up to `maxAttempts` total attempts (default 2). Returns `"not_found"`
+ * when no snapshot exists for the session, and `"conflict"` when attempts
+ * are exhausted or the store reports a conflict without a current snapshot
+ * (e.g. the record was deleted mid-flight).
+ */
 export async function mutateCoordinatorPipeline(
   options: MutateCoordinatorPipelineOptions
 ): Promise<CoordinatorPipelineMutation> {
@@ -16,14 +28,14 @@ export async function mutateCoordinatorPipeline(
 
   return await runStoredCoordinatorMutationWithAdapters<
     { state: CoordinatorPipelineState },
-    never,
+    { state: CoordinatorPipelineState },
     CoordinatorPipelineMutation
   >({
     attempts,
     mutate: async (state) => ({ state: await options.mutate(state) }),
     sessionId: options.sessionId,
     store: options.store,
-    decide: (attempt) => ({ status: "save", state: attempt.state }),
+    decide: (attempt) => ({ attempt, status: "save", state: attempt.state }),
     onMissing: () => missingCoordinatorPipelineMutation(),
     mapSaved: (saved) => saved,
     onConflict: (current) =>

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "./latency-profile";
+import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "./latency-profile-defaults";
 import { resolveRuntimePublisherObjectExpiry } from "./publisher-expiry";
 
 describe("runtime publisher object expiry", () => {

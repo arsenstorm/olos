@@ -15,13 +15,38 @@ const DEFAULT_TARGET_LATENCY_SECONDS = 3;
 const FRESHNESS_BOUND_CACHE_DIRECTIVE = "must-revalidate";
 const IMMUTABLE_CACHE_DIRECTIVE = "immutable";
 
+/** Options for {@link createDeliveryCachePolicy}. */
 export interface CreateDeliveryCachePolicyOptions {
+  /**
+   * Provider capability document. Required for `media-object` targets
+   * (must declare `delivery.immutableCaching`) and `negative-object`
+   * targets (must declare `delivery.negativeCachingPolicyDeclared`).
+   */
   capability?: ProviderCapabilityDocument;
+  /**
+   * Cache lifetime in seconds. Defaults to 31,536,000 (one year) for
+   * `media-object` targets and 1 second otherwise. For non-media-object
+   * targets it must not exceed `targetLatencySeconds`.
+   */
   maxAgeSeconds?: number;
   target: DeliveryCacheTarget;
+  /**
+   * Latency budget in seconds that caps `maxAgeSeconds` for manifest and
+   * negative-object policies (default 3). Ignored for `media-object`
+   * targets.
+   */
   targetLatencySeconds?: number;
 }
 
+/**
+ * Build the `Cache-Control` policy for a delivery target. `media-object`
+ * targets get long-lived immutable caching
+ * (`public, max-age=<maxAge>, immutable`); manifest and negative-object
+ * targets get a short freshness bound
+ * (`public, max-age=<maxAge>, must-revalidate`) whose max age must not
+ * exceed `targetLatencySeconds`. Pure; throws when the required provider
+ * capabilities are missing or the freshness bound is violated.
+ */
 export function createDeliveryCachePolicy(
   options: CreateDeliveryCachePolicyOptions
 ): DeliveryCachePolicy {

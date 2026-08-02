@@ -6,12 +6,22 @@ import { assertCommit } from "../validation/commit";
 import { assertSafeObjectKey } from "../validation/object-key";
 import { assertProviderCapabilityDocument } from "../validation/provider-capability";
 
+/** Options for {@link createObjectPublication}. */
 export interface CreateObjectPublicationOptions {
   capability: ProviderCapabilityDocument;
   commit: Commit;
+  /** Publication mode for the commit (default `direct-public`). */
   publicationMode?: PublicationMode;
 }
 
+/**
+ * Derive the {@link ObjectPublication} for a commit. In `direct-public`
+ * mode (the default) the delivery URL is rebuilt from the provider's
+ * `delivery.publicBaseUrl` plus the commit's object key; the other modes
+ * keep the commit's own delivery URL. Pure; throws when the capability
+ * document does not declare support for the requested publication mode
+ * or, in `direct-public` mode, when the object key is unsafe.
+ */
 export function createObjectPublication(
   options: CreateObjectPublicationOptions
 ): ObjectPublication {

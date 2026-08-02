@@ -12,16 +12,24 @@ const DEFAULT_S3_EVENT_CONTENT_TYPE = "application/octet-stream";
 // only trust normalized, decoded object keys and strict provider/bucket fields
 // before turning events into internal upload-normalization records.
 
+/** Options for {@link normalizeS3ObjectCreatedEventRecord}. */
 export interface NormalizeS3ObjectCreatedEventRecordOptions {
+  /** Assumed object content type (default `application/octet-stream`). */
   contentType?: string;
+  /** When set, records for any other bucket normalize to `invalid_event`. */
   expectedBucket?: string;
   providerId: string;
+  /** One untrusted entry from an S3 event notification's `Records` array. */
   record: unknown;
 }
 
+/** Options for {@link normalizeS3ObjectCreatedEvents}. */
 export interface NormalizeS3ObjectCreatedEventsOptions {
+  /** Assumed object content type (default `application/octet-stream`). */
   contentType?: string;
+  /** When set, records for any other bucket normalize to `invalid_event`. */
   expectedBucket?: string;
+  /** Untrusted S3 event notification body (`{ Records: [...] }`). */
   payload: unknown;
   providerId: string;
 }
@@ -43,6 +51,12 @@ type S3ObjectCreatedEventIdentity =
       status: "invalid";
     };
 
+/**
+ * Normalize an untrusted S3 event notification payload into one upload
+ * normalization per record. Never throws: a payload without a `Records`
+ * array yields a single `invalid_event` entry, and each malformed record
+ * normalizes to its own `invalid_event` while valid siblings pass through.
+ */
 export function normalizeS3ObjectCreatedEvents(
   options: NormalizeS3ObjectCreatedEventsOptions
 ): readonly UploadEventNormalization[] {
@@ -68,6 +82,14 @@ function s3ObjectCreatedEventRecords(payload: unknown): unknown[] | undefined {
   return Array.isArray(record?.Records) ? record.Records : undefined;
 }
 
+/**
+ * Normalize a single untrusted S3 `ObjectCreated:*` event record into an
+ * upload event normalization. Validates the bucket, URL-decodes the object
+ * key (S3 encodes keys with `+` for spaces) and checks it is safe, and
+ * derives the event id from the request id or sequencer. Never throws — any
+ * validation failure returns an `invalid_event` normalization with an
+ * `olos.invalid_state` error instead.
+ */
 export function normalizeS3ObjectCreatedEventRecord(
   options: NormalizeS3ObjectCreatedEventRecordOptions
 ): UploadEventNormalization {

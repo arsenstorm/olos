@@ -3,23 +3,9 @@ import {
   assertSafePath,
   assertSafePathSegment,
   normalizedSafeRelativePath,
-  trimSlashes,
-  trimTrailingSlash,
 } from "./path";
 
 describe("runtime path helpers", () => {
-  test("trimSlashes removes leading and trailing slashes", () => {
-    expect(trimSlashes("/v1/live/")).toBe("v1/live");
-    expect(trimSlashes("///v1/live///")).toBe("v1/live");
-    expect(trimSlashes("v1/live")).toBe("v1/live");
-  });
-
-  test("trimTrailingSlash preserves leading slashes", () => {
-    expect(trimTrailingSlash("/v1/live/")).toBe("/v1/live");
-    expect(trimTrailingSlash("/")).toBe("");
-    expect(trimTrailingSlash("v1/live")).toBe("v1/live");
-  });
-
   test("normalizedSafeRelativePath trims outer slashes", () => {
     expect(normalizedSafeRelativePath("v1/live", "path")).toBe("v1/live");
     expect(normalizedSafeRelativePath("/v1/live/", "path")).toBe("v1/live");

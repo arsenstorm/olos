@@ -2,12 +2,11 @@ import {
   booleanValue,
   finiteNumber,
   isAllowedString,
-  isRecord as isValidationRecord,
+  nonNegativeNumber,
+  positiveNumber,
   stringValue,
   timestampString,
-  nonNegativeNumber as validationNonNegativeNumber,
-  positiveNumber as validationPositiveNumber,
-  recordValue as validationRecordValue,
+  timestampMs as validationTimestampMs,
 } from "../validation/fields";
 import {
   assertNonNegativeInteger,
@@ -16,16 +15,18 @@ import {
   assertPositiveSafeInteger,
   assertUrlSafeIdentifier,
 } from "../validation/ids";
-import { optionalField } from "./optional-field";
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return isValidationRecord(value);
-}
+export function optionalField<Key extends string, Value>(
+  key: Key,
+  value: Value | undefined
+): Partial<Record<Key, Value>> {
+  const fields: Partial<Record<Key, Value>> = {};
 
-export function recordValue(
-  value: unknown
-): Record<string, unknown> | undefined {
-  return validationRecordValue(value);
+  if (value !== undefined) {
+    fields[key] = value;
+  }
+
+  return fields;
 }
 
 export function stringField(
@@ -109,10 +110,6 @@ export function optionalNonNegativeNumberField<Field extends string>(
   return optionalParsedField(value, field, nonNegativeNumberField);
 }
 
-export function nonNegativeNumber(value: number, name: string): number {
-  return validationNonNegativeNumber(value, name);
-}
-
 export function nonNegativeIntegerField(
   value: Record<string, unknown>,
   field: string
@@ -174,10 +171,6 @@ export function positiveNumberField(
   return positiveNumber(number, field);
 }
 
-export function positiveNumber(value: number, name: string): number {
-  return validationPositiveNumber(value, name);
-}
-
 export function timestampField(
   value: Record<string, unknown>,
   field: string
@@ -231,15 +224,13 @@ function hasOptionalField(
 }
 
 export function timestampMs(value: Date | string, name: string): number {
-  const timestamp = timestampValueMs(value);
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) {
+      throw new Error(`${name} must be a valid timestamp`);
+    }
 
-  if (Number.isNaN(timestamp)) {
-    throw new Error(`${name} must be a valid timestamp`);
+    return value.getTime();
   }
 
-  return timestamp;
-}
-
-function timestampValueMs(value: Date | string): number {
-  return value instanceof Date ? value.getTime() : Date.parse(value);
+  return validationTimestampMs(value, name);
 }

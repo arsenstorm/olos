@@ -66,9 +66,9 @@ export const conformanceCommittedWindow = {
           segment: {
             commitId: "commit_3810",
             deliveryUrl:
-              "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810/segment-slot_s3810.m4s",
+              "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810-slot_s3810.m4s",
             objectKey:
-              "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810/segment-slot_s3810.m4s",
+              "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810-slot_s3810.m4s",
             slotId: "slot_s3810",
           },
         },
@@ -79,9 +79,9 @@ export const conformanceCommittedWindow = {
           segment: {
             commitId: "commit_3811",
             deliveryUrl:
-              "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment-slot_s3811.m4s",
+              "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3811.m4s",
             objectKey:
-              "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment-slot_s3811.m4s",
+              "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3811.m4s",
             slotId: "slot_s3811",
           },
         },

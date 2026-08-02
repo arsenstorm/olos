@@ -2,7 +2,6 @@ import type { CursorWindow } from "../types/cursor";
 import type { PublicationMode } from "../types/upload-slot";
 import { assertCursorWindow } from "../validation/cursor";
 import { assertNonNegativeInteger } from "../validation/ids";
-import { optionalField } from "./optional-field";
 import {
   type ResolveRuntimePublisherObjectExpiryOptions,
   type RuntimePublisherObjectExpiry,
@@ -14,29 +13,51 @@ import type {
   RuntimePublisherPlannedObjectKind,
 } from "./publisher-plan";
 import { createRuntimePublisherObjectPlan } from "./publisher-plan";
-import { positiveInteger } from "./request-fields";
+import { optionalField, positiveInteger } from "./request-fields";
 
+/**
+ * Publishing cadence: `segment` emits whole segments, `part` emits partial
+ * segments (`partsPerSegment` per media sequence number) for low latency.
+ */
 export type RuntimePublisherCadenceMode = "part" | "segment";
 
+/** Options for `resolveRuntimePublisherNextObjectPosition`. */
 export interface ResolveRuntimePublisherNextObjectPositionOptions {
+  /**
+   * Committed window from the session cursor; the next position follows it.
+   * Omit before the first commit to start at `startMediaSequenceNumber`.
+   */
   cursorWindow?: CursorWindow;
+  /** Pass `false` to plan the init object first; defaults to `true`. */
   initPublished?: boolean;
+  /** Cadence to advance in; defaults to `segment`. */
   mode?: RuntimePublisherCadenceMode;
+  /** Parts per segment; required (positive integer) in `part` mode. */
   partsPerSegment?: number;
+  /** First media sequence number when there is no cursor window yet (default 0). */
   startMediaSequenceNumber?: number;
 }
 
+/** Timeline position of a planned object. */
 export interface RuntimePublisherObjectPosition {
   kind: RuntimePublisherPlannedObjectKind;
   mediaSequenceNumber: number;
+  /** Zero-based part index within the segment; only set for parts. */
   partNumber?: number;
 }
 
+/**
+ * Default slot parameters for one object kind, applied to every planned
+ * object of that kind.
+ */
 export interface RuntimePublisherObjectKindDefaults {
   contentType: string;
+  /** Object duration, in seconds. */
   duration: number;
+  /** File extension used when deriving the object key. */
   extension: string;
   maxBytes: number;
+  /** Lower byte bound; must not exceed `maxBytes`. */
   minBytes?: number;
 }
 
@@ -52,13 +73,23 @@ interface RuntimePublisherPartPositionContext {
   startMediaSequenceNumber: number;
 }
 
+/**
+ * Per-kind defaults for every plannable object kind (init, part, segment),
+ * e.g. as built by `createRuntimeObjectLowLatencyPublisherDefaults`.
+ */
 export type RuntimePublisherPlannedObjectDefaults = Record<
   RuntimePublisherPlannedObjectKind,
   RuntimePublisherObjectKindDefaults
 >;
 
+/** Options for `createRuntimePublisherObjectPlanInput`. */
 export interface CreateRuntimePublisherObjectPlanInputOptions {
+  /** Per-kind defaults the position's kind is looked up in. */
   defaults: RuntimePublisherPlannedObjectDefaults;
+  /**
+   * Nonce mixed into the derived object key; required downstream for
+   * `direct-public` publication.
+   */
   objectKeyNonce?: string;
   objectKeyPrefix?: string;
   position: RuntimePublisherObjectPosition;
@@ -66,22 +97,43 @@ export interface CreateRuntimePublisherObjectPlanInputOptions {
   renditionId: string;
 }
 
+/**
+ * Options for `createRuntimePublisherNextObjectPlan`: position resolution,
+ * per-kind defaults, and expiry inputs combined. The plan's `duration`
+ * comes from the resolved kind's defaults, so it is omitted here.
+ */
 export interface CreateRuntimePublisherNextObjectPlanOptions
   extends Omit<CreateRuntimePublisherObjectPlanInputOptions, "position">,
     Omit<ResolveRuntimePublisherObjectExpiryOptions, "duration">,
     ResolveRuntimePublisherNextObjectPositionOptions {}
 
+/**
+ * A fully resolved object plan input, still missing only the `expiresAt`
+ * that expiry resolution supplies.
+ */
 export type RuntimePublisherObjectPlanInput = Omit<
   CreateRuntimePublisherObjectPlanOptions,
   "expiresAt"
 >;
 
+/**
+ * Result of `createRuntimePublisherNextObjectPlan`: the slot plan, the
+ * expiry it was stamped with, and the timeline position it targets.
+ */
 export interface RuntimePublisherNextObjectPlan {
   expiry: RuntimePublisherObjectExpiry;
   plan: RuntimePublisherObjectPlan;
   position: RuntimePublisherObjectPosition;
 }
 
+/**
+ * Work out which object a publisher should produce next. Yields the init
+ * object when `initPublished` is `false`; otherwise advances past
+ * `cursorWindow` in the chosen cadence — the next segment, or the next part
+ * (rolling into part 0 of the next segment after `partsPerSegment` parts).
+ * Without a cursor window it starts at `startMediaSequenceNumber`
+ * (default 0).
+ */
 export function resolveRuntimePublisherNextObjectPosition(
   options: ResolveRuntimePublisherNextObjectPositionOptions = {}
 ): RuntimePublisherObjectPosition {
@@ -141,6 +193,10 @@ function runtimePublisherPartPositionContext(
   };
 }
 
+/**
+ * Merge a timeline position with its kind's defaults into a plan input,
+ * carrying through the rendition, publication mode, and object key hints.
+ */
 export function createRuntimePublisherObjectPlanInput(
   options: CreateRuntimePublisherObjectPlanInputOptions
 ): RuntimePublisherObjectPlanInput {
@@ -175,6 +231,11 @@ function nextSegmentPosition(options: {
   };
 }
 
+/**
+ * Plan the publisher's next object end to end: resolve the position, apply
+ * the kind's defaults, resolve the slot expiry from `now`, and build the
+ * slot issue payload plus deterministic commit id and object key preview.
+ */
 export function createRuntimePublisherNextObjectPlan(
   options: CreateRuntimePublisherNextObjectPlanOptions
 ): RuntimePublisherNextObjectPlan {

@@ -1,5 +1,5 @@
 import { MEDIA_OBJECT_KINDS } from "../config/media-object";
-import type { IssueCoordinatorSlotOptions } from "../protocol";
+import type { IssueCoordinatorSlotOptions } from "../protocol/coordinator-types";
 import type { Byterange } from "../types/byterange";
 import type { MediaObjectKind } from "../types/media-object";
 import { assertByterange, assertByterangeKind } from "../validation/byterange";
@@ -16,6 +16,12 @@ import {
   urlSafeIdentifierField,
 } from "./request-fields";
 
+/**
+ * Wire payload for requesting an upload slot: the planned object's
+ * identity, timeline position, byte bounds, and expiry, plus optional
+ * object key derivation hints. It must not carry `objectKey` or
+ * `deliveryUrl` — the coordinator derives those at issuance.
+ */
 export interface RuntimeSlotIssuePayload
   extends Omit<IssueCoordinatorSlotOptions, "state"> {}
 

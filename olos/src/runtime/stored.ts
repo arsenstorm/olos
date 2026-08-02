@@ -2,12 +2,13 @@ import type {
   CoordinatorCommitPolicy,
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineStore,
-} from "../protocol";
+} from "../protocol/coordinator-types";
 import { runStoredCoordinatorMutationWithAdaptersAndResponse } from "../protocol/mutate-coordinator-store";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { Cursor } from "../types/cursor";
 import type { OlosId } from "../types/ids";
 import type { Session } from "../types/session";
+import { isAllowedString } from "../validation/fields";
 import {
   commitCoordinatorUploadFromRequest,
   type RuntimeCommitRequest,
@@ -19,15 +20,16 @@ import {
   serveBlockingCoordinatorManifest,
   serveCoordinatorManifest,
 } from "./manifest";
-import { jsonErrorResponse } from "./response";
+import { jsonConflictResponse, jsonErrorResponse } from "./response";
 import {
   issueCoordinatorSlotFromRequest,
   type RuntimeCoordinatorSlotIssue,
   type RuntimeSlotIssueRequest,
 } from "./slot";
-import { isStringLiteral } from "./string-literals";
 
+/** Options for `issueStoredCoordinatorSlotFromRequest`. */
 export interface IssueStoredCoordinatorSlotFromRequestOptions {
+  /** Max optimistic-save attempts; defaults to 2. */
   maxAttempts?: number;
   publicationControl?: PublicationControlPolicy;
   request: RuntimeSlotIssueRequest;
@@ -35,9 +37,15 @@ export interface IssueStoredCoordinatorSlotFromRequestOptions {
   store: CoordinatorPipelineStore;
 }
 
+/** Options for `commitStoredCoordinatorUploadFromRequest`. */
 export interface CommitStoredCoordinatorUploadFromRequestOptions {
   commitPolicy?: CoordinatorCommitPolicy;
+  /**
+   * How far behind the cursor a commit may land and still be accepted, in
+   * milliseconds. A `lateToleranceMs` in the payload takes precedence.
+   */
   lateToleranceMs?: number;
+  /** Max optimistic-save attempts; defaults to 2. */
   maxAttempts?: number;
   publicationControl?: PublicationControlPolicy;
   request: RuntimeCommitRequest;
@@ -45,18 +53,33 @@ export interface CommitStoredCoordinatorUploadFromRequestOptions {
   store: CoordinatorPipelineStore;
 }
 
+/**
+ * Options for `serveStoredCoordinatorManifest`: the manifest options with
+ * the coordinator state replaced by a store and session id to load it from.
+ */
 export interface ServeStoredCoordinatorManifestOptions
   extends Omit<ServeCoordinatorManifestOptions, "state"> {
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
 }
 
+/**
+ * Options for `serveStoredBlockingCoordinatorManifest`: the blocking
+ * manifest options with the coordinator state replaced by a store and
+ * session id to load it from.
+ */
 export interface ServeStoredBlockingCoordinatorManifestOptions
   extends Omit<ServeBlockingCoordinatorManifestOptions, "state"> {
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
 }
 
+/**
+ * Failure outcomes shared by stored mutations: `conflict` (409) when
+ * concurrent writes exhausted the optimistic retries — with the latest
+ * snapshot when available — or `not_found` (404) when the session does not
+ * exist.
+ */
 export type StoredRuntimeMutation =
   | {
       current?: CoordinatorPipelineSnapshot;
@@ -68,6 +91,11 @@ export type StoredRuntimeMutation =
       status: "not_found";
     };
 
+/**
+ * Outcome of `issueStoredCoordinatorSlotFromRequest`: the in-memory
+ * `RuntimeCoordinatorSlotIssue` outcomes — `issued` gaining the saved
+ * snapshot's `etag` — plus the stored `conflict` / `not_found` failures.
+ */
 export type StoredRuntimeSlotIssue =
   | (Extract<RuntimeCoordinatorSlotIssue, { status: "issued" }> & {
       etag: string;
@@ -92,15 +120,17 @@ type TerminalRuntimeCoordinatorUploadCommit = Extract<
   RuntimeCoordinatorUploadCommit,
   { status: "invalid" | "rejected" }
 >;
-type TerminalStoredRuntimeUploadCommit =
-  | TerminalRuntimeCoordinatorUploadCommit
-  | (IdempotentRuntimeCoordinatorUploadCommit & { etag: string });
 
 const TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES = [
   "invalid",
   "rejected",
 ] as const satisfies readonly TerminalRuntimeCoordinatorUploadCommit["status"][];
 
+/**
+ * Outcome of `commitStoredCoordinatorUploadFromRequest`: the in-memory
+ * `RuntimeCoordinatorUploadCommit` outcomes — `committed` and `idempotent`
+ * gaining an `etag` — plus the stored `conflict` / `not_found` failures.
+ */
 export type StoredRuntimeUploadCommit =
   | (SuccessfulRuntimeCoordinatorUploadCommit & {
       etag: string;
@@ -111,6 +141,13 @@ export type StoredRuntimeUploadCommit =
     >
   | StoredRuntimeMutation;
 
+/**
+ * Load a session's cursor and session record from the store (using the
+ * store's hot-path `loadCursor` when implemented) and serve the playlist
+ * matching the request URL via `serveCoordinatorManifest`. Read-only.
+ * Returns a plain-text 404 when the session does not exist, and a 404 when
+ * no commit has landed yet or the path matches no playlist.
+ */
 export async function serveStoredCoordinatorManifest(
   options: ServeStoredCoordinatorManifestOptions
 ): Promise<Response> {
@@ -128,6 +165,15 @@ export async function serveStoredCoordinatorManifest(
   });
 }
 
+/**
+ * Stored variant of `serveBlockingCoordinatorManifest`: loads the session's
+ * cursor view from the store, then serves the media playlist, holding
+ * `_HLS_msn` / `_HLS_part` requests open via `waitForCursor` until the
+ * session reaches the requested position or `timeoutMs` (milliseconds)
+ * elapses. Note the loaded cursor is a point-in-time view — the wait
+ * resolves against cursors pushed by the notifier, not by re-reading the
+ * store. Returns a plain-text 404 when the session does not exist.
+ */
 export async function serveStoredBlockingCoordinatorManifest(
   options: ServeStoredBlockingCoordinatorManifestOptions
 ): Promise<Response> {
@@ -175,13 +221,19 @@ async function loadCursorView(
   };
 }
 
+/**
+ * Issue an upload slot against the stored session and persist the updated
+ * state via optimistic-retry (up to `maxAttempts`, default 2; a `Request`
+ * body is re-cloned per attempt). Terminal `invalid` / `rejected` outcomes
+ * are returned without saving; retry exhaustion yields `conflict` (409).
+ */
 export function issueStoredCoordinatorSlotFromRequest(
   options: IssueStoredCoordinatorSlotFromRequestOptions
 ): Promise<StoredRuntimeSlotIssue> {
   return Promise.resolve().then(() =>
     runStoredCoordinatorMutationWithAdaptersAndResponse<
       RuntimeCoordinatorSlotIssue,
-      Exclude<RuntimeCoordinatorSlotIssue, { status: "issued" }>,
+      IssuedRuntimeCoordinatorSlotIssue,
       StoredRuntimeSlotIssue
     >({
       maxAttempts: options.maxAttempts,
@@ -195,12 +247,11 @@ export function issueStoredCoordinatorSlotFromRequest(
       store: options.store,
       decide: (issued) =>
         isIssuedRuntimeCoordinatorSlotIssue(issued)
-          ? { status: "save", state: issued.state }
+          ? { attempt: issued, status: "save", state: issued.state }
           : { status: "terminal", result: issued },
-      mapTerminal: (issued) => issued,
       onMissing: () => notFound(),
       mapSaved: (saved, attempt) => ({
-        ...(attempt as IssuedRuntimeCoordinatorSlotIssue),
+        ...attempt,
         etag: saved.etag,
         state: saved.state,
       }),
@@ -209,13 +260,20 @@ export function issueStoredCoordinatorSlotFromRequest(
   );
 }
 
+/**
+ * Commit an upload against the stored session and persist the advanced
+ * state via optimistic-retry (up to `maxAttempts`, default 2; a `Request`
+ * body is re-cloned per attempt). Idempotent replays return the current
+ * snapshot's etag without saving; `invalid` / `rejected` outcomes are
+ * returned without saving; retry exhaustion yields `conflict` (409).
+ */
 export function commitStoredCoordinatorUploadFromRequest(
   options: CommitStoredCoordinatorUploadFromRequestOptions
 ): Promise<StoredRuntimeUploadCommit> {
   return Promise.resolve().then(() =>
     runStoredCoordinatorMutationWithAdaptersAndResponse<
       RuntimeCoordinatorUploadCommit,
-      TerminalStoredRuntimeUploadCommit,
+      SuccessfulRuntimeCoordinatorUploadCommit,
       StoredRuntimeUploadCommit
     >({
       maxAttempts: options.maxAttempts,
@@ -244,12 +302,11 @@ export function commitStoredCoordinatorUploadFromRequest(
           };
         }
 
-        return { status: "save", state: committed.state };
+        return { attempt: committed, status: "save", state: committed.state };
       },
-      mapTerminal: (committed) => committed,
       onMissing: () => notFound(),
       mapSaved: (saved, attempt) => ({
-        ...(attempt as RuntimeCoordinatorUploadCommit),
+        ...attempt,
         etag: saved.etag,
         state: saved.state,
       }),
@@ -261,7 +318,7 @@ export function commitStoredCoordinatorUploadFromRequest(
 function isTerminalRuntimeCoordinatorUploadCommit(
   result: RuntimeCoordinatorUploadCommit
 ): result is TerminalRuntimeCoordinatorUploadCommit {
-  return isStringLiteral(
+  return isAllowedString(
     result.status,
     TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES
   );
@@ -291,7 +348,11 @@ function requestForAttempt(
 
 function notFound(): StoredRuntimeMutation {
   return {
-    response: jsonErrorResponse("coordinator session was not found", 404),
+    response: jsonErrorResponse(
+      "olos.invalid_session",
+      "coordinator session was not found",
+      404
+    ),
     status: "not_found",
   };
 }
@@ -308,9 +369,8 @@ function conflict(
 ): StoredRuntimeMutation {
   return {
     ...(current === undefined ? {} : { current }),
-    response: jsonErrorResponse(
-      "coordinator session changed during mutation",
-      409
+    response: jsonConflictResponse(
+      "coordinator session changed during mutation"
     ),
     status: "conflict",
   };

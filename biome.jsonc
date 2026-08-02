@@ -1,4 +1,32 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "extends": ["ultracite/biome/core", "ultracite/biome/vitest"]
+  "extends": ["ultracite/biome/core", "ultracite/biome/vitest"],
+  "overrides": [
+    {
+      "includes": ["olos/src/*/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "../config": "import the leaf module, facades are for consumers",
+                  "../conformance": "import the leaf module, facades are for consumers",
+                  "../hls": "import the leaf module, facades are for consumers",
+                  "../protocol": "import the leaf module, facades are for consumers",
+                  "../runtime": "import the leaf module, facades are for consumers",
+                  "../s3": "import the leaf module, facades are for consumers",
+                  "../schema": "import the leaf module, facades are for consumers",
+                  "../state": "import the leaf module, facades are for consumers",
+                  "../types": "import the leaf module, facades are for consumers",
+                  "../validation": "import the leaf module, facades are for consumers"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

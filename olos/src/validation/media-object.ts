@@ -3,12 +3,16 @@ import { assertContentType } from "./content-type";
 import {
   assertIsoDateField,
   assertNonEmptyStringField,
-  assertPositiveNumberField,
+  assertPositiveIntegerField,
   assertUrlSafeField,
   isRecord,
 } from "./fields";
 import { assertSafeObjectKey } from "./object-key";
 
+/**
+ * Returns whether `value` is a valid `MediaObject` (see
+ * `assertMediaObject`).
+ */
 export function isMediaObject(value: unknown): value is MediaObject {
   try {
     assertMediaObject(value);
@@ -18,6 +22,12 @@ export function isMediaObject(value: unknown): value is MediaObject {
   }
 }
 
+/**
+ * Validates an untrusted value as a `MediaObject` observation, throwing an
+ * `Error` naming the first offending field. Requires a safe object key, a
+ * well-formed content type, an ISO 8601 `observedAt`, and a positive
+ * integer `size`.
+ */
 export function assertMediaObject(
   value: unknown
 ): asserts value is MediaObject {
@@ -38,7 +48,7 @@ function assertMediaObjectIdentity(value: Record<string, unknown>): void {
 
 function assertMediaObjectObservation(value: Record<string, unknown>): void {
   assertIsoDateField(value, "observedAt", "mediaObject");
-  assertPositiveNumberField(value, "size", "mediaObject");
+  assertPositiveIntegerField(value, "size", "mediaObject");
 }
 
 function assertOptionalMediaObjectFields(value: Record<string, unknown>): void {

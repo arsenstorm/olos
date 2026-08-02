@@ -126,6 +126,48 @@ const advancedCursor: Cursor = {
   },
 };
 
+const groupedSession: Session = {
+  ...session,
+  renditions: session.renditions.map((rendition) =>
+    rendition.kind === "audio"
+      ? {
+          ...rendition,
+          defaultRendition: true,
+          groupId: "aac",
+          name: "English",
+        }
+      : rendition
+  ),
+};
+
+const groupedCommittedWindow: CommittedWindow = {
+  ...committedWindow,
+  renditions: {
+    ...committedWindow.renditions,
+    a128: {
+      init: {
+        commitId: "commit_init_a128",
+        deliveryUrl: "https://media.example.com/media/a128/init.mp4",
+        objectKey: "media/a128/init.mp4",
+        slotId: "slot_init_a128",
+      },
+      renditionId: "a128",
+      segments: [
+        {
+          duration: 2,
+          mediaSequenceNumber: 3810,
+          segment: {
+            commitId: "commit_a128_3810",
+            deliveryUrl: "https://media.example.com/media/a128/3810.m4s",
+            objectKey: "media/a128/3810.m4s",
+            slotId: "slot_a128_3810",
+          },
+        },
+      ],
+    },
+  },
+};
+
 describe("HLS manifest artifacts", () => {
   test("creates a master playlist artifact and media playlist artifacts", () => {
     const artifacts = createHlsManifestArtifacts(session, committedWindow, {
@@ -154,6 +196,79 @@ describe("HLS manifest artifacts", () => {
     expect(artifacts[1]?.body).toContain(
       "https://media.example.com/media/3810.m4s"
     );
+  });
+
+  test("creates media playlist artifacts for grouped audio renditions", () => {
+    const artifacts = createHlsManifestArtifacts(
+      groupedSession,
+      groupedCommittedWindow,
+      {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      }
+    );
+
+    expect(artifacts.map((artifact) => artifact.path)).toEqual([
+      "/v1/live/session_1/master.m3u8",
+      "/v1/live/session_1/v1080/media.m3u8",
+      "/v1/live/session_1/a128/media.m3u8",
+    ]);
+
+    const audioPlaylist = artifacts.at(-1);
+
+    expect(audioPlaylist?.body).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
+    expect(audioPlaylist?.body).toContain(
+      "https://media.example.com/media/a128/3810.m4s"
+    );
+    expect(artifacts[0]?.body).toContain(
+      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac"'
+    );
+  });
+
+  test("does not create media playlist artifacts for ungrouped audio renditions", () => {
+    const artifacts = createHlsManifestArtifacts(session, committedWindow, {
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: session.partTarget,
+      segmentTarget: session.segmentTarget,
+    });
+
+    expect(artifacts.map((artifact) => artifact.path)).not.toContain(
+      "/v1/live/session_1/a128/media.m3u8"
+    );
+  });
+
+  test("ends every media playlist with EXT-X-ENDLIST for terminal sessions", () => {
+    for (const state of ["ended", "aborted"] as const) {
+      const [master, ...mediaPlaylists] = createHlsManifestArtifacts(
+        { ...session, state },
+        committedWindow,
+        {
+          allowedMediaOrigins: [MEDIA_ORIGIN],
+          partTarget: session.partTarget,
+          segmentTarget: session.segmentTarget,
+        }
+      );
+
+      expect(master?.body).not.toContain("#EXT-X-ENDLIST");
+      expect(mediaPlaylists.length).toBeGreaterThan(0);
+
+      for (const artifact of mediaPlaylists) {
+        expect(artifact.body.endsWith("\n#EXT-X-ENDLIST\n")).toBe(true);
+      }
+    }
+  });
+
+  test("omits EXT-X-ENDLIST for live sessions", () => {
+    const artifacts = createHlsManifestArtifacts(session, committedWindow, {
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: session.partTarget,
+      segmentTarget: session.segmentTarget,
+    });
+
+    for (const artifact of artifacts) {
+      expect(artifact.body).not.toContain("#EXT-X-ENDLIST");
+    }
   });
 
   test("supports custom safe playlist paths", () => {
@@ -362,6 +477,28 @@ describe("HLS manifest artifacts", () => {
 
     if (result.status === "ready" || result.status === "timeout") {
       expect(result.response.body).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
+    }
+  });
+
+  test("ends blocking media playlists when the cursor reports a terminal state", async () => {
+    const result = await resolveBlockingHlsManifestArtifactResponse({
+      cursor: { ...cursor, state: "ended" },
+      manifest: {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: session.partTarget,
+        segmentTarget: session.segmentTarget,
+      },
+      requestUrl: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810",
+      session,
+      timeoutMs: 100,
+      waitForCursor: () =>
+        Promise.reject(new Error("waiter should not be called")),
+    });
+
+    expect(result.status).toBe("ready");
+
+    if (result.status === "ready" || result.status === "timeout") {
+      expect(result.response.body.endsWith("\n#EXT-X-ENDLIST\n")).toBe(true);
     }
   });
 

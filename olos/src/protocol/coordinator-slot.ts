@@ -14,6 +14,7 @@ import type {
   CommittedSegment,
   RenditionWindow,
 } from "../types/committed-window";
+import { createOlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { MediaObjectKind } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
@@ -23,8 +24,7 @@ import type {
   CoordinatorUploadRevocation,
   IssueCoordinatorSlotOptions,
   RevokeCoordinatorUploadOptions,
-} from "./coordinator";
-import { coordinatorError } from "./coordinator-error";
+} from "./coordinator-types";
 
 type RevocableCoordinatorUpload =
   | Extract<CoordinatorUploadRevocation, { status: "rejected" }>
@@ -33,6 +33,18 @@ type RevocableCoordinatorUpload =
       status: "revocable";
     };
 
+/**
+ * Issue an upload slot for an init, part, or segment object and return the
+ * next pipeline state with the slot appended. Pure function on state —
+ * persisting the result is the caller's job.
+ *
+ * The slot's `objectKey` and `deliveryUrl` are derived from the state's
+ * `mediaBaseUrl` plus the slot coordinates (rendition, media sequence, part
+ * number); in `"direct-public"` publication mode a random nonce is mixed in
+ * when `objectKeyNonce` is not supplied, making keys unguessable. Throws on
+ * a duplicate `slotId`, a media object kind whose key cannot be derived, or
+ * a publication control policy that blocks slot issuance.
+ */
 export function issueCoordinatorSlot(
   options: IssueCoordinatorSlotOptions
 ): CoordinatorSlotIssue {
@@ -113,6 +125,17 @@ function resolveSlotObjectKeyNonce(
   });
 }
 
+/**
+ * Revoke an upload slot and drop any commits recorded against it from the
+ * returned state. Pure function on state — persisting the result is the
+ * caller's job. Revoking an already-revoked slot is idempotent and reports
+ * `"already_revoked"`.
+ *
+ * Rejects when the slot does not exist, when its current state cannot
+ * transition to `"revoked"`, or when the slot is referenced by the live
+ * cursor's committed window — content that players may already be fetching
+ * must not silently disappear.
+ */
 export function revokeCoordinatorUpload(
   options: RevokeCoordinatorUploadOptions
 ): CoordinatorUploadRevocation {
@@ -141,13 +164,9 @@ function resolveRevocableCoordinatorUpload(
 
   if (slot === undefined) {
     return {
-      error: coordinatorError(
-        "olos.unknown_slot",
-        "upload slot was not found",
-        {
-          slotId: options.slotId,
-        }
-      ),
+      error: createOlosError("olos.unknown_slot", "upload slot was not found", {
+        slotId: options.slotId,
+      }),
       state: options.state,
       status: "rejected",
     };
@@ -155,7 +174,7 @@ function resolveRevocableCoordinatorUpload(
 
   if (isSlotInCursor(options.state, slot)) {
     return {
-      error: coordinatorError(
+      error: createOlosError(
         "olos.invalid_state",
         "upload slots reflected in the live cursor cannot be silently revoked",
         { slotId: slot.slotId, state: slot.state }
@@ -170,7 +189,7 @@ function resolveRevocableCoordinatorUpload(
     !canTransitionUploadSlot(slot.state, "revoked")
   ) {
     return {
-      error: coordinatorError(
+      error: createOlosError(
         "olos.invalid_state",
         "upload slot cannot be revoked from its current state",
         { slotId: slot.slotId, state: slot.state }

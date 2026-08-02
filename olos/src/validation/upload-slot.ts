@@ -9,6 +9,7 @@ import {
   assertNonNegativeIntegerField,
   assertOneOfField,
   assertOnlyKnownFields,
+  assertPositiveIntegerField,
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
@@ -34,6 +35,9 @@ const UPLOAD_SLOT_FIELDS = [
   "state",
 ] as const;
 
+/**
+ * Returns whether `value` is a valid `UploadSlot` (see `assertUploadSlot`).
+ */
 export function isUploadSlot(value: unknown): value is UploadSlot {
   try {
     assertUploadSlot(value);
@@ -43,6 +47,12 @@ export function isUploadSlot(value: unknown): value is UploadSlot {
   }
 }
 
+/**
+ * Validates an untrusted value as an `UploadSlot`, throwing an `Error`
+ * naming the first offending field. Rejects unknown fields, unsafe object
+ * keys and delivery URLs, `minBytes` above `maxBytes`, and a `byterange` on
+ * anything but a part slot.
+ */
 export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
   if (!isRecord(value)) {
     throw new Error("uploadSlot must be an object");
@@ -83,7 +93,7 @@ function assertUploadSlotSequenceFields(value: Record<string, unknown>): void {
 
 function assertUploadSlotByteFields(value: Record<string, unknown>): void {
   assertPositiveNumberField(value, "duration", "uploadSlot");
-  assertPositiveNumberField(value, "maxBytes", "uploadSlot");
+  assertPositiveIntegerField(value, "maxBytes", "uploadSlot");
   assertIsoDateField(value, "expiresAt", "uploadSlot");
   if (value.minBytes !== undefined) {
     assertNonNegativeIntegerField(value, "minBytes", "uploadSlot");

@@ -1,4 +1,4 @@
-import { isStringLiteral } from "./string-literals";
+import { isAllowedString } from "../validation/fields";
 
 const SUCCESSFUL_COMMIT_STATUSES = ["committed", "idempotent"] as const;
 
@@ -8,5 +8,5 @@ export type SuccessfulCommitStatus =
 export function isSuccessfulCommitStatus(
   status: string
 ): status is SuccessfulCommitStatus {
-  return isStringLiteral(status, SUCCESSFUL_COMMIT_STATUSES);
+  return isAllowedString(status, SUCCESSFUL_COMMIT_STATUSES);
 }

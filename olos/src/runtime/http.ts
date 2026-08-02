@@ -1,37 +1,36 @@
 import { SESSION_STATES } from "../config/session";
-import type {
-  CreateHlsManifestArtifactResponseOptions,
-  HlsCursorWaitContext,
-} from "../hls";
+import type { HlsCursorWaitContext } from "../hls/blocking-reload";
+import type { CreateHlsManifestArtifactResponseOptions } from "../hls/manifest-artifacts";
 import type {
   CoordinatorCommitPolicy,
   CoordinatorPipelineStore,
-} from "../protocol";
-import type { PublicationControlPolicy } from "../state";
+} from "../protocol/coordinator-types";
+import { positiveMutationAttempts } from "../protocol/mutate-coordinator-store";
+import type { PublicationControlPolicy } from "../state/publication-control";
 import type { Cursor } from "../types/cursor";
 import type { Session, SessionState } from "../types/session";
 import type { PublicationMode } from "../types/upload-slot";
+import {
+  errorMessage,
+  isAllowedString,
+  isRecord,
+  nonNegativeNumber,
+  positiveNumber,
+} from "../validation/fields";
 import { assertSession } from "../validation/session";
-import { positiveAttempts } from "./attempts";
 import {
   isSuccessfulCommitStatus,
   type SuccessfulCommitStatus,
 } from "./commit-status";
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
-import { errorMessage } from "./errors";
 import { resolveRuntimeLiveHealthFromState } from "./health";
-import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "./latency-profile";
-import {
-  isRecord,
-  nonNegativeNumber,
-  positiveNumber,
-  stringField,
-  urlSafeIdentifierField,
-} from "./request-fields";
+import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "./latency-profile-defaults";
+import { stringField, urlSafeIdentifierField } from "./request-fields";
 import {
   jsonBadRequestResponse,
   jsonErrorResponse,
   jsonMethodNotAllowedResponse,
+  jsonNotFoundResponse,
   jsonResponse,
 } from "./response";
 import { planStoredCoordinatorRetention } from "./retention";
@@ -55,7 +54,6 @@ import {
   serveStoredBlockingCoordinatorManifest,
   serveStoredCoordinatorManifest,
 } from "./stored";
-import { isStringLiteral } from "./string-literals";
 
 const DEFAULT_RUNTIME_OBJECT_LOW_LATENCY =
   DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE;
@@ -85,35 +83,69 @@ type RuntimeLiveManifestRoute =
       sessionId: string;
     };
 
+/** Options for `createStoredCoordinatorRuntimeHandler`. */
 export interface CreateStoredCoordinatorRuntimeHandlerOptions {
+  /** HTTPS origins media delivery URLs may point at. Origins only — no paths. */
   allowedMediaOrigins: readonly string[];
+  /**
+   * Enable low-latency blocking playlist reloads (`_HLS_msn`/`_HLS_part`).
+   * `timeoutMs` bounds how long a reload is held open, in milliseconds;
+   * `waitForCursor` resolves once the session's cursor advances (typically a
+   * `RuntimeCursorNotifier`'s `waitForCursor`). Omit to serve media
+   * playlists non-blocking.
+   */
   blockingReload?: {
     timeoutMs: number;
     waitForCursor: (
       context: HlsCursorWaitContext
     ) => Promise<HlsCursorWaitContext["cursor"] | undefined>;
   };
+  /** Alias for `now`, consulted only when `now` is not set. */
   clock?: () => string;
   commitPolicy?: CoordinatorCommitPolicy;
+  /** Notified with the new cursor after every successful commit. */
   cursorNotifier?: RuntimeCursorNotifier;
+  /** Default commit late tolerance, in milliseconds. */
   lateToleranceMs?: number;
+  /** Route prefix for playlist requests; defaults to `/v1/live`. */
   livePath?: string;
+  /** Max optimistic-save attempts per mutation; defaults to 2. */
   maxAttempts?: number;
+  /** Cursor age at which health reports stale, in ms; defaults to 5000. */
   maxHealthCursorAgeMs?: number;
+  /**
+   * Returns the current time as an ISO 8601 timestamp; defaults to the
+   * system clock. Takes precedence over `clock`.
+   */
   now?: () => string;
   publicationControl?: PublicationControlPolicy;
+  /** Publication mode for created sessions; defaults to `direct-public`. */
   publicationMode?: PublicationMode;
+  /** Publisher lease TTL granted on heartbeat, in ms; defaults to 3000. */
   publisherLeaseTtlMs?: number;
+  /** Cache policy overrides for playlist responses. */
   response?: CreateHlsManifestArtifactResponseOptions;
+  /** Route prefix for session requests; defaults to `/sessions`. */
   sessionPath?: string;
   store: CoordinatorPipelineStore;
+  /** HLS target latency written into playlists, in seconds; defaults to 3. */
   targetLatency?: number;
 }
 
+/** Request handler returned by `createStoredCoordinatorRuntimeHandler`. */
 export type StoredCoordinatorRuntimeHandler = (
   request: Request
 ) => Promise<Response>;
 
+/**
+ * Build a fetch-style handler that serves the whole coordinator HTTP API
+ * from a `CoordinatorPipelineStore`: session create/transition/heartbeat,
+ * slot issue, upload commit, health, retention planning, and live master /
+ * media playlists. Unknown routes get a 404 and disallowed methods a 405;
+ * error responses are JSON envelopes whose `error.code` is an `olos.*`
+ * code. Option validation happens eagerly — invalid options throw here, not
+ * per request.
+ */
 export function createStoredCoordinatorRuntimeHandler(
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): StoredCoordinatorRuntimeHandler {
@@ -129,7 +161,7 @@ function assertRuntimeHandlerOptions(
   assertRoutePath(options.sessionPath ?? DEFAULT_SESSION_PATH, "sessionPath");
   assertRoutePath(options.livePath ?? DEFAULT_LIVE_PATH, "livePath");
 
-  positiveAttempts(options.maxAttempts);
+  positiveMutationAttempts(options.maxAttempts);
 
   if (options.targetLatency !== undefined) {
     positiveNumber(options.targetLatency, "targetLatency");
@@ -601,7 +633,7 @@ async function parseTransitionRequest(
 function sessionStateField(value: Record<string, unknown>): SessionState {
   const state = stringField(value, "state");
 
-  if (!isStringLiteral(state, SESSION_STATES)) {
+  if (!isAllowedString(state, SESSION_STATES)) {
     throw new Error(`state must be one of: ${SESSION_STATES.join(", ")}`);
   }
 
@@ -680,9 +712,13 @@ function invalid(message: string): InvalidRuntimeHttpRequestParse {
 }
 
 function notFound(): Response {
-  return jsonErrorResponse("route not found", 404);
+  return jsonNotFoundResponse("route not found");
 }
 
 function sessionNotFound(): Response {
-  return jsonErrorResponse("coordinator session was not found", 404);
+  return jsonErrorResponse(
+    "olos.invalid_session",
+    "coordinator session was not found",
+    404
+  );
 }

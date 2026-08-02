@@ -2,8 +2,7 @@ import type { S3Client } from "@aws-sdk/client-s3";
 import type {
   CoordinatorCommitPolicy,
   CoordinatorPipelineStore,
-} from "../protocol";
-import { errorMessage } from "../runtime/errors";
+} from "../protocol/coordinator-types";
 import type { RuntimePublisherHeartbeatResult } from "../runtime/publisher";
 import {
   type CreateRuntimePublisherNextObjectPlanOptions,
@@ -19,12 +18,12 @@ import {
   createRuntimePublisherObjectPlan,
   type RuntimePublisherObjectPlan,
 } from "../runtime/publisher-plan";
-import { isStringLiteral } from "../runtime/string-literals";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosErrorCode } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
+import { errorMessage, isAllowedString } from "../validation/fields";
 import type {
   StoredS3CoordinatorManifestOptions,
   StoredS3CoordinatorUploadCommit,
@@ -36,13 +35,25 @@ import {
 } from "./coordinator";
 import type { S3HeadObjectClient } from "./object-observation";
 
+/**
+ * Callbacks for {@link runStoredS3PublisherUploadStep}; each maps to one
+ * phase of the heartbeat, issue, upload, commit pipeline.
+ */
 export interface RunStoredS3PublisherUploadStepOptions {
+  /** Commits the uploaded object for the issued slot. */
   commit(slot: UploadSlot): Promise<StoredS3CoordinatorUploadCommit>;
+  /**
+   * Optional lease check run first; any result other than `refreshed`
+   * aborts the step as `heartbeat_failed`.
+   */
   heartbeat?(): Promise<RuntimePublisherHeartbeatResult>;
+  /** Issues the upload slot and its presigned grant. */
   issueGrant(): Promise<StoredS3CoordinatorUploadGrantIssue>;
+  /** Uploads the object bytes using the issued grant. */
   upload(grant: UploadGrant): Promise<void>;
 }
 
+/** Options for {@link runPlannedStoredS3PublisherUploadStep}. */
 export interface RunPlannedStoredS3PublisherUploadStepOptions {
   additionalHeaders?: Record<string, string>;
   bucket: string;
@@ -56,19 +67,30 @@ export interface RunPlannedStoredS3PublisherUploadStepOptions {
   manifest?: StoredS3CoordinatorManifestOptions;
   maxAttempts?: number;
   maxSegments?: number;
+  /**
+   * Floor for the grant TTL in seconds (default: the low-latency profile's
+   * minimum upload TTL).
+   */
   minTtlSeconds?: number;
   now: Date | string;
+  /** Object plan minus `expiresAt`, which the step derives itself. */
   plan: Omit<CreateRuntimePublisherObjectPlanOptions, "expiresAt">;
   programDateTime?: string;
   providerId: string;
   publicationControl?: PublicationControlPolicy;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
+  /**
+   * Target publish latency in seconds; the grant TTL is at least the
+   * object duration plus this value.
+   */
   targetLatency: number;
+  /** Uploads the object bytes for the planned object. */
   upload(grant: UploadGrant, plan: RuntimePublisherObjectPlan): Promise<void>;
   versionId?: string;
 }
 
+/** Options for {@link runNextStoredS3PublisherUploadStep}. */
 export interface RunNextStoredS3PublisherUploadStepOptions
   extends Omit<
       RunPlannedStoredS3PublisherUploadStepOptions,
@@ -76,6 +98,12 @@ export interface RunNextStoredS3PublisherUploadStepOptions
     >,
     CreateRuntimePublisherNextObjectPlanOptions {}
 
+/**
+ * Outcome of one publisher upload step. `committed`/`idempotent` carry the
+ * full pipeline artifacts; the failure variants identify which phase broke
+ * (`heartbeat_failed`, `issue_failed`, `upload_failed`, `commit_failed`)
+ * along with whatever the earlier phases produced.
+ */
 export type StoredS3PublisherUploadStep =
   | {
       commit: StoredS3CoordinatorUploadCommit;
@@ -170,16 +198,24 @@ const SUCCESSFUL_STORED_S3_PUBLISHER_STEP_STATUSES = [
   "idempotent",
 ] as const satisfies readonly SuccessfulStoredS3PublisherUploadStep["status"][];
 
+/** Step outcome plus the object plan and grant expiry the step ran with. */
 export type PlannedStoredS3PublisherUploadStep = StoredS3PublisherUploadStep & {
   expiry: RuntimePublisherObjectExpiry;
   plan: RuntimePublisherObjectPlan;
 };
 
+/** Planned step outcome plus the cadence position of the published object. */
 export type NextStoredS3PublisherUploadStep =
   PlannedStoredS3PublisherUploadStep & {
     position: RuntimePublisherObjectPosition;
   };
 
+/**
+ * Flat, log-friendly digest of a publisher step produced by
+ * {@link summarizeStoredS3PublisherUploadStep}. `ok` is true only for
+ * `committed` and `idempotent` steps; `errorCode` surfaces the `olos.*`
+ * code when a commit or grant issue was rejected.
+ */
 export interface StoredS3PublisherUploadStepSummary {
   commitId?: OlosId;
   commitStatus?: StoredS3CoordinatorUploadCommit["status"];
@@ -196,6 +232,13 @@ export interface StoredS3PublisherUploadStepSummary {
   status: StoredS3PublisherUploadStep["status"];
 }
 
+/**
+ * Run one publisher upload step for a caller-supplied object plan. Resolves
+ * the grant expiry from the object duration, target latency, and TTL floor,
+ * finalizes the plan with it, then drives the heartbeat, grant issue,
+ * upload, and commit phases against the stored session. Phase failures are
+ * returned as step statuses, not thrown.
+ */
 export async function runPlannedStoredS3PublisherUploadStep(
   options: RunPlannedStoredS3PublisherUploadStepOptions
 ): Promise<PlannedStoredS3PublisherUploadStep> {
@@ -217,6 +260,13 @@ export async function runPlannedStoredS3PublisherUploadStep(
   });
 }
 
+/**
+ * Plan and publish the next object on the publisher's cadence: derives the
+ * next object plan (sequence position, timing, expiry) from the cadence
+ * options, then runs the same step pipeline as
+ * {@link runPlannedStoredS3PublisherUploadStep}. The result adds the
+ * cadence `position` the object was published at.
+ */
 export async function runNextStoredS3PublisherUploadStep(
   options: RunNextStoredS3PublisherUploadStepOptions
 ): Promise<NextStoredS3PublisherUploadStep> {
@@ -233,6 +283,13 @@ export async function runNextStoredS3PublisherUploadStep(
   };
 }
 
+/**
+ * Drive one upload step through caller-supplied callbacks: heartbeat (when
+ * given), grant issue, upload, then commit, stopping at the first failed
+ * phase. Callback exceptions are captured as the matching `*_failed` status
+ * rather than thrown, so the returned step always tells the caller how far
+ * the pipeline got.
+ */
 export async function runStoredS3PublisherUploadStep(
   options: RunStoredS3PublisherUploadStepOptions
 ): Promise<StoredS3PublisherUploadStep> {
@@ -392,6 +449,11 @@ function failedStoredS3PublisherCommitStep(
   };
 }
 
+/**
+ * Flatten a publisher step into a compact summary for logs and metrics,
+ * extracting the slot/commit identifiers, per-phase statuses, and any error
+ * message or `olos.*` rejection code.
+ */
 export function summarizeStoredS3PublisherUploadStep(
   step: StoredS3PublisherUploadStep
 ): StoredS3PublisherUploadStepSummary {
@@ -466,7 +528,7 @@ function slotSummaryFields(
 function isSuccessfulStoredS3PublisherStepStatus(
   status: string
 ): status is SuccessfulStoredS3PublisherUploadStep["status"] {
-  return isStringLiteral(status, SUCCESSFUL_STORED_S3_PUBLISHER_STEP_STATUSES);
+  return isAllowedString(status, SUCCESSFUL_STORED_S3_PUBLISHER_STEP_STATUSES);
 }
 
 function resultErrorCode(

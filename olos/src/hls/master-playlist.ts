@@ -3,18 +3,44 @@ import { isUrlSafeIdentifier } from "../validation/ids";
 import { escapePlaylistValue, formatFrameRate } from "./format";
 import { assertSafeRelativePath } from "./uri";
 
+/** Options for `renderMasterPlaylist`. */
 export interface RenderMasterPlaylistOptions {
+  /**
+   * Maps a rendition to the media playlist path written into the playlist.
+   * Defaults to `/v1/live/{sessionId}/{renditionId}/media.m3u8`. Paths must
+   * be safe root-relative paths.
+   */
   mediaPlaylistPath?: (session: Session, rendition: Rendition) => string;
 }
 
 type AudioRendition = Rendition & { kind: "audio" };
+type GroupedAudioRendition = AudioRendition & { groupId: string };
 type VideoRendition = Rendition & { kind: "video" };
 
+interface AudioGroup {
+  defaultRenditionId: string;
+  groupId: string;
+  renditions: readonly GroupedAudioRendition[];
+}
+
 interface MasterPlaylistRenditions {
-  audioCodecs: readonly string[];
+  audioGroup?: AudioGroup;
+  variantAudioCodecs: readonly string[];
   videoRenditions: readonly VideoRendition[];
 }
 
+/**
+ * Renders the session's master (multivariant) playlist with one
+ * `#EXT-X-STREAM-INF` entry per video rendition. Audio renditions that
+ * declare a `groupId` render as selectable `#EXT-X-MEDIA` entries and the
+ * variants reference the group through their `AUDIO` attribute; without
+ * group IDs, every audio codec is folded into every variant's `CODECS`
+ * attribute (legacy muxed audio) and no `#EXT-X-MEDIA` lines are emitted.
+ * Throws when the session shape is invalid, there is no video rendition, a
+ * video rendition lacks `bitrate` or defines only one of `width`/`height`,
+ * grouped and ungrouped audio renditions are mixed, or more than one audio
+ * group is declared.
+ */
 export function renderMasterPlaylist(
   session: Session,
   options: RenderMasterPlaylistOptions = {}
@@ -26,14 +52,13 @@ export function renderMasterPlaylist(
     options.mediaPlaylistPath ?? defaultMediaPlaylistPath;
   const lines = ["#EXTM3U", "#EXT-X-VERSION:10", "#EXT-X-INDEPENDENT-SEGMENTS"];
 
+  lines.push(
+    ...renderAudioGroupEntries(session, renditions, mediaPlaylistPath)
+  );
+
   for (const rendition of renditions.videoRenditions) {
     lines.push(
-      ...renderVariantEntry(
-        session,
-        rendition,
-        renditions.audioCodecs,
-        mediaPlaylistPath
-      )
+      ...renderVariantEntry(session, rendition, renditions, mediaPlaylistPath)
     );
   }
 
@@ -41,9 +66,7 @@ export function renderMasterPlaylist(
 }
 
 function masterPlaylistRenditions(session: Session): MasterPlaylistRenditions {
-  const audioCodecs = session.renditions
-    .filter(isAudioRendition)
-    .map((rendition) => rendition.codec);
+  const audioRenditions = session.renditions.filter(isAudioRendition);
   const videoRenditions = session.renditions.filter(isVideoRendition);
 
   if (videoRenditions.length === 0) {
@@ -52,39 +75,133 @@ function masterPlaylistRenditions(session: Session): MasterPlaylistRenditions {
     );
   }
 
-  return { audioCodecs, videoRenditions };
+  const audioGroup = resolveAudioGroup(audioRenditions);
+
+  return {
+    audioGroup,
+    variantAudioCodecs: audioGroup
+      ? distinct(audioGroup.renditions.map((rendition) => rendition.codec))
+      : audioRenditions.map((rendition) => rendition.codec),
+    videoRenditions,
+  };
+}
+
+// Sessions without audio group IDs keep the legacy rendering: every audio
+// codec muxed into every variant's CODECS attribute and no EXT-X-MEDIA lines.
+// Once any audio rendition declares a groupId, all of them must (mixed
+// sessions are rejected) and the group renders as selectable EXT-X-MEDIA
+// entries referenced by the variants' AUDIO attribute.
+function resolveAudioGroup(
+  audioRenditions: readonly AudioRendition[]
+): AudioGroup | undefined {
+  const grouped = audioRenditions.filter(isGroupedAudioRendition);
+  const [first] = grouped;
+
+  if (first === undefined) {
+    return;
+  }
+
+  if (grouped.length !== audioRenditions.length) {
+    throw new Error(
+      "session.renditions must not mix grouped and ungrouped audio renditions"
+    );
+  }
+
+  if (distinct(grouped.map((rendition) => rendition.groupId)).length > 1) {
+    throw new Error("multiple audio groups are not supported");
+  }
+
+  const defaultRendition =
+    grouped.find((rendition) => rendition.defaultRendition === true) ?? first;
+
+  return {
+    defaultRenditionId: defaultRendition.renditionId,
+    groupId: first.groupId,
+    renditions: grouped,
+  };
+}
+
+function renderAudioGroupEntries(
+  session: Session,
+  renditions: MasterPlaylistRenditions,
+  mediaPlaylistPath: (session: Session, rendition: Rendition) => string
+): string[] {
+  const group = renditions.audioGroup;
+
+  if (group === undefined) {
+    return [];
+  }
+
+  return group.renditions.map((rendition) =>
+    renderAudioMediaEntry(session, rendition, group, mediaPlaylistPath)
+  );
+}
+
+function renderAudioMediaEntry(
+  session: Session,
+  rendition: GroupedAudioRendition,
+  group: AudioGroup,
+  mediaPlaylistPath: (session: Session, rendition: Rendition) => string
+): string {
+  const path = mediaPlaylistPath(session, rendition);
+  assertSafeRelativePath(path, "media playlist path");
+
+  const attributes = [
+    "TYPE=AUDIO",
+    `GROUP-ID="${escapePlaylistValue(group.groupId)}"`,
+    `NAME="${escapePlaylistValue(rendition.name ?? rendition.renditionId)}"`,
+    `DEFAULT=${rendition.renditionId === group.defaultRenditionId ? "YES" : "NO"}`,
+    "AUTOSELECT=YES",
+    ...channelsAttributes(rendition),
+    `URI="${escapePlaylistValue(path)}"`,
+  ];
+
+  return `#EXT-X-MEDIA:${attributes.join(",")}`;
+}
+
+function channelsAttributes(rendition: AudioRendition): string[] {
+  return rendition.channels === undefined
+    ? []
+    : [`CHANNELS="${rendition.channels}"`];
 }
 
 function renderVariantEntry(
   session: Session,
   rendition: VideoRendition,
-  audioCodecs: readonly string[],
+  renditions: MasterPlaylistRenditions,
   mediaPlaylistPath: (session: Session, rendition: Rendition) => string
 ): string[] {
   const path = mediaPlaylistPath(session, rendition);
   assertSafeRelativePath(path, "media playlist path");
 
   return [
-    `#EXT-X-STREAM-INF:${renderStreamAttributes(rendition, audioCodecs)}`,
+    `#EXT-X-STREAM-INF:${renderStreamAttributes(rendition, renditions)}`,
     path,
   ];
 }
 
 function renderStreamAttributes(
   rendition: VideoRendition,
-  audioCodecs: readonly string[]
+  renditions: MasterPlaylistRenditions
 ): string {
   const bandwidth = requiredBandwidth(rendition);
 
   const attributes = [
     `BANDWIDTH=${bandwidth}`,
     `AVERAGE-BANDWIDTH=${bandwidth}`,
-    codecsAttribute(rendition, audioCodecs),
+    codecsAttribute(rendition, renditions.variantAudioCodecs),
     ...resolutionAttributes(rendition),
     ...frameRateAttributes(rendition),
+    ...audioGroupAttributes(renditions.audioGroup),
   ];
 
   return attributes.join(",");
+}
+
+function audioGroupAttributes(group: AudioGroup | undefined): string[] {
+  return group === undefined
+    ? []
+    : [`AUDIO="${escapePlaylistValue(group.groupId)}"`];
 }
 
 function requiredBandwidth(rendition: VideoRendition): number {
@@ -130,8 +247,18 @@ function hasPartialRenditionResolution(rendition: VideoRendition): boolean {
   return rendition.width === undefined || rendition.height === undefined;
 }
 
+function distinct(values: readonly string[]): string[] {
+  return [...new Set(values)];
+}
+
 function isAudioRendition(rendition: Rendition): rendition is AudioRendition {
   return rendition.kind === "audio";
+}
+
+function isGroupedAudioRendition(
+  rendition: AudioRendition
+): rendition is GroupedAudioRendition {
+  return rendition.groupId !== undefined;
 }
 
 function isVideoRendition(rendition: Rendition): rendition is VideoRendition {
@@ -170,5 +297,14 @@ function assertRenditionShape(rendition: Rendition): void {
 
   if (typeof rendition.codec !== "string" || rendition.codec.length === 0) {
     throw new Error(`rendition ${rendition.renditionId} must define codec`);
+  }
+
+  if (
+    rendition.groupId !== undefined &&
+    !isUrlSafeIdentifier(rendition.groupId)
+  ) {
+    throw new Error(
+      `rendition ${rendition.renditionId} groupId must be a non-empty URL-safe identifier`
+    );
   }
 }

@@ -6,6 +6,7 @@ import {
 import { OLOS_WIRE_VERSION } from "../index";
 import type { Rendition, Session } from "../types/session";
 import {
+  assertBooleanField,
   assertIsoDateField,
   assertNonEmptyStringField,
   assertNonNegativeIntegerField,
@@ -34,12 +35,21 @@ const RENDITION_FIELDS = [
   "bitrate",
   "channels",
   "codec",
+  "defaultRendition",
   "frameRate",
+  "groupId",
   "height",
   "kind",
+  "name",
   "renditionId",
   "sampleRate",
   "width",
+] as const;
+
+const AUDIO_ONLY_RENDITION_FIELDS = [
+  "defaultRendition",
+  "groupId",
+  "name",
 ] as const;
 
 const OPTIONAL_RENDITION_INTEGER_FIELDS = [
@@ -50,6 +60,7 @@ const OPTIONAL_RENDITION_INTEGER_FIELDS = [
 
 const RENDITION_DIMENSION_FIELDS = ["width", "height"] as const;
 
+/** Returns whether `value` is a valid `Session` (see `assertSession`). */
 export function isSession(value: unknown): value is Session {
   try {
     assertSession(value);
@@ -59,6 +70,15 @@ export function isSession(value: unknown): value is Session {
   }
 }
 
+/**
+ * Validates an untrusted value as a wire-format `Session`, throwing an
+ * `Error` naming the first offending field. Checks the `olos` wire version,
+ * rejects unknown fields, and enforces rendition invariants JSON Schema
+ * cannot express: audio-group fields (`groupId`, `name`,
+ * `defaultRendition`) only on audio renditions, no mixing of grouped and
+ * ungrouped audio, a single audio group per session, and at most one
+ * default rendition within it.
+ */
 export function assertSession(value: unknown): asserts value is Session {
   if (!isRecord(value)) {
     throw new Error("session must be an object");
@@ -93,6 +113,41 @@ function assertRenditions(value: unknown): void {
 
     seenRenditions.add(rendition.renditionId);
   }
+
+  assertAudioGroup(renditions);
+}
+
+function assertAudioGroup(renditions: readonly Rendition[]): void {
+  const audioRenditions = renditions.filter(
+    (rendition) => rendition.kind === "audio"
+  );
+  const grouped = audioRenditions.filter(
+    (rendition) => rendition.groupId !== undefined
+  );
+
+  if (grouped.length === 0) {
+    return;
+  }
+
+  if (grouped.length !== audioRenditions.length) {
+    throw new Error(
+      "session.renditions must not mix grouped and ungrouped audio renditions"
+    );
+  }
+
+  if (new Set(grouped.map((rendition) => rendition.groupId)).size > 1) {
+    throw new Error("multiple audio groups are not supported");
+  }
+
+  const defaults = grouped.filter(
+    (rendition) => rendition.defaultRendition === true
+  );
+
+  if (defaults.length > 1) {
+    throw new Error(
+      "session.renditions must not flag multiple default audio renditions"
+    );
+  }
 }
 
 function assertRendition(value: unknown): asserts value is Rendition {
@@ -105,6 +160,29 @@ function assertRendition(value: unknown): asserts value is Rendition {
   assertOneOfField(value, "kind", RENDITION_KINDS, "session.renditions[]");
   assertNonEmptyStringField(value, "codec", "session.renditions[]");
   assertOptionalRenditionMetrics(value);
+  assertOptionalAudioGroupFields(value);
+}
+
+function assertOptionalAudioGroupFields(value: Record<string, unknown>): void {
+  for (const field of AUDIO_ONLY_RENDITION_FIELDS) {
+    if (value[field] !== undefined && value.kind !== "audio") {
+      throw new Error(
+        `session.renditions[].${field} is only allowed on audio renditions`
+      );
+    }
+  }
+
+  if (value.groupId !== undefined) {
+    assertUrlSafeField(value, "groupId", "session.renditions[]");
+  }
+
+  if (value.name !== undefined) {
+    assertNonEmptyStringField(value, "name", "session.renditions[]");
+  }
+
+  if (value.defaultRendition !== undefined) {
+    assertBooleanField(value, "defaultRendition", "session.renditions[]");
+  }
 }
 
 function assertOptionalRenditionMetrics(value: Record<string, unknown>): void {

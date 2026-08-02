@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseRuntimeSlotIssuePayloadRequest } from "./slot-issue-request-parser";
+import { parseSlotIssueRequest } from "./slot-issue-request-parser";
 
 const slotPayload = {
   contentType: "video/mp4",
@@ -52,7 +52,7 @@ describe("runtime slot issue request parser", () => {
 });
 
 function parseSlotIssue(request: Request | typeof slotPayload) {
-  return parseRuntimeSlotIssuePayloadRequest(
+  return parseSlotIssueRequest(
     request,
     (message) => ({ message, status: "invalid" as const }),
     "invalid slot issue request"

@@ -205,7 +205,7 @@ describe("runtime publisher cadence", () => {
         renditionId: "v1080",
         targetLatency: 3,
       }).plan.objectKey
-    ).toBe("media/session_1/v1080/s3812/segment-slot_01JZ.m4s");
+    ).toBe("media/session_1/v1080/s3812-slot_01JZ.m4s");
   });
 
   test("applies minimum TTL when creating the next object plan", () => {
@@ -248,7 +248,7 @@ describe("runtime publisher cadence", () => {
       },
       plan: {
         commitId: "commit_v1080_s3812",
-        objectKey: "media/session_1/v1080/s3812/segment-slot_01JZ.m4s",
+        objectKey: "media/session_1/v1080/s3812-slot_01JZ.m4s",
         slot: {
           contentType: "video/mp4",
           duration: 2,

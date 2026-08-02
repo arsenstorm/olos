@@ -1,7 +1,7 @@
-import { nonNegativeNumber } from "../runtime/request-fields";
 import type { Cursor } from "../types/cursor";
 import type { MediaSequenceNumber, PartNumber } from "../types/ids";
 import { assertCursor } from "../validation/cursor";
+import { nonNegativeNumber } from "../validation/fields";
 import { assertNonNegativeInteger } from "../validation/ids";
 import { HLS_RELATIVE_REQUEST_BASE_URL } from "./uri";
 
@@ -9,11 +9,25 @@ const HLS_MSN = "_HLS_msn";
 const HLS_PART = "_HLS_part";
 const SEGMENT_ONLY_LIVE_EDGE_PART = Number.MAX_SAFE_INTEGER;
 
+/**
+ * Blocking playlist reload directives parsed from an LL-HLS media playlist
+ * request's `_HLS_msn` and `_HLS_part` query parameters. An empty object means
+ * the request carried no blocking directives and can be served immediately.
+ * A `partNumber` without a `mediaSequenceNumber` is rejected as invalid by
+ * `resolveHlsBlockingReload`.
+ */
 export interface HlsBlockingReloadRequest {
   mediaSequenceNumber?: MediaSequenceNumber;
   partNumber?: PartNumber;
 }
 
+/**
+ * Outcome of checking a blocking reload request against a cursor: `ready` when
+ * the current playlist already satisfies the request, `block` when the
+ * requested media sequence number or part is still beyond the live edge, and
+ * `invalid` when the request itself is malformed (`_HLS_part` without
+ * `_HLS_msn`).
+ */
 export type HlsBlockingReloadResolution =
   | {
       request: HlsBlockingReloadRequest;
@@ -34,19 +48,40 @@ type ReadyHlsBlockingReloadResolution = Extract<
   { status: "ready" }
 >;
 
+/**
+ * Context passed to the `waitForCursor` callback of
+ * `waitForHlsBlockingReload`.
+ */
 export interface HlsCursorWaitContext {
+  /** The cursor the wait is advancing from. */
   cursor: Cursor;
   request: HlsBlockingReloadRequest;
+  /** Aborted when the blocking reload deadline expires. */
   signal: AbortSignal;
 }
 
+/** Options for `waitForHlsBlockingReload`. */
 export interface WaitForHlsBlockingReloadOptions {
-  clock?: () => number;
+  /** The cursor to start resolving against. */
   cursor: Cursor;
+  /**
+   * Clock returning the current time in epoch milliseconds. Defaults to
+   * `Date.now`.
+   */
   now?: () => number;
   request: HlsBlockingReloadRequest;
+  /**
+   * Timer used to bound each `waitForCursor` round. Defaults to a real
+   * `setTimeout`-based sleep that resolves early when `signal` aborts.
+   */
   sleep?: (durationMs: number, signal: AbortSignal) => Promise<void>;
+  /** Maximum total time to hold the reload open, in milliseconds. */
   timeoutMs: number;
+  /**
+   * Resolves with a newer cursor once the session advances, or `undefined` to
+   * give up (which ends the wait as a timeout). `context.signal` aborts when
+   * the deadline expires.
+   */
   waitForCursor: (context: HlsCursorWaitContext) => Promise<Cursor | undefined>;
 }
 
@@ -54,6 +89,12 @@ interface HlsBlockingReloadDeadline {
   readonly expiresAtMs: number;
 }
 
+/**
+ * Outcome of `waitForHlsBlockingReload`: `ready` with the cursor that
+ * satisfies the request, `timeout` with the latest cursor observed before the
+ * deadline (still servable — callers should respond with the current
+ * playlist), or `invalid` for a malformed request.
+ */
 export type WaitForHlsBlockingReloadResult =
   | {
       cursor: Cursor;
@@ -76,6 +117,12 @@ type TimeoutHlsBlockingReloadResult = ReadyOrTimeoutHlsBlockingReloadResult & {
   status: "timeout";
 };
 
+/**
+ * Extracts the `_HLS_msn` and `_HLS_part` blocking reload parameters from a
+ * media playlist request URL. Accepts an absolute URL or a root-relative path
+ * starting with `/`. Absent parameters are simply omitted from the result;
+ * present parameters must be non-negative integers or the function throws.
+ */
 export function parseHlsBlockingReloadRequest(
   requestUrl: string
 ): HlsBlockingReloadRequest {
@@ -89,6 +136,15 @@ export function parseHlsBlockingReloadRequest(
   };
 }
 
+/**
+ * Holds an LL-HLS blocking playlist reload open until the requested media
+ * sequence number and part are committed, the request turns out to be
+ * immediately servable, or `timeoutMs` elapses. Repeatedly resolves the
+ * request against the latest cursor and calls `waitForCursor` while it
+ * resolves to `block`. A `timeout` result still carries the most recent
+ * cursor so callers can serve the current playlist. Throws if `cursor` is
+ * malformed or `timeoutMs` is negative.
+ */
 export async function waitForHlsBlockingReload(
   options: WaitForHlsBlockingReloadOptions
 ): Promise<WaitForHlsBlockingReloadResult> {
@@ -151,6 +207,15 @@ function remainingHlsBlockingReloadMs(
   return deadline.expiresAtMs - nowMs(options);
 }
 
+/**
+ * Synchronously decides whether a blocking reload request is servable against
+ * the given cursor. Requests without `mediaSequenceNumber` are `ready`
+ * immediately (`_HLS_part` alone is `invalid`). A request is `block` when its
+ * media sequence number is past the window's last committed one, or when it
+ * targets the last committed segment and asks for a part beyond that
+ * segment's live edge; part requests never block on segment-only windows
+ * (no committed parts). Throws if `cursor` is malformed.
+ */
 export function resolveHlsBlockingReload(
   cursor: Cursor,
   request: HlsBlockingReloadRequest
@@ -337,13 +402,5 @@ function sleepWithAbort(timeoutMs: number, signal: AbortSignal): Promise<void> {
 }
 
 function nowMs(options: WaitForHlsBlockingReloadOptions): number {
-  if (options.now !== undefined) {
-    return options.now();
-  }
-
-  if (options.clock !== undefined) {
-    return options.clock();
-  }
-
-  return Date.now();
+  return options.now === undefined ? Date.now() : options.now();
 }

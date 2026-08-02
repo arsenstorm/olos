@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createMemoryCoordinatorStore } from "../protocol";
+import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
 import {
   createEmptyCoordinatorState,
   testCoordinatorSession as session,

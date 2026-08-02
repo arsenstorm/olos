@@ -1,21 +1,22 @@
-import type { CoordinatorUploadCommit } from "../protocol";
-import type { CoordinatorPipelineState } from "../protocol/coordinator";
+import type {
+  CoordinatorPipelineState,
+  CoordinatorUploadCommit,
+} from "../protocol/coordinator-types";
 import type { OlosError } from "../types/errors";
 import type { UploadSlot } from "../types/upload-slot";
 import { rejectionStatus } from "./rejection-status";
-import { jsonErrorResponse, jsonResponse } from "./response";
+import { jsonBadRequestResponse, jsonResponse } from "./response";
 
 type SuccessfulCoordinatorUploadCommit = Extract<
   CoordinatorUploadCommit,
   { status: "committed" | "idempotent" }
 >;
 
-const HTTP_BAD_REQUEST = 400;
 const HTTP_CREATED = 201;
 const HTTP_OK = 200;
 
 export function invalidRuntimeCommandResponse(message: string): Response {
-  return jsonErrorResponse(message, HTTP_BAD_REQUEST);
+  return jsonBadRequestResponse(message);
 }
 
 export function rejectedRuntimeCommandResponse(error: OlosError): Response {

@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  CoordinatorPipelineSnapshot,
-  CoordinatorPipelineState,
-  CoordinatorPipelineStore,
-} from "./coordinator";
-import { createMemoryCoordinatorStore } from "./coordinator";
+import { createMemoryCoordinatorStore } from "./coordinator-memory-store";
 import {
   createCoordinatorStateWithIssuedSegment,
   createEmptyCoordinatorState,
 } from "./coordinator-state.test-helper";
+import type {
+  CoordinatorPipelineSnapshot,
+  CoordinatorPipelineState,
+  CoordinatorPipelineStore,
+} from "./coordinator-types";
 import {
   positiveMutationAttempts,
   runStoredCoordinatorMutation,
@@ -32,6 +32,12 @@ describe("runStoredCoordinatorMutation", () => {
     expect(() => positiveMutationAttempts(0)).toThrow(
       "maxAttempts must be a positive integer"
     );
+    expect(() => positiveMutationAttempts(-1)).toThrow(
+      "maxAttempts must be a positive integer"
+    );
+    expect(() => positiveMutationAttempts(1.5)).toThrow(
+      "maxAttempts must be a positive integer"
+    );
   });
 
   test("supports maxAttempts via stored response mutation helper", async () => {
@@ -45,13 +51,14 @@ describe("runStoredCoordinatorMutation", () => {
 
     const result = await runStoredCoordinatorMutationWithAdaptersAndResponse<
       Attempt,
-      CoordinatorPipelineState,
+      Attempt,
       StoredMutationResult
     >({
       maxAttempts: undefined,
       sessionId: "session_1",
       store,
-      decide: (_attempt) => ({
+      decide: (attempt) => ({
+        attempt,
         status: "save",
         state: createEmptyCoordinatorState(),
       }),
@@ -76,7 +83,7 @@ describe("runStoredCoordinatorMutation", () => {
     try {
       await runStoredCoordinatorMutationWithAdaptersAndResponse<
         Attempt,
-        CoordinatorPipelineState,
+        Attempt,
         StoredMutationResult
       >({
         maxAttempts: 0,
@@ -89,7 +96,7 @@ describe("runStoredCoordinatorMutation", () => {
         },
         decide: () => ({
           status: "terminal",
-          result: createEmptyCoordinatorState(),
+          result: { outcome: "terminal" },
         }),
         mutate: () => ({
           state: "unused",
@@ -122,6 +129,7 @@ describe("runStoredCoordinatorMutation", () => {
     };
 
     const result = await runStoredCoordinatorMutation<
+      Attempt,
       Attempt,
       StoredMutationResult
     >({
@@ -169,7 +177,7 @@ describe("runStoredCoordinatorMutation", () => {
     };
 
     await expect(
-      runStoredCoordinatorMutation<Attempt, StoredMutationResult>({
+      runStoredCoordinatorMutation<Attempt, Attempt, StoredMutationResult>({
         attempts: 1,
         mutate: () => ({
           state: "invalid",
@@ -220,14 +228,15 @@ describe("runStoredCoordinatorMutation", () => {
     };
 
     await expect(
-      runStoredCoordinatorMutation<Attempt, StoredMutationResult>({
+      runStoredCoordinatorMutation<Attempt, Attempt, StoredMutationResult>({
         attempts: 2,
         mutate: () => ({
           state: "retrying",
         }),
         sessionId: "session_1",
         store,
-        decide: () => ({
+        decide: (attempt) => ({
+          attempt,
           status: "save",
           state: createEmptyCoordinatorState(),
         }),
@@ -258,6 +267,7 @@ describe("runStoredCoordinatorMutation", () => {
 
     let savedCalls = 0;
     const result = await runStoredCoordinatorMutation<
+      Attempt,
       Attempt,
       StoredMutationResult
     >({
@@ -321,6 +331,7 @@ describe("runStoredCoordinatorMutation", () => {
     let mutations = 0;
     const result = await runStoredCoordinatorMutation<
       Attempt,
+      Attempt,
       StoredMutationResult
     >({
       attempts: 2,
@@ -331,7 +342,8 @@ describe("runStoredCoordinatorMutation", () => {
           state: mutations === 1 ? "initial" : "after-conflict",
         };
       },
-      decide: () => ({
+      decide: (attempt) => ({
+        attempt,
         status: "save",
         state: createEmptyCoordinatorState(),
       }),
@@ -385,6 +397,7 @@ describe("runStoredCoordinatorMutation", () => {
 
     const result = await runStoredCoordinatorMutation<
       Attempt,
+      Attempt,
       StoredMutationResult
     >({
       attempts: 2,
@@ -395,7 +408,8 @@ describe("runStoredCoordinatorMutation", () => {
           state: `slots:${state.slots.length}`,
         };
       },
-      decide: () => ({
+      decide: (attempt) => ({
+        attempt,
         status: "save",
         state: createEmptyCoordinatorState(),
       }),
@@ -440,6 +454,7 @@ describe("runStoredCoordinatorMutation", () => {
     let exhaustedCalls = 0;
     const result = await runStoredCoordinatorMutation<
       Attempt,
+      Attempt,
       StoredMutationResult
     >({
       attempts: 2,
@@ -448,7 +463,8 @@ describe("runStoredCoordinatorMutation", () => {
       }),
       sessionId: "session_1",
       store,
-      decide: () => ({
+      decide: (attempt) => ({
+        attempt,
         status: "save",
         state: createEmptyCoordinatorState(),
       }),
@@ -489,6 +505,7 @@ describe("runStoredCoordinatorMutation", () => {
     let conflictCalls = 0;
     const result = await runStoredCoordinatorMutation<
       Attempt,
+      Attempt,
       StoredMutationResult
     >({
       attempts: 2,
@@ -497,7 +514,8 @@ describe("runStoredCoordinatorMutation", () => {
       }),
       sessionId: "session_1",
       store,
-      decide: () => ({
+      decide: (attempt) => ({
+        attempt,
         status: "save",
         state: createEmptyCoordinatorState(),
       }),
@@ -544,15 +562,14 @@ describe("runStoredCoordinatorMutation", () => {
       }),
       sessionId: "session_1",
       store,
-      decide: (attempt) => ({
-        status: "terminal",
-        result: attempt,
-      }),
-      mapTerminal: (attempt) => {
+      decide: (attempt) => {
         terminalMapCalls += 1;
 
         return {
-          outcome: `terminal:${attempt.state}`,
+          status: "terminal",
+          result: {
+            outcome: `terminal:${attempt.state}`,
+          },
         };
       },
       onMissing: () => ({
@@ -585,7 +602,7 @@ describe("runStoredCoordinatorMutation", () => {
     let savedMapCalls = 0;
     const result = await runStoredCoordinatorMutationWithAdapters<
       { readonly state: CoordinatorPipelineState },
-      never,
+      { readonly state: CoordinatorPipelineState },
       StoredMutationResult
     >({
       attempts: 2,
@@ -595,6 +612,7 @@ describe("runStoredCoordinatorMutation", () => {
       sessionId: "session_1",
       store,
       decide: (attempt) => ({
+        attempt,
         status: "save",
         state: attempt.state,
       }),
@@ -675,7 +693,8 @@ describe("runStoredCoordinatorMutation", () => {
         }),
         sessionId: "session_1",
         store: conflictStore,
-        decide: () => ({
+        decide: (attempt) => ({
+          attempt,
           status: "save",
           state: createEmptyCoordinatorState(),
         }),
@@ -700,7 +719,8 @@ describe("runStoredCoordinatorMutation", () => {
         }),
         sessionId: "session_1",
         store: exhaustionStore,
-        decide: () => ({
+        decide: (attempt) => ({
+          attempt,
           status: "save",
           state: createEmptyCoordinatorState(),
         }),

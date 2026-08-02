@@ -12,8 +12,11 @@ export {
 } from "./hls/blocking-reload";
 export {
   type BlockingHlsManifestArtifactResponseResolution,
+  type CoordinatorManifestArtifacts,
+  type CreateCoordinatorManifestArtifactsOptions,
   type CreateHlsManifestArtifactResponseOptions,
   type CreateHlsManifestArtifactsOptions,
+  createCoordinatorManifestArtifacts,
   createHlsManifestArtifactResponse,
   createHlsManifestArtifacts,
   createHlsManifestErrorWebResponse,

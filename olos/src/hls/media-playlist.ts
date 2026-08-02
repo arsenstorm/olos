@@ -9,11 +9,28 @@ import { positiveNumber } from "../validation/fields";
 import { escapePlaylistValue, formatSeconds } from "./format";
 import { assertSafeMediaUri, type MediaUriPolicy } from "./uri";
 
+/** Options for `renderMediaPlaylist`. */
 export interface RenderMediaPlaylistOptions extends MediaUriPolicy {
+  /**
+   * Append `#EXT-X-ENDLIST` so players stop polling. Callers set this when
+   * the session is in a terminal state (`ended` or `aborted`); the
+   * manifest-artifact helpers default it from the session or cursor state.
+   * Defaults to `false`.
+   */
+  endOfStream?: boolean;
+  /**
+   * `PART-HOLD-BACK` in seconds. Defaults to
+   * `max(3 * partTarget, targetLatency)`; explicit values below
+   * `3 * partTarget` are rejected.
+   */
   partHoldBack?: number;
+  /** Target part duration in seconds (`PART-TARGET`). */
   partTarget: number;
+  /** The committed-window rendition to render. */
   renditionId: string;
+  /** Target segment duration in seconds (`EXT-X-TARGETDURATION`). */
   segmentTarget: number;
+  /** `HOLD-BACK` in seconds. Defaults to `3`. */
   targetLatency?: number;
 }
 
@@ -21,6 +38,16 @@ type FullCommittedSegment = CommittedSegment & {
   segment: CommittedObject;
 };
 
+/**
+ * Renders one rendition's LL-HLS media playlist from the committed window:
+ * server-control headers advertising `CAN-BLOCK-RELOAD=YES`, the init-segment
+ * `#EXT-X-MAP`, full segments as `#EXTINF` entries, in-progress segments as
+ * `#EXT-X-PART` entries with a `#EXT-X-PRELOAD-HINT` when the last committed
+ * part uses byterange addressing, and a closing `#EXT-X-ENDLIST` when
+ * `options.endOfStream` is set (terminal sessions). Throws when the window
+ * is malformed, `renditionId` is not in the window, or the target/hold-back
+ * options are invalid.
+ */
 export function renderMediaPlaylist(
   committedWindow: CommittedWindow,
   options: RenderMediaPlaylistOptions
@@ -41,6 +68,14 @@ export function renderMediaPlaylist(
     lines.push(...renderSegment(segment, options));
   }
 
+  if (options.endOfStream) {
+    // Terminal sessions close the playlist with EXT-X-ENDLIST so players
+    // stop polling. EXT-X-PLAYLIST-TYPE is deliberately omitted: this is
+    // still a sliding window (old segments fall off), which VOD/EVENT
+    // playlist types forbid.
+    lines.push("#EXT-X-ENDLIST");
+  }
+
   return `${lines.join("\n")}\n`;
 }
 
@@ -57,7 +92,10 @@ function renderMediaPlaylistHeaders(
     `#EXT-X-TARGETDURATION:${Math.ceil(options.segmentTarget)}`,
     `#EXT-X-PART-INF:PART-TARGET=${formatSeconds(options.partTarget)}`,
     `#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=${formatSeconds(partHoldBack)},HOLD-BACK=${formatSeconds(targetLatency)}`,
-    `#EXT-X-MEDIA-SEQUENCE:${committedWindow.firstMediaSequenceNumber}`,
+    // The declared media sequence must match this rendition's first #EXTINF
+    // entry — renditions can diverge from the window-global minimum when
+    // per-rendition trimming or empty-media segments drop leading segments.
+    `#EXT-X-MEDIA-SEQUENCE:${rendition.segments[0]?.mediaSequenceNumber ?? committedWindow.firstMediaSequenceNumber}`,
     `#EXT-X-DISCONTINUITY-SEQUENCE:${committedWindow.discontinuitySequence}`,
     `#EXT-X-MAP:URI="${renderMediaUri(rendition.init.deliveryUrl, options, "rendition.init.deliveryUrl")}"`,
     "",

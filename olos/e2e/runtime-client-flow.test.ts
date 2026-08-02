@@ -315,7 +315,12 @@ describe("runtime public client flow", () => {
 
     expect(error).toBeInstanceOf(RuntimeHttpError);
     expect(error).toMatchObject({
-      body: { error: { message: "coordinator session was not found" } },
+      body: {
+        error: {
+          code: "olos.invalid_session",
+          message: "coordinator session was not found",
+        },
+      },
       message: "session health failed with status 404",
       status: 404,
     });

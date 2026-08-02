@@ -44,6 +44,17 @@ export {
   resolveDirectPublicMediaRequestPolicy,
 } from "./state/direct-public-security-policy";
 export {
+  type CreatePublisherObjectKeyOptions,
+  createPublisherDeliveryUrl,
+  createPublisherObjectKey,
+  type DerivableMediaObjectKind,
+} from "./state/object-key-derivation";
+export {
+  type CreateRuntimePublisherObjectKeyNonceOptions,
+  createRuntimePublisherObjectKeyNonce,
+  RUNTIME_PUBLISHER_OBJECT_KEY_NONCE_MIN_BYTES,
+} from "./state/object-key-nonce";
+export {
   type CreateObservedUploadFromHeadObjectOptions,
   type CreateObservedUploadFromObjectCreatedEventOptions,
   type CreateObservedUploadOptions,

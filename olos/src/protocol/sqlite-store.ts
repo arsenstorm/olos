@@ -4,26 +4,45 @@ import type {
   SerializedCoordinatorStoreBackend,
   SerializedCoordinatorStoreRecord,
   SerializedCoordinatorStoreSave,
+  SerializedCursorViewRecord,
 } from "./serialized-store";
 
 const DEFAULT_TABLE_NAME = "olos_coordinator_snapshots";
 const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+/**
+ * Narrowed SQLite client surface the store backend needs: prepared
+ * statements with positional binding. Structurally compatible with
+ * Cloudflare D1 and other promise-based SQLite clients, so callers can pass
+ * their database handle (or a thin wrapper) instead of a specific driver.
+ */
 export interface SqliteSerializedCoordinatorStoreDatabase {
   prepare(sql: string): SqliteSerializedCoordinatorStoreStatement;
 }
 
+/** Prepared statement that binds positional (`?`) parameters. */
 export interface SqliteSerializedCoordinatorStoreStatement {
   bind(
     ...values: readonly unknown[]
   ): SqliteSerializedCoordinatorStoreBoundStatement;
 }
 
+/** Bound statement ready to fetch one row or execute a write. */
 export interface SqliteSerializedCoordinatorStoreBoundStatement {
-  first<T>(): Promise<T | undefined>;
+  /**
+   * Resolve the first result row, or no row: Cloudflare D1 resolves `null`
+   * for missing rows while other SQLite clients resolve `undefined` — both
+   * are accepted.
+   */
+  first<T>(): Promise<T | null | undefined>;
   run(): Promise<SqliteSerializedCoordinatorStoreRunResult>;
 }
 
+/**
+ * Result of executing a write statement. The changed-row count may live at
+ * the top level (`changes`, better-sqlite3 style) or under `meta.changes`
+ * (Cloudflare D1); at least one must be present or the backend throws.
+ */
 export interface SqliteSerializedCoordinatorStoreRunResult {
   changes?: number;
   meta?: {
@@ -31,15 +50,38 @@ export interface SqliteSerializedCoordinatorStoreRunResult {
   };
 }
 
+/** Options for `createSqliteSerializedCoordinatorStoreBackend`. */
 export interface CreateSqliteSerializedCoordinatorStoreBackendOptions {
   database: SqliteSerializedCoordinatorStoreDatabase;
+  /**
+   * Snapshot table name; defaults to `"olos_coordinator_snapshots"` and
+   * must be a plain SQLite identifier (letters, digits, underscores).
+   */
   tableName?: string;
 }
 
+/** Options for `createSqliteSerializedCoordinatorStoreSchema`. */
 export interface CreateSqliteSerializedCoordinatorStoreSchemaOptions {
+  /**
+   * Snapshot table name; defaults to `"olos_coordinator_snapshots"` and
+   * must be a plain SQLite identifier (letters, digits, underscores).
+   */
   tableName?: string;
 }
 
+/**
+ * Create a `SerializedCoordinatorStoreBackend` on top of a SQLite database
+ * (Cloudflare D1 or any client matching the narrowed interface). Pair it
+ * with `createSerializedCoordinatorStore` for a full pipeline store, and
+ * apply `createSqliteSerializedCoordinatorStoreSchema` first.
+ *
+ * Optimistic concurrency rides on single atomic statements: inserts use
+ * `insert or ignore` and etag-checked updates a conditional `update`, with
+ * zero changed rows reported as a conflict that carries the currently
+ * stored record when one exists. Implements the `loadCursorView` fast path
+ * from the `cursor_view` column. Throws when `tableName` is not a plain
+ * SQLite identifier.
+ */
 export function createSqliteSerializedCoordinatorStoreBackend(
   options: CreateSqliteSerializedCoordinatorStoreBackendOptions
 ): SerializedCoordinatorStoreBackend {
@@ -53,12 +95,25 @@ export function createSqliteSerializedCoordinatorStoreBackend(
     load(sessionId) {
       return loadRecord(options.database, sql.load, sessionId);
     },
+    loadCursorView(sessionId) {
+      return loadCursorViewRecord(
+        options.database,
+        sql.loadCursorView,
+        sessionId
+      );
+    },
     save(saveOptions) {
       return saveRecord(options.database, sql, saveOptions);
     },
   };
 }
 
+/**
+ * Return the `create table if not exists` DDL for the snapshot table used
+ * by `createSqliteSerializedCoordinatorStoreBackend`. Idempotent — safe to
+ * run on every startup or migration. Throws when `tableName` is not a plain
+ * SQLite identifier.
+ */
 export function createSqliteSerializedCoordinatorStoreSchema(
   options: CreateSqliteSerializedCoordinatorStoreSchemaOptions = {}
 ): string {
@@ -70,15 +125,17 @@ export function createSqliteSerializedCoordinatorStoreSchema(
   return `create table if not exists ${tableName} (
   session_id text primary key,
   etag text not null,
-  snapshot text not null
+  snapshot text not null,
+  cursor_view text
 )`;
 }
 
 function statements(tableName: string) {
   return {
-    insert: `insert or ignore into ${tableName} (session_id, etag, snapshot) values (?, ?, ?)`,
+    insert: `insert or ignore into ${tableName} (session_id, etag, snapshot, cursor_view) values (?, ?, ?, ?)`,
     load: `select etag, snapshot from ${tableName} where session_id = ?`,
-    update: `update ${tableName} set etag = ?, snapshot = ? where session_id = ? and etag = ?`,
+    loadCursorView: `select etag, cursor_view from ${tableName} where session_id = ?`,
+    update: `update ${tableName} set etag = ?, snapshot = ?, cursor_view = ? where session_id = ? and etag = ?`,
   };
 }
 
@@ -92,7 +149,7 @@ async function loadRecord(
     .bind(sessionId)
     .first<SerializedCoordinatorStoreRecord>();
 
-  if (row === undefined) {
+  if (row === null || row === undefined) {
     return;
   }
 
@@ -102,15 +159,51 @@ async function loadRecord(
   };
 }
 
+interface SqliteCursorViewRow {
+  cursor_view: string | null | undefined;
+  etag: string;
+}
+
+async function loadCursorViewRecord(
+  database: SqliteSerializedCoordinatorStoreDatabase,
+  sql: string,
+  sessionId: OlosId
+): Promise<SerializedCursorViewRecord | undefined> {
+  const row = await database
+    .prepare(sql)
+    .bind(sessionId)
+    .first<SqliteCursorViewRow>();
+
+  if (row === null || row === undefined) {
+    return;
+  }
+
+  if (row.cursor_view === null || row.cursor_view === undefined) {
+    return;
+  }
+
+  return {
+    etag: row.etag,
+    view: row.cursor_view,
+  };
+}
+
 async function saveRecord(
   database: SqliteSerializedCoordinatorStoreDatabase,
   sql: ReturnType<typeof statements>,
   options: SaveSerializedCoordinatorStoreOptions
 ): Promise<SerializedCoordinatorStoreSave> {
+  const cursorView = options.cursorView?.view ?? null;
+
   if (options.expectedEtag === undefined) {
     const inserted = await database
       .prepare(sql.insert)
-      .bind(options.sessionId, options.record.etag, options.record.snapshot)
+      .bind(
+        options.sessionId,
+        options.record.etag,
+        options.record.snapshot,
+        cursorView
+      )
       .run();
 
     return savedOrConflict(database, sql.load, options.sessionId, inserted);
@@ -121,6 +214,7 @@ async function saveRecord(
     .bind(
       options.record.etag,
       options.record.snapshot,
+      cursorView,
       options.sessionId,
       options.expectedEtag
     )

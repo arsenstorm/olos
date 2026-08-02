@@ -15,30 +15,51 @@ type S3HeadObjectCommandInput = ConstructorParameters<
   typeof HeadObjectCommand
 >[0];
 
+/**
+ * Narrowed S3 client surface used to verify uploaded objects with
+ * `HeadObject`. Lets callers plug in a minimal wrapper rather than the full
+ * `@aws-sdk/client-s3` `S3Client`.
+ */
 export interface S3HeadObjectClient {
   send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput>;
 }
 
+/** Options for {@link observeS3Object}. */
 export interface ObserveS3ObjectOptions {
   bucket: string;
   client: S3HeadObjectClient;
+  /** Fallback timestamp source when `now` is unset (default: `new Date`). */
   clock?: () => Date | string;
+  /** Fallback observation time when S3 reports no `LastModified`. */
   now?: Date | string;
   objectKey: string;
+  /** Observation time override; wins over `LastModified` and `now`. */
   observedAt?: Date | string;
   providerId: string;
+  /** S3 object version to observe instead of the latest. */
   versionId?: string;
 }
 
+/** Options for {@link createObservedUploadFromS3HeadObject}. */
 export interface CreateObservedUploadFromS3HeadObjectOptions {
+  /** Fallback timestamp source when `now` is unset (default: `new Date`). */
   clock?: () => Date | string;
+  /** Fallback observation time when S3 reports no `LastModified`. */
   now?: Date | string;
   objectKey: string;
+  /** Observation time override; wins over `LastModified` and `now`. */
   observedAt?: Date | string;
+  /** Raw `HeadObject` output to convert. */
   output: HeadObjectCommandOutput;
   providerId: string;
 }
 
+/**
+ * Observe an uploaded S3 object with `HeadObject` and convert it into the
+ * `ObservedUpload` record that commit paths consume. Throws on invalid
+ * options (bucket, key, provider id, timestamps), on S3 request failures,
+ * and when the object lacks a content length or content type.
+ */
 export async function observeS3Object(
   options: ObserveS3ObjectOptions
 ): Promise<ObservedUpload> {
@@ -67,6 +88,13 @@ function assertObserveS3ObjectOptions(options: ObserveS3ObjectOptions): void {
   }
 }
 
+/**
+ * Convert an already-fetched `HeadObject` output into an `ObservedUpload`
+ * without touching the network. Normalizes slot-id metadata variants onto
+ * the canonical `x-olos-slot-id` key and resolves the observation time from
+ * `observedAt`, then S3's `LastModified`, then `now`/`clock`. Throws when
+ * the output lacks `ContentLength` or `ContentType`.
+ */
 export function createObservedUploadFromS3HeadObject(
   options: CreateObservedUploadFromS3HeadObjectOptions
 ): ObservedUpload {

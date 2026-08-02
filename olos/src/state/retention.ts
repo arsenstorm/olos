@@ -4,27 +4,42 @@ import type {
   CommittedWindow,
 } from "../types/committed-window";
 import type { UploadSlot } from "../types/upload-slot";
+import { timestampMs as validTimestampMs } from "../validation/fields";
 import { assertUploadSlot } from "../validation/upload-slot";
-import { timestampMs as validTimestampMs } from "./timestamp";
 
+/** Options for {@link selectExpiredUploadSlots}. */
 export interface SelectExpiredUploadSlotsOptions {
+  /** ISO timestamp used as "now" for the expiry comparison. */
   now: string;
   slots: readonly UploadSlot[];
 }
 
+/**
+ * A committed object that fell out of the retained window; its backing
+ * object may be deleted from storage.
+ */
 export interface RetiredCommittedObject {
   commitId: string;
   objectKey: string;
   slotId: string;
 }
 
+/** Options for {@link selectRetiredCommittedObjects}. */
 export interface SelectRetiredCommittedObjectsOptions {
+  /** Candidate media commits to consider for retirement. */
   commits: readonly Commit[];
+  /** Window whose backing objects must be kept. */
   retainedWindow: CommittedWindow;
 }
 
 type IssuedUploadSlot = UploadSlot & { state: "issued" };
 
+/**
+ * Select the slots eligible for expiry: those still in the `issued` state
+ * whose `expiresAt` is at or before `now`. Slots in any other state —
+ * including `upload_observed` — are never selected. Pure; throws on
+ * invalid slots or timestamps.
+ */
 export function selectExpiredUploadSlots(
   options: SelectExpiredUploadSlotsOptions
 ): UploadSlot[] {
@@ -51,6 +66,14 @@ function isIssuedUploadSlot(slot: UploadSlot): slot is IssuedUploadSlot {
   return slot.state === "issued";
 }
 
+/**
+ * Select the commits whose backing objects may be deleted. A commit is
+ * retired only when its media sequence number is strictly below the
+ * retained window's `firstMediaSequenceNumber` and its slot does not back
+ * any object still in the window; commits at or ahead of the window are
+ * kept because they may still become visible (out-of-order parts, future
+ * sequence numbers racing the cursor). Pure.
+ */
 export function selectRetiredCommittedObjects(
   options: SelectRetiredCommittedObjectsOptions
 ): RetiredCommittedObject[] {

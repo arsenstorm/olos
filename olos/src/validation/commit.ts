@@ -7,6 +7,7 @@ import {
   assertNonEmptyStringField,
   assertNonNegativeIntegerField,
   assertOnlyKnownFields,
+  assertPositiveIntegerField,
   assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
@@ -32,6 +33,7 @@ const COMMIT_FIELDS = [
   "slotId",
 ] as const;
 
+/** Returns whether `value` is a valid `Commit` (see `assertCommit`). */
 export function isCommit(value: unknown): value is Commit {
   try {
     assertCommit(value);
@@ -41,6 +43,12 @@ export function isCommit(value: unknown): value is Commit {
   }
 }
 
+/**
+ * Validates an untrusted value as a wire-format `Commit`, throwing an
+ * `Error` naming the first offending field. Rejects unknown fields, unsafe
+ * object keys and delivery URLs, and a `byterange` on anything but a part
+ * commit (`partNumber` present).
+ */
 export function assertCommit(value: unknown): asserts value is Commit {
   if (!isRecord(value)) {
     throw new Error("commit must be an object");
@@ -71,7 +79,7 @@ function assertCommitSequenceFields(value: Record<string, unknown>): void {
 
 function assertCommitObjectFields(value: Record<string, unknown>): void {
   assertPositiveNumberField(value, "duration", "commit");
-  assertPositiveNumberField(value, "size", "commit");
+  assertPositiveIntegerField(value, "size", "commit");
 
   assertSafeObjectKey(value.objectKey, "commit.objectKey");
   assertSafeDeliveryUrl(value.deliveryUrl, "commit.deliveryUrl");

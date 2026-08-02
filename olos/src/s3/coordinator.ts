@@ -1,26 +1,24 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import {
+  type CoordinatorManifestArtifacts,
+  type CreateCoordinatorManifestArtifactsOptions,
   type CreateHlsManifestArtifactResponseOptions,
+  createCoordinatorManifestArtifacts,
   createHlsManifestArtifactResponse,
   type HlsManifestArtifact,
   type HlsManifestArtifactResponse,
 } from "../hls/manifest-artifacts";
-import {
-  type CoordinatorCommitPolicy,
-  type CoordinatorManifestArtifacts,
-  type CoordinatorPipelineSnapshot,
-  type CoordinatorPipelineStore,
-  type CoordinatorSlotIssue,
-  type CoordinatorUploadCommit,
-  type CreateCoordinatorManifestArtifactsOptions,
-  commitCoordinatorUpload,
-  createCoordinatorManifestArtifacts,
-  issueCoordinatorSlot,
-} from "../protocol";
+import { commitCoordinatorUpload } from "../protocol/coordinator-commit";
+import { issueCoordinatorSlot } from "../protocol/coordinator-slot";
 import type {
+  CoordinatorCommitPolicy,
+  CoordinatorPipelineSnapshot,
   CoordinatorPipelineState,
+  CoordinatorPipelineStore,
+  CoordinatorSlotIssue,
+  CoordinatorUploadCommit,
   IssueCoordinatorSlotOptions,
-} from "../protocol/coordinator";
+} from "../protocol/coordinator-types";
 import { runStoredCoordinatorMutationWithAdaptersAndResponse } from "../protocol/mutate-coordinator-store";
 import type { UploadEventNormalization } from "../state/observed-upload";
 import {
@@ -36,6 +34,7 @@ import type { UploadSlot } from "../types/upload-slot";
 import { observeS3Object, type S3HeadObjectClient } from "./object-observation";
 import { createPresignedS3UploadGrant } from "./upload-grant";
 
+/** Options for {@link commitS3CoordinatorUpload}. */
 export interface CommitS3CoordinatorUploadOptions {
   bucket: string;
   client: S3HeadObjectClient;
@@ -53,27 +52,38 @@ export interface CommitS3CoordinatorUploadOptions {
   versionId?: string;
 }
 
+/** Options for {@link commitStoredS3CoordinatorUpload}. */
 export interface CommitStoredS3CoordinatorUploadOptions
   extends Omit<CommitS3CoordinatorUploadOptions, "state"> {
+  /** When set, manifest artifacts are rendered into the commit result. */
   manifest?: StoredS3CoordinatorManifestOptions;
+  /** Optimistic-concurrency retries before giving up as a conflict. */
   maxAttempts?: number;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
 }
 
+/** Options for {@link completeStoredS3CoordinatorUpload}. */
 export interface CompleteStoredS3CoordinatorUploadOptions
   extends CommitStoredS3CoordinatorUploadOptions {
+  /**
+   * When set, the slot's object key must match or the completion is
+   * rejected with `olos.key_mismatch`.
+   */
   objectKey?: string;
 }
 
+/** Options for {@link completeStoredS3CoordinatorUploadByObjectKey}. */
 export interface CompleteStoredS3CoordinatorUploadByObjectKeyOptions
   extends Omit<
     CompleteStoredS3CoordinatorUploadOptions,
     "objectKey" | "slotId"
   > {
+  /** Object key used to look up the slot to complete. */
   objectKey: string;
 }
 
+/** Options for {@link routeStoredS3CoordinatorUploadEvent}. */
 export interface RouteStoredS3CoordinatorUploadEventOptions {
   bucket: string;
   client: S3HeadObjectClient;
@@ -92,27 +102,43 @@ export interface RouteStoredS3CoordinatorUploadEventOptions {
   versionId?: string;
 }
 
+/**
+ * Manifest rendering options attached to a stored commit. When present, the
+ * commit result includes freshly rendered HLS manifest artifacts for the
+ * post-commit state.
+ */
 export interface StoredS3CoordinatorManifestOptions
   extends Omit<CreateCoordinatorManifestArtifactsOptions, "state"> {
+  /** HTTP response rendering options (headers, status) per artifact. */
   response?: CreateHlsManifestArtifactResponseOptions;
 }
 
+/** HLS manifest artifact paired with its ready-to-serve HTTP response. */
 export interface StoredS3CoordinatorManifestArtifact
   extends HlsManifestArtifact {
   response: HlsManifestArtifactResponse;
 }
 
+/** Manifest artifacts rendered from the state a commit produced. */
 export interface StoredS3CoordinatorManifest {
   artifacts: readonly StoredS3CoordinatorManifestArtifact[];
   cursor?: CoordinatorManifestArtifacts["cursor"];
 }
 
+/**
+ * Audit record attached to a rejected commit when an uploaded object
+ * exceeded the slot's size limit (`olos.object_too_large`), so callers can
+ * log or forward the violation.
+ */
 export interface StoredS3CoordinatorUploadAuditEvent {
   error: OlosError;
   eventType: "upload.rejected";
+  /** Slot's configured maximum object size, in bytes. */
   maxBytes: number;
   objectKey: string;
+  /** Size reported by S3 for the offending object, in bytes. */
   observedBytes: number;
+  /** ISO 8601 timestamp of the rejected completion attempt. */
   occurredAt: string;
   reason: "object_too_large";
   slotId: OlosId;
@@ -163,6 +189,13 @@ type MissingStoredS3CoordinatorUploadGrantIssue = Extract<
   { status: "not_found" }
 >;
 
+/**
+ * Result of committing an upload against a stored session. `committed` and
+ * `idempotent` carry the saved snapshot's etag (and manifest artifacts when
+ * requested); `rejected` carries the `olos.*` error (plus an audit event for
+ * oversized objects); `conflict` means concurrent writers exhausted the
+ * retry budget; `not_found` means the session does not exist.
+ */
 export type StoredS3CoordinatorUploadCommit =
   | (Extract<
       CoordinatorUploadCommit,
@@ -180,6 +213,7 @@ export type StoredS3CoordinatorUploadCommit =
       status: "not_found";
     };
 
+/** Result of a completion; identical to a stored commit result. */
 export type StoredS3CoordinatorUploadCompletion =
   StoredS3CoordinatorUploadCommit;
 
@@ -188,6 +222,11 @@ type IdempotentS3CoordinatorUploadCommit = Extract<
   { status: "committed" | "idempotent" }
 > & { status: "idempotent" };
 
+/**
+ * Result of routing a normalized S3 upload event: a completion result for
+ * events that reached the commit path, or `invalid_event` when the event
+ * failed normalization.
+ */
 export type StoredS3CoordinatorUploadEventRoute =
   | StoredS3CoordinatorUploadCompletion
   | {
@@ -195,28 +234,48 @@ export type StoredS3CoordinatorUploadEventRoute =
       status: "invalid_event";
     };
 
+/** Options for {@link issueS3CoordinatorUploadGrant}. */
 export interface IssueS3CoordinatorUploadGrantOptions
   extends IssueCoordinatorSlotOptions {
+  /**
+   * Extra headers the uploader must send; must not override the
+   * `x-amz-meta-olos-*` slot metadata headers.
+   */
   additionalHeaders?: Record<string, string>;
   bucket: string;
   client: S3Client;
+  /**
+   * Presigned URL lifetime in seconds. The grant must not outlive the
+   * slot's own `expiresAt`.
+   */
   expiresInSeconds: number;
+  /** Timestamp the grant expiry is computed from (default: current time). */
   now?: Date | string;
 }
 
+/** Issued slot, its presigned grant, and the updated in-memory state. */
 export interface S3CoordinatorUploadGrantIssue {
   grant: UploadGrant;
   slot: UploadSlot;
   state: CoordinatorPipelineState;
 }
 
+/** Options for {@link issueStoredS3CoordinatorUploadGrant}. */
 export interface IssueStoredS3CoordinatorUploadGrantOptions
   extends Omit<IssueS3CoordinatorUploadGrantOptions, "state"> {
+  /** Optimistic-concurrency retries before giving up as a conflict. */
   maxAttempts?: number;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
 }
 
+/**
+ * Result of issuing a grant against a stored session: `saved` carries the
+ * slot, grant, and saved snapshot's etag; `rejected` carries the `olos.*`
+ * error (for example when publication control blocks slot issue);
+ * `conflict` means concurrent writers exhausted the retry budget;
+ * `not_found` means the session does not exist.
+ */
 export type StoredS3CoordinatorUploadGrantIssue =
   | {
       etag: string;
@@ -238,6 +297,14 @@ export type StoredS3CoordinatorUploadGrantIssue =
       status: "not_found";
     };
 
+/**
+ * Issue an upload slot on an in-memory coordinator state and create a
+ * presigned S3 PUT grant for it. Pure with respect to storage — the caller
+ * owns persisting the returned state; use
+ * {@link issueStoredS3CoordinatorUploadGrant} for store-backed sessions. The
+ * presigned URL pins content type and slot metadata headers and sets
+ * `If-None-Match: *` so the upload cannot overwrite an existing object.
+ */
 export async function issueS3CoordinatorUploadGrant(
   options: IssueS3CoordinatorUploadGrantOptions
 ): Promise<S3CoordinatorUploadGrantIssue> {
@@ -260,6 +327,14 @@ export async function issueS3CoordinatorUploadGrant(
   };
 }
 
+/**
+ * Issue an upload slot for a store-backed session and presign an S3 PUT
+ * grant for it. Loads the session snapshot, issues the slot, and saves the
+ * new state with optimistic concurrency, retrying up to `maxAttempts` before
+ * reporting `conflict`. Publication control can reject the issue; a missing
+ * session yields `not_found`. The grant is presigned only after the slot is
+ * durably saved.
+ */
 export async function issueStoredS3CoordinatorUploadGrant(
   options: IssueStoredS3CoordinatorUploadGrantOptions
 ): Promise<StoredS3CoordinatorUploadGrantIssue> {
@@ -294,7 +369,7 @@ export async function issueStoredS3CoordinatorUploadGrant(
 
   return runStoredCoordinatorMutationWithAdaptersAndResponse<
     CoordinatorSlotIssue,
-    never,
+    CoordinatorSlotIssue,
     StoredS3CoordinatorUploadGrantIssue
   >({
     maxAttempts,
@@ -304,6 +379,7 @@ export async function issueStoredS3CoordinatorUploadGrant(
         state,
       }),
     decide: (issue) => ({
+      attempt: issue,
       status: "save",
       state: issue.state,
     }),
@@ -332,6 +408,14 @@ export async function issueStoredS3CoordinatorUploadGrant(
   });
 }
 
+/**
+ * Commit an uploaded slot against an in-memory coordinator state. Verifies
+ * the object exists via S3 `HeadObject` (a network side effect), then applies
+ * the protocol commit. Rejects with `olos.unknown_slot` when the slot id is
+ * not in the state, or with a publication-control error when commits are
+ * blocked. The caller owns persisting the returned state; use
+ * {@link commitStoredS3CoordinatorUpload} for store-backed sessions.
+ */
 export async function commitS3CoordinatorUpload(
   options: CommitS3CoordinatorUploadOptions
 ): Promise<CoordinatorUploadCommit> {
@@ -382,13 +466,22 @@ export async function commitS3CoordinatorUpload(
   });
 }
 
+/**
+ * Commit an uploaded slot for a store-backed session. Observes the object
+ * via S3 `HeadObject`, applies the commit, and saves the new state with
+ * optimistic concurrency, retrying up to `maxAttempts` before reporting
+ * `conflict`. Replaying an already-applied `commitId` returns `idempotent`
+ * without another save. Oversized-object rejections carry an `auditEvent`;
+ * when `manifest` options are set, successful results include rendered
+ * manifest artifacts.
+ */
 export async function commitStoredS3CoordinatorUpload(
   options: CommitStoredS3CoordinatorUploadOptions
 ): Promise<StoredS3CoordinatorUploadCommit> {
   const { manifest, maxAttempts, sessionId, store, ...commitOptions } = options;
   return await runStoredCoordinatorMutationWithAdaptersAndResponse<
     CoordinatorUploadCommit,
-    StoredS3CoordinatorUploadCommit,
+    Exclude<CoordinatorUploadCommit, RejectedS3CoordinatorUploadCommit>,
     StoredS3CoordinatorUploadCommit
   >({
     maxAttempts,
@@ -420,10 +513,9 @@ export async function commitStoredS3CoordinatorUpload(
         };
       }
 
-      return { status: "save", state: commit.state };
+      return { attempt: commit, status: "save", state: commit.state };
     },
     onMissing: () => missingStoredS3CoordinatorUploadCommit(),
-    mapTerminal: (commit) => commit,
     mapSaved: (saved, commit) =>
       withManifest(
         {
@@ -467,6 +559,12 @@ function isBlockedPublicationControl(
   return result.status === "blocked";
 }
 
+/**
+ * Complete an upload for a store-backed session by slot id. Identical to
+ * {@link commitStoredS3CoordinatorUpload} except that when `objectKey` is
+ * given, the slot's key must match it first — a mismatch is rejected with
+ * `olos.key_mismatch` and an unknown slot with `olos.unknown_slot`.
+ */
 export async function completeStoredS3CoordinatorUpload(
   options: CompleteStoredS3CoordinatorUploadOptions
 ): Promise<StoredS3CoordinatorUploadCompletion> {
@@ -495,6 +593,12 @@ export async function completeStoredS3CoordinatorUpload(
   return commitStoredS3CoordinatorUpload(commitOptions);
 }
 
+/**
+ * Complete an upload for a store-backed session by object key alone —
+ * the entry point for storage events that only know the uploaded key. Looks
+ * up the slot whose `objectKey` matches, then completes it; rejects with
+ * `olos.unknown_slot` when no slot claims the key.
+ */
 export async function completeStoredS3CoordinatorUploadByObjectKey(
   options: CompleteStoredS3CoordinatorUploadByObjectKeyOptions
 ): Promise<StoredS3CoordinatorUploadCompletion> {
@@ -634,6 +738,13 @@ function rejectedS3CoordinatorUploadCommit(
   };
 }
 
+/**
+ * Route one normalized upload event to the matching completion path:
+ * `object_created` events complete by object key (subject to
+ * publication-control checks for provider events), `upload_completed` hints
+ * complete by slot id, and `invalid_event` normalizations pass through
+ * unchanged.
+ */
 export async function routeStoredS3CoordinatorUploadEvent(
   options: RouteStoredS3CoordinatorUploadEventOptions
 ): Promise<StoredS3CoordinatorUploadEventRoute> {

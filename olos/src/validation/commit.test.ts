@@ -108,7 +108,10 @@ describe("commit validation", () => {
 
   test("rejects invalid size and duration", () => {
     expect(() => assertCommit({ ...validCommit, size: 0 })).toThrow(
-      "commit.size must be a positive number"
+      "commit.size must be a positive integer"
+    );
+    expect(() => assertCommit({ ...validCommit, size: 312.5 })).toThrow(
+      "commit.size must be a positive integer"
     );
     expect(() => assertCommit({ ...validCommit, duration: 0 })).toThrow(
       "commit.duration must be a positive number"

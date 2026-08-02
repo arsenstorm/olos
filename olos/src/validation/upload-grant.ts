@@ -7,6 +7,10 @@ import {
 } from "./fields";
 import { assertHttpHeaderStringMap } from "./http-header";
 
+/**
+ * Returns whether `value` is a valid `UploadGrant` (see
+ * `assertUploadGrant`).
+ */
 export function isUploadGrant(value: unknown): value is UploadGrant {
   try {
     assertUploadGrant(value);
@@ -16,6 +20,12 @@ export function isUploadGrant(value: unknown): value is UploadGrant {
   }
 }
 
+/**
+ * Validates an untrusted value as an `UploadGrant`, throwing an `Error`
+ * naming the first offending field. The method must be `PUT` and the URL an
+ * absolute HTTP(S) URL; unlike delivery URLs, grant URLs may carry a query
+ * string (presigned uploads).
+ */
 export function assertUploadGrant(
   value: unknown
 ): asserts value is UploadGrant {

@@ -15,7 +15,8 @@ describe("SQLite serialized coordinator store backend", () => {
     ).toBe(`create table if not exists olos_coordinator_snapshots (
   session_id text primary key,
   etag text not null,
-  snapshot text not null
+  snapshot text not null,
+  cursor_view text
 )`);
   });
 
@@ -75,6 +76,56 @@ describe("SQLite serialized coordinator store backend", () => {
     ).rejects.toThrow("SQLite run result must include changed row count");
   });
 
+  test("treats D1-style null rows as missing records", async () => {
+    const backend = createSqliteSerializedCoordinatorStoreBackend({
+      database: createNullRowDatabase(),
+    });
+
+    await expect(backend.load("session_missing")).resolves.toBeUndefined();
+    await expect(
+      backend.loadCursorView?.("session_missing")
+    ).resolves.toBeUndefined();
+  });
+
+  test("round-trips cursor views through save and loadCursorView", async () => {
+    const backend = createSqliteSerializedCoordinatorStoreBackend({
+      database: createDatabase(),
+    });
+    const view = '{"session":{"sessionId":"session_1"}}';
+
+    await expect(
+      backend.save({
+        cursorView: { etag: "1", view },
+        record: { etag: "1", snapshot: '{"etag":"1"}' },
+        sessionId: "session_1",
+      })
+    ).resolves.toEqual({ status: "saved" });
+    await expect(backend.loadCursorView?.("session_1")).resolves.toEqual({
+      etag: "1",
+      view,
+    });
+  });
+
+  test("returns undefined from loadCursorView when cursor_view is null", async () => {
+    const backend = createSqliteSerializedCoordinatorStoreBackend({
+      database: createDatabase(),
+    });
+
+    await expect(
+      backend.save({
+        record: { etag: "1", snapshot: '{"etag":"1"}' },
+        sessionId: "session_1",
+      })
+    ).resolves.toEqual({ status: "saved" });
+    await expect(
+      backend.loadCursorView?.("session_1")
+    ).resolves.toBeUndefined();
+    await expect(backend.load("session_1")).resolves.toEqual({
+      etag: "1",
+      snapshot: '{"etag":"1"}',
+    });
+  });
+
   test("rejects unsafe table names", () => {
     expect(() =>
       createSqliteSerializedCoordinatorStoreBackend({
@@ -89,6 +140,12 @@ describe("SQLite serialized coordinator store backend", () => {
     ).toThrow("tableName must be a SQLite identifier");
   });
 });
+
+interface StoredRow {
+  cursor_view: string | null;
+  etag: string;
+  snapshot: string;
+}
 
 type ChangeResultShape = "changes" | "meta" | "missing";
 
@@ -120,10 +177,29 @@ function createSchemaAwareDatabase(): SchemaAwareDatabase {
   };
 }
 
+function createNullRowDatabase(): SqliteSerializedCoordinatorStoreDatabase {
+  return {
+    prepare() {
+      return {
+        bind() {
+          return {
+            first<T>() {
+              return Promise.resolve<T | null>(null);
+            },
+            run() {
+              return Promise.resolve({ meta: { changes: 0 } });
+            },
+          };
+        },
+      };
+    },
+  };
+}
+
 function createDatabase(
   resultShape: ChangeResultShape = "meta"
 ): SqliteSerializedCoordinatorStoreDatabase {
-  const records = new Map<string, { etag: string; snapshot: string }>();
+  const records = new Map<string, StoredRow>();
 
   return {
     prepare(sql) {
@@ -131,7 +207,7 @@ function createDatabase(
         bind(...values) {
           return {
             first<T>() {
-              return Promise.resolve(select<T>(records, sql, values));
+              return Promise.resolve(select(records, sql, values) as T);
             },
             run() {
               return Promise.resolve(run(records, sql, values, resultShape));
@@ -143,20 +219,30 @@ function createDatabase(
   };
 }
 
-function select<T>(
-  records: Map<string, { etag: string; snapshot: string }>,
+function select(
+  records: Map<string, StoredRow>,
   sql: string,
   values: readonly unknown[]
-): T | undefined {
-  if (!sql.startsWith("select")) {
-    throw new Error(`unexpected select SQL: ${sql}`);
+): unknown {
+  const row = records.get(String(values[0]));
+
+  if (sql.startsWith("select etag, snapshot")) {
+    return row === undefined
+      ? undefined
+      : { etag: row.etag, snapshot: row.snapshot };
   }
 
-  return records.get(String(values[0])) as T | undefined;
+  if (sql.startsWith("select etag, cursor_view")) {
+    return row === undefined
+      ? undefined
+      : { cursor_view: row.cursor_view, etag: row.etag };
+  }
+
+  throw new Error(`unexpected select SQL: ${sql}`);
 }
 
 function run(
-  records: Map<string, { etag: string; snapshot: string }>,
+  records: Map<string, StoredRow>,
   sql: string,
   values: readonly unknown[],
   resultShape: ChangeResultShape
@@ -169,6 +255,7 @@ function run(
     }
 
     records.set(sessionId, {
+      cursor_view: values[3] === null ? null : String(values[3]),
       etag: String(values[1]),
       snapshot: String(values[2]),
     });
@@ -180,8 +267,8 @@ function run(
     throw new Error(`unexpected update SQL: ${sql}`);
   }
 
-  const sessionId = String(values[2]);
-  const expectedEtag = String(values[3]);
+  const sessionId = String(values[3]);
+  const expectedEtag = String(values[4]);
   const current = records.get(sessionId);
 
   if (current?.etag !== expectedEtag) {
@@ -189,6 +276,7 @@ function run(
   }
 
   records.set(sessionId, {
+    cursor_view: values[2] === null ? null : String(values[2]),
     etag: String(values[0]),
     snapshot: String(values[1]),
   });

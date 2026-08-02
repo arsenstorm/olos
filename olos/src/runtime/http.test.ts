@@ -1,14 +1,15 @@
 import { describe, expect, test } from "bun:test";
 
-import { createMemoryCoordinatorStore } from "../protocol";
+import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
 import {
   TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
-import { createPublicationKillSwitch } from "../state";
+import { createPublicationKillSwitch } from "../state/publication-control";
 import type { Cursor } from "../types/cursor";
 import { createMemoryRuntimeCursorNotifier } from "./cursor-notifier";
 import { createStoredCoordinatorRuntimeHandler } from "./http";
+import { expectOlosErrorEnvelope } from "./test-error-envelope.test-helper";
 import {
   jsonPostRequest,
   jsonResponseStatusAndBody,
@@ -309,26 +310,27 @@ describe("stored coordinator runtime handler", () => {
       store: createMemoryCoordinatorStore(),
     });
 
-    expect(
-      await handle(new Request("https://edge.example.com/unknown"))
-    ).toHaveProperty("status", 404);
-    expect(
-      await handle(
-        new Request("https://edge.example.com/sessions/session_1/slots")
-      )
-    ).toHaveProperty("status", 405);
-    expect(
-      await handle(
-        jsonRequest("https://edge.example.com/sessions/session_1/unknown", {})
-      )
-    ).toHaveProperty("status", 405);
-    expect(
-      await handle(
-        new Request(
-          "https://edge.example.com/v1/live/session_1/v1080/extra.m3u8"
-        )
-      )
-    ).toHaveProperty("status", 404);
+    const routeNotFound = await handle(
+      new Request("https://edge.example.com/unknown")
+    );
+    const methodNotAllowed = await handle(
+      new Request("https://edge.example.com/sessions/session_1/slots")
+    );
+    const unknownAction = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/unknown", {})
+    );
+    const liveNotFound = await handle(
+      new Request("https://edge.example.com/v1/live/session_1/v1080/extra.m3u8")
+    );
+
+    expect(routeNotFound).toHaveProperty("status", 404);
+    expect(methodNotAllowed).toHaveProperty("status", 405);
+    expect(unknownAction).toHaveProperty("status", 405);
+    expect(liveNotFound).toHaveProperty("status", 404);
+    await expectOlosErrorEnvelope(routeNotFound);
+    await expectOlosErrorEnvelope(methodNotAllowed);
+    await expectOlosErrorEnvelope(unknownAction);
+    await expectOlosErrorEnvelope(liveNotFound);
   });
 
   test("returns specific errors for missing runtime sessions", async () => {
@@ -347,12 +349,24 @@ describe("stored coordinator runtime handler", () => {
       )
     );
 
+    await expectOlosErrorEnvelope(health);
+    await expectOlosErrorEnvelope(manifest);
     await expect(jsonResponseStatusAndBody(health)).resolves.toEqual({
-      body: { error: { message: "coordinator session was not found" } },
+      body: {
+        error: {
+          code: "olos.invalid_session",
+          message: "coordinator session was not found",
+        },
+      },
       status: 404,
     });
     await expect(jsonResponseStatusAndBody(manifest)).resolves.toEqual({
-      body: { error: { message: "coordinator session was not found" } },
+      body: {
+        error: {
+          code: "olos.invalid_session",
+          message: "coordinator session was not found",
+        },
+      },
       status: 404,
     });
   });
@@ -374,6 +388,7 @@ describe("stored coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(health)).resolves.toEqual({
       body: {
         error: {
+          code: "olos.invalid_request",
           message: "sessionId must be a non-empty URL-safe identifier",
         },
       },
@@ -382,6 +397,7 @@ describe("stored coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(manifest)).resolves.toEqual({
       body: {
         error: {
+          code: "olos.invalid_request",
           message: "sessionId must be a non-empty URL-safe identifier",
         },
       },
@@ -400,9 +416,13 @@ describe("stored coordinator runtime handler", () => {
       new Request("https://edge.example.com/sessions/%E0%A4%A/health")
     );
 
+    await expectOlosErrorEnvelope(response);
     await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
       body: {
-        error: { message: "route path contains invalid percent encoding" },
+        error: {
+          code: "olos.invalid_request",
+          message: "route path contains invalid percent encoding",
+        },
       },
       status: 400,
     });
@@ -425,6 +445,7 @@ describe("stored coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(sessionResponse)).resolves.toEqual({
       body: {
         error: {
+          code: "olos.invalid_request",
           message: "session.state must be one of: live, ending, ended, aborted",
         },
       },
@@ -455,6 +476,7 @@ describe("stored coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
       body: {
         error: {
+          code: "olos.invalid_request",
           message: "state must be one of: live, ending, ended, aborted",
         },
       },
@@ -687,6 +709,7 @@ describe("stored coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
       body: {
         error: {
+          code: "olos.invalid_request",
           message:
             "publisherInstanceId must be a non-empty URL-safe identifier",
         },
@@ -719,6 +742,7 @@ describe("stored coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
       body: {
         error: {
+          code: "olos.invalid_request",
           message: "publisher heartbeat request must be a JSON object",
         },
       },
@@ -749,6 +773,7 @@ describe("stored coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
       body: {
         error: {
+          code: "olos.invalid_request",
           message:
             "publisherInstanceId must be a non-empty URL-safe identifier",
         },

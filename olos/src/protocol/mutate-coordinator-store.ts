@@ -1,11 +1,11 @@
 import type { OlosId } from "../types/ids";
 import { assertPositiveInteger } from "../validation/ids";
+import { parseCoordinatorPipelineSnapshot } from "./coordinator-snapshot";
 import type {
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineState,
   CoordinatorPipelineStore,
-} from "./coordinator";
-import { parseCoordinatorPipelineSnapshot } from "./coordinator-snapshot";
+} from "./coordinator-types";
 
 type CoordinatorPipelineMutationResult = Awaited<
   ReturnType<CoordinatorPipelineStore["save"]>
@@ -16,14 +16,19 @@ type SavedCoordinatorPipelineResult = Extract<
   { status: "saved" }
 >;
 
-type StoredMutationDecision<TResult> =
+// A decision either persists a (narrowed) save attempt or short-circuits with
+// a fully mapped terminal result. Terminal results carry TResult directly, so
+// callers map them where they are produced and no separate mapTerminal hook
+// (or runtime "terminal not supported" failure) exists.
+export type StoredMutationDecision<TSaveAttempt, TResult> =
   | {
-      status: "save";
+      attempt: TSaveAttempt;
       state: CoordinatorPipelineState;
+      status: "save";
     }
   | {
-      status: "terminal";
       result: Promise<TResult> | TResult;
+      status: "terminal";
     };
 
 type StoredMutationAttemptProgress<TResult> =
@@ -36,17 +41,16 @@ type StoredMutationAttemptProgress<TResult> =
       status: "retry";
     };
 
-export type MutationDecisionFunction<TAttempt, TResult> = (
-  attempt: TAttempt,
-  snapshot: CoordinatorPipelineSnapshot
-) => StoredMutationDecision<TResult>;
-
-export interface RunStoredMutationOptions<TAttempt, TResult> {
+export interface RunStoredMutationOptions<
+  TAttempt,
+  TSaveAttempt extends TAttempt,
+  TResult,
+> {
   attempts: number;
   decide(
     attempt: TAttempt,
     snapshot: CoordinatorPipelineSnapshot
-  ): StoredMutationDecision<TResult>;
+  ): StoredMutationDecision<TSaveAttempt, TResult>;
   mutate(state: CoordinatorPipelineState): TAttempt | Promise<TAttempt>;
   onConflict(
     current: CoordinatorPipelineSnapshot | undefined,
@@ -58,7 +62,7 @@ export interface RunStoredMutationOptions<TAttempt, TResult> {
   onMissing(): Promise<TResult> | TResult;
   onSaved(
     saved: SavedCoordinatorPipelineResult,
-    attempt: TAttempt,
+    attempt: TSaveAttempt,
     snapshot: CoordinatorPipelineSnapshot
   ): Promise<TResult> | TResult;
   sessionId: OlosId;
@@ -67,24 +71,19 @@ export interface RunStoredMutationOptions<TAttempt, TResult> {
 
 export interface RunStoredMutationAdapterOptions<
   TAttempt,
-  TDecisionResult,
+  TSaveAttempt extends TAttempt,
   TResult,
 > {
   attempts: number;
   decide(
     attempt: TAttempt,
     snapshot: CoordinatorPipelineSnapshot
-  ): StoredMutationDecision<TDecisionResult>;
+  ): StoredMutationDecision<TSaveAttempt, TResult>;
   mapSaved(
     saved: SavedCoordinatorPipelineResult,
-    attempt: TAttempt,
+    attempt: TSaveAttempt,
     snapshot: CoordinatorPipelineSnapshot
   ): Promise<TResult> | TResult;
-  mapTerminal?: (
-    result: TDecisionResult,
-    attempt: TAttempt,
-    snapshot: CoordinatorPipelineSnapshot
-  ) => Promise<TResult> | TResult;
   mutate(state: CoordinatorPipelineState): TAttempt | Promise<TAttempt>;
   onConflict(
     current: CoordinatorPipelineSnapshot | undefined,
@@ -100,10 +99,10 @@ export interface RunStoredMutationAdapterOptions<
 
 export interface RunStoredMutationAdapterWithConflictResultOptions<
   TAttempt,
-  TDecisionResult,
+  TSaveAttempt extends TAttempt,
   TResult,
 > extends Omit<
-    RunStoredMutationAdapterOptions<TAttempt, TDecisionResult, TResult>,
+    RunStoredMutationAdapterOptions<TAttempt, TSaveAttempt, TResult>,
     "onConflict" | "onExhausted"
   > {
   onConflictOrExhausted(
@@ -114,12 +113,12 @@ export interface RunStoredMutationAdapterWithConflictResultOptions<
 
 export interface RunStoredMutationAdapterWithResponseOptions<
   TAttempt,
-  TDecisionResult,
+  TSaveAttempt extends TAttempt,
   TResult,
 > extends Omit<
     RunStoredMutationAdapterWithConflictResultOptions<
       TAttempt,
-      TDecisionResult,
+      TSaveAttempt,
       TResult
     >,
     "attempts"
@@ -134,8 +133,12 @@ export function positiveMutationAttempts(value: number | undefined): number {
   return attempts;
 }
 
-export async function runStoredCoordinatorMutation<TAttempt, TResult>(
-  options: RunStoredMutationOptions<TAttempt, TResult>
+export async function runStoredCoordinatorMutation<
+  TAttempt,
+  TSaveAttempt extends TAttempt,
+  TResult,
+>(
+  options: RunStoredMutationOptions<TAttempt, TSaveAttempt, TResult>
 ): Promise<TResult> {
   const snapshot = await loadStoredMutationSnapshot({
     sessionId: options.sessionId,
@@ -181,13 +184,17 @@ async function loadStoredMutationSnapshot(options: {
     : parseCoordinatorPipelineSnapshot(snapshot);
 }
 
-async function runStoredCoordinatorMutationAttempt<TAttempt, TResult>({
+async function runStoredCoordinatorMutationAttempt<
+  TAttempt,
+  TSaveAttempt extends TAttempt,
+  TResult,
+>({
   attempt,
   options,
   snapshot,
 }: {
   attempt: TAttempt;
-  options: RunStoredMutationOptions<TAttempt, TResult>;
+  options: RunStoredMutationOptions<TAttempt, TSaveAttempt, TResult>;
   snapshot: CoordinatorPipelineSnapshot;
 }): Promise<StoredMutationAttemptProgress<TResult>> {
   const decision = options.decide(attempt, snapshot);
@@ -207,7 +214,7 @@ async function runStoredCoordinatorMutationAttempt<TAttempt, TResult>({
 
   if (isSavedCoordinatorPipelineMutationResult(saved)) {
     return {
-      result: await options.onSaved(saved, attempt, snapshot),
+      result: await options.onSaved(saved, decision.attempt, snapshot),
       status: "complete",
     };
   }
@@ -227,34 +234,14 @@ async function runStoredCoordinatorMutationAttempt<TAttempt, TResult>({
 
 export function runStoredCoordinatorMutationWithAdapters<
   TAttempt,
-  TDecisionResult,
+  TSaveAttempt extends TAttempt,
   TResult,
 >(
-  options: RunStoredMutationAdapterOptions<TAttempt, TDecisionResult, TResult>
+  options: RunStoredMutationAdapterOptions<TAttempt, TSaveAttempt, TResult>
 ): Promise<TResult> {
-  return runStoredCoordinatorMutation<TAttempt, TResult>({
+  return runStoredCoordinatorMutation<TAttempt, TSaveAttempt, TResult>({
     attempts: options.attempts,
-    decide: (attempt, snapshot) => {
-      const decision = options.decide(attempt, snapshot);
-
-      if (decision.status === "terminal") {
-        if (options.mapTerminal === undefined) {
-          throw new Error("mutation terminal result is not supported");
-        }
-
-        return {
-          status: "terminal",
-          result: Promise.resolve(decision.result).then((result) =>
-            options.mapTerminal?.(result, attempt, snapshot)
-          ) as Promise<TResult>,
-        };
-      }
-
-      return {
-        status: "save",
-        state: decision.state,
-      };
-    },
+    decide: options.decide,
     mutate: options.mutate,
     onConflict: options.onConflict,
     onExhausted: options.onExhausted,
@@ -267,24 +254,23 @@ export function runStoredCoordinatorMutationWithAdapters<
 
 export function runStoredCoordinatorMutationWithAdaptersAndConflict<
   TAttempt,
-  TDecisionResult,
+  TSaveAttempt extends TAttempt,
   TResult,
 >(
   options: RunStoredMutationAdapterWithConflictResultOptions<
     TAttempt,
-    TDecisionResult,
+    TSaveAttempt,
     TResult
   >
 ): Promise<TResult> {
   return runStoredCoordinatorMutationWithAdapters<
     TAttempt,
-    TDecisionResult,
+    TSaveAttempt,
     TResult
   >({
     attempts: options.attempts,
     decide: options.decide,
     mapSaved: options.mapSaved,
-    mapTerminal: options.mapTerminal,
     mutate: options.mutate,
     onConflict: (current, attempt) =>
       options.onConflictOrExhausted(current, attempt),
@@ -298,24 +284,23 @@ export function runStoredCoordinatorMutationWithAdaptersAndConflict<
 
 export function runStoredCoordinatorMutationWithAdaptersAndResponse<
   TAttempt,
-  TDecisionResult,
+  TSaveAttempt extends TAttempt,
   TResult,
 >(
   options: RunStoredMutationAdapterWithResponseOptions<
     TAttempt,
-    TDecisionResult,
+    TSaveAttempt,
     TResult
   >
 ): Promise<TResult> {
   return runStoredCoordinatorMutationWithAdaptersAndConflict<
     TAttempt,
-    TDecisionResult,
+    TSaveAttempt,
     TResult
   >({
     attempts: positiveMutationAttempts(options.maxAttempts),
     decide: options.decide,
     mapSaved: options.mapSaved,
-    mapTerminal: options.mapTerminal,
     mutate: options.mutate,
     onConflictOrExhausted: options.onConflictOrExhausted,
     onMissing: options.onMissing,

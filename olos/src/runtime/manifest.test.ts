@@ -4,12 +4,27 @@ import {
   createEmptyCoordinatorState,
   testCoordinatorSession,
 } from "../protocol/coordinator-state.test-helper";
+import type { CoordinatorPipelineState } from "../protocol/coordinator-types";
 import {
   serveBlockingCoordinatorManifest,
   serveCoordinatorManifest,
 } from "./manifest";
 
 const MEDIA_ORIGIN = "https://media.example.com";
+
+function createEndedCoordinatorState(): CoordinatorPipelineState {
+  const state = createCoordinatorStateWithCommittedSegment();
+
+  if (state.cursor === undefined) {
+    throw new Error("expected committed coordinator cursor");
+  }
+
+  return {
+    ...state,
+    cursor: { ...state.cursor, state: "ended" },
+    session: { ...state.session, state: "ended" },
+  };
+}
 
 describe("runtime manifest adapter", () => {
   test("serves a coordinator media playlist as a web response", async () => {
@@ -28,6 +43,33 @@ describe("runtime manifest adapter", () => {
     expect(await response.text()).toContain(
       "https://media.example.com/media/v1080/s3810.m4s"
     );
+  });
+
+  test("ends served media playlists once the session has ended", async () => {
+    const response = serveCoordinatorManifest({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: testCoordinatorSession.partTarget,
+      request: "/v1/live/session_1/v1080/media.m3u8",
+      segmentTarget: testCoordinatorSession.segmentTarget,
+      state: createEndedCoordinatorState(),
+    });
+
+    expect(response.status).toBe(200);
+    const playlist = await response.text();
+    expect(playlist.endsWith("\n#EXT-X-ENDLIST\n")).toBe(true);
+  });
+
+  test("keeps served media playlists open while the session is live", async () => {
+    const response = serveCoordinatorManifest({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: testCoordinatorSession.partTarget,
+      request: "/v1/live/session_1/v1080/media.m3u8",
+      segmentTarget: testCoordinatorSession.segmentTarget,
+      state: createCoordinatorStateWithCommittedSegment(),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).not.toContain("#EXT-X-ENDLIST");
   });
 
   test("serves coordinator manifests from Request objects", async () => {

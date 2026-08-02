@@ -42,6 +42,32 @@ const session: Session = {
   state: "live",
 };
 
+const groupedSession: Session = {
+  ...session,
+  renditions: [
+    ...session.renditions.filter((rendition) => rendition.kind === "video"),
+    {
+      bitrate: 128_000,
+      channels: 2,
+      codec: "mp4a.40.2",
+      defaultRendition: true,
+      groupId: "aac",
+      kind: "audio",
+      name: "English",
+      renditionId: "a128",
+      sampleRate: 48_000,
+    },
+    {
+      bitrate: 64_000,
+      codec: "ec-3",
+      groupId: "aac",
+      kind: "audio",
+      renditionId: "a64",
+      sampleRate: 48_000,
+    },
+  ],
+};
+
 describe("master playlist rendering", () => {
   test("renders deterministic HLS master playlist", () => {
     expect(renderMasterPlaylist(session)).toBe(`#EXTM3U
@@ -162,6 +188,112 @@ describe("master playlist rendering", () => {
         renditions: [renditionWithoutDimensions],
       })
     ).not.toContain("RESOLUTION=");
+  });
+
+  test("renders EXT-X-MEDIA audio group entries with variant AUDIO wiring", () => {
+    expect(renderMasterPlaylist(groupedSession)).toBe(`#EXTM3U
+#EXT-X-VERSION:10
+#EXT-X-INDEPENDENT-SEGMENTS
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="English",DEFAULT=YES,AUTOSELECT=YES,CHANNELS="2",URI="/v1/live/sess_01JZLIVE/a128/media.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="a64",DEFAULT=NO,AUTOSELECT=YES,URI="/v1/live/sess_01JZLIVE/a64/media.m3u8"
+#EXT-X-STREAM-INF:BANDWIDTH=5000000,AVERAGE-BANDWIDTH=5000000,CODECS="avc1.640028,mp4a.40.2,ec-3",RESOLUTION=1920x1080,FRAME-RATE=30,AUDIO="aac"
+/v1/live/sess_01JZLIVE/v1080/media.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=2800000,AVERAGE-BANDWIDTH=2800000,CODECS="avc1.4d401f,mp4a.40.2,ec-3",RESOLUTION=1280x720,FRAME-RATE=30,AUDIO="aac"
+/v1/live/sess_01JZLIVE/v720/media.m3u8
+`);
+  });
+
+  test("deduplicates grouped audio codecs in variant CODECS attributes", () => {
+    const playlist = renderMasterPlaylist({
+      ...groupedSession,
+      renditions: groupedSession.renditions.map((rendition) =>
+        rendition.kind === "audio"
+          ? { ...rendition, codec: "mp4a.40.2" }
+          : rendition
+      ),
+    });
+
+    expect(playlist).toContain('CODECS="avc1.640028,mp4a.40.2"');
+    expect(playlist).not.toContain("mp4a.40.2,mp4a.40.2");
+  });
+
+  test("defaults the first grouped audio rendition when none is flagged", () => {
+    const playlist = renderMasterPlaylist({
+      ...groupedSession,
+      renditions: groupedSession.renditions.map((rendition) =>
+        rendition.kind === "audio"
+          ? { ...rendition, defaultRendition: undefined }
+          : rendition
+      ),
+    });
+
+    expect(playlist).toContain('NAME="English",DEFAULT=YES');
+    expect(playlist).toContain('NAME="a64",DEFAULT=NO');
+  });
+
+  test("builds grouped audio media playlist URIs with the shared path hook", () => {
+    const playlist = renderMasterPlaylist(groupedSession, {
+      mediaPlaylistPath: (_session, rendition) =>
+        `/live/${rendition.renditionId}.m3u8`,
+    });
+
+    expect(playlist).toContain('URI="/live/a128.m3u8"');
+    expect(playlist).toContain('URI="/live/a64.m3u8"');
+  });
+
+  test("rejects unsafe grouped audio media playlist paths", () => {
+    expect(() =>
+      renderMasterPlaylist(groupedSession, {
+        mediaPlaylistPath: (_session, rendition) =>
+          rendition.kind === "audio"
+            ? "https://example.com/audio.m3u8"
+            : `/live/${rendition.renditionId}.m3u8`,
+      })
+    ).toThrow("media playlist path must be a safe relative path");
+  });
+
+  test("rejects mixed grouped and ungrouped audio renditions", () => {
+    expect(() =>
+      renderMasterPlaylist({
+        ...groupedSession,
+        renditions: [
+          ...groupedSession.renditions,
+          {
+            codec: "mp4a.40.2",
+            kind: "audio",
+            renditionId: "a32",
+          },
+        ],
+      })
+    ).toThrow(
+      "session.renditions must not mix grouped and ungrouped audio renditions"
+    );
+  });
+
+  test("rejects multiple distinct audio groups", () => {
+    expect(() =>
+      renderMasterPlaylist({
+        ...groupedSession,
+        renditions: groupedSession.renditions.map((rendition) =>
+          rendition.renditionId === "a64"
+            ? { ...rendition, groupId: "aac-alt" }
+            : rendition
+        ),
+      })
+    ).toThrow("multiple audio groups are not supported");
+  });
+
+  test("rejects unsafe audio group identifiers", () => {
+    expect(() =>
+      renderMasterPlaylist({
+        ...groupedSession,
+        renditions: groupedSession.renditions.map((rendition) =>
+          rendition.kind === "audio"
+            ? { ...rendition, groupId: "not a group" }
+            : rendition
+        ),
+      })
+    ).toThrow("groupId must be a non-empty URL-safe identifier");
   });
 
   test("rejects video renditions with partial resolution dimensions", () => {

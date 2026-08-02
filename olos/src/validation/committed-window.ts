@@ -28,6 +28,10 @@ interface CommittedSegmentPositionTracker {
   seenSegments: Set<number>;
 }
 
+/**
+ * Returns whether `value` is a valid `CommittedWindow` (see
+ * `assertCommittedWindow`).
+ */
 export function isCommittedWindow(value: unknown): value is CommittedWindow {
   try {
     assertCommittedWindow(value);
@@ -37,6 +41,13 @@ export function isCommittedWindow(value: unknown): value is CommittedWindow {
   }
 }
 
+/**
+ * Validates an untrusted value as a `CommittedWindow`, throwing an `Error`
+ * naming the first offending field. Beyond field shapes, it enforces the
+ * structural invariants manifests rely on: non-empty renditions whose keys
+ * match their `renditionId`, monotonic and duplicate-free media sequence
+ * numbers and part numbers, and a segment or parts on every position.
+ */
 export function assertCommittedWindow(
   value: unknown
 ): asserts value is CommittedWindow {

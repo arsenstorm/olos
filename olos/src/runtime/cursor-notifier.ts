@@ -1,11 +1,21 @@
-import type { HlsCursorWaitContext } from "../hls";
+import type { HlsCursorWaitContext } from "../hls/blocking-reload";
 import type { Cursor } from "../types/cursor";
 import { assertCursor } from "../validation/cursor";
 
 const SEGMENT_ONLY_CURSOR_PART_ORDER = -1;
 
+/**
+ * Bridges commits to blocking playlist reloads: the commit path calls
+ * `notify` with each new cursor, and manifest serving calls `waitForCursor`
+ * to hold a response open until the session advances.
+ */
 export interface RuntimeCursorNotifier {
+  /** Publish a new cursor, waking waiters it has advanced past. */
   notify(cursor: Cursor): void;
+  /**
+   * Resolve with the first cursor that advances past `context.cursor`, or
+   * with `undefined` once `context.signal` aborts.
+   */
   waitForCursor(context: HlsCursorWaitContext): Promise<Cursor | undefined>;
 }
 
@@ -20,6 +30,13 @@ interface CursorProgress {
   lastPartNumber: number;
 }
 
+/**
+ * Create an in-process `RuntimeCursorNotifier` that tracks the latest cursor
+ * per session in memory. `waitForCursor` resolves immediately when the
+ * latest known cursor is already ahead of the caller's; cursors are ordered
+ * by epoch, then media sequence number, then part number. Suitable for a
+ * single-process coordinator only — notifications do not cross processes.
+ */
 export function createMemoryRuntimeCursorNotifier(): RuntimeCursorNotifier {
   const latest = new Map<string, Cursor>();
   const waiters = new Map<string, Set<CursorWaiter>>();

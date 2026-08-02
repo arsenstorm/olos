@@ -14,23 +14,36 @@ import { assertCursor } from "../validation/cursor";
 
 const SEGMENT_ONLY_CURSOR_PART_ORDER = -1;
 
+/** Options for {@link createCursor}. */
 export interface CreateCursorOptions {
   committedWindow: CommittedWindow;
+  /** Highest committed part number within the window's last segment. */
   lastPartNumber?: PartNumber;
   latencyProfile: LatencyProfile;
+  /** Base URL that relative delivery URLs in the window resolve against. */
   mediaBaseUrl: string;
+  /** Target part duration in seconds (`EXT-X-PART-INF` `PART-TARGET`). */
   partTarget: number;
+  /** Target segment duration in seconds (`EXT-X-TARGETDURATION` source). */
   segmentTarget: number;
   sessionId: string;
   state: SessionState;
+  /** ISO timestamp of the commit that produced this cursor. */
   updatedAt: string;
 }
 
+/** Options for {@link resolveCursorUpdate}. */
 export interface ResolveCursorUpdateOptions {
   candidateCursor: Cursor;
   currentCursor: Cursor;
 }
 
+/**
+ * Outcome of {@link resolveCursorUpdate}: `advanced` adopts the candidate,
+ * `idempotent` keeps the current cursor, and `regression` rejects a
+ * candidate behind the current position with an `olos.cursor_regression`
+ * error.
+ */
 export type CursorUpdateResolution =
   | {
       cursor: Cursor;
@@ -41,6 +54,12 @@ export type CursorUpdateResolution =
       status: "regression";
     };
 
+/**
+ * Build the {@link Cursor} document published to delivery edges for a
+ * committed window. The epoch and window bounds are copied from
+ * `committedWindow` and the OLOS wire version is stamped automatically.
+ * Pure; throws when the resulting cursor fails validation.
+ */
 export function createCursor(options: CreateCursorOptions): Cursor {
   const cursor: Cursor = {
     committedWindow: options.committedWindow,
@@ -67,6 +86,15 @@ export function createCursor(options: CreateCursorOptions): Cursor {
   return cursor;
 }
 
+/**
+ * Decide whether a candidate cursor may replace the current one. Position
+ * is compared by epoch, then last media sequence number, then last part
+ * number (a segment-only cursor sorts before any part). A candidate ahead
+ * of the current position is `advanced`; one at the same position is
+ * `advanced` when its committed window content differs and `idempotent`
+ * when the windows are deep-equal; one behind the current position is a
+ * `regression` and must not be published. Pure.
+ */
 export function resolveCursorUpdate(
   options: ResolveCursorUpdateOptions
 ): CursorUpdateResolution {

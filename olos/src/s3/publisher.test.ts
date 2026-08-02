@@ -1,17 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { createMemoryCoordinatorStore } from "../protocol";
+import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
 import {
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import { savedStoreResult } from "../protocol/test-store.test-helper";
+import { resolveRuntimePublisherLoopDecision } from "../runtime/publisher";
 import {
   createRuntimePublisherLease,
-  heartbeatStoredCoordinatorPublisher,
   refreshRuntimePublisherLease,
   resolveRuntimePublisherLeaseStatus,
-  resolveRuntimePublisherLoopDecision,
-} from "../runtime";
+} from "../runtime/publisher-lease";
+import { heartbeatStoredCoordinatorPublisher } from "../runtime/session";
 import {
   commitStoredS3CoordinatorUpload,
   issueStoredS3CoordinatorUploadGrant,
@@ -42,7 +42,7 @@ describe("stored S3 publisher upload step", () => {
       client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
       headObjectClient: createTestHeadObjectClientForSingle(
-        "media/v1080/s3810/segment-slot_01JZ.m4s",
+        "media/v1080/s3810-slot_01JZ.m4s",
         98_304,
         headObjectInputs
       ),
@@ -74,7 +74,7 @@ describe("stored S3 publisher upload step", () => {
     expect(summarizeStoredS3PublisherUploadStep(step)).toEqual({
       commitId: "commit_v1080_s3810",
       commitStatus: "committed",
-      objectKey: "media/v1080/s3810/segment-slot_01JZ.m4s",
+      objectKey: "media/v1080/s3810-slot_01JZ.m4s",
       ok: true,
       slotId: "slot_v1080_s3810",
       status: "committed",
@@ -84,7 +84,7 @@ describe("stored S3 publisher upload step", () => {
       ttlSeconds: 5,
     });
     expect(step.plan.commitId).toBe("commit_v1080_s3810");
-    expect(step.plan.objectKey).toBe("media/v1080/s3810/segment-slot_01JZ.m4s");
+    expect(step.plan.objectKey).toBe("media/v1080/s3810-slot_01JZ.m4s");
     expect(step.plan.slot).toMatchObject({
       expiresAt: step.expiry.expiresAt,
       slotId: "slot_v1080_s3810",
@@ -93,7 +93,7 @@ describe("stored S3 publisher upload step", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810/segment-slot_01JZ.m4s",
+        Key: "media/v1080/s3810-slot_01JZ.m4s",
       },
     ]);
   });
@@ -111,7 +111,7 @@ describe("stored S3 publisher upload step", () => {
       client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
       headObjectClient: createTestHeadObjectClientForSingle(
-        "media/v1080/s3810/segment-slot_01M0.m4s",
+        "media/v1080/s3810-slot_01M0.m4s",
         98_304,
         headObjectInputs
       ),
@@ -151,7 +151,7 @@ describe("stored S3 publisher upload step", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810/segment-slot_01M0.m4s",
+        Key: "media/v1080/s3810-slot_01M0.m4s",
       },
     ]);
   });
@@ -169,7 +169,7 @@ describe("stored S3 publisher upload step", () => {
       committedAt: "2026-01-01T00:00:02.000Z",
       defaults: objectDefaults,
       headObjectClient: createTestHeadObjectClientForSingle(
-        "media/v1080/s3810/segment-slot_01K0.m4s",
+        "media/v1080/s3810-slot_01K0.m4s",
         98_304,
         headObjectInputs
       ),
@@ -200,12 +200,12 @@ describe("stored S3 publisher upload step", () => {
       expiresAt: "2026-01-01T00:00:05.000Z",
       ttlSeconds: 5,
     });
-    expect(step.plan.objectKey).toBe("media/v1080/s3810/segment-slot_01K0.m4s");
+    expect(step.plan.objectKey).toBe("media/v1080/s3810-slot_01K0.m4s");
     expect(uploadedUrls).toHaveLength(1);
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810/segment-slot_01K0.m4s",
+        Key: "media/v1080/s3810-slot_01K0.m4s",
       },
     ]);
   });
@@ -259,7 +259,7 @@ describe("stored S3 publisher upload step", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810/segment-slot_01L0.m4s",
+        Key: "media/v1080/s3810-slot_01L0.m4s",
       },
     ]);
   });
@@ -374,7 +374,7 @@ describe("stored S3 publisher upload step", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810/segment-slot_01L0.m4s",
+        Key: "media/v1080/s3810-slot_01L0.m4s",
       },
     ]);
   });
@@ -399,7 +399,7 @@ describe("stored S3 publisher upload step", () => {
         status: "rejected",
       }),
       headObjectClient: createTestHeadObjectClientForSingle(
-        "media/v1080/s3810/segment-slot_01K1.m4s",
+        "media/v1080/s3810-slot_01K1.m4s",
         98_304,
         headObjectInputs
       ),
@@ -425,7 +425,7 @@ describe("stored S3 publisher upload step", () => {
     expect(summarizeStoredS3PublisherUploadStep(step)).toMatchObject({
       commitStatus: "rejected",
       errorCode: "olos.quota_exceeded",
-      objectKey: "media/v1080/s3810/segment-slot_01K1.m4s",
+      objectKey: "media/v1080/s3810-slot_01K1.m4s",
       ok: false,
       slotId: "slot_v1080_s3810",
       status: "commit_failed",
@@ -628,7 +628,7 @@ describe("stored S3 publisher upload step", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810/segment-slot_01L0.m4s",
+        Key: "media/v1080/s3810-slot_01L0.m4s",
       },
     ]);
   });
@@ -736,7 +736,7 @@ function nextStepOptions(options: {
     committedAt: "2026-01-01T00:00:02.000Z",
     defaults: objectDefaults,
     headObjectClient: createTestHeadObjectClientForSingle(
-      "media/v1080/s3810/segment-slot_01L0.m4s",
+      "media/v1080/s3810-slot_01L0.m4s",
       98_304,
       options.headObjectInputs
     ),

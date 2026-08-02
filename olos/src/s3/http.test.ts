@@ -1,23 +1,25 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import {
-  type CoordinatorPipelineState,
-  type CoordinatorPipelineStore,
-  commitCoordinatorUpload,
-  createMemoryCoordinatorStore,
-  issueCoordinatorSlot,
-} from "../protocol";
+import { commitCoordinatorUpload } from "../protocol/coordinator-commit";
+import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
+import { issueCoordinatorSlot } from "../protocol/coordinator-slot";
 import {
   createEmptyCoordinatorState,
   TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
+import type {
+  CoordinatorPipelineState,
+  CoordinatorPipelineStore,
+} from "../protocol/coordinator-types";
+import { expectOlosErrorEnvelope } from "../runtime/test-error-envelope.test-helper";
 import {
   jsonPostRequest,
   jsonResponseBody,
   jsonResponseStatusAndBody,
 } from "../runtime/test-http.test-helper";
-import { createObservedUpload, createPublicationKillSwitch } from "../state";
+import { createObservedUpload } from "../state/observed-upload";
+import { createPublicationKillSwitch } from "../state/publication-control";
 import type { Cursor } from "../types/cursor";
 import {
   createStoredS3CoordinatorRuntimeHandler,
@@ -173,7 +175,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
       body: {
-        error: { message: "S3 slot grant request must be a JSON object" },
+        error: {
+          code: "olos.invalid_request",
+          message: "S3 slot grant request must be a JSON object",
+        },
       },
       status: 400,
     });
@@ -196,7 +201,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
       body: {
-        error: { message: "S3 commit request must be a JSON object" },
+        error: {
+          code: "olos.invalid_request",
+          message: "S3 commit request must be a JSON object",
+        },
       },
       status: 400,
     });
@@ -821,6 +829,7 @@ describe("stored S3 coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
       body: {
         error: {
+          code: "olos.invalid_request",
           message: "completion hint must not include deliveryUrl",
         },
       },
@@ -875,6 +884,7 @@ describe("stored S3 coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(unsafeObjectKey)).resolves.toEqual({
       body: {
         error: {
+          code: "olos.invalid_request",
           message: "objectKey must be a safe relative object key",
         },
       },
@@ -895,6 +905,7 @@ describe("stored S3 coordinator runtime handler", () => {
       {
         body: {
           error: {
+            code: "olos.invalid_request",
             message: "slotId must be a non-empty URL-safe identifier",
           },
         },
@@ -980,7 +991,10 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonResponseStatusAndBody(unsafeCompletionHintResponse)
     ).resolves.toEqual({
       body: {
-        error: { message: "completion hint must not include deliveryUrl" },
+        error: {
+          code: "olos.invalid_request",
+          message: "completion hint must not include deliveryUrl",
+        },
       },
       status: 400,
     });
@@ -996,30 +1010,33 @@ describe("stored S3 coordinator runtime handler", () => {
       store: createMemoryCoordinatorStore(),
     });
 
-    expect(
-      await handle(
-        new Request("https://edge.example.com/sessions/missing/s3/slots")
+    const methodNotAllowed = await handle(
+      new Request("https://edge.example.com/sessions/missing/s3/slots")
+    );
+    const sessionNotFound = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/missing/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "media/v1080/s3810.m4s",
+          slotId: "slot_3810",
+        })
       )
-    ).toHaveProperty("status", 405);
-    expect(
-      await handle(
-        jsonRequest(
-          "https://edge.example.com/sessions/missing/s3/slots",
-          slotPayload({
-            deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-            duration: 2,
-            kind: "segment",
-            maxBytes: 100_000,
-            mediaSequenceNumber: 3810,
-            objectKey: "media/v1080/s3810.m4s",
-            slotId: "slot_3810",
-          })
-        )
-      )
-    ).toHaveProperty("status", 404);
-    expect(
-      await handle(new Request("https://edge.example.com/unknown"))
-    ).toHaveProperty("status", 404);
+    );
+    const routeNotFound = await handle(
+      new Request("https://edge.example.com/unknown")
+    );
+
+    expect(methodNotAllowed).toHaveProperty("status", 405);
+    expect(sessionNotFound).toHaveProperty("status", 404);
+    expect(routeNotFound).toHaveProperty("status", 404);
+    await expectOlosErrorEnvelope(methodNotAllowed);
+    await expectOlosErrorEnvelope(sessionNotFound);
+    await expectOlosErrorEnvelope(routeNotFound);
   });
 
   test("rejects unsafe S3 route session identifiers", async () => {
@@ -1050,6 +1067,7 @@ describe("stored S3 coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
       body: {
         error: {
+          code: "olos.invalid_request",
           message: "sessionId must be a non-empty URL-safe identifier",
         },
       },
@@ -1082,9 +1100,13 @@ describe("stored S3 coordinator runtime handler", () => {
       )
     );
 
+    await expectOlosErrorEnvelope(response);
     await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
       body: {
-        error: { message: "route path contains invalid percent encoding" },
+        error: {
+          code: "olos.invalid_request",
+          message: "route path contains invalid percent encoding",
+        },
       },
       status: 400,
     });
@@ -1135,7 +1157,9 @@ describe("stored S3 coordinator runtime handler", () => {
       );
 
       await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
-        body: { error: { message: testCase.expected } },
+        body: {
+          error: { code: "olos.invalid_request", message: testCase.expected },
+        },
         status: 400,
       });
     }
@@ -1204,7 +1228,9 @@ describe("stored S3 coordinator runtime handler", () => {
       );
 
       await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
-        body: { error: { message: testCase.expected } },
+        body: {
+          error: { code: "olos.invalid_request", message: testCase.expected },
+        },
         status: 400,
       });
     }
@@ -1245,6 +1271,7 @@ describe("stored S3 coordinator runtime handler", () => {
     await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
       body: {
         error: {
+          code: "olos.invalid_request",
           message: "kind must be one of: init, part, segment",
         },
       },
@@ -1532,11 +1559,13 @@ describe("stored S3 coordinator runtime handler", () => {
     );
     const body = await jsonResponseBody<{
       error: {
+        code: string;
         message: string;
       };
     }>(response);
 
     expect(response.status).toBe(400);
+    expect(body.error.code).toBe("olos.invalid_request");
     expect(body.error.message).toBe(
       "providerId must be configured or provided"
     );
@@ -1637,7 +1666,9 @@ describe("stored S3 coordinator runtime handler", () => {
       );
 
       await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
-        body: { error: { message: testCase.expected } },
+        body: {
+          error: { code: "olos.invalid_request", message: testCase.expected },
+        },
         status: 400,
       });
     }
@@ -1687,7 +1718,10 @@ describe("stored S3 coordinator runtime handler", () => {
 
     await expect(jsonResponseStatusAndBody(commitResponse)).resolves.toEqual({
       body: {
-        error: { message: "maxSegments must be a positive integer" },
+        error: {
+          code: "olos.invalid_request",
+          message: "maxSegments must be a positive integer",
+        },
       },
       status: 400,
     });
@@ -1695,7 +1729,10 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonResponseStatusAndBody(reconciliationResponse)
     ).resolves.toEqual({
       body: {
-        error: { message: "maxSegments must be a positive integer" },
+        error: {
+          code: "olos.invalid_request",
+          message: "maxSegments must be a positive integer",
+        },
       },
       status: 400,
     });
@@ -1703,7 +1740,10 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonResponseStatusAndBody(commitLateToleranceResponse)
     ).resolves.toEqual({
       body: {
-        error: { message: "lateToleranceMs must be a non-negative number" },
+        error: {
+          code: "olos.invalid_request",
+          message: "lateToleranceMs must be a non-negative number",
+        },
       },
       status: 400,
     });
@@ -1711,7 +1751,10 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonResponseStatusAndBody(reconciliationLateToleranceResponse)
     ).resolves.toEqual({
       body: {
-        error: { message: "lateToleranceMs must be a non-negative number" },
+        error: {
+          code: "olos.invalid_request",
+          message: "lateToleranceMs must be a non-negative number",
+        },
       },
       status: 400,
     });
@@ -1772,7 +1815,9 @@ describe("stored S3 coordinator runtime handler", () => {
       );
 
       await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
-        body: { error: { message: testCase.expected } },
+        body: {
+          error: { code: "olos.invalid_request", message: testCase.expected },
+        },
         status: 400,
       });
     }
@@ -2626,6 +2671,7 @@ describe("stored S3 coordinator runtime handler", () => {
       },
       {
         error: {
+          code: "olos.invalid_state",
           message: "unexpected object key: media/v1080/s3810.m4s",
         },
         slotId: "slot_3810",
@@ -3043,6 +3089,167 @@ describe("stored S3 coordinator runtime handler", () => {
     });
     expect(after?.state.cursor).toEqual(before?.state.cursor);
   });
+
+  test("persists pruned coordinator state through the S3 retention route", async () => {
+    const { deleteInputs, handle, store } = createS3HttpTestHarness();
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        session,
+      })
+    );
+
+    for (const object of retentionObjects()) {
+      await handle(
+        jsonRequest(
+          "https://edge.example.com/sessions/session_1/s3/slots",
+          slotPayload(object)
+        )
+      );
+      await handle(
+        jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+          commitId: object.commitId,
+          committedAt: "2026-01-01T00:00:02.000Z",
+          independent: object.kind === "segment",
+          objectKey: object.objectKey,
+          providerId: "s3_primary",
+          slotId: object.slotId,
+          ...(object.maxSegments === undefined
+            ? {}
+            : { maxSegments: object.maxSegments }),
+        })
+      );
+    }
+
+    // An issued slot whose grant expires without an upload: before this
+    // route persisted retention, it lingered in the snapshot forever on
+    // idle sessions.
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/s3813.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3813,
+          objectKey: "media/v1080/s3813.m4s",
+          slotId: "slot_3813",
+        })
+      )
+    );
+
+    const seededStale = await seedStaleRetiredCommit(store);
+    const before = await store.load(session.sessionId);
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/retention", {
+        now: "2026-01-01T00:00:06.000Z",
+      })
+    );
+    const body =
+      await jsonResponseBody<StoredS3CoordinatorRetentionResponse>(response);
+    const after = await store.load(session.sessionId);
+
+    expect(before?.state.slots.map((slot) => slot.slotId)).toContain(
+      "slot_3813"
+    );
+    expect(response.status).toBe(202);
+    expect(body.plan.expiredSlots.map((slot) => slot.slotId)).toEqual([
+      "slot_3813",
+    ]);
+    expect(body.plan.retiredObjects).toEqual([seededStale.retiredObject]);
+    expect(body.result.deletedObjects).toEqual([seededStale.retiredObject]);
+    expect(body.result.failedObjects).toEqual([]);
+    expect(body.summary).toMatchObject({ deleted: 1, ok: true, planned: 1 });
+    // Commit-time auto-retention deleted the original orphan; the retention
+    // route deleted the seeded stale copy.
+    expect(deleteInputs).toEqual([
+      { Bucket: S3_BUCKET, Key: "media/v1080/s3810.m4s" },
+      { Bucket: S3_BUCKET, Key: "media/v1080/s3810.m4s" },
+    ]);
+    expect(after?.state.slots.map((slot) => slot.slotId)).toEqual([
+      "slot_init",
+      "slot_3811",
+      "slot_3812",
+    ]);
+    expect(after?.state.commits.map((commit) => commit.commitId)).toEqual([
+      "commit_3811",
+      "commit_3812",
+    ]);
+    expect(after?.state.cursor).toEqual(before?.state.cursor);
+  });
+
+  test("prunes stored coordinator state before attempting S3 retention deletes", async () => {
+    const { deleteInputs, handle, store } = createS3HttpTestHarness({
+      failingDeleteKey: "media/v1080/s3810.m4s",
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        session,
+      })
+    );
+
+    for (const object of retentionObjects()) {
+      await handle(
+        jsonRequest(
+          "https://edge.example.com/sessions/session_1/s3/slots",
+          slotPayload(object)
+        )
+      );
+      await handle(
+        jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+          commitId: object.commitId,
+          committedAt: "2026-01-01T00:00:02.000Z",
+          independent: object.kind === "segment",
+          objectKey: object.objectKey,
+          providerId: "s3_primary",
+          slotId: object.slotId,
+          ...(object.maxSegments === undefined
+            ? {}
+            : { maxSegments: object.maxSegments }),
+        })
+      );
+    }
+
+    const seededStale = await seedStaleRetiredCommit(store);
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/retention", {
+        now: "2026-01-01T00:00:06.000Z",
+      })
+    );
+    const body =
+      await jsonResponseBody<StoredS3CoordinatorRetentionResponse>(response);
+    const after = await store.load(session.sessionId);
+
+    expect(response.status).toBe(202);
+    expect(body.plan.retiredObjects).toEqual([seededStale.retiredObject]);
+    expect(body.result.deletedObjects).toEqual([]);
+    expect(body.result.failedObjects).toEqual([
+      {
+        error: "delete failed",
+        object: seededStale.retiredObject,
+      },
+    ]);
+    // The pruned state was persisted BEFORE the delete attempt, so a failed
+    // delete leaves an orphaned object for bucket lifecycle to sweep instead
+    // of a snapshot that grows forever.
+    expect(deleteInputs).toEqual([
+      { Bucket: S3_BUCKET, Key: "media/v1080/s3810.m4s" },
+      { Bucket: S3_BUCKET, Key: "media/v1080/s3810.m4s" },
+    ]);
+    expect(after?.state.commits.map((commit) => commit.commitId)).toEqual([
+      "commit_3811",
+      "commit_3812",
+    ]);
+    expect(after?.state.slots.map((slot) => slot.slotId)).toEqual([
+      "slot_init",
+      "slot_3811",
+      "slot_3812",
+    ]);
+  });
 });
 
 interface SlotPayloadOptions {
@@ -3237,6 +3444,53 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
       slotId: "slot_3812",
     },
   ];
+}
+
+// Re-introduce a commit + slot that commit-time auto-retention already
+// pruned, modelling a snapshot persisted before retention pruning existed.
+// The donor fixture derives the same read-gated object addresses as the
+// HTTP-created session, so the stale pair is consistent with the store.
+async function seedStaleRetiredCommit(
+  store: CoordinatorPipelineStore
+): Promise<{
+  retiredObject: { commitId: string; objectKey: string; slotId: string };
+}> {
+  const donor = committedSegmentState();
+  const staleCommit = donor.commits.find(
+    (commit) => commit.commitId === "commit_3810"
+  );
+  const staleSlot = donor.slots.find((slot) => slot.slotId === "slot_3810");
+  const current = await store.load(session.sessionId);
+
+  if (
+    staleCommit === undefined ||
+    staleSlot === undefined ||
+    current === undefined
+  ) {
+    throw new Error("expected stale retention fixtures");
+  }
+
+  const saved = await store.save({
+    expectedEtag: current.etag,
+    sessionId: session.sessionId,
+    state: {
+      ...current.state,
+      commits: [staleCommit, ...current.state.commits],
+      slots: [staleSlot, ...current.state.slots],
+    },
+  });
+
+  if (saved.status !== "saved") {
+    throw new Error("expected stale retention state to save");
+  }
+
+  return {
+    retiredObject: {
+      commitId: staleCommit.commitId,
+      objectKey: staleCommit.objectKey,
+      slotId: staleCommit.slotId,
+    },
+  };
 }
 
 function jsonRequest(url: string, body: unknown): Request {

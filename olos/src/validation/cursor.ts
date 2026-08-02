@@ -34,6 +34,7 @@ const CURSOR_WINDOW_FIELDS = [
   "lastPartNumber",
 ] as const;
 
+/** Returns whether `value` is a valid `Cursor` (see `assertCursor`). */
 export function isCursor(value: unknown): value is Cursor {
   try {
     assertCursor(value);
@@ -43,6 +44,12 @@ export function isCursor(value: unknown): value is Cursor {
   }
 }
 
+/**
+ * Validates an untrusted value as a wire-format `Cursor`, throwing an
+ * `Error` naming the first offending field. Checks the `olos` wire version,
+ * rejects unknown fields, validates the embedded committed window, and
+ * requires the cursor's `window` bounds and epoch to agree with it.
+ */
 export function assertCursor(value: unknown): asserts value is Cursor {
   if (!isRecord(value)) {
     throw new Error("cursor must be an object");

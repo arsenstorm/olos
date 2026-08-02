@@ -3,7 +3,7 @@ import type {
   GetObjectCommand as GetObjectCommandType,
 } from "@aws-sdk/client-s3";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import type { CoordinatorPipelineStore } from "../protocol";
+import type { CoordinatorPipelineStore } from "../protocol/coordinator-types";
 import type { CommittedPart } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
 
@@ -17,6 +17,7 @@ export interface S3GetObjectClient {
   send(command: GetObjectCommandType): Promise<GetObjectCommandOutput>;
 }
 
+/** Parsed byte range from an HTTP `Range: bytes=start-end` request header. */
 export interface ByterangeRangeRequest {
   /** Inclusive end byte. `undefined` means open-ended (`bytes=start-`). */
   end?: number;
@@ -24,15 +25,25 @@ export interface ByterangeRangeRequest {
   start: number;
 }
 
+/** Arguments passed to a {@link ByterangeCursorWait} callback. */
 export interface ByterangeCursorWaitContext {
+  /** Cursor the response has already seen; wait for one that advances past it. */
   cursor: Cursor;
+  /** Aborted when the wait times out or the viewer disconnects. */
   signal: AbortSignal;
 }
 
+/**
+ * Callback that resolves with the session's next cursor once a commit advances
+ * it past `context.cursor`, or with `undefined` if `context.signal` aborts
+ * first. Backed by whatever notification channel the runtime provides
+ * (Durable Object wakeups, pub/sub, polling).
+ */
 export type ByterangeCursorWait = (
   context: ByterangeCursorWaitContext
 ) => Promise<Cursor | undefined>;
 
+/** Options for {@link createByterangeSegmentResponse}. */
 export interface CreateByterangeSegmentResponseOptions {
   bucket: string;
   client: S3GetObjectClient;
@@ -64,6 +75,12 @@ interface ResolvedByterangeParts {
  * blocks on `cursorWait` until the next commit lands, then continues — the
  * mechanism that makes `EXT-X-PRELOAD-HINT` deliver bytes as soon as the
  * streamer publishes them.
+ *
+ * Bounded ranges (`range.end` set) are served as 206 with a `content-range`
+ * and `content-length`; if the committed parts run out before the promised
+ * end, the stream errors rather than closing short. Open-ended requests
+ * (no `range.end`, any offset) stream a live aggregate of unknown total
+ * length and are served as 200 without `content-range`/`content-length`.
  */
 export async function createByterangeSegmentResponse(
   options: CreateByterangeSegmentResponseOptions
@@ -87,7 +104,7 @@ export async function createByterangeSegmentResponse(
 
   const stream = createByterangeStream(options, initial, range);
   const headers = responseHeaders(range);
-  const status = range.start === 0 && range.end === undefined ? 200 : 206;
+  const status = range.end === undefined ? 200 : 206;
 
   return new Response(stream, { headers, status });
 }
@@ -142,11 +159,21 @@ async function drainByterange(
         state.position,
         range.end
       );
+      if (written === 0) {
+        // `streamPart` throws before returning 0; guard against regressions
+        // that would otherwise spin this loop forever on the same part.
+        throw new Error("byterange stream made no forward progress");
+      }
       state.position += written;
       continue;
     }
 
     if (!(await advanceCursor(options, state, timeoutMs))) {
+      if (range.end !== undefined && state.position <= range.end) {
+        // A bounded response already promised `content-length`; erroring the
+        // stream surfaces an aborted transfer instead of a silently short 206.
+        throw new Error("byterange stream ended before requested end");
+      }
       return;
     }
   }
@@ -209,7 +236,7 @@ async function streamPart(
   );
 
   if (response.Body === undefined) {
-    return 0;
+    throw new Error(`part object returned no body: ${part.objectKey}`);
   }
 
   const reader = response.Body.transformToWebStream().getReader();
@@ -223,6 +250,12 @@ async function streamPart(
     written += value.length;
   }
   reader.releaseLock();
+
+  if (written === 0) {
+    throw new Error(
+      `part object returned no bytes for requested range: ${part.objectKey}`
+    );
+  }
 
   return written;
 }
@@ -315,9 +348,9 @@ function responseHeaders(range: ByterangeRangeRequest): Headers {
   if (range.end !== undefined) {
     headers.set("content-range", `bytes ${range.start}-${range.end}/*`);
     headers.set("content-length", String(range.end - range.start + 1));
-  } else if (range.start > 0) {
-    // Open-ended ranges are streamed as chunked; total length is unknown.
-    headers.set("content-range", `bytes ${range.start}-/*`);
   }
+  // Open-ended requests stream a live aggregate of unknown total length, so
+  // they carry no content-range (RFC 9110 requires a last-byte-pos) and no
+  // content-length.
   return headers;
 }

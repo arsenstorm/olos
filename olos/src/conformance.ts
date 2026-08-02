@@ -8,28 +8,76 @@ import {
   getOlosConformanceCoverage as metadataGetOlosConformanceCoverage,
   isOlosConformanceAssertionId as metadataIsOlosConformanceAssertionId,
 } from "./conformance/metadata";
+import { OLOS_CONFORMANCE_SPEC_REFS as specRefs } from "./conformance/spec-refs";
+import { createCoordinatorPipeline } from "./protocol/coordinator-lifecycle";
+import { issueCoordinatorSlot } from "./protocol/coordinator-slot";
+import type {
+  CoordinatorPipelineStore,
+  CoordinatorStoreSave,
+} from "./protocol/coordinator-types";
 import {
-  type CoordinatorPipelineStore,
-  type CoordinatorStoreSave,
-  createCoordinatorPipeline,
-  issueCoordinatorSlot,
-} from "./protocol/coordinator";
+  assertSerializedCoordinatorStoreBackendConformance as assertSerializedStoreBackendConformance,
+  type AssertSerializedCoordinatorStoreBackendConformanceOptions as SerializedStoreBackendConformanceOptions,
+} from "./protocol/serialized-store";
 import type { Session } from "./types/session";
 
+/**
+ * Conformance harness for `SerializedCoordinatorStoreBackend`
+ * implementations: exercises insert, etag-checked update, conflict, and
+ * cursor-view behavior against a candidate backend, throwing on the first
+ * violation. Run it in the test suite of any custom backend.
+ */
+export const assertSerializedCoordinatorStoreBackendConformance =
+  assertSerializedStoreBackendConformance;
+/**
+ * Options for `assertSerializedCoordinatorStoreBackendConformance`.
+ */
+export type AssertSerializedCoordinatorStoreBackendConformanceOptions =
+  SerializedStoreBackendConformanceOptions;
+/**
+ * Looks up the coverage entry for a conformance assertion id, or
+ * `undefined` for an unknown id.
+ */
 export const getOlosConformanceCoverage = metadataGetOlosConformanceCoverage;
+/** Returns whether `value` is a known OLOS conformance assertion id. */
 export const isOlosConformanceAssertionId =
   metadataIsOlosConformanceAssertionId;
+/** Every assertion id defined by the OLOS conformance suite. */
 export const OLOS_CONFORMANCE_ASSERTION_IDS = metadataAssertionIds;
+/**
+ * The full conformance coverage table: one entry per assertion id, naming
+ * the test file that covers it and whether coverage is complete or
+ * partial.
+ */
 export const OLOS_CONFORMANCE_COVERAGE = metadataCoverage;
+/**
+ * Spec section number that claims each conformance assertion id (from the
+ * `olos-conformance` anchors in `spec/*.md`), or `null` for assertions not
+ * yet referenced by a spec section.
+ */
+export const OLOS_CONFORMANCE_SPEC_REFS = specRefs;
+/** Identifier of one assertion in the OLOS conformance suite. */
 export type OlosConformanceAssertionId = MetadataAssertionId;
+/** One row of the conformance coverage table. */
 export type OlosConformanceCoverage = MetadataCoverage;
+/** Whether an assertion is fully (`covered`) or partially covered. */
 export type OlosConformanceCoverageStatus = MetadataCoverageStatus;
+/** Specification area an assertion belongs to (core, hls, object, ...). */
 export type OlosConformanceLevel = MetadataLevel;
 
+/** Options for `assertCoordinatorPipelineStoreConformance`. */
 export interface AssertCoordinatorPipelineStoreConformanceOptions {
+  /** Factory producing a fresh, empty store for the conformance run. */
   createStore(): CoordinatorPipelineStore | Promise<CoordinatorPipelineStore>;
 }
 
+/**
+ * Conformance harness for `CoordinatorPipelineStore` implementations:
+ * verifies load/save round-trips, etag-mismatch and duplicate-insert
+ * conflicts, and that the store never aliases caller state objects.
+ * Throws an `Error` describing the first violated expectation. Run it in
+ * the test suite of any custom store.
+ */
 export async function assertCoordinatorPipelineStoreConformance(
   options: AssertCoordinatorPipelineStoreConformanceOptions
 ): Promise<void> {

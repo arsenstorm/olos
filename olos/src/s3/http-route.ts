@@ -1,10 +1,9 @@
+import { routeIdentifierError, sessionRouteParts } from "../runtime/route";
 import {
-  routeIdentifierError,
   S3_COMPLETION_HINT_ACTION,
   S3_ROUTE_ACTIONS,
   S3_SESSION_ROUTE_SEGMENT,
-  s3RouteParts,
-} from "../runtime/route";
+} from "./route";
 
 interface InvalidS3Route {
   message: string;
@@ -69,7 +68,7 @@ type MatchedS3RouteParts = Extract<S3Route, { status: "matched" }>;
 
 export function s3Route(request: Request, options: S3RouteOptions): S3Route {
   const url = new URL(request.url);
-  const parts = s3RouteParts(url.pathname, options);
+  const parts = sessionRouteParts(url.pathname, options);
 
   if (parts === undefined) {
     return { status: "not_s3" };

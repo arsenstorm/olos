@@ -1,9 +1,9 @@
+import { isRecord } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
-import { optionalField } from "./optional-field";
 import {
-  isRecord,
   optionalBooleanField,
+  optionalField,
   optionalNonNegativeNumberField,
   optionalPositiveIntegerField,
   optionalStringField,
@@ -46,49 +46,29 @@ export interface ProviderIdOptions {
   providerId?: string;
 }
 
+/**
+ * Description of an uploaded object as observed at the storage provider,
+ * carried in a commit payload's `object` field.
+ */
 export interface ParsedObservedUploadPayload {
   contentType: string;
+  /** Provider etag of the stored object, when the provider reports one. */
   etag?: string;
+  /** Provider metadata attached to the object; string values only. */
   metadata?: Record<string, string | undefined>;
   objectKey: string;
+  /** When the provider observed the upload, as an ISO 8601 timestamp. */
   observedAt: string;
+  /** Storage provider that observed the upload. */
   providerId: string;
+  /** Object size in bytes; must be positive. */
   size: number;
 }
 
-export interface S3CommitPayloadParseOverrides {
-  commitId?: string;
-  slotId?: string;
-}
-
-export interface ParsedS3CommitPayload {
-  commitId: string;
-  committedAt: string;
-  independent?: boolean;
-  lateToleranceMs?: number;
-  maxSegments?: number;
-  objectKey?: string;
-  programDateTime?: string;
-  providerId: string;
-  slotId: string;
-  versionId?: string;
-}
-
-export interface ParsedS3ReconciliationPayload
-  extends ProviderResolvedCommitPayload {
-  slotIds?: readonly string[];
-  versionId?: string;
-}
-
-type ParsedS3CommitIdentity = Pick<
-  ParsedS3CommitPayload,
-  "commitId" | "slotId"
->;
-
-type ParsedS3CommitObjectHints = Partial<
-  Pick<ParsedS3CommitPayload, "objectKey" | "versionId">
->;
-
+/**
+ * Wire payload for committing an upload: the commit identity and timing
+ * fields plus the observed object being committed.
+ */
 export interface RuntimeCommitPayload extends ParsedCommitPayload {
   object: ParsedObservedUploadPayload;
 }
@@ -97,14 +77,6 @@ export type RuntimeCommitRequestParse<Invalid> = RuntimeJsonRequestParse<
   RuntimeCommitPayload,
   Invalid
 >;
-
-export type S3CommitPayloadRequestParse<Invalid> = RuntimeJsonRequestParse<
-  ParsedS3CommitPayload,
-  Invalid
->;
-
-export type S3ReconciliationPayloadRequestParse<Invalid> =
-  RuntimeJsonRequestParse<ParsedS3ReconciliationPayload, Invalid>;
 
 export function parseObservedUploadPayload(
   value: unknown,
@@ -143,52 +115,6 @@ export function parseRuntimeCommitPayloadRequest<Invalid>(
   );
 }
 
-export function parseS3CommitPayloadRequest<Invalid>(
-  request: Request | ParsedS3CommitPayload,
-  invalid: (message: string) => Invalid,
-  fallbackMessage: string,
-  options: ProviderIdOptions,
-  parseCommittedAt: ParseTimestampField = parseCommitTimestamp,
-  overrides: S3CommitPayloadParseOverrides = {},
-  payloadName = "S3 commit request"
-): Promise<S3CommitPayloadRequestParse<Invalid>> {
-  return parseRuntimeJsonRequest(
-    request,
-    (value) =>
-      parseS3CommitPayloadPayload(
-        value,
-        options,
-        parseCommittedAt,
-        overrides,
-        payloadName
-      ),
-    invalid,
-    fallbackMessage
-  );
-}
-
-export function parseS3ReconciliationPayloadRequest<Invalid>(
-  request: Request | ParsedS3ReconciliationPayload,
-  invalid: (message: string) => Invalid,
-  fallbackMessage: string,
-  options: ProviderIdOptions,
-  parseCommittedAt: ParseTimestampField = parseCommitTimestamp,
-  payloadName = "S3 reconciliation request"
-): Promise<S3ReconciliationPayloadRequestParse<Invalid>> {
-  return parseRuntimeJsonRequest(
-    request,
-    (value) =>
-      parseS3ReconciliationPayloadPayload(
-        value,
-        options,
-        parseCommittedAt,
-        payloadName
-      ),
-    invalid,
-    fallbackMessage
-  );
-}
-
 function parseRuntimeCommitPayload(
   value: unknown,
   payloadName: string
@@ -201,35 +127,7 @@ function parseRuntimeCommitPayload(
   };
 }
 
-function parseS3CommitPayloadPayload(
-  value: unknown,
-  options: ProviderIdOptions,
-  parseCommittedAt: ParseTimestampField,
-  overrides: S3CommitPayloadParseOverrides,
-  payloadName: string
-): ParsedS3CommitPayload {
-  return parseS3CommitPayload(
-    parseRecordPayload(value, payloadName),
-    options,
-    parseCommittedAt,
-    overrides
-  );
-}
-
-function parseS3ReconciliationPayloadPayload(
-  value: unknown,
-  options: ProviderIdOptions,
-  parseCommittedAt: ParseTimestampField,
-  payloadName: string
-): ParsedS3ReconciliationPayload {
-  return parseS3ReconciliationPayload(
-    parseRecordPayload(value, payloadName),
-    options,
-    parseCommittedAt
-  );
-}
-
-function parseRecordPayload(
+export function parseRecordPayload(
   value: unknown,
   payloadName: string
 ): Record<string, unknown> {
@@ -344,50 +242,6 @@ export function parseProviderResolvedCommitPayload(
     committedAt: parseCommittedAt(value, "committedAt"),
     providerId: parseProviderId(value, options, field, missingError),
     ...parseCommitPayloadTiming(value),
-  };
-}
-
-export function parseS3CommitPayload(
-  value: Record<string, unknown>,
-  options: ProviderIdOptions,
-  parseCommittedAt: ParseTimestampField = parseCommitTimestamp,
-  overrides: S3CommitPayloadParseOverrides = {}
-): ParsedS3CommitPayload {
-  return {
-    ...parseProviderResolvedCommitPayload(value, options, parseCommittedAt),
-    ...parseS3CommitIdentity(value, overrides),
-    ...parseS3CommitObjectHints(value),
-  };
-}
-
-function parseS3CommitIdentity(
-  value: Record<string, unknown>,
-  overrides: S3CommitPayloadParseOverrides
-): ParsedS3CommitIdentity {
-  return {
-    commitId: overrides.commitId ?? urlSafeIdentifierField(value, "commitId"),
-    slotId: overrides.slotId ?? urlSafeIdentifierField(value, "slotId"),
-  };
-}
-
-function parseS3CommitObjectHints(
-  value: Record<string, unknown>
-): ParsedS3CommitObjectHints {
-  return {
-    ...parseOptionalSafeObjectKeyField(value, "objectKey"),
-    ...optionalStringField(value, "versionId"),
-  };
-}
-
-export function parseS3ReconciliationPayload(
-  value: Record<string, unknown>,
-  options: ProviderIdOptions,
-  parseCommittedAt: ParseTimestampField = parseCommitTimestamp
-): ParsedS3ReconciliationPayload {
-  return {
-    ...parseProviderResolvedCommitPayload(value, options, parseCommittedAt),
-    ...optionalStringField(value, "versionId"),
-    ...parseOptionalUrlSafeIdentifierArrayField(value, "slotIds"),
   };
 }
 

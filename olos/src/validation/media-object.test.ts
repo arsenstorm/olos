@@ -56,14 +56,19 @@ const invalidMediaObjectCases = [
     value: { ...validMediaObject, observedAt: "soon" },
   },
   {
-    error: "mediaObject.size must be a positive number",
+    error: "mediaObject.size must be a positive integer",
     label: "zero sizes",
     value: { ...validMediaObject, size: 0 },
   },
   {
-    error: "mediaObject.size must be a positive number",
+    error: "mediaObject.size must be a positive integer",
     label: "negative sizes",
     value: { ...validMediaObject, size: -1 },
+  },
+  {
+    error: "mediaObject.size must be a positive integer",
+    label: "fractional sizes",
+    value: { ...validMediaObject, size: 0.5 },
   },
   {
     error: "mediaObject.etag must be a non-empty string",
@@ -88,12 +93,6 @@ describe("media object validation", () => {
 
     expect(etag).toBeDefined();
     expect(() => assertMediaObject(mediaObject)).not.toThrow();
-  });
-
-  test("accepts fractional positive sizes", () => {
-    expect(() =>
-      assertMediaObject({ ...validMediaObject, size: 0.5 })
-    ).not.toThrow();
   });
 
   test("rejects non-object values", () => {

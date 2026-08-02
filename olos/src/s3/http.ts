@@ -1,19 +1,17 @@
-import type { S3Client } from "@aws-sdk/client-s3";
-import {
-  type CreateStoredCoordinatorRuntimeHandlerOptions,
-  createStoredCoordinatorRuntimeHandler,
-  planStoredCoordinatorRetention,
-  summarizeRetiredCoordinatorObjectDeletions,
-} from "../runtime";
+import { createStoredCoordinatorRuntimeHandler } from "../runtime/http";
 import { rejectionStatusCode } from "../runtime/rejection-status";
 import {
   jsonBadRequestResponse,
   jsonMethodNotAllowedResponse,
   jsonResponse,
 } from "../runtime/response";
-import { S3_ROUTE_ACTIONS } from "../runtime/route";
+import {
+  applyStoredCoordinatorRetention,
+  summarizeRetiredCoordinatorObjectDeletions,
+} from "../runtime/retention";
 import { parseSlotIssueRequest } from "../runtime/slot-issue-request-parser";
 import type { Cursor } from "../types/cursor";
+import { positiveNumber } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertS3BucketName } from "./bucket";
 import {
@@ -41,6 +39,7 @@ import {
 } from "./http-response";
 import { s3Route } from "./http-route";
 import type {
+  CreateStoredS3CoordinatorRuntimeHandlerOptions,
   StoredS3CoordinatorCommitResponse,
   StoredS3CoordinatorEventRouteResponse,
   StoredS3CoordinatorEventRouteResponseResult,
@@ -48,17 +47,13 @@ import type {
   StoredS3CoordinatorRetentionResponse,
   StoredS3CoordinatorSlotGrantResponse,
 } from "./http-types";
-import type { S3HeadObjectClient } from "./object-observation";
-import { assertPositiveExpiresInSeconds } from "./options";
 import {
   planStoredS3CoordinatorReconciliation,
   reconcileStoredS3CoordinatorUploads,
   summarizeStoredS3CoordinatorUploadReconciliation,
 } from "./reconciliation";
-import {
-  deleteRetiredS3CoordinatorObjects,
-  type S3DeleteObjectClient,
-} from "./retention";
+import { deleteRetiredS3CoordinatorObjects } from "./retention";
+import { S3_ROUTE_ACTIONS } from "./route";
 
 export type {
   StoredS3CoordinatorCommitResponse,
@@ -71,29 +66,20 @@ export type {
   StoredS3CoordinatorSlotGrantResponse,
 } from "./http-types";
 
-export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
-  extends CreateStoredCoordinatorRuntimeHandlerOptions {
-  additionalHeaders?: Record<string, string>;
-  bucket: string;
-  client: S3Client;
-  completionHintClock?: () => Date | string;
-  completionHintCommitId?: (slotId: string) => string;
-  completionHintNow?: () => Date | string;
-  expiresInSeconds: number;
-  grantNow?: () => Date | string;
-  lateToleranceMs?: number;
-  objectClient?: S3HeadObjectClient;
-  providerId?: string;
-  retentionClient?: S3DeleteObjectClient;
-}
-
-// Subset of Cloudflare's ExecutionContext. When provided, the handler routes
-// retention-side S3 deletes through waitUntil so SigV4 signing CPU is paid
-// outside the request's CPU budget — essential on Workers Free's ~10 ms cap.
+/**
+ * Subset of Cloudflare's ExecutionContext. When provided, the handler routes
+ * retention-side S3 deletes through waitUntil so SigV4 signing CPU is paid
+ * outside the request's CPU budget — essential on Workers Free's ~10 ms cap.
+ */
 export interface StoredS3CoordinatorRuntimeHandlerContext {
   waitUntil(promise: Promise<unknown>): void;
 }
 
+/**
+ * Fetch-style handler returned by
+ * {@link createStoredS3CoordinatorRuntimeHandler}. Without a `ctx`, deferred
+ * S3 deletes are awaited inline before the response is returned.
+ */
 export type StoredS3CoordinatorRuntimeHandler = (
   request: Request,
   ctx?: StoredS3CoordinatorRuntimeHandlerContext
@@ -108,6 +94,21 @@ function invalid(message: string): InvalidS3HttpRequestParse {
   return { message, status: "invalid" };
 }
 
+/**
+ * Create an HTTP handler that serves the S3 coordinator routes for a stored
+ * session — slot grants (`s3/slots`, 201), commits and completion hints
+ * (201, or 200 when idempotent), provider event ingestion (`s3/events`,
+ * 202 with per-record results), reconciliation plan/apply (200/202), and
+ * retention sweeps (202). Non-S3 paths fall through to the base coordinator
+ * runtime handler. Error responses are JSON bodies whose `error.code` is an
+ * `olos.*` code: 400 for malformed requests, 404 for unknown sessions
+ * (`olos.invalid_session`), 409 for concurrency conflicts, and rejections
+ * mapped from their error code. Successful commits delete retired S3
+ * objects as a side effect (via `ctx.waitUntil` when available), and
+ * retention persists the pruned state before deleting objects so a failed
+ * delete can be retried by the next sweep. Throws synchronously when
+ * `bucket`, `expiresInSeconds`, or `providerId` options are invalid.
+ */
 export function createStoredS3CoordinatorRuntimeHandler(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): StoredS3CoordinatorRuntimeHandler {
@@ -172,7 +173,7 @@ function assertS3HandlerOptions(
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): void {
   assertS3BucketName(options.bucket);
-  assertPositiveExpiresInSeconds(options.expiresInSeconds);
+  positiveNumber(options.expiresInSeconds, "expiresInSeconds");
 
   if (options.providerId !== undefined) {
     assertUrlSafeIdentifier(options.providerId, "providerId");
@@ -489,24 +490,33 @@ async function handleS3Retention(
     return jsonBadRequestResponse(parsed.message);
   }
 
-  const planned = await planStoredCoordinatorRetention({
+  // Persist the pruned coordinator state BEFORE deleting remote objects: a
+  // delete failure then cannot lose the plan (deletes are idempotent against
+  // already-missing objects and can be retried by the next sweep, while an
+  // unpruned snapshot would keep growing).
+  const applied = await applyStoredCoordinatorRetention({
+    maxAttempts: options.maxAttempts,
     now: parsed.payload.now,
     sessionId,
     store: options.store,
   });
 
-  if (planned.status === "not_found") {
+  if (applied.status === "not_found") {
     return s3ResponseNotFound();
+  }
+
+  if (applied.status === "conflict") {
+    return s3ResponseConflict();
   }
 
   const result = await deleteRetiredS3CoordinatorObjects({
     bucket: options.bucket,
     client: options.retentionClient ?? options.client,
-    objects: planned.plan.retiredObjects,
+    objects: applied.plan.retiredObjects,
   });
 
   const body: StoredS3CoordinatorRetentionResponse = {
-    plan: planned.plan,
+    plan: applied.plan,
     result,
     summary: summarizeRetiredCoordinatorObjectDeletions(result),
   };

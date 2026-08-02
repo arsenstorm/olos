@@ -2,7 +2,7 @@ import {
   isSuccessfulCommitStatus,
   type SuccessfulCommitStatus,
 } from "../runtime/commit-status";
-import { jsonErrorResponse } from "../runtime/response";
+import { jsonConflictResponse, jsonErrorResponse } from "../runtime/response";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosError } from "../types/errors";
@@ -28,11 +28,15 @@ export function optionalCursorResponse(
 }
 
 export function s3ResponseNotFound(): Response {
-  return jsonErrorResponse("coordinator session was not found", 404);
+  return jsonErrorResponse(
+    "olos.invalid_session",
+    "coordinator session was not found",
+    404
+  );
 }
 
 export function s3ResponseConflict(): Response {
-  return jsonErrorResponse("coordinator session changed during mutation", 409);
+  return jsonConflictResponse("coordinator session changed during mutation");
 }
 
 export function eventRouteResult(
@@ -81,7 +85,10 @@ function rejectedEventRouteResult(
 ): StoredS3CoordinatorEventRouteResponseResult {
   if (result.error === undefined) {
     return {
-      error: { message: "S3 route rejected without error details" },
+      error: {
+        code: "olos.invalid_state",
+        message: "S3 route rejected without error details",
+      },
       status: "rejected",
     };
   }
@@ -172,7 +179,9 @@ function failedReconciliationFailureDetails(
 function failedReconciliationErrorResponse(
   error: string | undefined
 ): Partial<{ error: StoredS3CoordinatorRouteError }> {
-  return error === undefined ? {} : { error: { message: error } };
+  return error === undefined
+    ? {}
+    : { error: { code: "olos.invalid_state", message: error } };
 }
 
 function failedReconciliationResultStatusResponse(

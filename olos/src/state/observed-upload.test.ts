@@ -66,7 +66,7 @@ describe("observed upload builder", () => {
         providerId: "s3_primary",
         size: 0,
       })
-    ).toThrow("mediaObject.size must be a positive number");
+    ).toThrow("mediaObject.size must be a positive integer");
   });
 
   test("rejects invalid observation timestamps", () => {
@@ -158,7 +158,7 @@ describe("head object normalization", () => {
         objectKey: "media/session/v1080/3810.m4s",
         providerId: "s3_primary",
       })
-    ).toThrow("mediaObject.size must be a positive number");
+    ).toThrow("mediaObject.size must be a positive integer");
   });
 
   test("rejects invalid last-modified values", () => {

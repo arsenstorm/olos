@@ -12,15 +12,30 @@ import { assertPositiveInteger } from "../validation/ids";
 
 const SEGMENT_COMMIT_PART_ORDER = -1;
 
+/** Options for {@link createCommittedWindow}. */
 export interface CreateCommittedWindowOptions {
+  /** Media (segment and part) commits; must be non-empty. */
   commits: readonly Commit[];
+  /** Value surfaced as `EXT-X-DISCONTINUITY-SEQUENCE` (default 0). */
   discontinuitySequence?: number;
   epoch: number;
+  /** Init-segment commits, one per rendition present in `commits`. */
   initCommits: readonly Commit[];
+  /** When set, only the newest `maxSegments` segments per rendition are kept. */
   maxSegments?: number;
   sessionId: string;
 }
 
+/**
+ * Aggregate commits into the {@link CommittedWindow} that backs playlist
+ * generation. Commits are grouped by rendition and media sequence number;
+ * within a segment only the contiguous prefix of parts (starting at part
+ * 0) becomes visible, and a parts-only segment's duration is the sum of
+ * its visible parts. Pure. Throws when either commit list is empty, a
+ * commit's `sessionId` or `epoch` does not match, a rendition lacks an
+ * init commit, a segment or part position is duplicated, or the commits
+ * produce no visible segment.
+ */
 export function createCommittedWindow(
   options: CreateCommittedWindowOptions
 ): CommittedWindow {
@@ -31,11 +46,13 @@ export function createCommittedWindow(
   return window;
 }
 
-// Like createCommittedWindow but returns undefined when no contiguous prefix
-// of parts has landed yet. Used by the state machine to tolerate out-of-order
-// commits at the same media-sequence-number — the new commit is recorded in
-// state.commits but the cursor doesn't advance until the contiguous prefix
-// is complete.
+/**
+ * Like {@link createCommittedWindow} but returns undefined when no
+ * contiguous prefix of parts has landed yet. Used by the state machine to
+ * tolerate out-of-order commits at the same media-sequence-number — the
+ * new commit is recorded in state.commits but the cursor doesn't advance
+ * until the contiguous prefix is complete.
+ */
 export function tryCreateCommittedWindow(
   options: CreateCommittedWindowOptions
 ): CommittedWindow | undefined {
@@ -68,9 +85,11 @@ export function tryCreateCommittedWindow(
   return window;
 }
 
-// Returns the highest part number on the visible window's last segment
-// across all renditions, or undefined when the last segment is a full
-// segment (no parts) or no segments exist.
+/**
+ * Returns the highest part number on the visible window's last segment
+ * across all renditions, or undefined when the last segment is a full
+ * segment (no parts) or no segments exist.
+ */
 export function lastVisiblePartNumber(
   window: CommittedWindow
 ): number | undefined {
@@ -285,9 +304,23 @@ function commitContiguousParts(segment: CommittedSegment): CommittedSegment {
 
   const parts = contiguousPartsPrefix(segment.parts);
 
-  return parts.length === 0
-    ? { ...segment, parts: undefined }
-    : { ...segment, parts };
+  if (parts.length === 0) {
+    return { ...segment, parts: undefined };
+  }
+
+  if (segment.segment !== undefined) {
+    return { ...segment, parts };
+  }
+
+  // A parts-only segment's duration was seeded from whichever commit sorted
+  // first (usually part 0), undercounting the in-progress segment. Report
+  // the sum of the visible contiguous parts instead; full-segment commits
+  // keep their authoritative duration above.
+  return { ...segment, duration: totalPartsDuration(parts), parts };
+}
+
+function totalPartsDuration(parts: readonly CommittedPart[]): number {
+  return parts.reduce((total, part) => total + part.duration, 0);
 }
 
 function contiguousPartsPrefix(

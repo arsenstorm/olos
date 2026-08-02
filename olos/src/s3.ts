@@ -24,7 +24,6 @@ export {
   type S3RuntimeCompleteUploadResponse,
   type S3RuntimeCompletionHintPayload,
   type S3RuntimeHttpClientOptions,
-  S3RuntimeHttpError,
   type S3RuntimeIssueUploadGrantOptions,
   type S3RuntimeIssueUploadGrantResponse,
   type S3RuntimePlanReconciliationOptions,
@@ -35,6 +34,7 @@ export {
   type S3RuntimeReconciliationPlanResponse,
   type S3RuntimeRetentionPayload,
 } from "./s3/client";
+export { S3RuntimeHttpError } from "./s3/client-error";
 export {
   type CommitS3CoordinatorUploadOptions,
   type CommitStoredS3CoordinatorUploadOptions,
@@ -67,11 +67,11 @@ export {
   normalizeS3ObjectCreatedEvents,
 } from "./s3/event";
 export {
-  type CreateStoredS3CoordinatorRuntimeHandlerOptions,
   createStoredS3CoordinatorRuntimeHandler,
   type StoredS3CoordinatorRuntimeHandler,
 } from "./s3/http";
 export type {
+  CreateStoredS3CoordinatorRuntimeHandlerOptions,
   StoredS3CoordinatorCommitResponse,
   StoredS3CoordinatorEventRouteResponse,
   StoredS3CoordinatorEventRouteResponseResult,

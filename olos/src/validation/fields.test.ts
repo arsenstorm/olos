@@ -12,6 +12,7 @@ import {
   booleanValue,
   finiteNumber,
   hasControlCharacter,
+  isAllowedString,
   isRecord,
   nonEmptyArray,
   nonNegativeNumber,
@@ -19,6 +20,7 @@ import {
   positiveNumber,
   recordValue,
   stringValue,
+  timestampMs,
   timestampString,
 } from "./fields";
 
@@ -130,6 +132,51 @@ describe("validation field helpers", () => {
     expect(() => timestampString("later", "updatedAt")).toThrow(
       "updatedAt must be a valid timestamp"
     );
+  });
+
+  test("timestampString accepts RFC 3339 date-time variants", () => {
+    expect(timestampString("2026-01-01T00:00:00Z", "updatedAt")).toBe(
+      "2026-01-01T00:00:00Z"
+    );
+    expect(timestampString("2026-01-01T00:00:00+02:00", "updatedAt")).toBe(
+      "2026-01-01T00:00:00+02:00"
+    );
+    expect(timestampString("2026-01-01t00:00:00.500z", "updatedAt")).toBe(
+      "2026-01-01t00:00:00.500z"
+    );
+  });
+
+  test("timestampString rejects non-RFC 3339 Date.parse-able strings", () => {
+    expect(() => timestampString("2026-01-01", "updatedAt")).toThrow(
+      "updatedAt must be a valid timestamp"
+    );
+    expect(() => timestampString("Jan 1 2026", "updatedAt")).toThrow(
+      "updatedAt must be a valid timestamp"
+    );
+    expect(() => timestampString("2026-01-01 00:00:00Z", "updatedAt")).toThrow(
+      "updatedAt must be a valid timestamp"
+    );
+    expect(() => timestampString("2026-13-01T00:00:00Z", "updatedAt")).toThrow(
+      "updatedAt must be a valid timestamp"
+    );
+  });
+
+  test("timestampMs returns milliseconds for valid timestamps", () => {
+    const timestamp = "2026-01-01T00:00:00.000Z";
+
+    expect(timestampMs(timestamp, "now")).toBe(Date.parse(timestamp));
+  });
+
+  test("timestampMs rejects invalid timestamps", () => {
+    expect(() => timestampMs("later", "now")).toThrow(
+      "now must be a valid timestamp"
+    );
+  });
+
+  test("isAllowedString accepts values from the allowed string set", () => {
+    expect(isAllowedString("live", ["created", "live"] as const)).toBe(true);
+    expect(isAllowedString("ended", ["created", "live"] as const)).toBe(false);
+    expect(isAllowedString(1, ["created", "live"] as const)).toBe(false);
   });
 
   test("nonEmptyArray returns arrays and rejects empty or non-array values", () => {

@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  type CoordinatorPipelineStore,
-  createCoordinatorPipeline,
-  createMemoryCoordinatorStore,
-} from "../protocol";
-import type { CoordinatorPipelineState } from "../protocol/coordinator";
+import { createCoordinatorPipeline } from "../protocol/coordinator-lifecycle";
+import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
 import {
   TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
   testCoordinatorSession,
 } from "../protocol/coordinator-state.test-helper";
+import type {
+  CoordinatorPipelineState,
+  CoordinatorPipelineStore,
+} from "../protocol/coordinator-types";
 import { savedStoreResult } from "../protocol/test-store.test-helper";
 import type { Cursor } from "../types/cursor";
 import type { Session } from "../types/session";
@@ -231,7 +231,10 @@ describe("stored session runtime", () => {
     expect(result.status).toBe("rejected");
     expect(result.response.status).toBe(409);
     expect(await result.response.json()).toEqual({
-      error: { message: "Invalid session transition: live -> ended" },
+      error: {
+        code: "olos.invalid_state",
+        message: "Invalid session transition: live -> ended",
+      },
     });
   });
 
@@ -252,13 +255,17 @@ describe("stored session runtime", () => {
     expect(invalidSessionId.status).toBe("rejected");
     expect(invalidSessionId.response.status).toBe(409);
     expect(await invalidSessionId.response.json()).toEqual({
-      error: { message: "sessionId must be a non-empty URL-safe identifier" },
+      error: {
+        code: "olos.invalid_state",
+        message: "sessionId must be a non-empty URL-safe identifier",
+      },
     });
 
     expect(invalidState.status).toBe("rejected");
     expect(invalidState.response.status).toBe(409);
     expect(await invalidState.response.json()).toEqual({
       error: {
+        code: "olos.invalid_state",
         message: "state must be one of: live, ending, ended, aborted",
       },
     });
@@ -345,6 +352,7 @@ describe("stored session runtime", () => {
     expect(invalidPublisher.response.status).toBe(409);
     expect(await invalidPublisher.response.json()).toEqual({
       error: {
+        code: "olos.invalid_state",
         message: "publisherInstanceId must be a non-empty URL-safe identifier",
       },
     });
@@ -352,13 +360,19 @@ describe("stored session runtime", () => {
     expect(invalidNow.status).toBe("rejected");
     expect(invalidNow.response.status).toBe(409);
     expect(await invalidNow.response.json()).toEqual({
-      error: { message: "now must be a valid timestamp" },
+      error: {
+        code: "olos.invalid_state",
+        message: "now must be a valid timestamp",
+      },
     });
 
     expect(invalidTtl.status).toBe("rejected");
     expect(invalidTtl.response.status).toBe(409);
     expect(await invalidTtl.response.json()).toEqual({
-      error: { message: "ttlMs must be a positive number" },
+      error: {
+        code: "olos.invalid_state",
+        message: "ttlMs must be a positive number",
+      },
     });
   });
 });

@@ -77,6 +77,10 @@ const DIRECT_PUBLICATION_PRECONDITIONS = [
   },
 ] satisfies readonly DirectPublicationPrecondition[];
 
+/**
+ * Returns whether `value` is a valid `ProviderCapabilityDocument` (see
+ * `assertProviderCapabilityDocument`).
+ */
 export function isProviderCapabilityDocument(
   value: unknown
 ): value is ProviderCapabilityDocument {
@@ -88,6 +92,14 @@ export function isProviderCapabilityDocument(
   }
 }
 
+/**
+ * Validates an untrusted value as a `ProviderCapabilityDocument`, throwing
+ * an `Error` naming the first offending field. Checks the `olos` wire
+ * version and, when the provider declares `directObjectPublication`,
+ * enforces its preconditions: strong `headAfterCreate` consistency,
+ * manifest-gated publication, no overwrites, and a declared
+ * negative-caching policy.
+ */
 export function assertProviderCapabilityDocument(
   value: unknown
 ): asserts value is ProviderCapabilityDocument {

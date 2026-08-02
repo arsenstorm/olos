@@ -13,7 +13,6 @@ import {
   createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
   createRuntimePublisherNextObjectPlan,
-  createRuntimePublisherObjectKeyNonce,
   createRuntimePublisherObjectPlan,
   createStoredCoordinatorSession,
   issueStoredCoordinatorSlotFromRequest,
@@ -22,6 +21,7 @@ import {
   serveStoredCoordinatorManifest,
   transitionStoredCoordinatorSession,
 } from "@arsenstorm/olos/runtime";
+import { createRuntimePublisherObjectKeyNonce } from "@arsenstorm/olos/state";
 import type { Session } from "@arsenstorm/olos/types";
 import { assertCursor } from "@arsenstorm/olos/validation";
 import { describe, expect, test } from "vitest";
@@ -180,7 +180,7 @@ describe("runtime pipeline", () => {
       mediaSequenceNumber: 3810,
     });
     expect(next.plan.objectKey).toBe(
-      "media/v1080/s3810/segment-slot_02020202020202020202020202020202.m4s"
+      "media/v1080/s3810-slot_02020202020202020202020202020202.m4s"
     );
     expect(next.expiry).toEqual({
       expiresAt: "2026-01-01T00:00:05.000Z",
@@ -434,8 +434,14 @@ function commitPayload(options: CommitPayloadOptions) {
   };
 }
 
+interface FakeSqliteRecord {
+  cursor_view: string | null;
+  etag: string;
+  snapshot: string;
+}
+
 function createSqliteDatabase(): SqliteSerializedCoordinatorStoreDatabase {
-  const records = new Map<string, { etag: string; snapshot: string }>();
+  const records = new Map<string, FakeSqliteRecord>();
 
   return {
     prepare(sql) {
@@ -456,7 +462,7 @@ function createSqliteDatabase(): SqliteSerializedCoordinatorStoreDatabase {
 }
 
 function select<T>(
-  records: Map<string, { etag: string; snapshot: string }>,
+  records: Map<string, FakeSqliteRecord>,
   sql: string,
   values: readonly unknown[]
 ): T | undefined {
@@ -464,11 +470,21 @@ function select<T>(
     throw new Error(`unexpected select SQL: ${sql}`);
   }
 
-  return records.get(String(values[0])) as T | undefined;
+  const record = records.get(String(values[0]));
+
+  if (record === undefined) {
+    return;
+  }
+
+  if (sql.includes("cursor_view")) {
+    return { cursor_view: record.cursor_view, etag: record.etag } as T;
+  }
+
+  return { etag: record.etag, snapshot: record.snapshot } as T;
 }
 
 function run(
-  records: Map<string, { etag: string; snapshot: string }>,
+  records: Map<string, FakeSqliteRecord>,
   sql: string,
   values: readonly unknown[]
 ): SqliteSerializedCoordinatorStoreRunResult {
@@ -480,6 +496,7 @@ function run(
     }
 
     records.set(sessionId, {
+      cursor_view: values[3] === null ? null : String(values[3]),
       etag: String(values[1]),
       snapshot: String(values[2]),
     });
@@ -491,8 +508,8 @@ function run(
     throw new Error(`unexpected update SQL: ${sql}`);
   }
 
-  const sessionId = String(values[2]);
-  const expectedEtag = String(values[3]);
+  const sessionId = String(values[3]);
+  const expectedEtag = String(values[4]);
   const current = records.get(sessionId);
 
   if (current?.etag !== expectedEtag) {
@@ -500,6 +517,7 @@ function run(
   }
 
   records.set(sessionId, {
+    cursor_view: values[2] === null ? null : String(values[2]),
     etag: String(values[0]),
     snapshot: String(values[1]),
   });

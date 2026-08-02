@@ -5,11 +5,21 @@ import { isOptionalHttpHeaderStringMap } from "./http-header";
 import { assertMediaObject } from "./media-object";
 import { assertUploadSlot } from "./upload-slot";
 
+/**
+ * A provider observation of an uploaded object, optionally carrying the
+ * upload's metadata headers (e.g. `x-olos-slot-id`) for slot
+ * cross-checking.
+ */
 export interface ObservedUpload extends MediaObject {
   metadata?: Record<string, string | undefined>;
 }
 
+/** Options for matching an observed upload against its issued slot. */
 export interface ObservedUploadMatchOptions {
+  /**
+   * Grace period in milliseconds added to the slot's `expiresAt` before an
+   * observation counts as late. Defaults to 0.
+   */
   lateToleranceMs?: number;
   object: ObservedUpload;
   slot: UploadSlot;
@@ -19,6 +29,10 @@ type ObservableUploadSlot = UploadSlot & {
   state: "issued" | "upload_observed";
 };
 
+/**
+ * Returns whether `value` is a valid `ObservedUpload` (see
+ * `assertObservedUpload`).
+ */
 export function isObservedUpload(value: unknown): value is ObservedUpload {
   try {
     assertObservedUpload(value);
@@ -28,6 +42,10 @@ export function isObservedUpload(value: unknown): value is ObservedUpload {
   }
 }
 
+/**
+ * Returns whether the observed upload satisfies its slot (see
+ * `assertObservedUploadMatchesSlot`).
+ */
 export function observedUploadMatchesSlot(
   options: ObservedUploadMatchOptions
 ): boolean {
@@ -39,6 +57,14 @@ export function observedUploadMatchesSlot(
   }
 }
 
+/**
+ * The commit-gate check: throws an `Error` unless the observed upload is
+ * acceptable evidence for the slot. The slot must be in `issued` or
+ * `upload_observed` state, and the object must match the slot's key and
+ * content type, fit within its size bounds, be observed no later than
+ * `expiresAt` plus `lateToleranceMs`, and — when the upload carries an
+ * `x-olos-slot-id` metadata header — name the same slot.
+ */
 export function assertObservedUploadMatchesSlot(
   options: ObservedUploadMatchOptions
 ): void {
@@ -48,6 +74,11 @@ export function assertObservedUploadMatchesSlot(
   assertObjectMatchesSlot(options);
 }
 
+/**
+ * Validates an untrusted value as an `ObservedUpload`: a valid
+ * `MediaObject` whose optional `metadata` is a string map. Throws an
+ * `Error` naming the first offending field.
+ */
 export function assertObservedUpload(
   value: unknown
 ): asserts value is ObservedUpload {

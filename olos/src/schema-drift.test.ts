@@ -1,19 +1,41 @@
 import { describe, expect, test } from "bun:test";
 import Ajv from "ajv";
+import addFormats from "ajv-formats";
+import { OLOS_ERROR_CODES } from "./config/errors";
 import {
   OLOS_COMMIT_SCHEMA,
   OLOS_COMMITTED_WINDOW_SCHEMA,
   OLOS_CURSOR_SCHEMA,
+  OLOS_ERROR_SCHEMA,
+  OLOS_JSON_SCHEMAS,
+  OLOS_MEDIA_OBJECT_SCHEMA,
+  OLOS_PROVIDER_CAPABILITY_SCHEMA,
   OLOS_SESSION_SCHEMA,
+  OLOS_UPLOAD_GRANT_SCHEMA,
   OLOS_UPLOAD_SLOT_SCHEMA,
 } from "./schema";
+import { createOlosError } from "./types/errors";
 import { assertCommit } from "./validation/commit";
 import { assertCommittedWindow } from "./validation/committed-window";
 import { assertCursor } from "./validation/cursor";
+import {
+  assertNonEmptyStringField,
+  assertOneOfField,
+  assertOnlyKnownFields,
+  isRecord,
+} from "./validation/fields";
+import { assertMediaObject } from "./validation/media-object";
+import { assertProviderCapabilityDocument } from "./validation/provider-capability";
 import { assertSession } from "./validation/session";
+import { assertUploadGrant } from "./validation/upload-grant";
 import { assertUploadSlot } from "./validation/upload-slot";
 
-const ajv = new Ajv({ strictSchema: false, validateFormats: false });
+const ajv = new Ajv({
+  strictSchema: false,
+  strictTypes: false,
+  validateFormats: true,
+});
+addFormats(ajv);
 const stripSchemaDraft = (
   schema: Record<string, unknown>
 ): Record<string, unknown> => {
@@ -33,7 +55,62 @@ interface DriftSuite {
   label: string;
   schema: Record<string, unknown>;
   valid: unknown;
+  /**
+   * Payloads the runtime validator must reject even though the JSON schema
+   * accepts them. JSON Schema 2020-12 cannot express relations between
+   * sibling fields (e.g. uploadSlot minBytes <= maxBytes), so these
+   * constraints only exist on the validator side.
+   */
+  validatorOnlyInvalid?: readonly InvalidPayload[];
 }
+
+const OLOS_ERROR_ENVELOPE_FIELDS = ["code", "details", "message"] as const;
+
+function assertOlosErrorEnvelope(value: unknown): void {
+  if (!isRecord(value)) {
+    throw new Error("olosError must be an object");
+  }
+
+  assertOnlyKnownFields(value, ["error"], "olosError");
+
+  if (!isRecord(value.error)) {
+    throw new Error("olosError.error must be an object");
+  }
+
+  assertOnlyKnownFields(
+    value.error,
+    OLOS_ERROR_ENVELOPE_FIELDS,
+    "olosError.error"
+  );
+  assertOneOfField(value.error, "code", OLOS_ERROR_CODES, "olosError.error");
+  assertNonEmptyStringField(value.error, "message", "olosError.error");
+
+  if (value.error.details !== undefined && !isRecord(value.error.details)) {
+    throw new Error("olosError.error.details must be an object");
+  }
+}
+
+const validVideoRendition = {
+  bitrate: 4_500_000,
+  codec: "avc1.640028",
+  frameRate: 30,
+  height: 1080,
+  kind: "video",
+  renditionId: "v1080",
+  width: 1920,
+} as const;
+
+const validGroupedAudioRendition = {
+  bitrate: 128_000,
+  channels: 2,
+  codec: "mp4a.40.2",
+  defaultRendition: true,
+  groupId: "aac",
+  kind: "audio",
+  name: "English",
+  renditionId: "a128",
+  sampleRate: 48_000,
+} as const;
 
 const validSession = {
   createdAt: "2026-06-08T12:00:00.000Z",
@@ -41,17 +118,7 @@ const validSession = {
   latencyProfile: "object-ll",
   olos: "1.0",
   partTarget: 0.333,
-  renditions: [
-    {
-      bitrate: 4_500_000,
-      codec: "avc1.640028",
-      frameRate: 30,
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
-    },
-  ],
+  renditions: [validVideoRendition, validGroupedAudioRendition],
   segmentTarget: 1,
   sessionId: "session_1",
   state: "live",
@@ -180,6 +247,75 @@ const validCursor = {
   },
 } as const;
 
+const validOlosError = createOlosError(
+  "olos.invalid_request",
+  "sessionId must be present",
+  { field: "sessionId" }
+);
+
+const validMediaObject = {
+  contentType: "video/mp4",
+  etag: '"9b2cf535f27731c974343645a3985328"',
+  objectKey: "media/tenant/sess/e1/v1080/s3810.m4s",
+  observedAt: "2026-06-08T12:00:01.820Z",
+  providerId: "r2_primary",
+  size: 98_304,
+} as const;
+
+const validProviderCapability = {
+  api: {
+    family: "s3-compatible",
+  },
+  consistency: {
+    headAfterCreate: "strong",
+    listAfterCreate: "strong",
+    readAfterCreate: "strong",
+  },
+  delivery: {
+    documentNavigationCanBeBlocked: true,
+    immutableCaching: true,
+    negativeCachingPolicyDeclared: true,
+    publicBaseUrl: "https://media.example.com",
+    rangeRequests: true,
+  },
+  events: {
+    delivery: "at-least-once",
+    objectCreated: true,
+  },
+  kind: "object-store",
+  olos: "1.0",
+  providerId: "r2_primary",
+  publication: {
+    createIfAbsent: true,
+    directObjectPublication: true,
+    manifestGatedPublication: true,
+    overwritesAllowed: false,
+    privateUploadPublicPromotion: true,
+    readGateAvailable: true,
+  },
+  uploadGrants: {
+    contentTypeBound: true,
+    exactKey: true,
+    maxRecommendedTtlSeconds: 60,
+    methodBound: true,
+    objectSizeCanBeObserved: true,
+    presignedPut: true,
+    requiredHeadersCanBeSigned: true,
+    temporaryCredentials: true,
+  },
+} as const;
+
+const validUploadGrant = {
+  expiresAt: "2026-06-08T12:00:05.000Z",
+  method: "PUT",
+  requiredHeaders: {
+    "content-type": "video/iso.segment",
+    "x-upload-token": "token_1",
+  },
+  slotId: "slot_01JZ",
+  url: "https://upload.example.com/session/slot_01JZ",
+} as const;
+
 const suites: readonly DriftSuite[] = [
   {
     label: "session",
@@ -199,6 +335,61 @@ const suites: readonly DriftSuite[] = [
         label: "invalid epoch",
         payload: { ...validSession, epoch: -1 },
       },
+      {
+        label: "date-only createdAt timestamp",
+        payload: { ...validSession, createdAt: "2026-06-08" },
+      },
+      {
+        label: "audio group ID on a video rendition",
+        payload: {
+          ...validSession,
+          renditions: [{ ...validVideoRendition, groupId: "aac" }],
+        },
+      },
+    ],
+    validatorOnlyInvalid: [
+      {
+        label: "multiple distinct audio groups",
+        payload: {
+          ...validSession,
+          renditions: [
+            validVideoRendition,
+            validGroupedAudioRendition,
+            {
+              ...validGroupedAudioRendition,
+              defaultRendition: false,
+              groupId: "aac-alt",
+              renditionId: "a64",
+            },
+          ],
+        },
+      },
+      {
+        label: "multiple default audio renditions",
+        payload: {
+          ...validSession,
+          renditions: [
+            validVideoRendition,
+            validGroupedAudioRendition,
+            { ...validGroupedAudioRendition, renditionId: "a64" },
+          ],
+        },
+      },
+      {
+        label: "mixed grouped and ungrouped audio renditions",
+        payload: {
+          ...validSession,
+          renditions: [
+            validVideoRendition,
+            validGroupedAudioRendition,
+            {
+              codec: "mp4a.40.2",
+              kind: "audio",
+              renditionId: "a64",
+            },
+          ],
+        },
+      },
     ],
   },
   {
@@ -210,6 +401,10 @@ const suites: readonly DriftSuite[] = [
       {
         label: "invalid size",
         payload: { ...validCommit, size: 0 },
+      },
+      {
+        label: "fractional size",
+        payload: { ...validCommit, size: 312.5 },
       },
       {
         label: "invalid media sequence",
@@ -237,6 +432,16 @@ const suites: readonly DriftSuite[] = [
       {
         label: "unsafe object key",
         payload: { ...validUploadSlot, objectKey: "media/../secret.m4s" },
+      },
+      {
+        label: "fractional maxBytes",
+        payload: { ...validUploadSlot, maxBytes: 1024.5 },
+      },
+    ],
+    validatorOnlyInvalid: [
+      {
+        label: "minBytes greater than maxBytes",
+        payload: { ...validUploadSlot, maxBytes: 1024, minBytes: 2048 },
       },
     ],
   },
@@ -301,7 +506,114 @@ const suites: readonly DriftSuite[] = [
       },
     ],
   },
+  {
+    label: "error",
+    schema: OLOS_ERROR_SCHEMA,
+    valid: validOlosError,
+    assertValid: assertOlosErrorEnvelope,
+    invalid: [
+      {
+        label: "missing error code",
+        payload: { error: { message: "sessionId must be present" } },
+      },
+      {
+        label: "unknown error code",
+        payload: {
+          error: { code: "olos.unknown_code", message: "unmapped failure" },
+        },
+      },
+      {
+        label: "empty message",
+        payload: createOlosError("olos.not_found", ""),
+      },
+    ],
+  },
+  {
+    label: "media object",
+    schema: OLOS_MEDIA_OBJECT_SCHEMA,
+    valid: validMediaObject,
+    assertValid: assertMediaObject,
+    invalid: [
+      {
+        label: "fractional size",
+        payload: { ...validMediaObject, size: 98_304.5 },
+      },
+      {
+        label: "unsafe object key",
+        payload: { ...validMediaObject, objectKey: "media/../secret.m4s" },
+      },
+      {
+        label: "date-only observedAt timestamp",
+        payload: { ...validMediaObject, observedAt: "2026-06-08" },
+      },
+    ],
+  },
+  {
+    label: "provider capability",
+    schema: OLOS_PROVIDER_CAPABILITY_SCHEMA,
+    valid: validProviderCapability,
+    assertValid: assertProviderCapabilityDocument,
+    invalid: [
+      {
+        label: "unsupported provider kind",
+        payload: { ...validProviderCapability, kind: "database" },
+      },
+      {
+        label: "upload grants without a mechanism",
+        payload: {
+          ...validProviderCapability,
+          uploadGrants: {
+            contentTypeBound: true,
+            exactKey: true,
+            methodBound: true,
+            objectSizeCanBeObserved: true,
+            requiredHeadersCanBeSigned: true,
+          },
+        },
+      },
+      {
+        label: "direct object publication without strong head-after-create",
+        payload: {
+          ...validProviderCapability,
+          consistency: {
+            ...validProviderCapability.consistency,
+            headAfterCreate: "eventual",
+          },
+        },
+      },
+    ],
+  },
+  {
+    label: "upload grant",
+    schema: OLOS_UPLOAD_GRANT_SCHEMA,
+    valid: validUploadGrant,
+    assertValid: assertUploadGrant,
+    invalid: [
+      {
+        label: "date-only expiresAt timestamp",
+        payload: { ...validUploadGrant, expiresAt: "2026-06-08" },
+      },
+      {
+        label: "unsupported method",
+        payload: { ...validUploadGrant, method: "POST" },
+      },
+      {
+        label: "invalid upload URL",
+        payload: { ...validUploadGrant, url: "not a url" },
+      },
+    ],
+  },
 ];
+
+test("covers every exported OLOS JSON schema", () => {
+  const coveredSchemas = new Set(suites.map((suite) => suite.schema));
+
+  expect(coveredSchemas.size).toBe(Object.keys(OLOS_JSON_SCHEMAS).length);
+
+  for (const schema of Object.values(OLOS_JSON_SCHEMAS)) {
+    expect(coveredSchemas.has(schema)).toBe(true);
+  }
+});
 
 for (const suite of suites) {
   const validateSchema = ajv.compile(stripSchemaDraft(suite.schema));
@@ -315,6 +627,15 @@ for (const suite of suites) {
     for (const invalid of suite.invalid) {
       test(`rejects canonical invalid payload: ${invalid.label}`, () => {
         expect(validateSchema(invalid.payload)).toBe(false);
+        expect(() => suite.assertValid(invalid.payload)).toThrow();
+      });
+    }
+
+    for (const invalid of suite.validatorOnlyInvalid ?? []) {
+      test(`rejects validator-only invalid payload: ${invalid.label}`, () => {
+        // The schema cannot express this constraint, so it accepts the
+        // payload; only the runtime validator rejects it.
+        expect(validateSchema(invalid.payload)).toBe(true);
         expect(() => suite.assertValid(invalid.payload)).toThrow();
       });
     }

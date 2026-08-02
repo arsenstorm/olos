@@ -29,9 +29,9 @@ const committedWindow: CommittedWindow = {
           segment: {
             commitId: "commit_3810",
             deliveryUrl:
-              "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810/segment-slot_s3810.m4s",
+              "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810-slot_s3810.m4s",
             objectKey:
-              "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810/segment-slot_s3810.m4s",
+              "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810-slot_s3810.m4s",
             slotId: "slot_s3810",
           },
         },
@@ -42,9 +42,9 @@ const committedWindow: CommittedWindow = {
           segment: {
             commitId: "commit_3811",
             deliveryUrl:
-              "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment-slot_s3811.m4s",
+              "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3811.m4s",
             objectKey:
-              "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment-slot_s3811.m4s",
+              "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3811.m4s",
             slotId: "slot_s3811",
           },
         },
@@ -115,14 +115,72 @@ describe("media playlist rendering", () => {
 
 #EXT-X-PROGRAM-DATE-TIME:2026-06-08T12:00:00.000Z
 #EXTINF:2.000,
-https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810/segment-slot_s3810.m4s
+https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810-slot_s3810.m4s
 #EXT-X-PROGRAM-DATE-TIME:2026-06-08T12:00:02.000Z
 #EXTINF:2.000,
-https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment-slot_s3811.m4s
+https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3811.m4s
 #EXT-X-PROGRAM-DATE-TIME:2026-06-08T12:00:04.000Z
 #EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p0-slot_3812_0.m4s"
 #EXT-X-PART:DURATION=0.500,URI="https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p1-slot_3812_1.m4s"
 `);
+  });
+
+  test("declares the rendered rendition's own first media sequence", () => {
+    const trimmedWindow: CommittedWindow = {
+      ...committedWindow,
+      renditions: {
+        v1080: validRendition(),
+        v720: {
+          ...validRendition(),
+          renditionId: "v720",
+          segments: validRendition().segments.filter(
+            (segment) => segment.mediaSequenceNumber >= 3811
+          ),
+        },
+      },
+    };
+
+    const options = {
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: 0.5,
+      segmentTarget: 2,
+    };
+
+    expect(
+      renderMediaPlaylist(trimmedWindow, { ...options, renditionId: "v1080" })
+    ).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
+    expect(
+      renderMediaPlaylist(trimmedWindow, { ...options, renditionId: "v720" })
+    ).toContain("#EXT-X-MEDIA-SEQUENCE:3811");
+  });
+
+  test("ends the playlist with EXT-X-ENDLIST when the stream has ended", () => {
+    const playlist = renderMediaPlaylist(committedWindow, {
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      endOfStream: true,
+      partTarget: 0.5,
+      renditionId: "v1080",
+      segmentTarget: 2,
+    });
+
+    expect(playlist.endsWith("\n#EXT-X-ENDLIST\n")).toBe(true);
+    expect(playlist).not.toContain("#EXT-X-PLAYLIST-TYPE");
+  });
+
+  test("omits EXT-X-ENDLIST for live playlists", () => {
+    const options = {
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: 0.5,
+      renditionId: "v1080",
+      segmentTarget: 2,
+    };
+
+    expect(renderMediaPlaylist(committedWindow, options)).not.toContain(
+      "#EXT-X-ENDLIST"
+    );
+    expect(
+      renderMediaPlaylist(committedWindow, { ...options, endOfStream: false })
+    ).not.toContain("#EXT-X-ENDLIST");
   });
 
   test("throws for unknown renditions", () => {
@@ -257,9 +315,9 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
 
   test("renders byterange parts and EXT-X-PRELOAD-HINT for the in-progress segment", () => {
     const segmentDeliveryUrl =
-      "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/segment-3812.m4s";
+      "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812-3812.m4s";
     const segmentObjectKey =
-      "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/segment-3812.m4s";
+      "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812-3812.m4s";
 
     const playlist = renderMediaPlaylist(
       {
@@ -413,7 +471,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment
     expect(playlist).toContain(`#EXT-X-DISCONTINUITY
 #EXT-X-PROGRAM-DATE-TIME:2026-06-08T12:00:02.000Z
 #EXTINF:2.000,
-https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811/segment-slot_s3811.m4s`);
+https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3811.m4s`);
   });
 
   test("rejects absolute media URLs without an allowed origin", () => {

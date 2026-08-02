@@ -5,6 +5,11 @@ const SESSION_TRANSITION_MAP: Partial<
   Record<SessionState, readonly SessionState[]>
 > = SESSION_TRANSITIONS;
 
+/**
+ * Whether a session may move from one state to another. Allowed
+ * transitions: `live -> ending | aborted` and `ending -> ended`; `ended`
+ * and `aborted` are terminal. Pure.
+ */
 export function canTransitionSession(
   from: SessionState,
   to: SessionState
@@ -12,6 +17,11 @@ export function canTransitionSession(
   return allowedSessionTransitions(from).includes(to);
 }
 
+/**
+ * Throwing variant of {@link canTransitionSession}: throws
+ * `Invalid session transition: <from> -> <to>` when the transition is not
+ * allowed, returns nothing otherwise.
+ */
 export function assertSessionTransition(
   from: SessionState,
   to: SessionState

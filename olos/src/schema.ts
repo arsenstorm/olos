@@ -14,6 +14,10 @@ import { UPLOAD_SLOT_STATES } from "./config/upload-slot";
 import { CONTENT_TYPE_SCHEMA_PATTERN } from "./validation/content-type";
 import { HTTP_HEADER_NAME_SCHEMA_PATTERN } from "./validation/http-header";
 
+/**
+ * A JSON Schema document as exported by olos/schema: a plain readonly
+ * object ready to hand to any JSON Schema 2020-12 validator (e.g. Ajv).
+ */
 export interface OlosJsonSchema {
   readonly [key: string]: unknown;
 }
@@ -31,6 +35,7 @@ const contentType = {
   type: "string",
 } as const;
 const nonNegativeInteger = { minimum: 0, type: "integer" } as const;
+const positiveInteger = { exclusiveMinimum: 0, type: "integer" } as const;
 const positiveNumber = { exclusiveMinimum: 0, type: "number" } as const;
 const timestamp = { format: "date-time", type: "string" } as const;
 const absoluteHttpUrl = {
@@ -209,6 +214,30 @@ const providerDirectObjectPublicationPrecondition = {
   [JSON_SCHEMA_THEN]: providerDirectObjectPublicationRequirements,
 } as const;
 
+// groupId/name/defaultRendition describe HLS audio group membership, so they
+// are only meaningful on audio renditions. `false` property subschemas reject
+// the fields whenever the rendition kind is not "audio". The single-group and
+// single-default constraints span sibling renditions, which JSON Schema
+// 2020-12 cannot express; only the runtime validator (assertSession) enforces
+// them. The drift harness covers the gap via validator-only invalid payloads.
+const renditionAudioGroupFieldsPrecondition = {
+  if: {
+    not: {
+      properties: {
+        kind: { const: "audio" },
+      },
+      required: ["kind"],
+    },
+  },
+  [JSON_SCHEMA_THEN]: {
+    properties: {
+      defaultRendition: false,
+      groupId: false,
+      name: false,
+    },
+  },
+} as const;
+
 const committedObjectSchema = {
   additionalProperties: false,
   properties: {
@@ -264,6 +293,12 @@ const renditionWindowSchema = {
   type: "object",
 } as const;
 
+/**
+ * JSON Schema (2020-12) for the wire-format `Session` document. Note the
+ * audio-group constraints that span sibling renditions (single group, at
+ * most one default) are only enforced by `assertSession`
+ * (olos/validation), not by this schema.
+ */
 export const OLOS_SESSION_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -276,6 +311,7 @@ export const OLOS_SESSION_SCHEMA = {
     renditions: {
       items: {
         additionalProperties: false,
+        allOf: [renditionAudioGroupFieldsPrecondition],
         dependentRequired: {
           height: ["width"],
           width: ["height"],
@@ -284,9 +320,12 @@ export const OLOS_SESSION_SCHEMA = {
           bitrate: { exclusiveMinimum: 0, type: "integer" },
           channels: { exclusiveMinimum: 0, type: "integer" },
           codec: nonEmptyString,
+          defaultRendition: { type: "boolean" },
           frameRate: positiveNumber,
+          groupId: id,
           height: { exclusiveMinimum: 0, type: "integer" },
           kind: stringEnum(RENDITION_KINDS),
+          name: nonEmptyString,
           renditionId: id,
           sampleRate: { exclusiveMinimum: 0, type: "integer" },
           width: { exclusiveMinimum: 0, type: "integer" },
@@ -316,6 +355,12 @@ export const OLOS_SESSION_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/**
+ * JSON Schema (2020-12) for the wire-format `UploadSlot` document. JSON
+ * Schema cannot express the sibling relation `minBytes <= maxBytes`; only
+ * the runtime validator (`assertUploadSlot`) enforces it. The drift harness
+ * covers the gap via its validator-only invalid payloads.
+ */
 export const OLOS_UPLOAD_SLOT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -327,7 +372,7 @@ export const OLOS_UPLOAD_SLOT_SCHEMA = {
     epoch: nonNegativeInteger,
     expiresAt: timestamp,
     kind: stringEnum(MEDIA_OBJECT_KINDS),
-    maxBytes: positiveNumber,
+    maxBytes: positiveInteger,
     mediaSequenceNumber: nonNegativeInteger,
     minBytes: nonNegativeInteger,
     objectKey,
@@ -356,6 +401,7 @@ export const OLOS_UPLOAD_SLOT_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/** JSON Schema (2020-12) for the wire-format `Commit` document. */
 export const OLOS_COMMIT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -374,7 +420,7 @@ export const OLOS_COMMIT_SCHEMA = {
     programDateTime: timestamp,
     renditionId: id,
     sessionId: id,
-    size: positiveNumber,
+    size: positiveInteger,
     slotId: id,
   },
   required: [
@@ -394,6 +440,7 @@ export const OLOS_COMMIT_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/** JSON Schema (2020-12) for the wire-format `UploadGrant` document. */
 export const OLOS_UPLOAD_GRANT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -409,6 +456,7 @@ export const OLOS_UPLOAD_GRANT_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/** JSON Schema (2020-12) for the wire-format `MediaObject` observation. */
 export const OLOS_MEDIA_OBJECT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -418,13 +466,18 @@ export const OLOS_MEDIA_OBJECT_SCHEMA = {
     objectKey,
     observedAt: timestamp,
     providerId: id,
-    size: positiveNumber,
+    size: positiveInteger,
   },
   required: ["contentType", "objectKey", "observedAt", "providerId", "size"],
   title: "OLOS MediaObject",
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/**
+ * JSON Schema (2020-12) for `ProviderCapabilityDocument`, including the
+ * conditional preconditions a provider must meet before declaring
+ * `directObjectPublication`.
+ */
 export const OLOS_PROVIDER_CAPABILITY_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -453,6 +506,10 @@ export const OLOS_PROVIDER_CAPABILITY_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/**
+ * JSON Schema (2020-12) for the OLOS error body: an `error` object with a
+ * known `olos.*` code, a message, and optional `details`.
+ */
 export const OLOS_ERROR_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -473,6 +530,11 @@ export const OLOS_ERROR_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/**
+ * JSON Schema (2020-12) for the `CommittedWindow` document. Ordering
+ * invariants (monotonic, duplicate-free sequence and part numbers) are only
+ * enforced by `assertCommittedWindow` (olos/validation).
+ */
 export const OLOS_COMMITTED_WINDOW_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -497,6 +559,10 @@ export const OLOS_COMMITTED_WINDOW_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/**
+ * JSON Schema (2020-12) for the wire-format `Cursor` document, embedding
+ * `OLOS_COMMITTED_WINDOW_SCHEMA` for its `committedWindow` field.
+ */
 export const OLOS_CURSOR_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -539,6 +605,10 @@ export const OLOS_CURSOR_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/**
+ * All OLOS wire-format schemas keyed by document name — convenient for
+ * registering the whole set with a validator in one pass.
+ */
 export const OLOS_JSON_SCHEMAS = {
   commit: OLOS_COMMIT_SCHEMA,
   committedWindow: OLOS_COMMITTED_WINDOW_SCHEMA,

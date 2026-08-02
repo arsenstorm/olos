@@ -1,5 +1,5 @@
-import { issueCoordinatorSlot } from "../protocol";
-import type { CoordinatorPipelineState } from "../protocol/coordinator";
+import { issueCoordinatorSlot } from "../protocol/coordinator-slot";
+import type { CoordinatorPipelineState } from "../protocol/coordinator-types";
 import {
   type PublicationControlPolicy,
   type PublicationControlResolution,
@@ -7,23 +7,35 @@ import {
 } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
 import type { UploadSlot } from "../types/upload-slot";
+import { errorMessage } from "../validation/fields";
 import {
   invalidRuntimeCommandResponse,
   issuedSlotRuntimeCommandResponse,
   rejectedRuntimeCommandResult,
 } from "./command-response";
-import { errorMessage } from "./errors";
 import type { RuntimeSlotIssuePayload } from "./slot-issue-payload";
 import { parseSlotIssueRequest } from "./slot-issue-request-parser";
+/**
+ * Slot issue input: either a web `Request` whose JSON body is parsed and
+ * validated, or an already-built payload object.
+ */
 export type RuntimeSlotIssueRequest = Request | RuntimeSlotIssuePayload;
 export type { RuntimeSlotIssuePayload } from "./slot-issue-payload";
 
+/** Options for `issueCoordinatorSlotFromRequest`. */
 export interface IssueCoordinatorSlotFromRequestOptions {
   publicationControl?: PublicationControlPolicy;
   request: RuntimeSlotIssueRequest;
+  /** Coordinator state the slot is issued against (not mutated in place). */
   state: CoordinatorPipelineState;
 }
 
+/**
+ * Outcome of `issueCoordinatorSlotFromRequest`. Every variant carries a
+ * ready-to-return JSON `response`; `issued` also carries the slot and next
+ * coordinator state, `rejected` the protocol error and unchanged state, and
+ * `invalid` the parse or validation failure message.
+ */
 export type RuntimeCoordinatorSlotIssue =
   | {
       response: Response;
@@ -51,6 +63,15 @@ type InvalidRuntimeCoordinatorSlotIssue = Extract<
   RuntimeCoordinatorSlotIssue,
   { status: "invalid" }
 >;
+/**
+ * Issue an upload slot against in-memory coordinator state and build the
+ * matching HTTP response. Pure with respect to storage — the caller is
+ * responsible for persisting the returned state (see
+ * `issueStoredCoordinatorSlotFromRequest` for the stored variant). The
+ * issued slot carries the coordinator-derived object key and delivery URL.
+ * Publication-control blocks yield `rejected` with an `OlosError`;
+ * malformed payloads yield `invalid`.
+ */
 export async function issueCoordinatorSlotFromRequest(
   options: IssueCoordinatorSlotFromRequestOptions
 ): Promise<RuntimeCoordinatorSlotIssue> {

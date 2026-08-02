@@ -1,41 +1,75 @@
 import type {
   CoordinatorPipelineState,
   CoordinatorPublisherLease,
-} from "../protocol";
+} from "../protocol/coordinator-types";
 import type { Cursor } from "../types/cursor";
 import { assertCursor } from "../validation/cursor";
+import { positiveNumber } from "../validation/fields";
 import {
   type RuntimePublisherLease,
   type RuntimePublisherLeaseStatus,
   resolveRuntimePublisherLeaseStatus,
 } from "./publisher-lease";
-import { positiveNumber, timestampMs } from "./request-fields";
+import { timestampMs } from "./request-fields";
 
+/** Options for `resolveRuntimeLiveHealth`. */
 export interface ResolveRuntimeLiveHealthOptions {
+  /** Latest session cursor; omit when no commit has landed yet. */
   cursor?: Cursor;
+  /** Publisher lease to fold into the verdict; omit to judge cursor only. */
   lease?: RuntimePublisherLease;
+  /** Cursor age at which the session stops counting as fresh, in ms. */
   maxCursorAgeMs: number;
+  /** Evaluation time as an ISO 8601 timestamp; must not precede the cursor. */
   now: string;
 }
 
+/** Options for `resolveRuntimeLiveHealthFromState`. */
 export interface ResolveRuntimeLiveHealthFromStateOptions {
+  /** Cursor age at which the session stops counting as fresh, in ms. */
   maxCursorAgeMs: number;
+  /** Evaluation time as an ISO 8601 timestamp. */
   now: string;
+  /**
+   * Judge this specific publisher's lease. When omitted, the most recently
+   * seen lease is used; when set but no matching lease exists, the health
+   * status is forced to `stale`.
+   */
   publisherInstanceId?: string;
   state: CoordinatorPipelineState;
 }
 
+/**
+ * How current the session cursor is: `fresh` (within `maxCursorAgeMs`),
+ * `stale` (older), or `missing` (no commit yet).
+ */
 export type RuntimeCursorFreshness = "fresh" | "missing" | "stale";
+
+/**
+ * Overall live health verdict: `active` (fresh cursor, lease not stale),
+ * `starting` (no cursor yet, lease not stale), or `stale` otherwise.
+ */
 export type RuntimeLiveHealthStatus = "active" | "stale" | "starting";
 
+/** Live health report for a session, as served by the health route. */
 export interface RuntimeLiveHealth {
+  /** Age of the cursor at evaluation time, in ms; absent when missing. */
   cursorAgeMs?: number;
   cursorFreshness: RuntimeCursorFreshness;
+  /** Verdict on the evaluated publisher lease; absent when none exists. */
   leaseStatus?: RuntimePublisherLeaseStatus;
+  /** Publisher whose lease was evaluated, when one matched. */
   publisherInstanceId?: string;
   status: RuntimeLiveHealthStatus;
 }
 
+/**
+ * Judge a session's live health from its cursor and an optional publisher
+ * lease. The status is `active` only when the cursor is no older than
+ * `maxCursorAgeMs` and the lease (if given) has not expired; a session with
+ * no cursor is `starting` rather than `stale` unless its lease already
+ * expired. Throws when `now` precedes the cursor's `updatedAt`.
+ */
 export function resolveRuntimeLiveHealth(
   options: ResolveRuntimeLiveHealthOptions
 ): RuntimeLiveHealth {
@@ -120,6 +154,12 @@ function liveHealthStatus(
     : "stale";
 }
 
+/**
+ * Judge a session's live health straight from coordinator pipeline state.
+ * Selects the lease for `publisherInstanceId` when given (forcing the
+ * status to `stale` if no such lease exists), otherwise the most recently
+ * seen lease, then delegates to `resolveRuntimeLiveHealth`.
+ */
 export function resolveRuntimeLiveHealthFromState(
   options: ResolveRuntimeLiveHealthFromStateOptions
 ): RuntimeLiveHealth {

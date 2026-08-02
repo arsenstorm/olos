@@ -13,24 +13,21 @@ import {
   type PublicationControlResolution,
   resolvePublicationControl,
 } from "../state/publication-control";
-import {
-  type RetiredCommittedObject,
-  selectExpiredUploadSlots,
-  selectRetiredCommittedObjects,
-} from "../state/retention";
+import type { RetiredCommittedObject } from "../state/retention";
 import { observeUpload } from "../state/upload-slot";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
+import { createOlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
+import { applyCoordinatorRetention } from "./coordinator-retention";
 import type {
   CommitCoordinatorUploadOptions,
   CoordinatorCommitPolicyDecision,
   CoordinatorPipelineState,
   CoordinatorUploadCommit,
-} from "./coordinator";
-import { coordinatorError } from "./coordinator-error";
+} from "./coordinator-types";
 
 type ConflictingDuplicateCommit = Extract<
   ReturnType<typeof resolveDuplicateCommit>,
@@ -47,6 +44,24 @@ type RejectedCoordinatorCommitPolicyDecision = Extract<
   { status: "rejected" }
 >;
 
+/**
+ * Record an observed upload as a commit against its slot and return the next
+ * pipeline state. Pure function on state — persisting the result is the
+ * caller's job (typically via `mutateCoordinatorPipeline`).
+ *
+ * Retrying the same commit is safe: an equivalent commit for the slot
+ * resolves as `"idempotent"` without changing state, while a differing one
+ * is `"rejected"`. Rejections also cover slot/object mismatches, uploads
+ * later than the slot's `expiresAt` plus `lateToleranceMs` (default 0), a
+ * failing `commitPolicy`, and publication control blocking the commit or the
+ * cursor advancement it would cause.
+ *
+ * When the new commit completes a contiguous prefix, the cursor advances
+ * (never regresses) and retention runs in the same operation: out-of-window
+ * commits and expired issued slots are pruned from the returned state, with
+ * the pruned commits surfaced as `retiredObjects` so the caller can delete
+ * their backing objects.
+ */
 export function commitCoordinatorUpload(
   options: CommitCoordinatorUploadOptions
 ): CoordinatorUploadCommit {
@@ -209,7 +224,7 @@ function rejectInvalidObservedUpload(options: {
 
   if (observedSlotId !== undefined && observedSlotId !== slot.slotId) {
     return {
-      error: coordinatorError(
+      error: createOlosError(
         "olos.invalid_state",
         "object slot metadata does not match slot",
         {
@@ -334,11 +349,17 @@ function commitIntoState(options: {
     ...(partNumber === undefined ? {} : { lastPartNumber: partNumber }),
   });
 
+  // Auto-retention on every window advance: the shared pruning core drops
+  // out-of-window commits and expired issued slots so the persisted snapshot
+  // stays bounded, surfacing the pruned commits as `retiredObjects` for the
+  // runtime to delete their backing objects in the same operation.
   const cursor = resolveNextCursor(options.state.cursor, candidateCursor);
-  return retainCommitsWithinWindow(
-    { ...nextState, cursor },
-    options.commit.committedAt
-  );
+  const retention = applyCoordinatorRetention({
+    now: options.commit.committedAt,
+    state: { ...nextState, cursor },
+  });
+
+  return { retiredObjects: retention.retiredObjects, state: retention.state };
 }
 
 function resolveNextCursor(
@@ -355,56 +376,6 @@ function resolveNextCursor(
   });
 
   return update.status === "regression" ? current : update.cursor;
-}
-
-// Drop commits whose slots have fallen out of the live window AND their
-// matching slots from `state.slots`; also drop issued slots whose grant
-// expired without an upload. Without this both arrays accumulate forever,
-// the persisted snapshot grows linearly with session age, and every read
-// pays O(session-age) JSON parse + scan. The pruned commits surface as
-// `retiredObjects` so the runtime can delete their backing objects from
-// storage in the same operation; expired-issued slot grants have no
-// uploaded object so they don't appear in retiredObjects.
-function retainCommitsWithinWindow(
-  state: CoordinatorPipelineState,
-  now: string
-): CommitIntoStateResult {
-  if (state.cursor === undefined) {
-    return { retiredObjects: [], state };
-  }
-
-  const retiredObjects = selectRetiredCommittedObjects({
-    commits: state.commits,
-    retainedWindow: state.cursor.committedWindow,
-  });
-  const expiredSlots = selectExpiredUploadSlots({
-    now,
-    slots: state.slots,
-  });
-
-  if (retiredObjects.length === 0 && expiredSlots.length === 0) {
-    return { retiredObjects: [], state };
-  }
-
-  const obsoleteSlotIds = new Set([
-    ...retiredObjects.map((object) => object.slotId),
-    ...expiredSlots.map((slot) => slot.slotId),
-  ]);
-  const retainedCommits = state.commits.filter(
-    (commit) => !obsoleteSlotIds.has(commit.slotId)
-  );
-  const retainedSlots = state.slots.filter(
-    (slot) => !obsoleteSlotIds.has(slot.slotId)
-  );
-
-  return {
-    retiredObjects,
-    state: {
-      ...state,
-      commits: retainedCommits,
-      slots: retainedSlots,
-    },
-  };
 }
 
 function findSlot(

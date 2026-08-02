@@ -1,13 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import {
-  createMemoryCoordinatorStore,
-  issueCoordinatorSlot,
-} from "../protocol";
-import type { CoordinatorPipelineState } from "../protocol/coordinator";
+import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
+import { issueCoordinatorSlot } from "../protocol/coordinator-slot";
 import {
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
+import type { CoordinatorPipelineState } from "../protocol/coordinator-types";
 import { savedStoreResult } from "../protocol/test-store.test-helper";
 import type { S3HeadObjectClient } from "./object-observation";
 import {

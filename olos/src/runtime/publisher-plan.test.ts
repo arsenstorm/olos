@@ -79,9 +79,7 @@ describe("runtime publisher object plan", () => {
     });
 
     expect(init.objectKey).toBe("media/session_1/v1080/init-slot_01JZ.mp4");
-    expect(segment.objectKey).toBe(
-      "media/session_1/v1080/s3810/segment-slot_01K0.m4s"
-    );
+    expect(segment.objectKey).toBe("media/session_1/v1080/s3810-slot_01K0.m4s");
     expect(part.objectKey).toBe("media/session_1/v1080/s3810/p2-slot_01K1.m4s");
   });
 

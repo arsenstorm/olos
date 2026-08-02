@@ -147,6 +147,12 @@ describe("upload slot validation", () => {
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, minBytes: 20, maxBytes: 10 })
     ).toThrow("uploadSlot.minBytes must be less than or equal to maxBytes");
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, maxBytes: 1024.5 })
+    ).toThrow("uploadSlot.maxBytes must be a positive integer");
+    expect(() => assertUploadSlot({ ...validUploadSlot, maxBytes: 0 })).toThrow(
+      "uploadSlot.maxBytes must be a positive integer"
+    );
   });
 
   test("accepts zero minimum byte limits", () => {

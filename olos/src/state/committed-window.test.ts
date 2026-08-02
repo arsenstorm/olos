@@ -89,7 +89,7 @@ describe("committed window builder", () => {
               },
             },
             {
-              duration: 0.5,
+              duration: 1,
               mediaSequenceNumber: 3811,
               parts: [
                 {
@@ -361,6 +361,49 @@ describe("committed window builder", () => {
 
     expect(window.lastMediaSequenceNumber).toBe(3810);
     expect(lastVisiblePartNumber(window)).toBeUndefined();
+  });
+
+  test("sums contiguous part durations for parts-only segments", () => {
+    const window = createCommittedWindow({
+      commits: [partCommit(0), partCommit(1)],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    expect(window.renditions.v1080?.segments).toEqual([
+      expect.objectContaining({
+        duration: 1,
+        mediaSequenceNumber: 3811,
+      }),
+    ]);
+    expect(lastVisiblePartNumber(window)).toBe(1);
+  });
+
+  test("keeps the full-segment commit duration when parts are also committed", () => {
+    const fullSegmentCommit: Commit = {
+      ...segmentCommit,
+      commitId: "commit_3811",
+      deliveryUrl: "/media/v1080/s3811.m4s",
+      duration: 2,
+      mediaSequenceNumber: 3811,
+      objectKey: "media/v1080/s3811.m4s",
+      slotId: "slot_3811",
+    };
+
+    const window = createCommittedWindow({
+      commits: [fullSegmentCommit, partCommit(0), partCommit(1)],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    expect(window.renditions.v1080?.segments).toEqual([
+      expect.objectContaining({
+        duration: 2,
+        mediaSequenceNumber: 3811,
+      }),
+    ]);
   });
 
   test("rejects duplicate part commits", () => {

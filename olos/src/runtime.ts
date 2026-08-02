@@ -64,11 +64,11 @@ export {
   createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
   type RuntimeObjectLowLatencyManifestOptions,
-  type RuntimeObjectLowLatencyProfile,
   type RuntimeObjectLowLatencyPublisherInitOptions,
   type RuntimeObjectLowLatencyPublisherObjectOptions,
   type RuntimeObjectLowLatencyPublisherOptions,
 } from "./runtime/latency-profile";
+export type { RuntimeObjectLowLatencyProfile } from "./runtime/latency-profile-defaults";
 export {
   type RuntimeManifestRequest,
   type ServeBlockingCoordinatorManifestOptions,
@@ -128,6 +128,8 @@ export {
   type RuntimePublisherPlannedObjectKind,
 } from "./runtime/publisher-plan";
 export {
+  type ApplyStoredCoordinatorRetentionOptions,
+  applyStoredCoordinatorRetention,
   type DeleteRetiredCoordinatorObjectsOptions,
   deleteRetiredCoordinatorObjects,
   type PlanStoredCoordinatorRetentionOptions,
@@ -136,6 +138,7 @@ export {
   type RetiredCoordinatorObjectDeletionFailure,
   type RetiredCoordinatorObjectDeletionResult,
   type RetiredCoordinatorObjectDeletionSummary,
+  type StoredRuntimeRetentionApplication,
   type StoredRuntimeRetentionPlan,
   summarizeRetiredCoordinatorObjectDeletions,
 } from "./runtime/retention";
@@ -171,14 +174,3 @@ export {
   serveStoredBlockingCoordinatorManifest,
   serveStoredCoordinatorManifest,
 } from "./runtime/stored";
-export {
-  type CreatePublisherObjectKeyOptions,
-  createPublisherDeliveryUrl,
-  createPublisherObjectKey,
-  type DerivableMediaObjectKind,
-} from "./state/object-key-derivation";
-export {
-  type CreateRuntimePublisherObjectKeyNonceOptions,
-  createRuntimePublisherObjectKeyNonce,
-  RUNTIME_PUBLISHER_OBJECT_KEY_NONCE_MIN_BYTES,
-} from "./state/object-key-nonce";

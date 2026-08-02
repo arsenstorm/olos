@@ -4,74 +4,105 @@ import type { Cursor } from "../types/cursor";
 import type { MediaObjectKind } from "../types/media-object";
 import type { Session } from "../types/session";
 import type { UploadSlot, UploadSlotState } from "../types/upload-slot";
+import { timestampMs } from "../validation/fields";
 import {
   assertObservedUploadMatchesSlot,
   type ObservedUpload,
 } from "../validation/observed-upload";
 import { assertSession } from "../validation/session";
 import { assertUploadSlot } from "../validation/upload-slot";
-import { timestampMs } from "./timestamp";
 
 const UPLOAD_SLOT_TRANSITION_MAP: Partial<
   Record<UploadSlotState, readonly UploadSlotState[]>
 > = UPLOAD_SLOT_TRANSITIONS;
 
+/** Options for {@link createIssuedUploadSlot}. */
 export interface CreateIssuedUploadSlotOptions {
   byterange?: Byterange;
   contentType: string;
   deliveryUrl: string;
+  /** Media duration of the expected object in seconds. */
   duration: number;
+  /** ISO timestamp after which an unobserved slot may be expired. */
   expiresAt: string;
   kind: MediaObjectKind;
+  /** Maximum accepted object size in bytes. */
   maxBytes: number;
   mediaSequenceNumber: number;
+  /** Minimum accepted object size in bytes. */
   minBytes?: number;
   objectKey: string;
   partNumber?: number;
   renditionId: string;
+  /** Owning session; must be `live` and contain `renditionId`. */
   session: Session;
   slotId: string;
 }
 
+/** Options for {@link resolveUploadObservation} and {@link observeUpload}. */
 export interface ObserveUploadOptions {
+  /** Current cursor, echoed back unchanged on the result. */
   cursor?: Cursor;
+  /**
+   * Grace period in milliseconds added to `slot.expiresAt` before an
+   * observation is considered late (default 0).
+   */
   lateToleranceMs?: number;
+  /** Provider evidence that the object exists; must match the slot. */
   object: ObservedUpload;
   slot: UploadSlot;
 }
 
+/** Result of {@link resolveUploadObservation}. */
 export interface UploadObservationResult {
+  /** The input cursor, unchanged, when one was supplied. */
   cursor?: Cursor;
+  /** Always false: observation never advances the cursor; only commits do. */
   cursorAdvanced: false;
+  /** Copy of the slot in the `upload_observed` state. */
   slot: UploadSlot;
+  /** `already_observed` when the slot had already been observed. */
   status: "already_observed" | "observed";
 }
 
+/** Options for {@link resolveUploadExpiry} and {@link expireUpload}. */
 export interface ResolveUploadExpiryOptions {
+  /** ISO timestamp used as "now"; must be at or after `slot.expiresAt`. */
   now: string;
   slot: UploadSlot;
 }
 
+/** Result of {@link resolveUploadExpiry}. */
 export interface UploadExpiryResult {
+  /** Copy of the slot in the `expired` state. */
   slot: UploadSlot;
+  /** `already_expired` when the slot was already expired. */
   status: "already_expired" | "expired";
 }
 
+/** Options for {@link resolveUploadRejection} and {@link rejectUpload}. */
 export interface ResolveUploadRejectionOptions {
   slot: UploadSlot;
 }
 
+/** Result of {@link resolveUploadRejection}. */
 export interface UploadRejectionResult {
+  /** Copy of the slot in the `rejected` state. */
   slot: UploadSlot;
+  /** `already_rejected` when the slot was already rejected. */
   status: "already_rejected" | "rejected";
 }
 
+/** Options for {@link resolveUploadRevocation} and {@link revokeUpload}. */
 export interface ResolveUploadRevocationOptions {
   slot: UploadSlot;
 }
 
+/** Result of {@link resolveUploadRevocation}. */
 export interface UploadRevocationResult {
+  /** Copy of the slot in the `revoked` state. */
   slot: UploadSlot;
+  /** `already_revoked` when the slot was already revoked. */
   status: "already_revoked" | "revoked";
 }
 
@@ -97,6 +128,12 @@ interface TerminalUploadTransitionResult<
   status: TStatus | TAlreadyStatus;
 }
 
+/**
+ * Create a new upload slot in the `issued` state for a live session. The
+ * slot's epoch and session ID are copied from the session. Pure; throws
+ * when the session is not `live`, `renditionId` does not belong to the
+ * session's renditions, or the resulting slot fails validation.
+ */
 export function createIssuedUploadSlot(
   options: CreateIssuedUploadSlotOptions
 ): UploadSlot {
@@ -167,10 +204,23 @@ function optionalIssuedUploadSlotFields(
   return optionalFields;
 }
 
+/**
+ * Shorthand for {@link resolveUploadObservation} that returns only the
+ * updated slot.
+ */
 export function observeUpload(options: ObserveUploadOptions): UploadSlot {
   return resolveUploadObservation(options).slot;
 }
 
+/**
+ * Record provider evidence that the slot's object exists, moving an
+ * `issued` slot to `upload_observed`. Idempotent: observing an
+ * already-observed slot returns `already_observed` with an equivalent
+ * copy. Pure. Throws when the slot is in any other state or the observed
+ * object does not match the slot (key, content type, size bounds, or an
+ * observation later than `slot.expiresAt + lateToleranceMs`).
+ * `cursorAdvanced` is always false — only commits advance the cursor.
+ */
 export function resolveUploadObservation(
   options: ObserveUploadOptions
 ): UploadObservationResult {
@@ -206,10 +256,21 @@ function isObservedUploadSlot(slot: UploadSlot): slot is ObservedUploadSlot {
   return slot.state === "upload_observed";
 }
 
+/**
+ * Shorthand for {@link resolveUploadExpiry} that returns only the updated
+ * slot.
+ */
 export function expireUpload(options: ResolveUploadExpiryOptions): UploadSlot {
   return resolveUploadExpiry(options).slot;
 }
 
+/**
+ * Move an `issued` slot to `expired` once its deadline has passed.
+ * Idempotent: an already-expired slot returns `already_expired`
+ * unchanged. Pure. Throws when `now` precedes `slot.expiresAt` or when
+ * the slot is in any other state — observed and committed slots cannot
+ * expire.
+ */
 export function resolveUploadExpiry(
   options: ResolveUploadExpiryOptions
 ): UploadExpiryResult {
@@ -231,12 +292,22 @@ function assertUploadExpiryReady(options: ResolveUploadExpiryOptions): void {
   }
 }
 
+/**
+ * Shorthand for {@link resolveUploadRejection} that returns only the
+ * updated slot.
+ */
 export function rejectUpload(
   options: ResolveUploadRejectionOptions
 ): UploadSlot {
   return resolveUploadRejection(options).slot;
 }
 
+/**
+ * Move an `upload_observed` slot to `rejected` (its object failed commit
+ * checks). Idempotent: an already-rejected slot returns
+ * `already_rejected` unchanged. Pure; throws for any other state — only
+ * observed uploads can be rejected.
+ */
 export function resolveUploadRejection(
   options: ResolveUploadRejectionOptions
 ): UploadRejectionResult {
@@ -248,12 +319,22 @@ export function resolveUploadRejection(
   });
 }
 
+/**
+ * Shorthand for {@link resolveUploadRevocation} that returns only the
+ * updated slot.
+ */
 export function revokeUpload(
   options: ResolveUploadRevocationOptions
 ): UploadSlot {
   return resolveUploadRevocation(options).slot;
 }
 
+/**
+ * Move a slot to `revoked` by operator or policy action. Allowed from
+ * `issued`, `upload_observed`, and `committed`. Idempotent: an
+ * already-revoked slot returns `already_revoked` unchanged. Pure; throws
+ * for `expired` and `rejected` slots, which are terminal.
+ */
 export function resolveUploadRevocation(
   options: ResolveUploadRevocationOptions
 ): UploadRevocationResult {
@@ -292,6 +373,13 @@ function resolveTerminalUploadTransition<
   };
 }
 
+/**
+ * Whether an upload slot may move from one state to another. Allowed
+ * transitions: `issued -> upload_observed | expired | revoked`,
+ * `upload_observed -> committed | rejected | revoked`, and
+ * `committed -> revoked`; `expired`, `rejected`, and `revoked` are
+ * terminal. Pure.
+ */
 export function canTransitionUploadSlot(
   from: UploadSlotState,
   to: UploadSlotState
@@ -299,6 +387,11 @@ export function canTransitionUploadSlot(
   return allowedUploadSlotTransitions(from).includes(to);
 }
 
+/**
+ * Throwing variant of {@link canTransitionUploadSlot}: throws
+ * `Invalid upload slot transition: <from> -> <to>` when the transition is
+ * not allowed, returns nothing otherwise.
+ */
 export function assertUploadSlotTransition(
   from: UploadSlotState,
   to: UploadSlotState

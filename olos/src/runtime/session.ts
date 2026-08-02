@@ -1,50 +1,70 @@
 import { SESSION_STATES } from "../config/session";
-import {
-  type CoordinatorPipelineMutation,
-  type CoordinatorPipelineSnapshot,
-  type CoordinatorPipelineState,
-  type CoordinatorPipelineStore,
-  type CoordinatorPublisherLease,
-  type CoordinatorStoreSave,
-  createCoordinatorPipeline,
-  mutateCoordinatorPipeline,
-} from "../protocol";
+import { createCoordinatorPipeline } from "../protocol/coordinator-lifecycle";
+import { mutateCoordinatorPipeline } from "../protocol/coordinator-mutation";
+import type {
+  CoordinatorPipelineMutation,
+  CoordinatorPipelineSnapshot,
+  CoordinatorPipelineState,
+  CoordinatorPipelineStore,
+  CoordinatorPublisherLease,
+  CoordinatorStoreSave,
+} from "../protocol/coordinator-types";
 import { assertSessionTransition } from "../state/session";
+import { createOlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { Session, SessionState } from "../types/session";
 import type { PublicationMode } from "../types/upload-slot";
+import { isAllowedString, positiveNumber } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import {
   createRuntimePublisherLease,
   refreshRuntimePublisherHeartbeat,
 } from "./publisher-lease";
-import { positiveNumber, timestampMs } from "./request-fields";
-import { jsonErrorResponse, jsonResponse } from "./response";
-import { isStringLiteral } from "./string-literals";
+import { timestampMs } from "./request-fields";
+import {
+  jsonConflictResponse,
+  jsonErrorResponse,
+  jsonResponse,
+} from "./response";
 
+/** Options for `createStoredCoordinatorSession`. */
 export interface CreateStoredCoordinatorSessionOptions {
+  /** Public base URL that delivery URLs for the session's media resolve to. */
   mediaBaseUrl: string;
+  /** Defaults to `direct-public`. */
   publicationMode?: PublicationMode;
   session: Session;
   store: CoordinatorPipelineStore;
 }
 
+/** Options for `transitionStoredCoordinatorSession`. */
 export interface TransitionStoredCoordinatorSessionOptions {
+  /** Max optimistic-save attempts; defaults to 2. */
   maxAttempts?: number;
   sessionId: OlosId;
+  /** Target session state to transition to. */
   state: SessionState;
   store: CoordinatorPipelineStore;
 }
 
+/** Options for `heartbeatStoredCoordinatorPublisher`. */
 export interface HeartbeatStoredCoordinatorPublisherOptions {
+  /** Max optimistic-save attempts; defaults to 2. */
   maxAttempts?: number;
+  /** Heartbeat time as an ISO 8601 timestamp. */
   now: string;
   publisherInstanceId: OlosId;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
+  /** Lease lifetime granted from `now`, in milliseconds. */
   ttlMs: number;
 }
 
+/**
+ * Outcome of `createStoredCoordinatorSession`: `created` with the saved
+ * state and its etag, or `conflict` when the session id already exists.
+ * Every variant carries a ready-to-return JSON `response`.
+ */
 export type StoredRuntimeSessionCreate =
   | {
       etag: string;
@@ -54,6 +74,11 @@ export type StoredRuntimeSessionCreate =
     }
   | StoredRuntimeSessionMutation;
 
+/**
+ * Outcome of `transitionStoredCoordinatorSession`: `transitioned` with the
+ * saved state and its etag, `rejected` (409) when the transition is invalid
+ * from the current state, or a `StoredRuntimeSessionMutation` failure.
+ */
 export type StoredRuntimeSessionTransition =
   | {
       etag: string;
@@ -67,6 +92,12 @@ export type StoredRuntimeSessionTransition =
     }
   | StoredRuntimeSessionMutation;
 
+/**
+ * Outcome of `heartbeatStoredCoordinatorPublisher`: `refreshed` with the
+ * new lease, saved state, and etag; `rejected` (409) when the session is in
+ * a terminal state or the inputs are invalid; or a
+ * `StoredRuntimeSessionMutation` failure.
+ */
 export type StoredRuntimePublisherHeartbeat =
   | {
       etag: string;
@@ -81,6 +112,12 @@ export type StoredRuntimePublisherHeartbeat =
     }
   | StoredRuntimeSessionMutation;
 
+/**
+ * Failure outcomes shared by stored session mutations: `conflict` (409)
+ * when concurrent writes exhausted the optimistic retries — with the latest
+ * snapshot when available — or `not_found` (404) when the session does not
+ * exist.
+ */
 export type StoredRuntimeSessionMutation =
   | {
       current?: CoordinatorPipelineSnapshot;
@@ -110,6 +147,11 @@ const HEARTBEAT_TERMINAL_SESSION_STATES = [
 type HeartbeatTerminalSessionState =
   (typeof HEARTBEAT_TERMINAL_SESSION_STATES)[number];
 
+/**
+ * Create a coordinator session in the store and return a 201 response with
+ * its id. Refuses to overwrite: an existing session with the same id — or
+ * one that appears concurrently during the save — yields `conflict` (409).
+ */
 export async function createStoredCoordinatorSession(
   options: CreateStoredCoordinatorSessionOptions
 ): Promise<StoredRuntimeSessionCreate> {
@@ -141,6 +183,12 @@ export async function createStoredCoordinatorSession(
   };
 }
 
+/**
+ * Move a stored session to a new lifecycle state with optimistic-retry
+ * persistence (up to `maxAttempts`, default 2). The cursor's state field is
+ * kept in step when a cursor exists. Disallowed transitions from the
+ * current state yield `rejected` (409) rather than throwing.
+ */
 export async function transitionStoredCoordinatorSession(
   options: TransitionStoredCoordinatorSessionOptions
 ): Promise<StoredRuntimeSessionTransition> {
@@ -175,6 +223,12 @@ export async function transitionStoredCoordinatorSession(
   }
 }
 
+/**
+ * Record a publisher heartbeat on a stored session: creates the publisher's
+ * lease on first sight, refreshes it (extending expiry by `ttlMs`
+ * milliseconds from `now`) afterwards, and persists via optimistic-retry.
+ * Heartbeats against `ended` or `aborted` sessions yield `rejected` (409).
+ */
 export async function heartbeatStoredCoordinatorPublisher(
   options: HeartbeatStoredCoordinatorPublisherOptions
 ): Promise<StoredRuntimePublisherHeartbeat> {
@@ -334,11 +388,11 @@ function assertHeartbeatSessionState(state: SessionState): void {
 function isHeartbeatTerminalSessionState(
   state: SessionState
 ): state is HeartbeatTerminalSessionState {
-  return isStringLiteral(state, HEARTBEAT_TERMINAL_SESSION_STATES);
+  return isAllowedString(state, HEARTBEAT_TERMINAL_SESSION_STATES);
 }
 
 function assertSessionState(value: unknown): asserts value is SessionState {
-  if (typeof value !== "string" || !isStringLiteral(value, SESSION_STATES)) {
+  if (typeof value !== "string" || !isAllowedString(value, SESSION_STATES)) {
     throw new Error(`state must be one of: ${SESSION_STATES.join(", ")}`);
   }
 }
@@ -363,7 +417,11 @@ function handledStoredSessionMutation(
 
 function notFound(): StoredRuntimeSessionMutation {
   return {
-    response: jsonErrorResponse("coordinator session was not found", 404),
+    response: jsonErrorResponse(
+      "olos.invalid_session",
+      "coordinator session was not found",
+      404
+    ),
     status: "not_found",
   };
 }
@@ -373,9 +431,8 @@ function conflict(
 ): StoredRuntimeSessionMutation {
   return {
     ...(current === undefined ? {} : { current }),
-    response: jsonErrorResponse(
-      "coordinator session changed during mutation",
-      409
+    response: jsonConflictResponse(
+      "coordinator session changed during mutation"
     ),
     status: "conflict",
   };
@@ -400,11 +457,10 @@ function rejectedHeartbeat(error: unknown): StoredRuntimePublisherHeartbeat {
 
 function rejectionResponse(error: unknown, fallbackMessage: string): Response {
   return jsonResponse(
-    {
-      error: {
-        message: error instanceof Error ? error.message : fallbackMessage,
-      },
-    },
+    createOlosError(
+      "olos.invalid_state",
+      error instanceof Error ? error.message : fallbackMessage
+    ),
     409
   );
 }

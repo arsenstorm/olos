@@ -1,15 +1,13 @@
 import { fetchFor, jsonPost, normalizedBaseUrl } from "../runtime/http-client";
-import {
-  S3_ROUTE_ACTIONS,
-  s3CompletionHintRoutePathFromOptions,
-  s3RoutePathFromOptions,
-} from "../runtime/route";
 import { assertUrlSafeIdentifier } from "../validation/ids";
-import { S3RuntimeHttpError as S3RuntimeHttpErrorClass } from "./client-error";
-import { reconciliationPayload } from "./client-reconciliation-payload";
-import { reconciliationPlanPayload } from "./client-reconciliation-plan-payload";
+import {
+  commitPayload,
+  grantPayload,
+  reconciliationPayload,
+  reconciliationPlanPayload,
+  retentionPayload,
+} from "./client-payload";
 import { parsedS3RuntimeResponse } from "./client-response";
-import { retentionPayload } from "./client-retention-payload";
 import type {
   S3RuntimeApplyRetentionOptions,
   S3RuntimeApplyRetentionResponse,
@@ -24,7 +22,11 @@ import type {
   S3RuntimeReconcileUploadsResponse,
   S3RuntimeReconciliationPlanResponse,
 } from "./client-types";
-import { commitPayload, grantPayload } from "./client-upload-payload";
+import {
+  S3_ROUTE_ACTIONS,
+  s3CompletionHintRoutePathFromOptions,
+  s3RoutePathFromOptions,
+} from "./route";
 
 export type {
   S3RuntimeApplyRetentionOptions,
@@ -47,10 +49,13 @@ export type {
   S3RuntimeRetentionPayload,
 } from "./client-types";
 
-const S3RuntimeHttpError = S3RuntimeHttpErrorClass;
-
-export { S3RuntimeHttpError };
-
+/**
+ * Ask a stored S3 coordinator runtime to issue an upload slot with a
+ * presigned S3 PUT grant by POSTing to the session's `s3/slots` route.
+ * Resolves with the issued slot, the grant, and the raw `Response`; throws
+ * `S3RuntimeHttpError` (carrying the response and its parsed body, including
+ * the `olos.*` `error.code`) on any non-2xx status.
+ */
 export async function issueS3RuntimeUploadGrant(
   options: S3RuntimeIssueUploadGrantOptions
 ): Promise<S3RuntimeIssueUploadGrantResponse> {
@@ -66,6 +71,14 @@ export async function issueS3RuntimeUploadGrant(
   );
 }
 
+/**
+ * Report that a slot's object finished uploading by POSTing a completion
+ * hint to the session's `upload-slots/{slotId}/complete` route. The runtime
+ * verifies the object via S3 `HeadObject` and commits it; the payload is
+ * optional and only supplies overrides such as `commitId` or `committedAt`.
+ * Resolves with the resulting commit (and cursor when publication advanced);
+ * throws `S3RuntimeHttpError` on any non-2xx status.
+ */
 export async function completeS3RuntimeUpload(
   options: S3RuntimeCompleteUploadOptions
 ): Promise<S3RuntimeCompleteUploadResponse> {
@@ -81,6 +94,13 @@ export async function completeS3RuntimeUpload(
   );
 }
 
+/**
+ * Commit an uploaded slot by POSTing to the session's `s3/commits` route.
+ * The runtime observes the object with S3 `HeadObject` and applies the
+ * commit; re-sending the same `commitId` is idempotent (HTTP 200 instead of
+ * 201). Resolves with the commit (and cursor when publication advanced);
+ * throws `S3RuntimeHttpError` on any non-2xx status.
+ */
 export async function commitS3RuntimeUpload(
   options: S3RuntimeCommitUploadOptions
 ): Promise<S3RuntimeCommitUploadResponse> {
@@ -92,6 +112,13 @@ export async function commitS3RuntimeUpload(
   return parsedS3RuntimeResponse(response, "S3 upload commit", commitPayload);
 }
 
+/**
+ * Dry-run reconciliation for a session by POSTing to the runtime's
+ * `s3/reconcile-plan` route. Returns the slots that a subsequent
+ * {@link reconcileS3RuntimeUploads} call would attempt to commit without
+ * mutating anything. Throws `S3RuntimeHttpError` on any non-2xx status,
+ * including 404 when the session is unknown.
+ */
 export async function planS3RuntimeReconciliation(
   options: S3RuntimePlanReconciliationOptions
 ): Promise<S3RuntimeReconciliationPlanResponse> {
@@ -111,6 +138,14 @@ export async function planS3RuntimeReconciliation(
   );
 }
 
+/**
+ * Reconcile a session's unresolved slots by POSTing to the runtime's
+ * `s3/reconcile` route. The runtime attempts to commit each issued or
+ * upload-observed slot (optionally narrowed via `payload.slotIds`) and
+ * responds 202 with per-slot results plus an aggregate summary — individual
+ * slot failures are reported there, not thrown. Throws `S3RuntimeHttpError`
+ * only for non-2xx responses such as an unknown session.
+ */
 export async function reconcileS3RuntimeUploads(
   options: S3RuntimeReconcileUploadsOptions
 ): Promise<S3RuntimeReconcileUploadsResponse> {
@@ -126,6 +161,14 @@ export async function reconcileS3RuntimeUploads(
   );
 }
 
+/**
+ * Run a retention sweep for a session by POSTing to the runtime's
+ * `s3/retention` route. The runtime prunes commits older than the window at
+ * `payload.now`, saves the pruned state, then deletes the retired objects
+ * from S3, responding 202 with the plan, the per-object deletion result, and
+ * a summary (delete failures are summarized, not thrown). Throws
+ * `S3RuntimeHttpError` for non-2xx responses.
+ */
 export async function applyS3RuntimeRetention(
   options: S3RuntimeApplyRetentionOptions
 ): Promise<S3RuntimeApplyRetentionResponse> {

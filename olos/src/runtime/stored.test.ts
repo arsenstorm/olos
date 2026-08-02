@@ -1,18 +1,16 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  commitCoordinatorUpload,
-  createMemoryCoordinatorStore,
-  issueCoordinatorSlot,
-} from "../protocol";
-import type {
-  CoordinatorPipelineSnapshot,
-  CoordinatorPipelineStore,
-} from "../protocol/coordinator";
+import { commitCoordinatorUpload } from "../protocol/coordinator-commit";
+import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
+import { issueCoordinatorSlot } from "../protocol/coordinator-slot";
 import {
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
+import type {
+  CoordinatorPipelineSnapshot,
+  CoordinatorPipelineStore,
+} from "../protocol/coordinator-types";
 import { savedStoreResult } from "../protocol/test-store.test-helper";
 import { createObservedUpload } from "../state/observed-upload";
 import {
@@ -289,7 +287,10 @@ describe("stored runtime mutations", () => {
 
     expect(result.response.status).toBe(409);
     expect(await result.response.json()).toEqual({
-      error: { message: "coordinator session changed during mutation" },
+      error: {
+        code: "olos.conflict",
+        message: "coordinator session changed during mutation",
+      },
     });
   });
 

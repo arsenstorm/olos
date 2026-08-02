@@ -2,14 +2,14 @@ import { PUBLICATION_MODES } from "../config/publication";
 import { createPublisherObjectKey } from "../state/object-key-derivation";
 import type { MediaObjectKind } from "../types/media-object";
 import type { PublicationMode } from "../types/upload-slot";
+import { positiveNumber } from "../validation/fields";
 import {
   assertUrlSafeIdentifier,
   isNonNegativeInteger,
 } from "../validation/ids";
 import { assertSupportedMediaExtension } from "../validation/object-key";
-import { optionalField } from "./optional-field";
 import { assertSafePath, assertSafePathSegment } from "./path";
-import { positiveNumber, timestampMs } from "./request-fields";
+import { optionalField, timestampMs } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
 // Publisher plan policies record the publisher's intent for the next object
@@ -19,31 +19,55 @@ import type { RuntimeSlotIssuePayload } from "./slot";
 // lets a publisher SDK that supplies its own nonce predict the eventual
 // address before issuance.
 
+/** Options for `createRuntimePublisherObjectPlan`. */
 export interface CreateRuntimePublisherObjectPlanOptions {
+  /** Prefix for the derived commit id; defaults to `commit`. */
   commitIdPrefix?: string;
   contentType: string;
+  /** Object duration, in seconds. */
   duration: number;
+  /** Slot expiry as an ISO 8601 timestamp. */
   expiresAt: string;
+  /** File extension used in the object key; must suit the object kind. */
   extension?: string;
   kind: RuntimePublisherPlannedObjectKind;
   maxBytes: number;
   mediaSequenceNumber: number;
+  /** Lower byte bound; must not exceed `maxBytes`. */
   minBytes?: number;
+  /**
+   * Nonce mixed into the derived object key. Required when
+   * `publicationMode` is `direct-public` (the default) so public object
+   * addresses are unguessable.
+   */
   objectKeyNonce?: string;
   objectKeyPrefix?: string;
+  /** Zero-based part index; required for parts, forbidden otherwise. */
   partNumber?: number;
+  /** Defaults to `direct-public`. */
   publicationMode?: PublicationMode;
   renditionId: string;
+  /** Prefix for the derived slot id; defaults to `slot`. */
   slotIdPrefix?: string;
 }
 
+/** Object kinds a publisher can plan: `init`, `part`, or `segment`. */
 export type RuntimePublisherPlannedObjectKind = Extract<
   MediaObjectKind,
   "init" | "part" | "segment"
 >;
 
+/**
+ * Result of `createRuntimePublisherObjectPlan`: the slot issue payload plus
+ * the deterministic commit id and a client-side preview of the object key
+ * the coordinator will derive.
+ */
 export interface RuntimePublisherObjectPlan {
   commitId: string;
+  /**
+   * Predicted object key. The wire payload never carries it — the
+   * coordinator derives the authoritative key at issuance.
+   */
   objectKey: string;
   slot: RuntimeSlotIssuePayload;
 }
@@ -61,6 +85,14 @@ type SegmentPublisherObjectPlanOptions =
     kind: "segment";
   };
 
+/**
+ * Build the slot issue payload for a planned object along with a
+ * deterministic commit id and an object key preview. Ids are derived from
+ * the rendition and timeline position (e.g. `slot_video_s12_p3`), so
+ * retrying the same position reuses the same ids and commits stay
+ * idempotent. Validates identifiers, timeline fields, byte bounds, and the
+ * nonce policy, throwing on any violation.
+ */
 export function createRuntimePublisherObjectPlan(
   options: CreateRuntimePublisherObjectPlanOptions
 ): RuntimePublisherObjectPlan {

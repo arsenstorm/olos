@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { issueCoordinatorSlot } from "./coordinator";
+import { issueCoordinatorSlot } from "./coordinator-slot";
 import { createEmptyCoordinatorState } from "./coordinator-state.test-helper";
 
 const NONCE_OBJECT_KEY = /^media\/v1080\/init-slot_[0-9a-f]{32}\.mp4$/;
@@ -65,8 +65,6 @@ describe("issueCoordinatorSlot derived addresses", () => {
       state,
     });
 
-    expect(result.slot.objectKey).toBe(
-      "media/v1080/s3810/segment-slot_abcd.m4s"
-    );
+    expect(result.slot.objectKey).toBe("media/v1080/s3810-slot_abcd.m4s");
   });
 });
