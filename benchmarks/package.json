@@ -12,13 +12,12 @@
   "devDependencies": {
     "@types/asciichart": "^1.5.8",
     "@types/bun": "latest",
-    "@types/cli-progress": "^3.11.6"
-  },
-  "peerDependencies": {
+    "@types/cli-progress": "^3.11.6",
     "typescript": "^5"
   },
   "scripts": {
     "benchmark": "bun run src/orchestrator.ts",
-    "benchmark:worker": "bun run src/index.ts"
+    "benchmark:worker": "bun run src/index.ts",
+    "check-types": "tsc --noEmit"
   }
 }

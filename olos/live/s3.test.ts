@@ -33,9 +33,9 @@ test.skipIf(liveS3Config.status === "disabled")(
     });
     const objectKey = `${config.prefix}/${randomUUID()}.bin`;
     const slot = createSlot(objectKey);
-    let cleanupResult: Awaited<
-      ReturnType<typeof deleteRetiredS3CoordinatorObjects>
-    >;
+    let cleanupResult:
+      | Awaited<ReturnType<typeof deleteRetiredS3CoordinatorObjects>>
+      | undefined;
     let testError: unknown;
     let cleanupError: unknown;
 
@@ -144,12 +144,9 @@ function createSlot(objectKey: string): UploadSlot {
     maxBytes: payload.byteLength,
     mediaSequenceNumber: 1,
     objectKey,
-    publicationMode: "direct-public",
-    publisherInstanceId: "live_publisher",
     renditionId: "live",
     sessionId: "live_session",
     slotId: `slot_${randomUUID()}`,
     state: "issued",
-    tenantId: "live_tenant",
   };
 }
