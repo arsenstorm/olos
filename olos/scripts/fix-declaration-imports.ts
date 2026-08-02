@@ -34,13 +34,19 @@ async function fixDeclarationEntry(
     return;
   }
 
-  if (isDeclarationFile(entry)) {
+  if (isEmittedModuleFile(entry)) {
     await fixDeclaration(path);
   }
 }
 
-function isDeclarationFile(entry: Dirent): boolean {
-  return entry.isFile() && entry.name.endsWith(".d.ts");
+// Runtime .js output needs the same treatment as declarations: tsc emits
+// relative specifiers verbatim, and Node's ESM resolver rejects
+// extensionless paths that Bun tolerates.
+function isEmittedModuleFile(entry: Dirent): boolean {
+  return (
+    entry.isFile() &&
+    (entry.name.endsWith(".d.ts") || entry.name.endsWith(".js"))
+  );
 }
 
 async function fixDeclaration(path: string): Promise<void> {

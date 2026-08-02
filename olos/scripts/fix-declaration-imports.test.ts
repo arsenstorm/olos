@@ -47,4 +47,31 @@ describe("declaration import fixer", () => {
       );
     });
   });
+
+  test("adds js extensions to relative runtime imports", async () => {
+    await withTemporaryDirectory("olos-dts-", async (directory) => {
+      const emitted = join(directory, "config.js");
+
+      await writeFile(
+        emitted,
+        [
+          'import { assertThing } from "./validation/thing";',
+          'export { OLOS_ERROR_CODES } from "./config/errors";',
+          'export { ready } from "./ready.js";',
+          'export { value } from "external";',
+        ].join("\n")
+      );
+
+      await fixDeclarationImports(directory);
+
+      await expect(readFile(emitted, "utf8")).resolves.toBe(
+        [
+          'import { assertThing } from "./validation/thing.js";',
+          'export { OLOS_ERROR_CODES } from "./config/errors.js";',
+          'export { ready } from "./ready.js";',
+          'export { value } from "external";',
+        ].join("\n")
+      );
+    });
+  });
 });
