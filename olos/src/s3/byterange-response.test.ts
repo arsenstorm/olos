@@ -11,11 +11,8 @@ import type {
   CommittedSegment,
 } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
-import {
-  type ByterangeCursorWait,
-  createByterangeSegmentResponse,
-  type S3GetObjectClient,
-} from "./byterange-response";
+import { createByterangeSegmentResponse } from "./byterange-response";
+import type { ByterangeCursorWait, S3GetObjectClient } from "./byterange-types";
 
 const SESSION_ID = "session_byterange_test";
 const SEGMENT_OBJECT_KEY = "live/session/v1080/segment-0.m4s";
