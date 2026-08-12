@@ -1,5 +1,5 @@
-import type { UploadEventNormalization } from "../state/observed-upload";
-import { normalizeUploadEvent } from "../state/observed-upload";
+import { normalizeUploadEvent } from "../state/observed-upload-event";
+import type { UploadEventNormalization } from "../state/observed-upload-types";
 import { createOlosError } from "../types/errors";
 import { recordValue } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";

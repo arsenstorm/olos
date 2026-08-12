@@ -6,11 +6,13 @@ import {
   createObservedUploadFromHeadObject,
   createObservedUploadFromObjectCreatedEvent,
   createUploadCompletionHint,
-  normalizeUploadEvent,
   resolveObjectCreatedEventObservation,
-  resolveObjectCreatedEventSlot,
   resolveUploadEvidence,
 } from "./observed-upload";
+import {
+  normalizeUploadEvent,
+  resolveObjectCreatedEventSlot,
+} from "./observed-upload-event";
 
 describe("observed upload builder", () => {
   test("creates an observed upload from provider metadata", () => {

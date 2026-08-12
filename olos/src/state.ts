@@ -5,21 +5,23 @@ export {
   createDeliveryCachePolicy,
 } from "./state/cache-policy";
 export {
-  type CommitAttemptResolution,
-  type CommitObservedUploadOptions,
-  type CommitObservedUploadResult,
-  type CreateCommitOptions,
   commitObservedUpload,
   createCommit,
-  type DuplicateCommitResolution,
-  type ResolveCommitAttemptOptions,
-  type ResolveDuplicateCommitOptions,
-  type ResolveUploadCommitOptions,
   resolveCommitAttempt,
-  resolveDuplicateCommit,
   resolveUploadCommit,
-  type UploadCommitResolution,
 } from "./state/commit";
+export { resolveDuplicateCommit } from "./state/commit-mismatch";
+export type {
+  CommitAttemptResolution,
+  CommitObservedUploadOptions,
+  CommitObservedUploadResult,
+  CreateCommitOptions,
+  DuplicateCommitResolution,
+  ResolveCommitAttemptOptions,
+  ResolveDuplicateCommitOptions,
+  ResolveUploadCommitOptions,
+  UploadCommitResolution,
+} from "./state/commit-types";
 export {
   type CreateCommittedWindowOptions,
   createCommittedWindow,
@@ -55,31 +57,37 @@ export {
   RUNTIME_PUBLISHER_OBJECT_KEY_NONCE_MIN_BYTES,
 } from "./state/object-key-nonce";
 export {
-  type CreateObservedUploadFromHeadObjectOptions,
-  type CreateObservedUploadFromObjectCreatedEventOptions,
-  type CreateObservedUploadOptions,
-  type CreateUploadCompletionHintOptions,
   createObservedUpload,
   createObservedUploadFromHeadObject,
   createObservedUploadFromObjectCreatedEvent,
   createUploadCompletionHint,
-  type NormalizeUploadEventOptions,
-  normalizeUploadEvent,
-  OBJECT_CREATED_EVENT_TYPE,
-  type ObjectCreatedEventObservationResolution,
-  type ObjectCreatedEventSlotResolution,
-  type ObservedUploadObjectCreatedEvent,
-  type ResolveObjectCreatedEventObservationOptions,
-  type ResolveObjectCreatedEventSlotOptions,
-  type ResolveUploadEvidenceOptions,
   resolveObjectCreatedEventObservation,
-  resolveObjectCreatedEventSlot,
   resolveUploadEvidence,
-  UPLOAD_COMPLETED_HINT_TYPE,
-  type UploadCompletionHint,
-  type UploadEventNormalization,
-  type UploadEvidenceResolution,
 } from "./state/observed-upload";
+export {
+  normalizeUploadEvent,
+  resolveObjectCreatedEventSlot,
+} from "./state/observed-upload-event";
+export type {
+  CreateObservedUploadFromHeadObjectOptions,
+  CreateObservedUploadFromObjectCreatedEventOptions,
+  CreateObservedUploadOptions,
+  CreateUploadCompletionHintOptions,
+  NormalizeUploadEventOptions,
+  ObjectCreatedEventObservationResolution,
+  ObjectCreatedEventSlotResolution,
+  ObservedUploadObjectCreatedEvent,
+  ResolveObjectCreatedEventObservationOptions,
+  ResolveObjectCreatedEventSlotOptions,
+  ResolveUploadEvidenceOptions,
+  UploadCompletionHint,
+  UploadEventNormalization,
+  UploadEvidenceResolution,
+} from "./state/observed-upload-types";
+export {
+  OBJECT_CREATED_EVENT_TYPE,
+  UPLOAD_COMPLETED_HINT_TYPE,
+} from "./state/observed-upload-types";
 export {
   assertProviderCanIssueUploadGrant,
   canProviderIssueUploadGrant,

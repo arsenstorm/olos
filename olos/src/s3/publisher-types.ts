@@ -21,7 +21,7 @@ import type { UploadSlot } from "../types/upload-slot";
 import type {
   commitStoredS3CoordinatorUpload,
   issueStoredS3CoordinatorUploadGrant,
-} from "./coordinator";
+} from "./coordinator-grant";
 import type {
   StoredS3CoordinatorManifestOptions,
   StoredS3CoordinatorUploadCommit,

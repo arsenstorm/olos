@@ -8,10 +8,12 @@ import {
   commitObservedUpload,
   createCommit,
   resolveCommitAttempt,
-  resolveDuplicateCommit,
-  resolveObjectSlotMismatch,
   resolveUploadCommit,
 } from "./commit";
+import {
+  resolveDuplicateCommit,
+  resolveObjectSlotMismatch,
+} from "./commit-mismatch";
 
 const slot: UploadSlot = {
   contentType: "video/mp4",

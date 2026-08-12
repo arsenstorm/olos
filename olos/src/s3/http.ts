@@ -18,9 +18,9 @@ import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertS3BucketName } from "./bucket";
 import {
   completeStoredS3CoordinatorUpload,
-  issueStoredS3CoordinatorUploadGrant,
   routeStoredS3CoordinatorUploadEvent,
-} from "./coordinator";
+} from "./coordinator-event";
+import { issueStoredS3CoordinatorUploadGrant } from "./coordinator-grant";
 import { normalizeS3ObjectCreatedEvents } from "./event";
 import {
   parseJsonRequest,

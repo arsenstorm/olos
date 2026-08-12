@@ -36,14 +36,16 @@ export {
 } from "./s3/client";
 export { S3RuntimeHttpError } from "./s3/client-error";
 export {
-  commitS3CoordinatorUpload,
-  commitStoredS3CoordinatorUpload,
   completeStoredS3CoordinatorUpload,
   completeStoredS3CoordinatorUploadByObjectKey,
+  routeStoredS3CoordinatorUploadEvent,
+} from "./s3/coordinator-event";
+export {
+  commitS3CoordinatorUpload,
+  commitStoredS3CoordinatorUpload,
   issueS3CoordinatorUploadGrant,
   issueStoredS3CoordinatorUploadGrant,
-  routeStoredS3CoordinatorUploadEvent,
-} from "./s3/coordinator";
+} from "./s3/coordinator-grant";
 export type {
   CommitS3CoordinatorUploadOptions,
   CommitStoredS3CoordinatorUploadOptions,

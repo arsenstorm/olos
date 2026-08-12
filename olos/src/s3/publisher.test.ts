@@ -15,7 +15,7 @@ import { heartbeatStoredCoordinatorPublisher } from "../runtime/session";
 import {
   commitStoredS3CoordinatorUpload,
   issueStoredS3CoordinatorUploadGrant,
-} from "./coordinator";
+} from "./coordinator-grant";
 import {
   runNextStoredS3PublisherUploadStep,
   runPlannedStoredS3PublisherUploadStep,

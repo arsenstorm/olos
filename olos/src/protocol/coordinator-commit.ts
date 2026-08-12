@@ -1,9 +1,8 @@
+import { createCommit, resolveCommitAttempt } from "../state/commit";
 import {
-  createCommit,
-  resolveCommitAttempt,
   resolveDuplicateCommit,
   resolveObjectSlotMismatch,
-} from "../state/commit";
+} from "../state/commit-mismatch";
 import {
   type PublicationControlResolution,
   resolvePublicationControl,

@@ -12,7 +12,7 @@ import type { UploadSlot } from "../types/upload-slot";
 import { errorMessage, isAllowedString } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertS3BucketName } from "./bucket";
-import { commitStoredS3CoordinatorUpload } from "./coordinator";
+import { commitStoredS3CoordinatorUpload } from "./coordinator-grant";
 import type {
   CommitStoredS3CoordinatorUploadOptions,
   StoredS3CoordinatorManifestOptions,

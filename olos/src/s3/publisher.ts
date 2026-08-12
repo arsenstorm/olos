@@ -7,7 +7,7 @@ import { errorMessage } from "../validation/fields";
 import {
   commitStoredS3CoordinatorUpload,
   issueStoredS3CoordinatorUploadGrant,
-} from "./coordinator";
+} from "./coordinator-grant";
 import type {
   StoredS3CoordinatorUploadCommit,
   StoredS3CoordinatorUploadGrantIssue,

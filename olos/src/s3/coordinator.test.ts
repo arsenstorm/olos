@@ -10,17 +10,19 @@ import {
 import type { CoordinatorPipelineStore } from "../protocol/coordinator-types";
 import { resolveRuntimePublisherObjectExpiry } from "../runtime/publisher-expiry";
 import { createRuntimePublisherObjectPlan } from "../runtime/publisher-plan";
-import { normalizeUploadEvent } from "../state/observed-upload";
+import { normalizeUploadEvent } from "../state/observed-upload-event";
 import { createPublicationKillSwitch } from "../state/publication-control";
+import {
+  completeStoredS3CoordinatorUpload,
+  completeStoredS3CoordinatorUploadByObjectKey,
+  routeStoredS3CoordinatorUploadEvent,
+} from "./coordinator-event";
 import {
   commitS3CoordinatorUpload,
   commitStoredS3CoordinatorUpload,
-  completeStoredS3CoordinatorUpload,
-  completeStoredS3CoordinatorUploadByObjectKey,
   issueS3CoordinatorUploadGrant,
   issueStoredS3CoordinatorUploadGrant,
-  routeStoredS3CoordinatorUploadEvent,
-} from "./coordinator";
+} from "./coordinator-grant";
 import type { S3HeadObjectClient } from "./object-observation";
 import {
   createTestHeadObjectClientForSingle,

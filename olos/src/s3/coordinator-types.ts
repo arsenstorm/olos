@@ -14,7 +14,7 @@ import type {
   CoordinatorUploadCommit,
   IssueCoordinatorSlotOptions,
 } from "../protocol/coordinator-types";
-import type { UploadEventNormalization } from "../state/observed-upload";
+import type { UploadEventNormalization } from "../state/observed-upload-types";
 import type {
   PublicationControlPolicy,
   PublicationControlResolution,
