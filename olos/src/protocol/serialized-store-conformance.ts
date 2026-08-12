@@ -67,6 +67,15 @@ export async function assertSerializedCoordinatorStoreBackendConformance(
     );
   }
 
+  await assertSerializedMissingUpdateConformance(backend, first, firstView);
+}
+
+/** An update against a session that was never inserted is a conflict. */
+async function assertSerializedMissingUpdateConformance(
+  backend: SerializedCoordinatorStoreBackend,
+  first: SerializedCoordinatorStoreRecord,
+  firstView: SerializedCursorViewRecord
+): Promise<void> {
   const missingUpdate = await backend.save({
     cursorView: firstView,
     expectedEtag: "1",
