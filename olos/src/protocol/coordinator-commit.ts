@@ -5,23 +5,17 @@ import {
   resolveObjectSlotMismatch,
 } from "../state/commit";
 import {
-  lastVisiblePartNumber,
-  tryCreateCommittedWindow,
-} from "../state/committed-window";
-import { createCursor, resolveCursorUpdate } from "../state/cursor";
-import {
   type PublicationControlResolution,
   resolvePublicationControl,
 } from "../state/publication-control";
-import type { RetiredCommittedObject } from "../state/retention";
 import { observeUpload } from "../state/upload-slot";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
-import { createOlosError } from "../types/errors";
+import { createOlosError, type OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
-import { applyCoordinatorRetention } from "./coordinator-retention";
+import { commitIntoState } from "./coordinator-commit-state";
 import type {
   CommitCoordinatorUploadOptions,
   CoordinatorCommitPolicyDecision,
@@ -65,27 +59,46 @@ type RejectedCoordinatorCommitPolicyDecision = Extract<
 export function commitCoordinatorUpload(
   options: CommitCoordinatorUploadOptions
 ): CoordinatorUploadCommit {
+  const slot = findSlot(options.state, options.slotId);
+  const existingCommit = findCommit(options.state, options.slotId);
+
+  const settled = settleBeforeNewCommit(options, slot, existingCommit);
+  if (settled !== undefined) {
+    return settled;
+  }
+
+  const resolved = resolveNewCommit(options, slot);
+  if (resolved.status !== "committed") {
+    return rejectCommit(options.state, resolved.error);
+  }
+
+  return applyNewCommit(options, resolved.commit, resolved.slot);
+}
+
+/**
+ * Stages that can settle the request before a new commit is created:
+ * publication control, an observation that does not match the slot, an
+ * idempotent or conflicting retry, and the deployment's commit policy.
+ * Returns the settled result, or `undefined` to go on and commit.
+ */
+function settleBeforeNewCommit(
+  options: CommitCoordinatorUploadOptions,
+  slot: UploadSlot | undefined,
+  existingCommit: Commit | undefined
+): CoordinatorUploadCommit | undefined {
   const publication = resolvePublicationControl({
     operation: "commit_upload",
     policy: options.publicationControl,
   });
-
   if (isBlockedPublicationControl(publication)) {
-    return {
-      error: publication.error,
-      state: options.state,
-      status: "rejected",
-    };
+    return rejectCommit(options.state, publication.error);
   }
 
-  const slot = findSlot(options.state, options.slotId);
-  const existingCommit = findCommit(options.state, options.slotId);
   const rejectedObservation = rejectInvalidObservedUpload({
     object: options.object,
     slot,
     state: options.state,
   });
-
   if (rejectedObservation !== undefined) {
     return rejectedObservation;
   }
@@ -98,15 +111,13 @@ export function commitCoordinatorUpload(
     });
   }
 
-  const rejectedCommitPolicy = rejectCoordinatorCommitPolicy({
-    options,
-    slot,
-  });
+  return rejectCoordinatorCommitPolicy({ options, slot });
+}
 
-  if (rejectedCommitPolicy !== undefined) {
-    return rejectedCommitPolicy;
-  }
-
+function resolveNewCommit(
+  options: CommitCoordinatorUploadOptions,
+  slot: UploadSlot | undefined
+): ReturnType<typeof resolveCommitAttempt> {
   const observedSlot =
     slot === undefined
       ? undefined
@@ -115,7 +126,8 @@ export function commitCoordinatorUpload(
           object: options.object,
           slot,
         });
-  const resolved = resolveCommitAttempt({
+
+  return resolveCommitAttempt({
     commitId: options.commitId,
     committedAt: options.committedAt,
     cursor: options.state.cursor,
@@ -128,45 +140,63 @@ export function commitCoordinatorUpload(
     slot: observedSlot,
     slotId: options.slotId,
   });
+}
 
-  if (resolved.status !== "committed") {
-    return {
-      error: resolved.error,
-      state: options.state,
-      status: "rejected",
-    };
-  }
-
+function applyNewCommit(
+  options: CommitCoordinatorUploadOptions,
+  commit: Commit,
+  slot: UploadSlot
+): CoordinatorUploadCommit {
   const { state, retiredObjects } = commitIntoState({
-    commit: resolved.commit,
+    commit,
     lateToleranceMs: options.lateToleranceMs,
     maxSegments: options.maxSegments,
-    slot: resolved.slot,
+    slot,
     state: options.state,
   });
 
-  if (state.cursor !== options.state.cursor) {
-    const cursorAdvancement = resolvePublicationControl({
-      operation: "advance_cursor",
-      policy: options.publicationControl,
-    });
-
-    if (isBlockedPublicationControl(cursorAdvancement)) {
-      return {
-        error: cursorAdvancement.error,
-        state: options.state,
-        status: "rejected",
-      };
-    }
+  const blocked = rejectBlockedCursorAdvance(options, state.cursor);
+  if (blocked !== undefined) {
+    return blocked;
   }
 
   return {
-    commit: resolved.commit,
+    commit,
     cursor: state.cursor,
     retiredObjects,
     state,
     status: "committed",
   };
+}
+
+/**
+ * Publication control gets a second say once the commit has advanced the
+ * cursor: a policy may allow the commit itself but block it becoming visible.
+ */
+function rejectBlockedCursorAdvance(
+  options: CommitCoordinatorUploadOptions,
+  nextCursor: Cursor | undefined
+): CoordinatorUploadCommit | undefined {
+  if (nextCursor === options.state.cursor) {
+    return;
+  }
+
+  const advancement = resolvePublicationControl({
+    operation: "advance_cursor",
+    policy: options.publicationControl,
+  });
+  if (!isBlockedPublicationControl(advancement)) {
+    return;
+  }
+
+  return rejectCommit(options.state, advancement.error);
+}
+
+function rejectCommit(
+  state: CoordinatorPipelineState,
+  error: OlosError
+): Extract<CoordinatorUploadCommit, { status: "rejected" }> {
+  return { error, state, status: "rejected" };
 }
 
 function resolveDuplicateCoordinatorUploadCommit({
@@ -197,11 +227,7 @@ function resolveDuplicateCoordinatorUploadCommit({
   });
 
   if (isConflictingDuplicateCommit(duplicate)) {
-    return {
-      error: duplicate.error,
-      state: options.state,
-      status: "rejected",
-    };
+    return rejectCommit(options.state, duplicate.error);
   }
 
   return {
@@ -228,8 +254,9 @@ function rejectInvalidObservedUpload(options: {
   const observedSlotId = object.metadata?.["x-olos-slot-id"];
 
   if (observedSlotId !== undefined && observedSlotId !== slot.slotId) {
-    return {
-      error: createOlosError(
+    return rejectCommit(
+      options.state,
+      createOlosError(
         "olos.invalid_state",
         "object slot metadata does not match slot",
         {
@@ -237,10 +264,8 @@ function rejectInvalidObservedUpload(options: {
           observedSlotId,
           slotId: slot.slotId,
         }
-      ),
-      state: options.state,
-      status: "rejected",
-    };
+      )
+    );
   }
 
   const mismatch = resolveObjectSlotMismatch({
@@ -250,11 +275,7 @@ function rejectInvalidObservedUpload(options: {
 
   return mismatch === undefined
     ? undefined
-    : {
-        error: mismatch.error,
-        state: options.state,
-        status: "rejected",
-      };
+    : rejectCommit(options.state, mismatch.error);
 }
 
 function rejectCoordinatorCommitPolicy({
@@ -280,111 +301,7 @@ function rejectCoordinatorCommitPolicy({
     return;
   }
 
-  return {
-    error: policy.error,
-    state: options.state,
-    status: "rejected",
-  };
-}
-
-interface CommitIntoStateResult {
-  retiredObjects: readonly RetiredCommittedObject[];
-  state: CoordinatorPipelineState;
-}
-
-function commitIntoState(options: {
-  commit: Commit;
-  lateToleranceMs?: number;
-  maxSegments?: number;
-  slot: UploadSlot;
-  state: CoordinatorPipelineState;
-}): CommitIntoStateResult {
-  const slots = options.state.slots.map((slot) =>
-    slot.slotId === options.slot.slotId ? options.slot : slot
-  );
-  const initCommits =
-    options.slot.kind === "init"
-      ? [...options.state.initCommits, options.commit]
-      : options.state.initCommits;
-  const commits =
-    options.slot.kind === "init"
-      ? options.state.commits
-      : [...options.state.commits, options.commit];
-
-  const nextState: CoordinatorPipelineState = {
-    ...options.state,
-    commits,
-    initCommits,
-    slots,
-  };
-
-  if (initCommits.length === 0 || commits.length === 0) {
-    return { retiredObjects: [], state: nextState };
-  }
-
-  const committedWindow = tryCreateCommittedWindow({
-    commits,
-    epoch: options.state.session.epoch,
-    initCommits,
-    maxSegments: options.maxSegments,
-    sessionId: options.state.session.sessionId,
-  });
-
-  // Out-of-order commit at the same media sequence — the contiguous-prefix
-  // rule means no parts qualify for the manifest yet. The commit is still
-  // recorded in state.commits; the cursor stays at whatever it was, and
-  // the next contiguous commit will advance it.
-  if (committedWindow === undefined) {
-    return { retiredObjects: [], state: nextState };
-  }
-
-  // Derive from the visible window, not raw commits: an out-of-order future
-  // commit (e.g. part 3 arriving before parts 0–2) is filtered out of the
-  // window by the contiguous-prefix rule, so its partNumber must not leak
-  // into the cursor.
-  const partNumber = lastVisiblePartNumber(committedWindow);
-  const candidateCursor = createCursor({
-    committedWindow,
-    latencyProfile: options.state.session.latencyProfile,
-    mediaBaseUrl: options.state.mediaBaseUrl,
-    partTarget: options.state.session.partTarget,
-    segmentTarget: options.state.session.segmentTarget,
-    sessionId: options.state.session.sessionId,
-    state: options.state.session.state,
-    updatedAt: options.commit.committedAt,
-    ...(partNumber === undefined ? {} : { lastPartNumber: partNumber }),
-  });
-
-  // Auto-retention on every window advance: the shared pruning core drops
-  // out-of-window commits and expired issued slots so the persisted snapshot
-  // stays bounded, surfacing the pruned commits as `retiredObjects` for the
-  // runtime to delete their backing objects in the same operation. The
-  // commit's `lateToleranceMs` carries into pruning so a slot whose late
-  // upload would still commit is never expired here.
-  const cursor = resolveNextCursor(options.state.cursor, candidateCursor);
-  const retention = applyCoordinatorRetention({
-    lateToleranceMs: options.lateToleranceMs,
-    now: options.commit.committedAt,
-    state: { ...nextState, cursor },
-  });
-
-  return { retiredObjects: retention.retiredObjects, state: retention.state };
-}
-
-function resolveNextCursor(
-  current: Cursor | undefined,
-  candidate: Cursor
-): Cursor {
-  if (current === undefined) {
-    return candidate;
-  }
-
-  const update = resolveCursorUpdate({
-    candidateCursor: candidate,
-    currentCursor: current,
-  });
-
-  return update.status === "regression" ? current : update.cursor;
+  return rejectCommit(options.state, policy.error);
 }
 
 function findSlot(
