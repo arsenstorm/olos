@@ -46,26 +46,7 @@ export function createMemoryRuntimeCursorNotifier(): RuntimeCursorNotifier {
   const waiters = new Map<string, Set<CursorWaiter>>();
 
   return {
-    notify(cursor) {
-      assertCursor(cursor);
-
-      // Terminal cursors evict the session so a long-lived notifier does
-      // not accumulate an entry per session ever seen; blocking reloads
-      // resolve terminal sessions from the stored cursor, not from here.
-      if (isEndOfStreamSessionState(cursor.state)) {
-        latest.delete(cursor.sessionId);
-      } else {
-        latest.set(cursor.sessionId, cursor);
-      }
-
-      const sessionWaiters = waiters.get(cursor.sessionId);
-      if (sessionWaiters === undefined) {
-        return;
-      }
-
-      resolveAdvancedWaiters(cursor, sessionWaiters);
-      deleteEmptyWaiterSet(waiters, cursor.sessionId, sessionWaiters);
-    },
+    notify: (cursor) => notifyCursorAdvance(latest, waiters, cursor),
     waitForCursor(context) {
       assertCursor(context.cursor);
 
@@ -82,6 +63,31 @@ export function createMemoryRuntimeCursorNotifier(): RuntimeCursorNotifier {
       return waitForAdvancedCursor(waiters, context);
     },
   };
+}
+
+function notifyCursorAdvance(
+  latest: Map<string, Cursor>,
+  waiters: Map<string, Set<CursorWaiter>>,
+  cursor: Cursor
+): void {
+  assertCursor(cursor);
+
+  // Terminal cursors evict the session so a long-lived notifier does not
+  // accumulate an entry per session ever seen; blocking reloads resolve
+  // terminal sessions from the stored cursor, not from here.
+  if (isEndOfStreamSessionState(cursor.state)) {
+    latest.delete(cursor.sessionId);
+  } else {
+    latest.set(cursor.sessionId, cursor);
+  }
+
+  const sessionWaiters = waiters.get(cursor.sessionId);
+  if (sessionWaiters === undefined) {
+    return;
+  }
+
+  resolveAdvancedWaiters(cursor, sessionWaiters);
+  deleteEmptyWaiterSet(waiters, cursor.sessionId, sessionWaiters);
 }
 
 function advancedLatestCursor(

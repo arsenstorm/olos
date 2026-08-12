@@ -142,6 +142,25 @@ export async function createPresignedS3UploadGrant(
   assertPresignedS3UploadGrantOptions(options);
 
   const requiredHeaders = createRequiredHeaders(options);
+  const presignedUrl = await presignPutObjectUrl(options, requiredHeaders);
+
+  return createS3UploadGrant({
+    additionalHeaders: options.additionalHeaders,
+    bucket: options.bucket,
+    expiresAt: expiresAt(options),
+    presignedUrl,
+    slot: options.slot,
+  });
+}
+
+/**
+ * Presign a PUT whose signature covers the slot's required headers, so an
+ * upload that omits or alters them is rejected by S3 rather than accepted.
+ */
+function presignPutObjectUrl(
+  options: CreatePresignedS3UploadGrantOptions,
+  requiredHeaders: Record<string, string>
+): Promise<string> {
   const command = new PutObjectCommand({
     Bucket: options.bucket,
     ContentType: options.slot.contentType,
@@ -154,34 +173,20 @@ export async function createPresignedS3UploadGrant(
       const request = args.request;
 
       if (isHeaderRequest(request)) {
-        request.headers = {
-          ...request.headers,
-          ...requiredHeaders,
-        };
+        request.headers = { ...request.headers, ...requiredHeaders };
       }
 
       return next(args);
     },
-    {
-      name: "olosS3UploadGrantHeaders",
-      step: "build",
-    }
+    { name: "olosS3UploadGrantHeaders", step: "build" }
   );
 
-  const presignedUrl = await getSignedUrl(options.client, command, {
+  return getSignedUrl(options.client, command, {
     expiresIn: options.expiresInSeconds,
     signableHeaders: new Set(Object.keys(requiredHeaders).map(lowercase)),
     unhoistableHeaders: new Set(
       Object.keys(requiredHeaders).filter(isAmzHeader).map(lowercase)
     ),
-  });
-
-  return createS3UploadGrant({
-    additionalHeaders: options.additionalHeaders,
-    bucket: options.bucket,
-    expiresAt: expiresAt(options),
-    presignedUrl,
-    slot: options.slot,
   });
 }
 

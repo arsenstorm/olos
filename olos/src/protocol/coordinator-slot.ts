@@ -172,28 +172,14 @@ function resolveRevocableCoordinatorUpload(
     };
   }
 
-  if (isSlotInCursor(options.state, slot)) {
-    return {
-      error: createOlosError(
-        "olos.invalid_state",
-        "upload slots reflected in the live cursor cannot be silently revoked",
-        { slotId: slot.slotId, state: slot.state }
-      ),
-      state: options.state,
-      status: "rejected",
-    };
-  }
+  const reason = revocationRefusal(options.state, slot);
 
-  if (
-    slot.state !== "revoked" &&
-    !canTransitionUploadSlot(slot.state, "revoked")
-  ) {
+  if (reason !== undefined) {
     return {
-      error: createOlosError(
-        "olos.invalid_state",
-        "upload slot cannot be revoked from its current state",
-        { slotId: slot.slotId, state: slot.state }
-      ),
+      error: createOlosError("olos.invalid_state", reason, {
+        slotId: slot.slotId,
+        state: slot.state,
+      }),
       state: options.state,
       status: "rejected",
     };
@@ -203,6 +189,25 @@ function resolveRevocableCoordinatorUpload(
     slot,
     status: "revocable",
   };
+}
+
+/** Why this slot may not be silently revoked, or `undefined` if it may. */
+function revocationRefusal(
+  state: CoordinatorPipelineState,
+  slot: UploadSlot
+): string | undefined {
+  if (isSlotInCursor(state, slot)) {
+    return "upload slots reflected in the live cursor cannot be silently revoked";
+  }
+
+  if (
+    slot.state !== "revoked" &&
+    !canTransitionUploadSlot(slot.state, "revoked")
+  ) {
+    return "upload slot cannot be revoked from its current state";
+  }
+
+  return;
 }
 
 function findSlot(
