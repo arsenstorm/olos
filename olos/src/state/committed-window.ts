@@ -309,6 +309,19 @@ function limitCommittedSegments(
 }
 
 function addCommitToSegment(segment: CommittedSegment, commit: Commit): void {
+  // Lift the commit's program date time onto the segment. The renderer emits
+  // EXT-X-PROGRAM-DATE-TIME from the segment, and commits arrive in position
+  // order, so the first carrier — part 0 for a parted segment, otherwise the
+  // segment commit — anchors the segment's wall-clock start. Without this the
+  // wire field and the CommittedSegment field were never connected and the
+  // tag could not be emitted at all.
+  if (
+    commit.programDateTime !== undefined &&
+    segment.programDateTime === undefined
+  ) {
+    segment.programDateTime = commit.programDateTime;
+  }
+
   if (commit.partNumber === undefined) {
     if (segment.segment !== undefined) {
       throw new Error("commits must not contain duplicate segment positions");

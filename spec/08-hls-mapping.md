@@ -176,8 +176,15 @@ appear as absent entries, never as GAP tags. Rendition reports
 
 - The playlist always advertises `CAN-BLOCK-RELOAD=YES`. The server
   MUST implement Section 8.6.
-- `HOLD-BACK` is the deployment's target latency in seconds
-  (default 3).
+- `HOLD-BACK` is `max(3 × EXT-X-TARGETDURATION, targetLatency)`, where
+  `targetLatency` is the deployment's target latency in seconds
+  (default 3). RFC 8216bis Section 4.4.3.8 floors the tag at three
+  target durations. Unlike `PART-HOLD-BACK`, a `targetLatency` below
+  the floor is raised rather than rejected: it is a latency goal
+  rather than the wire tag, and the floor moves with `segmentTarget`.
+  Emitting an un-floored value makes Apple's player reject the entire
+  playlist (`HOLD-BACK less than 3 * target-duration`), which
+  MSE-based players such as hls.js do not enforce.
 - `PART-HOLD-BACK` defaults to `max(3 × partTarget, targetLatency)`.
   A deployment MAY set it explicitly, but the value MUST be at least
   `3 × partTarget` (the RFC 8216 LL-HLS floor). Lower values are a
@@ -374,7 +381,7 @@ per-part-URI parts, and nonce-bearing object keys as in Section 7.5):
 #EXT-X-VERSION:10
 #EXT-X-TARGETDURATION:2
 #EXT-X-PART-INF:PART-TARGET=0.500
-#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=3.000,HOLD-BACK=3.000
+#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=3.000,HOLD-BACK=6.000
 #EXT-X-MEDIA-SEQUENCE:3810
 #EXT-X-DISCONTINUITY-SEQUENCE:0
 #EXT-X-MAP:URI="https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/init-slot_init_v1080.mp4"

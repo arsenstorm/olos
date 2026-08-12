@@ -122,7 +122,7 @@ describe("runtime latency profile", () => {
       artifact.path.endsWith("/media.m3u8")
     );
 
-    expect(media?.body).toContain("PART-HOLD-BACK=3.000,HOLD-BACK=3.000");
+    expect(media?.body).toContain("PART-HOLD-BACK=3.000,HOLD-BACK=6.000");
   });
 
   test("creates publisher options from object low-latency defaults", () => {

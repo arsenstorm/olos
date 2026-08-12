@@ -30,7 +30,12 @@ export interface RenderMediaPlaylistOptions extends MediaUriPolicy {
   renditionId: string;
   /** Target segment duration in seconds (`EXT-X-TARGETDURATION`). */
   segmentTarget: number;
-  /** `HOLD-BACK` in seconds. Defaults to `3`. */
+  /**
+   * The deployment's target latency in seconds. Defaults to `3`. `HOLD-BACK`
+   * is rendered as `max(3 * ceil(segmentTarget), targetLatency)`: RFC 8216bis
+   * floors the tag at three target durations, and Apple's player rejects the
+   * playlist outright below it.
+   */
   targetLatency?: number;
 }
 
@@ -84,14 +89,14 @@ function renderMediaPlaylistHeaders(
   options: RenderMediaPlaylistOptions,
   rendition: CommittedWindow["renditions"][string]
 ): string[] {
-  const { partHoldBack, targetLatency } = resolveHoldBackOptions(options);
+  const { holdBack, partHoldBack } = resolveHoldBackOptions(options);
 
   return [
     "#EXTM3U",
     "#EXT-X-VERSION:10",
     `#EXT-X-TARGETDURATION:${Math.ceil(options.segmentTarget)}`,
     `#EXT-X-PART-INF:PART-TARGET=${formatSeconds(options.partTarget)}`,
-    `#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=${formatSeconds(partHoldBack)},HOLD-BACK=${formatSeconds(targetLatency)}`,
+    `#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=${formatSeconds(partHoldBack)},HOLD-BACK=${formatSeconds(holdBack)}`,
     // The declared media sequence must match this rendition's first #EXTINF
     // entry — renditions can diverge from the window-global minimum when
     // per-rendition trimming or empty-media segments drop leading segments.
@@ -223,8 +228,8 @@ function renderMediaUri(
 }
 
 function resolveHoldBackOptions(options: RenderMediaPlaylistOptions): {
+  holdBack: number;
   partHoldBack: number;
-  targetLatency: number;
 } {
   const targetLatency = options.targetLatency ?? 3;
   positiveNumber(targetLatency, "options.targetLatency");
@@ -240,5 +245,17 @@ function resolveHoldBackOptions(options: RenderMediaPlaylistOptions): {
     );
   }
 
-  return { partHoldBack, targetLatency };
+  // RFC 8216bis 4.4.3.8: HOLD-BACK MUST be at least three times the target
+  // duration. Unlike PART-HOLD-BACK this is raised rather than rejected —
+  // targetLatency is a deployment's latency goal, not the wire tag, and the
+  // floor moves with segmentTarget, so a legitimate goal can sit below it.
+  // Emitting the un-floored value makes Apple's player reject the whole
+  // playlist ("HOLD-BACK less than 3 * target-duration", CoreMedia -12646),
+  // which hls.js ignores and native HLS does not.
+  const holdBack = Math.max(
+    3 * Math.ceil(options.segmentTarget),
+    targetLatency
+  );
+
+  return { holdBack, partHoldBack };
 }

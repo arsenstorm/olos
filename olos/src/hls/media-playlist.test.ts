@@ -108,7 +108,7 @@ describe("media playlist rendering", () => {
 #EXT-X-VERSION:10
 #EXT-X-TARGETDURATION:2
 #EXT-X-PART-INF:PART-TARGET=0.500
-#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=3.000,HOLD-BACK=3.000
+#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=3.000,HOLD-BACK=6.000
 #EXT-X-MEDIA-SEQUENCE:3810
 #EXT-X-DISCONTINUITY-SEQUENCE:0
 #EXT-X-MAP:URI="https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/init-slot_init_v1080.mp4"
@@ -202,9 +202,37 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
         partTarget: 0.5,
         renditionId: "v1080",
         segmentTarget: 2,
-        targetLatency: 4,
+        // Above the three-target-duration floor, so it renders verbatim.
+        targetLatency: 8,
       })
-    ).toContain("PART-HOLD-BACK=2.000,HOLD-BACK=4.000");
+    ).toContain("PART-HOLD-BACK=2.000,HOLD-BACK=8.000");
+  });
+
+  test("raises HOLD-BACK to three target durations", () => {
+    // RFC 8216bis floors HOLD-BACK at 3 × target duration. Apple's player
+    // rejects the whole playlist below it, so a lower targetLatency is
+    // raised rather than emitted.
+    expect(
+      renderMediaPlaylist(committedWindow, {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 2,
+        targetLatency: 1.5,
+      })
+    ).toContain("HOLD-BACK=6.000");
+  });
+
+  test("floors HOLD-BACK on the rounded-up target duration", () => {
+    expect(
+      renderMediaPlaylist(committedWindow, {
+        allowedMediaOrigins: [MEDIA_ORIGIN],
+        partTarget: 0.5,
+        renditionId: "v1080",
+        segmentTarget: 1.2,
+        targetLatency: 1.5,
+      })
+    ).toContain("HOLD-BACK=6.000");
   });
 
   test("rounds target duration up in media playlist headers", () => {
