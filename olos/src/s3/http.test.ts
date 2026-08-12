@@ -78,14 +78,22 @@ function createS3HttpTestHarness(options: S3HttpTestHarnessOptions = {}) {
 
 describe("stored S3 coordinator runtime handler", () => {
   test("keeps the S3 HTTP handler split across concern modules", () => {
-    const source = readFileSync(new URL("./http.ts", import.meta.url), "utf8");
+    // The entry module owns option validation and dispatch; the per-route
+    // handlers, their request parsing, and their response shaping live in
+    // ./http-routes. Neither module should absorb the other's job.
+    const entry = readFileSync(new URL("./http.ts", import.meta.url), "utf8");
+    const routes = readFileSync(
+      new URL("./http-routes.ts", import.meta.url),
+      "utf8"
+    );
 
-    expect(source).toContain("./http-request-parser");
-    expect(source).toContain("./http-response");
-    expect(source).toContain("./http-route");
-    expect(source).toContain("parseS3CommitRequest");
-    expect(source).toContain("s3CommitResponse");
-    expect(source).toContain("s3Route(request, options)");
+    expect(entry).toContain("./http-route");
+    expect(entry).toContain("s3Route(request, options)");
+
+    expect(routes).toContain("./http-request-parser");
+    expect(routes).toContain("./http-response");
+    expect(routes).toContain("parseS3CommitRequest");
+    expect(routes).toContain("s3CommitResponse");
   });
 
   test("creates S3 HTTP test harnesses with captured fake clients", async () => {

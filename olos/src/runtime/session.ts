@@ -1,166 +1,48 @@
-import { SESSION_STATES } from "../config/session";
 import { createCoordinatorPipeline } from "../protocol/coordinator-lifecycle";
 import { mutateCoordinatorPipeline } from "../protocol/coordinator-mutation";
+import type { CoordinatorPublisherLease } from "../protocol/coordinator-types";
+import type { SessionState } from "../types/session";
+import { jsonResponse } from "./response";
+import {
+  assertHeartbeatOptions,
+  assertTransitionOptions,
+  conflict,
+  handledStoredSessionMutation,
+  heartbeatState,
+  invalidRequestResponse,
+  isHandledStoredSessionMutation,
+  isStoredSessionConflictSource,
+  rejected,
+  rejectedHeartbeat,
+  transitionState,
+} from "./session-state";
 import type {
-  CoordinatorPipelineMutation,
-  CoordinatorPipelineSnapshot,
-  CoordinatorPipelineState,
-  CoordinatorPipelineStore,
-  CoordinatorPublisherLease,
-  CoordinatorStoreSave,
-} from "../protocol/coordinator-types";
-import { assertSessionTransition } from "../state/session";
-import { createOlosError } from "../types/errors";
-import type { OlosId } from "../types/ids";
-import type { Session, SessionState } from "../types/session";
-import type { PublicationMode } from "../types/upload-slot";
-import { isAllowedString, positiveNumber } from "../validation/fields";
-import { assertUrlSafeIdentifier } from "../validation/ids";
-import {
-  createRuntimePublisherLease,
-  RuntimePublisherLeaseClockError,
-  refreshRuntimePublisherHeartbeat,
-} from "./publisher-lease";
-import { timestampMs } from "./request-fields";
-import {
-  jsonConflictResponse,
-  jsonErrorResponse,
-  jsonResponse,
-} from "./response";
-
-/** Options for `createStoredCoordinatorSession`. */
-export interface CreateStoredCoordinatorSessionOptions {
-  /** Public base URL that delivery URLs for the session's media resolve to. */
-  mediaBaseUrl: string;
-  /** Defaults to `direct-public`. */
-  publicationMode?: PublicationMode;
-  session: Session;
-  store: CoordinatorPipelineStore;
-}
-
-/** Options for `transitionStoredCoordinatorSession`. */
-export interface TransitionStoredCoordinatorSessionOptions {
-  /** Max optimistic-save attempts; defaults to 2. */
-  maxAttempts?: number;
-  sessionId: OlosId;
-  /** Target session state to transition to. */
-  state: SessionState;
-  store: CoordinatorPipelineStore;
-}
-
-/** Options for `heartbeatStoredCoordinatorPublisher`. */
-export interface HeartbeatStoredCoordinatorPublisherOptions {
-  /** Max optimistic-save attempts; defaults to 2. */
-  maxAttempts?: number;
-  /** Heartbeat time as an ISO 8601 timestamp. */
-  now: string;
-  publisherInstanceId: OlosId;
-  sessionId: OlosId;
-  store: CoordinatorPipelineStore;
-  /** Lease lifetime granted from `now`, in milliseconds. */
-  ttlMs: number;
-}
-
-/**
- * Outcome of `createStoredCoordinatorSession`: `created` with the saved
- * state and its etag, or `conflict` when the session id already exists.
- * Every variant carries a ready-to-return JSON `response`.
- */
-export type StoredRuntimeSessionCreate =
-  | {
-      etag: string;
-      response: Response;
-      state: CoordinatorPipelineState;
-      status: "created";
-    }
-  | StoredRuntimeSessionMutation;
-
-/**
- * Outcome of `transitionStoredCoordinatorSession`: `transitioned` with the
- * saved state and its etag, `rejected` (400 `olos.invalid_request` for
- * malformed options, 409 `olos.invalid_state` when the transition is
- * invalid from the current state), or a `StoredRuntimeSessionMutation`
- * failure.
- */
-export type StoredRuntimeSessionTransition =
-  | {
-      etag: string;
-      response: Response;
-      state: CoordinatorPipelineState;
-      status: "transitioned";
-    }
-  | {
-      response: Response;
-      status: "rejected";
-    }
-  | StoredRuntimeSessionMutation;
-
-/**
- * Outcome of `heartbeatStoredCoordinatorPublisher`: `refreshed` with the
- * new lease, saved state, and etag; `rejected` (400 `olos.invalid_request`
- * for malformed options, 409 `olos.invalid_state` when the session is in a
- * terminal state); or a `StoredRuntimeSessionMutation` failure.
- */
-export type StoredRuntimePublisherHeartbeat =
-  | {
-      etag: string;
-      lease: CoordinatorPublisherLease;
-      response: Response;
-      state: CoordinatorPipelineState;
-      status: "refreshed";
-    }
-  | {
-      response: Response;
-      status: "rejected";
-    }
-  | StoredRuntimeSessionMutation;
-
-/**
- * Failure outcomes shared by stored session mutations: `conflict` (409)
- * when concurrent writes exhausted the optimistic retries — with the latest
- * snapshot when available — or `not_found` (404) when the session does not
- * exist.
- */
-export type StoredRuntimeSessionMutation =
-  | {
-      current?: CoordinatorPipelineSnapshot;
-      response: Response;
-      status: "conflict";
-    }
-  | {
-      response: Response;
-      status: "not_found";
-    };
-
-type StoredSessionConflictSource = Extract<
-  CoordinatorPipelineMutation | CoordinatorStoreSave,
-  { status: "conflict" }
->;
-
-type HandledStoredSessionMutation = Extract<
-  CoordinatorPipelineMutation,
-  { status: "conflict" | "not_found" }
->;
-
+  CreateStoredCoordinatorSessionOptions,
+  HeartbeatStoredCoordinatorPublisherOptions,
+  StoredRuntimePublisherHeartbeat,
+  StoredRuntimeSessionCreate,
+  StoredRuntimeSessionTransition,
+  TransitionStoredCoordinatorSessionOptions,
+} from "./session-types";
 /**
  * Marks state-machine rejections raised inside a mutation callback. Only
  * these map to 409 `olos.invalid_state` with their message in the body;
  * any other throw (store I/O, snapshot corruption) propagates to the
  * handler's opaque 500 instead of leaking its message as a 409.
  */
-class StoredSessionRejectionError extends Error {
+export class StoredSessionRejectionError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "StoredSessionRejectionError";
   }
 }
 
-const HEARTBEAT_TERMINAL_SESSION_STATES = [
+export const HEARTBEAT_TERMINAL_SESSION_STATES = [
   "aborted",
   "ended",
 ] as const satisfies readonly SessionState[];
 
-type HeartbeatTerminalSessionState =
+export type HeartbeatTerminalSessionState =
   (typeof HEARTBEAT_TERMINAL_SESSION_STATES)[number];
 
 /**
@@ -318,234 +200,4 @@ export async function heartbeatStoredCoordinatorPublisher(
 
     throw error;
   }
-}
-
-function assertTransitionOptions(
-  options: TransitionStoredCoordinatorSessionOptions
-): void {
-  assertUrlSafeIdentifier(options.sessionId, "sessionId");
-  assertSessionState(options.state);
-}
-
-function assertHeartbeatOptions(
-  options: HeartbeatStoredCoordinatorPublisherOptions
-): void {
-  assertUrlSafeIdentifier(options.sessionId, "sessionId");
-  assertUrlSafeIdentifier(options.publisherInstanceId, "publisherInstanceId");
-  timestampMs(options.now, "now");
-  positiveNumber(options.ttlMs, "ttlMs");
-}
-
-function transitionState(
-  state: CoordinatorPipelineState,
-  nextState: SessionState
-): CoordinatorPipelineState {
-  try {
-    assertSessionTransition(state.session.state, nextState);
-  } catch (error) {
-    throw new StoredSessionRejectionError(
-      error instanceof Error
-        ? error.message
-        : "coordinator session transition was rejected"
-    );
-  }
-
-  return {
-    ...state,
-    ...transitionedCursorField(state, nextState),
-    session: {
-      ...state.session,
-      state: nextState,
-    },
-  };
-}
-
-function transitionedCursorField(
-  state: CoordinatorPipelineState,
-  nextState: SessionState
-): Pick<CoordinatorPipelineState, "cursor"> {
-  return state.cursor === undefined
-    ? {}
-    : { cursor: { ...state.cursor, state: nextState } };
-}
-
-function heartbeatState(
-  state: CoordinatorPipelineState,
-  options: HeartbeatStoredCoordinatorPublisherOptions
-): { lease: CoordinatorPublisherLease; state: CoordinatorPipelineState } {
-  assertHeartbeatSessionState(state.session.state);
-
-  const lease = heartbeatLease(state, options);
-
-  return {
-    lease,
-    state: {
-      ...state,
-      publisherLeases: replacePublisherLease(
-        state.publisherLeases,
-        options.publisherInstanceId,
-        lease
-      ),
-    },
-  };
-}
-
-function heartbeatLease(
-  state: CoordinatorPipelineState,
-  options: HeartbeatStoredCoordinatorPublisherOptions
-): CoordinatorPublisherLease {
-  const current = currentPublisherLease(
-    state.publisherLeases,
-    options.publisherInstanceId
-  );
-
-  if (current === undefined) {
-    return createRuntimePublisherLease({
-      now: options.now,
-      publisherInstanceId: options.publisherInstanceId,
-      sessionId: options.sessionId,
-      ttlMs: options.ttlMs,
-    });
-  }
-
-  try {
-    return refreshRuntimePublisherHeartbeat({
-      lease: current,
-      now: options.now,
-      publisherInstanceId: options.publisherInstanceId,
-      sessionId: options.sessionId,
-      ttlMs: options.ttlMs,
-    });
-  } catch (error) {
-    // A heartbeat clocked before its lease was issued is a state-machine
-    // rejection (409 `olos.invalid_state`), not an internal failure.
-    if (error instanceof RuntimePublisherLeaseClockError) {
-      throw new StoredSessionRejectionError(error.message);
-    }
-
-    throw error;
-  }
-}
-
-function currentPublisherLease(
-  leases: readonly CoordinatorPublisherLease[],
-  publisherInstanceId: OlosId
-): CoordinatorPublisherLease | undefined {
-  return leases.find(
-    (lease) => lease.publisherInstanceId === publisherInstanceId
-  );
-}
-
-function replacePublisherLease(
-  leases: readonly CoordinatorPublisherLease[],
-  publisherInstanceId: OlosId,
-  lease: CoordinatorPublisherLease
-): CoordinatorPublisherLease[] {
-  return [
-    ...leases.filter(
-      (entry) => entry.publisherInstanceId !== publisherInstanceId
-    ),
-    lease,
-  ];
-}
-
-function assertHeartbeatSessionState(state: SessionState): void {
-  if (isHeartbeatTerminalSessionState(state)) {
-    throw new StoredSessionRejectionError(
-      "publisher heartbeat is not allowed for terminal sessions"
-    );
-  }
-}
-
-function isHeartbeatTerminalSessionState(
-  state: SessionState
-): state is HeartbeatTerminalSessionState {
-  return isAllowedString(state, HEARTBEAT_TERMINAL_SESSION_STATES);
-}
-
-function assertSessionState(value: unknown): asserts value is SessionState {
-  if (typeof value !== "string" || !isAllowedString(value, SESSION_STATES)) {
-    throw new Error(`state must be one of: ${SESSION_STATES.join(", ")}`);
-  }
-}
-
-function isStoredSessionConflictSource(
-  result: CoordinatorPipelineMutation | CoordinatorStoreSave
-): result is StoredSessionConflictSource {
-  return result.status === "conflict";
-}
-
-function isHandledStoredSessionMutation(
-  result: CoordinatorPipelineMutation
-): result is HandledStoredSessionMutation {
-  return result.status === "not_found" || isStoredSessionConflictSource(result);
-}
-
-function handledStoredSessionMutation(
-  result: HandledStoredSessionMutation
-): StoredRuntimeSessionMutation {
-  return result.status === "not_found" ? notFound() : conflict(result.current);
-}
-
-function notFound(): StoredRuntimeSessionMutation {
-  return {
-    response: jsonErrorResponse(
-      "olos.invalid_session",
-      "coordinator session was not found",
-      404
-    ),
-    status: "not_found",
-  };
-}
-
-function conflict(
-  current: CoordinatorPipelineSnapshot | undefined
-): StoredRuntimeSessionMutation {
-  return {
-    ...(current === undefined ? {} : { current }),
-    response: jsonConflictResponse(
-      "coordinator session changed during mutation"
-    ),
-    status: "conflict",
-  };
-}
-
-function rejected(error: unknown): StoredRuntimeSessionTransition {
-  return {
-    response: rejectionResponse(
-      error,
-      "coordinator session transition was rejected"
-    ),
-    status: "rejected",
-  };
-}
-
-function rejectedHeartbeat(error: unknown): StoredRuntimePublisherHeartbeat {
-  return {
-    response: rejectionResponse(error, "publisher heartbeat was rejected"),
-    status: "rejected",
-  };
-}
-
-function rejectionResponse(error: unknown, fallbackMessage: string): Response {
-  return jsonResponse(
-    createOlosError(
-      "olos.invalid_state",
-      error instanceof Error ? error.message : fallbackMessage
-    ),
-    409
-  );
-}
-
-function invalidRequestResponse(
-  error: unknown,
-  fallbackMessage: string
-): Response {
-  return jsonResponse(
-    createOlosError(
-      "olos.invalid_request",
-      error instanceof Error ? error.message : fallbackMessage
-    ),
-    400
-  );
 }

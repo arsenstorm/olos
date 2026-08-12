@@ -145,17 +145,19 @@ export {
   summarizeRetiredCoordinatorObjectDeletions,
 } from "./runtime/retention";
 export {
-  type CreateStoredCoordinatorSessionOptions,
   createStoredCoordinatorSession,
-  type HeartbeatStoredCoordinatorPublisherOptions,
   heartbeatStoredCoordinatorPublisher,
-  type StoredRuntimePublisherHeartbeat,
-  type StoredRuntimeSessionCreate,
-  type StoredRuntimeSessionMutation,
-  type StoredRuntimeSessionTransition,
-  type TransitionStoredCoordinatorSessionOptions,
   transitionStoredCoordinatorSession,
 } from "./runtime/session";
+export type {
+  CreateStoredCoordinatorSessionOptions,
+  HeartbeatStoredCoordinatorPublisherOptions,
+  StoredRuntimePublisherHeartbeat,
+  StoredRuntimeSessionCreate,
+  StoredRuntimeSessionMutation,
+  StoredRuntimeSessionTransition,
+  TransitionStoredCoordinatorSessionOptions,
+} from "./runtime/session-types";
 export {
   type IssueCoordinatorSlotFromRequestOptions,
   issueCoordinatorSlotFromRequest,
