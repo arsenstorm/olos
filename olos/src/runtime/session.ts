@@ -107,29 +107,7 @@ export async function transitionStoredCoordinatorSession(
   }
 
   try {
-    const result = await mutateCoordinatorPipeline({
-      maxAttempts: options.maxAttempts,
-      mutate: (state) => transitionState(state, options.state),
-      sessionId: options.sessionId,
-      store: options.store,
-    });
-
-    if (isHandledStoredSessionMutation(result)) {
-      return handledStoredSessionMutation(result);
-    }
-
-    return {
-      etag: result.etag,
-      response: jsonResponse(
-        {
-          sessionId: options.sessionId,
-          state: result.state.session.state,
-        },
-        200
-      ),
-      state: result.state,
-      status: "transitioned",
-    };
+    return await applySessionTransition(options);
   } catch (error) {
     if (error instanceof StoredSessionRejectionError) {
       return rejected(error);
@@ -137,6 +115,34 @@ export async function transitionStoredCoordinatorSession(
 
     throw error;
   }
+}
+
+async function applySessionTransition(
+  options: TransitionStoredCoordinatorSessionOptions
+): Promise<StoredRuntimeSessionTransition> {
+  const result = await mutateCoordinatorPipeline({
+    maxAttempts: options.maxAttempts,
+    mutate: (state) => transitionState(state, options.state),
+    sessionId: options.sessionId,
+    store: options.store,
+  });
+
+  if (isHandledStoredSessionMutation(result)) {
+    return handledStoredSessionMutation(result);
+  }
+
+  return {
+    etag: result.etag,
+    response: jsonResponse(
+      {
+        sessionId: options.sessionId,
+        state: result.state.session.state,
+      },
+      200
+    ),
+    state: result.state,
+    status: "transitioned",
+  };
 }
 
 /**
@@ -165,34 +171,7 @@ export async function heartbeatStoredCoordinatorPublisher(
   }
 
   try {
-    let lease: CoordinatorPublisherLease | undefined;
-    const result = await mutateCoordinatorPipeline({
-      maxAttempts: options.maxAttempts,
-      mutate: (state) => {
-        const next = heartbeatState(state, options);
-        lease = next.lease;
-
-        return next.state;
-      },
-      sessionId: options.sessionId,
-      store: options.store,
-    });
-
-    if (isHandledStoredSessionMutation(result)) {
-      return handledStoredSessionMutation(result);
-    }
-
-    if (lease === undefined) {
-      throw new Error("publisher heartbeat did not create a lease");
-    }
-
-    return {
-      etag: result.etag,
-      lease,
-      response: jsonResponse({ lease }, 200),
-      state: result.state,
-      status: "refreshed",
-    };
+    return await refreshPublisherLease(options);
   } catch (error) {
     if (error instanceof StoredSessionRejectionError) {
       return rejectedHeartbeat(error);
@@ -200,4 +179,39 @@ export async function heartbeatStoredCoordinatorPublisher(
 
     throw error;
   }
+}
+
+async function refreshPublisherLease(
+  options: HeartbeatStoredCoordinatorPublisherOptions
+): Promise<StoredRuntimePublisherHeartbeat> {
+  // The lease is produced inside the mutation and read back out after it
+  // commits, so a retried attempt reports the lease that was actually saved.
+  let lease: CoordinatorPublisherLease | undefined;
+  const result = await mutateCoordinatorPipeline({
+    maxAttempts: options.maxAttempts,
+    mutate: (state) => {
+      const next = heartbeatState(state, options);
+      lease = next.lease;
+
+      return next.state;
+    },
+    sessionId: options.sessionId,
+    store: options.store,
+  });
+
+  if (isHandledStoredSessionMutation(result)) {
+    return handledStoredSessionMutation(result);
+  }
+
+  if (lease === undefined) {
+    throw new Error("publisher heartbeat did not create a lease");
+  }
+
+  return {
+    etag: result.etag,
+    lease,
+    response: jsonResponse({ lease }, 200),
+    state: result.state,
+    status: "refreshed",
+  };
 }

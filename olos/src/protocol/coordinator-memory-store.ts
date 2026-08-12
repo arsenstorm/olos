@@ -42,41 +42,57 @@ export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
       );
     },
     save(options: SaveCoordinatorPipelineOptions) {
-      const current = entries.get(options.sessionId);
-
-      if (current === undefined && options.expectedEtag !== undefined) {
-        return Promise.resolve(conflictingCoordinatorStoreSave());
-      }
-
-      if (current !== undefined && options.expectedEtag === undefined) {
-        return Promise.resolve(
-          conflictingCoordinatorStoreSave(
-            cloneCoordinatorPipelineSnapshot(current)
-          )
-        );
-      }
-
-      if (current !== undefined && current.etag !== options.expectedEtag) {
-        return Promise.resolve(
-          conflictingCoordinatorStoreSave(
-            cloneCoordinatorPipelineSnapshot(current)
-          )
-        );
-      }
-
-      const snapshot = {
-        etag: createNextCoordinatorPipelineEtag(current?.etag),
-        state: cloneCoordinatorPipelineState(options.state),
-      };
-      entries.set(options.sessionId, snapshot);
-
-      return Promise.resolve({
-        etag: snapshot.etag,
-        state: cloneCoordinatorPipelineState(snapshot.state),
-        status: "saved" as const,
-      });
+      return Promise.resolve(saveIntoEntries(entries, options));
     },
   };
+}
+
+function saveIntoEntries(
+  entries: Map<string, CoordinatorPipelineSnapshot>,
+  options: SaveCoordinatorPipelineOptions
+) {
+  const current = entries.get(options.sessionId);
+  const conflict = resolveSaveConflict(current, options.expectedEtag);
+
+  if (conflict !== undefined) {
+    return conflict;
+  }
+
+  const snapshot = {
+    etag: createNextCoordinatorPipelineEtag(current?.etag),
+    state: cloneCoordinatorPipelineState(options.state),
+  };
+  entries.set(options.sessionId, snapshot);
+
+  return {
+    etag: snapshot.etag,
+    state: cloneCoordinatorPipelineState(snapshot.state),
+    status: "saved" as const,
+  };
+}
+
+/**
+ * Optimistic concurrency: a save must present the stored etag, and a first
+ * save must present none. Returns the conflict to report, or `undefined`
+ * when the save may proceed.
+ */
+function resolveSaveConflict(
+  current: CoordinatorPipelineSnapshot | undefined,
+  expectedEtag: string | undefined
+) {
+  if (current === undefined) {
+    return expectedEtag === undefined
+      ? undefined
+      : conflictingCoordinatorStoreSave();
+  }
+
+  // A missing expectedEtag never equals a stored one, so this covers both
+  // the stale-etag and the missing-etag-against-existing-session cases.
+  return current.etag === expectedEtag
+    ? undefined
+    : conflictingCoordinatorStoreSave(
+        cloneCoordinatorPipelineSnapshot(current)
+      );
 }
 
 // Clone only the projected fields (session and cursor, at the same depth
