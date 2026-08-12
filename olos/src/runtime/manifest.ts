@@ -1,16 +1,18 @@
 import type { HlsCursorWaitContext } from "../hls/blocking-reload";
+import type {
+  BlockingHlsManifestArtifactResponseResolution,
+  CreateCoordinatorManifestArtifactsOptions,
+  CreateHlsManifestArtifactResponseOptions,
+  HlsManifestErrorResolution,
+} from "../hls/manifest-artifact-types";
+import { createCoordinatorManifestArtifacts } from "../hls/manifest-artifacts";
 import {
-  type BlockingHlsManifestArtifactResponseResolution,
-  type CreateCoordinatorManifestArtifactsOptions,
-  type CreateHlsManifestArtifactResponseOptions,
-  createCoordinatorManifestArtifacts,
   createHlsManifestArtifactResponse,
   createHlsManifestErrorWebResponse,
   createHlsManifestWebResponse,
-  type HlsManifestErrorResolution,
   resolveBlockingHlsManifestArtifactResponse,
   resolveHlsManifestArtifactResponse,
-} from "../hls/manifest-artifacts";
+} from "../hls/manifest-response";
 
 /**
  * Playlist request: a web `Request` or a plain URL string. The URL's

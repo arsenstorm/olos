@@ -1,7 +1,5 @@
-import {
-  createCoordinatorManifestArtifacts,
-  createHlsManifestArtifactResponse,
-} from "../hls/manifest-artifacts";
+import { createCoordinatorManifestArtifacts } from "../hls/manifest-artifacts";
+import { createHlsManifestArtifactResponse } from "../hls/manifest-response";
 import { commitCoordinatorUpload } from "../protocol/coordinator-commit";
 import { issueCoordinatorSlot } from "../protocol/coordinator-slot";
 import type {

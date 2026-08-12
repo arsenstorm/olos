@@ -5,7 +5,7 @@ import type {
   CreateHlsManifestArtifactResponseOptions,
   HlsManifestArtifact,
   HlsManifestArtifactResponse,
-} from "../hls/manifest-artifacts";
+} from "../hls/manifest-artifact-types";
 import type {
   CoordinatorCommitPolicy,
   CoordinatorPipelineSnapshot,

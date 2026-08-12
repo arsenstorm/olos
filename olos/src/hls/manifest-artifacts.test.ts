@@ -3,17 +3,21 @@ import { describe, expect, test } from "bun:test";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
 import type { Session } from "../types/session";
+import type {
+  CreateHlsManifestArtifactsOptions,
+  HlsManifestArtifact,
+} from "./manifest-artifact-types";
 import {
-  type CreateHlsManifestArtifactsOptions,
   createCoordinatorManifestArtifacts,
-  createHlsManifestArtifactResponse,
   createHlsManifestArtifacts,
+} from "./manifest-artifacts";
+import {
+  createHlsManifestArtifactResponse,
   createHlsManifestErrorWebResponse,
   createHlsManifestWebResponse,
-  type HlsManifestArtifact,
   resolveBlockingHlsManifestArtifactResponse,
   resolveHlsManifestArtifactResponse,
-} from "./manifest-artifacts";
+} from "./manifest-response";
 
 const MEDIA_ORIGIN = "https://media.example.com";
 

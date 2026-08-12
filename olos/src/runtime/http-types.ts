@@ -1,5 +1,5 @@
 import type { HlsCursorWaitContext } from "../hls/blocking-reload";
-import type { CreateHlsManifestArtifactResponseOptions } from "../hls/manifest-artifacts";
+import type { CreateHlsManifestArtifactResponseOptions } from "../hls/manifest-artifact-types";
 import type {
   CoordinatorCommitPolicy,
   CoordinatorPipelineStore,

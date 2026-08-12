@@ -1,7 +1,7 @@
 import type {
   CreateHlsManifestArtifactResponseOptions,
   CreateHlsManifestArtifactsOptions,
-} from "../hls/manifest-artifacts";
+} from "../hls/manifest-artifact-types";
 import { positiveNumber } from "../validation/fields";
 import {
   isNonNegativeSafeInteger,
