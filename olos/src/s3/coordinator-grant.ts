@@ -18,6 +18,7 @@ import {
   resolvePublicationControl,
 } from "../state/publication-control";
 import type { OlosId } from "../types/ids";
+import type { UploadSlot } from "../types/upload-slot";
 import {
   missingStoredS3CoordinatorUploadCommit,
   missingStoredS3CoordinatorUploadGrantIssue,
@@ -82,6 +83,19 @@ export async function issueS3CoordinatorUploadGrant(
 export async function issueStoredS3CoordinatorUploadGrant(
   options: IssueStoredS3CoordinatorUploadGrantOptions
 ): Promise<StoredS3CoordinatorUploadGrantIssue> {
+  const blocked = await rejectBlockedSlotIssue(
+    options.sessionId,
+    options.store,
+    options.publicationControl
+  );
+
+  return blocked ?? (await runSlotIssueMutation(options));
+}
+
+/** Issue the slot under optimistic concurrency, presigning once it saves. */
+function runSlotIssueMutation(
+  options: IssueStoredS3CoordinatorUploadGrantOptions
+): Promise<StoredS3CoordinatorUploadGrantIssue> {
   const {
     additionalHeaders,
     bucket,
@@ -93,15 +107,6 @@ export async function issueStoredS3CoordinatorUploadGrant(
     store,
     ...slotOptions
   } = options;
-
-  const blocked = await rejectBlockedSlotIssue(
-    sessionId,
-    store,
-    slotOptions.publicationControl
-  );
-  if (blocked !== undefined) {
-    return blocked;
-  }
 
   return runStoredCoordinatorMutationWithAdaptersAndResponse<
     CoordinatorSlotIssue,
@@ -227,6 +232,17 @@ export async function commitS3CoordinatorUpload(
     });
   }
 
+  return await commitObservedObject(options, slot);
+}
+
+/**
+ * `HeadObject` is the network side effect this wrapper adds over the pure
+ * protocol commit: the object must be observable before it is committed.
+ */
+async function commitObservedObject(
+  options: CommitS3CoordinatorUploadOptions,
+  slot: UploadSlot
+): Promise<CoordinatorUploadCommit> {
   const object = await observeS3Object({
     bucket: options.bucket,
     client: options.client,
