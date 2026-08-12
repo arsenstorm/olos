@@ -219,6 +219,22 @@ function resolveMasterManifestResponse(
   };
 }
 
+/**
+ * RFC 8216bis §6.2.5.2: an `_HLS_msn` more than one segment beyond the
+ * rendition's live edge cannot be a legitimate blocking reload — reject it
+ * instead of holding the request open. Evaluated on the entry cursor only,
+ * so exactly last + 2 still blocks.
+ */
+function isBeyondLiveEdge(
+  request: HlsBlockingReloadRequest,
+  lastMediaSequenceNumber: number
+): boolean {
+  return (
+    request.mediaSequenceNumber !== undefined &&
+    request.mediaSequenceNumber > lastMediaSequenceNumber + 2
+  );
+}
+
 async function resolveBlockingMediaManifestResponse(
   options: ResolveBlockingHlsManifestArtifactResponseOptions,
   request: HlsBlockingReloadRequest,
@@ -235,14 +251,7 @@ async function resolveBlockingMediaManifestResponse(
     return { status: "not_found" };
   }
 
-  // RFC 8216bis §6.2.5.2: an _HLS_msn more than one segment beyond the
-  // rendition's live edge cannot be a legitimate blocking reload — reject
-  // instead of holding the request open. Evaluated on the entry cursor
-  // only; exactly last + 2 still blocks.
-  if (
-    request.mediaSequenceNumber !== undefined &&
-    request.mediaSequenceNumber > bounds.lastMediaSequenceNumber + 2
-  ) {
+  if (isBeyondLiveEdge(request, bounds.lastMediaSequenceNumber)) {
     return {
       message: "_HLS_msn is beyond the live edge",
       status: "invalid",

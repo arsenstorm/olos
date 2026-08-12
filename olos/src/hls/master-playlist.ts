@@ -114,8 +114,23 @@ function masterPlaylistRenditions(
     };
   }
 
-  const available = new Set(availableRenditionIds);
-  const availableVideoRenditions = videoRenditions.filter((rendition) =>
+  return availablePlaylistRenditions(new Set(availableRenditionIds), {
+    audioGroup,
+    audioRenditions,
+    videoRenditions,
+  });
+}
+
+/** Narrow the validated rendition set to what the window actually carries. */
+function availablePlaylistRenditions(
+  available: ReadonlySet<string>,
+  all: {
+    audioGroup: MasterPlaylistRenditions["audioGroup"];
+    audioRenditions: readonly AudioRendition[];
+    videoRenditions: readonly VideoRendition[];
+  }
+): MasterPlaylistRenditions {
+  const availableVideoRenditions = all.videoRenditions.filter((rendition) =>
     available.has(rendition.renditionId)
   );
 
@@ -123,14 +138,14 @@ function masterPlaylistRenditions(
     throw new Error("no video rendition is available to render");
   }
 
-  const availableAudioGroup = filterAudioGroup(audioGroup, available);
+  const availableAudioGroup = filterAudioGroup(all.audioGroup, available);
 
   return {
     audioGroup: availableAudioGroup,
     variantAudioCodecs: resolveVariantAudioCodecs(
-      audioGroup,
+      all.audioGroup,
       availableAudioGroup,
-      audioRenditions
+      all.audioRenditions
     ),
     videoRenditions: availableVideoRenditions,
   };
