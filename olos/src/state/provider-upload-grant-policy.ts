@@ -123,6 +123,31 @@ export function assertProviderCanIssueUploadGrant(
   assertUploadGrantCapabilities(options);
 }
 
+/** Direct-public slots are readable the moment they are written, so the
+ * provider must publish directly, gate visibility on the manifest, and
+ * declare a negative-caching policy. */
+function assertDirectPublicCapability(
+  capability: ProviderUploadGrantPolicyOptions["capability"]
+): void {
+  if (!capability.publication.directObjectPublication) {
+    throw new Error(
+      "providerCapability.publication.directObjectPublication must be true for direct-public slots"
+    );
+  }
+
+  if (capability.publication.manifestGatedPublication !== true) {
+    throw new Error(
+      "providerCapability.publication.manifestGatedPublication must be true for direct-public slots"
+    );
+  }
+
+  if (!capability.delivery.negativeCachingPolicyDeclared) {
+    throw new Error(
+      "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct-public slots"
+    );
+  }
+}
+
 function assertProviderMatchesPublicationMode(
   options: ProviderUploadGrantPolicyOptions
 ): void {
@@ -130,23 +155,7 @@ function assertProviderMatchesPublicationMode(
   const publicationMode = options.publicationMode ?? "direct-public";
 
   if (publicationMode === "direct-public") {
-    if (!capability.publication.directObjectPublication) {
-      throw new Error(
-        "providerCapability.publication.directObjectPublication must be true for direct-public slots"
-      );
-    }
-
-    if (capability.publication.manifestGatedPublication !== true) {
-      throw new Error(
-        "providerCapability.publication.manifestGatedPublication must be true for direct-public slots"
-      );
-    }
-
-    if (!capability.delivery.negativeCachingPolicyDeclared) {
-      throw new Error(
-        "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct-public slots"
-      );
-    }
+    assertDirectPublicCapability(capability);
   }
 
   if (

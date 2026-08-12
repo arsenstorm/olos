@@ -40,22 +40,33 @@ export async function handleLiveRoute(
     return sessionNotFound();
   }
 
-  const manifest = liveManifestOptions(
-    request,
-    route.sessionId,
-    snapshot.state.session,
+  return await serveLiveManifest(
+    liveManifestOptions(
+      request,
+      route.sessionId,
+      snapshot.state.session,
+      options
+    ),
+    route,
     options
   );
+}
 
+/** Media playlists block when the deployment configured a reload waiter. */
+function serveLiveManifest(
+  manifest: ReturnType<typeof liveManifestOptions>,
+  route: RuntimeLiveManifestRoute,
+  options: CreateStoredCoordinatorRuntimeHandlerOptions
+): Promise<Response> {
   if (route.kind === "media" && options.blockingReload !== undefined) {
-    return await serveStoredBlockingCoordinatorManifest({
+    return serveStoredBlockingCoordinatorManifest({
       ...manifest,
       timeoutMs: options.blockingReload.timeoutMs,
       waitForCursor: options.blockingReload.waitForCursor,
     });
   }
 
-  return await serveStoredCoordinatorManifest(manifest);
+  return serveStoredCoordinatorManifest(manifest);
 }
 
 function liveManifestRoute(
