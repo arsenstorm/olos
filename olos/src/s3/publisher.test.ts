@@ -20,8 +20,8 @@ import {
   runNextStoredS3PublisherUploadStep,
   runPlannedStoredS3PublisherUploadStep,
   runStoredS3PublisherUploadStep,
-  summarizeStoredS3PublisherUploadStep,
 } from "./publisher";
+import { summarizeStoredS3PublisherUploadStep } from "./publisher-summary";
 import {
   createTestHeadObjectClientForSingle,
   createTestS3Client,

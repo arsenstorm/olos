@@ -91,18 +91,20 @@ export {
   type S3HeadObjectClient,
 } from "./s3/object-observation";
 export {
-  type NextStoredS3PublisherUploadStep,
-  type PlannedStoredS3PublisherUploadStep,
-  type RunNextStoredS3PublisherUploadStepOptions,
-  type RunPlannedStoredS3PublisherUploadStepOptions,
-  type RunStoredS3PublisherUploadStepOptions,
   runNextStoredS3PublisherUploadStep,
   runPlannedStoredS3PublisherUploadStep,
   runStoredS3PublisherUploadStep,
-  type StoredS3PublisherUploadStep,
-  type StoredS3PublisherUploadStepSummary,
-  summarizeStoredS3PublisherUploadStep,
 } from "./s3/publisher";
+export { summarizeStoredS3PublisherUploadStep } from "./s3/publisher-summary";
+export type {
+  NextStoredS3PublisherUploadStep,
+  PlannedStoredS3PublisherUploadStep,
+  RunNextStoredS3PublisherUploadStepOptions,
+  RunPlannedStoredS3PublisherUploadStepOptions,
+  RunStoredS3PublisherUploadStepOptions,
+  StoredS3PublisherUploadStep,
+  StoredS3PublisherUploadStepSummary,
+} from "./s3/publisher-types";
 export {
   type PlanStoredS3CoordinatorReconciliationOptions,
   planStoredS3CoordinatorReconciliation,
