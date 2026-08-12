@@ -85,32 +85,49 @@ function isIssuedUploadSlot(slot: UploadSlot): slot is IssuedUploadSlot {
 
 /**
  * Select the commits whose backing objects may be deleted. A commit is
- * retired only when its media sequence number is strictly below the
- * retained window's `firstMediaSequenceNumber` and its slot does not back
- * any object still in the window; commits at or ahead of the window are
- * kept because they may still become visible (out-of-order parts, future
- * sequence numbers racing the cursor). Pure.
+ * retired only when its own rendition is present in the retained window,
+ * its media sequence number is strictly below that rendition's first
+ * visible segment, and its slot does not back any object still in the
+ * window; commits at or ahead of their rendition's window — or whose
+ * rendition is absent from the window entirely — are kept because they may
+ * still become visible (out-of-order parts, future sequence numbers racing
+ * the cursor). Pure.
  */
 export function selectRetiredCommittedObjects(
   options: SelectRetiredCommittedObjectsOptions
 ): RetiredCommittedObject[] {
-  // Only retire commits whose media sequence is strictly older than the
-  // retained window. Commits at or beyond firstMediaSequenceNumber may still
-  // become visible (out-of-order parts that haven't formed a contiguous
-  // prefix yet, or future MSNs racing ahead of the cursor) — retiring them
-  // would delete backing objects that the next contiguous commit needs.
-  // The slot-id check guards init commits if a caller passes them in
-  // alongside media commits (in practice they live in state.initCommits).
   const retainedSlotIds = retainedWindowSlotIds(options.retainedWindow);
-  const { firstMediaSequenceNumber } = options.retainedWindow;
 
   return options.commits
-    .filter(
-      (commit) =>
-        commit.mediaSequenceNumber < firstMediaSequenceNumber &&
-        !retainedSlotIds.has(commit.slotId)
+    .filter((commit) =>
+      isRetiredCommit(commit, options.retainedWindow, retainedSlotIds)
     )
     .map(retiredCommittedObject);
+}
+
+function isRetiredCommit(
+  commit: Commit,
+  retainedWindow: CommittedWindow,
+  retainedSlotIds: ReadonlySet<string>
+): boolean {
+  // Window trimming is per rendition (maxSegments), so retirement must be
+  // too: compare against the commit's OWN rendition's first visible media
+  // sequence, not the window-global minimum — otherwise one lagging
+  // rendition pins every other rendition's trimmed commits forever. A
+  // rendition absent from the window (only out-of-order commits so far)
+  // keeps all of its commits: they may still become visible, and retiring
+  // them would delete backing objects the next contiguous commit needs.
+  // The slot-id check guards init commits if a caller passes them in
+  // alongside media commits (in practice they live in state.initCommits).
+  const firstVisibleMediaSequenceNumber =
+    retainedWindow.renditions[commit.renditionId]?.segments[0]
+      ?.mediaSequenceNumber;
+
+  return (
+    firstVisibleMediaSequenceNumber !== undefined &&
+    commit.mediaSequenceNumber < firstVisibleMediaSequenceNumber &&
+    !retainedSlotIds.has(commit.slotId)
+  );
 }
 
 function retainedWindowSlotIds(window: CommittedWindow): Set<string> {

@@ -43,8 +43,8 @@ export function createCoordinatorPipeline(options: {
  * Compute what retention would remove from a pipeline state without
  * modifying it: issued slots whose grant expired before `now` (plus
  * `lateToleranceMs`, default 0) without an upload, and commits strictly
- * older than the cursor's committed window (none when there is no cursor
- * yet). Use `applyCoordinatorRetention` to also prune the state.
+ * older than their own rendition's retained window (none when there is no
+ * cursor yet). Use `applyCoordinatorRetention` to also prune the state.
  */
 export function planCoordinatorRetention(
   options: PlanCoordinatorRetentionOptions

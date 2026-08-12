@@ -209,7 +209,10 @@ Section 6.2.2) while other renditions keep the window-global value.
 Segments render in window order. For each segment:
 
 1. `#EXT-X-DISCONTINUITY` when the segment is marked
-   `discontinuityBefore` (epoch changes, Section 5).
+   `discontinuityBefore`. The marker is reserved: this revision
+   defines no operation that sets it, and a commit carries no such
+   field. Renderers MUST emit the tag when a stored window carries
+   the marker.
 2. `#EXT-X-PROGRAM-DATE-TIME:<timestamp>` when the segment carries a
    `programDateTime`. Segments without one emit no PDT tag.
 3. Then either:

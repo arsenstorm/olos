@@ -36,6 +36,43 @@ describe("runtime cursor notifier", () => {
     });
   });
 
+  test("wakes waiters when window content changes at the same position", async () => {
+    const notifier = createMemoryRuntimeCursorNotifier();
+    const controller = new AbortController();
+    const waiting = notifier.waitForCursor({
+      cursor: cursorAt(3811),
+      request: { mediaSequenceNumber: 3811, renditionId: "a128" },
+      signal: controller.signal,
+    });
+
+    // A lagging rendition committing at the live-edge msn changes the
+    // window without moving the global (epoch, msn, part) position
+    // (§4.5.3); per-rendition waiters may be blocked exactly on it.
+    const changed = withAudioRendition(cursorAt(3811));
+
+    notifier.notify(changed);
+
+    await expect(waiting).resolves.toEqual(changed);
+  });
+
+  test("replaces the latest cursor on same-position content changes", async () => {
+    const notifier = createMemoryRuntimeCursorNotifier();
+    const changed = withAudioRendition(cursorAt(3811));
+
+    notifier.notify(cursorAt(3811));
+    notifier.notify(changed);
+
+    // A waiter arriving after the notification must resolve from memory
+    // with the changed cursor, not park behind the superseded one.
+    await expect(
+      notifier.waitForCursor({
+        cursor: cursorAt(3811),
+        request: { mediaSequenceNumber: 3811, renditionId: "a128" },
+        signal: new AbortController().signal,
+      })
+    ).resolves.toEqual(changed);
+  });
+
   test("resolves waiters when the cursor epoch advances", async () => {
     const notifier = createMemoryRuntimeCursorNotifier();
     const controller = new AbortController();
@@ -136,6 +173,42 @@ describe("runtime cursor notifier", () => {
     });
   });
 });
+
+function withAudioRendition(base: Cursor): Cursor {
+  const mediaSequenceNumber = base.window.lastMediaSequenceNumber;
+
+  return {
+    ...base,
+    committedWindow: {
+      ...base.committedWindow,
+      renditions: {
+        ...base.committedWindow.renditions,
+        a128: {
+          init: {
+            commitId: "commit_init_a128",
+            deliveryUrl: "https://media.example.com/media/a128/init.mp4",
+            objectKey: "media/a128/init.mp4",
+            slotId: "slot_init_a128",
+          },
+          renditionId: "a128",
+          segments: [
+            {
+              duration: 2,
+              mediaSequenceNumber,
+              segment: {
+                commitId: `commit_a128_${mediaSequenceNumber}`,
+                deliveryUrl: `https://media.example.com/a128/${mediaSequenceNumber}.m4s`,
+                objectKey: `media/a128/${mediaSequenceNumber}.m4s`,
+                slotId: `slot_a128_${mediaSequenceNumber}`,
+              },
+            },
+          ],
+        },
+      },
+    },
+    updatedAt: "2026-01-01T00:00:03.000Z",
+  };
+}
 
 function cursorAt(
   mediaSequenceNumber: number,

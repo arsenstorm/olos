@@ -60,22 +60,26 @@ with storage deletion, and the ordering is normative:
    `deletedObjects` and `failedObjects`. `summary` counts them (`ok`
    is `true` when, and only when, nothing failed).
 
-State MUST be persisted before any delete is attempted. Rationale: a
-delete failure then cannot lose the plan. Deletes are idempotent
-against already-missing objects, and the next sweep can retry them. A
+State MUST be persisted before any delete is attempted. Rationale:
+persisted state then never references already-deleted objects, so a
+crash between delete and persist cannot resurrect such a reference. A
 delete-first order that fails to persist leaves an unpruned snapshot.
 That snapshot keeps growing and re-plans deletes for objects that no
-longer exist. If the persist step conflicts, the route MUST respond
-`409` and delete nothing.
+longer exist. The trade-off: a failed delete is never re-planned,
+because the pruned state no longer references the object. Failures
+surface per object in `result.failedObjects` for the caller to retry
+(deletes are idempotent). Bucket lifecycle rules are the backstop for
+orphaned objects. If the persist step conflicts, the route MUST
+respond `409` and delete nothing.
 
 Deletion requirements:
 
 - **Idempotency.** A delete of an object that is already gone MUST be
-  treated as success (S3 `DeleteObject` semantics). Every retired
-  object can be deleted more than once across sweeps.
+  treated as success (S3 `DeleteObject` semantics). A caller retry can
+  therefore delete a retired object more than once safely.
 - **Failure isolation.** A failed delete MUST NOT abort the remaining
-  deletes. Failures are reported per object in `result.failedObjects`.
-  Later sweeps retry them.
+  deletes. Failures are reported per object in `result.failedObjects`
+  for the caller to retry. Later sweeps do not re-plan them.
 - **Bounded concurrency** is an implementation option, not a protocol
   requirement. Implementations MAY delete with a bounded worker pool
   (the reference default is sequential). They MUST keep result

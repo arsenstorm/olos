@@ -64,6 +64,18 @@ export interface ResolveRuntimePublisherLeaseStatusOptions {
 export type RuntimePublisherLeaseStatus = "active" | "stale";
 
 /**
+ * Thrown when a lease refresh's `now` precedes the lease's `issuedAt`.
+ * Typed so callers can map a heartbeat clocked before its lease to a
+ * protocol rejection instead of an opaque internal error.
+ */
+export class RuntimePublisherLeaseClockError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RuntimePublisherLeaseClockError";
+  }
+}
+
+/**
  * Create a new publisher lease issued at `now` and expiring `ttlMs`
  * milliseconds later. Throws when the identifiers are not URL-safe.
  */
@@ -213,7 +225,9 @@ function assertRefreshTimeNotBeforeIssuedAt(
   const issuedAtMs = timestampMs(lease.issuedAt, "publisherLease.issuedAt");
 
   if (nowMs < issuedAtMs) {
-    throw new Error("now must be after or equal to publisherLease.issuedAt");
+    throw new RuntimePublisherLeaseClockError(
+      "now must be after or equal to publisherLease.issuedAt"
+    );
   }
 }
 

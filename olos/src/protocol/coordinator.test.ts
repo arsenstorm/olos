@@ -4,8 +4,12 @@ import { renderMediaPlaylist } from "../hls/media-playlist";
 import { createObservedUpload } from "../state/observed-upload";
 import { createPublicationKillSwitch } from "../state/publication-control";
 import type { MediaObjectKind } from "../types/media-object";
+import type { Session } from "../types/session";
 import { commitCoordinatorUpload } from "./coordinator-commit";
-import { planCoordinatorRetention } from "./coordinator-lifecycle";
+import {
+  createCoordinatorPipeline,
+  planCoordinatorRetention,
+} from "./coordinator-lifecycle";
 import { createMemoryCoordinatorStore } from "./coordinator-memory-store";
 import { mutateCoordinatorPipeline } from "./coordinator-mutation";
 import {
@@ -24,7 +28,10 @@ import {
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "./coordinator-state.test-helper";
-import type { CoordinatorPipelineState } from "./coordinator-types";
+import type {
+  CoordinatorPipelineState,
+  CoordinatorUploadCommit,
+} from "./coordinator-types";
 import {
   conflictingStoreResult,
   savedStoreResult,
@@ -1487,7 +1494,321 @@ describe("coordinator pipeline", () => {
     });
     expect(committed.state.cursor).toBeUndefined();
   });
+
+  // CORE-SLOT-006 (§4.2): slot identifiers are unique within a session.
+  test("rejects duplicate slot ids when issuing slots", () => {
+    const state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      duration: 2,
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      mediaSequenceNumber: 3810,
+      renditionId: "v1080",
+      slotId: "slot_3810",
+      state: createEmptyCoordinatorState(),
+    }).state;
+
+    expect(() =>
+      issueCoordinatorSlot({
+        contentType: "video/mp4",
+        duration: 2,
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "segment",
+        maxBytes: 100_000,
+        mediaSequenceNumber: 3811,
+        renditionId: "v1080",
+        slotId: "slot_3810",
+        state,
+      })
+    ).toThrow("slotId must be unique");
+  });
+
+  test("resolves identical retries idempotently past the commit deadline", () => {
+    // §4.5.1 orders duplicate resolution before the deadline check and
+    // §4.5.2 excludes committedAt from the comparison: an identical retry
+    // arriving after expiresAt + lateTolerance still succeeds idempotently.
+    const state = createCoordinatorStateWithCommittedSegment();
+
+    const lateRetry = commitCoordinatorUpload({
+      commitId: "commit_3810_late_retry",
+      committedAt: "2026-01-01T00:01:00.000Z",
+      independent: true,
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "media/v1080/s3810.m4s",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(lateRetry.status).toBe("idempotent");
+    if (lateRetry.status !== "idempotent") {
+      throw new Error("expected idempotent late retry");
+    }
+
+    expect(lateRetry.commit.commitId).toBe("commit_3810");
+    expect(lateRetry.state).toBe(state);
+
+    // A late duplicate whose content differs is still a conflict, not a
+    // fresh commit sneaking past the deadline.
+    const lateConflict = commitCoordinatorUpload({
+      commitId: "commit_3810_late_conflict",
+      committedAt: "2026-01-01T00:01:00.000Z",
+      independent: false,
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "media/v1080/s3810.m4s",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(lateConflict.status).toBe("rejected");
+    if (lateConflict.status !== "rejected") {
+      throw new Error("expected rejected late conflicting duplicate");
+    }
+
+    expect(lateConflict.error.error.code).toBe(
+      "olos.duplicate_commit_conflict"
+    );
+  });
+
+  test("records an out-of-order first commit for a rendition without rendering it", () => {
+    let state = createMultiRenditionState();
+    state = mustCommitRendition(
+      commitRenditionSlot(state, {
+        kind: "init",
+        mediaSequenceNumber: 0,
+        renditionId: "v1080",
+        slotId: "slot_v_init",
+      })
+    );
+    state = mustCommitRendition(
+      commitRenditionSlot(state, {
+        kind: "init",
+        mediaSequenceNumber: 0,
+        renditionId: "a128",
+        slotId: "slot_a_init",
+      })
+    );
+    state = mustCommitRendition(
+      commitRenditionSlot(state, {
+        kind: "segment",
+        mediaSequenceNumber: 0,
+        renditionId: "v1080",
+        slotId: "slot_v_s0",
+      })
+    );
+
+    const windowBefore = state.cursor?.window;
+
+    // Audio's first-ever media commit is part 1 of msn 1 — part 0 has not
+    // landed. §5.3: the coordinator accepts and records it; §5.2: it must
+    // not be rendered, so audio stays absent from the committed window.
+    const outOfOrder = commitRenditionSlot(state, {
+      duration: 0.5,
+      kind: "part",
+      mediaSequenceNumber: 1,
+      partNumber: 1,
+      renditionId: "a128",
+      slotId: "slot_a_s1_p1",
+    });
+
+    expect(outOfOrder.status).toBe("committed");
+    state = mustCommitRendition(outOfOrder);
+    expect(state.commits.map((commit) => commit.slotId)).toContain(
+      "slot_a_s1_p1"
+    );
+    expect(state.cursor?.window).toEqual(windowBefore);
+    expect(Object.keys(state.cursor?.committedWindow.renditions ?? {})).toEqual(
+      ["v1080"]
+    );
+
+    // Part 0 completes the contiguous prefix — audio becomes visible.
+    state = mustCommitRendition(
+      commitRenditionSlot(state, {
+        duration: 0.5,
+        kind: "part",
+        mediaSequenceNumber: 1,
+        partNumber: 0,
+        renditionId: "a128",
+        slotId: "slot_a_s1_p0",
+      })
+    );
+
+    expect(
+      state.cursor?.committedWindow.renditions.a128?.segments.map((segment) => [
+        segment.mediaSequenceNumber,
+        segment.parts?.map((part) => part.partNumber),
+      ])
+    ).toEqual([[1, [0, 1]]]);
+  });
+
+  test("retires a leading rendition's trimmed commits while another rendition stalls", () => {
+    let state = createMultiRenditionState();
+    state = mustCommitRendition(
+      commitRenditionSlot(state, {
+        kind: "init",
+        mediaSequenceNumber: 0,
+        renditionId: "v1080",
+        slotId: "slot_v_init",
+      })
+    );
+    state = mustCommitRendition(
+      commitRenditionSlot(state, {
+        kind: "init",
+        mediaSequenceNumber: 0,
+        renditionId: "a128",
+        slotId: "slot_a_init",
+      })
+    );
+    // Audio commits msn 0, then stalls while video runs ahead to msn 9.
+    state = mustCommitRendition(
+      commitRenditionSlot(state, {
+        kind: "segment",
+        maxSegments: 5,
+        mediaSequenceNumber: 0,
+        renditionId: "a128",
+        slotId: "slot_a_s0",
+      })
+    );
+
+    const retired: string[] = [];
+    for (let msn = 0; msn <= 9; msn += 1) {
+      const committed = commitRenditionSlot(state, {
+        kind: "segment",
+        maxSegments: 5,
+        mediaSequenceNumber: msn,
+        renditionId: "v1080",
+        slotId: `slot_v_s${msn}`,
+      });
+      if (committed.status !== "committed") {
+        throw new Error(`expected video commit at ${msn}`);
+      }
+      retired.push(
+        ...(committed.retiredObjects ?? []).map((object) => object.slotId)
+      );
+      state = committed.state;
+    }
+
+    // Video's trimmed msn 0-4 retire despite audio pinning the window-global
+    // first media sequence at 0; their commits and slots are pruned.
+    expect(retired).toEqual([
+      "slot_v_s0",
+      "slot_v_s1",
+      "slot_v_s2",
+      "slot_v_s3",
+      "slot_v_s4",
+    ]);
+    expect(
+      state.commits
+        .filter((commit) => commit.renditionId === "v1080")
+        .map((commit) => commit.mediaSequenceNumber)
+    ).toEqual([5, 6, 7, 8, 9]);
+    expect(state.slots.map((slot) => slot.slotId)).not.toContain("slot_v_s0");
+
+    // The stalled audio rendition keeps its visible commit and slot.
+    expect(
+      state.commits
+        .filter((commit) => commit.renditionId === "a128")
+        .map((commit) => commit.mediaSequenceNumber)
+    ).toEqual([0]);
+    expect(state.slots.map((slot) => slot.slotId)).toContain("slot_a_s0");
+    expect(
+      state.cursor?.committedWindow.renditions.a128?.segments.map(
+        (segment) => segment.mediaSequenceNumber
+      )
+    ).toEqual([0]);
+    expect(
+      state.cursor?.committedWindow.renditions.v1080?.segments.map(
+        (segment) => segment.mediaSequenceNumber
+      )
+    ).toEqual([5, 6, 7, 8, 9]);
+  });
 });
+
+const multiRenditionSession: Session = {
+  ...session,
+  renditions: [
+    ...session.renditions,
+    {
+      bitrate: 128_000,
+      codec: "mp4a.40.2",
+      kind: "audio",
+      renditionId: "a128",
+    },
+  ],
+};
+
+// Read-gated mode keeps object addresses deterministic, matching the
+// single-rendition helper in coordinator-state.test-helper.ts.
+function createMultiRenditionState(): CoordinatorPipelineState {
+  return createCoordinatorPipeline({
+    mediaBaseUrl: mediaOrigin,
+    publicationMode: "read-gated",
+    session: multiRenditionSession,
+  });
+}
+
+interface RenditionCommitOptions {
+  duration?: number;
+  kind: MediaObjectKind;
+  maxSegments?: number;
+  mediaSequenceNumber: number;
+  partNumber?: number;
+  renditionId: string;
+  slotId: string;
+}
+
+function commitRenditionSlot(
+  state: CoordinatorPipelineState,
+  options: RenditionCommitOptions
+): CoordinatorUploadCommit {
+  const issued = issueCoordinatorSlot({
+    contentType: "video/mp4",
+    duration: options.duration ?? 2,
+    expiresAt: "2026-01-01T00:00:30.000Z",
+    kind: options.kind,
+    maxBytes: 100_000,
+    mediaSequenceNumber: options.mediaSequenceNumber,
+    partNumber: options.partNumber,
+    renditionId: options.renditionId,
+    slotId: options.slotId,
+    state,
+  });
+
+  return commitCoordinatorUpload({
+    commitId: `commit_${options.slotId}`,
+    committedAt: "2026-01-01T00:00:02.000Z",
+    maxSegments: options.maxSegments,
+    object: createObservedUpload({
+      contentType: "video/mp4",
+      objectKey: issued.slot.objectKey,
+      observedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "s3_primary",
+      size: 10_000,
+    }),
+    slotId: options.slotId,
+    state: issued.state,
+  });
+}
+
+function mustCommitRendition(
+  result: CoordinatorUploadCommit
+): CoordinatorPipelineState {
+  if (result.status !== "committed") {
+    throw new Error(`expected committed upload, received ${result.status}`);
+  }
+
+  return result.state;
+}
 
 interface CommitSlotOptions {
   commitId: string;

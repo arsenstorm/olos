@@ -71,6 +71,17 @@ const DEFAULT_PUBLISHER_LEASE_TTL_MS =
 const DEFAULT_TARGET_LATENCY = DEFAULT_RUNTIME_OBJECT_LOW_LATENCY.targetLatency;
 const defaultRuntimeNow = () => new Date().toISOString();
 
+const GET_ONLY_SESSION_ROUTE_ACTIONS = [
+  SESSION_ROUTE_ACTIONS.health,
+  SESSION_ROUTE_ACTIONS.retention,
+] as const;
+const POST_ONLY_SESSION_ROUTE_ACTIONS = [
+  SESSION_ROUTE_ACTIONS.commits,
+  SESSION_ROUTE_ACTIONS.heartbeat,
+  SESSION_ROUTE_ACTIONS.slots,
+  SESSION_ROUTE_ACTIONS.transition,
+] as const;
+
 interface InvalidRuntimeHttpRequestParse {
   message: string;
   status: "invalid" | "too_large";
@@ -110,7 +121,10 @@ export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   /** Alias for `now`, consulted only when `now` is not set. */
   clock?: () => string;
   commitPolicy?: CoordinatorCommitPolicy;
-  /** Notified with the new cursor after every successful commit. */
+  /**
+   * Notified with the new cursor after every successful commit and session
+   * transition.
+   */
   cursorNotifier?: RuntimeCursorNotifier;
   /** Default commit late tolerance, in milliseconds. */
   lateToleranceMs?: number;
@@ -346,7 +360,13 @@ async function handlePostSessionActionRoute(
     return await handlePostHeartbeatRoute(request, sessionId, options);
   }
 
-  return jsonMethodNotAllowedResponse(["GET"]);
+  // 405 only fits actions that exist under another method; for an unknown
+  // action the route is missing and an Allow header would be a lie.
+  if (isAllowedString(action, GET_ONLY_SESSION_ROUTE_ACTIONS)) {
+    return jsonMethodNotAllowedResponse(["GET"]);
+  }
+
+  return notFound();
 }
 
 async function handlePostSlotRoute(
@@ -398,14 +418,22 @@ async function handlePostTransitionRoute(
     return invalidRuntimeHttpRequestParseResponse(parsed);
   }
 
-  return (
-    await transitionStoredCoordinatorSession({
-      maxAttempts: options.maxAttempts,
-      sessionId,
-      state: parsed.state,
-      store: options.store,
-    })
-  ).response;
+  const result = await transitionStoredCoordinatorSession({
+    maxAttempts: options.maxAttempts,
+    sessionId,
+    state: parsed.state,
+    store: options.store,
+  });
+
+  // Transitions rewrite the cursor's state field; without a notification,
+  // parked blocking reloads would sleep to their deadline instead of
+  // serving the ENDLIST playlist, and the notifier would retain a
+  // terminal session's cursor forever.
+  if (result.status === "transitioned") {
+    notifyCursor(options.cursorNotifier, result.state.cursor);
+  }
+
+  return result.response;
 }
 
 async function handlePostHeartbeatRoute(
@@ -458,7 +486,13 @@ async function handleGetSessionActionRoute(
     return await handleGetHealthRoute(request, sessionId, options);
   }
 
-  return jsonMethodNotAllowedResponse(["POST"]);
+  // Same split as the POST side: only actions that exist under POST get a
+  // 405; unknown actions are missing routes.
+  if (isAllowedString(action, POST_ONLY_SESSION_ROUTE_ACTIONS)) {
+    return jsonMethodNotAllowedResponse(["POST"]);
+  }
+
+  return notFound();
 }
 
 async function handleGetHealthRoute(

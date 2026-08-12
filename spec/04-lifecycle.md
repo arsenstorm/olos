@@ -40,8 +40,12 @@ A slot is the only way to reserve a position in a session's timeline.
   `live`.
 - `renditionId` MUST name a rendition declared by the session. The
   coordinator MUST reject issuance for any other rendition.
-- `slotId` MUST be unique among all slots ever issued for the session.
-  The coordinator MUST reject a duplicate `slotId`.
+- `slotId` MUST be unique among the slots the coordinator retains for
+  the session. The coordinator MUST reject a duplicate `slotId`.
+  Retention (Section 9) can prune a slot and free its identifier. A
+  reissued identifier of a pruned slot can bind a stale in-flight
+  upload to a new position, so publishers SHOULD use identifiers that
+  never repeat.
 - The issued slot MUST carry the session's `sessionId` and `epoch`. It
   MUST be created in state `issued`.
 - The coordinator derives `objectKey` from the slot's kind and position:
@@ -99,8 +103,13 @@ The coordinator learns that an object exists through one of three paths:
 
 1. **Storage read** — a direct read of object metadata (for
    S3-compatible stores, `HeadObject`, Section 7). The read is
-   normalized into an observed upload whose `observedAt` is the object's
-   last-modified time.
+   normalized into an observed upload. Its `observedAt` is the
+   caller-supplied timestamp when one exists (the commit's
+   `committedAt`, an event's observation time, or a hint's event time),
+   else the object's last-modified time, else the coordinator clock
+   (Section 7.3). The lateness rules of Section 4.5.3 therefore bound
+   the supplied timestamp, not the storage upload time. A deployment
+   that needs upload-time anchoring MUST NOT supply a timestamp.
 2. **Provider event** — an `object.created` event delivered by the
    storage provider. The event carries an `eventId`, an event time, and
    the object's key, content type, size, and optional etag and metadata.
@@ -115,9 +124,10 @@ Precedence and proof:
   object proof.
 - When both a hint and object proof are present, they MUST agree on
   `objectKey`. A disagreement MUST be rejected with `olos.key_mismatch`.
-- `object.created` events MUST be de-duplicated by `eventId`. If an
-  event's `eventId` was observed before, the event MUST be treated as an
-  idempotent duplicate with no further effect.
+- The coordinator MUST treat a redelivered `object.created` event as an
+  idempotent duplicate with no further effect. Deduplication is by slot
+  commit state, not by `eventId` (Section 4.5.2, Section 7.4). The
+  `eventId` is informational.
 - An `object.created` event whose object key matches no known slot MUST
   be rejected with `olos.unknown_slot`.
 - Events of an unsupported type or with malformed payloads MUST be
@@ -295,8 +305,8 @@ object becomes viewer-visible.
 - A slot whose object is referenced by the live cursor's committed
   window (as an init object, a segment, or a part) MUST NOT be revoked.
   Such an attempt MUST be rejected with `olos.invalid_state`. Announced
-  media can leave the window only through retention (Section 9) or a
-  discontinuity. It never leaves silently.
+  media can leave the window only through retention (Section 9). It
+  never leaves silently.
 - Otherwise a slot in state `issued`, `upload_observed`, or `committed`
   MAY be revoked. Revocation deletes any commits recorded for the slot
   from coordinator state.

@@ -116,6 +116,43 @@ describe("runtime live health", () => {
     });
   });
 
+  test("orders stored publisher leases by instant, not by timestamp string", () => {
+    // "T01:00:30+01:00" sorts lexicographically after "T00:00:45Z" but is
+    // the earlier instant (00:00:30Z); the UTC lease must win, and its
+    // unexpired lease keeps the session active.
+    expect(
+      resolveRuntimeLiveHealthFromState({
+        maxCursorAgeMs: 3000,
+        now: "2026-01-01T00:00:50.000Z",
+        state: {
+          ...createEmptyCoordinatorState(),
+          cursor: cursor("2026-01-01T00:00:48.000Z"),
+          publisherLeases: [
+            {
+              expiresAt: "2026-01-01T00:00:33.000Z",
+              issuedAt: "2026-01-01T00:00:00.000Z",
+              lastSeenAt: "2026-01-01T01:00:30.000+01:00",
+              publisherInstanceId: "publisher_offset",
+              sessionId: "session_1",
+            },
+            {
+              expiresAt: "2026-01-01T00:00:55.000Z",
+              issuedAt: "2026-01-01T00:00:00.000Z",
+              lastSeenAt: "2026-01-01T00:00:45.000Z",
+              publisherInstanceId: "publisher_utc",
+              sessionId: "session_1",
+            },
+          ],
+        },
+      })
+    ).toEqual({
+      cursorAgeMs: 2000,
+      cursorFreshness: "fresh",
+      leaseStatus: "active",
+      status: "active",
+    });
+  });
+
   test("resolves state health without stored publisher leases", () => {
     expect(
       resolveRuntimeLiveHealthFromState({

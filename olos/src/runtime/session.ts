@@ -18,6 +18,7 @@ import { isAllowedString, positiveNumber } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import {
   createRuntimePublisherLease,
+  RuntimePublisherLeaseClockError,
   refreshRuntimePublisherHeartbeat,
 } from "./publisher-lease";
 import { timestampMs } from "./request-fields";
@@ -407,13 +408,23 @@ function heartbeatLease(
     });
   }
 
-  return refreshRuntimePublisherHeartbeat({
-    lease: current,
-    now: options.now,
-    publisherInstanceId: options.publisherInstanceId,
-    sessionId: options.sessionId,
-    ttlMs: options.ttlMs,
-  });
+  try {
+    return refreshRuntimePublisherHeartbeat({
+      lease: current,
+      now: options.now,
+      publisherInstanceId: options.publisherInstanceId,
+      sessionId: options.sessionId,
+      ttlMs: options.ttlMs,
+    });
+  } catch (error) {
+    // A heartbeat clocked before its lease was issued is a state-machine
+    // rejection (409 `olos.invalid_state`), not an internal failure.
+    if (error instanceof RuntimePublisherLeaseClockError) {
+      throw new StoredSessionRejectionError(error.message);
+    }
+
+    throw error;
+  }
 }
 
 function currentPublisherLease(

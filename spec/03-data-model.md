@@ -279,9 +279,11 @@ Schema: see Appendix A, `OLOS_CURSOR_SCHEMA`.
 
 Each rendition window carries an `init` committed object, its
 `renditionId`, a non-empty ordered list of committed segments, and an
-OPTIONAL non-negative integer `discontinuitySequence` (the count of
-discontinuities trimmed out of that rendition's window; its HLS mapping
-is defined in Section 8.4.2). The full structural invariants (monotonic
+OPTIONAL non-negative integer `discontinuitySequence`. When present,
+the value is that rendition's absolute discontinuity sequence: the
+window's `discontinuitySequence` plus the discontinuities trimmed out
+of that rendition's window. The field is absent while the value equals
+the window's. Its HLS mapping is defined in Section 8.4.2. The full structural invariants (monotonic
 unique segment MSNs, monotonic unique part numbers, the
 contiguous-parts prefix rule, and duration semantics) are defined in
 Section 5.

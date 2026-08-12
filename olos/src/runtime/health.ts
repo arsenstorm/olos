@@ -244,5 +244,10 @@ function isNewerPublisherLease(
   lease: CoordinatorPublisherLease,
   current: CoordinatorPublisherLease | undefined
 ): boolean {
-  return current === undefined || lease.lastSeenAt > current.lastSeenAt;
+  // RFC 3339 timestamps may carry non-UTC offsets, which lexicographic
+  // string comparison misorders; compare instants instead.
+  return (
+    current === undefined ||
+    Date.parse(lease.lastSeenAt) > Date.parse(current.lastSeenAt)
+  );
 }

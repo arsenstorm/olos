@@ -2,7 +2,6 @@ import {
   cloneCoordinatorPipelineSnapshot,
   cloneCoordinatorPipelineState,
   createNextCoordinatorPipelineEtag,
-  cursorViewFromSnapshot,
 } from "./coordinator-snapshot";
 import type {
   CoordinatorCursorView,
@@ -38,12 +37,8 @@ export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
     loadCursor(sessionId): Promise<CoordinatorCursorView | undefined> {
       const snapshot = entries.get(sessionId);
 
-      // Clone before projecting so the returned view never aliases the
-      // stored snapshot (cursorViewFromSnapshot copies references).
       return Promise.resolve(
-        snapshot === undefined
-          ? undefined
-          : cursorViewFromSnapshot(cloneCoordinatorPipelineSnapshot(snapshot))
+        snapshot === undefined ? undefined : cloneCursorView(snapshot)
       );
     },
     save(options: SaveCoordinatorPipelineOptions) {
@@ -80,6 +75,24 @@ export function createMemoryCoordinatorStore(): CoordinatorPipelineStore {
         state: cloneCoordinatorPipelineState(snapshot.state),
         status: "saved" as const,
       });
+    },
+  };
+}
+
+// Clone only the projected fields (session and cursor, at the same depth
+// `cloneCoordinatorPipelineState` uses) so the returned view never aliases
+// the stored snapshot without deep-cloning slots and commits it discards.
+function cloneCursorView(
+  snapshot: CoordinatorPipelineSnapshot
+): CoordinatorCursorView {
+  const { cursor, session } = snapshot.state;
+
+  return {
+    ...(cursor === undefined ? {} : { cursor: { ...cursor } }),
+    etag: snapshot.etag,
+    session: {
+      ...session,
+      renditions: session.renditions.map((rendition) => ({ ...rendition })),
     },
   };
 }

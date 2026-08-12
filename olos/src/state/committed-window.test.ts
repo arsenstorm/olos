@@ -330,6 +330,40 @@ describe("committed window builder", () => {
     ).toBeUndefined();
   });
 
+  test("omits renditions whose only commits are out-of-order parts", () => {
+    const audioInitCommit: Commit = {
+      ...initCommit,
+      commitId: "commit_init_a128",
+      deliveryUrl: "/media/a128/init.mp4",
+      objectKey: "media/a128/init.mp4",
+      renditionId: "a128",
+      slotId: "slot_init_a128",
+    };
+    const audioPartCommit: Commit = {
+      ...partCommit(1),
+      commitId: "commit_a128_3811_1",
+      deliveryUrl: "/media/a128/3811.1.m4s",
+      objectKey: "media/a128/3811.1.m4s",
+      renditionId: "a128",
+      slotId: "slot_a128_3811_1",
+    };
+
+    const window = createCommittedWindow({
+      commits: [segmentCommit, audioPartCommit],
+      epoch: 1,
+      initCommits: [initCommit, audioInitCommit],
+      sessionId: "session_1",
+    });
+
+    // Audio's only commit is part 1 without part 0 — no contiguous prefix
+    // yet, so the rendition is omitted (the same shape as a rendition with
+    // no media commits at all) instead of failing window validation, and
+    // the window-global range comes from the present renditions alone.
+    expect(Object.keys(window.renditions)).toEqual(["v1080"]);
+    expect(window.firstMediaSequenceNumber).toBe(3810);
+    expect(window.lastMediaSequenceNumber).toBe(3810);
+  });
+
   test("createCommittedWindow still throws when no contiguous prefix exists", () => {
     expect(() =>
       createCommittedWindow({

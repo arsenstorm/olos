@@ -316,8 +316,14 @@ describe("stored coordinator runtime handler", () => {
     const methodNotAllowed = await handle(
       new Request("https://edge.example.com/sessions/session_1/slots")
     );
-    const unknownAction = await handle(
-      jsonRequest("https://edge.example.com/sessions/session_1/unknown", {})
+    const postOnGetAction = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/health", {})
+    );
+    const unknownPostAction = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/bogus", {})
+    );
+    const unknownGetAction = await handle(
+      new Request("https://edge.example.com/sessions/session_1/bogus")
     );
     const liveNotFound = await handle(
       new Request("https://edge.example.com/v1/live/session_1/v1080/extra.m3u8")
@@ -326,13 +332,22 @@ describe("stored coordinator runtime handler", () => {
     expect(routeNotFound).toHaveProperty("status", 404);
     expect(methodNotAllowed).toHaveProperty("status", 405);
     expect(methodNotAllowed.headers.get("allow")).toBe("POST");
-    expect(unknownAction).toHaveProperty("status", 405);
-    expect(unknownAction.headers.get("allow")).toBe("GET");
+    expect(postOnGetAction).toHaveProperty("status", 405);
+    expect(postOnGetAction.headers.get("allow")).toBe("GET");
+    // Unknown actions are missing routes, not method mismatches — a 405
+    // with an Allow header would advertise methods that also 405.
+    expect(unknownPostAction).toHaveProperty("status", 404);
+    expect(unknownGetAction).toHaveProperty("status", 404);
     expect(liveNotFound).toHaveProperty("status", 404);
     await expectOlosErrorEnvelope(routeNotFound);
     await expectOlosErrorEnvelope(methodNotAllowed);
-    await expectOlosErrorEnvelope(unknownAction);
+    await expectOlosErrorEnvelope(postOnGetAction);
     await expectOlosErrorEnvelope(liveNotFound);
+    const unknownActionBody = (await unknownPostAction.json()) as {
+      error: { code: string };
+    };
+    expect(unknownActionBody.error.code).toBe("olos.not_found");
+    await expectOlosErrorEnvelope(unknownGetAction);
   });
 
   test("rejects malformed retention now query parameters", async () => {
@@ -975,6 +990,124 @@ describe("stored coordinator runtime handler", () => {
     expect(await response.text()).toContain(
       "https://media.example.com/media/v1080/s3811.m4s"
     );
+  });
+
+  test("resolves parked blocking reloads with an ENDLIST playlist when the session ends", async () => {
+    const store = createMemoryCoordinatorStore();
+    const notifier = createMemoryRuntimeCursorNotifier();
+    let waits = 0;
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      blockingReload: {
+        // Far beyond the test timeout: a waiter that misses the session-end
+        // notification hangs the test instead of passing via the deadline.
+        timeoutMs: 60_000,
+        waitForCursor: (context) => {
+          waits += 1;
+          return notifier.waitForCursor(context);
+        },
+      },
+      cursorNotifier: notifier,
+      store,
+    });
+
+    await seedRuntimeStore(store, 3810);
+
+    const pending = handle(
+      new Request(
+        "https://edge.example.com/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3811"
+      )
+    );
+
+    await waitFor(() => waits === 1);
+
+    const ending = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/transition", {
+        state: "ending",
+      })
+    );
+
+    // The `ending` cursor wakes and re-parks the waiter; wait for the
+    // re-park so the terminal notification finds it parked.
+    await waitFor(() => waits === 2);
+
+    const ended = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/transition", {
+        state: "ended",
+      })
+    );
+    const response = await pending;
+    const body = await response.text();
+
+    expect(ending.status).toBe(200);
+    expect(ended.status).toBe(200);
+    expect(response.status).toBe(200);
+    expect(body.endsWith("\n#EXT-X-ENDLIST\n")).toBe(true);
+    expect(body).not.toContain("s3811.m4s");
+  });
+
+  test("evicts ended sessions from the cursor notifier after transition routes", async () => {
+    const store = createMemoryCoordinatorStore();
+    const notifier = createMemoryRuntimeCursorNotifier();
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      cursorNotifier: notifier,
+      store,
+    });
+    const seededCursor = await seedRuntimeStore(store, 3810);
+
+    // Prime the notifier's latest entry through the commit route.
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/s3811.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3811,
+          objectKey: "media/v1080/s3811.m4s",
+          slotId: "slot_3811",
+        })
+      )
+    );
+    await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/commits", {
+        ...commitPayload({
+          commitId: "commit_3811",
+          objectKey: "media/v1080/s3811.m4s",
+          size: 98_304,
+          slotId: "slot_3811",
+        }),
+        independent: false,
+      })
+    );
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/transition", {
+        state: "ending",
+      })
+    );
+    await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/transition", {
+        state: "ended",
+      })
+    );
+
+    // With the ended session evicted, a wait behind the committed 3811
+    // position parks instead of resolving from the retained stale cursor.
+    const controller = new AbortController();
+    const waiting = notifier.waitForCursor({
+      cursor: seededCursor,
+      request: { mediaSequenceNumber: 3811 },
+      signal: controller.signal,
+    });
+
+    controller.abort();
+
+    await expect(waiting).resolves.toBeUndefined();
   });
 
   test("does not notify cursor waiters for rejected commit routes", async () => {

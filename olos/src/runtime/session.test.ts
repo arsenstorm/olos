@@ -196,6 +196,37 @@ describe("stored session runtime", () => {
     ]);
   });
 
+  test("rejects publisher heartbeats clocked before the lease was issued", async () => {
+    const store = createMemoryCoordinatorStore();
+    await seedCreatedSession(store);
+
+    const first = await heartbeatStoredCoordinatorPublisher({
+      now: "2026-01-01T00:00:02.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 3000,
+    });
+    // A rewound clock is a protocol rejection, not an opaque 500.
+    const rewound = await heartbeatStoredCoordinatorPublisher({
+      now: "2026-01-01T00:00:01.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 3000,
+    });
+
+    expect(first.status).toBe("refreshed");
+    expect(rewound.status).toBe("rejected");
+    expect(rewound.response.status).toBe(409);
+    expect(await rewound.response.json()).toEqual({
+      error: {
+        code: "olos.invalid_state",
+        message: "now must be after or equal to publisherLease.issuedAt",
+      },
+    });
+  });
+
   test("rejects publisher heartbeats for terminal sessions", async () => {
     const store = createMemoryCoordinatorStore();
     await seedStore(

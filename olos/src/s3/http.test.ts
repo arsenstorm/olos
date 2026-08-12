@@ -802,6 +802,187 @@ describe("stored S3 coordinator runtime handler", () => {
     expect(headObjectInputs).toEqual([]);
   });
 
+  test("reports completion hints whose object is not yet visible instead of throwing", async () => {
+    const headObjectInputs: unknown[] = [];
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      bucket: S3_BUCKET,
+      client: createTestS3Client(),
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
+      // No objects exist yet: every HeadObject rejects, modelling a hint
+      // that raced ahead of S3 object visibility (spec §7.9).
+      objectClient: createTestHeadObjectClient(
+        {},
+        headObjectInputs,
+        {},
+        {},
+        {
+          missingObjectError: () => "NotFound: object is not visible yet",
+        }
+      ),
+      providerId: "s3_primary",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        session,
+      })
+    );
+    await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/s3/slots",
+        slotPayload({
+          deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          mediaSequenceNumber: 3810,
+          objectKey: "media/v1080/s3810.m4s",
+          slotId: "slot_3810",
+        })
+      )
+    );
+
+    const response = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
+        {
+          committedAt: "2026-01-01T00:00:02.000Z",
+          independent: true,
+          objectKey: "media/v1080/s3810.m4s",
+        }
+      )
+    );
+
+    await expectOlosErrorEnvelope(response);
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          code: "olos.invalid_state",
+          message: "NotFound: object is not visible yet",
+        },
+      },
+      status: 409,
+    });
+    expect(headObjectInputs).toEqual([
+      {
+        Bucket: S3_BUCKET,
+        Key: "media/v1080/s3810.m4s",
+      },
+    ]);
+    // The hint is not proof: the slot stays uncommitted awaiting object
+    // proof from a later hint, provider event, or reconciliation sweep.
+    const after = await store.load(session.sessionId);
+    expect(after?.state.commits).toEqual([]);
+  });
+
+  test("answers unexpected store failures on S3 commits with an opaque 500 envelope", async () => {
+    const headObjectInputs: unknown[] = [];
+    const failure = () =>
+      Promise.reject(new Error("D1_ERROR: connection refused"));
+    const failingStore: CoordinatorPipelineStore = {
+      load: failure,
+      save: failure,
+    };
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      bucket: S3_BUCKET,
+      client: createTestS3Client(),
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      objectClient: createTestHeadObjectClient(
+        RETENTION_OBJECT_SIZES,
+        headObjectInputs
+      ),
+      store: failingStore,
+    });
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        independent: true,
+        objectKey: "media/v1080/s3810.m4s",
+        providerId: "s3_primary",
+        slotId: "slot_3810",
+      })
+    );
+
+    await expectOlosErrorEnvelope(response);
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: { code: "olos.internal", message: "internal error" },
+      },
+      status: 500,
+    });
+  });
+
+  test("answers malformed stored S3 state with an opaque 500 envelope", async () => {
+    const store = createMemoryCoordinatorStore();
+    // Corrupt every loaded snapshot the way a bad migration or manual edit
+    // would: `slots` is no longer an array, so the commit path throws
+    // instead of resolving to a rejection.
+    const corruptingStore: CoordinatorPipelineStore = {
+      load: async (sessionId) => {
+        const snapshot = await store.load(sessionId);
+
+        if (snapshot === undefined) {
+          return;
+        }
+
+        return {
+          ...snapshot,
+          state: {
+            ...snapshot.state,
+            slots: undefined,
+          } as unknown as CoordinatorPipelineState,
+        };
+      },
+      save: (options) => store.save(options),
+    };
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      bucket: S3_BUCKET,
+      client: createTestS3Client(),
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      store: corruptingStore,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        mediaBaseUrl,
+        session,
+      })
+    );
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        independent: true,
+        objectKey: "media/v1080/s3810.m4s",
+        providerId: "s3_primary",
+        slotId: "slot_3810",
+      })
+    );
+
+    // The corrupt-state throw must not leak its message as a 400/409 —
+    // it gets the same opaque envelope as any other unexpected throw.
+    await expectOlosErrorEnvelope(response);
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: { code: "olos.internal", message: "internal error" },
+      },
+      status: 500,
+    });
+  });
+
   test("rejects publisher media URLs in S3 completion hints", async () => {
     const headObjectInputs: unknown[] = [];
     const handle = createStoredS3CoordinatorRuntimeHandler({
@@ -3058,6 +3239,8 @@ describe("stored S3 coordinator runtime handler", () => {
   });
 
   test("returns 409 when S3 retention loses the optimistic save race", async () => {
+    const deleteInputs: unknown[] = [];
+    const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     let conflictSaves = false;
     const racingStore: CoordinatorPipelineStore = {
@@ -3074,6 +3257,11 @@ describe("stored S3 coordinator runtime handler", () => {
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
+      objectClient: createTestHeadObjectClient(
+        RETENTION_OBJECT_SIZES,
+        headObjectInputs
+      ),
+      retentionClient: createTestS3DeleteObjectClient(deleteInputs),
       store: racingStore,
     });
 
@@ -3083,22 +3271,32 @@ describe("stored S3 coordinator runtime handler", () => {
         session,
       })
     );
-    // An issued slot that expires before the sweep so retention has state
-    // to prune (a no-op plan would skip the save entirely).
-    await handle(
-      jsonRequest(
-        "https://edge.example.com/sessions/session_1/s3/slots",
-        slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-          duration: 2,
-          kind: "segment",
-          maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
-          objectKey: "media/v1080/s3810.m4s",
-          slotId: "slot_3810",
+
+    for (const object of retentionObjects()) {
+      await handle(
+        jsonRequest(
+          "https://edge.example.com/sessions/session_1/s3/slots",
+          slotPayload(object)
+        )
+      );
+      await handle(
+        jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+          commitId: object.commitId,
+          committedAt: "2026-01-01T00:00:02.000Z",
+          independent: object.kind === "segment",
+          objectKey: object.objectKey,
+          providerId: "s3_primary",
+          slotId: object.slotId,
+          ...(object.maxSegments === undefined
+            ? {}
+            : { maxSegments: object.maxSegments }),
         })
-      )
-    );
+      );
+    }
+
+    // A stale retired commit so the losing sweep has an S3 delete it would
+    // wrongly attempt if deletes ran before the pruned state persisted.
+    await seedStaleRetiredCommit(store);
 
     conflictSaves = true;
 
@@ -3116,6 +3314,12 @@ describe("stored S3 coordinator runtime handler", () => {
       code: "olos.conflict",
       message: "coordinator session changed during mutation",
     });
+    // §9.3 persist-before-delete: the state write never landed, so the
+    // sweep must not have deleted anything — only the earlier commit-time
+    // auto-retention delete may appear.
+    expect(deleteInputs).toEqual([
+      { Bucket: S3_BUCKET, Key: "media/v1080/s3810.m4s" },
+    ]);
   });
 
   test("reports failed S3 retention deletes through the runtime route", async () => {

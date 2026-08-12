@@ -2,6 +2,7 @@ import type { HlsCursorWaitContext } from "../hls/blocking-reload";
 import { isEndOfStreamSessionState } from "../state/session";
 import type { Cursor } from "../types/cursor";
 import { assertCursor } from "../validation/cursor";
+import { isRecord } from "../validation/fields";
 
 const SEGMENT_ONLY_CURSOR_PART_ORDER = -1;
 
@@ -11,11 +12,12 @@ const SEGMENT_ONLY_CURSOR_PART_ORDER = -1;
  * to hold a response open until the session advances.
  */
 export interface RuntimeCursorNotifier {
-  /** Publish a new cursor, waking waiters it has advanced past. */
+  /** Publish a new cursor, waking waiters it counts as an update for. */
   notify(cursor: Cursor): void;
   /**
-   * Resolve with the first cursor that advances past `context.cursor`, or
-   * with `undefined` once `context.signal` aborts.
+   * Resolve with the first cursor that is an update past `context.cursor`
+   * — a strict global-position advance or a same-position content change —
+   * or with `undefined` once `context.signal` aborts.
    */
   waitForCursor(context: HlsCursorWaitContext): Promise<Cursor | undefined>;
 }
@@ -34,9 +36,10 @@ interface CursorProgress {
 /**
  * Create an in-process `RuntimeCursorNotifier` that tracks the latest cursor
  * per session in memory. `waitForCursor` resolves immediately when the
- * latest known cursor is already ahead of the caller's; cursors are ordered
- * by epoch, then media sequence number, then part number. Suitable for a
- * single-process coordinator only — notifications do not cross processes.
+ * latest known cursor is already ahead of the caller's — ordered by epoch,
+ * then media sequence number, then part number — or sits at the same
+ * position with different content. Suitable for a single-process
+ * coordinator only — notifications do not cross processes.
  */
 export function createMemoryRuntimeCursorNotifier(): RuntimeCursorNotifier {
   const latest = new Map<string, Cursor>();
@@ -87,7 +90,7 @@ function advancedLatestCursor(
 ): Cursor | undefined {
   const current = latest.get(after.sessionId);
 
-  return current !== undefined && isCursorAfter(current, after)
+  return current !== undefined && isCursorUpdateAfter(current, after)
     ? current
     : undefined;
 }
@@ -118,7 +121,7 @@ function resolveAdvancedWaiters(
   sessionWaiters: Set<CursorWaiter>
 ): void {
   for (const waiter of sessionWaiters) {
-    if (isCursorAfter(cursor, waiter.after)) {
+    if (isCursorUpdateAfter(cursor, waiter.after)) {
       sessionWaiters.delete(waiter);
       waiter.resolve(cursor);
     }
@@ -150,13 +153,59 @@ function waitersForSession(
   return next;
 }
 
-function isCursorAfter(cursor: Cursor, after: Cursor): boolean {
+// A cursor counts as an update when its global position is strictly ahead,
+// or when the position is unchanged but the cursor differs at all — the
+// spec (§4.5.3) accepts same-position updates (a full-segment commit at
+// the live-edge msn, a lagging rendition catching up, a session-state
+// change) that per-rendition waiters may be blocked on. Spurious wakes are
+// safe (the blocking-reload loop re-evaluates its own bounds and
+// re-parks), but an equivalent cursor must never wake.
+function isCursorUpdateAfter(cursor: Cursor, after: Cursor): boolean {
   if (cursor.sessionId !== after.sessionId) {
     return false;
   }
 
+  const order = compareCursorProgress(
+    cursorProgress(cursor),
+    cursorProgress(after)
+  );
+
+  if (order !== 0) {
+    return order > 0;
+  }
+
+  return !isStructurallyEqualJson(cursor, after);
+}
+
+// Cursors are validated, JSON-shaped values (no cycles, functions, or
+// undefined members), so a structural walk is a faithful equivalence check.
+function isStructurallyEqualJson(left: unknown, right: unknown): boolean {
+  if (left === right) {
+    return true;
+  }
+
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return (
+      Array.isArray(left) &&
+      Array.isArray(right) &&
+      left.length === right.length &&
+      left.every((entry, index) => isStructurallyEqualJson(entry, right[index]))
+    );
+  }
+
+  if (!(isRecord(left) && isRecord(right))) {
+    return false;
+  }
+
+  const leftKeys = Object.keys(left);
+
   return (
-    compareCursorProgress(cursorProgress(cursor), cursorProgress(after)) > 0
+    leftKeys.length === Object.keys(right).length &&
+    leftKeys.every(
+      (key) =>
+        Object.hasOwn(right, key) &&
+        isStructurallyEqualJson(left[key], right[key])
+    )
   );
 }
 

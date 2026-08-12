@@ -5,6 +5,7 @@ import type { Cursor } from "../types/cursor";
 import type { Session } from "../types/session";
 import {
   type CreateHlsManifestArtifactsOptions,
+  createCoordinatorManifestArtifacts,
   createHlsManifestArtifactResponse,
   createHlsManifestArtifacts,
   createHlsManifestErrorWebResponse,
@@ -416,6 +417,30 @@ describe("HLS manifest artifacts", () => {
       for (const artifact of mediaPlaylists) {
         expect(artifact.body.endsWith("\n#EXT-X-ENDLIST\n")).toBe(true);
       }
+    }
+  });
+
+  test("derives coordinator end-of-stream from the cursor, not the session", () => {
+    // A terminal cursor can precede (or lag) the session record's own
+    // transition; coordinator rendering must follow the cursor's state.
+    const { artifacts } = createCoordinatorManifestArtifacts({
+      allowedMediaOrigins: [MEDIA_ORIGIN],
+      partTarget: session.partTarget,
+      segmentTarget: session.segmentTarget,
+      state: {
+        cursor: { ...cursor, state: "ended" },
+        session,
+      },
+    });
+    const mediaPlaylists = artifacts.filter((artifact) =>
+      artifact.path.endsWith("/media.m3u8")
+    );
+
+    expect(session.state).toBe("live");
+    expect(mediaPlaylists.length).toBeGreaterThan(0);
+
+    for (const artifact of mediaPlaylists) {
+      expect(artifact.body.endsWith("\n#EXT-X-ENDLIST\n")).toBe(true);
     }
   });
 

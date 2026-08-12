@@ -81,6 +81,10 @@ path segment. The following rules apply to every route:
   fields fail validation, the coordinator MUST reject it with `400`
   and code `olos.invalid_request`. The `message` SHOULD identify the
   offending field.
+- Request bodies are size-bounded. The bound is
+  deployment-configurable. The reference default is 1 MiB. The
+  coordinator MUST reject a larger body with `413` and code
+  `olos.invalid_request` before it parses the body.
 
 Timestamps are ISO 8601 strings. Identifiers are URL-safe identifiers.
 Object keys MUST satisfy the path-safety rules of Section 7.5.
@@ -131,7 +135,7 @@ Thirteen domain codes describe protocol-level rejections:
 | `olos.quota_exceeded` | An application-supplied commit policy rejects the commit for quota reasons. The coordinator propagates the policy's error unchanged. |
 | `olos.security_policy_violation` | Publication control (kill switch, Section 10.5) disables the requested operation. |
 
-Four transport codes map HTTP-level failures:
+Five transport and server codes map HTTP-level failures:
 
 | Code | HTTP status |
 | --- | --- |
@@ -139,6 +143,12 @@ Four transport codes map HTTP-level failures:
 | `olos.not_found` | 404 |
 | `olos.method_not_allowed` | 405 |
 | `olos.conflict` | 409 |
+| `olos.internal` | 500 |
+
+`olos.internal` reports an unexpected coordinator failure (Section
+3.10). Its message is fixed and never carries internal error detail.
+Note: an oversized request body maps to `413` with code
+`olos.invalid_request` (Section 6.2).
 
 ### 6.3.2 Status mapping for domain rejections
 
@@ -148,6 +158,9 @@ A domain rejection MUST map to HTTP status as follows:
 - Every other domain code carried on a rejection maps to `409`. The
   exception is `olos.invalid_session`, which maps to `404` when it
   reports a missing session.
+
+An unhandled error in any route maps to `500` with code
+`olos.internal`. The envelope carries the fixed message only.
 
 ## 6.4 Session routes
 

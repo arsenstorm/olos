@@ -161,13 +161,21 @@ function createRenditions(
       throw new Error(`missing init commit for rendition: ${renditionId}`);
     }
 
-    renditions[renditionId] = createRenditionWindow({
+    const rendition = createRenditionWindow({
       commits,
       discontinuitySequence: options.discontinuitySequence ?? 0,
       init,
       maxSegments: options.maxSegments,
       renditionId,
     });
+
+    // A rendition whose only media commits are out-of-order parts (no
+    // contiguous prefix yet) has no visible segments. Omit it from the
+    // window — the same shape as a rendition with no media commits at all
+    // — so the commit stays recorded without rendering (§5.2, §5.3).
+    if (rendition.segments.length > 0) {
+      renditions[renditionId] = rendition;
+    }
   }
 
   return renditions;

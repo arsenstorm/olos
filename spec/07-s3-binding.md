@@ -100,9 +100,13 @@ Two external signals can tell the coordinator that an upload finished:
    object key is URL-decoded (with `+` as space) and MUST be a safe
    object key. The event id comes from the request id or, when the
    request id is absent, from the sequencer. A record that fails any
-   check is reported `invalid_event` and MUST NOT mutate state. Event
-   ids MUST be used to deduplicate deliveries (the transport is
-   at-least-once).
+   check is reported `invalid_event` and MUST NOT mutate state. The
+   transport is at-least-once. Deduplication is by slot commit state,
+   not by event id: a redelivery routes into the idempotent
+   verify-then-commit path (Section 7.9) and reports `idempotent`.
+   Event ids are informational (logging and correlation). A redelivery
+   for a slot that retention has pruned fails per record with
+   `olos.unknown_slot`.
 2. **Completion hints** (`eventType: "upload.completed"`). The
    publisher delivers them over the completion-hint route
    (Section 6.6.3) with `slotId` and `objectKey`.
@@ -128,8 +132,7 @@ verify-then-commit path. Neither bypasses observation.
 
 The coordinator derives every object key. Publishers MUST NOT choose
 keys (Section 6.5.1). The coordinator builds keys from a prefix
-(default `media`, leading/trailing slashes trimmed), the rendition id,
-and a kind-specific file name. With `<p>` the prefix, `<rid>` the
+(default `media`), the rendition id, and a kind-specific file name. With `<p>` the prefix, `<rid>` the
 rendition id, `<msn>` the media sequence number, `<n>` the part
 number, and `<ext>` the extension:
 
@@ -140,9 +143,14 @@ number, and `<ext>` the extension:
 | `part` | `<p>/<rid>/s<msn>/p<n>.<ext>` | `<p>/<rid>/s<msn>/p<n>-<nonce>.<ext>` |
 
 Default extensions: `mp4` for `init`, `m4s` for `segment` and `part`.
-A supplied extension override MUST be a safe path segment and MUST be
-in the supported set for the kind (`init`: `.mp4`, `segment`/`part`:
-`.m4s`). The coordinator strips leading dots from the extension.
+An extension override received on the wire MUST be a dotless safe
+path segment in the supported set for the kind (`init`: `mp4`,
+`segment`/`part`: `m4s`). The coordinator rejects an override that
+carries a dot with `400`. It likewise rejects a prefix override with
+a leading or trailing slash. Only the internal derivation helper
+(`createPublisherObjectKey`, `@arsenstorm/olos/state`) trims prefix
+slashes and strips leading extension dots when a deployment calls it
+directly.
 
 Every object key, derived or received on the wire, MUST satisfy the
 path-safety rules:
@@ -181,9 +189,14 @@ A capability document ("OLOS ProviderCapabilityDocument", Appendix A)
 describes each provider. The document has `olos: "1.0"`, `providerId`,
 `kind: "object-store"`, and the `consistency`, `publication`,
 `uploadGrants`, `delivery`, and optional `events` and `api` sections.
-Coordinators MUST evaluate the document before they issue grants. If a
-deployment does not explicitly waive a check, a grant MUST NOT be
-issued unless:
+The document describes what a provider can do. The reference
+coordinator does not evaluate it at request time. A deployment MUST
+evaluate it before it configures a coordinator to issue grants for
+the provider. The exported helpers `assertProviderCanIssueUploadGrant`
+and `canProviderIssueUploadGrant` (`@arsenstorm/olos/state`) perform
+the checks below; an equivalent check is acceptable. If a deployment
+does not explicitly waive a check, it MUST NOT configure grant
+issuance unless:
 
 - `uploadGrants.presignedPut`, `uploadGrants.exactKey`,
   `uploadGrants.methodBound`, `uploadGrants.contentTypeBound`,
@@ -213,8 +226,12 @@ Publication is manifest-gated. An object becomes part of the stream
 only when the committed window references it. Its bytes can be
 readable earlier (Section 10.1). Read-gated and promotion modes keep
 the committed delivery URL behind the provider's read gate or
-promotion step. If the provider does not support the session's mode,
-the coordinator MUST reject commits.
+promotion step. The reference coordinator does not check mode support
+at commit time or at session creation. A deployment MUST choose a
+`publicationMode` that the provider's capability document supports
+(Section 7.7). The exported `createObjectPublication`
+(`@arsenstorm/olos/state`) asserts mode support when it builds a
+publication reference; an equivalent check is acceptable.
 
 ## 7.9 End-to-end upload flow
 

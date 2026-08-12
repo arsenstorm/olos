@@ -2,6 +2,7 @@ import { createStoredCoordinatorRuntimeHandler } from "../runtime/http";
 import { rejectionStatusCode } from "../runtime/rejection-status";
 import {
   jsonBadRequestResponse,
+  jsonInternalErrorResponse,
   jsonMethodNotAllowedResponse,
   jsonResponse,
 } from "../runtime/response";
@@ -11,7 +12,8 @@ import {
 } from "../runtime/retention";
 import { parseSlotIssueRequest } from "../runtime/slot-issue-request-parser";
 import type { Cursor } from "../types/cursor";
-import { positiveNumber } from "../validation/fields";
+import { createOlosError } from "../types/errors";
+import { errorMessage, positiveNumber } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertS3BucketName } from "./bucket";
 import {
@@ -37,7 +39,7 @@ import {
   s3ResponseConflict,
   s3ResponseNotFound,
 } from "./http-response";
-import { s3Route } from "./http-route";
+import { type S3Route, s3Route } from "./http-route";
 import type {
   CreateStoredS3CoordinatorRuntimeHandlerOptions,
   StoredS3CoordinatorCommitResponse,
@@ -47,6 +49,7 @@ import type {
   StoredS3CoordinatorRetentionResponse,
   StoredS3CoordinatorSlotGrantResponse,
 } from "./http-types";
+import type { S3HeadObjectClient } from "./object-observation";
 import {
   planStoredS3CoordinatorReconciliation,
   reconcileStoredS3CoordinatorUploads,
@@ -102,8 +105,12 @@ function invalid(message: string): InvalidS3HttpRequestParse {
  * retention sweeps (202). Non-S3 paths fall through to the base coordinator
  * runtime handler. Error responses are JSON bodies whose `error.code` is an
  * `olos.*` code: 400 for malformed requests, 404 for unknown sessions
- * (`olos.invalid_session`), 409 for concurrency conflicts, and rejections
- * mapped from their error code. Successful commits delete retired S3
+ * (`olos.invalid_session`), 409 for concurrency conflicts, rejections
+ * mapped from their error code, and a last-resort 500 `olos.internal` for
+ * unexpected throws (store I/O, corrupt snapshots). A completion hint whose
+ * object `HeadObject` cannot see yet answers 409 `olos.invalid_state` — the
+ * slot stays uncommitted awaiting object proof (spec §7.9). Successful
+ * commits delete retired S3
  * objects as a side effect (via `ctx.waitUntil` when available), and
  * retention persists the pruned state before deleting objects. A failed
  * delete is NOT re-planned by later sweeps — the pruned state no longer
@@ -135,42 +142,57 @@ export function createStoredS3CoordinatorRuntimeHandler(
       return jsonBadRequestResponse(route.message);
     }
 
-    if (route.action === S3_ROUTE_ACTIONS.slots) {
-      return await handleS3SlotGrant(request, route.sessionId, options);
+    // Last-resort guard mirroring the base runtime handler: expected
+    // failures resolve to olos.* envelopes inside the route handlers
+    // (400 for malformed requests, mapped rejection statuses, 404/409);
+    // any other throw — store I/O, a corrupt snapshot — becomes an opaque
+    // 500 `olos.internal` envelope instead of escaping the fetch handler
+    // as a platform error with no `error.code`.
+    try {
+      return await handleMatchedS3Route(request, route, options, ctx);
+    } catch {
+      return jsonInternalErrorResponse();
     }
-
-    if (route.action === S3_ROUTE_ACTIONS.commits) {
-      return await handleS3Commit(request, route.sessionId, options, ctx);
-    }
-
-    if (route.action === "completion-hint") {
-      return await handleS3CompletionHint(
-        request,
-        route.sessionId,
-        route.slotId,
-        options,
-        ctx
-      );
-    }
-
-    if (route.action === S3_ROUTE_ACTIONS.events) {
-      return await handleS3Events(request, route.sessionId, options, ctx);
-    }
-
-    if (route.action === S3_ROUTE_ACTIONS.reconcilePlan) {
-      return await handleS3ReconciliationPlan(
-        request,
-        route.sessionId,
-        options
-      );
-    }
-
-    if (route.action === S3_ROUTE_ACTIONS.retention) {
-      return await handleS3Retention(request, route.sessionId, options);
-    }
-
-    return await handleS3Reconciliation(request, route.sessionId, options, ctx);
   };
+}
+
+async function handleMatchedS3Route(
+  request: Request,
+  route: Extract<S3Route, { status: "matched" }>,
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
+  ctx: StoredS3CoordinatorRuntimeHandlerContext | undefined
+): Promise<Response> {
+  if (route.action === S3_ROUTE_ACTIONS.slots) {
+    return await handleS3SlotGrant(request, route.sessionId, options);
+  }
+
+  if (route.action === S3_ROUTE_ACTIONS.commits) {
+    return await handleS3Commit(request, route.sessionId, options, ctx);
+  }
+
+  if (route.action === "completion-hint") {
+    return await handleS3CompletionHint(
+      request,
+      route.sessionId,
+      route.slotId,
+      options,
+      ctx
+    );
+  }
+
+  if (route.action === S3_ROUTE_ACTIONS.events) {
+    return await handleS3Events(request, route.sessionId, options, ctx);
+  }
+
+  if (route.action === S3_ROUTE_ACTIONS.reconcilePlan) {
+    return await handleS3ReconciliationPlan(request, route.sessionId, options);
+  }
+
+  if (route.action === S3_ROUTE_ACTIONS.retention) {
+    return await handleS3Retention(request, route.sessionId, options);
+  }
+
+  return await handleS3Reconciliation(request, route.sessionId, options, ctx);
 }
 
 function assertS3HandlerOptions(
@@ -276,19 +298,75 @@ async function handleS3CompletionHint(
     return jsonBadRequestResponse(parsed.message);
   }
 
-  const result = await completeStoredS3CoordinatorUpload({
-    ...parsed.payload,
-    bucket: options.bucket,
-    client: options.objectClient ?? options.client,
-    commitPolicy: options.commitPolicy,
-    maxAttempts: options.maxAttempts,
-    publicationControl: options.publicationControl,
-    sessionId,
-    store: options.store,
-  });
+  let result: Awaited<ReturnType<typeof completeStoredS3CoordinatorUpload>>;
+
+  try {
+    result = await completeStoredS3CoordinatorUpload({
+      ...parsed.payload,
+      bucket: options.bucket,
+      client: tagCompletionHintObservationFailures(
+        options.objectClient ?? options.client
+      ),
+      commitPolicy: options.commitPolicy,
+      maxAttempts: options.maxAttempts,
+      publicationControl: options.publicationControl,
+      sessionId,
+      store: options.store,
+    });
+  } catch (error) {
+    if (error instanceof S3CompletionHintObservationError) {
+      return completionHintNotObservedResponse(error);
+    }
+
+    throw error;
+  }
 
   await scheduleRetiredObjectDeletes(result, options, ctx);
   return s3CommitResponse(result, options);
+}
+
+/**
+ * Marks `HeadObject` failures raised while verifying a completion hint.
+ * Only these map to the hint's "not yet observed" error envelope; any other
+ * throw (store I/O, a corrupt snapshot) still reaches the handler's opaque
+ * 500 guard.
+ */
+class S3CompletionHintObservationError extends Error {
+  constructor(cause: unknown) {
+    super(errorMessage(cause, "completion hint object was not observed"));
+    this.name = "S3CompletionHintObservationError";
+  }
+}
+
+// Spec §7.9: a completion hint is not proof — the uploaded object may not
+// be visible to `HeadObject` yet, so a failed observation on the hint path
+// is an expected outcome, not an internal error. Tag observation failures
+// at the client boundary so the route can tell them apart from store I/O.
+function tagCompletionHintObservationFailures(
+  client: S3HeadObjectClient
+): S3HeadObjectClient {
+  return {
+    async send(command) {
+      try {
+        return await client.send(command);
+      } catch (error) {
+        throw new S3CompletionHintObservationError(error);
+      }
+    },
+  };
+}
+
+// The slot stays uncommitted awaiting object proof; report the failed
+// observation in the reconciliation routes' failed-record style
+// (`olos.invalid_state` with the observation failure's message) so the
+// publisher can retry the hint or leave it to events/reconciliation.
+function completionHintNotObservedResponse(
+  error: S3CompletionHintObservationError
+): Response {
+  return jsonResponse(
+    createOlosError("olos.invalid_state", error.message),
+    rejectionStatusCode("olos.invalid_state")
+  );
 }
 
 // Drop the storage-side objects for commits the state machine pruned. When

@@ -151,6 +151,106 @@ describe("retention planning", () => {
     ]);
   });
 
+  test("retires trimmed commits per rendition despite a lagging rendition", () => {
+    const audioInitCommit: Commit = {
+      ...initCommit,
+      commitId: "commit_init_a128",
+      deliveryUrl: "/media/a128/init.mp4",
+      objectKey: "media/a128/init.mp4",
+      renditionId: "a128",
+      slotId: "slot_init_a128",
+    };
+    const audioSegmentCommit: Commit = {
+      ...segmentCommit,
+      commitId: "commit_a128_3810",
+      deliveryUrl: "/media/a128/3810.m4s",
+      objectKey: "media/a128/3810.m4s",
+      renditionId: "a128",
+      slotId: "slot_a128_3810",
+    };
+    const commits = [
+      segmentCommit,
+      {
+        ...segmentCommit,
+        commitId: "commit_3811",
+        mediaSequenceNumber: 3811,
+        objectKey: "media/3811.m4s",
+        slotId: "slot_3811",
+      },
+      {
+        ...segmentCommit,
+        commitId: "commit_3812",
+        mediaSequenceNumber: 3812,
+        objectKey: "media/3812.m4s",
+        slotId: "slot_3812",
+      },
+      audioSegmentCommit,
+    ];
+    const retainedWindow = createCommittedWindow({
+      commits,
+      epoch: 1,
+      initCommits: [initCommit, audioInitCommit],
+      maxSegments: 2,
+      sessionId: "session_1",
+    });
+
+    // Audio pins the window-global first media sequence at 3810, but video's
+    // own first visible segment is 3811 — its trimmed 3810 commit retires
+    // while audio's still-visible 3810 commit is kept.
+    expect(
+      selectRetiredCommittedObjects({
+        commits,
+        retainedWindow,
+      })
+    ).toEqual([
+      {
+        commitId: "commit_3810",
+        objectKey: "media/3810.m4s",
+        slotId: "slot_3810",
+      },
+    ]);
+  });
+
+  test("keeps commits of renditions absent from the retained window", () => {
+    const audioInitCommit: Commit = {
+      ...initCommit,
+      commitId: "commit_init_a128",
+      deliveryUrl: "/media/a128/init.mp4",
+      objectKey: "media/a128/init.mp4",
+      renditionId: "a128",
+      slotId: "slot_init_a128",
+    };
+    // Audio's only commit is an out-of-order part below the window-global
+    // first media sequence; the rendition has no visible segments, so it is
+    // absent from the window and its commit must survive — it may still
+    // become visible once the contiguous prefix completes.
+    const audioPartCommit: Commit = {
+      ...segmentCommit,
+      commitId: "commit_a128_3809_1",
+      deliveryUrl: "/media/a128/3809.1.m4s",
+      duration: 0.5,
+      mediaSequenceNumber: 3809,
+      objectKey: "media/a128/3809.1.m4s",
+      partNumber: 1,
+      renditionId: "a128",
+      slotId: "slot_a128_3809_1",
+    };
+    const retainedWindow = createCommittedWindow({
+      commits: [segmentCommit, audioPartCommit],
+      epoch: 1,
+      initCommits: [initCommit, audioInitCommit],
+      sessionId: "session_1",
+    });
+
+    expect(retainedWindow.renditions.a128).toBeUndefined();
+    expect(
+      selectRetiredCommittedObjects({
+        commits: [segmentCommit, audioPartCommit],
+        retainedWindow,
+      })
+    ).toEqual([]);
+  });
+
   test("keeps retained init media out of retired committed objects", () => {
     const retainedWindow = createCommittedWindow({
       commits: [segmentCommit],

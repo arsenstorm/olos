@@ -28,6 +28,17 @@ create are 400 `olos.invalid_request`, and a publisher `committedAt`
 ahead of the server clock reads as a fresh cursor in `/health` instead
 of failing the request.
 
+The S3 handler now has the same guarantee: every S3 route (grants,
+commits, events, completion hints, reconciliation, retention) wraps its
+dispatch, so an unexpected throw returns a 500 `olos.internal` envelope
+instead of escaping the fetch handler as a platform error. A completion
+hint whose object is not yet visible to `HeadObject` answers 409
+`olos.invalid_state` and leaves the slot awaiting proof, instead of a
+500. A heartbeat whose `now` precedes the lease's `issuedAt` (rewound
+clock) rejects with 409 `olos.invalid_state` instead of an opaque 500.
+Unknown session actions return 404 `olos.not_found`; 405 with `Allow` is
+reserved for real actions requested with the wrong method.
+
 405 responses now carry the RFC 9110-required `Allow` header
 (`jsonMethodNotAllowedResponse` takes the allowed-method list). The live
 manifest 404 is now a JSON `olos.not_found` envelope instead of plain

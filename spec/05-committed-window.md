@@ -102,8 +102,9 @@ the visible parts of segments at the window's `lastMediaSequenceNumber`,
 taken across all renditions. It is undefined when no rendition's last
 segment sits at that MSN with visible parts. One such case is a last
 segment that is a completed full segment without parts. When the value is
-undefined, the cursor's `window.lastPartNumber` MUST be absent. Otherwise
-it MUST equal this value (Section 3.8, Section 4.7).
+undefined, the cursor's `window.lastPartNumber` MUST be absent. When
+`window.lastPartNumber` is present, it MUST equal this value
+(Section 3.8, Section 4.7).
 
 ## 5.7 Window trimming
 
