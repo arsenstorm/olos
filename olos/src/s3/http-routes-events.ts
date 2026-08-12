@@ -131,6 +131,33 @@ export async function handleS3Events(
     payload: parsed.payload,
     providerId: options.providerId,
   });
+  const body: StoredS3CoordinatorEventRouteResponse = {
+    results: await routeEachEvent(events, {
+      ctx,
+      options,
+      providerId: options.providerId,
+      sessionId,
+    }),
+  };
+
+  return jsonResponse(body, 202);
+}
+
+/**
+ * Route the batch one event at a time. Serial by design: each routing is a
+ * coordinator mutation, and running them concurrently would race the etag.
+ */
+async function routeEachEvent(
+  events: Awaited<ReturnType<typeof normalizeS3ObjectCreatedEvents>>,
+  context: {
+    ctx: StoredS3CoordinatorRuntimeHandlerContext | undefined;
+    options: CreateStoredS3CoordinatorRuntimeHandlerOptions;
+    /** Narrowed by the caller's guard; the option itself is optional. */
+    providerId: string;
+    sessionId: string;
+  }
+): Promise<StoredS3CoordinatorEventRouteResponseResult[]> {
+  const { ctx, options, providerId, sessionId } = context;
   const results: StoredS3CoordinatorEventRouteResponseResult[] = [];
 
   for (const event of events) {
@@ -141,7 +168,7 @@ export async function handleS3Events(
       event,
       lateToleranceMs: options.lateToleranceMs,
       maxAttempts: options.maxAttempts,
-      providerId: options.providerId,
+      providerId,
       publicationControl: options.publicationControl,
       sessionId,
       store: options.store,
@@ -155,9 +182,7 @@ export async function handleS3Events(
     results.push(eventRouteResult(result));
   }
 
-  const body: StoredS3CoordinatorEventRouteResponse = { results };
-
-  return jsonResponse(body, 202);
+  return results;
 }
 
 export async function handleS3ReconciliationPlan(
@@ -259,17 +284,22 @@ export async function handleS3Retention(
     return s3ResponseConflict();
   }
 
+  return jsonResponse(await deleteRetiredObjects(applied.plan, options), 202);
+}
+
+async function deleteRetiredObjects(
+  plan: StoredS3CoordinatorRetentionResponse["plan"],
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+): Promise<StoredS3CoordinatorRetentionResponse> {
   const result = await deleteRetiredS3CoordinatorObjects({
     bucket: options.bucket,
     client: options.retentionClient ?? options.client,
-    objects: applied.plan.retiredObjects,
+    objects: plan.retiredObjects,
   });
 
-  const body: StoredS3CoordinatorRetentionResponse = {
-    plan: applied.plan,
+  return {
+    plan,
     result,
     summary: summarizeRetiredCoordinatorObjectDeletions(result),
   };
-
-  return jsonResponse(body, 202);
 }

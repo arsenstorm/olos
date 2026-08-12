@@ -50,6 +50,12 @@ export async function handleS3SlotGrant(
     store: options.store,
   });
 
+  return slotGrantResponse(result);
+}
+
+function slotGrantResponse(
+  result: Awaited<ReturnType<typeof issueStoredS3CoordinatorUploadGrant>>
+): Response {
   if (result.status === "saved") {
     const body: StoredS3CoordinatorSlotGrantResponse = {
       grant: result.grant,
