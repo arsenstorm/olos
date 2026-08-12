@@ -264,6 +264,21 @@ async function assertStoreLoadCursorConformance(
     throw new Error("loadCursor must return a view for saved sessions");
   }
 
+  assertCursorViewFields(view, loaded);
+
+  await assertCursorViewIsolation(
+    view,
+    await store.loadCursor(conformanceSession.sessionId),
+    loaded
+  );
+}
+
+/** Each view is a fresh copy — never shared with another view or the snapshot. */
+/** The view reports the saved session at the loaded etag, with no cursor. */
+function assertCursorViewFields(
+  view: CoordinatorCursorView,
+  loaded: CoordinatorPipelineSnapshot
+): void {
   expectStoreValue(
     view.etag,
     loaded.etag,
@@ -279,15 +294,8 @@ async function assertStoreLoadCursorConformance(
     undefined,
     "loadCursor must not report a cursor before any commit"
   );
-
-  await assertCursorViewIsolation(
-    view,
-    await store.loadCursor(conformanceSession.sessionId),
-    loaded
-  );
 }
 
-/** Each view is a fresh copy — never shared with another view or the snapshot. */
 function assertCursorViewIsolation(
   view: CoordinatorCursorView,
   secondView: CoordinatorCursorView | undefined,
