@@ -12,12 +12,12 @@ import type { UploadSlot } from "../types/upload-slot";
 import { errorMessage, isAllowedString } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertS3BucketName } from "./bucket";
-import {
-  type CommitStoredS3CoordinatorUploadOptions,
-  commitStoredS3CoordinatorUpload,
-  type StoredS3CoordinatorManifestOptions,
-  type StoredS3CoordinatorUploadCommit,
-} from "./coordinator";
+import { commitStoredS3CoordinatorUpload } from "./coordinator";
+import type {
+  CommitStoredS3CoordinatorUploadOptions,
+  StoredS3CoordinatorManifestOptions,
+  StoredS3CoordinatorUploadCommit,
+} from "./coordinator-types";
 import type { S3HeadObjectClient } from "./object-observation";
 
 type SlotValue<T> = T | ((slot: UploadSlot) => T);

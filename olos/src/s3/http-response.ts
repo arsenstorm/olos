@@ -6,7 +6,7 @@ import { jsonConflictResponse, jsonErrorResponse } from "../runtime/response";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosError } from "../types/errors";
-import type { StoredS3CoordinatorUploadEventRoute } from "./coordinator";
+import type { StoredS3CoordinatorUploadEventRoute } from "./coordinator-types";
 import type {
   StoredS3CoordinatorCommitResponse,
   StoredS3CoordinatorEventRouteResponseResult,

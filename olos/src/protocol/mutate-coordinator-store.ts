@@ -11,7 +11,7 @@ type CoordinatorPipelineMutationResult = Awaited<
   ReturnType<CoordinatorPipelineStore["save"]>
 >;
 
-type SavedCoordinatorPipelineResult = Extract<
+export type SavedCoordinatorPipelineResult = Extract<
   CoordinatorPipelineMutationResult,
   { status: "saved" }
 >;

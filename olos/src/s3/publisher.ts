@@ -24,15 +24,15 @@ import type { OlosId } from "../types/ids";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
 import { errorMessage, isAllowedString } from "../validation/fields";
-import type {
-  StoredS3CoordinatorManifestOptions,
-  StoredS3CoordinatorUploadCommit,
-  StoredS3CoordinatorUploadGrantIssue,
-} from "./coordinator";
 import {
   commitStoredS3CoordinatorUpload,
   issueStoredS3CoordinatorUploadGrant,
 } from "./coordinator";
+import type {
+  StoredS3CoordinatorManifestOptions,
+  StoredS3CoordinatorUploadCommit,
+  StoredS3CoordinatorUploadGrantIssue,
+} from "./coordinator-types";
 import type { S3HeadObjectClient } from "./object-observation";
 
 /**
