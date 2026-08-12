@@ -137,8 +137,7 @@ async function handleMatchedS3Route(
   if (route.action === "completion-hint") {
     return await handleS3CompletionHint(
       request,
-      route.sessionId,
-      route.slotId,
+      { sessionId: route.sessionId, slotId: route.slotId },
       options,
       ctx
     );

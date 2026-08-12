@@ -231,16 +231,28 @@ export function parseCommitRequestPayload(
   };
 }
 
+/** Overrides for how the provider id is read and reported when missing. */
+export interface ProviderIdFieldOptions {
+  field?: string;
+  missingError?: string;
+}
+
 export function parseProviderResolvedCommitPayload(
   value: Record<string, unknown>,
   options: ProviderIdOptions,
   parseCommittedAt: ParseTimestampField = parseCommitTimestamp,
-  field = "providerId",
-  missingError = `${field} must be configured or provided`
+  providerIdField: ProviderIdFieldOptions = {}
 ): ProviderResolvedCommitPayload {
+  const field = providerIdField.field ?? "providerId";
+
   return {
     committedAt: parseCommittedAt(value, "committedAt"),
-    providerId: parseProviderId(value, options, field, missingError),
+    providerId: parseProviderId(
+      value,
+      options,
+      field,
+      providerIdField.missingError ?? `${field} must be configured or provided`
+    ),
     ...parseCommitPayloadTiming(value),
   };
 }

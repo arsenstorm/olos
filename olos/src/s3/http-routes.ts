@@ -102,11 +102,11 @@ export async function handleS3Commit(
 
 export async function handleS3CompletionHint(
   request: Request,
-  sessionId: string,
-  slotId: string,
+  route: { sessionId: string; slotId: string },
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
   ctx: StoredS3CoordinatorRuntimeHandlerContext | undefined
 ): Promise<Response> {
+  const { sessionId, slotId } = route;
   const parsed = await parseS3CompletionHintRequest(request, options, slotId);
 
   if (parsed.status === "invalid") {

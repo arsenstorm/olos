@@ -248,20 +248,19 @@ export function assertRuntimeLiveHealth(
     throw new Error("runtime live health must be an object");
   }
 
-  requiredStringLiteralField(
-    value,
-    "cursorFreshness",
-    "session health response health must include cursorFreshness",
-    HEALTH_CURSOR_FRESHNESS_VALUES,
-    "session health response health.cursorFreshness must be fresh, stale, or missing"
-  );
-  requiredStringLiteralField(
-    value,
-    "status",
-    "session health response health must include status",
-    HEALTH_STATUS_VALUES,
-    "session health response health.status must be active, stale, or starting"
-  );
+  requiredStringLiteralField(value, "cursorFreshness", {
+    allowed: HEALTH_CURSOR_FRESHNESS_VALUES,
+    invalidMessage:
+      "session health response health.cursorFreshness must be fresh, stale, or missing",
+    missingMessage:
+      "session health response health must include cursorFreshness",
+  });
+  requiredStringLiteralField(value, "status", {
+    allowed: HEALTH_STATUS_VALUES,
+    invalidMessage:
+      "session health response health.status must be active, stale, or starting",
+    missingMessage: "session health response health must include status",
+  });
   assertOptionalStringLiteralField(
     value,
     "leaseStatus",
@@ -287,10 +286,13 @@ export function requiredStringLiteralField<
 >(
   value: Record<string, unknown>,
   field: string,
-  missingMessage: string,
-  allowed: Allowed,
-  invalidMessage: string
+  messages: {
+    allowed: Allowed;
+    invalidMessage: string;
+    missingMessage: string;
+  }
 ): Allowed[number] {
+  const { allowed, invalidMessage, missingMessage } = messages;
   const fieldValue = requiredStringField(value, field, missingMessage);
 
   if (!isAllowedString(fieldValue, allowed)) {

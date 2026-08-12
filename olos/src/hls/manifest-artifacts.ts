@@ -54,15 +54,17 @@ export function createHlsManifestArtifacts(
   return [
     ...master,
     ...createMediaPlaylistArtifacts(
-      session,
-      committedWindow,
-      availableRenditionIds,
-      mediaPlaylistPath,
       {
-        ...options,
-        endOfStream:
-          options.endOfStream ?? isEndOfStreamSessionState(session.state),
-      }
+        committedWindow,
+        mediaPlaylistPath,
+        options: {
+          ...options,
+          endOfStream:
+            options.endOfStream ?? isEndOfStreamSessionState(session.state),
+        },
+        session,
+      },
+      availableRenditionIds
     ),
   ];
 }
@@ -131,47 +133,43 @@ export function createMasterPlaylistArtifact(
   };
 }
 
-function createMediaPlaylistArtifacts(
-  session: Session,
-  committedWindow: CommittedWindow,
-  availableRenditionIds: ReadonlySet<string>,
+/**
+ * Everything a media playlist needs except which rendition it is for. The
+ * four fields are fixed for a whole render, so they travel as one value
+ * rather than as four arguments repeated per rendition.
+ */
+export interface MediaPlaylistRenderContext {
+  committedWindow: CommittedWindow;
   mediaPlaylistPath: NonNullable<
     CreateHlsManifestArtifactsOptions["mediaPlaylistPath"]
-  >,
-  options: CreateHlsManifestArtifactsOptions
+  >;
+  options: CreateHlsManifestArtifactsOptions;
+  session: Session;
+}
+
+function createMediaPlaylistArtifacts(
+  context: MediaPlaylistRenderContext,
+  availableRenditionIds: ReadonlySet<string>
 ): HlsManifestArtifact[] {
-  return session.renditions
+  return context.session.renditions
     .filter(
       (rendition) =>
         isMediaPlaylistRendition(rendition) &&
         availableRenditionIds.has(rendition.renditionId)
     )
-    .map((rendition) =>
-      createMediaPlaylistArtifact(
-        session,
-        committedWindow,
-        rendition,
-        mediaPlaylistPath,
-        options
-      )
-    );
+    .map((rendition) => createMediaPlaylistArtifact(context, rendition));
 }
 
 export function createMediaPlaylistArtifact(
-  session: Session,
-  committedWindow: CommittedWindow,
-  rendition: Rendition,
-  mediaPlaylistPath: NonNullable<
-    CreateHlsManifestArtifactsOptions["mediaPlaylistPath"]
-  >,
-  options: CreateHlsManifestArtifactsOptions
+  context: MediaPlaylistRenderContext,
+  rendition: Rendition
 ): HlsManifestArtifact {
-  const path = mediaPlaylistPath(session, rendition);
+  const path = context.mediaPlaylistPath(context.session, rendition);
   assertSafeRelativePath(path, "media playlist path");
 
   return {
-    body: renderMediaPlaylist(committedWindow, {
-      ...options,
+    body: renderMediaPlaylist(context.committedWindow, {
+      ...context.options,
       renditionId: rendition.renditionId,
     }),
     contentType: HLS_CONTENT_TYPE,

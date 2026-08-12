@@ -49,32 +49,53 @@ async function boundedBodyText(
   maxBodyBytes: number
 ): Promise<string> {
   const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
-  let byteLength = 0;
 
   try {
-    for (;;) {
-      const { done, value } = await reader.read();
-
-      if (done) {
-        break;
-      }
-
-      byteLength += value.byteLength;
-
-      if (byteLength > maxBodyBytes) {
-        throw new RuntimeJsonBodyTooLargeError();
-      }
-
-      chunks.push(value);
-    }
+    const { byteLength, chunks } = await readBoundedChunks(
+      reader,
+      maxBodyBytes
+    );
+    return new TextDecoder().decode(concatenatedChunks(chunks, byteLength));
   } finally {
     await reader.cancel().catch(() => {
       // The request body is already errored or closed; nothing to release.
     });
   }
+}
 
-  return new TextDecoder().decode(concatenatedChunks(chunks, byteLength));
+/**
+ * Structural view of the body reader: `request.body` carries Node's
+ * `stream/web` reader type rather than the DOM one, so it is described by
+ * shape. Both fields are optional because the two readers disagree on the
+ * result type, so the read loop narrows `value` explicitly.
+ */
+interface BodyChunkReader {
+  read(): Promise<{ done?: boolean; value?: Uint8Array }>;
+}
+
+/** Drain the body, throwing as soon as it passes `maxBodyBytes`. */
+async function readBoundedChunks(
+  reader: BodyChunkReader,
+  maxBodyBytes: number
+): Promise<{ byteLength: number; chunks: readonly Uint8Array[] }> {
+  const chunks: Uint8Array[] = [];
+  let byteLength = 0;
+
+  for (;;) {
+    const { done, value } = await reader.read();
+
+    if (done === true || value === undefined) {
+      return { byteLength, chunks };
+    }
+
+    byteLength += value.byteLength;
+
+    if (byteLength > maxBodyBytes) {
+      throw new RuntimeJsonBodyTooLargeError();
+    }
+
+    chunks.push(value);
+  }
 }
 
 function concatenatedChunks(

@@ -281,15 +281,19 @@ function createSingleMediaPlaylistResponse(
   options: ResolveBlockingHlsManifestArtifactResponseOptions
 ): HlsManifestArtifactResponse {
   const artifact = createMediaPlaylistArtifact(
-    session,
-    cursor.committedWindow,
-    rendition,
-    options.manifest.mediaPlaylistPath ?? defaultMediaPlaylistPath,
     {
-      ...options.manifest,
-      endOfStream:
-        options.manifest.endOfStream ?? isEndOfStreamSessionState(cursor.state),
-    }
+      committedWindow: cursor.committedWindow,
+      mediaPlaylistPath:
+        options.manifest.mediaPlaylistPath ?? defaultMediaPlaylistPath,
+      options: {
+        ...options.manifest,
+        endOfStream:
+          options.manifest.endOfStream ??
+          isEndOfStreamSessionState(cursor.state),
+      },
+      session,
+    },
+    rendition
   );
 
   return createHlsManifestArtifactResponse(artifact, options.response);
