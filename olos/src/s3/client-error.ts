@@ -1,4 +1,4 @@
-import { RuntimeHttpError } from "../runtime/client";
+import { RuntimeHttpError } from "../runtime/client-types";
 
 /**
  * Thrown by the `olos/s3` runtime client functions when the coordinator

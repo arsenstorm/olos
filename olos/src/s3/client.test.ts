@@ -4,7 +4,8 @@ import {
   TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
-import { createRuntimeSession, type RuntimeFetch } from "../runtime/client";
+import { createRuntimeSession } from "../runtime/client";
+import type { RuntimeFetch } from "../runtime/client-types";
 import { runtimeFetchFor } from "../runtime/test-fetch.test-helper";
 import { jsonErrorTestResponse } from "../runtime/test-http.test-helper";
 import {

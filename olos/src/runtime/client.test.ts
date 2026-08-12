@@ -12,11 +12,10 @@ import {
   getRuntimeSessionHealth,
   getRuntimeSessionRetentionPlan,
   issueRuntimeSlot,
-  type RuntimeFetch,
-  RuntimeHttpError,
   sendRuntimePublisherHeartbeat,
   transitionRuntimeSession,
 } from "./client";
+import { type RuntimeFetch, RuntimeHttpError } from "./client-types";
 import { createStoredCoordinatorRuntimeHandler } from "./http";
 import { runtimeFetchFor } from "./test-fetch.test-helper";
 import {

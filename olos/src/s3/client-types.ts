@@ -1,4 +1,4 @@
-import type { RuntimeHttpClientOptions } from "../runtime/client";
+import type { RuntimeHttpClientOptions } from "../runtime/client-types";
 import type { RuntimeSlotIssuePayload } from "../runtime/slot-issue-payload";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";

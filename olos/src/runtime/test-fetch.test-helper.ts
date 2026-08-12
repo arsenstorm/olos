@@ -1,4 +1,4 @@
-import type { RuntimeFetch } from "./client";
+import type { RuntimeFetch } from "./client-types";
 
 export function runtimeFetchFor(
   handle: (request: Request) => Promise<Response>
