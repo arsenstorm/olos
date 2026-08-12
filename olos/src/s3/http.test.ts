@@ -388,9 +388,10 @@ describe("stored S3 coordinator runtime handler", () => {
           "media/v1080/init.mp4": 1024,
         },
         [],
-        {},
         {
-          "media/v1080/s3810.m4s": "2026-01-01T00:00:05.500Z",
+          lastModified: {
+            "media/v1080/s3810.m4s": "2026-01-01T00:00:05.500Z",
+          },
         }
       ),
       store,
@@ -822,15 +823,9 @@ describe("stored S3 coordinator runtime handler", () => {
       grantNow: () => S3_GRANT_NOW,
       // No objects exist yet: every HeadObject rejects, modelling a hint
       // that raced ahead of S3 object visibility (spec §7.9).
-      objectClient: createTestHeadObjectClient(
-        {},
-        headObjectInputs,
-        {},
-        {},
-        {
-          missingObjectError: () => "NotFound: object is not visible yet",
-        }
-      ),
+      objectClient: createTestHeadObjectClient({}, headObjectInputs, {
+        missingObjectError: () => "NotFound: object is not visible yet",
+      }),
       providerId: "s3_primary",
       store,
     });
@@ -1573,7 +1568,9 @@ describe("stored S3 coordinator runtime handler", () => {
         },
         headObjectInputs,
         {
-          "media/v1080/s3810.m4s": "application/octet-stream",
+          contentTypes: {
+            "media/v1080/s3810.m4s": "application/octet-stream",
+          },
         }
       ),
       store,

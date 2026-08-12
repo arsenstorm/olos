@@ -23,9 +23,9 @@ describe("createTestHeadObjectClient", () => {
     const client = createTestHeadObjectClientFor(
       headObjectInputs,
       { "media/v1080.m4s": 98_304 },
-      { "media/v1080.m4s": "video/part" },
-      { "media/v1080.m4s": "2026-01-01T00:00:02.000Z" },
       {
+        contentTypes: { "media/v1080.m4s": "video/part" },
+        lastModified: { "media/v1080.m4s": "2026-01-01T00:00:02.000Z" },
         metadata: {
           "media/v1080.m4s": {
             "x-olos-slot-id": "slot_1080",
@@ -60,11 +60,11 @@ describe("createTestHeadObjectClient", () => {
       "media/v1080/s3810.m4s",
       98_304,
       headObjectInputs,
-      "video/mp4",
       {
-        "x-olos-slot-id": "slot_3810",
-      },
-      (objectKey) => `missing object: ${objectKey}`
+        metadata: { "x-olos-slot-id": "slot_3810" },
+        missingObjectError: (objectKey: string) =>
+          `missing object: ${objectKey}`,
+      }
     );
 
     await client.send({

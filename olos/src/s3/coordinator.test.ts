@@ -667,12 +667,9 @@ describe("s3 coordinator uploads", () => {
 
     const result = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor(
-        "media/v1080/s3810.m4s",
-        98_304,
-        headObjectInputs,
-        "application/octet-stream"
-      ),
+      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs, {
+        contentType: "application/octet-stream",
+      }),
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
@@ -723,15 +720,9 @@ describe("s3 coordinator uploads", () => {
 
     const result = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor(
-        "media/v1080/s3810.m4s",
-        98_304,
-        headObjectInputs,
-        "video/mp4",
-        {
-          "x-amz-meta-olos-slot-id": "slot_other",
-        }
-      ),
+      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs, {
+        metadata: { "x-amz-meta-olos-slot-id": "slot_other" },
+      }),
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
@@ -1465,14 +1456,7 @@ function clientFor(
   objectKey: string,
   size: number,
   inputs: unknown[],
-  contentType = "video/mp4",
-  metadata?: Record<string, string>
+  options: { contentType?: string; metadata?: Record<string, string> } = {}
 ): S3HeadObjectClient {
-  return createTestHeadObjectClientForSingle(
-    objectKey,
-    size,
-    inputs,
-    contentType,
-    metadata
-  );
+  return createTestHeadObjectClientForSingle(objectKey, size, inputs, options);
 }

@@ -497,10 +497,8 @@ function clientFor(
   return createTestHeadObjectClientFor(
     inputs,
     (objectKey) => objects.get(objectKey),
-    {},
-    {},
     {
-      missingObjectError: (objectKey) => `missing object: ${objectKey}`,
+      missingObjectError: (objectKey: string) => `missing object: ${objectKey}`,
     }
   );
 }
