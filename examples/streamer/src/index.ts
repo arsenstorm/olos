@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
 import { spawnFfmpeg } from "./ffmpeg";
+import { parseInitCodecs } from "./init-codecs";
 import { createOlosClient } from "./olos-client";
 
 const PART_SECONDS = 0.5;
@@ -18,6 +19,10 @@ const INGEST_KEY = process.env.INGEST_KEY ?? "dev-key";
 const MEDIA_ORIGIN = process.env.MEDIA_ORIGIN ?? "https://localhost:8787";
 const SESSION_ID = process.env.SESSION_ID ?? `obs_${Date.now()}`;
 const RENDITION_ID = "v1080";
+// Declared BANDWIDTH. Must be >= the encoder's peak output or the player
+// reports "Segment exceeds specified bandwidth for variant". Match this to
+// the OBS video bitrate (plus audio headroom).
+const VIDEO_BITRATE = Number(process.env.VIDEO_BITRATE ?? 12_000_000);
 
 try {
   await main();
@@ -44,11 +49,11 @@ async function main(): Promise<void> {
   console.log(`OBS → rtmp://localhost:${RTMP_PORT}/live (any stream key)`);
   console.log("OBS keyframe interval must be 0.5s for LL-HLS parts");
 
-  await olos.createSession({
-    partTarget: PART_SECONDS,
-    segmentTarget: SEGMENT_SECONDS,
-  });
-
+  // The session is created from the init segment, not before it: the
+  // rendition's CODECS must describe the bitstream OBS actually sent.
+  // Safari's native HLS player builds its decoders from CODECS and drops
+  // any track whose declaration does not match, so a guessed profile plays
+  // as audio-only (or not at all) even though hls.js probes past it.
   const ffmpeg = spawnFfmpeg({
     outDir,
     partSeconds: PART_SECONDS,
@@ -82,7 +87,7 @@ async function main(): Promise<void> {
     const availableParts = collectAvailableParts(files);
 
     if (!state.initPublished) {
-      const ready = await publishInitIfReady(
+      const ready = await createSessionAndPublishInit(
         olos,
         outDir,
         files,
@@ -124,7 +129,7 @@ interface DrainState {
   segmentBytesPublished: number;
 }
 
-async function publishInitIfReady(
+async function createSessionAndPublishInit(
   olos: ReturnType<typeof createOlosClient>,
   outDir: string,
   files: readonly string[],
@@ -139,6 +144,21 @@ async function publishInitIfReady(
   if (bytes.length === 0) {
     return false;
   }
+
+  const codecs = parseInitCodecs(bytes);
+  console.log(
+    `codecs video=${codecs.videoCodec ?? "?"} audio=${codecs.audioCodec ?? "none"} ${codecs.width ?? "?"}x${codecs.height ?? "?"}`
+  );
+  await olos.createSession({
+    audioCodec: codecs.audioCodec,
+    bitrate: VIDEO_BITRATE,
+    height: codecs.height,
+    partTarget: PART_SECONDS,
+    segmentTarget: SEGMENT_SECONDS,
+    videoCodec: codecs.videoCodec,
+    width: codecs.width,
+  });
+
   await olos.publishInit({
     bytes,
     duration: 1,

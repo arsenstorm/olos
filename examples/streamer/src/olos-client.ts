@@ -30,8 +30,19 @@ export interface OlosClientOptions {
 }
 
 export interface CreateSessionOptions {
+  // Codecs and dimensions are read back out of the init segment rather than
+  // declared up front: the streamer copies the encoder's bitstream, so only
+  // the media itself knows the real profile, level, and track layout.
+  audioCodec?: string;
+  // BANDWIDTH must be at least the peak segment bitrate, or the player
+  // reports "Segment exceeds specified bandwidth for variant" (CoreMedia
+  // -12318). Set it from the encoder's configured bitrate.
+  bitrate?: number;
+  height?: number;
   partTarget: number;
   segmentTarget: number;
+  videoCodec?: string;
+  width?: number;
 }
 
 export interface PublishInitOptions {
@@ -60,6 +71,7 @@ export interface IssuedGrant {
   commitId: string;
   independent: boolean;
   objectKey: string;
+  programDateTime?: string;
   requiredHeaders: Record<string, string>;
   slotId: string;
   uploadUrl: string;
@@ -69,6 +81,7 @@ export interface PendingPublication {
   commitId: string;
   independent: boolean;
   objectKey: string;
+  programDateTime?: string;
   slotId: string;
 }
 
@@ -99,6 +112,7 @@ interface PublishSpec {
   kind: ObjectKind;
   mediaSequenceNumber: number;
   partNumber?: number;
+  programDateTime?: string;
   slotId: string;
 }
 
@@ -114,9 +128,27 @@ export function createOlosClient(options: OlosClientOptions): OlosClient {
     return fetch(input, { ...init, headers });
   };
 
+  // Apple's low-latency profile requires EXT-X-PROGRAM-DATE-TIME; without it
+  // the player reports "Low Latency: Playlist does not have
+  // EXT-X-PROGRAM-DATE-TIME tag" (CoreMedia -15412) and drops out of
+  // low-latency mode. The tag must come from whichever commit first creates
+  // the segment entry — that is part 0, not the later full-segment commit —
+  // so the segment's start time is anchored once and reused.
+  const segmentStartTimes = new Map<number, string>();
+
+  const anchorSegmentStart = (mediaSequenceNumber: number): string => {
+    const existing = segmentStartTimes.get(mediaSequenceNumber);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const startedAt = new Date().toISOString();
+    segmentStartTimes.set(mediaSequenceNumber, startedAt);
+    return startedAt;
+  };
+
   return {
-    createSession({ partTarget, segmentTarget }) {
-      return createSession(options, ingestHeaders, partTarget, segmentTarget);
+    createSession(sessionOptions) {
+      return createSession(options, ingestHeaders, sessionOptions);
     },
     publishInit({ bytes, duration, mediaSequenceNumber }) {
       return publish(options, ingestFetch, {
@@ -146,10 +178,16 @@ export function createOlosClient(options: OlosClientOptions): OlosClient {
         kind: "part",
         mediaSequenceNumber,
         partNumber,
+        ...(partNumber === 0
+          ? { programDateTime: anchorSegmentStart(mediaSequenceNumber) }
+          : {}),
         slotId: `${options.sessionId}_slot_${mediaSequenceNumber}_part_${partNumber}`,
       });
     },
     publishSegment({ bytes, duration, mediaSequenceNumber }) {
+      const programDateTime = anchorSegmentStart(mediaSequenceNumber);
+      segmentStartTimes.delete(mediaSequenceNumber);
+
       return publish(options, ingestFetch, {
         bytes,
         commitId: `${options.sessionId}_commit_${mediaSequenceNumber}`,
@@ -157,6 +195,7 @@ export function createOlosClient(options: OlosClientOptions): OlosClient {
         independent: true,
         kind: "segment",
         mediaSequenceNumber,
+        programDateTime,
         slotId: `${options.sessionId}_slot_${mediaSequenceNumber}`,
       });
     },
@@ -180,6 +219,9 @@ export function createOlosClient(options: OlosClientOptions): OlosClient {
         kind: "part",
         mediaSequenceNumber,
         partNumber,
+        ...(partNumber === 0
+          ? { programDateTime: anchorSegmentStart(mediaSequenceNumber) }
+          : {}),
         slotId: `${options.sessionId}_slot_${mediaSequenceNumber}_part_${partNumber}`,
       });
     },
@@ -195,9 +237,33 @@ export function createOlosClient(options: OlosClientOptions): OlosClient {
 async function createSession(
   options: OlosClientOptions,
   ingestHeaders: Record<string, string>,
-  partTarget: number,
-  segmentTarget: number
+  sessionOptions: CreateSessionOptions
 ): Promise<void> {
+  const {
+    audioCodec,
+    bitrate,
+    height,
+    partTarget,
+    segmentTarget,
+    videoCodec,
+    width,
+  } = sessionOptions;
+
+  // An ungrouped audio rendition is codec metadata only: it renders no
+  // EXT-X-MEDIA line and no standalone media playlist, it just muxes its
+  // codec into every variant's CODECS attribute (spec 8.3.1). That is what
+  // muxed audio/video segments need in order to declare both tracks.
+  const audioRendition: Session["renditions"][number][] =
+    audioCodec === undefined
+      ? []
+      : [
+          {
+            codec: audioCodec,
+            kind: "audio",
+            renditionId: `${options.renditionId}_audio`,
+          },
+        ];
+
   const session: Session = {
     createdAt: new Date().toISOString(),
     epoch: 1,
@@ -206,14 +272,15 @@ async function createSession(
     partTarget,
     renditions: [
       {
-        bitrate: 5_000_000,
-        codec: "avc1.640028",
+        bitrate: bitrate ?? 5_000_000,
+        codec: videoCodec ?? "avc1.640028",
         frameRate: 30,
-        height: 1080,
+        height: height ?? 1080,
         kind: "video",
         renditionId: options.renditionId,
-        width: 1920,
+        width: width ?? 1920,
       },
+      ...audioRendition,
     ],
     segmentTarget,
     sessionId: options.sessionId,
@@ -275,6 +342,7 @@ async function issueGrant(
     commitId: spec.commitId,
     independent: spec.independent,
     objectKey: granted.slot.objectKey,
+    programDateTime: spec.programDateTime,
     requiredHeaders: granted.grant.requiredHeaders ?? {},
     slotId: spec.slotId,
     uploadUrl: granted.grant.url,
@@ -298,6 +366,7 @@ async function uploadGranted(grant: IssuedGrant): Promise<PendingPublication> {
     commitId: grant.commitId,
     independent: grant.independent,
     objectKey: grant.objectKey,
+    programDateTime: grant.programDateTime,
     slotId: grant.slotId,
   };
 }
@@ -316,6 +385,9 @@ async function commitPublication(
       independent: pending.independent,
       maxSegments: LIVE_WINDOW_SEGMENTS,
       objectKey: pending.objectKey,
+      ...(pending.programDateTime === undefined
+        ? {}
+        : { programDateTime: pending.programDateTime }),
       slotId: pending.slotId,
     },
     sessionId: options.sessionId,
