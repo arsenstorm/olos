@@ -12,7 +12,9 @@ import { OLOS_CONFORMANCE_SPEC_REFS as specRefs } from "./conformance/spec-refs"
 import { createCoordinatorPipeline } from "./protocol/coordinator-lifecycle";
 import { issueCoordinatorSlot } from "./protocol/coordinator-slot";
 import type {
+  CoordinatorCursorView,
   CoordinatorPipelineSnapshot,
+  CoordinatorPipelineState,
   CoordinatorPipelineStore,
   CoordinatorStoreSave,
 } from "./protocol/coordinator-types";
@@ -94,6 +96,30 @@ export async function assertCoordinatorPipelineStoreConformance(
     "new coordinator store must not load missing sessions"
   );
 
+  const first = await assertFirstSaveConformance(store, initial);
+  const loaded = await assertLoadConformance(store, initial, first.etag);
+
+  await assertStoreLoadCursorConformance(store, loaded);
+  await assertSaveConflictConformance(store, initial, first.etag);
+  await assertUpdateConformance(store, loaded, first.etag);
+
+  const missingUpdate = await store.save({
+    expectedEtag: "1",
+    sessionId: "missing_session",
+    state: initial,
+  });
+  assertStoreStatus(
+    missingUpdate.status,
+    "conflict",
+    "missing update must conflict"
+  );
+}
+
+/** A first save succeeds and must not alias the caller's state object. */
+async function assertFirstSaveConformance(
+  store: CoordinatorPipelineStore,
+  initial: CoordinatorPipelineState
+): Promise<Extract<CoordinatorStoreSave, { status: "saved" }>> {
   const first = await store.save({
     sessionId: conformanceSession.sessionId,
     state: initial,
@@ -105,12 +131,21 @@ export async function assertCoordinatorPipelineStoreConformance(
     "saved state must not reuse the caller state object"
   );
 
+  return first;
+}
+
+/** A load returns the saved etag and deep copies, not shared references. */
+async function assertLoadConformance(
+  store: CoordinatorPipelineStore,
+  initial: CoordinatorPipelineState,
+  savedEtag: string
+): Promise<CoordinatorPipelineSnapshot> {
   const loaded = await store.load(conformanceSession.sessionId);
   if (loaded === undefined) {
     throw new Error("saved coordinator state must be loadable");
   }
 
-  expectStoreValue(loaded.etag, first.etag, "loaded etag must match save etag");
+  expectStoreValue(loaded.etag, savedEtag, "loaded etag must match save etag");
   expectStoreValue(
     loaded.state.session.sessionId,
     conformanceSession.sessionId,
@@ -127,8 +162,15 @@ export async function assertCoordinatorPipelineStoreConformance(
     "loaded session must not reuse the saved session object"
   );
 
-  await assertStoreLoadCursorConformance(store, loaded);
+  return loaded;
+}
 
+/** Both a stale etag and a re-insert lose the optimistic-concurrency check. */
+async function assertSaveConflictConformance(
+  store: CoordinatorPipelineStore,
+  initial: CoordinatorPipelineState,
+  savedEtag: string
+): Promise<void> {
   const stale = await store.save({
     expectedEtag: "stale",
     sessionId: conformanceSession.sessionId,
@@ -149,7 +191,7 @@ export async function assertCoordinatorPipelineStoreConformance(
   if (duplicateInsert.status === "conflict") {
     expectStoreValue(
       duplicateInsert.current?.etag,
-      first.etag,
+      savedEtag,
       "duplicate insert conflict should expose current etag when available"
     );
     expectStoreDifferent(
@@ -158,7 +200,14 @@ export async function assertCoordinatorPipelineStoreConformance(
       "duplicate insert conflict must not reuse the caller state object"
     );
   }
+}
 
+/** A save presenting the current etag succeeds and becomes visible to loads. */
+async function assertUpdateConformance(
+  store: CoordinatorPipelineStore,
+  loaded: CoordinatorPipelineSnapshot,
+  savedEtag: string
+): Promise<void> {
   const updated = issueCoordinatorSlot({
     contentType: "video/mp4",
     duration: 1,
@@ -171,7 +220,7 @@ export async function assertCoordinatorPipelineStoreConformance(
     state: loaded.state,
   });
   const second = await store.save({
-    expectedEtag: first.etag,
+    expectedEtag: savedEtag,
     sessionId: conformanceSession.sessionId,
     state: updated.state,
   });
@@ -192,17 +241,6 @@ export async function assertCoordinatorPipelineStoreConformance(
     reloaded?.state.slots.length,
     1,
     "matching etag save must publish updated state"
-  );
-
-  const missingUpdate = await store.save({
-    expectedEtag: "1",
-    sessionId: "missing_session",
-    state: initial,
-  });
-  assertStoreStatus(
-    missingUpdate.status,
-    "conflict",
-    "missing update must conflict"
   );
 }
 
@@ -242,8 +280,19 @@ async function assertStoreLoadCursorConformance(
     "loadCursor must not report a cursor before any commit"
   );
 
-  const secondView = await store.loadCursor(conformanceSession.sessionId);
+  await assertCursorViewIsolation(
+    view,
+    await store.loadCursor(conformanceSession.sessionId),
+    loaded
+  );
+}
 
+/** Each view is a fresh copy — never shared with another view or the snapshot. */
+function assertCursorViewIsolation(
+  view: CoordinatorCursorView,
+  secondView: CoordinatorCursorView | undefined,
+  loaded: CoordinatorPipelineSnapshot
+): void {
   expectStoreDifferent(
     view.session,
     secondView?.session,
