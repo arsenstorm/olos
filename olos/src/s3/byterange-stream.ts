@@ -61,33 +61,43 @@ export function createByterangeStream(
   const abort = linkAbort(options.signal);
 
   return new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      const context: ByterangeStreamContext = {
-        controller,
-        options,
-        range,
-        signal: abort.signal,
-        timeoutMs: options.timeoutMs ?? DEFAULT_CURSOR_WAIT_TIMEOUT_MS,
-      };
-      try {
-        await drainByterange(context, state);
-        controller.close();
-      } catch (error) {
-        // After an abort the stream is already dead; erroring it would only
-        // produce noise (and `close()` throws once the consumer cancels).
-        if (!abort.signal.aborted) {
-          controller.error(error);
-        }
-      } finally {
-        abort.release();
-      }
-    },
+    pull: (controller) =>
+      pullByterange(
+        {
+          controller,
+          options,
+          range,
+          signal: abort.signal,
+          timeoutMs: options.timeoutMs ?? DEFAULT_CURSOR_WAIT_TIMEOUT_MS,
+        },
+        state,
+        abort
+      ),
     cancel() {
       // Consumer cancelled the body. Abort so in-flight S3 part reads and
       // cursor waits release instead of holding their sockets open.
       abort.abort();
     },
   });
+}
+
+async function pullByterange(
+  context: ByterangeStreamContext,
+  state: ByterangeStreamState,
+  abort: LinkedAbort
+): Promise<void> {
+  try {
+    await drainByterange(context, state);
+    context.controller.close();
+  } catch (error) {
+    // After an abort the stream is already dead; erroring it would only
+    // produce noise (and `close()` throws once the consumer cancels).
+    if (!abort.signal.aborted) {
+      context.controller.error(error);
+    }
+  } finally {
+    abort.release();
+  }
 }
 
 interface LinkedAbort {

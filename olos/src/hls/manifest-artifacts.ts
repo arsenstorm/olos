@@ -11,7 +11,7 @@ import {
 import {
   defaultMasterPath,
   defaultMediaPlaylistPath,
-} from "./manifest-response";
+} from "./manifest-request-parse";
 import { renderMasterPlaylist } from "./master-playlist";
 import { renderMediaPlaylist } from "./media-playlist";
 import { assertSafeRelativePath } from "./uri";

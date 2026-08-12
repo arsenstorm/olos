@@ -5,22 +5,17 @@ import type { Cursor } from "../types/cursor";
 import type { Rendition, Session } from "../types/session";
 import {
   type HlsBlockingReloadRequest,
-  parseHlsBlockingReloadRequest,
   waitForHlsBlockingReload,
 } from "./blocking-reload";
-import {
-  type BlockingHlsManifestArtifactResponseResolution,
-  type CreateHlsManifestArtifactResponseOptions,
-  type CreateHlsManifestArtifactsOptions,
-  HLS_TEXT_ERROR_CONTENT_TYPE,
-  type HlsManifestArtifact,
-  type HlsManifestArtifactResponse,
-  type HlsManifestErrorResolution,
-  type HlsManifestResponseArtifact,
-  type InvalidParsedBlockingReloadRequest,
-  type ParsedBlockingReloadRequest,
-  type ResolveBlockingHlsManifestArtifactResponseOptions,
-  type ServableBlockingReloadWait,
+import type {
+  BlockingHlsManifestArtifactResponseResolution,
+  CreateHlsManifestArtifactResponseOptions,
+  CreateHlsManifestArtifactsOptions,
+  HlsManifestArtifact,
+  HlsManifestArtifactResponse,
+  HlsManifestErrorResolution,
+  HlsManifestResponseArtifact,
+  ResolveBlockingHlsManifestArtifactResponseOptions,
 } from "./manifest-artifact-types";
 import {
   createMasterPlaylistArtifact,
@@ -28,8 +23,15 @@ import {
   hasAvailableVideoRendition,
   isMediaPlaylistRendition,
 } from "./manifest-artifacts";
-import { HLS_RELATIVE_REQUEST_BASE_URL } from "./uri";
-
+import {
+  createHlsTextErrorWebResponse,
+  defaultMasterPath,
+  defaultMediaPlaylistPath,
+  isInvalidParsedBlockingReloadRequest,
+  isServableBlockingReloadWait,
+  parseBlockingReloadRequest,
+  parseRequestPath,
+} from "./manifest-request-parse";
 /**
  * Wraps a manifest artifact in a 200 response with `content-type` and a
  * `cache-control` header from the manifest delivery cache policy.
@@ -235,11 +237,15 @@ function isBeyondLiveEdge(
   );
 }
 
-async function resolveBlockingMediaManifestResponse(
+/**
+ * Reasons the request cannot be held open at all: the rendition has nothing
+ * committed yet, or `_HLS_msn` sits past the live edge.
+ */
+function refuseMediaManifestRequest(
   options: ResolveBlockingHlsManifestArtifactResponseOptions,
   request: HlsBlockingReloadRequest,
   rendition: Rendition
-): Promise<BlockingHlsManifestArtifactResponseResolution> {
+): BlockingHlsManifestArtifactResponseResolution | undefined {
   const bounds = renditionWindowBounds(
     options.cursor.committedWindow,
     rendition.renditionId
@@ -258,6 +264,20 @@ async function resolveBlockingMediaManifestResponse(
     };
   }
 
+  return;
+}
+
+async function resolveBlockingMediaManifestResponse(
+  options: ResolveBlockingHlsManifestArtifactResponseOptions,
+  request: HlsBlockingReloadRequest,
+  rendition: Rendition
+): Promise<BlockingHlsManifestArtifactResponseResolution> {
+  const refusal = refuseMediaManifestRequest(options, request, rendition);
+
+  if (refusal !== undefined) {
+    return refusal;
+  }
+
   const wait = await waitForHlsBlockingReload({
     cursor: options.cursor,
     request: { ...request, renditionId: rendition.renditionId },
@@ -265,20 +285,20 @@ async function resolveBlockingMediaManifestResponse(
     waitForCursor: options.waitForCursor,
   });
 
-  if (!isServableBlockingReloadWait(wait)) {
-    return wait;
-  }
-
-  return {
-    cursor: wait.cursor,
-    response: createSingleMediaPlaylistResponse(
-      options.session,
-      wait.cursor,
-      rendition,
-      options
-    ),
-    status: wait.status,
-  };
+  // A timeout is still servable: it renders from the latest cursor rather
+  // than failing the request.
+  return isServableBlockingReloadWait(wait)
+    ? {
+        cursor: wait.cursor,
+        response: createSingleMediaPlaylistResponse(
+          options.session,
+          wait.cursor,
+          rendition,
+          options
+        ),
+        status: wait.status,
+      }
+    : wait;
 }
 
 // Renders only the requested rendition's playlist from the post-wait
@@ -306,88 +326,4 @@ function createSingleMediaPlaylistResponse(
   );
 
   return createHlsManifestArtifactResponse(artifact, options.response);
-}
-
-function parseBlockingReloadRequest(
-  requestUrl: string
-): ParsedBlockingReloadRequest {
-  try {
-    return parseHlsBlockingReloadRequest(requestUrl);
-  } catch (error) {
-    return invalidParsedBlockingReloadRequest(
-      error instanceof Error ? error.message : "invalid request URL"
-    );
-  }
-}
-
-function invalidParsedBlockingReloadRequest(
-  message: string
-): InvalidParsedBlockingReloadRequest {
-  return {
-    message,
-    status: "invalid",
-  };
-}
-
-function isInvalidParsedBlockingReloadRequest(
-  request: ParsedBlockingReloadRequest
-): request is InvalidParsedBlockingReloadRequest {
-  return "status" in request;
-}
-
-function isServableBlockingReloadWait(
-  wait: Awaited<ReturnType<typeof waitForHlsBlockingReload>>
-): wait is ServableBlockingReloadWait {
-  return wait.status === "ready" || wait.status === "timeout";
-}
-
-export function defaultMasterPath(session: Session): string {
-  return `/v1/live/${session.sessionId}/master.m3u8`;
-}
-
-export function defaultMediaPlaylistPath(
-  session: Session,
-  rendition: Rendition
-): string {
-  return `/v1/live/${session.sessionId}/${rendition.renditionId}/media.m3u8`;
-}
-
-function parseRequestPath(value: string): string | undefined {
-  if (isRelativeRequestPath(value)) {
-    return new URL(value, HLS_RELATIVE_REQUEST_BASE_URL).pathname;
-  }
-
-  return parseAbsoluteRequestPath(value);
-}
-
-function isRelativeRequestPath(value: string): boolean {
-  return value.startsWith("/");
-}
-
-function parseAbsoluteRequestPath(value: string): string | undefined {
-  try {
-    const url = new URL(value);
-
-    if (!isHttpRequestUrl(url)) {
-      return;
-    }
-
-    return url.pathname;
-  } catch {
-    return;
-  }
-}
-
-function isHttpRequestUrl(url: URL): boolean {
-  return url.protocol === "http:" || url.protocol === "https:";
-}
-
-function createHlsTextErrorWebResponse(
-  body: string,
-  status: 400 | 404
-): Response {
-  return new Response(body, {
-    headers: { "content-type": HLS_TEXT_ERROR_CONTENT_TYPE },
-    status,
-  });
 }

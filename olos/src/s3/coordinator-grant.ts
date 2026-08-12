@@ -96,45 +96,53 @@ export async function issueStoredS3CoordinatorUploadGrant(
 function runSlotIssueMutation(
   options: IssueStoredS3CoordinatorUploadGrantOptions
 ): Promise<StoredS3CoordinatorUploadGrantIssue> {
-  const {
-    additionalHeaders,
-    bucket,
-    client,
-    expiresInSeconds,
-    maxAttempts,
-    now,
-    sessionId,
-    store,
-    ...slotOptions
-  } = options;
+  const { maxAttempts, sessionId, store, ...rest } = options;
+  const presign: S3PresignGrantOptions = {
+    additionalHeaders: rest.additionalHeaders,
+    bucket: rest.bucket,
+    client: rest.client,
+    expiresInSeconds: rest.expiresInSeconds,
+    now: rest.now,
+  };
 
   return runStoredCoordinatorMutationWithAdaptersAndResponse<
     CoordinatorSlotIssue,
     CoordinatorSlotIssue,
     StoredS3CoordinatorUploadGrantIssue
   >({
-    maxAttempts,
-    mutate: async (state) =>
-      issueCoordinatorSlot({
-        ...slotOptions,
-        state,
-      }),
     decide: (issue) => ({
       attempt: issue,
-      status: "save",
       state: issue.state,
+      status: "save",
     }),
+    mapSaved: (saved, attempt) => presignSavedSlot(presign, saved, attempt),
+    maxAttempts,
+    mutate: (state) =>
+      issueCoordinatorSlot({ ...slotIssueOptions(rest), state }),
+    onConflictOrExhausted: (snapshot) => conflict(snapshot),
+    onMissing: () => missingStoredS3CoordinatorUploadGrantIssue(),
     sessionId,
     store,
-    onMissing: () => missingStoredS3CoordinatorUploadGrantIssue(),
-    mapSaved: (saved, attempt) =>
-      presignSavedSlot(
-        { additionalHeaders, bucket, client, expiresInSeconds, now },
-        saved,
-        attempt
-      ),
-    onConflictOrExhausted: (snapshot) => conflict(snapshot),
   });
+}
+
+/** The slot fields, with the presigning-only inputs stripped back out. */
+function slotIssueOptions(
+  rest: Omit<
+    IssueStoredS3CoordinatorUploadGrantOptions,
+    "maxAttempts" | "sessionId" | "store"
+  >
+) {
+  const {
+    additionalHeaders: _headers,
+    bucket: _bucket,
+    client: _client,
+    expiresInSeconds: _expires,
+    now: _now,
+    ...slotOptions
+  } = rest;
+
+  return slotOptions;
 }
 
 /** A commit blocked by publication control, or `undefined` to proceed. */

@@ -154,6 +154,31 @@ export function parseHlsBlockingReloadRequest(
   };
 }
 
+/** Whether this cursor already answers the request, one way or another. */
+function settleBlockingReload(
+  cursor: Cursor,
+  options: WaitForHlsBlockingReloadOptions
+): WaitForHlsBlockingReloadResult | undefined {
+  const resolution = resolveHlsBlockingReloadValidated(cursor, options.request);
+
+  if (isInvalidHlsBlockingReloadResolution(resolution)) {
+    return resolution;
+  }
+
+  if (isReadyHlsBlockingReloadResolution(resolution)) {
+    return readyHlsBlockingReloadResult(cursor, options.request);
+  }
+
+  // A terminal session commits nothing further, so a blocked request can
+  // never be satisfied — resolve immediately with the final (ENDLIST)
+  // playlist instead of pinning the request until the deadline.
+  if (isEndOfStreamSessionState(cursor.state)) {
+    return timeoutHlsBlockingReloadResult(cursor, options.request);
+  }
+
+  return;
+}
+
 /**
  * Holds an LL-HLS blocking playlist reload open until the requested media
  * sequence number and part are committed, the request turns out to be
@@ -176,24 +201,10 @@ export async function waitForHlsBlockingReload(
   let cursor = options.cursor;
 
   for (;;) {
-    const resolution = resolveHlsBlockingReloadValidated(
-      cursor,
-      options.request
-    );
+    const settled = settleBlockingReload(cursor, options);
 
-    if (isInvalidHlsBlockingReloadResolution(resolution)) {
-      return resolution;
-    }
-
-    if (isReadyHlsBlockingReloadResolution(resolution)) {
-      return readyHlsBlockingReloadResult(cursor, options.request);
-    }
-
-    // A terminal session commits nothing further, so a blocked request can
-    // never be satisfied — resolve immediately with the final (ENDLIST)
-    // playlist instead of pinning the request until the deadline.
-    if (isEndOfStreamSessionState(cursor.state)) {
-      return timeoutHlsBlockingReloadResult(cursor, options.request);
+    if (settled !== undefined) {
+      return settled;
     }
 
     const remainingMs = remainingHlsBlockingReloadMs(deadline, options);
