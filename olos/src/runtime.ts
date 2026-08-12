@@ -52,11 +52,11 @@ export {
   resolveRuntimeLiveHealth,
   resolveRuntimeLiveHealthFromState,
 } from "./runtime/health";
-export {
-  type CreateStoredCoordinatorRuntimeHandlerOptions,
-  createStoredCoordinatorRuntimeHandler,
-  type StoredCoordinatorRuntimeHandler,
-} from "./runtime/http";
+export { createStoredCoordinatorRuntimeHandler } from "./runtime/http";
+export type {
+  CreateStoredCoordinatorRuntimeHandlerOptions,
+  StoredCoordinatorRuntimeHandler,
+} from "./runtime/http-types";
 export {
   type CreateRuntimeObjectLowLatencyPublisherDefaultsOptions,
   createRuntimeObjectLowLatencyManifestOptions,

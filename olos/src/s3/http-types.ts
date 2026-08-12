@@ -1,6 +1,6 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import type { CoordinatorRetentionPlan } from "../protocol/coordinator-types";
-import type { CreateStoredCoordinatorRuntimeHandlerOptions } from "../runtime/http";
+import type { CreateStoredCoordinatorRuntimeHandlerOptions } from "../runtime/http-types";
 import type {
   RetiredCoordinatorObjectDeletionResult,
   RetiredCoordinatorObjectDeletionSummary,
