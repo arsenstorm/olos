@@ -15,6 +15,7 @@ import type {
 import type {
   AssertSerializedCoordinatorStoreBackendConformanceOptions,
   CoordinatorStoreSaveConflict,
+  SerializedCoordinatorStoreBackend,
   SerializedCoordinatorStoreConflict,
   SerializedCoordinatorStoreRecord,
   SerializedCoordinatorStoreSave,
@@ -44,108 +45,25 @@ export async function assertSerializedCoordinatorStoreBackendConformance(
   const second = record("2");
   const secondView = cursorView("2");
 
-  expectSerializedBackendValue(
-    await backend.load(sessionId),
-    undefined,
-    "new serialized backend must not load missing sessions"
-  );
-
-  assertSerializedBackendSaved(
-    await backend.save({ cursorView: firstView, record: first, sessionId }),
-    "insert without expected etag must save"
-  );
-
-  const duplicateInsert = await backend.save({
-    cursorView: firstView,
-    record: first,
+  await assertSerializedInsertConformance(backend, sessionId, first, firstView);
+  await assertSerializedConflictConformance(
+    backend,
     sessionId,
-  });
-  assertSerializedBackendStatus(
-    duplicateInsert.status,
-    "conflict",
-    "duplicate insert must conflict"
+    first,
+    firstView
   );
-
-  if (isSerializedCoordinatorStoreConflict(duplicateInsert)) {
-    expectSerializedBackendValue(
-      duplicateInsert.current?.etag,
-      first.etag,
-      "duplicate insert conflict should expose current etag when available"
-    );
-  }
-
-  const staleUpdate = await backend.save({
-    cursorView: secondView,
-    expectedEtag: "stale",
-    record: second,
+  await assertSerializedUpdateConformance(
+    backend,
     sessionId,
-  });
-  assertSerializedBackendStatus(
-    staleUpdate.status,
-    "conflict",
-    "stale update must conflict"
-  );
-
-  assertSerializedBackendSaved(
-    await backend.save({
-      cursorView: secondView,
-      expectedEtag: first.etag,
-      record: second,
-      sessionId,
-    }),
-    "matching expected etag update must save"
-  );
-
-  expectSerializedBackendValue(
-    (await backend.load(sessionId))?.etag,
-    second.etag,
-    "matching expected etag update must publish the new record"
+    { etag: first.etag },
+    { record: second, view: secondView }
   );
 
   if (backend.loadCursorView !== undefined) {
-    const latestView = await backend.loadCursorView(sessionId);
-
-    expectSerializedBackendValue(
-      latestView?.etag,
-      second.etag,
-      "loadCursorView must reflect the latest saved etag"
-    );
-    expectSerializedBackendValue(
-      latestView?.view,
-      secondView.view,
-      "loadCursorView must return the latest saved view"
-    );
-    expectSerializedBackendValue(
-      await backend.loadCursorView("missing_serialized_store_conformance"),
-      undefined,
-      "loadCursorView must not load missing sessions"
-    );
-
-    const third = record("3");
-    assertSerializedBackendSaved(
-      await backend.save({
-        expectedEtag: second.etag,
-        record: third,
-        sessionId,
-      }),
-      "update without a cursor view must save"
-    );
-
-    const viewlessRecord = await backend.loadCursorView(sessionId);
-    if (viewlessRecord === undefined) {
-      throw new Error(
-        "loadCursorView must return a null-view record, not undefined, when the session exists without a stored view"
-      );
-    }
-    expectSerializedBackendValue(
-      viewlessRecord.etag,
-      third.etag,
-      "null-view loadCursorView record must carry the latest etag"
-    );
-    expectSerializedBackendValue(
-      viewlessRecord.view,
-      null,
-      "loadCursorView must return a null view when the session exists without a stored view"
+    await assertSerializedCursorViewConformance(
+      backend,
+      backend.loadCursorView.bind(backend),
+      { second, secondView, sessionId }
     );
   }
 
@@ -292,7 +210,166 @@ function assertParsedCursorView(
   }
 }
 
-export function record(etag: string): SerializedCoordinatorStoreRecord {
+export /** A fresh backend has nothing to load, and a first insert needs no etag. */
+async function assertSerializedInsertConformance(
+  backend: SerializedCoordinatorStoreBackend,
+  sessionId: string,
+  first: SerializedCoordinatorStoreRecord,
+  firstView: SerializedCursorViewRecord
+): Promise<void> {
+  expectSerializedBackendValue(
+    await backend.load(sessionId),
+    undefined,
+    "new serialized backend must not load missing sessions"
+  );
+
+  assertSerializedBackendSaved(
+    await backend.save({ cursorView: firstView, record: first, sessionId }),
+    "insert without expected etag must save"
+  );
+}
+
+/** A re-insert and a stale etag both lose the compare-and-swap. */
+async function assertSerializedConflictConformance(
+  backend: SerializedCoordinatorStoreBackend,
+  sessionId: string,
+  first: SerializedCoordinatorStoreRecord,
+  firstView: SerializedCursorViewRecord
+): Promise<void> {
+  const duplicateInsert = await backend.save({
+    cursorView: firstView,
+    record: first,
+    sessionId,
+  });
+  assertSerializedBackendStatus(
+    duplicateInsert.status,
+    "conflict",
+    "duplicate insert must conflict"
+  );
+
+  if (isSerializedCoordinatorStoreConflict(duplicateInsert)) {
+    expectSerializedBackendValue(
+      duplicateInsert.current?.etag,
+      first.etag,
+      "duplicate insert conflict should expose the current record"
+    );
+  }
+
+  const staleUpdate = await backend.save({
+    cursorView: firstView,
+    expectedEtag: "stale",
+    record: first,
+    sessionId,
+  });
+  assertSerializedBackendStatus(
+    staleUpdate.status,
+    "conflict",
+    "stale update must conflict"
+  );
+}
+
+/** A save presenting the current etag lands and becomes the loaded record. */
+async function assertSerializedUpdateConformance(
+  backend: SerializedCoordinatorStoreBackend,
+  sessionId: string,
+  expected: { etag: string },
+  next: {
+    record: SerializedCoordinatorStoreRecord;
+    view: SerializedCursorViewRecord;
+  }
+): Promise<void> {
+  assertSerializedBackendSaved(
+    await backend.save({
+      cursorView: next.view,
+      expectedEtag: expected.etag,
+      record: next.record,
+      sessionId,
+    }),
+    "matching expected etag update must save"
+  );
+
+  expectSerializedBackendValue(
+    (await backend.load(sessionId))?.etag,
+    next.record.etag,
+    "matching expected etag update must publish the new record"
+  );
+}
+
+/** `loadCursorView` tracks the latest save and rejects unknown sessions. */
+async function assertSerializedCursorViewConformance(
+  backend: SerializedCoordinatorStoreBackend,
+  loadCursorView: NonNullable<
+    SerializedCoordinatorStoreBackend["loadCursorView"]
+  >,
+  context: {
+    second: SerializedCoordinatorStoreRecord;
+    secondView: SerializedCursorViewRecord;
+    sessionId: string;
+  }
+): Promise<void> {
+  const { second, secondView, sessionId } = context;
+  const latestView = await loadCursorView(sessionId);
+
+  expectSerializedBackendValue(
+    latestView?.etag,
+    second.etag,
+    "loadCursorView must reflect the latest saved etag"
+  );
+  expectSerializedBackendValue(
+    latestView?.view,
+    secondView.view,
+    "loadCursorView must return the latest saved view"
+  );
+  expectSerializedBackendValue(
+    await loadCursorView("missing_serialized_store_conformance"),
+    undefined,
+    "loadCursorView must not load missing sessions"
+  );
+
+  await assertNullCursorViewConformance(backend, loadCursorView, {
+    expectedEtag: second.etag,
+    sessionId,
+  });
+}
+
+/**
+ * A session saved without a cursor view still resolves — as a record whose
+ * `view` is null, never as `undefined`.
+ */
+async function assertNullCursorViewConformance(
+  backend: SerializedCoordinatorStoreBackend,
+  loadCursorView: NonNullable<
+    SerializedCoordinatorStoreBackend["loadCursorView"]
+  >,
+  context: { expectedEtag: string; sessionId: string }
+): Promise<void> {
+  const { expectedEtag, sessionId } = context;
+  const third = record("3");
+
+  assertSerializedBackendSaved(
+    await backend.save({ expectedEtag, record: third, sessionId }),
+    "update without a cursor view must save"
+  );
+
+  const viewlessRecord = await loadCursorView(sessionId);
+  if (viewlessRecord === undefined) {
+    throw new Error(
+      "loadCursorView must return a null-view record, not undefined, when the session exists without a stored view"
+    );
+  }
+  expectSerializedBackendValue(
+    viewlessRecord.etag,
+    third.etag,
+    "null-view loadCursorView record must carry the latest etag"
+  );
+  expectSerializedBackendValue(
+    viewlessRecord.view,
+    null,
+    "loadCursorView must return a null view when the session exists without a stored view"
+  );
+}
+
+function record(etag: string): SerializedCoordinatorStoreRecord {
   return {
     etag,
     snapshot: `{"etag":"${etag}"}`,
