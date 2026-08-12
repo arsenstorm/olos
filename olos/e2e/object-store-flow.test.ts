@@ -794,7 +794,7 @@ describe("object-store flow", () => {
     );
     expect(playlist).toContain("#EXT-X-PART-INF:PART-TARGET=0.500");
     expect(playlist).toContain(
-      "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=3.000,HOLD-BACK=3.000"
+      "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=3.000,HOLD-BACK=6.000"
     );
     expect(playlist).toContain(
       `#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="${mediaBaseUrl}/${issued.part0Plan.objectKey}"`
