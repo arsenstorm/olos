@@ -1,18 +1,22 @@
-import {
-  type RenditionWindowBounds,
-  renditionWindowBounds,
-} from "../state/committed-window";
 import { isEndOfStreamSessionState } from "../state/session";
 import type { Cursor } from "../types/cursor";
 import type { MediaSequenceNumber, PartNumber } from "../types/ids";
 import { assertCursor } from "../validation/cursor";
 import { nonNegativeNumber } from "../validation/fields";
-import { assertNonNegativeInteger } from "../validation/ids";
+import {
+  isInvalidHlsBlockingReloadResolution,
+  isReadyHlsBlockingReloadResolution,
+  nowMs,
+  parseOptionalInteger,
+  resolveHlsBlockingReloadValidated,
+  timeoutHlsBlockingReloadResult,
+  waitForNextCursor,
+} from "./blocking-reload-resolve";
 import { HLS_RELATIVE_REQUEST_BASE_URL } from "./uri";
 
-const HLS_MSN = "_HLS_msn";
-const HLS_PART = "_HLS_part";
-const SEGMENT_ONLY_LIVE_EDGE_PART = Number.MAX_SAFE_INTEGER;
+export const HLS_MSN = "_HLS_msn";
+export const HLS_PART = "_HLS_part";
+export const SEGMENT_ONLY_LIVE_EDGE_PART = Number.MAX_SAFE_INTEGER;
 
 /**
  * Blocking playlist reload directives parsed from an LL-HLS media playlist
@@ -51,12 +55,12 @@ export type HlsBlockingReloadResolution =
       status: "invalid";
     };
 
-type InvalidHlsBlockingReloadResolution = Extract<
+export type InvalidHlsBlockingReloadResolution = Extract<
   HlsBlockingReloadResolution,
   { status: "invalid" }
 >;
 
-type ReadyHlsBlockingReloadResolution = Extract<
+export type ReadyHlsBlockingReloadResolution = Extract<
   HlsBlockingReloadResolution,
   { status: "ready" }
 >;
@@ -126,9 +130,10 @@ type ReadyOrTimeoutHlsBlockingReloadResult = Extract<
 type ReadyHlsBlockingReloadResult = ReadyOrTimeoutHlsBlockingReloadResult & {
   status: "ready";
 };
-type TimeoutHlsBlockingReloadResult = ReadyOrTimeoutHlsBlockingReloadResult & {
-  status: "timeout";
-};
+export type TimeoutHlsBlockingReloadResult =
+  ReadyOrTimeoutHlsBlockingReloadResult & {
+    status: "timeout";
+  };
 
 /**
  * Extracts the `_HLS_msn` and `_HLS_part` blocking reload parameters from a
@@ -257,215 +262,3 @@ export function resolveHlsBlockingReload(
 
 // The assertion-free core of `resolveHlsBlockingReload`, used by
 // `waitForHlsBlockingReload` which validates each cursor exactly once.
-function resolveHlsBlockingReloadValidated(
-  cursor: Cursor,
-  request: HlsBlockingReloadRequest
-): HlsBlockingReloadResolution {
-  if (isPartOnlyBlockingRequest(request)) {
-    return {
-      message: "_HLS_part requires _HLS_msn",
-      status: "invalid",
-    };
-  }
-
-  if (request.mediaSequenceNumber === undefined) {
-    return { request, status: "ready" };
-  }
-
-  const bounds = blockingReloadBounds(cursor, request);
-
-  // The requested rendition has no committed media yet, so any requested
-  // position is beyond its live edge.
-  if (bounds === undefined) {
-    return { request, status: "block" };
-  }
-
-  const mediaSequenceStatus = resolveMediaSequenceReloadStatus(bounds, request);
-
-  if (mediaSequenceStatus !== undefined) {
-    return { request, status: mediaSequenceStatus };
-  }
-
-  return {
-    request,
-    status: resolveLiveEdgePartStatus(bounds, request),
-  };
-}
-
-// Requests without a rendition context resolve against the window-global
-// live edge; per-rendition requests use the rendition's own last visible
-// segment and part.
-function blockingReloadBounds(
-  cursor: Cursor,
-  request: HlsBlockingReloadRequest
-): RenditionWindowBounds | undefined {
-  if (request.renditionId === undefined) {
-    return {
-      lastMediaSequenceNumber: cursor.window.lastMediaSequenceNumber,
-      ...(cursor.window.lastPartNumber === undefined
-        ? {}
-        : { lastPartNumber: cursor.window.lastPartNumber }),
-    };
-  }
-
-  return renditionWindowBounds(cursor.committedWindow, request.renditionId);
-}
-
-function isPartOnlyBlockingRequest(request: HlsBlockingReloadRequest): boolean {
-  return (
-    request.mediaSequenceNumber === undefined &&
-    request.partNumber !== undefined
-  );
-}
-
-function resolveMediaSequenceReloadStatus(
-  bounds: RenditionWindowBounds,
-  request: HlsBlockingReloadRequest
-): "block" | "ready" | undefined {
-  if (request.mediaSequenceNumber === undefined) {
-    return;
-  }
-
-  if (request.mediaSequenceNumber > bounds.lastMediaSequenceNumber) {
-    return "block";
-  }
-
-  if (request.mediaSequenceNumber < bounds.lastMediaSequenceNumber) {
-    return "ready";
-  }
-
-  return;
-}
-
-function timeoutHlsBlockingReloadResult(
-  cursor: Cursor,
-  request: HlsBlockingReloadRequest
-): TimeoutHlsBlockingReloadResult {
-  return {
-    cursor,
-    request,
-    status: "timeout",
-  };
-}
-
-function resolveLiveEdgePartStatus(
-  bounds: RenditionWindowBounds,
-  request: HlsBlockingReloadRequest
-): "block" | "ready" {
-  return isRequestedPartBeyondLiveEdge(bounds, request) ? "block" : "ready";
-}
-
-function isRequestedPartBeyondLiveEdge(
-  bounds: RenditionWindowBounds,
-  request: HlsBlockingReloadRequest
-): boolean {
-  const liveEdgePart = bounds.lastPartNumber ?? SEGMENT_ONLY_LIVE_EDGE_PART;
-
-  return request.partNumber !== undefined && request.partNumber > liveEdgePart;
-}
-
-function isInvalidHlsBlockingReloadResolution(
-  resolution: HlsBlockingReloadResolution
-): resolution is InvalidHlsBlockingReloadResolution {
-  return resolution.status === "invalid";
-}
-
-function isReadyHlsBlockingReloadResolution(
-  resolution: HlsBlockingReloadResolution
-): resolution is ReadyHlsBlockingReloadResolution {
-  return resolution.status === "ready";
-}
-
-function parseOptionalInteger(
-  value: string | null,
-  name: typeof HLS_MSN | typeof HLS_PART
-): Partial<HlsBlockingReloadRequest> {
-  if (value === null) {
-    return {};
-  }
-
-  return parsedBlockingReloadRequestField(
-    name,
-    parseBlockingReloadInteger(value, name)
-  );
-}
-
-function parseBlockingReloadInteger(
-  value: string,
-  name: typeof HLS_MSN | typeof HLS_PART
-): number {
-  const number = Number(value);
-
-  assertNonNegativeInteger(number, name);
-
-  return number;
-}
-
-function parsedBlockingReloadRequestField(
-  name: typeof HLS_MSN | typeof HLS_PART,
-  number: number
-): Partial<HlsBlockingReloadRequest> {
-  return name === HLS_MSN
-    ? { mediaSequenceNumber: number }
-    : { partNumber: number };
-}
-
-async function waitForNextCursor(
-  options: WaitForHlsBlockingReloadOptions,
-  cursor: Cursor,
-  timeoutMs: number
-): Promise<Cursor | undefined> {
-  const controller = new AbortController();
-  const sleep = options.sleep ?? sleepWithAbort;
-
-  try {
-    return await Promise.race([
-      options.waitForCursor({
-        cursor,
-        request: options.request,
-        signal: controller.signal,
-      }),
-      sleep(timeoutMs, controller.signal).then(() => undefined),
-    ]);
-  } finally {
-    controller.abort();
-  }
-}
-
-function sleepWithAbort(timeoutMs: number, signal: AbortSignal): Promise<void> {
-  if (timeoutMs <= 0) {
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve) => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let resolved = false;
-
-    const finish = () => {
-      if (resolved) {
-        return;
-      }
-
-      resolved = true;
-      signal.removeEventListener("abort", finish);
-
-      if (timer !== undefined) {
-        clearTimeout(timer);
-      }
-
-      resolve();
-    };
-
-    if (signal.aborted) {
-      finish();
-      return;
-    }
-
-    timer = setTimeout(finish, timeoutMs);
-    signal.addEventListener("abort", finish, { once: true });
-  });
-}
-
-function nowMs(options: WaitForHlsBlockingReloadOptions): number {
-  return options.now === undefined ? Date.now() : options.now();
-}

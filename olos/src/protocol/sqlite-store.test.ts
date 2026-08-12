@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 
-import { assertSerializedCoordinatorStoreBackendConformance } from "./serialized-store";
+import { assertSerializedCoordinatorStoreBackendConformance } from "./serialized-store-conformance";
 import {
   createSqliteSerializedCoordinatorStoreBackend,
   createSqliteSerializedCoordinatorStoreSchema,

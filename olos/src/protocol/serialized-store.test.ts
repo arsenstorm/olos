@@ -8,12 +8,12 @@ import {
   testCoordinatorSession as session,
 } from "./coordinator-state.test-helper";
 import {
-  assertSerializedCoordinatorStoreBackendConformance,
   createMemorySerializedCoordinatorStoreBackend,
   createSerializedCoordinatorStore,
   type SerializedCoordinatorStoreBackend,
   type SerializedCoordinatorStoreRecord,
 } from "./serialized-store";
+import { assertSerializedCoordinatorStoreBackendConformance } from "./serialized-store-conformance";
 import {
   conflictingStoreResult,
   savedStoreResult,

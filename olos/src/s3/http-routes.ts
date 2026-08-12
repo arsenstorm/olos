@@ -43,10 +43,10 @@ import type {
 } from "./http-types";
 import type { S3HeadObjectClient } from "./object-observation";
 import {
-  planStoredS3CoordinatorReconciliation,
   reconcileStoredS3CoordinatorUploads,
   summarizeStoredS3CoordinatorUploadReconciliation,
 } from "./reconciliation";
+import { planStoredS3CoordinatorReconciliation } from "./reconciliation-summary";
 import { deleteRetiredS3CoordinatorObjects } from "./retention";
 
 export async function handleS3SlotGrant(

@@ -5,10 +5,8 @@ import {
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import { savedStoreResult } from "../protocol/test-store.test-helper";
-import {
-  resolveRuntimePublisherLoopDecision,
-  runRuntimePublisherUploadStep,
-} from "./publisher";
+import { runRuntimePublisherUploadStep } from "./publisher";
+import { resolveRuntimePublisherLoopDecision } from "./publisher-steps";
 import {
   commitStoredCoordinatorUploadFromRequest,
   issueStoredCoordinatorSlotFromRequest,

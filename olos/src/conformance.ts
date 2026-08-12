@@ -16,10 +16,8 @@ import type {
   CoordinatorPipelineStore,
   CoordinatorStoreSave,
 } from "./protocol/coordinator-types";
-import {
-  assertSerializedCoordinatorStoreBackendConformance as assertSerializedStoreBackendConformance,
-  type AssertSerializedCoordinatorStoreBackendConformanceOptions as SerializedStoreBackendConformanceOptions,
-} from "./protocol/serialized-store";
+import type { AssertSerializedCoordinatorStoreBackendConformanceOptions as SerializedStoreBackendConformanceOptions } from "./protocol/serialized-store";
+import { assertSerializedCoordinatorStoreBackendConformance as assertSerializedStoreBackendConformance } from "./protocol/serialized-store-conformance";
 import type { Session } from "./types/session";
 
 /**

@@ -5,12 +5,12 @@ import {
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import { savedStoreResult } from "../protocol/test-store.test-helper";
-import { resolveRuntimePublisherLoopDecision } from "../runtime/publisher";
 import {
   createRuntimePublisherLease,
   refreshRuntimePublisherLease,
   resolveRuntimePublisherLeaseStatus,
 } from "../runtime/publisher-lease";
+import { resolveRuntimePublisherLoopDecision } from "../runtime/publisher-steps";
 import { heartbeatStoredCoordinatorPublisher } from "../runtime/session";
 import {
   commitStoredS3CoordinatorUpload,

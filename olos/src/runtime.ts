@@ -78,19 +78,18 @@ export {
   serveBlockingCoordinatorManifest,
   serveCoordinatorManifest,
 } from "./runtime/manifest";
-export {
-  type ResolveRuntimePublisherLoopDecisionOptions,
-  type RunRuntimePublisherUploadStepOptions,
-  type RuntimePublisherCommitResult,
-  type RuntimePublisherHeartbeatResult,
-  type RuntimePublisherIssueResult,
-  type RuntimePublisherLoopDecision,
-  type RuntimePublisherStepStatus,
-  type RuntimePublisherUploadStep,
-  type RuntimePublisherUploadStepStatus,
-  resolveRuntimePublisherLoopDecision,
-  runRuntimePublisherUploadStep,
+export type {
+  ResolveRuntimePublisherLoopDecisionOptions,
+  RunRuntimePublisherUploadStepOptions,
+  RuntimePublisherCommitResult,
+  RuntimePublisherHeartbeatResult,
+  RuntimePublisherIssueResult,
+  RuntimePublisherLoopDecision,
+  RuntimePublisherStepStatus,
+  RuntimePublisherUploadStep,
+  RuntimePublisherUploadStepStatus,
 } from "./runtime/publisher";
+export { runRuntimePublisherUploadStep } from "./runtime/publisher";
 export {
   type CreateRuntimePublisherNextObjectPlanOptions,
   type CreateRuntimePublisherObjectPlanInputOptions,
@@ -129,6 +128,7 @@ export {
   type RuntimePublisherObjectPlan,
   type RuntimePublisherPlannedObjectKind,
 } from "./runtime/publisher-plan";
+export { resolveRuntimePublisherLoopDecision } from "./runtime/publisher-steps";
 export {
   type ApplyStoredCoordinatorRetentionOptions,
   applyStoredCoordinatorRetention,

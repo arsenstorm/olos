@@ -107,17 +107,19 @@ export type {
   StoredS3PublisherUploadStep,
   StoredS3PublisherUploadStepSummary,
 } from "./s3/publisher-types";
+export type {
+  PlanStoredS3CoordinatorReconciliationOptions,
+  ReconcileStoredS3CoordinatorUploadsOptions,
+  StoredS3CoordinatorReconciliationPlan,
+  StoredS3CoordinatorUploadReconciliation,
+  StoredS3CoordinatorUploadReconciliationResult,
+  StoredS3CoordinatorUploadReconciliationSummary,
+} from "./s3/reconciliation";
 export {
-  type PlanStoredS3CoordinatorReconciliationOptions,
-  planStoredS3CoordinatorReconciliation,
-  type ReconcileStoredS3CoordinatorUploadsOptions,
   reconcileStoredS3CoordinatorUploads,
-  type StoredS3CoordinatorReconciliationPlan,
-  type StoredS3CoordinatorUploadReconciliation,
-  type StoredS3CoordinatorUploadReconciliationResult,
-  type StoredS3CoordinatorUploadReconciliationSummary,
   summarizeStoredS3CoordinatorUploadReconciliation,
 } from "./s3/reconciliation";
+export { planStoredS3CoordinatorReconciliation } from "./s3/reconciliation-summary";
 export {
   type DeleteRetiredS3CoordinatorObjectsOptions,
   deleteRetiredS3CoordinatorObjects,
