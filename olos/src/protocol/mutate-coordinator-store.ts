@@ -212,9 +212,36 @@ async function runStoredCoordinatorMutationAttempt<
     state: decision.state,
   });
 
+  return await resolveSaveOutcome(saved, {
+    attempt,
+    options,
+    saveAttempt: decision.attempt,
+    snapshot,
+  });
+}
+
+/**
+ * A save either completes the mutation, loses the etag race with no winning
+ * snapshot to report, or hands back the winner so the caller can retry on it.
+ */
+async function resolveSaveOutcome<
+  TAttempt,
+  TSaveAttempt extends TAttempt,
+  TResult,
+>(
+  saved: Awaited<ReturnType<CoordinatorPipelineStore["save"]>>,
+  context: {
+    attempt: TAttempt;
+    options: RunStoredMutationOptions<TAttempt, TSaveAttempt, TResult>;
+    saveAttempt: TSaveAttempt;
+    snapshot: CoordinatorPipelineSnapshot;
+  }
+): Promise<StoredMutationAttemptProgress<TResult>> {
+  const { attempt, options, saveAttempt, snapshot } = context;
+
   if (isSavedCoordinatorPipelineMutationResult(saved)) {
     return {
-      result: await options.onSaved(saved, decision.attempt, snapshot),
+      result: await options.onSaved(saved, saveAttempt, snapshot),
       status: "complete",
     };
   }

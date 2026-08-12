@@ -3,7 +3,10 @@ import type {
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineStore,
 } from "../protocol/coordinator-types";
-import { runStoredCoordinatorMutationWithAdaptersAndResponse } from "../protocol/mutate-coordinator-store";
+import {
+  runStoredCoordinatorMutationWithAdaptersAndResponse,
+  type StoredMutationDecision,
+} from "../protocol/mutate-coordinator-store";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { Cursor } from "../types/cursor";
 import type { OlosId } from "../types/ids";
@@ -287,23 +290,7 @@ export function commitStoredCoordinatorUploadFromRequest(
         }),
       sessionId: options.sessionId,
       store: options.store,
-      decide: (committed, snapshot) => {
-        if (isTerminalRuntimeCoordinatorUploadCommit(committed)) {
-          return { status: "terminal", result: committed };
-        }
-
-        if (isIdempotentRuntimeCoordinatorUploadCommit(committed)) {
-          return {
-            status: "terminal",
-            result: {
-              ...committed,
-              etag: snapshot.etag,
-            },
-          };
-        }
-
-        return { attempt: committed, status: "save", state: committed.state };
-      },
+      decide: decideRuntimeCommit,
       onMissing: () => notFound(),
       mapSaved: (saved, attempt) => ({
         ...attempt,
@@ -313,6 +300,31 @@ export function commitStoredCoordinatorUploadFromRequest(
       onConflictOrExhausted: (snapshot) => conflict(snapshot),
     })
   );
+}
+
+/**
+ * A rejected commit and a replayed `commitId` both settle without a save;
+ * only a fresh commit is persisted.
+ */
+function decideRuntimeCommit(
+  committed: RuntimeCoordinatorUploadCommit,
+  snapshot: CoordinatorPipelineSnapshot
+): StoredMutationDecision<
+  SuccessfulRuntimeCoordinatorUploadCommit,
+  StoredRuntimeUploadCommit
+> {
+  if (isTerminalRuntimeCoordinatorUploadCommit(committed)) {
+    return { result: committed, status: "terminal" };
+  }
+
+  if (isIdempotentRuntimeCoordinatorUploadCommit(committed)) {
+    return {
+      result: { ...committed, etag: snapshot.etag },
+      status: "terminal",
+    };
+  }
+
+  return { attempt: committed, state: committed.state, status: "save" };
 }
 
 function isTerminalRuntimeCoordinatorUploadCommit(
