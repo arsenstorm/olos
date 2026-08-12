@@ -56,15 +56,13 @@ export async function parseS3CommitRequest(
   request: Request,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): Promise<S3HttpRequestParse<S3CommitPayload>> {
-  const parsed = await parseS3CommitPayloadRequest(
-    request,
+  const parsed = await parseS3CommitPayloadRequest(request, {
+    fallbackMessage: "invalid S3 slot grant request",
     invalid,
-    "invalid S3 slot grant request",
-    options,
-    parseCommitTimestamp,
-    {},
-    "S3 commit request"
-  );
+    parseCommittedAt: parseCommitTimestamp,
+    payloadName: "S3 commit request",
+    provider: options,
+  });
 
   return parsed.status === "invalid"
     ? parsed
@@ -88,14 +86,13 @@ export async function parseS3ReconciliationRequest(
   request: Request,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): Promise<S3HttpRequestParse<S3ReconciliationPayload>> {
-  const parsed = await parseS3ReconciliationPayloadRequest(
-    request,
+  const parsed = await parseS3ReconciliationPayloadRequest(request, {
+    fallbackMessage: "invalid S3 reconciliation request",
     invalid,
-    "invalid S3 reconciliation request",
-    options,
-    parseCommitTimestamp,
-    "S3 reconciliation request"
-  );
+    parseCommittedAt: parseCommitTimestamp,
+    payloadName: "S3 reconciliation request",
+    provider: options,
+  });
 
   return parsed.status === "invalid"
     ? parsed

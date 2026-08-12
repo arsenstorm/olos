@@ -58,77 +58,61 @@ export type S3CommitPayloadRequestParse<Invalid> = RuntimeJsonRequestParse<
 export type S3ReconciliationPayloadRequestParse<Invalid> =
   RuntimeJsonRequestParse<ParsedS3ReconciliationPayload, Invalid>;
 
+/**
+ * How to turn a request body into a parsed payload, and how to report a body
+ * that will not parse. `parseCommittedAt`, `overrides`, and `payloadName`
+ * carry the same defaults the individual parsers use.
+ */
+export interface ParseS3PayloadRequestOptions<Invalid> {
+  /** Message used when the body is not readable as JSON at all. */
+  fallbackMessage: string;
+  invalid: (message: string) => Invalid;
+  parseCommittedAt?: ParseTimestampField;
+  payloadName?: string;
+  provider: ProviderIdOptions;
+}
+
+export interface ParseS3CommitPayloadRequestOptions<Invalid>
+  extends ParseS3PayloadRequestOptions<Invalid> {
+  overrides?: S3CommitPayloadParseOverrides;
+}
+
 export function parseS3CommitPayloadRequest<Invalid>(
   request: Request | ParsedS3CommitPayload,
-  invalid: (message: string) => Invalid,
-  fallbackMessage: string,
-  options: ProviderIdOptions,
-  parseCommittedAt: ParseTimestampField = parseCommitTimestamp,
-  overrides: S3CommitPayloadParseOverrides = {},
-  payloadName = "S3 commit request"
+  options: ParseS3CommitPayloadRequestOptions<Invalid>
 ): Promise<S3CommitPayloadRequestParse<Invalid>> {
+  const payloadName = options.payloadName ?? "S3 commit request";
+
   return parseRuntimeJsonRequest(
     request,
     (value) =>
-      parseS3CommitPayloadPayload(
-        value,
-        options,
-        parseCommittedAt,
-        overrides,
-        payloadName
+      parseS3CommitPayload(
+        parseRecordPayload(value, payloadName),
+        options.provider,
+        options.parseCommittedAt,
+        options.overrides
       ),
-    invalid,
-    fallbackMessage
+    options.invalid,
+    options.fallbackMessage
   );
 }
 
 export function parseS3ReconciliationPayloadRequest<Invalid>(
   request: Request | ParsedS3ReconciliationPayload,
-  invalid: (message: string) => Invalid,
-  fallbackMessage: string,
-  options: ProviderIdOptions,
-  parseCommittedAt: ParseTimestampField = parseCommitTimestamp,
-  payloadName = "S3 reconciliation request"
+  options: ParseS3PayloadRequestOptions<Invalid>
 ): Promise<S3ReconciliationPayloadRequestParse<Invalid>> {
+  const payloadName = options.payloadName ?? "S3 reconciliation request";
+
   return parseRuntimeJsonRequest(
     request,
     (value) =>
-      parseS3ReconciliationPayloadPayload(
-        value,
-        options,
-        parseCommittedAt,
-        payloadName
+      parseS3ReconciliationPayload(
+        parseRecordPayload(value, payloadName),
+        options.provider,
+        options.parseCommittedAt
       ),
-    invalid,
-    fallbackMessage
-  );
-}
-
-function parseS3CommitPayloadPayload(
-  value: unknown,
-  options: ProviderIdOptions,
-  parseCommittedAt: ParseTimestampField,
-  overrides: S3CommitPayloadParseOverrides,
-  payloadName: string
-): ParsedS3CommitPayload {
-  return parseS3CommitPayload(
-    parseRecordPayload(value, payloadName),
-    options,
-    parseCommittedAt,
-    overrides
-  );
-}
-
-function parseS3ReconciliationPayloadPayload(
-  value: unknown,
-  options: ProviderIdOptions,
-  parseCommittedAt: ParseTimestampField,
-  payloadName: string
-): ParsedS3ReconciliationPayload {
-  return parseS3ReconciliationPayload(
-    parseRecordPayload(value, payloadName),
-    options,
-    parseCommittedAt
+    options.invalid,
+    options.fallbackMessage
   );
 }
 

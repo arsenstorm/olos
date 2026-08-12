@@ -103,9 +103,11 @@ describe("S3 commit payload parser", () => {
           body: JSON.stringify([]),
           method: "POST",
         }),
-        (message) => ({ message, status: "invalid" as const }),
-        "fallback",
-        { providerId: "provider_fallback" }
+        {
+          fallbackMessage: "fallback",
+          invalid: (message) => ({ message, status: "invalid" as const }),
+          provider: { providerId: "provider_fallback" },
+        }
       )
     ).resolves.toEqual({
       message: "S3 reconciliation request must be a JSON object",
