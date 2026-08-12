@@ -230,12 +230,14 @@ function isCalendarDate(match: RegExpExecArray): boolean {
   return day <= daysInMonth(Number(match[1]), Number(match[2]));
 }
 
+const THIRTY_DAY_MONTHS = new Set([4, 6, 9, 11]);
+
 function daysInMonth(year: number, month: number): number {
   if (month === 2) {
     return isLeapYear(year) ? 29 : 28;
   }
 
-  return month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31;
+  return THIRTY_DAY_MONTHS.has(month) ? 30 : 31;
 }
 
 function isLeapYear(year: number): boolean {

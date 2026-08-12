@@ -670,17 +670,16 @@ function withAuditEvent(
     return commit;
   }
 
-  const maxBytes = numberDetail(details.maxBytes);
-  const observedBytes = numberDetail(details.size);
-  const objectKey = stringDetail(details.objectKey);
-  const slotId = stringDetail(details.slotId);
+  const fields: PartialObjectTooLargeAudit = {
+    maxBytes: numberDetail(details.maxBytes),
+    objectKey: stringDetail(details.objectKey),
+    observedBytes: numberDetail(details.size),
+    slotId: stringDetail(details.slotId),
+  };
 
-  if (
-    maxBytes === undefined ||
-    observedBytes === undefined ||
-    objectKey === undefined ||
-    slotId === undefined
-  ) {
+  // An audit event is only emitted when the rejection carried every detail
+  // it needs; a partial one would report zeroes as if they were observed.
+  if (!isCompleteObjectTooLargeAudit(fields)) {
     return commit;
   }
 
@@ -689,14 +688,28 @@ function withAuditEvent(
     auditEvent: {
       error: commit.error,
       eventType: "upload.rejected",
-      maxBytes,
-      objectKey,
-      observedBytes,
       occurredAt,
       reason: "object_too_large",
-      slotId,
+      ...fields,
     },
   };
+}
+
+interface ObjectTooLargeAudit {
+  maxBytes: number;
+  objectKey: string;
+  observedBytes: number;
+  slotId: string;
+}
+
+type PartialObjectTooLargeAudit = {
+  [Key in keyof ObjectTooLargeAudit]: ObjectTooLargeAudit[Key] | undefined;
+};
+
+function isCompleteObjectTooLargeAudit(
+  fields: PartialObjectTooLargeAudit
+): fields is ObjectTooLargeAudit {
+  return Object.values(fields).every((value) => value !== undefined);
 }
 
 function numberDetail(value: unknown): number | undefined {
