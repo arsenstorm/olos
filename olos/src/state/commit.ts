@@ -20,7 +20,10 @@ import type {
   ResolveUploadCommitOptions,
   UploadCommitResolution,
 } from "./commit-types";
-import { assertUploadSlotTransition, observeUpload } from "./upload-slot";
+import {
+  assertUploadSlotTransition,
+  observeUpload,
+} from "./upload-slot-observe";
 /**
  * Build the immutable {@link Commit} record for an observed upload. Pure —
  * the slot is not modified; use {@link resolveUploadCommit} to also advance

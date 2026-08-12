@@ -5,11 +5,11 @@ import {
 } from "../state/object-key-derivation";
 import { createRuntimePublisherObjectKeyNonce } from "../state/object-key-nonce";
 import { assertPublicationAllowed } from "../state/publication-control";
+import { createIssuedUploadSlot } from "../state/upload-slot";
 import {
   canTransitionUploadSlot,
-  createIssuedUploadSlot,
   revokeUpload,
-} from "../state/upload-slot";
+} from "../state/upload-slot-observe";
 import type {
   CommittedSegment,
   RenditionWindow,

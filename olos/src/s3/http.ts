@@ -11,12 +11,14 @@ import { type S3Route, s3Route } from "./http-route";
 import {
   handleS3Commit,
   handleS3CompletionHint,
+  handleS3SlotGrant,
+} from "./http-routes";
+import {
   handleS3Events,
   handleS3Reconciliation,
   handleS3ReconciliationPlan,
   handleS3Retention,
-  handleS3SlotGrant,
-} from "./http-routes";
+} from "./http-routes-events";
 import type { CreateStoredS3CoordinatorRuntimeHandlerOptions } from "./http-types";
 import { S3_ROUTE_ACTIONS } from "./route";
 

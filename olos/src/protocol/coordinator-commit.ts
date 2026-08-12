@@ -7,7 +7,7 @@ import {
   type PublicationControlResolution,
   resolvePublicationControl,
 } from "../state/publication-control";
-import { observeUpload } from "../state/upload-slot";
+import { observeUpload } from "../state/upload-slot-observe";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import { createOlosError, type OlosError } from "../types/errors";

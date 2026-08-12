@@ -22,10 +22,8 @@ export type {
   ResolveUploadCommitOptions,
   UploadCommitResolution,
 } from "./state/commit-types";
-export {
-  type CreateCommittedWindowOptions,
-  createCommittedWindow,
-} from "./state/committed-window";
+export type { CreateCommittedWindowOptions } from "./state/committed-window";
+export { createCommittedWindow } from "./state/committed-window";
 export {
   type CreateCursorOptions,
   type CursorUpdateResolution,
@@ -119,25 +117,27 @@ export {
   type CreateUploadGrantOptions,
   createUploadGrant,
 } from "./state/upload-grant";
+export type {
+  CreateIssuedUploadSlotOptions,
+  ObserveUploadOptions,
+  ResolveUploadExpiryOptions,
+  ResolveUploadRejectionOptions,
+  ResolveUploadRevocationOptions,
+  UploadExpiryResult,
+  UploadObservationResult,
+  UploadRejectionResult,
+  UploadRevocationResult,
+} from "./state/upload-slot";
+export { createIssuedUploadSlot } from "./state/upload-slot";
 export {
   assertUploadSlotTransition,
-  type CreateIssuedUploadSlotOptions,
   canTransitionUploadSlot,
-  createIssuedUploadSlot,
   expireUpload,
-  type ObserveUploadOptions,
   observeUpload,
-  type ResolveUploadExpiryOptions,
-  type ResolveUploadRejectionOptions,
-  type ResolveUploadRevocationOptions,
   rejectUpload,
   resolveUploadExpiry,
   resolveUploadObservation,
   resolveUploadRejection,
   resolveUploadRevocation,
   revokeUpload,
-  type UploadExpiryResult,
-  type UploadObservationResult,
-  type UploadRejectionResult,
-  type UploadRevocationResult,
-} from "./state/upload-slot";
+} from "./state/upload-slot-observe";

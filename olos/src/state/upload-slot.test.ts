@@ -4,10 +4,10 @@ import type { Session } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
 
+import { createIssuedUploadSlot } from "./upload-slot";
 import {
   assertUploadSlotTransition,
   canTransitionUploadSlot,
-  createIssuedUploadSlot,
   expireUpload,
   observeUpload,
   rejectUpload,
@@ -16,7 +16,7 @@ import {
   resolveUploadRejection,
   resolveUploadRevocation,
   revokeUpload,
-} from "./upload-slot";
+} from "./upload-slot-observe";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",

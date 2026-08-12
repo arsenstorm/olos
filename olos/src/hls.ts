@@ -33,10 +33,8 @@ export {
   resolveBlockingHlsManifestArtifactResponse,
   resolveHlsManifestArtifactResponse,
 } from "./hls/manifest-response";
-export {
-  type RenderMasterPlaylistOptions,
-  renderMasterPlaylist,
-} from "./hls/master-playlist";
+export type { RenderMasterPlaylistOptions } from "./hls/master-playlist";
+export { renderMasterPlaylist } from "./hls/master-playlist";
 export {
   type RenderMediaPlaylistOptions,
   renderMediaPlaylist,
