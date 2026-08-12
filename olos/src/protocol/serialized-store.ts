@@ -6,6 +6,7 @@ import {
 import type {
   CoordinatorPipelineStore,
   CoordinatorStoreSave,
+  SaveCoordinatorPipelineOptions,
 } from "./coordinator-types";
 import {
   cloneRecord,
@@ -160,50 +161,58 @@ export function createSerializedCoordinatorStore(
 
       return record === undefined ? undefined : parseRecord(record);
     },
-    async loadCursor(sessionId) {
-      if (backend.loadCursorView !== undefined) {
-        const view = await backend.loadCursorView(sessionId);
-        if (view === undefined) {
-          return;
-        }
-        if (view.view !== null) {
-          return parseCursorViewRecord({ etag: view.etag, view: view.view });
-        }
-        // Null view: the session record predates the cursor-view column.
-        // Fall through to the full-snapshot path below.
-      }
+    loadCursor: (sessionId) => loadCursorView(backend, sessionId),
+    save: (options) => saveRecord(backend, options),
+  };
+}
 
-      const record = await backend.load(sessionId);
-      return record === undefined
-        ? undefined
-        : cursorViewFromSnapshot(parseRecord(record));
-    },
-    async save(options) {
-      // The next etag derives from the caller's `expectedEtag` (undefined
-      // means insert, so "1") rather than a pre-load of the current record:
-      // the load would race concurrent writers anyway, and the backend's
-      // atomic etag check is what actually decides — a mismatch comes back
-      // as a conflict carrying the winning record.
-      const etag = nextSerializedCoordinatorStoreEtag(options.expectedEtag);
-      const record = createRecord(etag, options.state);
-      const cursorView = createCursorViewRecord(etag, options.state);
-      const saved = await backend.save({
-        cursorView,
-        expectedEtag: options.expectedEtag,
-        record,
-        sessionId: options.sessionId,
-      });
+async function loadCursorView(
+  backend: SerializedCoordinatorStoreBackend,
+  sessionId: string
+) {
+  if (backend.loadCursorView !== undefined) {
+    const view = await backend.loadCursorView(sessionId);
+    if (view === undefined) {
+      return;
+    }
+    if (view.view !== null) {
+      return parseCursorViewRecord({ etag: view.etag, view: view.view });
+    }
+    // Null view: the session record predates the cursor-view column.
+    // Fall through to the full-snapshot path below.
+  }
 
-      if (isSerializedCoordinatorStoreConflict(saved)) {
-        return coordinatorStoreConflictFromSerialized(saved);
-      }
+  const record = await backend.load(sessionId);
+  return record === undefined
+    ? undefined
+    : cursorViewFromSnapshot(parseRecord(record));
+}
 
-      return {
-        etag,
-        state: cloneCoordinatorPipelineState(options.state),
-        status: "saved",
-      };
-    },
+async function saveRecord(
+  backend: SerializedCoordinatorStoreBackend,
+  options: SaveCoordinatorPipelineOptions
+) {
+  // The next etag derives from the caller's `expectedEtag` (undefined
+  // means insert, so "1") rather than a pre-load of the current record:
+  // the load would race concurrent writers anyway, and the backend's
+  // atomic etag check is what actually decides — a mismatch comes back
+  // as a conflict carrying the winning record.
+  const etag = nextSerializedCoordinatorStoreEtag(options.expectedEtag);
+  const saved = await backend.save({
+    cursorView: createCursorViewRecord(etag, options.state),
+    expectedEtag: options.expectedEtag,
+    record: createRecord(etag, options.state),
+    sessionId: options.sessionId,
+  });
+
+  if (isSerializedCoordinatorStoreConflict(saved)) {
+    return coordinatorStoreConflictFromSerialized(saved);
+  }
+
+  return {
+    etag,
+    state: cloneCoordinatorPipelineState(options.state),
+    status: "saved" as const,
   };
 }
 
