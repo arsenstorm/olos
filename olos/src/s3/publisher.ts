@@ -253,21 +253,20 @@ function storedS3PublisherGrantIssueOptions(
   };
 }
 
-async function runPublisherHeartbeat(
-  heartbeat: RunStoredS3PublisherUploadStepOptions["heartbeat"]
-): Promise<
-  | {
-      result?: RuntimePublisherHeartbeatResult;
-      status: "ready";
-    }
+/** Either the lease is fresh enough to upload against, or the step stops. */
+type PublisherHeartbeatOutcome =
+  | { result?: RuntimePublisherHeartbeatResult; status: "ready" }
   | {
       status: "failed";
       step: Extract<
         StoredS3PublisherUploadStep,
         { status: "heartbeat_failed" }
       >;
-    }
-> {
+    };
+
+async function runPublisherHeartbeat(
+  heartbeat: RunStoredS3PublisherUploadStepOptions["heartbeat"]
+): Promise<PublisherHeartbeatOutcome> {
   if (heartbeat === undefined) {
     return { status: "ready" };
   }
@@ -275,17 +274,12 @@ async function runPublisherHeartbeat(
   try {
     const result = await heartbeat();
 
-    if (result.status === "refreshed") {
-      return { result, status: "ready" };
-    }
-
-    return {
-      status: "failed",
-      step: {
-        heartbeat: result,
-        status: "heartbeat_failed",
-      },
-    };
+    return result.status === "refreshed"
+      ? { result, status: "ready" }
+      : {
+          status: "failed",
+          step: { heartbeat: result, status: "heartbeat_failed" },
+        };
   } catch (error) {
     return {
       status: "failed",

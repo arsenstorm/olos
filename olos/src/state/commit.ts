@@ -159,6 +159,13 @@ export function resolveCommitAttempt(
     return mismatch;
   }
 
+  return committedCommitAttempt(options, slot);
+}
+
+function committedCommitAttempt(
+  options: ResolveCommitAttemptOptions,
+  slot: NonNullable<ResolveCommitAttemptOptions["slot"]>
+): CommitAttemptResolution {
   const result = resolveUploadCommit({
     commitId: options.commitId,
     committedAt: options.committedAt,

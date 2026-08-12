@@ -34,6 +34,7 @@ import type {
   StoredS3CoordinatorReconciliationResponse,
   StoredS3CoordinatorRetentionResponse,
 } from "./http-types";
+import type { StoredS3CoordinatorUploadReconciliationResult } from "./reconciliation";
 import {
   reconcileStoredS3CoordinatorUploads,
   summarizeStoredS3CoordinatorUploadReconciliation,
@@ -209,6 +210,20 @@ export async function handleS3ReconciliationPlan(
   return jsonResponse(result, 200);
 }
 
+/** Publish each committed reconciliation and retire what it displaced. */
+async function settleReconciledCommits(
+  results: readonly StoredS3CoordinatorUploadReconciliationResult[],
+  options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
+  ctx: StoredS3CoordinatorRuntimeHandlerContext | undefined
+): Promise<void> {
+  for (const entry of results) {
+    if (isSuccessfulS3MutationResult(entry)) {
+      notifyCursor(options.cursorNotifier, entry.commit.cursor);
+      await scheduleRetiredObjectDeletes(entry.commit, options, ctx);
+    }
+  }
+}
+
 export async function handleS3Reconciliation(
   request: Request,
   sessionId: string,
@@ -236,12 +251,7 @@ export async function handleS3Reconciliation(
     return s3ResponseNotFound();
   }
 
-  for (const entry of result.results) {
-    if (isSuccessfulS3MutationResult(entry)) {
-      notifyCursor(options.cursorNotifier, entry.commit.cursor);
-      await scheduleRetiredObjectDeletes(entry.commit, options, ctx);
-    }
-  }
+  await settleReconciledCommits(result.results, options, ctx);
 
   const body: StoredS3CoordinatorReconciliationResponse = {
     results: result.results.map(reconciliationResult),
