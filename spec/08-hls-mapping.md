@@ -629,5 +629,4 @@ upload slot's TTL is
 seconds. A deployment MAY tune these values, but the rendering floors
 of Section 8.4.1 still apply.
 
-Reference implementation (informative): `olos/src/media/latency-profile.ts`
-and `latency-profile-defaults.ts`.
+Reference implementation (informative): `olos/src/media/latency-profile.ts`.
