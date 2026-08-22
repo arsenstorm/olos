@@ -136,9 +136,7 @@ export { createIssuedUploadSlot } from "./state/upload-slot";
 export {
   assertUploadSlotTransition,
   canTransitionUploadSlot,
-  expireUpload,
   observeUpload,
-  rejectUpload,
   resolveUploadExpiry,
   resolveUploadObservation,
   resolveUploadRejection,

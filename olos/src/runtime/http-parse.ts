@@ -138,10 +138,6 @@ export function currentNow(
     return options.now();
   }
 
-  if (options.clock !== undefined) {
-    return options.clock();
-  }
-
   return defaultRuntimeNow();
 }
 

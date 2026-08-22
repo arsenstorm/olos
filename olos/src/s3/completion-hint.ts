@@ -1,7 +1,6 @@
 import type { OlosId } from "../types/ids";
 
 interface CompletionHintOptions {
-  completionHintClock?: () => Date | string;
   completionHintCommitId?: (slotId: string) => string;
   completionHintNow?: () => Date | string;
 }
@@ -37,10 +36,6 @@ function resolveCompletionHintCommitId(
 function resolveCompletionHintNow(
   options: CompletionHintOptions
 ): () => Date | string {
-  if (options.completionHintClock !== undefined) {
-    return options.completionHintClock;
-  }
-
   if (options.completionHintNow !== undefined) {
     return options.completionHintNow;
   }

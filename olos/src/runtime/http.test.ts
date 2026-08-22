@@ -802,40 +802,6 @@ describe("stored coordinator runtime handler", () => {
     expect(stored?.state.publisherLeases).toHaveLength(1);
   });
 
-  test("uses injected clock when now callback is omitted", async () => {
-    const store = createMemoryCoordinatorStore();
-    const handle = createStoredCoordinatorRuntimeHandler({
-      allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
-      clock: () => "2026-01-01T00:00:03.000Z",
-      publisherLeaseTtlMs: 3000,
-      store,
-    });
-
-    await handle(
-      jsonRequest("https://edge.example.com/sessions", {
-        deliveryBaseUrl,
-        session,
-      })
-    );
-
-    const response = await handle(
-      jsonRequest("https://edge.example.com/sessions/session_1/heartbeat", {
-        publisherInstanceId: "publisher_1",
-      })
-    );
-
-    expect(await response.json()).toEqual({
-      lease: {
-        expiresAt: "2026-01-01T00:00:06.000Z",
-        issuedAt: "2026-01-01T00:00:03.000Z",
-        lastSeenAt: "2026-01-01T00:00:03.000Z",
-        publisherInstanceId: "publisher_1",
-        sessionId: session.sessionId,
-      },
-    });
-  });
-
   test("uses the object low-latency cursor staleness default for health", async () => {
     const store = createMemoryCoordinatorStore();
     await seedRuntimeStore(store, 3810);

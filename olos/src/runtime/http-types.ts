@@ -61,8 +61,6 @@ export interface CreateStoredCoordinatorRuntimeHandlerOptions {
       context: HlsCursorWaitContext
     ) => Promise<HlsCursorWaitContext["cursor"] | undefined>;
   };
-  /** Alias for `now`, consulted only when `now` is not set. */
-  clock?: () => string;
   commitPolicy?: CoordinatorCommitPolicy;
   /**
    * Notified with the new cursor after every successful commit and session
@@ -84,7 +82,7 @@ export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   maxHealthCursorAgeMs?: number;
   /**
    * Returns the current time as an ISO 8601 timestamp; defaults to the
-   * system clock. Takes precedence over `clock`.
+   * system clock.
    */
   now?: () => string;
   publicationControl?: PublicationControlPolicy;

@@ -8,9 +8,7 @@ import { createIssuedUploadSlot } from "./upload-slot";
 import {
   assertUploadSlotTransition,
   canTransitionUploadSlot,
-  expireUpload,
   observeUpload,
-  rejectUpload,
   resolveUploadExpiry,
   resolveUploadObservation,
   resolveUploadRejection,
@@ -265,18 +263,6 @@ describe("observe upload", () => {
 });
 
 describe("expire upload", () => {
-  test("marks an expired issued slot as expired", () => {
-    expect(
-      expireUpload({
-        now: "2026-01-01T00:00:05.000Z",
-        slot,
-      })
-    ).toEqual({
-      ...slot,
-      state: "expired",
-    });
-  });
-
   test("returns an expiry result", () => {
     expect(
       resolveUploadExpiry({
@@ -322,7 +308,7 @@ describe("expire upload", () => {
 
   test("rejects premature expiry", () => {
     expect(() =>
-      expireUpload({
+      resolveUploadExpiry({
         now: "2026-01-01T00:00:04.999Z",
         slot,
       })
@@ -331,7 +317,7 @@ describe("expire upload", () => {
 
   test("rejects invalid expiry timestamps", () => {
     expect(() =>
-      expireUpload({
+      resolveUploadExpiry({
         now: "soon",
         slot,
       })
@@ -340,7 +326,7 @@ describe("expire upload", () => {
 
   test("rejects non-expirable slots", () => {
     expect(() =>
-      expireUpload({
+      resolveUploadExpiry({
         now: "2026-01-01T00:00:06.000Z",
         slot: { ...slot, state: "upload_observed" },
       })
@@ -350,13 +336,6 @@ describe("expire upload", () => {
 
 describe("reject upload", () => {
   const observedSlot: UploadSlot = { ...slot, state: "upload_observed" };
-
-  test("marks an observed slot as rejected", () => {
-    expect(rejectUpload({ slot: observedSlot })).toEqual({
-      ...observedSlot,
-      state: "rejected",
-    });
-  });
 
   test("returns a rejection result", () => {
     expect(resolveUploadRejection({ slot: observedSlot })).toEqual({
@@ -378,7 +357,7 @@ describe("reject upload", () => {
   });
 
   test("rejects non-rejectable slots", () => {
-    expect(() => rejectUpload({ slot })).toThrow(
+    expect(() => resolveUploadRejection({ slot })).toThrow(
       "Invalid upload slot transition: issued -> rejected"
     );
   });

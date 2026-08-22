@@ -9,9 +9,7 @@ import type { ObservedUpload } from "../validation/observed-upload";
 import { assertSession } from "../validation/session";
 import { assertUploadSlot } from "../validation/upload-slot";
 import {
-  expireUpload,
   observeUpload,
-  rejectUpload,
   resolveUploadExpiry,
   resolveUploadObservation,
   resolveUploadRejection,
@@ -72,7 +70,7 @@ export interface UploadObservationResult {
   status: "already_observed" | "observed";
 }
 
-/** Options for {@link resolveUploadExpiry} and {@link expireUpload}. */
+/** Options for {@link resolveUploadExpiry}. */
 export interface ResolveUploadExpiryOptions {
   /** ISO timestamp used as "now"; must be at or after `slot.expiresAt`. */
   now: string;
@@ -87,7 +85,7 @@ export interface UploadExpiryResult {
   status: "already_expired" | "expired";
 }
 
-/** Options for {@link resolveUploadRejection} and {@link rejectUpload}. */
+/** Options for {@link resolveUploadRejection}. */
 export interface ResolveUploadRejectionOptions {
   slot: UploadSlot;
 }

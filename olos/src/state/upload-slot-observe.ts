@@ -70,14 +70,6 @@ function isObservedUploadSlot(slot: UploadSlot): slot is ObservedUploadSlot {
 }
 
 /**
- * Shorthand for {@link resolveUploadExpiry} that returns only the updated
- * slot.
- */
-export function expireUpload(options: ResolveUploadExpiryOptions): UploadSlot {
-  return resolveUploadExpiry(options).slot;
-}
-
-/**
  * Move an `issued` slot to `expired` once its deadline has passed.
  * Idempotent: an already-expired slot returns `already_expired`
  * unchanged. Pure. Throws when `now` precedes `slot.expiresAt` or when
@@ -103,16 +95,6 @@ function assertUploadExpiryReady(options: ResolveUploadExpiryOptions): void {
   ) {
     throw new Error("now must be after or equal to uploadSlot.expiresAt");
   }
-}
-
-/**
- * Shorthand for {@link resolveUploadRejection} that returns only the
- * updated slot.
- */
-export function rejectUpload(
-  options: ResolveUploadRejectionOptions
-): UploadSlot {
-  return resolveUploadRejection(options).slot;
 }
 
 /**

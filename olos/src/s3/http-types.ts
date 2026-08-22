@@ -27,16 +27,11 @@ export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
    * narrower `objectClient`/`retentionClient` roles). */
   client: S3Client;
   /**
-   * Clock for completion-hint timestamps; wins over `completionHintNow`
-   * (default: current time).
-   */
-  completionHintClock?: () => Date | string;
-  /**
    * Derives the commit id for a completion hint that supplies none
    * (default: `complete_{slotId}`).
    */
   completionHintCommitId?: (slotId: string) => string;
-  /** Timestamp source for completion hints when no clock is configured. */
+  /** Timestamp source for completion hints (default: current time). */
   completionHintNow?: () => Date | string;
   /** Presigned grant lifetime in seconds; must be positive. */
   expiresInSeconds: number;
