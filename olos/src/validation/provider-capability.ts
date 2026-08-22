@@ -1,10 +1,10 @@
+import { OLOS_WIRE_VERSION } from "../index";
+import type { ProviderCapabilityDocument } from "../types/provider-capability";
 import {
   PROVIDER_CONSISTENCY_LEVELS,
   PROVIDER_EVENT_DELIVERY_MODES,
   PROVIDER_KINDS,
-} from "../config/provider-capability";
-import { OLOS_WIRE_VERSION } from "../index";
-import type { ProviderCapabilityDocument } from "../types/provider-capability";
+} from "../types/provider-capability";
 import {
   assertAbsoluteHttpUrl,
   assertBooleanField,

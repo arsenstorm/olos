@@ -1,5 +1,5 @@
-import { SESSION_STATES } from "../config/session";
 import type { Session, SessionState } from "../types/session";
+import { SESSION_STATES } from "../types/session";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import {
   errorMessage,

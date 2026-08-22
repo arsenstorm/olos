@@ -1,4 +1,9 @@
-import type { MEDIA_OBJECT_KINDS } from "../config/media-object";
+/**
+ * The media object kinds OLOS can issue upload slots for: `init` (CMAF
+ * initialization segment), `part` (LL-HLS partial segment), and `segment`
+ * (full segment). `MediaObjectKind` (olos/types) is the derived union type.
+ */
+export const MEDIA_OBJECT_KINDS = ["init", "part", "segment"] as const;
 
 /** Kind of media object a slot carries: `init`, `part`, or `segment`. */
 export type MediaObjectKind = (typeof MEDIA_OBJECT_KINDS)[number];

@@ -1,10 +1,15 @@
-import { fetchFor, jsonPost, normalizedBaseUrl } from "../runtime/http-client";
+import {
+  fetchFor,
+  jsonPost,
+  normalizedBaseUrl,
+  responseBody,
+} from "../runtime/http-client";
 import { assertUrlSafeIdentifier } from "../validation/ids";
+import { S3RuntimeHttpError } from "./client-error";
 import { commitPayload, grantPayload } from "./client-payload";
 import { reconciliationPayload } from "./client-payload-reconciliation";
 import { reconciliationPlanPayload } from "./client-payload-reconciliation-plan";
 import { retentionPayload } from "./client-payload-retention";
-import { parsedS3RuntimeResponse } from "./client-response";
 import type {
   S3RuntimeApplyRetentionOptions,
   S3RuntimeApplyRetentionResponse,
@@ -198,4 +203,30 @@ function completionUrl(
     s3CompletionHintRoutePathFromOptions(sessionId, slotId, {}),
     normalizedBaseUrl(baseUrl)
   );
+}
+
+async function s3RuntimeHttpError(
+  operation: string,
+  response: Response
+): Promise<S3RuntimeHttpError> {
+  return new S3RuntimeHttpError(
+    `${operation} failed with status ${response.status}`,
+    response,
+    await responseBody(response)
+  );
+}
+
+async function parsedS3RuntimeResponse<Payload extends object>(
+  response: Response,
+  operation: string,
+  parsePayload: (value: unknown) => Payload
+): Promise<Payload & { response: Response }> {
+  if (!response.ok) {
+    throw await s3RuntimeHttpError(operation, response);
+  }
+
+  return {
+    ...parsePayload(await response.json()),
+    response,
+  };
 }

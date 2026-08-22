@@ -1,4 +1,3 @@
-import { SESSION_STATES } from "../config/session";
 import type {
   CoordinatorPipelineMutation,
   CoordinatorPipelineSnapshot,
@@ -10,6 +9,7 @@ import { assertSessionTransition } from "../state/session";
 import { createOlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { SessionState } from "../types/session";
+import { SESSION_STATES } from "../types/session";
 import { isAllowedString, positiveNumber } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import {

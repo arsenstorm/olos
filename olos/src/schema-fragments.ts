@@ -1,7 +1,7 @@
 import {
   PROVIDER_CONSISTENCY_LEVELS,
   PROVIDER_EVENT_DELIVERY_MODES,
-} from "./config/provider-capability";
+} from "./types/provider-capability";
 import { CONTENT_TYPE_SCHEMA_PATTERN } from "./validation/content-type";
 import { RFC3339_TIMESTAMP_SCHEMA_PATTERN } from "./validation/fields";
 import { HTTP_HEADER_NAME_SCHEMA_PATTERN } from "./validation/http-header";

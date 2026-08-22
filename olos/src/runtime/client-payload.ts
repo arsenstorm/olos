@@ -1,8 +1,8 @@
-import { SESSION_STATES } from "../config/session";
 import type { CoordinatorRetentionPlan } from "../protocol/coordinator-types";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { SessionState } from "../types/session";
+import { SESSION_STATES } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
 import { parseCommit } from "../validation/commit";
 import { parseCursor } from "../validation/cursor";

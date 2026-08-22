@@ -1,6 +1,6 @@
-import { PUBLICATION_MODES } from "../config/publication";
 import { createPublisherObjectKey } from "../state/object-key-derivation";
 import type { MediaObjectKind } from "../types/media-object";
+import { PUBLICATION_MODES } from "../types/publication";
 import type { PublicationMode } from "../types/upload-slot";
 import { positiveNumber } from "../validation/fields";
 import {

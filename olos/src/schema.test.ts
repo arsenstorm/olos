@@ -1,11 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { OLOS_ERROR_CODES } from "./config/errors";
-import { MEDIA_OBJECT_KINDS } from "./config/media-object";
-import {
-  PROVIDER_EVENT_DELIVERY_MODES,
-  PROVIDER_KINDS,
-} from "./config/provider-capability";
-import { LATENCY_PROFILES, SESSION_STATES } from "./config/session";
 import {
   OLOS_COMMIT_SCHEMA,
   OLOS_ERROR_SCHEMA,
@@ -16,6 +9,13 @@ import {
   OLOS_UPLOAD_GRANT_SCHEMA,
   OLOS_UPLOAD_SLOT_SCHEMA,
 } from "./schema";
+import { OLOS_ERROR_CODES } from "./types/errors";
+import { MEDIA_OBJECT_KINDS } from "./types/media-object";
+import {
+  PROVIDER_EVENT_DELIVERY_MODES,
+  PROVIDER_KINDS,
+} from "./types/provider-capability";
+import { LATENCY_PROFILES, SESSION_STATES } from "./types/session";
 import { CONTENT_TYPE_SCHEMA_PATTERN } from "./validation/content-type";
 
 describe("OLOS JSON schemas", () => {

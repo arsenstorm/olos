@@ -1,7 +1,7 @@
-import { MEDIA_OBJECT_KINDS } from "../config/media-object";
 import type { IssueCoordinatorSlotOptions } from "../protocol/coordinator-types";
 import type { Byterange } from "../types/byterange";
 import type { MediaObjectKind } from "../types/media-object";
+import { MEDIA_OBJECT_KINDS } from "../types/media-object";
 import { assertByterange, assertByterangeKind } from "../validation/byterange";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSupportedMediaExtension } from "../validation/object-key";

@@ -1,7 +1,7 @@
-import { LATENCY_PROFILES, SESSION_STATES } from "../config/session";
 import { OLOS_WIRE_VERSION } from "../index";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor, CursorWindow } from "../types/cursor";
+import { LATENCY_PROFILES, SESSION_STATES } from "../types/session";
 import {
   assertCommittedWindow,
   COMMITTED_WINDOW_SHAPE,

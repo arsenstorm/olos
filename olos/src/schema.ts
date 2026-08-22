@@ -1,12 +1,3 @@
-import { OLOS_ERROR_CODES } from "./config/errors";
-import { MEDIA_OBJECT_KINDS } from "./config/media-object";
-import { PROVIDER_KINDS } from "./config/provider-capability";
-import {
-  LATENCY_PROFILES,
-  RENDITION_KINDS,
-  SESSION_STATES,
-} from "./config/session";
-import { UPLOAD_SLOT_STATES } from "./config/upload-slot";
 import {
   absoluteHttpUrl,
   byterangeSchema,
@@ -33,6 +24,15 @@ import {
   stringEnum,
   timestamp,
 } from "./schema-fragments";
+import { OLOS_ERROR_CODES } from "./types/errors";
+import { MEDIA_OBJECT_KINDS } from "./types/media-object";
+import { PROVIDER_KINDS } from "./types/provider-capability";
+import {
+  LATENCY_PROFILES,
+  RENDITION_KINDS,
+  SESSION_STATES,
+} from "./types/session";
+import { UPLOAD_SLOT_STATES } from "./types/upload-slot";
 
 export type { OlosJsonSchema } from "./schema-fragments";
 /**

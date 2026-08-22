@@ -1,5 +1,5 @@
-import { OLOS_ERROR_CODES } from "../config/errors";
 import type { OlosError } from "../types/errors";
+import { OLOS_ERROR_CODES } from "../types/errors";
 import {
   assertNonEmptyStringField,
   assertOneOfField,

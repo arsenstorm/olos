@@ -1,5 +1,5 @@
-import { SESSION_TRANSITIONS } from "../config/session";
 import type { SessionState } from "../types/session";
+import { SESSION_TRANSITIONS } from "../types/session";
 
 const SESSION_TRANSITION_MAP: Partial<
   Record<SessionState, readonly SessionState[]>

@@ -1,6 +1,6 @@
-import { MEDIA_OBJECT_KINDS } from "../config/media-object";
-import { UPLOAD_SLOT_STATES } from "../config/upload-slot";
+import { MEDIA_OBJECT_KINDS } from "../types/media-object";
 import type { UploadSlot } from "../types/upload-slot";
+import { UPLOAD_SLOT_STATES } from "../types/upload-slot";
 import {
   assertByterange,
   assertByterangeKind,

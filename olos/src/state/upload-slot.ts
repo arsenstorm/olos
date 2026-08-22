@@ -1,9 +1,9 @@
-import { UPLOAD_SLOT_TRANSITIONS } from "../config/upload-slot";
 import type { Byterange } from "../types/byterange";
 import type { Cursor } from "../types/cursor";
 import type { MediaObjectKind } from "../types/media-object";
 import type { Session } from "../types/session";
 import type { UploadSlot, UploadSlotState } from "../types/upload-slot";
+import { UPLOAD_SLOT_TRANSITIONS } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { assertSession } from "../validation/session";
 import { assertUploadSlot } from "../validation/upload-slot";
