@@ -16,10 +16,8 @@ export type SavedCoordinatorPipelineResult = Extract<
   { status: "saved" }
 >;
 
-// A decision either persists a (narrowed) save attempt or short-circuits with
-// a fully mapped terminal result. Terminal results carry TResult directly, so
-// callers map them where they are produced and no separate mapTerminal hook
-// (or runtime "terminal not supported" failure) exists.
+// Terminal results carry TResult directly, so callers map them where they
+// are produced and no separate mapTerminal hook is needed.
 export type StoredMutationDecision<TSaveAttempt, TResult> =
   | {
       attempt: TSaveAttempt;

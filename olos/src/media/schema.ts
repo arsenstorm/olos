@@ -30,11 +30,8 @@ export const OLOS_MEDIA_SESSION_PROFILE_SCHEMA = {
 } as const satisfies OlosJsonSchema;
 
 // groupId/name/defaultTrack describe HLS audio group membership, so they
-// are only meaningful on audio tracks. `false` property subschemas reject
-// the fields whenever the track kind is not "audio". The single-group and
-// single-default constraints span sibling tracks, which JSON Schema
-// 2020-12 cannot express; only the runtime validator (assertMediaSession)
-// enforces them.
+// are rejected on non-audio tracks. The single-group and single-default
+// constraints span sibling tracks; only assertMediaSession enforces them.
 const trackAudioGroupFieldsPrecondition = {
   if: {
     not: {

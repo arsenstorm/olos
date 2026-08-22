@@ -3426,9 +3426,8 @@ describe("stored S3 coordinator runtime handler", () => {
       );
     }
 
-    // An issued slot whose grant expires without an upload: before this
-    // route persisted retention, it lingered in the snapshot forever on
-    // idle sessions.
+    // An issued slot whose grant expires without an upload must not linger
+    // in the snapshot forever on idle sessions.
     await handle(
       jsonRequest(
         "https://edge.example.com/sessions/session_1/s3/slots",
@@ -3752,10 +3751,9 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
   ];
 }
 
-// Re-introduce a commit + slot that commit-time auto-retention already
-// pruned, modelling a snapshot persisted before retention pruning existed.
-// The donor fixture derives the same read-gated object addresses as the
-// HTTP-created session, so the stale pair is consistent with the store.
+// Re-introduce a commit + slot that auto-retention already pruned, modelling
+// a snapshot persisted before retention pruning existed. The donor fixture
+// derives the same object addresses, so the stale pair matches the store.
 async function seedStaleRetiredCommit(
   store: CoordinatorPipelineStore
 ): Promise<{

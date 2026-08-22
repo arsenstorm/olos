@@ -290,13 +290,9 @@ function resolveHoldBackOptions(options: RenderMediaPlaylistOptions): {
     );
   }
 
-  // RFC 8216bis 4.4.3.8: HOLD-BACK MUST be at least three times the target
-  // duration. Unlike PART-HOLD-BACK this is raised rather than rejected —
-  // targetLatency is a deployment's latency goal, not the wire tag, and the
-  // floor moves with segmentTarget, so a legitimate goal can sit below it.
-  // Emitting the un-floored value makes Apple's player reject the whole
-  // playlist ("HOLD-BACK less than 3 * target-duration", CoreMedia -12646),
-  // which hls.js ignores and native HLS does not.
+  // RFC 8216bis §4.4.3.8: HOLD-BACK MUST be >= 3 × target duration. Raised
+  // rather than rejected because targetLatency is a latency goal, not the
+  // wire tag; below the floor Apple's player rejects the playlist (CoreMedia -12646).
   const holdBack = Math.max(
     3 * Math.ceil(options.segmentTarget),
     targetLatency

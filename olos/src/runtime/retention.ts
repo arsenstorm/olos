@@ -165,9 +165,8 @@ export async function deleteRetiredCoordinatorObjects(
 
   assertPositiveInteger(concurrency, "concurrency");
 
-  // Worker pool: up to `concurrency` deletes in flight, each failure isolated
-  // to its own object. Outcomes are recorded by input position so the result
-  // arrays keep input order regardless of completion order.
+  // Outcomes are recorded by input position so the result arrays keep
+  // input order regardless of completion order.
   const outcomes: RetiredCoordinatorObjectDeletionOutcome[] = new Array(
     options.objects.length
   );

@@ -591,7 +591,7 @@ describe("object-store flow", () => {
       objects: retention.plan.retiredObjects,
     });
 
-    // commit-time pruning already retired the out-of-window segment;
+    // Commit-time pruning already retired the out-of-window segment;
     // planStoredCoordinatorRetention only surfaces commits still in state.
     expect(retention.plan.retiredObjects).toEqual([]);
     expect(deleted.failedObjects).toEqual([]);

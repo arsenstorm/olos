@@ -21,9 +21,6 @@ import {
 
 const MEDIA_ORIGIN = "https://media.example.com";
 
-// An object literal rather than a `MediaSessionProfile` annotation: the
-// interface has no index signature, so only the literal type is assignable
-// to the Core `StreamProfile` slot.
 const MEDIA_PROFILE = {
   id: "cmaf-llhls",
   partTarget: 0.5,
@@ -329,7 +326,7 @@ describe("HLS manifest artifacts", () => {
 
   test("excludes grouped audio tracks with no committed media", () => {
     // groupedSession declares a128 in the "aac" group, but the window only
-    // has v1080 — the pre-fix behavior threw and 500ed every playlist.
+    // has v1080 — an uncommitted group member must not fail every playlist.
     const artifacts = createHlsManifestArtifacts(
       groupedSession,
       committedWindow,

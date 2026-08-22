@@ -2,10 +2,9 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { packageRoot } from "./script-paths";
 
-// Guard for scripts that consume dist/ without building it themselves
-// (pack:smoke, pack:artifact, test:e2e): a missing build should fail with
-// an actionable message instead of a confusing downstream error, without
-// re-running the build in CI where it already ran.
+// pack:smoke, pack:artifact and test:e2e consume dist/ without building it:
+// fail early with an actionable message rather than a confusing downstream
+// error, and never rebuild in CI where the build already ran.
 const distEntry = join(packageRoot, "dist", "index.js");
 
 if (!existsSync(distEntry)) {

@@ -203,9 +203,8 @@ export async function serveStoredBlockingCoordinatorManifest(
   });
 }
 
-// Manifest rendering only consumes cursor + session. Prefer the store's
-// hot-path read when available; fall back to a full load+extract for
-// stores that don't implement it.
+// Manifest rendering only consumes cursor + session, so the store's
+// narrower hot-path read is enough when it exists.
 async function loadCursorView(
   store: CoordinatorPipelineStore,
   sessionId: OlosId
@@ -370,8 +369,6 @@ function requestForAttempt(
   return request instanceof Request ? new Request(request) : request;
 }
 
-// `mediaTrackWindowProfileFor` returns the media hook typed on its own
-// interface; widen it to Core's opaque `ProfileData` hook shape.
 function defaultTrackWindowProfile(
   profile: StreamProfile
 ): CreateCommittedWindowOptions["trackWindowProfile"] {

@@ -375,11 +375,9 @@ describe("createByterangeSegmentResponse", () => {
   });
 
   test("surfaces the Range error when a part object is shorter than its committed byterange", async () => {
-    // The window commits the part as 100 bytes, but only 60 landed in
-    // storage. After streaming the 60 real bytes the helper re-requests the
-    // missing tail with `Range: bytes=60-99`; a real S3 rejects that with an
-    // InvalidRange (416-style) error, which must error the stream instead of
-    // closing the bounded 206 short.
+    // The part is committed as 100 bytes but only 60 landed in storage. The
+    // tail re-request (`Range: bytes=60-99`) gets S3's InvalidRange (416),
+    // which must error the stream instead of closing the bounded 206 short.
     const parts = [makePart(0, 0, 100)];
     const store = await seedStore(parts);
     const actualSize = 60;

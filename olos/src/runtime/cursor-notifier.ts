@@ -159,13 +159,9 @@ function waitersForSession(
   return next;
 }
 
-// A cursor counts as an update when its global position is strictly ahead,
-// or when the position is unchanged but the cursor differs at all — the
-// spec (§4.5.3) accepts same-position updates (a full-segment commit at
-// the live-edge msn, a lagging track catching up, a session-state
-// change) that per-track waiters may be blocked on. Spurious wakes are
-// safe (the blocking-reload loop re-evaluates its own bounds and
-// re-parks), but an equivalent cursor must never wake.
+// Same-position updates (§4.5.3: a lagging track catching up, a session
+// state change) may be exactly what per-track waiters block on, so any
+// difference wakes; only an equivalent cursor must never wake.
 function isCursorUpdateAfter(cursor: Cursor, after: Cursor): boolean {
   if (cursor.sessionId !== after.sessionId) {
     return false;

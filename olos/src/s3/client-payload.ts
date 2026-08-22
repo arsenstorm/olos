@@ -15,8 +15,6 @@ import type {
   S3RuntimeIssueUploadGrantResponse,
 } from "./client-types";
 
-// --- upload payloads ---
-
 const S3_UPLOAD_GRANT_RESPONSE_FIELDS_MESSAGE =
   "S3 upload grant response must include grant and slot";
 const S3_UPLOAD_COMMIT_RESPONSE_FIELDS_MESSAGE =

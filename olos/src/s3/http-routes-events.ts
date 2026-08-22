@@ -272,12 +272,9 @@ export async function handleS3Retention(
     return jsonBadRequestResponse(parsed.message);
   }
 
-  // Persist the pruned coordinator state BEFORE deleting remote objects so
-  // an unpruned snapshot cannot keep growing. The trade-off: a failed
-  // delete is never re-planned (the pruned state no longer references the
-  // object). Failures are reported in the response body for the caller to
-  // retry (deletes are idempotent); bucket lifecycle rules are the backstop
-  // for orphaned objects.
+  // Persist pruned state BEFORE deleting objects so a snapshot cannot grow
+  // unbounded. Trade-off: a failed delete is never re-planned; it is reported
+  // for retry (idempotent) and bucket lifecycle rules are the backstop.
   const applied = await applyStoredCoordinatorRetention({
     lateToleranceMs: options.lateToleranceMs,
     maxAttempts: options.maxAttempts,

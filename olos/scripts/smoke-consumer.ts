@@ -2,11 +2,9 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { which } from "bun";
 
-// The smoke consumer is deliberately dynamic: it discovers subpaths from the
-// installed package's export map, so adding an export does not require
-// touching this file. KNOWN_SYMBOLS spot-checks one value export per subpath;
-// export-map correctness itself is publint/attw's job (`pack:check`) and
-// export presence is the type system's job (`check-types:dist`).
+// Subpaths come from the installed export map so a new export needs no edit
+// here; KNOWN_SYMBOLS spot-checks one value per subpath. Export-map shape is
+// publint/attw's job (`pack:check`), presence is `check-types:dist`'s.
 const SMOKE_FILE = `import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 

@@ -1,8 +1,7 @@
 import { hasControlCharacter } from "../validation/fields";
 
-// Media URI policy is distinct from object-key policy.
-// HLS URIs can be safe relative paths or HTTPS URLs from an allow-list of
-// media origins.
+// Distinct from object-key policy: HLS URIs may be safe relative paths or
+// HTTPS URLs from an allow-list of media origins.
 export const HLS_RELATIVE_REQUEST_BASE_URL = "https://olos.local";
 
 export interface MediaUriPolicy {

@@ -164,10 +164,9 @@ type HlsManifestRequestTarget =
   | { kind: "master" }
   | { kind: "media"; track: MediaTrack };
 
-// Resolves a request pathname to the master playlist or a track's media
-// playlist using the same path resolution rendering uses (custom or default
-// masterPath / mediaPlaylistPath, media playlists only for video and grouped
-// audio tracks), so routing and rendering can never disagree.
+// Uses the same path resolution as rendering (custom or default paths,
+// media playlists only for video and grouped audio) so routing and
+// rendering can never disagree.
 function resolveHlsManifestRequestTarget(
   session: MediaSession,
   manifestOptions: CoordinatorHlsManifestOptions,
@@ -311,9 +310,6 @@ async function resolveBlockingMediaManifestResponse(
     : wait;
 }
 
-// Renders only the requested track's playlist from the post-wait
-// cursor, with the timing targets taken from that cursor's media profile
-// and the endOfStream default derived from its state.
 function createSingleMediaPlaylistResponse(
   session: Session,
   cursor: Cursor,

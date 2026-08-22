@@ -32,8 +32,6 @@ import type {
   StoredS3CoordinatorRouteError,
 } from "./http-types";
 
-// --- reconciliation payloads ---
-
 const S3_RUNTIME_RECONCILIATION_RESULT_STATUSES = [
   "committed",
   "failed",
@@ -249,8 +247,6 @@ function failedReconciliationResultStatusPayload(
     ),
   };
 }
-
-// --- reconciliation summary payloads ---
 
 const S3_RECONCILIATION_SUMMARY_COMMITTED_MESSAGE =
   "S3 reconciliation response summary must include committed";

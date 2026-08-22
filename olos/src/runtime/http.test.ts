@@ -1058,7 +1058,6 @@ describe("stored coordinator runtime handler", () => {
     });
     const seededCursor = await seedRuntimeStore(store, 3810);
 
-    // Prime the notifier's latest entry through the commit route.
     await handle(
       jsonRequest(
         "https://edge.example.com/sessions/session_1/slots",

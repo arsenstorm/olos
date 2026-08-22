@@ -221,9 +221,8 @@ describe("retention planning", () => {
       slotId: "slot_init_a128",
     };
     // Audio's only commit is an out-of-order part below the window-global
-    // first media sequence; the track has no visible segments, so it is
-    // absent from the window and its commit must survive — it may still
-    // become visible once the contiguous prefix completes.
+    // first media sequence, so audio is absent from the window; the commit
+    // must survive since it may still become visible.
     const audioPartCommit: Commit = {
       ...segmentCommit,
       commitId: "commit_a128_3809_1",

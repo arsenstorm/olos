@@ -238,10 +238,9 @@ function assertUploadCompletionHintType(
   }
 }
 
-// Strict RFC 3339, not the lenient `timestampMs`: a completion hint's
-// eventTime lands verbatim in commit timestamps, so looser provider formats
-// (HTTP dates and the like) must be normalized before they get here — see
-// `headObjectTimestamp` for the one deliberately lenient site.
+// Strict RFC 3339, not the lenient `timestampMs`: eventTime lands verbatim
+// in commit timestamps, so looser provider formats (HTTP dates) must be
+// normalized first — `headObjectTimestamp` is the one lenient site.
 function assertUploadCompletionHintTime(eventTime: unknown): void {
   timestampString(eventTime, "uploadCompletionHint.eventTime");
 }
@@ -251,8 +250,6 @@ export function headObjectTimestamp(value: string | Date): string {
     return value.toISOString();
   }
 
-  // Normalize string inputs (e.g. an HTTP `Last-Modified` header) to RFC
-  // 3339 — downstream validation accepts nothing looser.
   return new Date(timestampMs(value, "lastModified")).toISOString();
 }
 

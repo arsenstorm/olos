@@ -110,15 +110,9 @@ function isRetiredCommit(
   retainedWindow: CommittedWindow,
   retainedSlotIds: ReadonlySet<string>
 ): boolean {
-  // Window trimming is per track (maxSegments), so retirement must be
-  // too: compare against the commit's OWN track's first visible media
-  // sequence, not the window-global minimum — otherwise one lagging
-  // track pins every other track's trimmed commits forever. A
-  // track absent from the window (only out-of-order commits so far)
-  // keeps all of its commits: they may still become visible, and retiring
-  // them would delete backing objects the next contiguous commit needs.
-  // The slot-id check guards init commits if a caller passes them in
-  // alongside media commits (in practice they live in state.initCommits).
+  // Per track, like window trimming: a window-global minimum would let one
+  // lagging track pin every other track's trimmed commits. A track absent
+  // from the window (no contiguous prefix yet) keeps all of its commits.
   const firstVisibleSequenceNumber =
     retainedWindow.tracks[commit.trackId]?.segments[0]?.sequenceNumber;
 

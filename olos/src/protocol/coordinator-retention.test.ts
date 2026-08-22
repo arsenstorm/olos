@@ -223,10 +223,8 @@ interface CommittedWindowStateFixture {
   state: CoordinatorPipelineState;
 }
 
-// Commits msn 3810..3812 with maxSegments 2 on the final commit, so
-// commit-time auto-retention prunes commit_3810/slot_3810 from the returned
-// state. The pruned pair is captured from the intermediate state so tests can
-// model stale snapshots that still carry them.
+// The pruned commit_3810/slot_3810 pair is captured from the intermediate
+// state so tests can model stale snapshots that still carry them.
 function committedWindowState(): CommittedWindowStateFixture {
   let state = createEmptyCoordinatorState();
 

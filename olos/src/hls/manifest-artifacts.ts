@@ -222,10 +222,8 @@ export function createMediaPlaylistArtifact(
   };
 }
 
-// The session-shape half of the media-playlist predicate: video variants and
-// grouped audio get standalone playlists — ungrouped audio keeps the legacy
-// muxed-into-video rendering with no standalone playlist. Callers also
-// require committed-window membership before rendering.
+// Ungrouped audio is muxed into the video segments, so it never gets a
+// standalone playlist. Callers also require committed-window membership.
 export function isMediaPlaylistTrack(track: MediaTrack): boolean {
   return (
     track.profile.kind === "video" ||

@@ -207,10 +207,9 @@ function resolveDuplicateCoordinatorUploadCommit({
   options: CommitCoordinatorUploadOptions;
   slot: UploadSlot;
 }): CoordinatorUploadCommit {
-  // Build the candidate with the EXISTING commit's committedAt: the field is
-  // excluded from the idempotency comparison (§4.5.2) and the retry's own
-  // timestamp would trip the commit-deadline assert, turning a late identical
-  // retry into a rejection instead of the idempotent success §4.5.1 requires.
+  // Reuse the existing commit's committedAt: §4.5.2 excludes it from the
+  // idempotency comparison, and the retry's own timestamp would trip the
+  // deadline assert instead of the idempotent success §4.5.1 requires.
   const candidateCommit = createCommit({
     commitId: options.commitId,
     committedAt: existingCommit.committedAt,

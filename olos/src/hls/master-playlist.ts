@@ -153,14 +153,9 @@ function availablePlaylistTracks(
   };
 }
 
-// Grouped audio tracks absent from the availability set are dropped
-// from rendering, but the session-elected default keeps its seat: while the
-// elected default has no committed media, every rendered member carries
-// DEFAULT=NO,AUTOSELECT=NO (spec-legal and deterministic) instead of
-// re-electing a temporary default that would flip back once the elected
-// default commits. A group with no available member is not advertised at
-// all. Ungrouped (muxed) audio tracks describe codecs inside the video
-// segments, so they are never filtered.
+// The session-elected default keeps its seat even when unavailable: members
+// then render DEFAULT=NO,AUTOSELECT=NO (spec-legal) rather than electing a
+// temporary default that would flip back once the elected one commits.
 function filterAudioGroup(
   group: AudioGroup | undefined,
   available: ReadonlySet<string>
@@ -196,12 +191,9 @@ function resolveVariantAudioCodecs(
     : distinct(availableAudioGroup.tracks.map((r) => r.profile.codec));
 }
 
-// Sessions without audio group IDs keep the legacy rendering: every audio
-// codec muxed into every variant's CODECS attribute and no EXT-X-MEDIA lines.
-// Once any audio track declares a groupId the group renders as selectable
-// EXT-X-MEDIA entries referenced by the variants' AUDIO attribute. The
-// grouping invariants (no mixing, one group, one default, distinct names)
-// are enforced by `assertMediaSession` before this runs.
+// No groupId anywhere means legacy rendering: audio codecs muxed into each
+// variant's CODECS and no EXT-X-MEDIA. Grouping invariants (no mixing, one
+// group, one default, distinct names) are enforced by `assertMediaSession`.
 function resolveAudioGroup(
   audioTracks: readonly AudioTrack[]
 ): AudioGroup | undefined {

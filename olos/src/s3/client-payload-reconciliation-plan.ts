@@ -10,8 +10,6 @@ import { indexedFieldContext } from "./client-payload-shared";
 import type { S3RuntimeReconciliationPlanStatus } from "./client-payload-types";
 import type { StoredS3CoordinatorReconciliationPlan } from "./reconciliation";
 
-// --- reconciliation plan payloads ---
-
 const S3_RECONCILIATION_PLAN_RESPONSE_STATUS_MESSAGE =
   "S3 reconciliation plan response must include status";
 const S3_RECONCILIATION_PLAN_RESPONSE_SLOT_IDS_MESSAGE =

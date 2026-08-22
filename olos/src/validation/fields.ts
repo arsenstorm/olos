@@ -4,13 +4,9 @@ import {
   assertUrlSafeIdentifier,
 } from "./ids";
 
-// RFC 3339 date-time, strictly: full-date, "T"/"t" separator, full-time, and
-// a "Z"/"z" or "±hh:mm" offset. Deliberately narrower than the RFC's ABNF
-// where epoch milliseconds cannot represent the value: leap seconds (second
-// 60) and hour 24 are rejected, as are the space separator and colon-less
-// offsets some producers emit. The year/month/day captures feed the calendar
-// check in `timestampString`; the same pattern constrains the JSON schemas so
-// schema and validator agree.
+// RFC 3339 date-time, narrower than the RFC's ABNF where epoch milliseconds
+// cannot represent the value: no leap seconds, hour 24, space separator, or
+// colon-less offsets. Shared with the JSON schemas so both agree.
 export const RFC3339_TIMESTAMP_SCHEMA_PATTERN =
   "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt]" +
   "(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?" +

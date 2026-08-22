@@ -16,8 +16,6 @@ export function indexedFieldContext(context: string, index: number): string {
   return `${context}[${index}]`;
 }
 
-// --- shared summary payloads ---
-
 export function summaryCounts<const Field extends string>(
   value: Record<string, unknown>,
   fields: readonly S3RuntimeSummaryCountField<Field>[]

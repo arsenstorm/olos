@@ -106,12 +106,9 @@ export function createStoredS3CoordinatorRuntimeHandler(
       return jsonBadRequestResponse(route.message);
     }
 
-    // Last-resort guard mirroring the base runtime handler: expected
-    // failures resolve to olos.* envelopes inside the route handlers
-    // (400 for malformed requests, mapped rejection statuses, 404/409);
-    // any other throw — store I/O, a corrupt snapshot — becomes an opaque
-    // 500 `olos.internal` envelope instead of escaping the fetch handler
-    // as a platform error with no `error.code`.
+    // Expected failures already resolve to olos.* envelopes in the routes;
+    // any other throw (store I/O, corrupt snapshot) becomes an opaque 500
+    // `olos.internal` instead of a platform error with no `error.code`.
     try {
       return await handleMatchedS3Route(request, route, options, ctx);
     } catch {

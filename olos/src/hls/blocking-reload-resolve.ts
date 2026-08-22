@@ -50,9 +50,6 @@ export function resolveHlsBlockingReloadValidated(
   };
 }
 
-// Requests without a track context resolve against the window-global
-// live edge; per-track requests use the track's own last visible
-// segment and part.
 function blockingReloadBounds(
   cursor: Cursor,
   request: HlsBlockingReloadRequest

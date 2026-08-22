@@ -232,9 +232,8 @@ async function handlePostTransitionRoute(
     store: options.store,
   });
 
-  // Transitions rewrite the cursor's state field; without a notification,
-  // parked blocking reloads would sleep to their deadline instead of
-  // serving the ENDLIST playlist, and the notifier would retain a
+  // Without a notification, parked blocking reloads would sleep to their
+  // deadline instead of serving ENDLIST, and the notifier would retain a
   // terminal session's cursor forever.
   if (result.status === "transitioned") {
     notifyCursor(options.cursorNotifier, result.state.cursor);

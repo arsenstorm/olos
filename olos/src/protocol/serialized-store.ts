@@ -179,7 +179,6 @@ async function loadCursorView(
       return parseCursorViewRecord({ etag: view.etag, view: view.view });
     }
     // Null view: the session record predates the cursor-view column.
-    // Fall through to the full-snapshot path below.
   }
 
   const record = await backend.load(sessionId);

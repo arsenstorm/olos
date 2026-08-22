@@ -52,10 +52,9 @@ export function commitIntoState(
     trackWindowProfile: options.trackWindowProfile,
   });
 
-  // Out-of-order commit at the same sequence number — the contiguous-prefix
-  // rule means no parts qualify for the manifest yet. The commit is still
-  // recorded in state.commits; the cursor stays at whatever it was, and
-  // the next contiguous commit will advance it.
+  // Out-of-order commit: under the contiguous-prefix rule no parts qualify
+  // for the manifest yet. The commit is still recorded in state.commits;
+  // the cursor holds until the next contiguous commit advances it.
   if (committedWindow === undefined) {
     return { retiredObjects: [], state: nextState };
   }
@@ -104,12 +103,9 @@ function advanceAndRetain(
     ...(partNumber === undefined ? {} : { lastPartNumber: partNumber }),
   });
 
-  // Auto-retention on every window advance: the shared pruning core drops
-  // out-of-window commits and expired issued slots so the persisted snapshot
-  // stays bounded, surfacing the pruned commits as `retiredObjects` for the
-  // runtime to delete their backing objects in the same operation. The
-  // commit's `lateToleranceMs` carries into pruning so a slot whose late
-  // upload would still commit is never expired here.
+  // Pruning on every window advance keeps the persisted snapshot bounded;
+  // `retiredObjects` lets the runtime delete backing objects in the same
+  // operation. `lateToleranceMs` keeps a slot that could still commit late.
   const cursor = resolveNextCursor(options.state.cursor, candidateCursor);
   const retention = applyCoordinatorRetention({
     lateToleranceMs: options.lateToleranceMs,

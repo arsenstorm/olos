@@ -1158,7 +1158,6 @@ describe("coordinator pipeline", () => {
       state = committed.state;
 
       if (partNumber === 3) {
-        // Cursor stays at the last visible segment until 0-2 arrive.
         expect(state.cursor?.window).toEqual({
           firstSequenceNumber: 3810,
           lastSequenceNumber: 3810,
@@ -1166,7 +1165,6 @@ describe("coordinator pipeline", () => {
       }
     }
 
-    // After the contiguous prefix forms, all four parts are visible.
     expect(state.cursor?.window).toEqual({
       firstSequenceNumber: 3810,
       lastSequenceNumber: 3811,
@@ -1619,7 +1617,6 @@ describe("coordinator pipeline", () => {
       "v1080",
     ]);
 
-    // Part 0 completes the contiguous prefix — audio becomes visible.
     state = mustCommitTrack(
       commitTrackSlot(state, {
         profile: { duration: 0.5 },
@@ -1657,7 +1654,6 @@ describe("coordinator pipeline", () => {
         slotId: "slot_a_init",
       })
     );
-    // Audio commits msn 0, then stalls while video runs ahead to msn 9.
     state = mustCommitTrack(
       commitTrackSlot(state, {
         kind: "segment",
@@ -1686,8 +1682,8 @@ describe("coordinator pipeline", () => {
       state = committed.state;
     }
 
-    // Video's trimmed msn 0-4 retire despite audio pinning the window-global
-    // first media sequence at 0; their commits and slots are pruned.
+    // Video's trimmed msn 0-4 retire despite audio pinning the window's
+    // firstSequenceNumber at 0; their commits and slots are pruned.
     expect(retired).toEqual([
       "slot_v_s0",
       "slot_v_s1",
@@ -1702,7 +1698,6 @@ describe("coordinator pipeline", () => {
     ).toEqual([5, 6, 7, 8, 9]);
     expect(state.slots.map((slot) => slot.slotId)).not.toContain("slot_v_s0");
 
-    // The stalled audio track keeps its visible commit and slot.
     expect(
       state.commits
         .filter((commit) => commit.trackId === "a128")

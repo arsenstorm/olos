@@ -35,10 +35,9 @@ export const positiveInteger = {
   type: "integer",
 } as const;
 export const positiveNumber = { exclusiveMinimum: 0, type: "number" } as const;
-// `pattern` narrows `format` to the strict grammar the runtime validators
-// enforce (no leap seconds, hour 24, space separators, or colon-less
-// offsets); "full" format validation still rejects impossible calendar
-// dates the pattern cannot express.
+// `pattern` narrows `format` to the grammar the runtime validators enforce;
+// "full" format validation still rejects impossible calendar dates the
+// pattern cannot express.
 export const timestamp = {
   format: "date-time",
   pattern: RFC3339_TIMESTAMP_SCHEMA_PATTERN,

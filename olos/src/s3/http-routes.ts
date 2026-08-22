@@ -161,10 +161,9 @@ class S3CompletionHintObservationError extends Error {
   }
 }
 
-// Spec §7.9: a completion hint is not proof — the uploaded object may not
-// be visible to `HeadObject` yet, so a failed observation on the hint path
-// is an expected outcome, not an internal error. Tag observation failures
-// at the client boundary so the route can tell them apart from store I/O.
+// Spec §7.9: a hint is not proof — the object may not be visible to
+// `HeadObject` yet, so a failed observation is expected, not internal.
+// Tagging at the client boundary separates it from store I/O failures.
 function tagCompletionHintObservationFailures(
   client: S3HeadObjectClient
 ): S3HeadObjectClient {
@@ -179,10 +178,9 @@ function tagCompletionHintObservationFailures(
   };
 }
 
-// The slot stays uncommitted awaiting object proof; report the failed
-// observation in the reconciliation routes' failed-record style
-// (`olos.invalid_state` with the observation failure's message) so the
-// publisher can retry the hint or leave it to events/reconciliation.
+// The slot stays uncommitted awaiting proof; `olos.invalid_state` matches
+// the reconciliation routes' failed-record style so the publisher can
+// retry the hint or leave it to events/reconciliation.
 function completionHintNotObservedResponse(
   error: S3CompletionHintObservationError
 ): Response {
@@ -192,9 +190,6 @@ function completionHintNotObservedResponse(
   );
 }
 
-// Drop the storage-side objects for commits the state machine pruned. When
-// a waitUntil-capable context is supplied (Cloudflare Workers), the deletes
-// run after the response goes out so SigV4 signing CPU stays outside the
-// request budget — required on Workers Free's ~10 ms cap. Without a ctx,
-// the deletes await inline (correct, just costs request CPU; that's the
-// path tests and non-CF runtimes take).
+// With a waitUntil-capable ctx (Cloudflare Workers) the deletes run after
+// the response so SigV4 signing CPU stays outside the request budget —
+// required on Workers Free's ~10 ms cap. Without a ctx they await inline.

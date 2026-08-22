@@ -29,8 +29,6 @@ import type {
 } from "./client-payload-types";
 import type { StoredS3CoordinatorRetentionResponse } from "./http-types";
 
-// --- retention payloads ---
-
 const S3_RETENTION_RESPONSE_ENVELOPE_MESSAGE =
   "S3 retention response must include plan and summary";
 const S3_RETENTION_RESPONSE_PLAN_MESSAGE =
@@ -75,8 +73,6 @@ function retentionPayloadFields(
     ),
   };
 }
-
-// --- retention plan payloads ---
 
 const S3_RETENTION_PLAN_EXPIRED_SLOTS_MESSAGE =
   "S3 retention response plan must include expiredSlots";
@@ -161,8 +157,6 @@ function optionalRetentionPlanCursor(
   return parseCursor(value.cursor);
 }
 
-// --- retention result payloads ---
-
 const S3_RETENTION_RESULT_ENVELOPE_MESSAGE =
   "S3 retention response must include result and summary";
 const S3_RETENTION_RESULT_DELETED_OBJECTS_MESSAGE =
@@ -240,8 +234,6 @@ function retentionFailedObjectPayload(
     object,
   };
 }
-
-// --- retention summary payloads ---
 
 const S3_RETENTION_SUMMARY_DELETED_MESSAGE =
   "S3 retention response summary must include deleted";

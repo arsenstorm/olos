@@ -13,12 +13,9 @@ import { assertSafePath, assertSafePathSegment } from "./path";
 import { optionalField, timestampMs } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
-// Publisher plan policies record the publisher's intent for the next object
-// and a client-side preview of the object key the coordinator will derive
-// from that intent. The wire payload (`slot`) does not carry objectKey or
-// deliveryUrl; the coordinator chooses them server-side. The preview field
-// lets a publisher SDK that supplies its own nonce predict the eventual
-// address before issuance.
+// The wire payload (`slot`) carries no objectKey or deliveryUrl; the
+// coordinator chooses them server-side. The preview only lets a publisher
+// that supplies its own nonce predict the eventual address before issuance.
 
 /** Options for `createRuntimePublisherObjectPlan`. */
 export interface CreateRuntimePublisherObjectPlanOptions {

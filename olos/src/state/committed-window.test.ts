@@ -132,8 +132,8 @@ describe("committed window builder", () => {
     expect(window.firstSequenceNumber).toBe(3811);
     expect(window.lastSequenceNumber).toBe(3811);
     expect(window.tracks.v1080?.segments).toHaveLength(1);
-    // Commits carry no discontinuity markers, so trimming accrues nothing
-    // and the track keeps the window-global discontinuity sequence.
+    // Commits carry no discontinuity markers, so trimming accrues no track
+    // window profile.
     expect(window.tracks.v1080?.profile).toBeUndefined();
   });
 
@@ -347,9 +347,8 @@ describe("committed window builder", () => {
     });
 
     // Audio's only commit is part 1 without part 0 — no contiguous prefix
-    // yet, so the track is omitted (the same shape as a track with
-    // no media commits at all) instead of failing window validation, and
-    // the window-global range comes from the present tracks alone.
+    // yet, so the track is omitted instead of failing window validation,
+    // and the window-global range comes from the present tracks alone.
     expect(Object.keys(window.tracks)).toEqual(["v1080"]);
     expect(window.firstSequenceNumber).toBe(3810);
     expect(window.lastSequenceNumber).toBe(3810);

@@ -93,8 +93,6 @@ export function tryCreateCommittedWindow(
   return window;
 }
 
-// Re-exported from the validation layer, where `assertCursor` also uses it
-// to pin `cursor.window.lastPartNumber` to the committed window (§3.8).
 // biome-ignore lint/performance/noBarrelFile: single deliberate re-export keeping the state-layer import path stable
 export { lastVisiblePartNumber } from "../validation/committed-window";
 
@@ -170,10 +168,9 @@ function createTracks(
       trackWindowProfile: options.trackWindowProfile,
     });
 
-    // A track whose only commits are out-of-order parts (no contiguous
-    // prefix yet) has no visible segments. Omit it from the window — the
-    // same shape as a track with no commits at all — so the commit stays
-    // recorded without rendering (§5.2, §5.3).
+    // A track with only out-of-order parts (no contiguous prefix yet) is
+    // omitted from the window, like a track with no commits, so the commit
+    // stays recorded without rendering (§5.2, §5.3).
     if (track.segments.length > 0) {
       tracks[trackId] = track;
     }

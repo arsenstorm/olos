@@ -1,10 +1,8 @@
 import { hasControlCharacter } from "./fields";
 
-// Object-key policy for payload fields that identify object storage
-// locations. These are treated as internal object names, so we reject
-// traversal, query/fragment, control chars, and unsafe absolute/empty keys
-// before any storage use. Core imposes no extension rule; profiles (for
-// example olos/media) may layer their own.
+// Keys are internal object names, so traversal, query/fragment, control
+// chars, and absolute/empty keys are rejected before any storage use. Core
+// imposes no extension rule; profiles (e.g. olos/media) may layer their own.
 export function isSafeObjectKey(value: unknown): value is string {
   return typeof value === "string" && safeObjectKeyError(value) === undefined;
 }
