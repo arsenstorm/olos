@@ -17,8 +17,8 @@ interoperability API, and MinIO. A store qualifies when it supports:
 - presigned `PUT` with signed headers,
 - `If-None-Match: *` on `PutObject`,
 - `HeadObject` with user metadata,
-- object-created event notifications in the S3 notification record
-  format (optional).
+- object-created event notifications in the record format of S3
+  notifications (optional).
 
 Objects live in one bucket per binding configuration. The bucket name
 is a non-empty string with no `/` in it. Object keys are the
@@ -64,8 +64,8 @@ prefixing each abstract name with `x-amz-meta-`:
 
 Numeric values (`olos-epoch`, `olos-sequence-number`,
 `olos-part-number`) are decimal strings, because S3 user metadata
-carries strings. The slot's `profile` is not written to object
-metadata.
+carries strings. The binding does not write the slot's `profile` to
+object metadata.
 
 A deployment MAY supply additional required headers. They MUST NOT
 override `Content-Type`, `If-None-Match`, `x-olos-slot-id`, or any
@@ -77,9 +77,9 @@ lifetime, and MUST be at or before `slot.expiresAt` (Section 7.2).
 ## C.3 Observation
 
 `observe(key[, version])` (Section 7.3) is a `HeadObject` against the
-configured bucket and the slot's object key, with `VersionId` set when
-the caller pins a version. The response maps onto the observed object
-as:
+configured bucket and the slot's object key. When the caller pins a
+version, the binding sets `VersionId`. The response maps onto the
+observed object as:
 
 | `HeadObject` field | Observed field |
 | --- | --- |
@@ -102,34 +102,40 @@ leaving the other keys untouched.
 
 ## C.4 Events
 
-The store-emitted notification of Section 7.4 is an S3 event
-notification document, `{ "Records": [ ... ] }`. Each record is
-normalized independently. A payload with no `Records` array yields one
-`invalid_event`. A malformed record yields its own `invalid_event`
-while its valid siblings pass through.
+The store-emitted notification of Section 7.4 is an event notification
+document from S3, `{ "Records": [ ... ] }`. The binding normalizes each
+record independently. A payload with no `Records` array yields one
+`invalid_event`. A malformed record yields its own `invalid_event` while
+its valid siblings pass through.
 
-A record is accepted only when:
+The binding accepts a record only when:
 
-- `eventName` starts with `ObjectCreated:`. A record that carries
-  another event name is rejected as not object-created.
-- `s3.bucket.name` is a valid bucket name. When the binding is
-  configured with an expected bucket, the name equals it.
+- `eventName` starts with `ObjectCreated:`. The binding rejects a
+  record with another event name as not object-created.
+- `s3.bucket.name` is a valid bucket name. When the deployment
+  configures an expected bucket, the name equals it.
 - `s3.object.key` URL-decodes to a safe object key (Section 7.5). S3
   percent-encodes keys and encodes spaces as `+`, so the binding
   replaces `+` with a space before `decodeURIComponent`.
-- the record carries an event id:
-  `responseElements["x-amz-request-id"]` when present, otherwise
-  `s3_<s3.object.sequencer>`. A record with neither is rejected.
+- the record carries an event id. When the record has
+  `responseElements["x-amz-request-id"]`, the binding takes it as the
+  id. Otherwise the binding takes `s3_<s3.object.sequencer>`. The
+  binding rejects a record with neither.
+- the event id is a URL-safe identifier (Section 1.2). Otherwise the
+  record is `invalid_event`.
 
-`s3.object.size` and `s3.object.eTag` become the event's size and
-entity tag, and `eventTime` becomes its observation timestamp. The
-notification carries no content type, so the binding assumes
-`application/octet-stream` unless the deployment configures another
-value. The event is therefore only a trigger, and the coordinator
-still observes the object (Section 7.4) before it commits.
+A document with more than 1000 records is rejected as a whole with
+`400` (Section 6.6.4).
 
-Any failed check produces an `invalid_event` normalization carrying an
-`olos.invalid_state` error, and MUST NOT mutate state.
+`s3.object.size` and `s3.object.eTag` become the event's size and entity
+tag, and `eventTime` becomes its observation timestamp. The notification
+carries no content type. Unless the deployment configures another value,
+the binding assumes `application/octet-stream`. The event is therefore
+only a trigger, and the coordinator still observes the object (Section
+7.4) before it commits.
+
+Any failed check produces an `invalid_event` normalization that
+carries an `olos.invalid_state` error, and MUST NOT mutate state.
 
 ## C.5 Capability document values
 
@@ -138,23 +144,24 @@ A conforming S3 deployment declares a capability document (Section 7.7,
 
 | Field | Value | Why |
 | --- | --- | --- |
-| `api.family` | `"s3"` | identifies this binding |
+| `api.family` | `"s3-compatible"` | identifies this binding |
 | `kind` | `"object-store"` | required by the schema |
 | `uploadGrants.presignedPut` | `true` | grants are presigned `PUT`s (C.2) |
 | `uploadGrants.exactKey` | `true` | the presigned URL addresses one key |
 | `uploadGrants.methodBound` | `true` | the signature covers the method |
-| `uploadGrants.contentTypeBound` | `true` | `Content-Type` is signed |
-| `uploadGrants.requiredHeadersCanBeSigned` | `true` | the metadata headers are signed |
+| `uploadGrants.contentTypeBound` | `true` | the signature covers `Content-Type` |
+| `uploadGrants.requiredHeadersCanBeSigned` | `true` | the signature covers the metadata headers |
 | `uploadGrants.objectSizeCanBeObserved` | `true` | `HeadObject` reports `ContentLength` |
-| `publication.createIfAbsent` | `true` | `If-None-Match: *` is honored |
+| `publication.createIfAbsent` | `true` | the store honors `If-None-Match: *` |
 | `consistency.observeAfterCreate` | `"strong"` | `HeadObject` reads back immediately |
 | `consistency.readAfterCreate` | `"strong"` | required by the schema |
 
-`uploadGrants.maxRecommendedTtlSeconds`, when declared, bounds the
-presigned URL lifetime a deployment requests.
+When a deployment declares `uploadGrants.maxRecommendedTtlSeconds`,
+the field bounds the lifetime that the deployment requests for the
+presigned URL.
 
-Event support, when the deployment configures S3 notifications, is
-declared with `events.objectCreated: true` and
+When the deployment configures S3 notifications, it declares event
+support with `events.objectCreated: true` and
 `events.delivery: "at-least-once"`. S3 notification delivery is
 at-least-once, which is why deduplication is by slot commit state
 (Section 7.4).

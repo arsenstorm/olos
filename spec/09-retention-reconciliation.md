@@ -23,7 +23,7 @@ A retention pass over a session's state identifies:
   object's slot backs no object still in the window. The comparison is
   per track, like window trimming (Section 5.7). A window-global
   minimum lets one lagging track pin every other track's trimmed
-  commits. A commit whose track is absent from the window is kept.
+  commits. Retention keeps a commit whose track is absent from the window.
   Out-of-order commits ahead of the contiguous prefix MUST NOT be
   retired (Section 5).
 
@@ -50,12 +50,12 @@ The protocol separates read-only **planning** from state-mutating
   conflicts. The applied plan mirrors the planning shape with the
   (unchanged) cursor attached.
 
-Commits themselves also apply inline retention (Section 5). Each
-successful commit prunes slots and commits that fell behind the
-window. It reports the pruned objects as `retiredObjects` for
-deletion. The dedicated retention routes exist as a sweeper for state
-that commits alone do not bound (idle sessions, sessions committed
-without `maxSegments`, ended sessions).
+Commits themselves also apply inline retention (Section 5). Each commit
+that advances the cursor prunes slots and retires commits that fell
+behind the window. It reports the retired objects as `retiredObjects`
+for deletion. The dedicated retention routes exist as a sweeper for
+state that commits alone do not bound (idle sessions, sessions
+committed without `maxSegments`, ended sessions).
 
 ## 9.3 S3 retention route ordering
 
@@ -65,8 +65,9 @@ with storage deletion, and the ordering is normative:
 1. Apply retention and persist the pruned coordinator state.
 2. Only then delete the retired objects from the object store.
 3. Respond `202` with `{ plan, result, summary }`. `result` lists
-   `deletedObjects` and `failedObjects`. `summary` counts them (`ok`
-   is `true` when, and only when, nothing failed).
+   `deletedObjects` and `failedObjects`. `summary` counts them: `planned`,
+   `deleted`, `failed`, `failedObjectKeys`, `failedSlotIds`, and `ok`
+   (`true` when, and only when, nothing failed).
 
 The coordinator MUST persist state before it attempts any delete.
 Persisted state then never references an already-deleted object.
@@ -76,22 +77,24 @@ nothing.
 
 Deletion requirements:
 
-- **Idempotency.** A delete of an object that is already gone MUST be
-  treated as success (S3 `DeleteObject` semantics). A caller retry can
-  therefore delete a retired object more than once safely.
+- **Idempotency.** The coordinator MUST treat a delete of an object
+  that is already gone as success (S3 `DeleteObject` semantics). A
+  caller retry can therefore delete a retired object more than once
+  safely.
 - **Failure isolation.** A failed delete MUST NOT abort the remaining
-  deletes. Failures are reported per object in `result.failedObjects`
-  for the caller to retry. Later sweeps do not re-plan them.
+  deletes. The coordinator reports failures per object in
+  `result.failedObjects` for the caller to retry. Later sweeps do not
+  re-plan them.
 - **Bounded concurrency.** Implementations MAY delete with a bounded
   worker pool. They MUST keep result ordering stable by input position
   regardless of completion order.
-- Implementations MUST re-validate object keys as safe keys under the
-  `objects/` prefix (Section 7.5) before they issue deletes.
+- Implementations MUST re-validate object keys as safe object keys
+  (Section 7.5) before they issue deletes.
 
 The same delete requirements apply to the inline `retiredObjects`
-cleanup performed by S3 commit, completion-hint, event, and
-reconciliation handlers. Implementations MAY defer those deletes until
-after the response is sent (for example, with a `waitUntil`-style
+cleanup that S3 commit, completion-hint, event, and reconciliation
+handlers perform. Implementations MAY defer those deletes until after
+they send the response (for example, with a `waitUntil`-style
 scheduler). Deferral MUST NOT reorder the persist-before-delete rule,
 because the commit itself already persisted the pruned state.
 
@@ -120,7 +123,8 @@ Unknown sessions are `404 olos.invalid_session`.
 Request fields:
 
 - `committedAt` (REQUIRED).
-- `providerId` (REQUIRED unless configured server-side).
+- `providerId` (REQUIRED unless the deployment configures it
+  server-side).
 - optional `slotIds`, `versionId`, `lateToleranceMs`, and
   `maxSegments`.
 - optional `profile`, recorded on each reconciled commit and merged
@@ -129,8 +133,8 @@ Request fields:
 For each planned slot, in order, the coordinator attempts the standard
 S3 commit. It observes the slot's derived key (Section 7.3,
 `HeadObject` under Appendix C), matches the object against the slot,
-and commits. The commit id defaults to `reconcile_<slotId>` when the
-deployment supplies none. Response (`202`):
+and commits. When the deployment supplies none, the commit id
+defaults to `reconcile_<slotId>`. Response (`202`):
 
 - `results[]`: per slot, either
   `{ "status": "committed" | "idempotent", "slotId", "commit",
@@ -143,9 +147,12 @@ deployment supplies none. Response (`202`):
 
 ### 9.4.3 Recovery semantics and idempotency
 
-- A slot whose object was never uploaded fails observation (the
-  provider returns not-found) and is reported `failed`. The slot
-  remains in-flight for future reconciliation or expiry.
+- A slot whose object was never uploaded fails observation (the store
+  returns not-found), and the coordinator reports it `failed` with
+  `error.code` `olos.invalid_state` and a fixed message. The summary's
+  `failedErrorCodes` omits this code, because the failure is an
+  observation failure, not a rejection. The slot remains in-flight for
+  future reconciliation or expiry.
 - A slot whose upload was already committed through another path MUST
   resolve `idempotent`, not conflict. Reconciliation uses the same
   duplicate-commit resolution as every other commit path (Section 4).
@@ -154,12 +161,12 @@ deployment supplies none. Response (`202`):
 - Per-slot failures MUST NOT stop the run. Every planned slot gets a
   result entry.
 - Successful reconciliation commits advance the cursor and wake
-  blocking reloads exactly like commit-route commits. Their retired
-  objects are deleted as Section 9.3 defines.
-- Late uploads discovered by reconciliation are subject to the same
+  blocking reloads exactly like commit-route commits. The coordinator
+  deletes their retired objects as Section 9.3 defines.
+- Late uploads that reconciliation discovers are subject to the same
   late-commit rules and tolerances as any other commit (Section 4).
   Reconciliation gives no immunity from window progression.
 
 Deployments SHOULD run reconciliation on publisher restart and on an
-interval that matches slot TTLs. They MAY scope it with `slotIds` when
-they recover a specific transfer.
+interval that matches slot TTLs. When they recover a specific
+transfer, they MAY scope it with `slotIds`.

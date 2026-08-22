@@ -6,11 +6,12 @@ satisfy. A storage binding is a storage provider together with its
 coordinator integration. The contract names operations and guarantees.
 It does not define a wire protocol. A store carries OLOS when it
 creates an object at an exact key, refuses to overwrite it, reads
-properties back, and echoes attached metadata. The contract
-is profile-agnostic. It carries the Core coordinates (track, sequence
-number, part number) and the opaque `profile` data of slots and
-commits without interpreting them. Appendix C gives the S3-compatible
-mapping of this contract.
+properties back, and echoes attached metadata.
+
+The contract is profile-agnostic. It carries the Core coordinates
+(track, sequence number, part number) and the opaque `profile` data of
+slots and commits, and does not interpret them. Appendix C gives the
+S3-compatible mapping of this contract.
 
 ## 7.1 Provider requirements
 
@@ -24,11 +25,11 @@ A binding provides three operations to the coordinator:
 A conforming binding MUST satisfy:
 
 - **Exact-key create-if-absent.** An upload grant addresses exactly
-  one object key, the key the coordinator derived (Section 7.5). The
-  store MUST refuse a write that addresses any other key. The store
-  MUST create the object only when that key does not already exist,
-  and MUST fail the upload when it does. Overwrites of live object
-  keys are forbidden (Section 10). `uploadGrants.exactKey`,
+  one object key, the key that the coordinator derived (Section 7.5).
+  The store MUST refuse a write that addresses any other key. The store
+  MUST create the object only when that key does not already exist.
+  When the key exists, the store MUST fail the upload. Section 10
+  forbids overwrites of live object keys. `uploadGrants.exactKey`,
   `uploadGrants.methodBound`, and `publication.createIfAbsent` declare
   this behavior. `uploadGrants.contentTypeBound` and
   `uploadGrants.requiredHeadersCanBeSigned` declare that the grant
@@ -39,13 +40,14 @@ A conforming binding MUST satisfy:
   and the metadata attached at upload time. The store MAY additionally
   report an entity tag and a store-recorded creation or modification
   time. The report MUST be available immediately after the upload
-  succeeds, without waiting for propagation.
+  succeeds, with no wait for propagation.
   `consistency.observeAfterCreate: "strong"` and
   `uploadGrants.objectSizeCanBeObserved` declare this behavior.
-- **Metadata echo.** The metadata record attached to the object at
-  upload time (Section 7.2) MUST come back unchanged from observation,
-  apart from the name mapping the binding declares. The coordinator
-  uses that record to bind the object back to its slot (Section 7.3).
+- **Metadata echo.** Observation MUST return the metadata record
+  attached to the object at upload time (Section 7.2) unchanged. Only
+  the name mapping that the binding declares can change it. The
+  coordinator uses that record to bind the object back to its slot
+  (Section 7.3).
   The capability document has no separate field for this guarantee. It
   is part of `consistency.observeAfterCreate` reporting "the metadata
   attached at upload time". A store that cannot echo metadata cannot
@@ -67,8 +69,13 @@ authorization for one uploader to write one object:
 | `slotId` | Slot the grant belongs to. |
 | `method` | The request method the uploader uses. Always `"PUT"`. |
 | `url` | A URL the uploader can write the object to with `method`, addressing the slot's object key. |
-| `requiredHeaders` | Request headers the uploader MUST send verbatim. Which headers appear is binding-defined. The entries below are REQUIRED of every binding. |
-| `expiresAt` | Grant expiry timestamp. |
+| `requiredHeaders` | Request headers the uploader MUST send verbatim. Which headers appear is binding-defined. |
+| `expiresAt` | Grant expiry timestamp. Defaults to `slot.expiresAt` when the issuer supplies none. |
+
+Every binding's grant carries the baseline headers
+`Content-Type: <slot.contentType>`, `If-None-Match: *`, and
+`x-olos-slot-id: <slot.slotId>`, plus the slot binding metadata under
+the binding's mapping. Core injects the three baseline headers.
 
 Requirements:
 
@@ -80,8 +87,8 @@ Requirements:
 - `expiresAt` MUST be at or before `slot.expiresAt`. A grant MUST NOT
   outlive its slot.
 - The grant MUST bind the upload to the slot's content type
-  (`slot.contentType`) and MUST make the write conditional on the key
-  not already existing (Section 7.1). The store MUST enforce both
+  (`slot.contentType`). The grant MUST also make the write conditional
+  on the absence of the key (Section 7.1). The store MUST enforce both
   bindings. An upload that drops or alters them MUST fail.
 - The grant MUST cause the upload to attach the **slot binding
   metadata**, a metadata record the store echoes back on observation
@@ -117,9 +124,9 @@ missing or altered ones.
 
 Before any commit, the coordinator MUST observe the uploaded object
 through the binding. The observation is a single read of the object's
-properties, `observe(key[, version])`. It names the object key, and
-MAY pin a store-assigned version when the store versions objects. It
-yields an "OLOS StorageObject" (Appendix A):
+properties, `observe(key[, version])`. It names the object key. When
+the store versions objects, the observation MAY also pin a
+store-assigned version. It yields an "OLOS StorageObject" (Appendix A):
 
 | Field | Source | Presence |
 | --- | --- | --- |
@@ -133,9 +140,9 @@ Observation is the only authority for these values. The coordinator
 MUST reject a commit that no observation backs (`olos.invalid_state`,
 Section 6.3.1). A publisher-supplied size, content type, or entity tag
 is never a substitute. The store-recorded time keeps the slot deadline
-(Section 4.5.3) judged against store-observed time. The request's
-`committedAt` is the fallback, used when the store records no such
-time.
+(Section 4.5.3) judged against store-observed time. When the store
+records no such time, the coordinator falls back to the request's
+`committedAt`.
 
 Metadata echo binds the object to its slot. The coordinator reads the
 slot id from observed metadata under the canonical name
@@ -151,22 +158,25 @@ Two external signals can tell the coordinator that an upload finished:
 
 1. **Object-created events** (`eventType: "object.created"`). A
    store-emitted notification that names an object key in the store
-   the binding is configured against. Notifications arrive in the
+   that the binding is configured against. Notifications arrive in the
    store's own format. The binding normalizes each one at the ingress
    boundary. The normalized event carries an event id, the object key,
-   and the observed-object fields the store supplies. Normalization MUST
-   treat the payload as untrusted. The record MUST name an
-   object-creation event for the configured store location, and the
-   decoded object key MUST satisfy the path-safety rules of Section
-   7.5. A record that fails any check is reported `invalid_event` and
-   MUST NOT mutate state. A malformed record MUST NOT invalidate its
-   valid siblings. The transport is at-least-once. Deduplication is by
-   slot commit state (Section 4.4). A redelivery routes into the
-   idempotent observe-then-commit path (Section 7.9) and reports
-   `idempotent`. Event ids are informational, and a binding derives
-   them from whatever stable identifier the store's notification
-   carries. A redelivery for a slot that retention has pruned fails
-   per record with `olos.unknown_slot`.
+   and the observed-object fields that the store supplies.
+
+   Normalization MUST treat the payload as untrusted. The record MUST
+   name an object-creation event for the configured store location, and
+   the decoded object key MUST satisfy the path-safety rules of
+   Section 7.5. The binding reports a record that fails any check as
+   `invalid_event`, and that record MUST NOT mutate state. A malformed
+   record MUST NOT invalidate its valid siblings.
+
+   The transport is at-least-once. Deduplication is by slot commit
+   state (Section 4.4). A redelivery routes into the idempotent
+   observe-then-commit path (Section 7.9) and reports `idempotent`.
+   Event ids are informational, and a binding derives them from
+   whatever stable identifier the store's notification carries. A
+   redelivery for a slot that retention pruned fails per record with
+   `olos.unknown_slot`.
 2. **Completion hints** (`eventType: "upload.completed"`). The
    publisher delivers them over the completion-hint route
    (Section 6.6.3) with `slotId` and `objectKey`.
@@ -194,14 +204,15 @@ extension is set.
 | `segment` | `<p>/<tid>/s<seq>[-nonce][.ext]` |
 | `part` | `<p>/<tid>/s<seq>/p<n>[-nonce][.ext]` |
 
-The nonce is appended to the file name, after `init`, `s<seq>`, or
-`p<n>`, and before the extension. Core defines no default extension.
-When the slot-issue payload carries no `extension`, the key has none.
-A profile MAY require an extension (Section 8.9.5). An `extension`
-received on the wire MUST be a non-empty safe path segment without `/`
-or `.`. The coordinator rejects a value that carries a dot with `400`.
-It likewise rejects a prefix override with a leading or trailing
-slash, or with empty, `.`, or `..` segments.
+The coordinator appends the nonce to the file name, after `init`,
+`s<seq>`, or `p<n>`, and before the extension. Core defines no default
+extension. When the slot-issue payload carries no `extension`, the key
+has none. A profile MAY require an extension (Section 8.9.5).
+
+An `extension` received on the wire MUST be a non-empty safe path
+segment without `/` or `.`. The coordinator rejects a value that
+carries a dot with `400`. It likewise rejects a prefix override with a
+leading or trailing slash, or with empty, `.`, or `..` segments.
 
 Every object key, derived or received on the wire, MUST satisfy the
 path-safety rules:
@@ -212,11 +223,13 @@ path-safety rules:
 - no control characters,
 - no `?` or `#`.
 
-A key that fails these rules MUST be rejected wherever it appears.
+The coordinator MUST reject a key that fails these rules, wherever the
+key appears.
 
 The delivery URL for an object is the session's `deliveryBaseUrl` with
 `/<objectKey>` appended to its path. The coordinator omits any query
-or fragment on the base URL.
+or fragment on the base URL. In direct-public mode each key segment is
+percent-encoded in the delivery URL.
 
 ## 7.6 Object-key nonce
 
@@ -230,7 +243,8 @@ The nonce makes future object URLs unguessable in direct-public mode.
   supplies no `objectKeyNonce`, the coordinator MUST generate a fresh
   16-byte nonce per slot. For `read-gated` and
   `private-upload-public-promotion` deployments, the publisher owns
-  the nonce policy. In these deployments, the nonce MAY be omitted.
+  the nonce policy. In these deployments, the publisher MAY omit the
+  nonce.
 
 ## 7.7 Provider capability document
 
@@ -252,15 +266,16 @@ NOT configure grant issuance unless:
   `uploadGrants.contentTypeBound`,
   `uploadGrants.requiredHeadersCanBeSigned`, and
   `uploadGrants.objectSizeCanBeObserved` are all `true`.
-- the grant-issuance mechanism the binding uses is declared. The
+- the grant-issuance mechanism that the binding uses is declared. The
   schema REQUIRES `uploadGrants.presignedPut` or
   `uploadGrants.temporaryCredentials` to be `true`, and the binding
   MUST declare the one it uses. The default check requires
   `presignedPut` (Appendix C). A binding that issues grants the other
   way waives that check.
 - `publication.createIfAbsent` is `true`.
-- the grant TTL is positive. When the provider declares
-  `uploadGrants.maxRecommendedTtlSeconds`, the TTL does not exceed it.
+- when the deployment supplies a grant TTL to the check, the TTL is
+  positive and, when the provider declares
+  `uploadGrants.maxRecommendedTtlSeconds`, does not exceed it.
 
 Publication-mode gates:
 
@@ -279,15 +294,17 @@ Publication-mode gates:
 
 <!-- olos-conformance: 7.8 OBJ-PUB-001 OBJ-PUB-002 -->
 
-Committed objects are published according to the session's publication
-mode. In `direct-public` mode, the coordinator derives the public
-delivery URL from `delivery.publicBaseUrl` plus the object key.
+The coordinator publishes committed objects according to the session's
+publication mode. In `direct-public` mode, the coordinator derives the
+public delivery URL from `delivery.publicBaseUrl` plus the object key.
 Publication is manifest-gated. An object becomes part of the stream
 only when the committed window references it. Its bytes can be
-readable earlier (Section 10.1). Read-gated and promotion modes keep
-the committed delivery URL behind the provider's read gate or
-promotion step. A deployment MUST choose a `publicationMode` that the
-provider's capability document supports (Section 7.7).
+readable earlier (Section 10.1).
+
+Read-gated and promotion modes keep the committed delivery URL behind
+the provider's read gate or promotion step. A deployment MUST choose a
+`publicationMode` that the provider's capability document supports
+(Section 7.7).
 
 ## 7.9 End-to-end upload flow
 
@@ -308,5 +325,5 @@ The normative sequence for one object:
 
 Steps 3 and 4 are idempotent. Any combination of hint, event, and
 reconciliation for the same upload MUST converge on exactly one
-commit. Duplicates are `idempotent`. Conflicting duplicates are
-rejected.
+commit. Duplicates are `idempotent`. The coordinator rejects
+conflicting duplicates.

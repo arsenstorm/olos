@@ -3,7 +3,7 @@
 This section defines the **CMAF/LL-HLS profile** (`profile.id =
 "cmaf-llhls"`). It maps a committed window (Section 5) and a session
 document (Section 3) to Low-Latency HLS playlists, and it defines the
-blocking playlist reload protocol. The profile gives meaning to the
+protocol for blocking playlist reload. The profile gives meaning to the
 `profile` field on sessions, tracks, upload slots, commits, committed
 objects, and track windows (Section 8.9). Core carries those values
 unchanged (Section 2.1). Their JSON Schemas are Appendix A.2.
@@ -17,7 +17,7 @@ Rendering MUST reject a session or cursor whose `profile.id` is not
 `cmaf-llhls`. Rendering MUST reject a session whose tracks do not carry
 a valid track profile (Section 8.9.2).
 
-Playlists MUST be served with content type
+The coordinator MUST serve playlists with content type
 `application/vnd.apple.mpegurl` and the playlist cache policy of
 Section 10.4. Rendering MUST be deterministic. The same session and
 committed window MUST produce byte-identical playlists.
@@ -31,7 +31,9 @@ origins (Section 10.2). If a URI violates this policy, rendering MUST
 fail. Quoted attribute values MUST NOT contain double quotes, carriage
 returns, or line feeds. RFC 8216 Section 4.2 quoted-strings have no
 escape mechanism. If a value contains one of those characters,
-rendering MUST fail.
+rendering MUST fail. Media playlist URIs in the master playlist
+(variant and `EXT-X-MEDIA` `URI`) MUST be root-relative paths without
+query or fragment.
 
 ## 8.2 Master playlist
 
@@ -43,10 +45,12 @@ role comes from its track profile `kind` (Section 8.9.2). A video or
 grouped-audio track absent from the committed window (no segment or
 part commits yet) MUST NOT render. The master only advertises URIs that
 resolve, and the track appears on the next render after its first
-commit. Ungrouped (muxed) audio tracks are codec metadata and are never
-filtered. When no video track has committed objects, the session has no
-master playlist yet and the master route answers 404 (Section 6.7). The
-playlist MUST begin:
+commit. Ungrouped (muxed) audio tracks are codec metadata, and the
+renderer never filters them. When no video track has committed objects,
+the session has no master playlist yet and the master route answers 404
+(Section 6.7).
+
+The playlist MUST begin:
 
 ```
 #EXTM3U
@@ -54,8 +58,8 @@ playlist MUST begin:
 #EXT-X-INDEPENDENT-SEGMENTS
 ```
 
-The audio-group `EXT-X-MEDIA` lines (Section 8.3) follow, if any. Then
-one variant entry per video track follows, in session order:
+Any audio-group `EXT-X-MEDIA` lines (Section 8.3) follow. Then one
+variant entry per video track follows, in session order:
 
 ```
 #EXT-X-STREAM-INF:<attributes>
@@ -71,16 +75,17 @@ profile, Section 8.9.2):
 - `CODECS` is REQUIRED. Its value is the video track's `profile.codec`
   followed by the session's audio codecs (Section 8.3.2),
   comma-separated and quoted.
-- The renderer emits `RESOLUTION` (`<width>x<height>`) when the track
-  declares dimensions. `width` and `height` MUST be declared together
-  or not at all.
-- The renderer emits `FRAME-RATE` when the track declares `frameRate`.
+- When the track declares dimensions, the renderer emits `RESOLUTION`
+  (`<width>x<height>`). A track MUST declare `width` and `height`
+  together or not at all.
+- When the track declares `frameRate`, the renderer emits `FRAME-RATE`.
   The value has up to three decimals.
 - When the session has an audio group, the renderer emits
   `AUDIO="<group-id>"` on every variant.
 
-A session MUST include at least one video track. Content-steering and
-rendition-report tags are not emitted.
+A master playlist requires at least one video track with committed
+objects. A session without one has no master playlist (Section 6.7).
+The renderer emits no content-steering or rendition-report tags.
 
 ## 8.3 Audio groups
 
@@ -88,8 +93,8 @@ rendition-report tags are not emitted.
 
 ### 8.3.1 Grouping constraints
 
-An audio track (track profile `kind: "audio"`) joins the audio group
-when its profile declares `groupId` (a URL-safe identifier). The
+An audio track (track profile `kind: "audio"`) whose profile declares
+`groupId` (a URL-safe identifier) joins the audio group. The
 audio-group fields `groupId`, `name`, and `defaultTrack` are valid only
 on audio tracks (Section 8.9.2). The rules:
 
@@ -101,19 +106,21 @@ on audio tracks (Section 8.9.2). The rules:
 - **One default.** At most one grouped audio track MAY carry
   `defaultTrack: true`. More than one is a validation error. That track
   is the group's default. When no track carries the flag, the first
-  declared grouped audio track is the default. The election runs over
-  the session declaration and MUST NOT change with committed-window
-  availability. While the elected default has no committed objects,
-  every rendered member carries `DEFAULT=NO,AUTOSELECT=NO`. RFC 8216
-  makes `DEFAULT=YES` optional, so that output stays deterministic and
+  grouped audio track in declaration order is the default. The election
+  runs over the session declaration and MUST NOT change with
+  committed-window availability.
+
+  While the elected default has no committed objects, every rendered
+  member carries `DEFAULT=NO,AUTOSELECT=NO`. RFC 8216 makes
+  `DEFAULT=YES` optional, so that output stays deterministic and
   spec-legal. Once the elected default has committed objects, it
-  renders `DEFAULT=YES,AUTOSELECT=YES` permanently. A re-elected
-  stand-in default flips the player's selection back once the real
-  default appears.
+  renders `DEFAULT=YES,AUTOSELECT=YES` permanently. When the real
+  default appears, a re-elected stand-in default flips the player's
+  selection back.
 - **Distinct names.** The effective `NAME` of a grouped audio track is
   its `profile.name`, or its `trackId` when unset. Effective names MUST
   be distinct within the group. Duplicates are a validation and
-  rendering error. The full group is validated, so any
+  rendering error. Validation covers the full group, so any
   availability-filtered subset stays distinct. A `name` MUST NOT
   contain double quotes, carriage returns, or line feeds
   (Section 8.1).
@@ -159,11 +166,13 @@ The renderer builds a media playlist per track from the committed
 window. Rendering for an unknown track id is an error, and the HTTP
 route answers 404. A session track absent from the committed window
 produces no media playlist artifact, and its route answers 404. This
-mirrors its exclusion from the master playlist (Section 8.2). Only
-video tracks and grouped audio tracks get media playlists
-(Section 8.3). The timing targets come from the session profile
-(Section 8.9.1), read from the cursor's `profile` when rendering from
-coordinator state. The header block, in order:
+absence mirrors its exclusion from the master playlist (Section 8.2).
+Only video tracks and grouped audio tracks get media playlists
+(Section 8.3).
+
+The timing targets come from the session profile (Section 8.9.1). When
+the renderer works from coordinator state, it reads them from the
+cursor's `profile`. The header block, in order:
 
 | Tag | Normative value |
 | --- | --- |
@@ -179,10 +188,11 @@ coordinator state. The header block, in order:
 A blank line separates the header from the segment list. The renderer
 never emits `EXT-X-PLAYLIST-TYPE`. An OLOS playlist is always a sliding
 window that drops old segments. The `VOD` and `EVENT` playlist types
-forbid that behavior, including after end of stream. The renderer
-does not emit `EXT-X-GAP`. Gaps in the committed window appear as
-absent entries. Rendition reports (`EXT-X-RENDITION-REPORT`) and
-content steering are not emitted.
+forbid that behavior, including after end of stream.
+
+The renderer does not emit `EXT-X-GAP`. Gaps in the committed window
+appear as absent entries. The renderer emits no rendition reports
+(`EXT-X-RENDITION-REPORT`) and no content-steering tags.
 
 ### 8.4.1 SERVER-CONTROL and hold-back floor
 
@@ -192,7 +202,7 @@ content steering are not emitted.
 #EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=<p>,HOLD-BACK=<h>
 ```
 
-- `CAN-BLOCK-RELOAD=YES` MUST only be advertised when the server
+- The server MUST advertise `CAN-BLOCK-RELOAD=YES` only when it
   implements blocking playlist reload (Section 8.7). A deployment that
   does not hold `_HLS_msn` or `_HLS_part` requests open MUST omit the
   attribute. RFC 8216bis Section 4.4.3.8 treats its absence as `NO`, so
@@ -207,58 +217,64 @@ content steering are not emitted.
   deployment MAY set it explicitly. The value MUST be at least
   `3 × partTarget`, the RFC 8216 LL-HLS floor. Lower values are a
   rendering error.
-- Both values are formatted as three-decimal seconds.
+- The renderer formats both values as three-decimal seconds.
 
 ### 8.4.2 Per-track MEDIA-SEQUENCE
 
 This profile aligns sequence numbers across tracks. The same sequence
 number denotes the same time-aligned segment position in every track,
-and maps directly to the HLS media sequence number. `#EXT-X-MEDIA-SEQUENCE` MUST equal the
-`sequenceNumber` of the rendered track's own first segment. That number
-is the MSN of its first `#EXTINF` or part entry. When the track has no
-segments, the value is `committedWindow.firstSequenceNumber`. Tracks
-can diverge from the window-global minimum when per-track trimming or
-empty-media segments delete leading segments. A global-minimum
-declaration there desynchronizes the declared sequence from the first
-listed segment.
+and maps directly to the HLS media-sequence number.
+`#EXT-X-MEDIA-SEQUENCE` MUST equal the `sequenceNumber` of the rendered
+track's own first segment. That number is the MSN of its first
+`#EXTINF` or part entry. When the track has no segments, the value is
+`committedWindow.firstSequenceNumber`.
+
+When per-track trimming or empty-media segments delete leading
+segments, tracks can diverge from the window-global minimum. A
+global-minimum declaration there desynchronizes the declared sequence
+from the first listed segment.
 
 `#EXT-X-DISCONTINUITY-SEQUENCE` follows the same per-track rule. The
 value is the track window's own `profile.discontinuitySequence` when
 set (Section 8.9.4), else the session profile's `discontinuitySequence`
 (Section 8.9.1), else `0`. When a track trims a leading segment whose
-segment object is marked `discontinuityBefore`, that track's
+segment object carries `discontinuityBefore`, that track's
 discontinuity sequence MUST count it (RFC 8216 Section 6.2.2). Other
 tracks keep the session baseline.
 
 ### 8.4.3 Segment entries
 
-Segments render in window order. Per-segment values are read from the
-object profile (Section 8.9.3) of the committed segment object when one
-exists, else from the profile of part `0`. For each segment:
+Segments render in window order. The renderer reads per-segment values
+from the object profile (Section 8.9.3) of the committed segment
+object. When no segment object exists, it reads them from the profile
+of part `0`. For each segment:
 
-1. `#EXT-X-DISCONTINUITY` when the segment object's profile carries
-   `discontinuityBefore: true`, or, for a parts-only segment, when
-   part 0's profile does. Renderers MUST emit the tag when the
-   committed window carries the marker.
-2. `#EXT-X-PROGRAM-DATE-TIME:<timestamp>` when the segment object's
-   profile carries `programDateTime`, or, when it does not, when
-   part 0's profile does. Segments without one emit no PDT tag.
+1. When the segment object's profile carries
+   `discontinuityBefore: true`, the renderer emits
+   `#EXT-X-DISCONTINUITY`. When the segment object's profile does not
+   carry the flag, the renderer reads it from part 0's profile.
+   Renderers MUST emit the tag whenever the committed window carries
+   the marker.
+2. When the segment object's profile carries `programDateTime`, the
+   renderer emits `#EXT-X-PROGRAM-DATE-TIME:<timestamp>`. When it does
+   not, the renderer reads `programDateTime` from part 0's profile.
+   When neither profile carries one, the renderer emits no PDT tag.
 3. Then either:
    - **Full segment** (a committed segment object exists):
-     - One `#EXT-X-PART` line per part first, when the segment carries
-       committed parts (Section 8.5). This applies while the segment is
-       less than three target durations from the end of the playlist.
-       Per RFC 8216bis Section 6.2.2, a server MUST keep a completed
-       segment's parts until it is at least three target durations from
-       the end.
+     - When the segment carries committed parts (Section 8.5), one
+       `#EXT-X-PART` line per part comes first. This rule applies while
+       the segment is less than three target durations from the end of
+       the playlist. Per RFC 8216bis Section 6.2.2, a server MUST keep
+       a completed segment's parts until it is at least three target
+       durations from the end.
      - No `#EXT-X-PRELOAD-HINT`. That hint only ever accompanies the
        in-progress parts-only segment.
      - Then `#EXTINF:<duration>,` (three-decimal seconds, trailing
        comma), followed by the segment's delivery URI on the next line.
      - The duration is the segment object's `profile.duration`. When
        the segment object carries none, the duration is the sum of its
-       visible parts' `profile.duration`. A segment with neither is a
-       rendering error.
+       visible parts' `profile.duration`. A segment with neither value
+       is a rendering error.
    - **Partial segment** (in-progress, parts only): one `#EXT-X-PART`
      line per committed part (Section 8.5), followed by at most one
      `#EXT-X-PRELOAD-HINT` (Section 8.5.1).
@@ -268,7 +284,7 @@ exists, else from the profile of part `0`. For each segment:
 <!-- olos-conformance: 8.5 HLS-BYTERANGE-001 HLS-BYTERANGE-002 HLS-BYTERANGE-003 -->
 
 A part renders identically whether its segment is still in progress or
-has completed (Section 8.4.3).
+complete (Section 8.4.3).
 
 Each committed part renders as:
 
@@ -278,9 +294,9 @@ Each committed part renders as:
 
 - `DURATION` is the part's `profile.duration`, three-decimal seconds. A
   committed part without one is a rendering error.
-- The renderer emits `INDEPENDENT=YES` when, and only when, the part
-  was committed with `profile.independent: true` (starts with an
-  independent frame).
+- The renderer emits `INDEPENDENT=YES` when, and only when, the
+  committed part carries `profile.independent: true` (the part starts
+  with an independent frame).
 - Per-part-URI sessions: `URI` is the part's own delivery URL. The
   renderer emits no `BYTERANGE` attribute.
 - Byterange sessions: `URI` is the virtual segment's delivery URL
@@ -301,10 +317,11 @@ in-progress (partial) segment uses byterange addressing. `URI` is the
 virtual segment URL. `BYTERANGE-START` is that part's
 `offset + length`, the offset of the next part. The renderer emits no
 `BYTERANGE-LENGTH`, because the next part's size is unknown. The hinted
-request is therefore open-ended, and Section 8.5.2 defines how it is
-served. Per-part-URI sessions emit no preload hints. A future per-part
-URL is a deterministic guess, and its 404s can poison caches
-(Section 10.4).
+request is therefore open-ended, and Section 8.5.2 defines how the
+service answers it.
+
+Per-part-URI sessions emit no preload hints. A future per-part URL is a
+deterministic guess, and its 404s can poison caches (Section 10.4).
 
 ### 8.5.2 Byterange aggregation service
 
@@ -319,6 +336,7 @@ concatenated in offset order. Aggregation is byte arithmetic over
 | No range | `200`, no content-range and no content-length, full aggregate streamed. |
 | Open-ended (start only) | `206`, `content-range: bytes <start>-9007199254740991/*`, no content-length, streamed live. |
 | Bounded | `206`, `content-range: bytes <start>-<end>/*`, content-length, exactly the promised bytes. |
+| Bounded, `end` at or above 9007199254740991 | served as open-ended. |
 | Negative start, or end < start | `416`. |
 | Unknown session, or no cursor | `404`. |
 
@@ -335,13 +353,13 @@ large last-byte-pos for live open-ended ranges, and `9007199254740991`
 is that value. Open-ended responses MUST NOT carry content-length. A
 clean close marks the end.
 
-The service MUST release an in-flight part fetch and any pending cursor
-wait when the viewer disconnects or cancels the body.
+When the viewer disconnects or cancels the body, the service MUST
+release an in-flight part fetch and any pending cursor wait.
 
 When a requested range extends past the committed bytes, the service
 SHOULD hold the response open and stream new parts as they commit. A
-wait timeout bounds the hold (default 3000 ms). This is the transport
-for `EXT-X-PRELOAD-HINT`.
+wait timeout bounds the hold (default 3000 ms). This behavior is the
+transport for `EXT-X-PRELOAD-HINT`.
 
 If a part object returns no body or zero bytes for a requested range,
 the service MUST error the response stream.
@@ -368,26 +386,30 @@ parameters (RFC 8216 LL-HLS blocking reload).
 
 Routing and parsing:
 
+These rules apply when the deployment enables blocking reload. A
+deployment that does not hold requests open ignores the parameters
+(Section 8.4.1).
+
 - The request path MUST resolve to the master playlist or to one
-  track's media playlist, using the same path resolution rendering
-  uses. A path matching no artifact is `404` immediately. The server
-  MUST NOT hold an unroutable request open.
+  track's media playlist, with the same path resolution that rendering
+  uses. A path that matches no artifact is `404` immediately. The
+  server MUST NOT hold an unroutable request open.
 - `_HLS_msn` or `_HLS_part` on the master playlist path is `400`.
   Delivery directives apply to media playlist requests (RFC 8216bis
-  Section 6.2.5.1). Master requests without directives are served
-  immediately, never held.
+  Section 6.2.5.1). The coordinator serves master requests without
+  directives immediately and never holds them.
 - Absent parameters mean "serve immediately".
 - Present parameters MUST be non-negative integers. Anything else is
   `400`.
 - `_HLS_part` without `_HLS_msn` is `400`.
 
-Resolution is keyed to the requested track's own live edge. `last` is
-the `sequenceNumber` of that track's last visible segment in the
-cursor's committed window. `lastPart` is that segment's last visible
-part number, absent when the tail is a full segment. A lagging track
+Resolution uses the requested track's own live edge. `last` is the
+`sequenceNumber` of that track's last visible segment in the cursor's
+committed window. `lastPart` is that segment's last visible part
+number, absent when the tail is a full segment. A lagging track
 therefore blocks until its own playlist changes. Requests resolved
-without a track context (no `trackId` attached) use the `cursor.window` bounds instead
-(Section 5).
+without a track context (no `trackId` attached) use the `cursor.window`
+bounds instead (Section 5).
 
 | Condition | Result |
 | --- | --- |
@@ -407,8 +429,7 @@ Blocking behavior:
 
 - The coordinator MUST hold a blocked request open until a newer cursor
   satisfies the resolution or the configured timeout (default 3000 ms)
-  elapses. It
-  re-resolves each new cursor with the same table.
+  elapses. It re-resolves each new cursor with the same table.
 - When the cursor's session state is terminal (`ended` or `aborted`), a
   blocked request MUST resolve immediately. Nothing further commits, so
   the response is `200` with the final playlist, which carries
@@ -422,12 +443,12 @@ Blocking behavior:
 - The wait deadline is a value in epoch milliseconds. Implementations
   MAY inject the clock that produces it. Deadline arithmetic MUST use
   the injected clock for the initial deadline and for remaining time.
-- After a `ready` or `timeout` wait, the playlist MUST be rendered from
-  the cursor returned by the wait. End-of-stream detection
-  (Section 8.6) MUST use that cursor's state.
-- Only the requested artifact is rendered per request. A media playlist
-  request renders that one track's playlist, and a master request
-  renders the master playlist.
+- After a `ready` or `timeout` wait, the renderer MUST render the
+  playlist from the cursor that the wait returns. End-of-stream
+  detection (Section 8.6) MUST use that cursor's state.
+- The coordinator renders only the requested artifact per request. A
+  media playlist request renders that one track's playlist, and a
+  master request renders the master playlist.
 
 ## 8.8 Examples (informative)
 
@@ -478,11 +499,11 @@ URIs (Section 8.5.1).
 
 ## 8.9 Profile data
 
-This subsection defines the `profile` values the CMAF/LL-HLS profile
-places on Core wire objects. Core validates each as a JSON object and
-carries it unchanged (Section 2.1). The rules below apply on top of
-Core validation. Every profile object is closed. Keys outside those
-listed are a validation error. The JSON Schemas are Appendix A.2
+This subsection defines the `profile` values that the CMAF/LL-HLS
+profile places on Core wire objects. Core validates each as a JSON
+object and carries it unchanged (Section 2.1). The rules below apply on
+top of Core validation. Every profile object is closed. Keys outside
+those listed are a validation error. The JSON Schemas are Appendix A.2
 (`mediaSessionProfile`, `mediaTrackProfile`, `mediaObjectProfile`,
 `mediaSession`).
 
@@ -491,9 +512,9 @@ Reference implementation (informative): `olos/src/media/types.ts` and
 
 ### 8.9.1 Session profile
 
-`session.profile` is copied unchanged onto every cursor's `profile`
-(Section 5). It carries the timing targets every playlist, hold-back,
-and publisher cadence derives from:
+Core copies `session.profile` unchanged onto every cursor's `profile`
+(Section 5). It carries the timing targets that every playlist,
+hold-back, and publisher cadence derives from:
 
 | Field | Type | Rule |
 | --- | --- | --- |
@@ -508,7 +529,7 @@ session, and rendering MUST reject it.
 ### 8.9.2 Track profile
 
 Every track of a CMAF/LL-HLS session MUST carry a `profile`. Core
-allows tracks without one. A track missing it is a validation and
+allows tracks without one. A track without one is a validation and
 rendering error under this profile. The track profile describes one
 encoded variant of the session's media:
 
@@ -525,13 +546,16 @@ encoded variant of the session's media:
 | `name` | string | OPTIONAL, audio tracks only. Non-empty. The `EXT-X-MEDIA` `NAME`. MUST NOT contain double quotes, carriage returns, or line feeds. |
 | `defaultTrack` | boolean | OPTIONAL, audio tracks only. Marks the audio group's default member. |
 
+Tracks of kind `text` or `metadata` are accepted and carried in the
+window. This revision does not render them.
+
 `groupId`, `name`, and `defaultTrack` on a track whose `kind` is not
-`audio` are a validation error. Sessions are additionally subject to
-the audio-group constraints of Section 8.3.1: one group, no mixing of
-grouped and ungrouped audio, at most one `defaultTrack`, and distinct
-effective names (`name`, else `trackId`) within the group. These
-constraints are validated over the full session declaration, before
-availability filtering.
+`audio` are a validation error. The audio-group constraints of
+Section 8.3.1 also apply to sessions: one group, no mixing of grouped
+and ungrouped audio, at most one `defaultTrack`, and distinct effective
+names (`name`, else `trackId`) within the group. Validation applies
+these constraints to the full session declaration, before availability
+filtering.
 
 ### 8.9.3 Object profile
 
@@ -581,8 +605,8 @@ Reference implementation (informative): `olos/src/media/object-key.ts`.
 
 ### 8.9.6 Publisher pacing
 
-The profile supplies the object-based low-latency pacing defaults a
-publisher and coordinator share. Playlists, slot expiry, lease
+The profile supplies the object-based defaults for low-latency pacing
+that a publisher and coordinator share. Playlists, slot expiry, lease
 heartbeats, and health reporting then assume one cadence. The defaults
 are:
 
@@ -598,8 +622,9 @@ Per object kind, the publisher's planned-object defaults set
 `cadenceSeconds` and the slot `profile.duration` to the same value:
 `partTarget` for parts, `segmentTarget` for segments, and an explicitly
 supplied duration for init objects. Object keys use the default
-extensions of Section 8.9.5 unless overridden with another supported
-extension. `cadenceSeconds` feeds slot expiry. An upload slot's TTL is
+extensions of Section 8.9.5 unless a deployment overrides them with
+another supported extension. `cadenceSeconds` feeds slot expiry. An
+upload slot's TTL is
 `max(minUploadTtlSeconds, ceil(cadenceSeconds + targetLatency))`
 seconds. A deployment MAY tune these values, but the rendering floors
 of Section 8.4.1 still apply.

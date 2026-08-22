@@ -50,8 +50,11 @@ removal of tolerance for one is breaking.
 **Profile evolution.** Profiles version their own contents. Core treats
 every `profile` field as opaque (Section 2.1). Adding a key to profile
 data, or introducing a profile with a new `id`, is additive and does
-not touch the wire version. A profile that removes or reinterprets one
-of its own keys MUST be published under a new profile `id`. A session's
+not touch the wire version. Whether an older validator of that profile
+accepts the new key is the profile's own contract. The CMAF/LL-HLS
+profile closes its objects (Section 8.9), so a new key there needs a
+new profile revision. A profile that removes or reinterprets one of
+its own keys MUST be published under a new profile `id`. A session's
 `profile.id` is the only signal a consumer has for which contract its
 profile data follows. The CMAF/LL-HLS profile's `id` is `cmaf-llhls`
 (Section 8).
@@ -64,10 +67,9 @@ The error-code registry (Section 6.3.1) grows additively:
   version.
 - A deleted or renamed registered code, or a changed status mapping
   for an existing code (Section 6.3.1), is breaking.
-- Consumers MUST tolerate unknown `error.code` values. An
-  unrecognized code MUST be handled by its HTTP status class. The
-  registry can hold a code that no implementation emits yet
-  (Section 6.3.1).
+- Consumers MUST tolerate unknown `error.code` values. Consumers MUST
+  handle an unrecognized code by its HTTP status class. The registry
+  can hold a code that no implementation emits yet (Section 6.3.1).
 
 ## 11.4 Revision policy
 

@@ -13,6 +13,7 @@ shown here.
 - **Timestamps.** Every timestamp field carries an RFC 3339 `date-time`
   string: full date, `T` separator, full time, and a `Z` or numeric UTC
   offset. Values that match the shape but denote impossible calendar dates
+  are invalid. Leap seconds (`:60`), the hour `24`, and a space separator
   are invalid.
 - **Identifiers.** Every identifier field is a non-empty string restricted
   to the URL-safe alphabet `A-Z a-z 0-9 . _ -`. The identifier fields are
@@ -24,7 +25,9 @@ shown here.
   milliseconds. Core wire objects carry no durations of their own. A
   profile that needs them defines them inside its profile data.
 - **Byte sizes** (`size`, `minBytes`, `maxBytes`, byterange `offset` and
-  `length`) are JSON integers. Fractional byte counts are invalid.
+  `length`) are JSON integers. Fractional byte counts are invalid. Every
+  integer field is a safe integer (at most 2^53 - 1). Larger values are
+  invalid.
 - **Profile data.** Every `profile` field is a JSON object that Core
   treats as opaque (Section 2.1).
 - **Unknown fields.** Wire objects are closed on the write path. A
@@ -48,10 +51,11 @@ the scope of every slot, commit, cursor, and delivery document. A session
 declares the wire version, an epoch, its profile, its tracks, and a
 lifecycle state (`live`, `ending`, `ended`, or `aborted`).
 
-**epoch.** A non-negative integer generation counter carried by a session
-and inherited by every slot, commit, committed window, and cursor derived
-from it. Positions in different epochs are ordered by epoch first, so any
-position in a later epoch supersedes every position in an earlier one.
+**epoch.** A generation counter (a non-negative integer) carried by a
+session and inherited by every slot, commit, committed window, and cursor
+derived from it. Positions in different epochs are ordered by epoch first,
+so any position in a later epoch supersedes every position in an earlier
+one.
 
 **track.** One ordered stream of objects within a session, identified by
 `trackId`, with its own timeline of sequence positions. In the CMAF/LL-HLS
@@ -59,18 +63,18 @@ profile a track is one encoded variant, with a kind, a codec, and optional
 characteristics.
 
 **sequence number.** The non-negative integer index of a segment position
-on a track timeline, increasing monotonically within a track. Core gives
-sequence numbers no time meaning and relates none across tracks, but a
-profile MAY add meaning (Section 8).
+on a track timeline. The index increases monotonically within a track.
+Core gives sequence numbers no time meaning and relates none across
+tracks, but a profile MAY add meaning (Section 8).
 
 **segment.** The object, or the set of parts, at one sequence position on
 a track. A position is visible with a full segment object, with a
 contiguous prefix of parts, or with both (Section 5).
 
 **part.** A sub-segment object addressed by a sequence number plus a
-non-negative `partNumber` within that segment. Numbered from 0, parts make
-a position visible before the full segment exists and MAY be byte ranges
-into a virtual segment object.
+non-negative `partNumber` within that segment. Parts are numbered from 0.
+A part makes a position visible before the full segment exists, and MAY be
+a byte range into a virtual segment object.
 
 **init object.** A track's OPTIONAL initialization object, published at
 most once per track and epoch under the slot kind `init`. Core requires
@@ -79,8 +83,8 @@ per track and renders it as `EXT-X-MAP`).
 
 **profile.** The layer that gives Core objects their meaning, named by an
 identifier (for example `cmaf-llhls`). A profile defines its profile data,
-how positions are interpreted, which objects are required, object-key
-naming beyond Core's safety rules, and window rendering (Section 8).
+how it interprets positions, which objects it requires, object-key naming
+beyond Core's safety rules, and window rendering (Section 8).
 
 **profile data.** The contents of a `profile` field on a track, upload
 slot, commit, committed object, or track window. Core carries it unchanged
@@ -95,7 +99,7 @@ one object at one position. A slot moves through the states `issued`,
 `upload_observed`, `committed`, `expired`, `rejected`, and `revoked`
 (Section 4.3).
 
-**upload grant.** The credential that lets a publisher perform the upload
+**upload grant.** The credential that lets a publisher upload the object
 that a slot reserves. A grant references its slot by `slotId` and carries
 no authority beyond that single exact-key upload.
 
@@ -112,14 +116,14 @@ state, the session profile, the delivery base URL, and the current
 committed window.
 
 **committed window.** The retained, viewer-visible span of committed
-objects, bounded by a first and last sequence number and carrying an
-epoch. Only content in the committed window is rendered for delivery
-(Section 5).
+objects. The window carries an epoch and is bounded by a first and last
+sequence number. Renderers render delivery documents only from the
+committed window (Section 5).
 
 **delivery base URL.** The `deliveryBaseUrl` of a cursor, the safe
 delivery URL against which relative delivery URLs in the committed window
-resolve. In the direct-public profile it is rooted at the object store's
-public endpoint or a CDN in front of it.
+resolve. In the direct-public profile the URL is rooted at the object
+store's public endpoint, or at a CDN in front of that endpoint.
 
 **delivery origin.** The HTTP origin (or origins) from which committed
 objects are served to viewers, rooted at the delivery base URL.
@@ -129,13 +133,14 @@ writer of it. The coordinator issues slots, matches observed uploads
 against their slots, accepts or rejects commits, advances the cursor,
 maintains publisher leases, and plans retention.
 
-**publisher.** The component that produces objects. It creates the
-session, requests slots, uploads objects under the granted keys, posts
+**publisher.** The component that produces objects. The publisher creates
+the session, requests slots, uploads objects under the granted keys, posts
 commits, and maintains its lease through heartbeats.
 
-**viewer.** A consumer of the stream. It fetches delivery documents
-rendered from the committed window and objects from the delivery origin,
-and never observes uncommitted objects through the protocol.
+**viewer.** A consumer of the stream. The viewer fetches delivery
+documents rendered from the committed window, and objects from the
+delivery origin. A viewer never observes uncommitted objects through the
+protocol.
 
 **delivery URL.** The reference under which a committed object is
 addressed in delivery documents, either an absolute HTTP(S) URL or a safe

@@ -2,11 +2,11 @@
 
 This section defines every Core wire object normatively, field by field.
 The machine-readable JSON Schemas in Appendix A.1 are an informative
-reproduction of this text. Constraints that JSON Schema 2020-12 cannot
-express (cross-field and cross-sibling rules) are stated here in prose.
-These prose constraints are equally binding. The session's profile defines
-the contents of every `profile` field. Section 8 and Appendix A.2 define
-those contents for the CMAF/LL-HLS profile.
+reproduction of this text. This section states in prose the constraints
+that JSON Schema 2020-12 cannot express (cross-field and cross-sibling
+rules). These prose constraints are equally binding. The session's profile
+defines the contents of every `profile` field. Section 8 and Appendix A.2
+define those contents for the CMAF/LL-HLS profile.
 
 Reference implementation (informative): `olos/src/schema.ts`.
 
@@ -39,8 +39,8 @@ A session declares one live stream and the profile it runs under.
 | `state`     | yes | One of `live`, `ending`, `ended`, `aborted`.         |
 | `createdAt` | yes | RFC 3339 timestamp.                                  |
 | `profile`   | yes | Session profile: JSON object whose `id` is a         |
-|             |     | non-empty string naming the profile. All other keys  |
-|             |     | are opaque to Core.                                  |
+|             |     | non-empty string that names the profile. All         |
+|             |     | other keys are opaque to Core.                       |
 | `tracks`    | yes | Non-empty array of Track objects.                    |
 
 `tracks` MUST NOT contain two entries with the same `trackId`. The
@@ -56,7 +56,8 @@ profiles an implementation supports. The profile layer does that
 | `trackId`     | yes | URL-safe identifier, unique in the session.        |
 | `contentType` | no  | Valid MIME content type. The default content type  |
 |               |     | of the track's objects, when uniform.              |
-| `profile`     | no  | Profile data describing the track (opaque to Core).|
+| `profile`     | no  | Profile data that describes the track (opaque      |
+|               |     | to Core).                                          |
 
 Core identifies a track and nothing more. What a track carries (kind,
 codec, bitrate, dimensions, frame rate, audio characteristics,
@@ -97,8 +98,8 @@ When both bounds are present, `minBytes` MUST be less than or equal to
 Core imposes no file-extension rule on `objectKey`. A key with no
 extension is valid. A profile MAY require an extension (Section 8.9.5).
 The slot's `profile` is the starting point of the commit's `profile`
-(Section 4.5.1). In the CMAF/LL-HLS profile it carries the object's
-expected `duration`.
+(Section 4.5.1). In the CMAF/LL-HLS profile this field carries the
+object's expected `duration`.
 
 ### 3.3.1 Byterange
 
@@ -113,10 +114,9 @@ virtual segment object:
 | `segmentDeliveryUrl` | yes | Safe delivery URL.                |
 
 A byterange MUST only appear on `part`-kind slots and on commits that
-carry a `partNumber`. Init and segment objects are never expressed as byte
-ranges. The segment address fields identify the virtual segment for
-rendering. They carry no upload or publication authority of their own
-(Section 8).
+carry a `partNumber`. Init and segment objects never use byte ranges. The
+segment address fields identify the virtual segment for rendering. They
+carry no upload or publication authority of their own (Section 8).
 
 Schema: see Appendix A, `OLOS_UPLOAD_SLOT_SCHEMA`.
 
@@ -194,7 +194,9 @@ A StorageObject describes an object as observed in storage:
 
 An ObservedUpload is a StorageObject plus an optional `metadata` map of
 HTTP-header-safe string keys to string values. One example is the
-`x-olos-slot-id` metadata written at upload time (Section 4.4).
+`x-olos-slot-id` metadata written at upload time (Section 4.4). `metadata`
+is OPTIONAL and is a map of string keys to string values, part of the
+published `OLOS_STORAGE_OBJECT_SCHEMA`.
 
 Schema: see Appendix A, `OLOS_STORAGE_OBJECT_SCHEMA`.
 
@@ -230,7 +232,8 @@ protocol preconditions the provider satisfies.
 | `events`      | no  | OPTIONAL `objectCreated` boolean and `delivery`  |
 |               |     | mode (`none`, `best-effort`, `at-least-once`,    |
 |               |     | `exactly-once`).                                 |
-| `api`         | no  | OPTIONAL `family` string.                        |
+| `api`         | no  | OPTIONAL. When present, `family` is a REQUIRED   |
+|               |     | non-empty string.                                |
 
 Cross-field preconditions:
 
@@ -285,30 +288,30 @@ Schema: see Appendix A, `OLOS_CURSOR_SCHEMA`.
 |                       |     | window. Each entry's `trackId` MUST      |
 |                       |     | equal its key.                           |
 
-The bounds span every track window: `firstSequenceNumber` is the lowest
-and `lastSequenceNumber` the highest sequence number of any visible
-segment in any track.
+The bounds span every track window. `firstSequenceNumber` is the lowest
+sequence number of any visible segment in any track, and
+`lastSequenceNumber` is the highest.
 
 A **track window** carries:
 
 | Field      | Req | Constraints                                         |
 | ---------- | --- | --------------------------------------------------- |
 | `trackId`  | yes | URL-safe identifier equal to the map key.           |
-| `init`     | no  | Committed object: the track's init object, when one |
-|            |     | has been committed in this epoch.                   |
-| `profile`  | no  | Profile data summarizing the track window (opaque   |
-|            |     | to Core).                                           |
+| `init`     | no  | Committed object: the track's init object in this   |
+|            |     | epoch, when one exists.                             |
+| `profile`  | no  | Profile data that summarizes the track window       |
+|            |     | (opaque to Core).                                   |
 | `segments` | yes | Non-empty ordered list of committed segments.       |
 
 Core does not require `init`. The profile's track-window hook produces
-the track window's `profile` (Section 5.7). In the CMAF/LL-HLS profile it
-carries the track's `discontinuitySequence` when trimming dropped a
-flagged segment (Section 8.4.2).
+the track window's `profile` (Section 5.7). When trimming dropped a
+flagged segment, this object carries the track's `discontinuitySequence`
+in the CMAF/LL-HLS profile (Section 8.4.2).
 
 A **committed segment** carries `sequenceNumber` (non-negative integer)
 and at least one of `segment` (a committed object) and `parts` (a
 non-empty ordered list of committed parts). A position with only parts is
-valid. The full segment is still being produced.
+valid. The full segment does not yet exist.
 
 A **committed object** carries:
 
@@ -337,7 +340,7 @@ Schema: see Appendix A, `OLOS_COMMITTED_WINDOW_SCHEMA`.
 
 ## 3.10 Error envelope
 
-Every protocol error response body is an error envelope:
+The body of every protocol error response is an error envelope:
 
 ```json
 {

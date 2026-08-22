@@ -2,9 +2,10 @@
 
 ## 2.1 Layer model
 
-OLOS is a layered protocol. Each layer answers a different question and can
-be adopted, extended, or replaced independently. A conforming deployment
-implements Core, exactly one profile per session, and one storage binding.
+OLOS is a layered protocol. Each layer answers a different question. An
+implementation can adopt, extend, or replace each layer independently. A
+conforming deployment implements Core, exactly one profile per session,
+and one storage binding.
 
 | Layer                       | Question it answers                          |
 | --------------------------- | -------------------------------------------- |
@@ -28,9 +29,10 @@ implements Core, exactly one profile per session, and one storage binding.
 Unless stated otherwise, "profile" in this specification means the profile
 layer. Layers depend downward only. A profile builds on Core, and a
 delivery mapping builds on its profile. Core state and validation rules
-MUST NOT depend on any profile, storage provider, or playback format. Core
-treats every `profile` field as an opaque JSON object, and validates only
-that shape plus a non-empty string `id` on sessions and cursors. Core
+MUST NOT depend on any profile, storage provider, or playback format.
+
+Core treats every `profile` field as an opaque JSON object, and validates
+only that shape plus a non-empty string `id` on sessions and cursors. Core
 validators MUST accept any such object, and MUST NOT reject, rewrite, or
 reorder its remaining contents. Core MUST carry profile data unchanged
 from the session onto cursors. Core MUST also carry it unchanged from the
@@ -70,14 +72,15 @@ stream state.
 
 - The existence, readability, or integrity of an object in storage MUST
   NOT make that object part of a session's stream state.
-- An object becomes part of stream state only when the coordinator accepts
-  a commit for the slot that reserved it (Section 4.5).
-- Delivery documents MUST be rendered exclusively from the committed window
-  carried by the cursor. An uploaded but uncommitted object MUST NOT appear
-  in any delivery document, cursor, or committed window.
-- As a result, an upload that is never committed is inert. It consumes
-  storage until retention deletes it, but it has no protocol-visible
-  effect.
+- An object becomes part of stream state only after the coordinator
+  accepts a commit for the slot that reserved it (Section 4.5).
+- A delivery document MUST reference only objects in the committed window
+  carried by the cursor. Renderers MAY read the session document for track
+  metadata. An uploaded but uncommitted object MUST NOT appear in any
+  delivery document, cursor, or committed window.
+- As a result, an upload that is never committed is inert. The upload
+  consumes storage until retention deletes it, but it has no
+  protocol-visible effect.
 
 Because of this invariant, object bytes can travel through untrusted,
 eventually-visible object storage while stream state remains exact.

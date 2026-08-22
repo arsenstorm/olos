@@ -10,13 +10,14 @@ Reference implementation (informative): `olos/src/state/direct-public-security-p
 
 ## 10.1 Threat model boundary
 
-Direct-public mode is **manifest-gated publication**. An object is
-part of the stream only when the committed window references it
+Direct-public mode is **manifest-gated publication**. The stream
+contains only the objects that the committed window references
 (Section 5). It does not make uncommitted uploads private. Deployments
 MUST document and accept two facts before they use this mode:
 
-- If their URLs are known, uncommitted objects can be directly
-  readable. Unguessable nonced keys (Section 7.6) are the mitigation.
+- Anyone who knows the URL of an uncommitted object can read that
+  object directly. Unguessable nonced keys (Section 7.6) are the
+  mitigation.
 - OLOS does not prove that uploaded object bytes are safe or
   decodable. Commit validation covers identity and bounds only. Core
   treats `profile` as opaque and does not validate it (Section 2.1).
@@ -35,9 +36,9 @@ MUST be rejected.
 
 The delivery origin MUST be dedicated and cookieless. It serves object
 bytes only. The public base URL determines `allowedDeliveryOrigins`,
-the origins that playlist rendering can reference (Section 8.1).
-Playlists MUST NOT reference other origins. `Set-Cookie` is a
-forbidden response header on the delivery origin.
+the origins that a delivery document can reference (Section 8.1 for
+playlists). A delivery document MUST NOT reference other origins.
+`Set-Cookie` is a forbidden response header on the delivery origin.
 
 ## 10.3 Media request policy
 
@@ -54,9 +55,13 @@ rules, in order, and block on the first match:
 | Document navigation (`Sec-Fetch-Dest: document` or `Sec-Fetch-Mode: navigate`) | 403 |
 | Request `Accept` includes `text/html` | 403 |
 
+The delivery origin lower-cases the object key before the extension
+test. `allowedObjectExtensions` is a non-empty list of lower-case,
+dot-prefixed extensions.
+
 The key-safety rule MUST come before the navigation-header rules.
-Traversal attempts then never reach later logic. Bucket and prefix
-listing MUST be blocked at the provider.
+Traversal attempts then never reach later logic. Deployments MUST
+block bucket and prefix listing at the store.
 
 Object responses MUST carry:
 
@@ -89,33 +94,37 @@ Three cache targets, all `public`:
 | Delivery document | `public, max-age=1, must-revalidate` | `max-age` MUST NOT exceed the target latency in seconds (default 3). The default is 1 s. |
 | Negative object (404/miss) | `public, max-age=1, must-revalidate` | Same freshness bound. Requires provider `negativeCachingPolicyDeclared`. |
 
-Negative caching is load-bearing. Preload-hinted or predicted object
-URLs can be requested before the object exists. An unbounded cached
-404 then poisons playback after the upload commits. Negative
-responses for objects MUST use the short must-revalidate policy
-above. They MUST be served only for keys that pass the Section 10.3
-policy. Because immutable caching forbids reuse, a live object key
-MUST NOT be reused after overwrite or delete. A new upload always
-gets a new key (fresh nonce).
+Negative caching is load-bearing. A client can request a
+preload-hinted or predicted object URL before the object exists. An
+unbounded cached 404 then poisons playback after the upload commits.
+Negative responses for objects MUST use the short must-revalidate
+policy above. The delivery origin MUST serve them only for keys that
+pass the Section 10.3 policy.
+
+Because immutable caching forbids reuse, a live object key MUST NOT be
+reused after overwrite or delete. A new upload always gets a new key
+(fresh nonce).
 
 ## 10.5 Upload-slot hardening
 
 <!-- olos-conformance: 10.5 SEC-DIRECT-002 SEC-DIRECT-005 -->
 
 Every upload slot MUST carry size bounds, a bound content type, an
-`expiresAt` timestamp, and a server-derived nonced object key. Commit
+`expiresAt` timestamp, and a coordinator-derived object key, nonced in
+direct-public mode (Section 7.6). Commit
 validation MUST match the observation against them and reject a
 mismatch (Section 4.4, Section 6.5.2). Grants MUST NOT outlive
 `expiresAt` (Section 7.2). Retention prunes expired slots (Section 9).
-Non-idempotent duplicate commits are rejected (Section 4).
+The coordinator rejects non-idempotent duplicate commits (Section 4).
 
 Slot-issue payloads MUST NOT accept publisher-supplied `objectKey` or
 `deliveryUrl` (Section 6.5.1). Completion hints MUST NOT accept
 `deliveryUrl` (Section 6.6.3).
 
 Deployments MUST be able to disable `issue_slot`, `commit_upload`,
-`process_provider_event`, and `advance_cursor` per session (kill
-switch). Blocked operations are rejected with
+`process_provider_event`, and `advance_cursor` (kill switch). The
+reference policy applies to every session a handler serves. The
+coordinator rejects blocked operations with
 `olos.security_policy_violation`. A full kill switch, combined with
 delivery-layer blocking and cache purge, is the emergency response
 path. Unless the deployment also revokes playback, existing delivery

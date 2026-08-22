@@ -1,11 +1,11 @@
 # 6. HTTP API
 
-This section defines the OLOS coordination HTTP API:
+This section defines the HTTP API for OLOS coordination:
 
-- the routes a coordinator MUST expose.
-- the request payloads it MUST accept.
-- the success responses it MUST return.
-- the error envelope every non-success response MUST carry.
+- the routes that a coordinator MUST expose.
+- the request payloads that it MUST accept.
+- the success responses that it MUST return.
+- the error envelope that every non-success response MUST carry.
 
 Payload field types reference the Appendix A schema names (for example
 "OLOS Session"). Sections 3 through 5 define the underlying state
@@ -23,8 +23,8 @@ A coordinator serves two path roots:
 
 - the **session root**, default `/sessions`, for coordination commands.
 - the **live root**, default `/v1/live`, for HLS playlist delivery.
-  Live routes are served only for sessions that use the CMAF/LL-HLS
-  profile (Section 6.7).
+  The coordinator serves live routes only for sessions that use the
+  CMAF/LL-HLS profile (Section 6.7).
 
 Both roots are deployment-configurable. A configured root MUST be an
 absolute path without query, fragment, control characters, `.` or `..`
@@ -61,8 +61,8 @@ serve the storage-binding (S3 profile) routes:
 
 ## 6.2 Common request handling
 
-A coordinator dispatches requests by the longest matching root, then by
-path segment. The following rules apply to every route:
+A coordinator dispatches requests by the session root first, then by the
+live root, then by path segment. The following rules apply to every route:
 
 - Route identifiers (`:id`, `:trackId`, `:slotId`) MUST be non-empty
   URL-safe identifiers after percent-decoding (see Section 1). If an
@@ -71,15 +71,18 @@ path segment. The following rules apply to every route:
 - If a path contains invalid percent encoding, the coordinator MUST
   reject it with `400` and code `olos.invalid_request`.
 - If a path under a served root matches no route, the coordinator MUST
-  return `404` with code `olos.not_found`.
+  reject it with `404` and code `olos.not_found`.
 - If a matched session action receives an unsupported method, the
-  coordinator MUST return `405` with code `olos.method_not_allowed`.
-  An unknown action name for the request's method counts as an
-  unsupported method. S3-binding routes accept only `POST`. Any other
-  method on a matched S3 path MUST produce `405`.
-- The session root (`/sessions`) accepts only `POST`. Any other method
-  on it MUST produce `405` with code `olos.method_not_allowed` and an
-  `Allow: POST` response header, not `404`.
+  coordinator MUST reject the request with `405` and code
+  `olos.method_not_allowed`. An action name that exists only for
+  another method counts as an unsupported method. An action name that
+  exists for no method is `404`. S3-binding routes accept only
+  `POST`. The coordinator MUST reject any other method on a matched S3
+  path with `405`.
+- The session root (`/sessions`) accepts only `POST`. The coordinator
+  MUST reject any other method on it with `405`, code
+  `olos.method_not_allowed`, and an `Allow: POST` response header, not
+  `404`.
 - Request bodies are JSON. If a body is not a JSON object, or if its
   fields fail validation, the coordinator MUST reject it with `400`
   and code `olos.invalid_request`. The `message` SHOULD identify the
@@ -89,8 +92,9 @@ path segment. The following rules apply to every route:
   coordinator MUST reject a larger body with `413` and code
   `olos.invalid_request` before it parses the body.
 
-Timestamps are RFC 3339 strings (Section 1.2). Identifiers are URL-safe identifiers.
-Object keys MUST satisfy the path-safety rules of Section 7.5.
+Timestamps are RFC 3339 strings (Section 1.2). Identifiers are URL-safe
+identifiers. Object keys MUST satisfy the path-safety rules of
+Section 7.5.
 
 ## 6.3 Error envelope
 
@@ -190,7 +194,7 @@ not allow the transition. `409 olos.conflict` on store contention.
 Request body: `{ "publisherInstanceId": "<id>" }`.
 
 The coordinator creates or refreshes the publisher lease for that
-instance with the configured lease TTL. The coordinator MUST NOT
+instance with the configured lease TTL (default 3000 ms). The coordinator MUST NOT
 delete the leases of other instances. Success: `200` with
 `{ "lease": { ... } }` (publisher instance id, session id, and expiry
 timestamps).
@@ -207,14 +211,18 @@ The optional query parameter `publisherInstanceId` restricts lease
 reporting to one publisher instance. An invalid identifier is `400`.
 
 Success: `200` with `{ "health": { ... } }`. The health document
-reports cursor freshness against the configured maximum cursor age. It
+reports cursor freshness against the configured bound on cursor age. It
 also reports publisher lease freshness. The coordinator measures
-freshness by cursor `updatedAt`. The default maximum cursor age is 5000 ms
-(`targetLatency + segmentTarget`, Section 8.9.6). Deployments
-with other profiles SHOULD configure their own bound. If a session has
-no cursor yet, the coordinator reports it as starting. If a requested
-publisher instance has no stored lease, the coordinator MUST report it
-stale.
+freshness by cursor `updatedAt`. The default bound is 5000 ms
+(`targetLatency + segmentTarget`, Section 8.9.6). Deployments with
+other profiles SHOULD configure their own bound.
+
+If a session has no cursor yet, the coordinator reports it as starting.
+When the selected lease is stale, the coordinator reports the session
+stale even without a cursor. A cursor `updatedAt` ahead of the server
+clock counts as fresh.
+If a requested publisher instance has no stored lease, the coordinator
+MUST report it stale.
 
 Errors: `404 olos.invalid_session`.
 
@@ -223,7 +231,7 @@ Errors: `404 olos.invalid_session`.
 This route is read-only planning (see Section 9.2). The optional query
 parameter `now` (RFC 3339) overrides the evaluation clock. Success:
 `200` with `{ "plan": { expiredSlots, retiredObjects, cursor? } }`.
-The plan identifies retired objects by track and sequence number. This
+Each retired object is `{ commitId, objectKey, slotId }`. This
 route MUST NOT mutate stored state.
 
 ## 6.5 Slot and commit routes
@@ -232,7 +240,8 @@ route MUST NOT mutate stored state.
 
 <!-- olos-conformance: 6.5.1 CORE-RUNTIME-020 -->
 
-Request body fields (an issued slot is returned as "OLOS UploadSlot"):
+Request body fields (the coordinator returns an issued slot as "OLOS
+UploadSlot"):
 
 | Field | Req | Meaning |
 | --- | --- | --- |
@@ -293,8 +302,8 @@ request profile, as Section 4.5.1 defines. Idempotency (Section 6.8)
 compares `profile` structurally.
 
 Success: `201` with `{ "commit": <OLOS Commit>, "cursor"?: <OLOS
-Cursor> }` for a newly recorded commit. The response is `200` with the
-same shape when the request is idempotent with an existing commit.
+Cursor> }` for a newly recorded commit. When the request is idempotent
+with an existing commit, the response is `200` with the same shape.
 `cursor` is present whenever the session has a cursor after the
 commit.
 
@@ -350,7 +359,7 @@ Success and errors: as Section 6.5.2.
 ### 6.6.3 Completion hint (`POST /sessions/:id/upload-slots/:slotId/complete`)
 
 This route is a publisher-side hint that the upload for `:slotId`
-finished. Publishers use it when they do not wait for provider events.
+finished. Publishers that do not wait for provider events use it.
 The body is as Section 6.6.2 with these differences:
 
 - `slotId` comes from the path. The coordinator ignores a body
@@ -372,7 +381,7 @@ Deployments can then alert on abuse without message parsing.
 
 ### 6.6.4 Provider events (`POST /sessions/:id/s3/events`)
 
-Request body: an S3 event notification document (`{ "Records": [...] }`,
+Request body: an S3 event-notification document (`{ "Records": [...] }`,
 Section 7.4). The route REQUIRES a server-side configured `providerId`.
 Without one, the request is `400`.
 
@@ -384,16 +393,17 @@ Success: `202` with `{ "results": [ ... ] }`, one entry per record:
 - `{ "status": "rejected", "error": { ... }, ... }`
 - `{ "status": "conflict" }` or `{ "status": "not_found" }`
 
-The route returns `202` even when individual records fail. Per-record
+The route answers `202` even when individual records fail. Per-record
 errors carry registered error codes. If a record names a bucket other
 than the configured bucket, the coordinator MUST report it
-`invalid_event` and not apply it.
+`invalid_event` and not apply it. A document with more than 1000
+records is rejected as a whole with `400`.
 
 ### 6.6.5 Reconciliation (`reconcile-plan` and `reconcile`)
 
 Section 9.4 defines the semantics of both routes.
-`POST /sessions/:id/s3/reconcile-plan` returns `200` with the plan.
-`POST /sessions/:id/s3/reconcile` returns `202` with the results and
+`POST /sessions/:id/s3/reconcile-plan` answers `200` with the plan.
+`POST /sessions/:id/s3/reconcile` answers `202` with the results and
 the summary. Both routes answer `404 olos.invalid_session` for an
 unknown session.
 
@@ -412,16 +422,17 @@ missing or invalid `now`.
 `GET /v1/live/:id/master.m3u8` and
 `GET /v1/live/:id/:trackId/media.m3u8` serve the playlists defined in
 Section 8 with content type `application/vnd.apple.mpegurl` and the
-cache policy of Section 10.4. Only `GET` is allowed (`405` otherwise).
-An unknown session is `404`.
+cache policy of Section 10.4. The coordinator allows only `GET` and
+answers `405` otherwise. An unknown session is `404`.
 
 Playlists exist only for sessions whose `session.profile.id` is
-`cmaf-llhls`. For any other profile, the coordinator MUST answer `400`
-with the JSON envelope and code `olos.invalid_request`. The message
-starts with `HLS playlists are only served for cmaf-llhls sessions`.
-The same rejection applies when the session or track `profile` fails
-the CMAF/LL-HLS profile validation (Appendix A.2). The coordinator
-applies this rule after it loads the session and before it renders.
+`cmaf-llhls`. For any other profile, the coordinator MUST reject the
+request with `400`, the JSON envelope, and code `olos.invalid_request`.
+The message starts with
+`HLS playlists are only served for cmaf-llhls sessions`. When the
+session or track `profile` fails the CMAF/LL-HLS profile validation
+(Appendix A.2), the same rejection applies. The coordinator applies
+this rule after it loads the session and before it renders.
 
 A session without a cursor has no playlists yet and is `404`. A track
 with no committed objects has no media playlist yet. Its route is
@@ -429,26 +440,29 @@ with no committed objects has no media playlist yet. Its route is
 window contains no video track has no master playlist yet and is also
 `404` (Section 8.2).
 
-Media playlist requests MAY carry the LL-HLS blocking reload query
-parameters `_HLS_msn` and `_HLS_part`, which Section 8.7 defines. If a
-request carries `_HLS_part` without `_HLS_msn`, or a non-integer
-value, the coordinator MUST reject it with `400`.
+Media playlist requests MAY carry the LL-HLS blocking-reload query
+parameters `_HLS_msn` and `_HLS_part`, which Section 8.7 defines. When
+blocking reload is enabled, the coordinator validates these parameters
+as Section 8.7 defines. When it is not enabled, the coordinator
+ignores them.
 
 The coordinator serves playlist-rendering errors (missing cursor,
-missing track, no master) as `text/plain` bodies. Routing errors (bad
-identifier, unknown session, wrong method, and the profile rejection
-above) use the JSON envelope of Section 6.3.
+missing track, no master, invalid blocking-reload parameters) as
+`text/plain` bodies. Routing errors (bad identifier, unknown session,
+wrong method, and the profile rejection above) use the JSON envelope
+of Section 6.3.
 
 ## 6.8 Optimistic concurrency
 
-Stored coordinator state is versioned with an entity tag (etag). Every
-mutating route MUST apply its mutation with compare-and-swap
+The coordinator versions its stored state with an entity tag (etag).
+Every mutating route MUST apply its mutation with compare-and-swap
 semantics: load the snapshot, mutate, and save-if-unchanged. The route
-retries up to a configured attempt bound. If the attempts are
+retries up to a configured attempt bound (default 2). If the attempts are
 exhausted, or if the route detects a non-retryable concurrent change,
-the route MUST respond `409 olos.conflict`. If the session already
-exists, session creation responds `409 olos.conflict`.
+the route MUST reject the request with `409 olos.conflict`. If the
+session already exists, the coordinator rejects session creation with
+`409 olos.conflict`.
 
 The `409` body for the losing writer is the plain error envelope.
 Idempotent replays (a duplicate commit with identical content) are not
-conflicts. They return `200` without a write.
+conflicts. The coordinator answers `200` without a write.

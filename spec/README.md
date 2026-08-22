@@ -8,9 +8,11 @@ storage. A publisher uploads immutable objects to an S3-compatible store
 under coordinator-issued keys. A coordinator turns those exact-key uploads
 into an ordered, committed, retained sequence of objects and publishes a
 cursor that describes the live edge. Viewers consume only committed
-objects. What the objects contain, and how the committed sequence is
-rendered for playback, is defined by a **profile**. The CMAF/LL-HLS
-profile (`cmaf-llhls`) is the first profile. It carries CMAF objects and
+objects.
+
+A **profile** defines what the objects contain and how the renderer
+renders the committed sequence for playback. The CMAF/LL-HLS profile
+(`cmaf-llhls`) is the first profile. It carries CMAF objects and
 renders the committed window as LL-HLS playlists with blocking reload.
 
 ## Status
@@ -42,7 +44,7 @@ This specification groups conformance assertions into five levels.
 |            | unguessable keys, response-header policy.                      |
 
 The level recorded in the coverage table is authoritative. An assertion
-identifier prefix such as `CORE-RUNTIME-` is not.
+identifier prefix such as `CORE-RUNTIME-` is not authoritative.
 
 ## Reading order
 
