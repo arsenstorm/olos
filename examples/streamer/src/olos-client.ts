@@ -2,7 +2,14 @@ import {
   commitS3RuntimeUpload,
   issueS3RuntimeUploadGrant,
 } from "@arsenstorm/olos/s3";
-import type { Byterange, Session } from "@arsenstorm/olos/types";
+import type { Byterange } from "@arsenstorm/olos/types";
+import {
+  type CreateSessionOptions,
+  createSession,
+  endSession,
+} from "./olos-session";
+
+export type { CreateSessionOptions } from "./olos-session";
 
 // Slot expiry must be >= the Worker's upload-grant TTL (5s). 10s is a
 // comfortable margin so the slot doesn't lapse before ffmpeg finishes
@@ -29,33 +36,13 @@ export interface OlosClientOptions {
   sessionId: string;
 }
 
-export interface CreateSessionOptions {
-  // Codecs and dimensions are read back out of the init segment rather than
-  // declared up front: the streamer copies the encoder's bitstream, so only
-  // the media itself knows the real profile, level, and track layout.
-  audioCodec?: string;
-  // BANDWIDTH must be at least the peak segment bitrate, or the player
-  // reports "Segment exceeds specified bandwidth for variant" (CoreMedia
-  // -12318). Set it from the encoder's configured bitrate.
-  bitrate?: number;
-  height?: number;
-  partTarget: number;
-  segmentTarget: number;
-  videoCodec?: string;
-  width?: number;
-}
-
 export interface PublishInitOptions {
   bytes: Uint8Array;
   duration: number;
   mediaSequenceNumber: number;
 }
 
-export interface PublishSegmentOptions {
-  bytes: Uint8Array;
-  duration: number;
-  mediaSequenceNumber: number;
-}
+export type PublishSegmentOptions = PublishInitOptions;
 
 export interface PublishPartOptions {
   byterange?: Byterange;
@@ -66,23 +53,18 @@ export interface PublishPartOptions {
   partNumber: number;
 }
 
-export interface IssuedGrant {
-  bytes: Uint8Array;
-  commitId: string;
-  independent: boolean;
-  objectKey: string;
-  programDateTime?: string;
-  requiredHeaders: Record<string, string>;
-  slotId: string;
-  uploadUrl: string;
-}
-
 export interface PendingPublication {
   commitId: string;
   independent: boolean;
   objectKey: string;
   programDateTime?: string;
   slotId: string;
+}
+
+export interface IssuedGrant extends PendingPublication {
+  bytes: Uint8Array;
+  requiredHeaders: Record<string, string>;
+  uploadUrl: string;
 }
 
 export interface OlosClient {
@@ -116,27 +98,50 @@ interface PublishSpec {
   slotId: string;
 }
 
-export function createOlosClient(options: OlosClientOptions): OlosClient {
-  const ingestHeaders = {
-    authorization: `Bearer ${options.ingestKey}`,
-    "content-type": "application/json",
-  };
+interface SegmentStartAnchor {
+  anchor(mediaSequenceNumber: number): string;
+  release(mediaSequenceNumber: number): string;
+}
 
-  const ingestFetch: IngestFetch = (input, init) => {
+export function createOlosClient(options: OlosClientOptions): OlosClient {
+  const ingestFetch = createIngestFetch(options.ingestKey);
+  const segmentStart = createSegmentStartAnchor();
+  const publishSpec = (spec: PublishSpec) =>
+    publish(options, ingestFetch, spec);
+
+  return {
+    commitPublication: (pending) =>
+      commitPublication(options, ingestFetch, pending),
+    createSession: (input) => createSession(options, ingestFetch, input),
+    endSession: () => endSession(options, ingestFetch),
+    issueGrant: (input) =>
+      issueGrant(options, ingestFetch, partSpec(options, segmentStart, input)),
+    publishInit: (input) => publishSpec(initSpec(options, input)),
+    publishPart: (input) => publishSpec(partSpec(options, segmentStart, input)),
+    publishSegment: (input) =>
+      publishSpec(segmentSpec(options, segmentStart, input)),
+    uploadGranted,
+  };
+}
+
+function createIngestFetch(ingestKey: string): IngestFetch {
+  return (input, init) => {
     const headers = new Headers(init?.headers);
-    headers.set("authorization", `Bearer ${options.ingestKey}`);
+    headers.set("authorization", `Bearer ${ingestKey}`);
     return fetch(input, { ...init, headers });
   };
+}
 
-  // Apple's low-latency profile requires EXT-X-PROGRAM-DATE-TIME; without it
-  // the player reports "Low Latency: Playlist does not have
-  // EXT-X-PROGRAM-DATE-TIME tag" (CoreMedia -15412) and drops out of
-  // low-latency mode. The tag must come from whichever commit first creates
-  // the segment entry — that is part 0, not the later full-segment commit —
-  // so the segment's start time is anchored once and reused.
+// Apple's low-latency profile requires EXT-X-PROGRAM-DATE-TIME; without it
+// the player reports "Low Latency: Playlist does not have
+// EXT-X-PROGRAM-DATE-TIME tag" (CoreMedia -15412) and drops out of
+// low-latency mode. The tag must come from whichever commit first creates
+// the segment entry — that is part 0, not the later full-segment commit —
+// so the segment's start time is anchored once and reused.
+function createSegmentStartAnchor(): SegmentStartAnchor {
   const segmentStartTimes = new Map<number, string>();
 
-  const anchorSegmentStart = (mediaSequenceNumber: number): string => {
+  const anchor = (mediaSequenceNumber: number): string => {
     const existing = segmentStartTimes.get(mediaSequenceNumber);
     if (existing !== undefined) {
       return existing;
@@ -147,157 +152,69 @@ export function createOlosClient(options: OlosClientOptions): OlosClient {
   };
 
   return {
-    createSession(sessionOptions) {
-      return createSession(options, ingestHeaders, sessionOptions);
-    },
-    publishInit({ bytes, duration, mediaSequenceNumber }) {
-      return publish(options, ingestFetch, {
-        bytes,
-        commitId: `${options.sessionId}_commit_init`,
-        duration,
-        independent: false,
-        kind: "init",
-        mediaSequenceNumber,
-        slotId: `${options.sessionId}_slot_init`,
-      });
-    },
-    publishPart({
-      byterange,
-      bytes,
-      duration,
-      independent,
-      mediaSequenceNumber,
-      partNumber,
-    }) {
-      return publish(options, ingestFetch, {
-        byterange,
-        bytes,
-        commitId: `${options.sessionId}_commit_${mediaSequenceNumber}_part_${partNumber}`,
-        duration,
-        independent,
-        kind: "part",
-        mediaSequenceNumber,
-        partNumber,
-        ...(partNumber === 0
-          ? { programDateTime: anchorSegmentStart(mediaSequenceNumber) }
-          : {}),
-        slotId: `${options.sessionId}_slot_${mediaSequenceNumber}_part_${partNumber}`,
-      });
-    },
-    publishSegment({ bytes, duration, mediaSequenceNumber }) {
-      const programDateTime = anchorSegmentStart(mediaSequenceNumber);
+    anchor,
+    release(mediaSequenceNumber) {
+      const startedAt = anchor(mediaSequenceNumber);
       segmentStartTimes.delete(mediaSequenceNumber);
-
-      return publish(options, ingestFetch, {
-        bytes,
-        commitId: `${options.sessionId}_commit_${mediaSequenceNumber}`,
-        duration,
-        independent: true,
-        kind: "segment",
-        mediaSequenceNumber,
-        programDateTime,
-        slotId: `${options.sessionId}_slot_${mediaSequenceNumber}`,
-      });
-    },
-    endSession() {
-      return endSession(options, ingestHeaders);
-    },
-    issueGrant({
-      byterange,
-      bytes,
-      duration,
-      independent,
-      mediaSequenceNumber,
-      partNumber,
-    }) {
-      return issueGrant(options, ingestFetch, {
-        byterange,
-        bytes,
-        commitId: `${options.sessionId}_commit_${mediaSequenceNumber}_part_${partNumber}`,
-        duration,
-        independent,
-        kind: "part",
-        mediaSequenceNumber,
-        partNumber,
-        ...(partNumber === 0
-          ? { programDateTime: anchorSegmentStart(mediaSequenceNumber) }
-          : {}),
-        slotId: `${options.sessionId}_slot_${mediaSequenceNumber}_part_${partNumber}`,
-      });
-    },
-    uploadGranted(grant) {
-      return uploadGranted(grant);
-    },
-    commitPublication(pending) {
-      return commitPublication(options, ingestFetch, pending);
+      return startedAt;
     },
   };
 }
 
-async function createSession(
+function initSpec(
   options: OlosClientOptions,
-  ingestHeaders: Record<string, string>,
-  sessionOptions: CreateSessionOptions
-): Promise<void> {
-  const {
-    audioCodec,
-    bitrate,
-    height,
-    partTarget,
-    segmentTarget,
-    videoCodec,
-    width,
-  } = sessionOptions;
-
-  // An ungrouped audio rendition is codec metadata only: it renders no
-  // EXT-X-MEDIA line and no standalone media playlist, it just muxes its
-  // codec into every variant's CODECS attribute (spec 8.3.1). That is what
-  // muxed audio/video segments need in order to declare both tracks.
-  const audioRendition: Session["renditions"][number][] =
-    audioCodec === undefined
-      ? []
-      : [
-          {
-            codec: audioCodec,
-            kind: "audio",
-            renditionId: `${options.renditionId}_audio`,
-          },
-        ];
-
-  const session: Session = {
-    createdAt: new Date().toISOString(),
-    epoch: 1,
-    latencyProfile: "object-ll",
-    olos: "1.0",
-    partTarget,
-    renditions: [
-      {
-        bitrate: bitrate ?? 5_000_000,
-        codec: videoCodec ?? "avc1.640028",
-        frameRate: 30,
-        height: height ?? 1080,
-        kind: "video",
-        renditionId: options.renditionId,
-        width: width ?? 1920,
-      },
-      ...audioRendition,
-    ],
-    segmentTarget,
-    sessionId: options.sessionId,
-    state: "live",
+  { bytes, duration, mediaSequenceNumber }: PublishInitOptions
+): PublishSpec {
+  return {
+    bytes,
+    commitId: `${options.sessionId}_commit_init`,
+    duration,
+    independent: false,
+    kind: "init",
+    mediaSequenceNumber,
+    slotId: `${options.sessionId}_slot_init`,
   };
+}
 
-  const response = await fetch(`${options.baseUrl}/sessions`, {
-    body: JSON.stringify({ mediaBaseUrl: options.mediaOrigin, session }),
-    headers: ingestHeaders,
-    method: "POST",
-  });
+function partSpec(
+  options: OlosClientOptions,
+  segmentStart: SegmentStartAnchor,
+  input: PublishPartOptions
+): PublishSpec {
+  const { mediaSequenceNumber, partNumber } = input;
+  const id = `${mediaSequenceNumber}_part_${partNumber}`;
 
-  if (response.status !== 201) {
-    throw new Error(
-      `session create ${response.status}: ${await response.text()}`
-    );
-  }
+  return {
+    byterange: input.byterange,
+    bytes: input.bytes,
+    commitId: `${options.sessionId}_commit_${id}`,
+    duration: input.duration,
+    independent: input.independent,
+    kind: "part",
+    mediaSequenceNumber,
+    partNumber,
+    ...(partNumber === 0
+      ? { programDateTime: segmentStart.anchor(mediaSequenceNumber) }
+      : {}),
+    slotId: `${options.sessionId}_slot_${id}`,
+  };
+}
+
+function segmentSpec(
+  options: OlosClientOptions,
+  segmentStart: SegmentStartAnchor,
+  { bytes, duration, mediaSequenceNumber }: PublishSegmentOptions
+): PublishSpec {
+  return {
+    bytes,
+    commitId: `${options.sessionId}_commit_${mediaSequenceNumber}`,
+    duration,
+    independent: true,
+    kind: "segment",
+    mediaSequenceNumber,
+    programDateTime: segmentStart.release(mediaSequenceNumber),
+    slotId: `${options.sessionId}_slot_${mediaSequenceNumber}`,
+  };
 }
 
 async function publish(
@@ -392,22 +309,4 @@ async function commitPublication(
     },
     sessionId: options.sessionId,
   });
-}
-
-async function endSession(
-  options: OlosClientOptions,
-  ingestHeaders: Record<string, string>
-): Promise<void> {
-  const response = await fetch(
-    `${options.baseUrl}/sessions/${options.sessionId}/transition`,
-    {
-      body: JSON.stringify({ state: "ending" }),
-      headers: ingestHeaders,
-      method: "POST",
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`session end ${response.status}: ${await response.text()}`);
-  }
 }

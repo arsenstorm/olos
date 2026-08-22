@@ -93,17 +93,20 @@ function findBox(bytes: Uint8Array, type: string): number | undefined {
   ];
 
   for (let index = 0; index + 4 <= bytes.length; index += 1) {
-    if (
-      bytes[index] === tag[0] &&
-      bytes[index + 1] === tag[1] &&
-      bytes[index + 2] === tag[2] &&
-      bytes[index + 3] === tag[3]
-    ) {
+    if (matchesTagAt(bytes, index, tag)) {
       return index + 4;
     }
   }
 
   return;
+}
+
+function matchesTagAt(
+  bytes: Uint8Array,
+  index: number,
+  tag: readonly number[]
+): boolean {
+  return tag.every((byte, offset) => bytes[index + offset] === byte);
 }
 
 function hexByte(value: number | undefined): string {

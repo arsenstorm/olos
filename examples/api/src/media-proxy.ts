@@ -18,19 +18,9 @@ export async function proxyMediaObject(
     return new Response("invalid object key", { status: 400 });
   }
 
-  let object: GetObjectCommandOutput;
-  try {
-    object = await client.send(
-      new GetObjectCommand({ Bucket: env.S3_BUCKET, Key: objectKey })
-    );
-  } catch (error) {
-    if (error instanceof NoSuchKey || (error as Error)?.name === "NoSuchKey") {
-      return new Response("not found", { status: 404 });
-    }
-    throw error;
-  }
+  const object = await getObjectOrUndefined(client, env.S3_BUCKET, objectKey);
 
-  if (object.Body === undefined) {
+  if (object?.Body === undefined) {
     return new Response("not found", { status: 404 });
   }
 
@@ -40,4 +30,21 @@ export async function proxyMediaObject(
       "content-type": object.ContentType ?? "application/octet-stream",
     },
   });
+}
+
+function getObjectOrUndefined(
+  client: S3GetObjectClient,
+  bucket: string,
+  key: string
+): Promise<GetObjectCommandOutput | undefined> {
+  return client
+    .send(new GetObjectCommand({ Bucket: bucket, Key: key }))
+    .catch(undefinedIfNoSuchKey);
+}
+
+function undefinedIfNoSuchKey(error: unknown): undefined {
+  if (error instanceof NoSuchKey || (error as Error)?.name === "NoSuchKey") {
+    return;
+  }
+  throw error;
 }
