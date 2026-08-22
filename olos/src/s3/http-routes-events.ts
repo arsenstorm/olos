@@ -1,10 +1,15 @@
 import { rejectionStatusCode } from "../runtime/rejection-status";
-import { jsonBadRequestResponse, jsonResponse } from "../runtime/response";
+import {
+  jsonBadRequestResponse,
+  jsonErrorResponse,
+  jsonResponse,
+} from "../runtime/response";
 import {
   applyStoredCoordinatorRetention,
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime/retention";
 import type { Cursor } from "../types/cursor";
+import { isRecord } from "../validation/fields";
 import {
   type completeStoredS3CoordinatorUpload,
   routeStoredS3CoordinatorUploadEvent,
@@ -41,6 +46,24 @@ import {
 } from "./reconciliation";
 import { planStoredS3CoordinatorReconciliation } from "./reconciliation-summary";
 import { deleteRetiredS3CoordinatorObjects } from "./retention";
+
+/** Provider event batches beyond this size are rejected before routing. */
+const MAX_S3_EVENT_RECORDS = 1000;
+
+/**
+ * Turn an invalid S3 request parse into its response: 413
+ * `olos.invalid_request` when the body exceeded `maxBodyBytes`, otherwise
+ * the usual 400.
+ */
+function invalidS3RequestResponse(parsed: {
+  message: string;
+  tooLarge?: true;
+}): Response {
+  return parsed.tooLarge
+    ? jsonErrorResponse("olos.invalid_request", parsed.message, 413)
+    : jsonBadRequestResponse(parsed.message);
+}
+
 export async function scheduleRetiredObjectDeletes(
   result: Awaited<ReturnType<typeof completeStoredS3CoordinatorUpload>>,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions,
@@ -121,10 +144,20 @@ export async function handleS3Events(
     );
   }
 
-  const parsed = await parseJsonRequest(request, "S3 event request");
+  const parsed = await parseJsonRequest(
+    request,
+    "S3 event request",
+    options.maxBodyBytes
+  );
 
   if (parsed.status === "invalid") {
-    return jsonBadRequestResponse(parsed.message);
+    return invalidS3RequestResponse(parsed);
+  }
+
+  const recordsCountError = s3EventRecordsCountError(parsed.payload);
+
+  if (recordsCountError !== undefined) {
+    return jsonBadRequestResponse(recordsCountError);
   }
 
   const events = normalizeS3ObjectCreatedEvents({
@@ -142,6 +175,14 @@ export async function handleS3Events(
   };
 
   return jsonResponse(body, 202);
+}
+
+function s3EventRecordsCountError(payload: unknown): string | undefined {
+  const records = isRecord(payload) ? payload.Records : undefined;
+
+  if (Array.isArray(records) && records.length > MAX_S3_EVENT_RECORDS) {
+    return "S3 event request carries too many records";
+  }
 }
 
 /**
@@ -191,10 +232,10 @@ export async function handleS3ReconciliationPlan(
   sessionId: string,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
-  const parsed = await parseS3ReconciliationPlanRequest(request);
+  const parsed = await parseS3ReconciliationPlanRequest(request, options);
 
   if (parsed.status === "invalid") {
-    return jsonBadRequestResponse(parsed.message);
+    return invalidS3RequestResponse(parsed);
   }
 
   const result = await planStoredS3CoordinatorReconciliation({
@@ -233,7 +274,7 @@ export async function handleS3Reconciliation(
   const parsed = await parseS3ReconciliationRequest(request, options);
 
   if (parsed.status === "invalid") {
-    return jsonBadRequestResponse(parsed.message);
+    return invalidS3RequestResponse(parsed);
   }
 
   const result = await reconcileStoredS3CoordinatorUploads({
@@ -266,10 +307,10 @@ export async function handleS3Retention(
   sessionId: string,
   options: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): Promise<Response> {
-  const parsed = await parseS3RetentionRequest(request);
+  const parsed = await parseS3RetentionRequest(request, options);
 
   if (parsed.status === "invalid") {
-    return jsonBadRequestResponse(parsed.message);
+    return invalidS3RequestResponse(parsed);
   }
 
   // Persist pruned state BEFORE deleting objects so a snapshot cannot grow

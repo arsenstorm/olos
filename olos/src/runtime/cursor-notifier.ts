@@ -106,15 +106,21 @@ function waitForAdvancedCursor(
   context: HlsCursorWaitContext
 ): Promise<Cursor | undefined> {
   return new Promise((resolve) => {
-    const sessionWaiters = waitersForSession(waiters, context.cursor.sessionId);
+    const sessionId = context.cursor.sessionId;
+    const sessionWaiters = waitersForSession(waiters, sessionId);
+
+    function abort(): void {
+      sessionWaiters.delete(waiter);
+      deleteEmptyWaiterSet(waiters, sessionId, sessionWaiters);
+      resolve(undefined);
+    }
+
     const waiter: CursorWaiter = {
       after: context.cursor,
-      resolve,
-    };
-    const abort = () => {
-      sessionWaiters.delete(waiter);
-      deleteEmptyWaiterSet(waiters, context.cursor.sessionId, sessionWaiters);
-      resolve(undefined);
+      resolve(cursor) {
+        context.signal.removeEventListener("abort", abort);
+        resolve(cursor);
+      },
     };
 
     context.signal.addEventListener("abort", abort, { once: true });
@@ -139,7 +145,7 @@ function deleteEmptyWaiterSet(
   sessionId: string,
   sessionWaiters: Set<CursorWaiter>
 ): void {
-  if (sessionWaiters.size === 0) {
+  if (sessionWaiters.size === 0 && waiters.get(sessionId) === sessionWaiters) {
     waiters.delete(sessionId);
   }
 }

@@ -249,13 +249,16 @@ Two independent lateness rules apply:
   `lateToleranceMs` (default 0). A commit exactly at the tolerated
   deadline MUST be accepted. A commit beyond it MUST be rejected.
 - **Cursor position.** When a cursor exists and a commit's slot position
-  is already behind the live edge, the commit MUST be rejected with
-  `olos.invalid_state`. The position is behind the live edge if its
-  sequence number is less than the cursor's last sequence number. A
-  part commit at the cursor's last sequence number is also behind if
-  its `partNumber` is less than or equal to the cursor's last part
-  number. A full-segment commit at the cursor's last sequence number
-  MUST be accepted. It completes the in-progress segment.
+  is already behind its own track's live edge within the cursor's
+  committed window (the last visible segment, and its last visible part
+  when that segment is parts-only), the commit MUST be rejected with
+  `olos.invalid_state`. A track absent from the committed window has no
+  live edge and is never late. The position is behind the live edge if
+  its sequence number is less than the track's last sequence number. A
+  part commit at the track's last sequence number is also behind if its
+  `partNumber` is less than or equal to the track's last part number. A
+  full-segment commit at the track's last sequence number MUST be
+  accepted. It completes the in-progress segment.
 
 ## 4.6 Publisher leases and heartbeats
 

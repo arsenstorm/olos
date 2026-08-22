@@ -1,4 +1,7 @@
-import { createStoredCoordinatorRuntimeHandler } from "../runtime/http";
+import {
+  createStoredCoordinatorRuntimeHandler,
+  resolveStoredCoordinatorRuntimeHandlerOptions,
+} from "../runtime/http";
 import {
   jsonBadRequestResponse,
   jsonInternalErrorResponse,
@@ -55,10 +58,19 @@ export type StoredS3CoordinatorRuntimeHandler = (
 interface InvalidS3HttpRequestParse {
   message: string;
   status: "invalid";
+  /** Set when the request body exceeded the configured byte cap. */
+  tooLarge?: true;
 }
 
-export function invalid(message: string): InvalidS3HttpRequestParse {
-  return { message, status: "invalid" };
+export function invalid(
+  message: string,
+  status: "invalid" | "too_large" = "invalid"
+): InvalidS3HttpRequestParse {
+  return {
+    message,
+    status: "invalid",
+    ...(status === "too_large" ? { tooLarge: true } : {}),
+  };
 }
 
 /**
@@ -85,9 +97,11 @@ export function invalid(message: string): InvalidS3HttpRequestParse {
  * are invalid.
  */
 export function createStoredS3CoordinatorRuntimeHandler(
-  options: CreateStoredS3CoordinatorRuntimeHandlerOptions
+  rawOptions: CreateStoredS3CoordinatorRuntimeHandlerOptions
 ): StoredS3CoordinatorRuntimeHandler {
-  assertS3HandlerOptions(options);
+  assertS3HandlerOptions(rawOptions);
+
+  const options = resolveStoredCoordinatorRuntimeHandlerOptions(rawOptions);
 
   const baseHandler = createStoredCoordinatorRuntimeHandler(options);
 

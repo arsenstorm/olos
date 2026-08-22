@@ -157,6 +157,37 @@ describe("runtime cursor notifier", () => {
     await expect(waiting).resolves.toBeUndefined();
   });
 
+  test("does not let a resolved waiter's stale abort drop a newer waiter set", async () => {
+    const notifier = createMemoryRuntimeCursorNotifier();
+    const controllerA = new AbortController();
+    const waitingA = notifier.waitForCursor({
+      cursor: cursorAt(3810),
+      request: { sequenceNumber: 3811 },
+      signal: controllerA.signal,
+    });
+
+    notifier.notify(cursorAt(3811));
+
+    await expect(waitingA).resolves.toMatchObject({
+      window: { lastSequenceNumber: 3811 },
+    });
+
+    const controllerB = new AbortController();
+    const waitingB = notifier.waitForCursor({
+      cursor: cursorAt(3811),
+      request: { sequenceNumber: 3812 },
+      signal: controllerB.signal,
+    });
+
+    expect(() => controllerA.abort()).not.toThrow();
+
+    notifier.notify(cursorAt(3812));
+
+    await expect(waitingB).resolves.toMatchObject({
+      window: { lastSequenceNumber: 3812 },
+    });
+  });
+
   test("still resolves live waiters from a terminal cursor notification", async () => {
     const notifier = createMemoryRuntimeCursorNotifier();
     const waiting = notifier.waitForCursor({

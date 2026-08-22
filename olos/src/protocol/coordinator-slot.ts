@@ -14,7 +14,7 @@ import type { CommittedSegment, TrackWindow } from "../types/committed-window";
 import { createOlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { ObjectKind } from "../types/storage-object";
-import type { UploadSlot } from "../types/upload-slot";
+import type { UploadSlot, UploadSlotState } from "../types/upload-slot";
 import type {
   CoordinatorPipelineState,
   CoordinatorSlotIssue,
@@ -30,6 +30,16 @@ type RevocableCoordinatorUpload =
       status: "revocable";
     };
 
+// A slot in any of these states still occupies its track/kind/sequence/part
+// position: an issued grant not yet resolved, an observed upload awaiting
+// commit, or a commit already recorded. Only a slot that failed out
+// (expired, rejected, revoked) frees the position for reissue.
+const OPEN_UPLOAD_SLOT_STATES: readonly UploadSlotState[] = [
+  "issued",
+  "upload_observed",
+  "committed",
+];
+
 /**
  * Issue an upload slot for an init, part, or segment object and return the
  * next pipeline state with the slot appended. Pure function on state —
@@ -39,8 +49,10 @@ type RevocableCoordinatorUpload =
  * `deliveryBaseUrl` plus the slot coordinates (track, sequence number, part
  * number); in `"direct-public"` publication mode a random nonce is mixed in
  * when `objectKeyNonce` is not supplied, making keys unguessable. Throws on
- * a duplicate `slotId`, an object kind whose key cannot be derived, or a
- * publication control policy that blocks slot issuance.
+ * a duplicate `slotId`, an open slot already occupying the same
+ * track/kind/sequence-number/part-number position, an object kind whose key
+ * cannot be derived, or a publication control policy that blocks slot
+ * issuance.
  */
 export function issueCoordinatorSlot(
   options: IssueCoordinatorSlotOptions
@@ -52,6 +64,10 @@ export function issueCoordinatorSlot(
 
   if (findSlot(options.state, options.slotId) !== undefined) {
     throw new Error("slotId must be unique");
+  }
+
+  if (findOpenSlotAtPosition(options.state, options) !== undefined) {
+    throw new Error("an open slot already exists for this position");
   }
 
   const { objectKey, deliveryUrl } = resolveSlotObjectAddress(options);
@@ -69,6 +85,20 @@ export function issueCoordinatorSlot(
       slots: [...options.state.slots, slot],
     },
   };
+}
+
+function findOpenSlotAtPosition(
+  state: CoordinatorPipelineState,
+  options: IssueCoordinatorSlotOptions
+): UploadSlot | undefined {
+  return state.slots.find(
+    (slot) =>
+      slot.trackId === options.trackId &&
+      slot.kind === options.kind &&
+      slot.sequenceNumber === options.sequenceNumber &&
+      slot.partNumber === options.partNumber &&
+      OPEN_UPLOAD_SLOT_STATES.includes(slot.state)
+  );
 }
 
 function resolveSlotObjectAddress(options: IssueCoordinatorSlotOptions): {

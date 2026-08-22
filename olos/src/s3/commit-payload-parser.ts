@@ -14,6 +14,7 @@ import {
 } from "../runtime/request-fields";
 import {
   parseRuntimeJsonRequest,
+  type RuntimeJsonRequestInvalidBuilder,
   type RuntimeJsonRequestParse,
 } from "../runtime/request-json";
 import type { ProfileData } from "../types/profile";
@@ -67,7 +68,12 @@ export type S3ReconciliationPayloadRequestParse<Invalid> =
 export interface ParseS3PayloadRequestOptions<Invalid> {
   /** Message used when the body is not readable as JSON at all. */
   fallbackMessage: string;
-  invalid: (message: string) => Invalid;
+  invalid: RuntimeJsonRequestInvalidBuilder<Invalid>;
+  /**
+   * Largest accepted JSON request body, in bytes; defaults to 1 MiB.
+   * Oversized bodies are rejected before parsing.
+   */
+  maxBodyBytes?: number;
   parseCommittedAt?: ParseTimestampField;
   payloadName?: string;
   provider: ProviderIdOptions;
@@ -94,7 +100,8 @@ export function parseS3CommitPayloadRequest<Invalid>(
         options.overrides
       ),
     options.invalid,
-    options.fallbackMessage
+    options.fallbackMessage,
+    options.maxBodyBytes
   );
 }
 
@@ -113,7 +120,8 @@ export function parseS3ReconciliationPayloadRequest<Invalid>(
         options.parseCommittedAt
       ),
     options.invalid,
-    options.fallbackMessage
+    options.fallbackMessage,
+    options.maxBodyBytes
   );
 }
 

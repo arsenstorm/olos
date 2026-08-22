@@ -11,3 +11,21 @@ Make Core media-agnostic and move the CMAF/LL-HLS vocabulary into the new `@arse
 - Core no longer requires an init commit per track (HLS rendering still does), no longer applies the `.mp4`/`.m4s` extension rule (pass `extension` explicitly; the media publisher defaults do), and derives object keys under the `objects/` prefix by default.
 - Publisher pacing helpers (`createRuntimeObjectLowLatencyProfile`, `createRuntimeObjectLowLatencyPublisherDefaults`, `createRuntimeObjectLowLatencyManifestOptions`, `DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE`, ...) move from `@arsenstorm/olos/runtime` to `@arsenstorm/olos/media`. Publisher object defaults use `cadenceSeconds` plus an opaque `profile` instead of `duration`; `runPlannedStoredS3PublisherUploadStep` takes `cadenceSeconds` at the top level.
 - `@arsenstorm/olos/media` exports the `MediaSession`/`MediaTrack`/`MediaCursor` narrowings, `assertMediaSession`/`assertMediaCursor`/`assertMediaObjectProfile`, `mediaObjectProfile`/`mediaSegmentDuration`, the `OLOS_MEDIA_*_SCHEMA` JSON Schemas, and the media object-key extension helpers.
+
+Fixes landed with the generic core: store-conflict retries no longer
+re-clone a consumed `Request` (parse once, 500 → retry); `maxBodyBytes`
+is honoured on every slot/commit/S3 route with 413 for oversized bodies
+and a 1000-record cap on `s3/events`; a custom `livePath` now serves
+playlists; the in-memory cursor notifier no longer drops newer waiters
+after a resolved wait aborts; commit lateness is judged against the
+slot's own track edge so trailing tracks can catch up; key mismatch,
+late observation, and commits against revoked/expired slots return
+`olos.key_mismatch` / `olos.slot_expired` / `olos.invalid_state`
+rejections instead of throwing; issuing a second open slot at one
+position throws at issuance. The direct-public policy and byterange
+responses take profile-supplied `allowedObjectExtensions` /
+`objectContentType` / `contentType` (use
+`createDirectPublicMediaSecurityPolicy` from `/media` for CMAF);
+`mediaCommitPolicy` (the runtime default) requires `profile.duration`
+on segment and part commits; runtime defaults no longer import media
+pacing.

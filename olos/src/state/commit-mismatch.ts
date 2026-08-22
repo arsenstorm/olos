@@ -13,6 +13,7 @@ import type {
   ResolveDuplicateCommitOptions,
   ResolveObjectSlotMismatchOptions,
 } from "./commit-types";
+import { trackWindowBounds } from "./committed-window";
 import { sameProfileData } from "./profile-data";
 
 export function resolveObjectSlotMismatch(
@@ -215,32 +216,21 @@ function isObservedUploadSlot(slot: UploadSlot): slot is ObservedUploadSlot {
 }
 
 export function isLateSlot(slot: UploadSlot, cursor: Cursor): boolean {
-  if (isBeforeCursorMediaSequence(slot, cursor)) {
-    return true;
-  }
+  const edge = trackWindowBounds(cursor.committedWindow, slot.trackId);
 
-  return isLateCursorPartPosition(slot, cursor);
-}
-
-function isBeforeCursorMediaSequence(
-  slot: UploadSlot,
-  cursor: Cursor
-): boolean {
-  return slot.sequenceNumber < cursor.window.lastSequenceNumber;
-}
-
-function isLateCursorPartPosition(slot: UploadSlot, cursor: Cursor): boolean {
-  const lastPartNumber = cursor.window.lastPartNumber;
-
-  if (
-    slot.sequenceNumber !== cursor.window.lastSequenceNumber ||
-    slot.partNumber === undefined ||
-    lastPartNumber === undefined
-  ) {
+  if (edge === undefined || slot.sequenceNumber > edge.lastSequenceNumber) {
     return false;
   }
 
-  return slot.partNumber <= lastPartNumber;
+  if (slot.sequenceNumber < edge.lastSequenceNumber) {
+    return true;
+  }
+
+  return (
+    slot.partNumber !== undefined &&
+    edge.lastPartNumber !== undefined &&
+    slot.partNumber <= edge.lastPartNumber
+  );
 }
 
 function commitsAreIdempotent(first: Commit, second: Commit): boolean {

@@ -19,6 +19,7 @@ import {
   type RuntimeCommitPayload,
 } from "./commit-payload-parser";
 import type { RuntimeJsonRequestParse } from "./request-json";
+import { jsonErrorResponse } from "./response";
 
 /**
  * Commit input: either a web `Request` whose JSON body is parsed and
@@ -122,7 +123,7 @@ export async function commitCoordinatorUploadFromRequest(
       status: committed.status,
     };
   } catch (error) {
-    return invalid(errorMessage(error, "invalid commit request"));
+    return invalidUploadCommit(errorMessage(error, "invalid commit request"));
   }
 }
 
@@ -137,15 +138,26 @@ function parseRequest(
 ): Promise<RuntimeCommitRequestParse> {
   return parseRuntimeCommitPayloadRequest(
     request,
-    invalid,
+    invalidUploadCommit,
     "invalid commit request"
   );
 }
 
-function invalid(message: string): InvalidRuntimeCoordinatorUploadCommit {
+/**
+ * Build an `invalid` upload commit outcome. A `"too_large"` status answers
+ * 413 `olos.invalid_request` instead of the usual 400
+ * `invalidRuntimeCommandResponse`.
+ */
+export function invalidUploadCommit(
+  message: string,
+  status: "invalid" | "too_large" = "invalid"
+): InvalidRuntimeCoordinatorUploadCommit {
   return {
     message,
-    response: invalidRuntimeCommandResponse(message),
+    response:
+      status === "too_large"
+        ? jsonErrorResponse("olos.invalid_request", message, 413)
+        : invalidRuntimeCommandResponse(message),
     status: "invalid",
   };
 }

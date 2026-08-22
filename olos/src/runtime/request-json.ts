@@ -117,11 +117,17 @@ export type RuntimeJsonRequestParse<Value, Invalid> =
   | { status: "valid"; value: Value }
   | Invalid;
 
+export type RuntimeJsonRequestInvalidBuilder<Invalid> = (
+  message: string,
+  status?: "invalid" | "too_large"
+) => Invalid;
+
 export async function parseRuntimeJsonRequest<Value, Invalid>(
   request: Request | Value,
   parsePayload: (value: unknown) => Value,
-  invalid: (message: string) => Invalid,
-  fallbackMessage: string
+  invalid: RuntimeJsonRequestInvalidBuilder<Invalid>,
+  fallbackMessage: string,
+  maxBodyBytes?: number
 ): Promise<RuntimeJsonRequestParse<Value, Invalid>> {
   if (isParsedRuntimeJsonRequestValue<Value>(request)) {
     return parsedRuntimeJsonRequestValue(request);
@@ -131,7 +137,8 @@ export async function parseRuntimeJsonRequest<Value, Invalid>(
     request,
     parsePayload,
     invalid,
-    fallbackMessage
+    fallbackMessage,
+    maxBodyBytes
   );
 }
 
@@ -144,15 +151,20 @@ function parsedRuntimeJsonRequestValue<Value, Invalid>(
 async function parsedRuntimeJsonRequestBody<Value, Invalid>(
   request: Request,
   parsePayload: (value: unknown) => Value,
-  invalid: (message: string) => Invalid,
-  fallbackMessage: string
+  invalid: RuntimeJsonRequestInvalidBuilder<Invalid>,
+  fallbackMessage: string,
+  maxBodyBytes?: number
 ): Promise<RuntimeJsonRequestParse<Value, Invalid>> {
   try {
     return validRuntimeJsonRequestParse(
-      parsePayload(await boundedJsonRequestBody(request))
+      parsePayload(await boundedJsonRequestBody(request, maxBodyBytes))
     );
   } catch (error) {
-    return invalid(errorMessage(error, fallbackMessage));
+    if (isRuntimeJsonBodyTooLarge(error)) {
+      return invalid(error.message, "too_large");
+    }
+
+    return invalid(errorMessage(error, fallbackMessage), "invalid");
   }
 }
 

@@ -2007,6 +2007,137 @@ describe("stored S3 coordinator runtime handler", () => {
     }
   });
 
+  test("rejects S3 slot grant and commit request bodies above the configured byte cap with 413", async () => {
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      bucket: S3_BUCKET,
+      client: createTestS3Client(),
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      maxBodyBytes: 64,
+      providerId: "s3_primary",
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const slotResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", {
+        ...slotPayload({
+          deliveryUrl: "https://media.example.com/objects/v1080/s3810",
+          profile: { duration: 2 },
+          kind: "segment",
+          maxBytes: 100_000,
+          sequenceNumber: 3810,
+          objectKey: "objects/v1080/s3810",
+          slotId: "slot_3810",
+        }),
+        padding: "x".repeat(256),
+      })
+    );
+
+    expect(slotResponse.status).toBe(413);
+    await expectOlosErrorEnvelope(slotResponse);
+
+    const commitResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        objectKey: "objects/v1080/s3810",
+        padding: "x".repeat(256),
+        providerId: "s3_primary",
+        slotId: "slot_3810",
+      })
+    );
+
+    expect(commitResponse.status).toBe(413);
+    await expectOlosErrorEnvelope(commitResponse);
+  });
+
+  test("rejects S3 completion hint, event, reconciliation, and retention request bodies above the configured byte cap with 413", async () => {
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      bucket: S3_BUCKET,
+      client: createTestS3Client(),
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      maxBodyBytes: 64,
+      providerId: "s3_primary",
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const completionHintResponse = await handle(
+      jsonRequest(
+        "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
+        {
+          objectKey: "objects/v1080/s3810",
+          padding: "x".repeat(256),
+        }
+      )
+    );
+
+    expect(completionHintResponse.status).toBe(413);
+    await expectOlosErrorEnvelope(completionHintResponse);
+
+    const eventsResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/events", {
+        ...s3Event("objects/v1080/s3810"),
+        padding: "x".repeat(256),
+      })
+    );
+
+    expect(eventsResponse.status).toBe(413);
+    await expectOlosErrorEnvelope(eventsResponse);
+
+    const reconcileResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/reconcile", {
+        padding: "x".repeat(256),
+        slotIds: ["slot_3810"],
+      })
+    );
+
+    expect(reconcileResponse.status).toBe(413);
+    await expectOlosErrorEnvelope(reconcileResponse);
+
+    const retentionResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/retention", {
+        now: "2026-01-01T00:00:06.000Z",
+        padding: "x".repeat(256),
+      })
+    );
+
+    expect(retentionResponse.status).toBe(413);
+    await expectOlosErrorEnvelope(retentionResponse);
+  });
+
+  test("rejects S3 event batches carrying more than 1000 records", async () => {
+    const handle = createStoredS3CoordinatorRuntimeHandler({
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      bucket: S3_BUCKET,
+      client: createTestS3Client(),
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      providerId: "s3_primary",
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const response = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/s3/events", {
+        Records: Array.from({ length: 1001 }, (_, index) =>
+          s3EventRecord("objects/v1080/s3810", `event_${index}`)
+        ),
+      })
+    );
+
+    await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+      body: {
+        error: {
+          code: "olos.invalid_request",
+          message: "S3 event request carries too many records",
+        },
+      },
+      status: 400,
+    });
+  });
+
   test("applies publication control to S3 grant issuance", async () => {
     const store = createMemoryCoordinatorStore();
     await store.save({

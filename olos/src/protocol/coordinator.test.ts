@@ -1510,6 +1510,175 @@ describe("coordinator pipeline", () => {
     ).toThrow("slotId must be unique");
   });
 
+  test("rejects issuing a second open slot at the same position", () => {
+    const state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      profile: { duration: 2 },
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      sequenceNumber: 3810,
+      trackId: "v1080",
+      slotId: "slot_3810",
+      state: createEmptyCoordinatorState(),
+    }).state;
+
+    expect(() =>
+      issueCoordinatorSlot({
+        contentType: "video/mp4",
+        profile: { duration: 2 },
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "segment",
+        maxBytes: 100_000,
+        sequenceNumber: 3810,
+        trackId: "v1080",
+        slotId: "slot_3810_dup",
+        state,
+      })
+    ).toThrow("an open slot already exists for this position");
+  });
+
+  test("rejects commits whose object key does not match the slot", () => {
+    const state = createCoordinatorStateWithIssuedSegment();
+
+    const result = commitCoordinatorUpload({
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "objects/v1080/other",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected commit");
+    }
+    expect(result.error.error.code).toBe("olos.key_mismatch");
+  });
+
+  test("rejects commits observed after the slot expired past tolerance", () => {
+    const state = createCoordinatorStateWithIssuedSegment();
+
+    const result = commitCoordinatorUpload({
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      lateToleranceMs: 1000,
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "objects/v1080/s3810",
+        observedAt: "2026-01-01T00:00:06.001Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected commit");
+    }
+    expect(result.error.error).toEqual({
+      code: "olos.slot_expired",
+      details: {
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        observedAt: "2026-01-01T00:00:06.001Z",
+        slotId: "slot_3810",
+      },
+      message: "upload was observed after the slot expired",
+    });
+  });
+
+  test("accepts a commit observed exactly at the tolerated deadline", () => {
+    const state = createCoordinatorStateWithIssuedSegment();
+
+    const result = commitCoordinatorUpload({
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      lateToleranceMs: 1000,
+      profile: { independent: true },
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "objects/v1080/s3810",
+        observedAt: "2026-01-01T00:00:06.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(result.status).toBe("committed");
+  });
+
+  test("rejects commits for a revoked slot", () => {
+    let state = createCoordinatorStateWithIssuedSegment();
+    const revoked = revokeCoordinatorUpload({
+      slotId: "slot_3810",
+      state,
+    });
+
+    if (revoked.status !== "revoked") {
+      throw new Error("expected revoked slot");
+    }
+    state = revoked.state;
+
+    const result = commitCoordinatorUpload({
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "objects/v1080/s3810",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected commit");
+    }
+    expect(result.error.error).toEqual({
+      code: "olos.invalid_state",
+      details: { slotId: "slot_3810", state: "revoked" },
+      message: "upload slot cannot accept an upload in its current state",
+    });
+  });
+
+  test("rejects a duplicate retry whose object key differs from the slot", () => {
+    const state = createCoordinatorStateWithCommittedSegment();
+
+    const result = commitCoordinatorUpload({
+      commitId: "commit_3810_retry",
+      committedAt: "2026-01-01T00:00:02.500Z",
+      profile: { independent: true },
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "objects/v1080/other",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected duplicate retry");
+    }
+    expect(result.error.error.code).toBe("olos.key_mismatch");
+  });
+
   test("resolves identical retries idempotently past the commit deadline", () => {
     // §4.5.1 orders duplicate resolution before the deadline check and
     // §4.5.2 excludes committedAt from the comparison: an identical retry

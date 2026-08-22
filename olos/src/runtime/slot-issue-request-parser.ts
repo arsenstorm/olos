@@ -1,6 +1,7 @@
 import { isRecord } from "../validation/fields";
 import {
   parseRuntimeJsonRequest,
+  type RuntimeJsonRequestInvalidBuilder,
   type RuntimeJsonRequestParse,
 } from "./request-json";
 import {
@@ -15,15 +16,17 @@ export type SlotIssueRequestParse<Invalid> = RuntimeJsonRequestParse<
 
 export function parseSlotIssueRequest<Invalid>(
   request: Request | RuntimeSlotIssuePayload,
-  invalid: (message: string) => Invalid,
+  invalid: RuntimeJsonRequestInvalidBuilder<Invalid>,
   fallbackMessage: string,
-  payloadName = "slot issue request"
+  payloadName = "slot issue request",
+  maxBodyBytes?: number
 ): Promise<SlotIssueRequestParse<Invalid>> {
   return parseRuntimeJsonRequest(
     request,
     (value) => parsePayload(value, payloadName),
     invalid,
-    fallbackMessage
+    fallbackMessage,
+    maxBodyBytes
   );
 }
 

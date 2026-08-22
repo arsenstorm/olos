@@ -447,6 +447,98 @@ describe("stored coordinator runtime handler", () => {
     expect(body.error.message).toBe("request body is too large");
   });
 
+  test("rejects slot issue and commit request bodies above the configured byte cap with 413", async () => {
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
+      maxBodyBytes: 64,
+      publicationMode: "read-gated",
+      store: createMemoryCoordinatorStore(),
+    });
+
+    const slotResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/slots", {
+        ...slotPayload({
+          deliveryUrl: "https://media.example.com/objects/v1080/s3810",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          sequenceNumber: 3810,
+          objectKey: "objects/v1080/s3810",
+          slotId: "slot_3810",
+        }),
+        padding: "x".repeat(256),
+      })
+    );
+
+    expect(slotResponse.status).toBe(413);
+    await expectOlosErrorEnvelope(slotResponse);
+
+    const commitResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/commits", {
+        ...commitPayload({
+          commitId: "commit_3810",
+          objectKey: "objects/v1080/s3810",
+          size: 98_304,
+          slotId: "slot_3810",
+        }),
+        padding: "x".repeat(256),
+      })
+    );
+
+    expect(commitResponse.status).toBe(413);
+    await expectOlosErrorEnvelope(commitResponse);
+  });
+
+  test("accepts slot issue and commit bodies under a larger configured byte cap", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
+      maxBodyBytes: 4096,
+      publicationMode: "read-gated",
+      store,
+    });
+
+    await handle(
+      jsonRequest("https://edge.example.com/sessions", {
+        deliveryBaseUrl,
+        session,
+      })
+    );
+
+    // Padded past the 64-byte cap used above, but well under this route's
+    // configured 4096-byte cap.
+    const slotResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/slots", {
+        ...slotPayload({
+          deliveryUrl: "https://media.example.com/objects/v1080/s3810",
+          duration: 2,
+          kind: "segment",
+          maxBytes: 100_000,
+          sequenceNumber: 3810,
+          objectKey: "objects/v1080/s3810",
+          slotId: "slot_3810",
+        }),
+        padding: "x".repeat(256),
+      })
+    );
+
+    expect(slotResponse.status).toBe(201);
+
+    const commitResponse = await handle(
+      jsonRequest("https://edge.example.com/sessions/session_1/commits", {
+        ...commitPayload({
+          commitId: "commit_3810",
+          objectKey: "objects/v1080/s3810",
+          size: 98_304,
+          slotId: "slot_3810",
+        }),
+        padding: "x".repeat(256),
+      })
+    );
+
+    expect(commitResponse.status).toBe(201);
+  });
+
   test("returns specific errors for missing runtime sessions", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],

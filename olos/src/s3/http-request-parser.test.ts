@@ -45,7 +45,7 @@ describe("S3 HTTP request parser", () => {
         )
       )
     ).resolves.toEqual({
-      message: "Failed to parse JSON",
+      message: "JSON Parse error: Expected '}'",
       status: "invalid",
     });
   });

@@ -548,8 +548,8 @@ describe("commit attempt resolution", () => {
         error: {
           code: "olos.invalid_state",
           details: {
-            cursorLastSequenceNumber: 3811,
-            cursorLastPartNumber: 0,
+            trackLastSequenceNumber: 3811,
+            trackLastPartNumber: 0,
             sequenceNumber: 3810,
             partNumber: undefined,
             slotId: "slot_1",

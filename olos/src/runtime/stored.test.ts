@@ -19,6 +19,7 @@ import {
   serveStoredBlockingCoordinatorManifest,
   serveStoredCoordinatorManifest,
 } from "./stored";
+import { jsonPostRequest } from "./test-http.test-helper";
 
 const MEDIA_ORIGIN = "https://media.example.com";
 
@@ -270,6 +271,62 @@ describe("stored runtime mutations", () => {
     });
   });
 
+  test("retries issue mutations from a Request body after save conflicts", async () => {
+    // Regression: the body of a `Request` may only be read once. Before the
+    // fix, retrying with a re-cloned `new Request(request)` threw on Node
+    // once the original had already been consumed by the first attempt.
+    const store = createNoopConflictOnceStore(await createSeededStore());
+    // Unlike a raw payload object, a real JSON body is validated, so it
+    // must not carry the coordinator-derived `deliveryUrl` / `objectKey`.
+    const {
+      deliveryUrl: _deliveryUrl,
+      objectKey: _objectKey,
+      ...requestSlotPayload
+    } = slotPayload();
+
+    const result = await issueStoredCoordinatorSlotFromRequest({
+      request: jsonPostRequest(
+        "https://edge.example.com/sessions/session_1/slots",
+        requestSlotPayload
+      ),
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("issued");
+
+    if (result.status !== "issued") {
+      throw new Error("expected issued slot after conflict retry");
+    }
+
+    expect(result.response.status).toBe(201);
+    expect(result.state.slots.map((slot) => slot.slotId)).toEqual([
+      "slot_3810",
+    ]);
+  });
+
+  test("retries commit mutations from a Request body after save conflicts", async () => {
+    const store = createNoopConflictOnceStore(await createReadyStore());
+
+    const result = await commitStoredCoordinatorUploadFromRequest({
+      request: jsonPostRequest(
+        "https://edge.example.com/sessions/session_1/commits",
+        commitPayload()
+      ),
+      sessionId: session.sessionId,
+      store,
+    });
+
+    expect(result.status).toBe("committed");
+
+    if (result.status !== "committed") {
+      throw new Error("expected committed upload after conflict retry");
+    }
+
+    expect(result.response.status).toBe(201);
+    expect(result.state.commits).toHaveLength(1);
+  });
+
   test("returns conflict responses when save conflicts cannot be retried", async () => {
     const store = await createConflictOnlyStore();
 
@@ -380,6 +437,7 @@ async function createConflictingStore(): Promise<CoordinatorPipelineStore> {
   const originalSave = store.save;
   const currentState = issueCoordinatorSlot({
     ...slotPayload(),
+    sequenceNumber: 3809,
     slotId: "slot_existing",
     state: createEmptyCoordinatorState(),
   }).state;
@@ -461,6 +519,36 @@ async function createCommitConflictingStore(): Promise<CoordinatorPipelineStore>
           },
           status: "conflict",
         };
+      }
+
+      return await originalSave(options);
+    },
+  };
+}
+
+/**
+ * Report a conflict on the first save without changing the stored state,
+ * then let the real save through. Exercises the optimistic-retry mechanism
+ * itself, independent of the mutation's own business rules.
+ */
+function createNoopConflictOnceStore(
+  store: CoordinatorPipelineStore
+): CoordinatorPipelineStore {
+  const originalSave = store.save;
+  let conflicted = false;
+
+  return {
+    load: store.load,
+    save: async (options) => {
+      if (!conflicted) {
+        conflicted = true;
+        const current = await store.load(session.sessionId);
+
+        if (current === undefined) {
+          throw new Error("expected seeded coordinator snapshot");
+        }
+
+        return { current, status: "conflict" };
       }
 
       return await originalSave(options);

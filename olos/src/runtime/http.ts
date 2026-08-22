@@ -1,3 +1,4 @@
+import { mediaCommitPolicy } from "../media/commit-policy";
 import { positiveMutationAttempts } from "../protocol/mutate-coordinator-store";
 import { nonNegativeNumber, positiveNumber } from "../validation/fields";
 import { handleStoredRuntimeRequest } from "./http-session-routes";
@@ -12,25 +13,43 @@ import {
   DEFAULT_SESSION_PATH,
 } from "./route";
 /**
+ * Apply the handler option defaults that depend on a profile module:
+ * `commitPolicy` falls back to `mediaCommitPolicy` (olos/media). Exported so
+ * wrapping handlers (the S3 handler) apply the same defaults to the routes
+ * they serve themselves.
+ */
+export function resolveStoredCoordinatorRuntimeHandlerOptions<
+  Options extends CreateStoredCoordinatorRuntimeHandlerOptions,
+>(options: Options): Options {
+  return {
+    ...options,
+    commitPolicy: options.commitPolicy ?? mediaCommitPolicy,
+  };
+}
+
+/**
  * Build a fetch-style handler that serves the whole coordinator HTTP API
  * from a `CoordinatorPipelineStore`: session create/transition/heartbeat,
  * slot issue, upload commit, health, retention planning, and live master /
  * media playlists. Unknown routes get a 404 and disallowed methods a 405;
  * error responses are JSON envelopes whose `error.code` is an `olos.*`
  * code. Option validation happens eagerly — invalid options throw here, not
- * per request.
+ * per request. `commitPolicy` defaults to `mediaCommitPolicy` (olos/media)
+ * when unset, so CMAF/LL-HLS sessions get its profile-aware duration checks.
  */
 export function createStoredCoordinatorRuntimeHandler(
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): StoredCoordinatorRuntimeHandler {
   assertRuntimeHandlerOptions(options);
 
+  const resolved = resolveStoredCoordinatorRuntimeHandlerOptions(options);
+
   return async (request) => {
     // Last-resort guard: no request input may crash the handler. Expected
     // failures resolve to 4xx envelopes before reaching here; anything else
     // becomes an opaque 500 `olos.internal` envelope.
     try {
-      return await handleStoredRuntimeRequest(request, options);
+      return await handleStoredRuntimeRequest(request, resolved);
     } catch {
       return jsonInternalErrorResponse();
     }

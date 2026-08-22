@@ -1,5 +1,5 @@
 import { assertMediaSession } from "../media/validation";
-import type { Session } from "../types/session";
+import type { Session, Track } from "../types/session";
 import { errorMessage } from "../validation/fields";
 import { notFound, routeSessionIdError, sessionNotFound } from "./http-parse";
 import {
@@ -11,6 +11,7 @@ import {
   jsonBadRequestResponse,
   jsonMethodNotAllowedResponse,
 } from "./response";
+import { DEFAULT_LIVE_PATH, liveMasterPath, liveMediaPath } from "./route";
 import {
   serveStoredBlockingCoordinatorManifest,
   serveStoredCoordinatorManifest,
@@ -115,8 +116,13 @@ function liveManifestOptions(
   sessionId: string,
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ) {
+  const livePath = options.livePath ?? DEFAULT_LIVE_PATH;
+
   return {
     allowedDeliveryOrigins: options.allowedDeliveryOrigins,
+    masterPath: liveMasterPath(livePath, sessionId),
+    mediaPlaylistPath: (session: Session, track: Track) =>
+      liveMediaPath(livePath, session.sessionId, track.trackId),
     request,
     response: options.response,
     sessionId,

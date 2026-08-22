@@ -1,5 +1,9 @@
 import { rejectionStatusCode } from "../runtime/rejection-status";
-import { jsonBadRequestResponse, jsonResponse } from "../runtime/response";
+import {
+  jsonBadRequestResponse,
+  jsonErrorResponse,
+  jsonResponse,
+} from "../runtime/response";
 import { parseSlotIssueRequest } from "../runtime/slot-issue-request-parser";
 import { createOlosError } from "../types/errors";
 import { errorMessage } from "../validation/fields";
@@ -21,6 +25,20 @@ import type {
 } from "./http-types";
 import type { S3HeadObjectClient } from "./object-observation";
 
+/**
+ * Turn an invalid S3 request parse into its response: 413
+ * `olos.invalid_request` when the body exceeded `maxBodyBytes`, otherwise
+ * the usual 400.
+ */
+export function invalidS3RequestResponse(parsed: {
+  message: string;
+  tooLarge?: true;
+}): Response {
+  return parsed.tooLarge
+    ? jsonErrorResponse("olos.invalid_request", parsed.message, 413)
+    : jsonBadRequestResponse(parsed.message);
+}
+
 export async function handleS3SlotGrant(
   request: Request,
   sessionId: string,
@@ -30,11 +48,12 @@ export async function handleS3SlotGrant(
     request,
     invalid,
     "invalid S3 slot grant request",
-    "S3 slot grant request"
+    "S3 slot grant request",
+    options.maxBodyBytes
   );
 
   if (parsed.status === "invalid") {
-    return jsonBadRequestResponse(parsed.message);
+    return invalidS3RequestResponse(parsed);
   }
 
   const result = await issueStoredS3CoordinatorUploadGrant({
@@ -88,7 +107,7 @@ export async function handleS3Commit(
   const parsed = await parseS3CommitRequest(request, options);
 
   if (parsed.status === "invalid") {
-    return jsonBadRequestResponse(parsed.message);
+    return invalidS3RequestResponse(parsed);
   }
 
   const result = await completeStoredS3CoordinatorUpload({
@@ -116,7 +135,7 @@ export async function handleS3CompletionHint(
   const parsed = await parseS3CompletionHintRequest(request, options, slotId);
 
   if (parsed.status === "invalid") {
-    return jsonBadRequestResponse(parsed.message);
+    return invalidS3RequestResponse(parsed);
   }
 
   const result = await completeStoredS3CoordinatorUpload({

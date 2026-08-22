@@ -20,6 +20,7 @@ import type {
   ResolveUploadCommitOptions,
   UploadCommitResolution,
 } from "./commit-types";
+import { trackWindowBounds } from "./committed-window";
 import { mergeProfileData } from "./profile-data";
 import {
   assertUploadSlotTransition,
@@ -236,13 +237,18 @@ function unverifiedObjectCommitAttempt(
 function lateObjectCommitAttempt(
   options: CommitAttemptOptionsWithSlot
 ): CommitAttemptRejection {
+  const edge =
+    options.cursor === undefined
+      ? undefined
+      : trackWindowBounds(options.cursor.committedWindow, options.slot.trackId);
+
   return {
     error: createOlosError(
       "olos.invalid_state",
       "object is behind the current cursor",
       {
-        cursorLastSequenceNumber: options.cursor?.window.lastSequenceNumber,
-        cursorLastPartNumber: options.cursor?.window.lastPartNumber,
+        trackLastSequenceNumber: edge?.lastSequenceNumber,
+        trackLastPartNumber: edge?.lastPartNumber,
         sequenceNumber: options.slot.sequenceNumber,
         partNumber: options.slot.partNumber,
         slotId: options.slot.slotId,

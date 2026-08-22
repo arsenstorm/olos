@@ -147,6 +147,7 @@ describe("runtime HTTP client", () => {
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
         maxBytes: 200_000,
+        profile: { duration: 2 },
         sequenceNumber: 0,
         objectKeyNonce: "slot_2",
         trackId: "v1080",

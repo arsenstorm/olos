@@ -3,6 +3,7 @@ import {
   resolveDuplicateCommit,
   resolveObjectSlotMismatch,
 } from "../state/commit-mismatch";
+import { mergeProfileData } from "../state/profile-data";
 import {
   type PublicationControlResolution,
   resolvePublicationControl,
@@ -13,6 +14,7 @@ import type { Cursor } from "../types/cursor";
 import { createOlosError, type OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
+import { timestampMs } from "../validation/fields";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { commitIntoState } from "./coordinator-commit-state";
 import type {
@@ -94,6 +96,8 @@ function settleBeforeNewCommit(
   }
 
   const rejectedObservation = rejectInvalidObservedUpload({
+    existingCommit,
+    lateToleranceMs: options.lateToleranceMs,
     object: options.object,
     slot,
     state: options.state,
@@ -238,14 +242,25 @@ function resolveDuplicateCoordinatorUploadCommit({
 }
 
 function rejectInvalidObservedUpload(options: {
+  existingCommit?: Commit;
+  lateToleranceMs?: number;
   object: ObservedUpload;
   slot?: UploadSlot;
   state: CoordinatorPipelineState;
 }): Extract<CoordinatorUploadCommit, { status: "rejected" }> | undefined {
-  const { object, slot } = options;
+  const { existingCommit, object, slot } = options;
 
   if (slot === undefined) {
     return;
+  }
+
+  const invalidState = rejectInvalidSlotState({
+    existingCommit,
+    slot,
+    state: options.state,
+  });
+  if (invalidState !== undefined) {
+    return invalidState;
   }
 
   const observedSlotId = object.metadata?.["x-olos-slot-id"];
@@ -265,7 +280,18 @@ function rejectInvalidObservedUpload(options: {
     );
   }
 
+  const late = rejectLateObservation({
+    lateToleranceMs: options.lateToleranceMs,
+    object,
+    slot,
+    state: options.state,
+  });
+  if (late !== undefined) {
+    return late;
+  }
+
   const mismatch = resolveObjectSlotMismatch({
+    includeKeyMismatch: true,
     mediaObject: object,
     slot,
   });
@@ -273,6 +299,58 @@ function rejectInvalidObservedUpload(options: {
   return mismatch === undefined
     ? undefined
     : rejectCommit(options.state, mismatch.error);
+}
+
+function rejectInvalidSlotState(options: {
+  existingCommit?: Commit;
+  slot: UploadSlot;
+  state: CoordinatorPipelineState;
+}): Extract<CoordinatorUploadCommit, { status: "rejected" }> | undefined {
+  const { existingCommit, slot } = options;
+
+  if (
+    existingCommit === undefined &&
+    slot.state !== "issued" &&
+    slot.state !== "upload_observed"
+  ) {
+    return rejectCommit(
+      options.state,
+      createOlosError(
+        "olos.invalid_state",
+        "upload slot cannot accept an upload in its current state",
+        { slotId: slot.slotId, state: slot.state }
+      )
+    );
+  }
+}
+
+function rejectLateObservation(options: {
+  lateToleranceMs?: number;
+  object: ObservedUpload;
+  slot: UploadSlot;
+  state: CoordinatorPipelineState;
+}): Extract<CoordinatorUploadCommit, { status: "rejected" }> | undefined {
+  const { object, slot } = options;
+  const expiresAtMs = timestampMs(slot.expiresAt, "uploadSlot.expiresAt");
+  const observedAtMs = timestampMs(
+    object.observedAt,
+    "observedUpload.observedAt"
+  );
+
+  if (observedAtMs > expiresAtMs + (options.lateToleranceMs ?? 0)) {
+    return rejectCommit(
+      options.state,
+      createOlosError(
+        "olos.slot_expired",
+        "upload was observed after the slot expired",
+        {
+          expiresAt: slot.expiresAt,
+          observedAt: object.observedAt,
+          slotId: slot.slotId,
+        }
+      )
+    );
+  }
 }
 
 function rejectCoordinatorCommitPolicy({
@@ -290,6 +368,7 @@ function rejectCoordinatorCommitPolicy({
     commitId: options.commitId,
     committedAt: options.committedAt,
     object: options.object,
+    profile: mergeProfileData(slot.profile, options.profile),
     slot,
     state: options.state,
   });

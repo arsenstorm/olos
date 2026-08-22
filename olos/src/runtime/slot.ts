@@ -13,6 +13,7 @@ import {
   issuedSlotRuntimeCommandResponse,
   rejectedRuntimeCommandResult,
 } from "./command-response";
+import { jsonErrorResponse } from "./response";
 import type { RuntimeSlotIssuePayload } from "./slot-issue-payload";
 import { parseSlotIssueRequest } from "./slot-issue-request-parser";
 /**
@@ -77,7 +78,7 @@ export async function issueCoordinatorSlotFromRequest(
 ): Promise<RuntimeCoordinatorSlotIssue> {
   const payload = await parseSlotIssueRequest(
     options.request,
-    invalid,
+    invalidSlotIssue,
     "invalid slot issue request"
   );
 
@@ -108,14 +109,24 @@ export async function issueCoordinatorSlotFromRequest(
       status: "issued",
     };
   } catch (error) {
-    return invalid(errorMessage(error, "invalid slot issue request"));
+    return invalidSlotIssue(errorMessage(error, "invalid slot issue request"));
   }
 }
 
-function invalid(message: string): InvalidRuntimeCoordinatorSlotIssue {
+/**
+ * Build an `invalid` slot issue outcome. A `"too_large"` status answers 413
+ * `olos.invalid_request` instead of the usual 400 `invalidRuntimeCommandResponse`.
+ */
+export function invalidSlotIssue(
+  message: string,
+  status: "invalid" | "too_large" = "invalid"
+): InvalidRuntimeCoordinatorSlotIssue {
   return {
     message,
-    response: invalidRuntimeCommandResponse(message),
+    response:
+      status === "too_large"
+        ? jsonErrorResponse("olos.invalid_request", message, 413)
+        : invalidRuntimeCommandResponse(message),
     status: "invalid",
   };
 }

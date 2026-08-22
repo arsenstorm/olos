@@ -16,6 +16,7 @@ import {
 } from "./request-fields";
 import {
   parseRuntimeJsonRequest,
+  type RuntimeJsonRequestInvalidBuilder,
   type RuntimeJsonRequestParse,
 } from "./request-json";
 
@@ -104,15 +105,17 @@ export function parseObservedUploadPayload(
 
 export function parseRuntimeCommitPayloadRequest<Invalid>(
   request: Request | RuntimeCommitPayload,
-  invalid: (message: string) => Invalid,
+  invalid: RuntimeJsonRequestInvalidBuilder<Invalid>,
   fallbackMessage: string,
-  payloadName = "commit request"
+  payloadName = "commit request",
+  maxBodyBytes?: number
 ): Promise<RuntimeCommitRequestParse<Invalid>> {
   return parseRuntimeJsonRequest(
     request,
     (value) => parseRuntimeCommitPayload(value, payloadName),
     invalid,
-    fallbackMessage
+    fallbackMessage,
+    maxBodyBytes
   );
 }
 

@@ -183,6 +183,7 @@ async function handlePostSlotRoute(
   return (
     await issueStoredCoordinatorSlotFromRequest({
       maxAttempts: options.maxAttempts,
+      maxBodyBytes: options.maxBodyBytes,
       publicationControl: options.publicationControl,
       request,
       sessionId,
@@ -200,6 +201,7 @@ async function handlePostCommitRoute(
     commitPolicy: options.commitPolicy,
     lateToleranceMs: options.lateToleranceMs,
     maxAttempts: options.maxAttempts,
+    maxBodyBytes: options.maxBodyBytes,
     publicationControl: options.publicationControl,
     request,
     sessionId,

@@ -8,6 +8,10 @@ import {
   optionalStringField,
   timestampField,
 } from "../runtime/request-fields";
+import {
+  boundedJsonRequestBody,
+  isRuntimeJsonBodyTooLarge,
+} from "../runtime/request-json";
 import { errorMessage, isRecord } from "../validation/fields";
 import {
   type ParsedS3CommitPayload,
@@ -22,6 +26,8 @@ import type { CreateStoredS3CoordinatorRuntimeHandlerOptions } from "./http-type
 interface InvalidS3HttpRequestParse {
   message: string;
   status: "invalid";
+  /** Set when the request body exceeded the configured byte cap. */
+  tooLarge?: true;
 }
 
 type S3HttpRequestParse<Payload> =
@@ -48,7 +54,8 @@ export function parseS3CompletionHintRequest(
     request,
     "S3 completion hint request",
     "invalid S3 completion hint request",
-    (payload) => parseCompletionHintPayload(payload, options, slotId)
+    (payload) => parseCompletionHintPayload(payload, options, slotId),
+    options.maxBodyBytes
   );
 }
 
@@ -59,6 +66,7 @@ export async function parseS3CommitRequest(
   const parsed = await parseS3CommitPayloadRequest(request, {
     fallbackMessage: "invalid S3 slot grant request",
     invalid,
+    maxBodyBytes: options.maxBodyBytes,
     parseCommittedAt: parseCommitTimestamp,
     payloadName: "S3 commit request",
     provider: options,
@@ -70,7 +78,8 @@ export async function parseS3CommitRequest(
 }
 
 export function parseS3ReconciliationPlanRequest(
-  request: Request
+  request: Request,
+  options?: Pick<CreateStoredS3CoordinatorRuntimeHandlerOptions, "maxBodyBytes">
 ): Promise<S3HttpRequestParse<S3ReconciliationPlanPayload>> {
   return parseRecordRequest(
     request,
@@ -78,7 +87,8 @@ export function parseS3ReconciliationPlanRequest(
     "invalid S3 reconciliation plan request",
     (payload) => ({
       ...parseOptionalUrlSafeIdentifierArrayField(payload, "slotIds"),
-    })
+    }),
+    options?.maxBodyBytes
   );
 }
 
@@ -89,6 +99,7 @@ export async function parseS3ReconciliationRequest(
   const parsed = await parseS3ReconciliationPayloadRequest(request, {
     fallbackMessage: "invalid S3 reconciliation request",
     invalid,
+    maxBodyBytes: options.maxBodyBytes,
     parseCommittedAt: parseCommitTimestamp,
     payloadName: "S3 reconciliation request",
     provider: options,
@@ -100,7 +111,8 @@ export async function parseS3ReconciliationRequest(
 }
 
 export function parseS3RetentionRequest(
-  request: Request
+  request: Request,
+  options?: Pick<CreateStoredS3CoordinatorRuntimeHandlerOptions, "maxBodyBytes">
 ): Promise<S3HttpRequestParse<S3RetentionPayload>> {
   return parseRecordRequest(
     request,
@@ -108,20 +120,26 @@ export function parseS3RetentionRequest(
     "invalid S3 retention request",
     (payload) => ({
       now: timestampField(payload, "now"),
-    })
+    }),
+    options?.maxBodyBytes
   );
 }
 
 export async function parseJsonRequest(
   request: Request,
-  name: string
+  name: string,
+  maxBodyBytes?: number
 ): Promise<S3HttpRequestParse<unknown>> {
   try {
     return {
-      payload: await request.json(),
+      payload: await boundedJsonRequestBody(request, maxBodyBytes),
       status: "valid",
     };
   } catch (error) {
+    if (isRuntimeJsonBodyTooLarge(error)) {
+      return invalid(error.message, "too_large");
+    }
+
     return invalid(errorMessage(error, `invalid ${name}`));
   }
 }
@@ -153,9 +171,15 @@ async function parseRecordRequest<Payload>(
   request: Request,
   name: string,
   fallbackMessage: string,
-  parsePayload: (value: Record<string, unknown>) => Payload
+  parsePayload: (value: Record<string, unknown>) => Payload,
+  maxBodyBytes?: number
 ): Promise<S3HttpRequestParse<Payload>> {
-  const parsed = await parseRecordJsonRequest(request, name, fallbackMessage);
+  const parsed = await parseRecordJsonRequest(
+    request,
+    name,
+    fallbackMessage,
+    maxBodyBytes
+  );
 
   if (parsed.status === "invalid") {
     return parsed;
@@ -167,11 +191,19 @@ async function parseRecordRequest<Payload>(
 async function parseRecordJsonRequest(
   request: Request,
   name: string,
-  fallbackMessage: string
+  fallbackMessage: string,
+  maxBodyBytes?: number
 ): Promise<S3HttpRequestParse<Record<string, unknown>>> {
   try {
-    return recordJsonRequestPayload(await request.json(), name);
+    return recordJsonRequestPayload(
+      await boundedJsonRequestBody(request, maxBodyBytes),
+      name
+    );
   } catch (error) {
+    if (isRuntimeJsonBodyTooLarge(error)) {
+      return invalid(error.message, "too_large");
+    }
+
     return invalid(errorMessage(error, fallbackMessage));
   }
 }
@@ -205,8 +237,15 @@ function parseRecordPayload<Payload>(
   }
 }
 
-function invalid(message: string): InvalidS3HttpRequestParse {
-  return { message, status: "invalid" };
+function invalid(
+  message: string,
+  status: "invalid" | "too_large" = "invalid"
+): InvalidS3HttpRequestParse {
+  return {
+    message,
+    status: "invalid",
+    ...(status === "too_large" ? { tooLarge: true } : {}),
+  };
 }
 
 function assertNoCompletionHintDeliveryUrl(

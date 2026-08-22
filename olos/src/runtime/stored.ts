@@ -17,9 +17,11 @@ import type { Session } from "../types/session";
 import { isAllowedString } from "../validation/fields";
 import {
   commitCoordinatorUploadFromRequest,
+  invalidUploadCommit,
   type RuntimeCommitRequest,
   type RuntimeCoordinatorUploadCommit,
 } from "./commit";
+import { parseRuntimeCommitPayloadRequest } from "./commit-payload-parser";
 import {
   type ServeBlockingCoordinatorManifestOptions,
   type ServeCoordinatorManifestOptions,
@@ -28,15 +30,22 @@ import {
 } from "./manifest";
 import { jsonConflictResponse, jsonErrorResponse } from "./response";
 import {
+  invalidSlotIssue,
   issueCoordinatorSlotFromRequest,
   type RuntimeCoordinatorSlotIssue,
   type RuntimeSlotIssueRequest,
 } from "./slot";
+import { parseSlotIssueRequest } from "./slot-issue-request-parser";
 
 /** Options for `issueStoredCoordinatorSlotFromRequest`. */
 export interface IssueStoredCoordinatorSlotFromRequestOptions {
   /** Max optimistic-save attempts; defaults to 2. */
   maxAttempts?: number;
+  /**
+   * Largest accepted JSON request body, in bytes; defaults to 1 MiB.
+   * Oversized bodies are rejected with 413 before parsing.
+   */
+  maxBodyBytes?: number;
   publicationControl?: PublicationControlPolicy;
   request: RuntimeSlotIssueRequest;
   sessionId: OlosId;
@@ -53,6 +62,11 @@ export interface CommitStoredCoordinatorUploadFromRequestOptions {
   lateToleranceMs?: number;
   /** Max optimistic-save attempts; defaults to 2. */
   maxAttempts?: number;
+  /**
+   * Largest accepted JSON request body, in bytes; defaults to 1 MiB.
+   * Oversized bodies are rejected with 413 before parsing.
+   */
+  maxBodyBytes?: number;
   publicationControl?: PublicationControlPolicy;
   request: RuntimeCommitRequest;
   sessionId: OlosId;
@@ -234,83 +248,106 @@ async function loadCursorView(
 
 /**
  * Issue an upload slot against the stored session and persist the updated
- * state via optimistic-retry (up to `maxAttempts`, default 2; a `Request`
- * body is re-cloned per attempt). Terminal `invalid` / `rejected` outcomes
- * are returned without saving; retry exhaustion yields `conflict` (409).
+ * state via optimistic-retry (up to `maxAttempts`, default 2). The request
+ * body is parsed once, before the retry loop, so a `Request` input is read
+ * exactly once even across retries. Terminal `invalid` / `rejected`
+ * outcomes are returned without saving; retry exhaustion yields `conflict`
+ * (409).
  */
-export function issueStoredCoordinatorSlotFromRequest(
+export async function issueStoredCoordinatorSlotFromRequest(
   options: IssueStoredCoordinatorSlotFromRequestOptions
 ): Promise<StoredRuntimeSlotIssue> {
-  return Promise.resolve().then(() =>
-    runStoredCoordinatorMutationWithAdaptersAndResponse<
-      RuntimeCoordinatorSlotIssue,
-      IssuedRuntimeCoordinatorSlotIssue,
-      StoredRuntimeSlotIssue
-    >({
-      maxAttempts: options.maxAttempts,
-      mutate: (state) =>
-        issueCoordinatorSlotFromRequest({
-          publicationControl: options.publicationControl,
-          request: requestForAttempt(options.request),
-          state,
-        }),
-      sessionId: options.sessionId,
-      store: options.store,
-      decide: (issued) =>
-        isIssuedRuntimeCoordinatorSlotIssue(issued)
-          ? { attempt: issued, status: "save", state: issued.state }
-          : { status: "terminal", result: issued },
-      onMissing: () => notFound(),
-      mapSaved: (saved, attempt) => ({
-        ...attempt,
-        etag: saved.etag,
-        state: saved.state,
-      }),
-      onConflictOrExhausted: (snapshot) => conflict(snapshot),
-    })
+  const parsed = await parseSlotIssueRequest(
+    options.request,
+    invalidSlotIssue,
+    "invalid slot issue request",
+    undefined,
+    options.maxBodyBytes
   );
+
+  if (parsed.status === "invalid") {
+    return parsed;
+  }
+
+  return await runStoredCoordinatorMutationWithAdaptersAndResponse<
+    RuntimeCoordinatorSlotIssue,
+    IssuedRuntimeCoordinatorSlotIssue,
+    StoredRuntimeSlotIssue
+  >({
+    maxAttempts: options.maxAttempts,
+    mutate: (state) =>
+      issueCoordinatorSlotFromRequest({
+        publicationControl: options.publicationControl,
+        request: parsed.value,
+        state,
+      }),
+    sessionId: options.sessionId,
+    store: options.store,
+    decide: (issued) =>
+      isIssuedRuntimeCoordinatorSlotIssue(issued)
+        ? { attempt: issued, status: "save", state: issued.state }
+        : { status: "terminal", result: issued },
+    onMissing: () => notFound(),
+    mapSaved: (saved, attempt) => ({
+      ...attempt,
+      etag: saved.etag,
+      state: saved.state,
+    }),
+    onConflictOrExhausted: (snapshot) => conflict(snapshot),
+  });
 }
 
 /**
  * Commit an upload against the stored session and persist the advanced
- * state via optimistic-retry (up to `maxAttempts`, default 2; a `Request`
- * body is re-cloned per attempt). Idempotent replays return the current
+ * state via optimistic-retry (up to `maxAttempts`, default 2). The request
+ * body is parsed once, before the retry loop, so a `Request` input is read
+ * exactly once even across retries. Idempotent replays return the current
  * snapshot's etag without saving; `invalid` / `rejected` outcomes are
  * returned without saving; retry exhaustion yields `conflict` (409).
  */
-export function commitStoredCoordinatorUploadFromRequest(
+export async function commitStoredCoordinatorUploadFromRequest(
   options: CommitStoredCoordinatorUploadFromRequestOptions
 ): Promise<StoredRuntimeUploadCommit> {
-  return Promise.resolve().then(() =>
-    runStoredCoordinatorMutationWithAdaptersAndResponse<
-      RuntimeCoordinatorUploadCommit,
-      SuccessfulRuntimeCoordinatorUploadCommit,
-      StoredRuntimeUploadCommit
-    >({
-      maxAttempts: options.maxAttempts,
-      mutate: (state) =>
-        commitCoordinatorUploadFromRequest({
-          commitPolicy: options.commitPolicy,
-          lateToleranceMs: options.lateToleranceMs,
-          publicationControl: options.publicationControl,
-          request: requestForAttempt(options.request),
-          state,
-          trackWindowProfile:
-            options.trackWindowProfile ??
-            defaultTrackWindowProfile(state.session.profile),
-        }),
-      sessionId: options.sessionId,
-      store: options.store,
-      decide: decideRuntimeCommit,
-      onMissing: () => notFound(),
-      mapSaved: (saved, attempt) => ({
-        ...attempt,
-        etag: saved.etag,
-        state: saved.state,
-      }),
-      onConflictOrExhausted: (snapshot) => conflict(snapshot),
-    })
+  const parsed = await parseRuntimeCommitPayloadRequest(
+    options.request,
+    invalidUploadCommit,
+    "invalid commit request",
+    undefined,
+    options.maxBodyBytes
   );
+
+  if (parsed.status === "invalid") {
+    return parsed;
+  }
+
+  return await runStoredCoordinatorMutationWithAdaptersAndResponse<
+    RuntimeCoordinatorUploadCommit,
+    SuccessfulRuntimeCoordinatorUploadCommit,
+    StoredRuntimeUploadCommit
+  >({
+    maxAttempts: options.maxAttempts,
+    mutate: (state) =>
+      commitCoordinatorUploadFromRequest({
+        commitPolicy: options.commitPolicy,
+        lateToleranceMs: options.lateToleranceMs,
+        publicationControl: options.publicationControl,
+        request: parsed.value,
+        state,
+        trackWindowProfile:
+          options.trackWindowProfile ??
+          defaultTrackWindowProfile(state.session.profile),
+      }),
+    sessionId: options.sessionId,
+    store: options.store,
+    decide: decideRuntimeCommit,
+    onMissing: () => notFound(),
+    mapSaved: (saved, attempt) => ({
+      ...attempt,
+      etag: saved.etag,
+      state: saved.state,
+    }),
+    onConflictOrExhausted: (snapshot) => conflict(snapshot),
+  });
 }
 
 /**
@@ -357,16 +394,6 @@ function isIdempotentRuntimeCoordinatorUploadCommit(
   result: RuntimeCoordinatorUploadCommit
 ): result is IdempotentRuntimeCoordinatorUploadCommit {
   return result.status === "idempotent";
-}
-
-function requestForAttempt(request: RuntimeCommitRequest): RuntimeCommitRequest;
-function requestForAttempt(
-  request: RuntimeSlotIssueRequest
-): RuntimeSlotIssueRequest;
-function requestForAttempt(
-  request: RuntimeCommitRequest | RuntimeSlotIssueRequest
-): RuntimeCommitRequest | RuntimeSlotIssueRequest {
-  return request instanceof Request ? new Request(request) : request;
 }
 
 function defaultTrackWindowProfile(
