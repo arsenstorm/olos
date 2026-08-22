@@ -11,9 +11,9 @@ A session is in exactly one of four states:
 | State     | Meaning                                                    |
 | --------- | ---------------------------------------------------------- |
 | `live`    | Accepts slots, uploads, and commits.                       |
-| `ending`  | Winds down. No longer the target of new objects.           |
+| `ending`  | No longer the target of new objects.                       |
 | `ended`   | Terminal. The stream completed normally.                   |
-| `aborted` | Terminal. The stream was cancelled.                        |
+| `aborted` | Terminal. The stream was canceled.                         |
 
 The only permitted transitions are:
 
@@ -48,29 +48,21 @@ A slot is the only way to reserve a position in a session's timeline.
   never repeat.
 - The issued slot MUST carry the session's `sessionId` and `epoch`. It
   MUST be created in state `issued`.
-- The coordinator derives `objectKey` from the slot's kind and position:
-  `objects/<trackId>/init[-<nonce>]`,
-  `objects/<trackId>/s<seq>[-<nonce>]`, or
-  `objects/<trackId>/s<seq>/p<part>[-<nonce>]`, where `<seq>` is the
-  slot's `sequenceNumber` and `<part>` its `partNumber` (layout details
-  in Section 7). A file extension is OPTIONAL in Core. When the issuer
-  supplies one, the coordinator appends it after the nonce; a profile
-  MAY require a specific extension (the CMAF/LL-HLS profile requires
-  `.mp4` for init objects and `.m4s` for segments and parts,
-  Section 8). To derive `deliveryUrl`, the coordinator appends the
+- The coordinator derives `objectKey` from the slot's kind and position,
+  following the object key layout of Section 7.5. A file extension is
+  OPTIONAL in Core. A profile MAY require a specific extension
+  (Section 8.9.5). To derive `deliveryUrl`, the coordinator appends the
   object key to the session's delivery base URL.
 - In the direct-public publication mode, if the caller supplies no
   `objectKeyNonce`, the coordinator MUST generate a cryptographically
-  random nonce (the reference implementation uses 128 bits). The nonce
-  makes object keys unguessable (Section 10).
+  random nonce. The nonce makes object keys unguessable (Section 10).
 - `expiresAt`, `contentType`, `maxBytes`, and optional `minBytes`,
   `partNumber`, `byterange`, and `profile` are fixed at issuance and
   MUST NOT change for the lifetime of the slot. `byterange` is only valid
   on `part`-kind slots (Section 3.3.1).
 - The slot's `profile` is the issuer's expectation of the object's
-  profile-defined facts (for example a planned duration under the
-  CMAF/LL-HLS profile). Core treats it as an opaque JSON object. It is
-  the base that the commit's `profile` is merged over (Section 4.5.1).
+  profile-defined facts, for example a planned duration. It is the base
+  that the commit's `profile` merges over (Section 4.5.1).
 
 Upload grants for issued slots are covered in Section 7.
 
@@ -92,11 +84,11 @@ be rejected:
 
 Rules:
 
-- **Expiry.** An `issued` slot MAY be moved to `expired` only at or after
-  its `expiresAt` deadline. An attempt to expire a slot before its
-  deadline MUST be rejected. Expiry of an already-`expired` slot is
-  idempotent.
-- **Rejection.** Only an `upload_observed` slot can move to `rejected`
+- **Expiry.** The coordinator MAY move an `issued` slot to `expired`
+  only at or after its `expiresAt` deadline. An attempt to expire a slot
+  before its deadline MUST be rejected. Expiry of an
+  already-`expired` slot is idempotent.
+- **Rejection.** Only an `upload_observed` slot moves to `rejected`
   (the observed object was refused). Rejection of an already-`rejected`
   slot is idempotent.
 - **Revocation** is defined in Section 4.8. Revocation of an
@@ -110,19 +102,19 @@ Rules:
 
 The coordinator learns that an object exists through one of three paths:
 
-1. **Storage read** — a direct read of object metadata (for example
-   `HeadObject` on S3-compatible stores, Appendix C). The read is
+1. **Storage read.** A direct read of object metadata, for example
+   `HeadObject` on S3-compatible stores (Appendix C). The read is
    normalized into an observed upload. Its `observedAt` is the
-   caller-supplied timestamp when one exists (the commit's
-   `committedAt`, an event's observation time, or a hint's event time),
-   else the object's last-modified time, else the coordinator clock
-   (Section 7.3). The lateness rules of Section 4.5.3 therefore bound
-   the supplied timestamp, not the storage upload time. A deployment
+   caller-supplied timestamp when one exists, else the object's
+   last-modified time, else the coordinator clock (Section 7.3). A
+   caller-supplied timestamp is the commit's `committedAt`, an event's
+   observation time, or a hint's event time. The lateness rules of
+   Section 4.5.3 therefore bound the supplied timestamp. A deployment
    that needs upload-time anchoring MUST NOT supply a timestamp.
-2. **Provider event** — an `object.created` event delivered by the
+2. **Provider event.** An `object.created` event delivered by the
    storage provider. The event carries an `eventId`, an event time, and
    the object's key, content type, size, and optional etag and metadata.
-3. **Completion hint** — an `upload.completed` hint posted by the
+3. **Completion hint.** An `upload.completed` hint posted by the
    publisher. The hint carries an `eventId`, an event time, an
    `objectKey`, and a `slotId`.
 
@@ -135,8 +127,8 @@ Precedence and proof:
   `objectKey`. A disagreement MUST be rejected with `olos.key_mismatch`.
 - The coordinator MUST treat a redelivered `object.created` event as an
   idempotent duplicate with no further effect. Deduplication is by slot
-  commit state, not by `eventId` (Section 4.5.2, Section 7.4). The
-  `eventId` is informational.
+  commit state (Section 4.5.2, Section 7.4). The `eventId` is
+  informational.
 - An `object.created` event whose object key matches no known slot MUST
   be rejected with `olos.unknown_slot`.
 - Events of an unsupported type or with malformed payloads MUST be
@@ -144,7 +136,8 @@ Precedence and proof:
 
 Observation applies to a slot in state `issued` or `upload_observed`
 (idempotent in the latter case) and moves it to `upload_observed`. The
-observed object MUST match the slot before the transition is applied:
+observed object MUST match the slot before the coordinator applies the
+transition:
 
 - `objectKey` MUST equal the slot's `objectKey`.
 - `contentType` MUST equal the slot's `contentType`.
@@ -165,19 +158,19 @@ advances it (Section 2.3).
 <!-- olos-conformance: 4.5.1 CORE-SLOT-003 CORE-COMMIT-001 CORE-COMMIT-002 CORE-COMMIT-003 CORE-COMMIT-004 CORE-COMMIT-005 -->
 
 A commit request names a `slotId`, a `commitId`, a `committedAt`
-timestamp, the observed upload evidence, and an optional `profile`
-object carrying profile-defined facts about the object. The coordinator
-MUST evaluate, in order:
+timestamp, and the observed upload evidence. An optional `profile` object
+carries profile-defined facts about the object. The coordinator MUST
+evaluate, in order:
 
 1. **Publication control.** If an application publication-control policy
    blocks the commit, reject with `olos.security_policy_violation`
    (Section 10).
 2. **Evidence match.** When the slot exists, the observed upload MUST
-   match it. A mismatched `x-olos-slot-id` metadata value is rejected
-   with `olos.invalid_state`. A content-type mismatch is rejected with
-   `olos.content_type_mismatch`. A size above `maxBytes` is rejected
-   with `olos.object_too_large`. A size below `minBytes` is rejected
-   with `olos.object_too_small`.
+   match it (Section 4.4). Rejection codes:
+   - `olos.invalid_state` for an `x-olos-slot-id` metadata mismatch
+   - `olos.content_type_mismatch` for a content-type mismatch
+   - `olos.object_too_large` for a size above `maxBytes`
+   - `olos.object_too_small` for a size below `minBytes`
 3. **Duplicate resolution.** If the slot already has a commit, resolve
    per Section 4.5.2 and stop.
 4. **Application commit policy.** An application-supplied commit policy
@@ -210,27 +203,26 @@ operation:
 The accepted commit copies its positional and addressing fields from the
 slot and its `size` and `etag` from the evidence (Section 3.4). The
 commit's `profile` is the slot's `profile` merged with the request's
-`profile`: the request value wins per top-level key, and the field is
-omitted when the merge yields no keys. Core does not interpret the
-merged object. It is copied unchanged onto the committed object in the
-window (Section 5). An init commit alone makes nothing visible. Core
-does not require an init object per track; a profile MAY require one
-(the CMAF/LL-HLS profile does, Section 8).
+`profile`. The request value wins per top-level key. The coordinator
+omits the field when the merge yields no keys. Core does not interpret
+the merged object. The coordinator copies it unchanged onto the committed
+object in the window (Section 5). An init commit alone makes nothing
+visible. Core does not require an init object per track. A profile MAY
+require one (the CMAF/LL-HLS profile does, Section 8).
 
 ### 4.5.2 Idempotency and duplicate conflicts
 
 <!-- olos-conformance: 4.5.2 CORE-COMMIT-006 CORE-COMMIT-007 -->
 
-Commits are idempotent per slot. The comparison uses evidence fields and
-excludes `commitId`:
+Commits are idempotent per slot.
 
-- When a slot already has an accepted commit, a second commit request is
-  compared with the existing commit. The comparison covers `deliveryUrl`,
-  `epoch`, `etag`, `objectKey`, `partNumber`, `profile`,
+- When a slot already has an accepted commit, the coordinator compares a
+  second commit request with the existing commit. The comparison covers
+  `deliveryUrl`, `epoch`, `etag`, `objectKey`, `partNumber`, `profile`,
   `sequenceNumber`, `sessionId`, `size`, `slotId`, and `trackId`.
-  `profile` is compared structurally (JSON semantics: key order is
+  `profile` is compared structurally, under JSON semantics. Key order is
   irrelevant, arrays are ordered, and an absent object equals an
-  `undefined` one). If the derived commit is identical on all of these
+  `undefined` one. If the derived commit is identical on all of these
   fields, the coordinator MUST return the existing commit as an
   idempotent success. It MUST NOT record a second commit, change any
   slot state, or move the cursor. `commitId` and `committedAt` are
@@ -250,17 +242,17 @@ Two independent lateness rules apply:
   `lateToleranceMs` (default 0). A commit exactly at the tolerated
   deadline MUST be accepted. A commit beyond it MUST be rejected with
   `olos.slot_expired`.
-- **Cursor position.** When a cursor exists and a commit's slot position
-  is already behind its own track's live edge within the cursor's
-  committed window (the last visible segment, and its last visible part
-  when that segment is parts-only), the commit MUST be rejected with
-  `olos.invalid_state`. A track absent from the committed window has no
-  live edge and is never late. The position is behind the live edge if
-  its sequence number is less than the track's last sequence number. A
-  part commit at the track's last sequence number is also behind if its
-  `partNumber` is less than or equal to the track's last part number. A
-  full-segment commit at the track's last sequence number MUST be
-  accepted. It completes the in-progress segment.
+- **Cursor position.** If a cursor exists and a commit's slot position is
+  behind its own track's live edge, the commit MUST be rejected with
+  `olos.invalid_state`. A track's live edge is its last visible segment
+  in the cursor's committed window, and that segment's last visible part
+  when the segment is parts-only. A track absent from the committed
+  window has no live edge and is never late. A position is behind the
+  live edge when its sequence number is less than the track's last
+  sequence number. A part commit at the track's last sequence number is
+  also behind when its `partNumber` is at most the track's last part
+  number. A full-segment commit at the track's last sequence number MUST
+  be accepted. It completes the in-progress segment.
 
 ## 4.6 Publisher leases and heartbeats
 
@@ -290,19 +282,17 @@ Lease TTL selection and publisher-loop guidance are runtime concerns
 
 <!-- olos-conformance: 4.7 CORE-WINDOW-001 -->
 
-The cursor is derived from the committed window. Its `epoch` and
-sequence number bounds MUST equal the window's bounds. When present, its
-`lastPartNumber` MUST equal the window's last visible part number
+The coordinator derives the cursor from the committed window. Its `epoch`
+and sequence number bounds MUST equal the window's bounds. When present,
+its `lastPartNumber` MUST equal the window's last visible part number
 (Section 5.6). Cursor positions are ordered by the triple (`epoch`,
 `window.lastSequenceNumber`, `window.lastPartNumber`), compared in that
 order. An absent `lastPartNumber` orders before part number 0 at the
 same sequence number.
 
-The cursor's `profile` MUST be a copy of `session.profile`, unchanged.
-The window build MAY take a profile-supplied hook that produces each
-track window's `profile` from that track's visible and trimmed segments
-(Section 5.7). Core records whatever the hook returns without
-interpreting it.
+The cursor's `profile` MUST be a copy of `session.profile`, unchanged
+(Section 2.1). The window build MAY take a profile-supplied track-window
+`profile` hook (Section 5.7).
 
 Given a current cursor and a candidate cursor:
 
@@ -345,8 +335,5 @@ object becomes viewer-visible.
 
 ## 4.9 Retention
 
-On every cursor advance the coordinator applies retention. Commits whose
-objects fell behind the retained committed window are pruned from state.
-Issued slots past their expiry are also pruned. The pruned objects are
-surfaced for storage deletion. Retention planning, deletion, and
-reconciliation are specified in Section 9.
+On every cursor advance the coordinator applies retention. Section 9
+specifies retention planning, deletion, and reconciliation.

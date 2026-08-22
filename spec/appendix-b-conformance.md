@@ -141,11 +141,11 @@ section that claims it and the test file that covers it.
 | `HLS-GOLDEN-009` | §8.2 | `src/hls/master-playlist.test.ts` |
 | `HLS-GOLDEN-010` | §8.4 | `src/hls/media-playlist.test.ts` |
 | `HLS-GOLDEN-011` | §8.4 | `src/hls/media-playlist.test.ts` |
-| `HLS-ENDLIST-001` | §8.5.2 | `src/hls/manifest-artifacts.test.ts` |
+| `HLS-ENDLIST-001` | §8.6 | `src/hls/manifest-artifacts.test.ts` |
 | `HLS-HOLDBACK-001` | §8.4.1 | `src/hls/media-playlist.test.ts` |
-| `HLS-BLOCK-001` | §8.6 | `src/hls/blocking-reload.test.ts` |
-| `HLS-BLOCK-002` | §8.6 | `src/hls/manifest-artifacts.test.ts` |
-| `HLS-BLOCK-003` | §8.6 | `e2e/runtime-client-flow.test.ts` |
+| `HLS-BLOCK-001` | §8.7 | `src/hls/blocking-reload.test.ts` |
+| `HLS-BLOCK-002` | §8.7 | `src/hls/manifest-artifacts.test.ts` |
+| `HLS-BLOCK-003` | §8.7 | `e2e/runtime-client-flow.test.ts` |
 | `HLS-BYTERANGE-001` | §8.5 | `src/validation/byterange.test.ts` |
 | `HLS-BYTERANGE-002` | §8.5 | `src/hls/media-playlist.test.ts` |
 | `HLS-BYTERANGE-003` | §8.5 | `src/hls/media-playlist.test.ts` |

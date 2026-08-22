@@ -133,42 +133,14 @@ carry `error.code` from the registered `OLOS_ERROR_CODES` set, next to
 
 ## Layers
 
-OLOS is a layered protocol. Each layer answers a different question and can
-be reused, extended, or replaced independently.
-
-**Core.** What makes an uploaded object an officially committed part of the
-live stream. Slots, observations, commits, cursors, `CommittedWindow`. The
-invariant: object exists ≠ object is stream state. Media-agnostic: Core
-carries `profile` data opaquely and knows no durations, codecs, HLS, S3, or
-HTTP.
-
-**CMAF/LL-HLS Profile** (`@arsenstorm/olos/media`, `@arsenstorm/olos/hls`).
-What the `profile` objects mean for media (segment and part targets, track
-codecs, object durations) and how the committed window renders into a
-playable LL-HLS manifest with blocking reload. Other profiles can define
-their own `profile` vocabulary on top of the same Core.
-
-**Storage Binding.** The abstract contract a storage backend must provide:
-exact-key create-if-absent uploads, read-after-create observation with
-metadata echo, optional create events. `@arsenstorm/olos/s3` realises it
-on S3, R2, GCS-S3, or any S3-compatible store.
-
-**Direct-Public Deployment Profile.** The configuration that says committed
-media bytes are served directly from the media origin. Requires a
-cookieless media origin, negative cache for 404s, and no document
-navigation to media URLs. The manifest is the gate.
-
-**Runtime Guidance.** Heartbeats, retention, reconciliation, live health,
-publisher loops. The operational glue that lives in the runtime layer, not
-in the protocol-essential commit semantics.
-
-**OLOS owns** slot rules, commit idempotency, S3 object observation, cursor
-sequencing, manifest rendering, retention planning, blocking-reload boundary,
-and the conformance suite.
-
-**Your app owns** authentication, the coordinator store backend, S3
-credentials, cursor wake-up mechanism, publisher scheduling, viewer routing,
-cache purge, and tenant quotas.
+OLOS is layered. Core defines the commit semantics. Above it are a profile
+(the CMAF/LL-HLS profile ships in `@arsenstorm/olos/media` and
+`@arsenstorm/olos/hls`), a storage binding (`@arsenstorm/olos/s3`), a
+delivery mapping, the direct-public deployment profile, and runtime
+guidance. [Spec Section
+2](https://github.com/arsenstorm/olos/blob/main/spec/02-architecture.md)
+defines the layers and the split between what OLOS owns and what your app
+owns.
 
 ## Further reading
 

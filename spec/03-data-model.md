@@ -1,13 +1,12 @@
 # 3. Data model
 
 This section defines every Core wire object normatively, field by field.
-The machine-readable JSON Schemas in Appendix A.1 are generated from the
-reference implementation and are an informative reproduction of this
-text. Constraints that JSON Schema 2020-12 cannot express (cross-field and
-cross-sibling rules) are stated here in prose. These prose constraints are
-equally binding. The contents of every `profile` field are defined by the
-session's profile, not here; the CMAF/LL-HLS profile's contents are
-defined in Section 8 and Appendix A.2.
+The machine-readable JSON Schemas in Appendix A.1 are an informative
+reproduction of this text. Constraints that JSON Schema 2020-12 cannot
+express (cross-field and cross-sibling rules) are stated here in prose.
+These prose constraints are equally binding. The session's profile defines
+the contents of every `profile` field. Section 8 and Appendix A.2 define
+those contents for the CMAF/LL-HLS profile.
 
 Reference implementation (informative): `olos/src/schema.ts`.
 
@@ -16,17 +15,14 @@ Reference implementation (informative): `olos/src/schema.ts`.
 <!-- olos-conformance: 3.1 CORE-SCHEMA-001 -->
 
 - Every wire object is a JSON object. All objects are closed on the write
-  path: the coordinator MUST reject unknown properties in inbound payloads
-  and in stored documents it re-validates, while clients MUST ignore
-  unknown fields in what they read (Section 1.2, Section 11.2).
+  path. The coordinator MUST reject unknown properties in inbound payloads
+  and in stored documents it re-validates. Clients MUST ignore unknown
+  fields in what they read (Section 1.2, Section 11.2).
 - Field types follow the conventions of Section 1.2: RFC 3339 timestamps,
   URL-safe identifiers, and integer byte sizes.
-- Every `profile` field is opaque profile data (Section 1.2). Core
-  validators MUST require a JSON object and MUST NOT constrain its keys,
-  except that `session.profile` and `cursor.profile` MUST carry a
-  non-empty string `id`. Core MUST carry profile data unchanged between
-  the objects that copy it (Section 2.1). Keys inside profile data are
-  never unknown fields.
+- Every `profile` field is opaque profile data. Core validates and carries
+  it as Section 2.1 defines. Keys inside profile data are never unknown
+  fields.
 - Each object defined below has a published JSON Schema. An implementation
   MUST accept every payload that the schema plus the prose constraints
   accept. It MUST reject every payload that either rejects.
@@ -48,10 +44,10 @@ A session declares one live stream and the profile it runs under.
 | `tracks`    | yes | Non-empty array of Track objects.                    |
 
 `tracks` MUST NOT contain two entries with the same `trackId`. The
-coordinator copies `profile` unchanged onto every cursor of the session
-(Section 3.8). Core does not validate that `profile.id` names a profile
-the implementation supports; the profile layer does (the CMAF/LL-HLS
-profile's `id` is `cmaf-llhls`, Section 8).
+coordinator copies `profile` onto every cursor of the session (Section
+2.1, Section 3.8). Core does not validate `profile.id` against the
+profiles an implementation supports. The profile layer does that
+(Section 8).
 
 ### 3.2.1 Track
 
@@ -63,10 +59,10 @@ profile's `id` is `cmaf-llhls`, Section 8).
 | `profile`     | no  | Profile data describing the track (opaque to Core).|
 
 Core identifies a track and nothing more. What a track carries (kind,
-codec, bitrate, dimensions, frame rate, audio characteristics, audio-group
-membership) is profile data. For the CMAF/LL-HLS profile these fields and
-their cross-track constraints are defined in Section 8 and validated by
-the profile module, not by Core.
+codec, bitrate, dimensions, frame rate, audio characteristics,
+audio-group membership) is profile data. Section 8 defines those fields
+and their cross-track constraints for the CMAF/LL-HLS profile. The
+profile module validates them.
 
 Schema: see Appendix A, `OLOS_SESSION_SCHEMA`.
 
@@ -96,19 +92,18 @@ An upload slot reserves exactly one object (Section 4.2).
 |                  |     | object (opaque to Core).                        |
 
 When both bounds are present, `minBytes` MUST be less than or equal to
-`maxBytes`. This is a cross-field rule not expressed in the schema.
+`maxBytes`.
 
-Core imposes no file-extension rule on `objectKey`; a key with no
-extension is valid. A profile MAY require one (the CMAF/LL-HLS profile
-requires `.mp4` for `init` and `.m4s` for `part` and `segment`, Section
-8). The slot's `profile` is the starting point of the commit's `profile`
-(Section 3.4). In the CMAF/LL-HLS profile it carries the object's expected
-`duration`.
+Core imposes no file-extension rule on `objectKey`. A key with no
+extension is valid. A profile MAY require an extension (Section 8.9.5).
+The slot's `profile` is the starting point of the commit's `profile`
+(Section 4.5.1). In the CMAF/LL-HLS profile it carries the object's
+expected `duration`.
 
 ### 3.3.1 Byterange
 
-A part slot or part commit MAY address its bytes as a range within a
-virtual segment object instead of a standalone object:
+A part slot or part commit MAY address its bytes as a range inside a
+virtual segment object:
 
 | Field                | Req | Constraints                       |
 | -------------------- | --- | --------------------------------- |
@@ -128,10 +123,10 @@ Schema: see Appendix A, `OLOS_UPLOAD_SLOT_SCHEMA`.
 ## 3.4 Commit
 
 A commit binds an observed upload to its slot's position in stream state
-(Section 4.5). All positional and addressing fields are copied from the
-slot. The size and etag come from the observed upload. A commit carries
-no `kind`: the slot it consumes determines whether the object is an init
-object, a segment, or a part.
+(Section 4.5). The coordinator copies all positional and addressing fields
+from the slot. The size and etag come from the observed upload. A commit
+carries no `kind`. The slot it consumes determines whether the object is
+an init object, a segment, or a part.
 
 | Field            | Req | Constraints                                     |
 | ---------------- | --- | ----------------------------------------------- |
@@ -155,15 +150,12 @@ object, a segment, or a part.
 
 A commit MUST NOT carry `byterange` without `partNumber` (Section 3.3.1).
 
-The commit's `profile` is the merge of the slot's `profile` and the
-profile data supplied with the commit request: every top-level key of the
-slot's profile is carried over, and a key present in the request replaces
-the slot's value for that key (the commit wins per key). When neither
-contributes a key, the field is omitted. The coordinator copies the
-result unchanged onto the committed object (Section 3.9). Duplicate-commit
-idempotency (Section 4.5) compares `profile` by structural JSON equality.
-In the CMAF/LL-HLS profile the commit's profile carries the object's
-`duration` and, for parts, `independent` (Section 8).
+The commit's `profile` is the slot's `profile` merged with the profile
+data of the commit request (Section 4.5.1). The coordinator copies the
+result unchanged onto the committed object (Section 3.9).
+Duplicate-commit idempotency compares `profile` by structural JSON
+equality (Section 4.5). In the CMAF/LL-HLS profile the commit's profile
+carries the object's `duration` and, for parts, `independent` (Section 8).
 
 Schema: see Appendix A, `OLOS_COMMIT_SCHEMA`.
 
@@ -181,9 +173,9 @@ An upload grant authorizes the single upload a slot reserves.
 | `requiredHeaders` | no  | Map of valid HTTP header names to string     |
 |                   |     | values the upload request MUST send.         |
 
-Grant issuance rules, the required-header baseline (exact content type,
-conditional create, slot-id metadata), and provider binding are defined in
-Section 7.
+Section 7 defines grant issuance rules, the required-header baseline
+(exact content type, conditional create, slot-id metadata), and provider
+binding.
 
 Schema: see Appendix A, `OLOS_UPLOAD_GRANT_SCHEMA`.
 
@@ -244,11 +236,8 @@ Cross-field preconditions:
 
 - `uploadGrants` MUST declare at least one grant mechanism:
   `presignedPut: true` or `temporaryCredentials: true`.
-- If `publication.directObjectPublication` is `true`, the document MUST
-  also declare `consistency.headAfterCreate: "strong"`,
-  `delivery.negativeCachingPolicyDeclared: true`, and
-  `publication.manifestGatedPublication: true`, and MUST NOT declare
-  `publication.overwritesAllowed: true` (Section 7, Section 10).
+- A document that declares `publication.directObjectPublication: true`
+  MUST satisfy the further capability requirements of Section 7.7.
 
 Schema: see Appendix A, `OLOS_PROVIDER_CAPABILITY_SCHEMA`.
 
@@ -279,9 +268,9 @@ window. Both sequence bounds MUST equal the committed window's bounds.
 When `lastPartNumber` is present, it MUST equal the last visible part
 number of the window (Section 5.6).
 
-The cursor carries no timing targets of its own. A profile that needs
-them (the CMAF/LL-HLS profile's segment and part duration targets)
-carries them inside `profile`, where renderers read them (Section 8).
+The cursor carries no timing targets. A profile that needs them (the
+CMAF/LL-HLS profile's segment and part duration targets) carries them
+inside `profile`, where renderers read them (Section 8).
 
 Schema: see Appendix A, `OLOS_CURSOR_SCHEMA`.
 
@@ -311,18 +300,15 @@ A **track window** carries:
 |            |     | to Core).                                           |
 | `segments` | yes | Non-empty ordered list of committed segments.       |
 
-Core does not require `init`. The track window's `profile` is produced by
-the profile's track-window hook at window build time from the visible
-segments and the segments trimmed off the front by retention; Core
-records what the hook returns and omits the field when the hook returns
-nothing. In the CMAF/LL-HLS profile it carries the track's
-`discontinuitySequence` when trimming dropped a flagged segment (Section
-8.4.2).
+Core does not require `init`. The profile's track-window hook produces
+the track window's `profile` (Section 5.7). In the CMAF/LL-HLS profile it
+carries the track's `discontinuitySequence` when trimming dropped a
+flagged segment (Section 8.4.2).
 
 A **committed segment** carries `sequenceNumber` (non-negative integer)
 and at least one of `segment` (a committed object) and `parts` (a
 non-empty ordered list of committed parts). A position with only parts is
-valid: the full segment is still being produced.
+valid. The full segment is still being produced.
 
 A **committed object** carries:
 
@@ -341,11 +327,11 @@ A **committed part** is a committed object plus a REQUIRED `partNumber`
 copied from the commit.
 
 Core carries no duration, timing, or continuity fields on committed
-objects; a profile defines them inside `profile` (for the CMAF/LL-HLS
-profile: `duration`, `independent`, `programDateTime`, and
-`discontinuityBefore`, Section 8). The full structural invariants
-(monotonic unique segment sequence numbers, monotonic unique part numbers,
-and the contiguous-parts prefix rule) are defined in Section 5.
+objects. A profile defines them inside `profile` (for the CMAF/LL-HLS
+profile `duration`, `independent`, `programDateTime`, and
+`discontinuityBefore`, Section 8). Section 5 defines the full structural
+invariants (monotonic unique segment sequence numbers, monotonic unique
+part numbers, and the contiguous-parts prefix rule).
 
 Schema: see Appendix A, `OLOS_COMMITTED_WINDOW_SCHEMA`.
 
@@ -363,45 +349,9 @@ Every protocol error response body is an error envelope:
 }
 ```
 
-`error.code` is REQUIRED and MUST be one of the codes listed in the table
-below (the reference implementation's `OLOS_ERROR_CODES` registry).
-`error.message` is a REQUIRED non-empty human-readable string.
-Receivers MUST NOT parse it programmatically. `error.details` is an
-OPTIONAL object of machine-readable context.
-
-| Code                             | Meaning                                |
-| -------------------------------- | -------------------------------------- |
-| `olos.invalid_session`           | Session payload or referenced session  |
-|                                  | is invalid or unknown.                 |
-| `olos.invalid_state`             | Operation not permitted in the current |
-|                                  | state (aborted session, unverified or  |
-|                                  | late object, malformed event, ...).    |
-| `olos.unknown_slot`              | `slotId` does not identify a known     |
-|                                  | upload slot.                           |
-| `olos.slot_expired`              | The slot's upload deadline has passed. |
-| `olos.key_mismatch`              | Object key does not match the slot or  |
-|                                  | conflicts with other upload evidence.  |
-| `olos.content_type_mismatch`     | Observed content type differs from the |
-|                                  | slot's `contentType`.                  |
-| `olos.object_too_large`          | Observed size exceeds `maxBytes`.      |
-| `olos.object_too_small`          | Observed size is below `minBytes`.     |
-| `olos.duplicate_commit_conflict` | A second commit for a slot carries     |
-|                                  | different evidence (Section 4.5).      |
-| `olos.cursor_regression`         | Candidate cursor is behind the current |
-|                                  | cursor (Section 4.7).                  |
-| `olos.provider_unavailable`      | Storage provider cannot be reached.    |
-| `olos.quota_exceeded`            | An application-defined quota blocks    |
-|                                  | the operation.                         |
-| `olos.security_policy_violation` | Publication control or security policy |
-|                                  | blocks the operation (Section 10).     |
-| `olos.invalid_request`           | Malformed request (HTTP 400).          |
-| `olos.not_found`                 | Resource not found (HTTP 404).         |
-| `olos.method_not_allowed`        | HTTP method not allowed (HTTP 405).    |
-| `olos.conflict`                  | Concurrent-update conflict (HTTP 409). |
-| `olos.internal`                  | Unexpected coordinator failure (HTTP   |
-|                                  | 500). The message is fixed and never   |
-|                                  | carries internal error detail.         |
-
-HTTP status mapping is defined in Section 6.
+`error.code` is REQUIRED and MUST be one of the codes in the table of
+Section 6.3.1. `error.message` is a REQUIRED non-empty human-readable
+string. Receivers MUST NOT parse it programmatically. `error.details` is
+an OPTIONAL object of machine-readable context.
 
 Schema: see Appendix A, `OLOS_ERROR_SCHEMA`.

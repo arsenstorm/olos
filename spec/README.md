@@ -10,48 +10,23 @@ into an ordered, committed, retained sequence of objects and publishes a
 cursor that describes the live edge. Viewers consume only committed
 objects. What the objects contain, and how the committed sequence is
 rendered for playback, is defined by a **profile**. The CMAF/LL-HLS
-profile (`cmaf-llhls`) is the first profile: it carries CMAF media and
+profile (`cmaf-llhls`) is the first profile. It carries CMAF objects and
 renders the committed window as LL-HLS playlists with blocking reload.
 
 ## Status
 
-This specification is a **draft**, at status `draft-v1.0.0`, wire version
-`1.0`. The wire version is carried in the `olos` field of every session and
-cursor. This text is normative.
+This specification is a draft, at status `draft-v1.0.0`, wire version
+`1.0`. Every session and cursor carries the wire version in its `olos`
+field. This text is normative.
 
-`@arsenstorm/olos` is the reference implementation. Together with its JSON
-Schemas (`@arsenstorm/olos/schema` for Core and `@arsenstorm/olos/media`
-for the CMAF/LL-HLS profile) and its conformance catalogue
-(`@arsenstorm/olos/conformance`), it is informative. Where the
+`@arsenstorm/olos` is the reference implementation. It is informative,
+together with its JSON Schemas and its conformance catalogue. Where the
 implementation, its schemas, or its conformance catalogue disagree with
-this text, the text governs and the implementation has a bug. The
-constants `OLOS_SPEC_STATUS` and `OLOS_WIRE_VERSION` that the
-implementation exports from `olos/src/index.ts` mirror this text.
-
-## Scope
-
-The specification defines:
-
-- the profile-opaque Core wire objects exchanged between publishers,
-  coordinators, and viewers
-- the state machine that turns uploads into committed stream state
-- the committed-window invariants that gate what viewers can see
-- the profile contract: what a profile defines and how Core carries
-  profile data unchanged
-- the CMAF/LL-HLS profile, the first profile, together with its LL-HLS
-  delivery mapping
-- the HTTP API, the S3-compatible storage binding, and the direct-public
-  security profile
-
-Authentication, authorization, tenant quotas, storage-backend selection, and
-viewer routing are application concerns. They are out of scope (see
-Section 2).
+this text, the text governs and the implementation has a bug.
 
 ## Conformance levels
 
-Conformance assertions are grouped into five levels. The reference
-implementation's `OlosConformanceLevel` type mirrors these levels
-(informative):
+This specification groups conformance assertions into five levels.
 
 | Level      | Meaning                                                        |
 | ---------- | -------------------------------------------------------------- |
@@ -66,9 +41,8 @@ implementation's `OlosConformanceLevel` type mirrors these levels
 | `security` | The direct-public deployment profile: origin allow-lists,      |
 |            | unguessable keys, response-header policy.                      |
 
-Assertion identifiers with the prefix `CORE-RUNTIME-` are historical. The
-level recorded in the coverage table is authoritative. The prefix is not
-authoritative.
+The level recorded in the coverage table is authoritative. An assertion
+identifier prefix such as `CORE-RUNTIME-` is not.
 
 ## Reading order
 
@@ -88,18 +62,11 @@ authoritative.
 
 Appendix A (JSON Schemas: A.1 Core, A.2 the CMAF/LL-HLS profile) and
 Appendix B (conformance assertion catalogue) are generated from the
-reference implementation and are informative reproductions of the
-normative text's schemas and assertion catalogue. They MUST NOT be edited
-by hand. Appendix C ([S3-compatible storage binding](./appendix-c-s3-binding.md))
-realises Section 7 on S3-compatible stores.
-
-## Requirement keywords
-
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
-"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
-"OPTIONAL" in this specification are to be interpreted as described in
-BCP 14 (RFC 2119, RFC 8174) when, and only when, they appear in all
-capitals, as shown here.
+reference implementation. They reproduce the schemas and the assertion
+catalogue of this text and are informative. They MUST NOT be edited by
+hand. Appendix C ([S3-compatible storage
+binding](./appendix-c-s3-binding.md)) implements Section 7 on
+S3-compatible stores.
 
 ## License
 

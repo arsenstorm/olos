@@ -1,10 +1,10 @@
 # 5. Committed window
 
 The committed window is the retained, viewer-visible span of committed
-objects (Section 3.9). This section defines how the window is derived
-from accepted commits. It also defines the invariants that every window
-MUST satisfy. Manifests are rendered exclusively from the committed
-window (Section 2.3, Section 8).
+objects (Section 3.9). This section defines how the coordinator derives
+the window from accepted commits. It also defines the invariants that
+every window MUST satisfy. Delivery documents are rendered exclusively
+from the committed window (Section 2.3, Section 8).
 
 ## 5.1 Structure and validity
 
@@ -21,7 +21,7 @@ produced it, unchanged.
   `epoch`. Commits from another session or epoch MUST be rejected.
 - A track MAY have at most one init commit. Duplicate init commits for
   one track MUST be rejected. A track with segment or part commits but
-  no init commit is valid in Core; its track window has no `init`. A
+  no init commit is valid in Core. Its track window has no `init`. A
   profile MAY require an init object per track (the CMAF/LL-HLS profile
   does, Section 8).
 - Within each track window, segments MUST be ordered by strictly
@@ -48,7 +48,7 @@ numbered from 0:
 - The visible parts of a segment are the longest prefix
   `0, 1, 2, ... n` of committed part numbers with no gap. Committed
   parts at or beyond the first gap MUST NOT appear in the window.
-- A segment whose only committed parts lie beyond a gap (for example
+- A segment whose only committed parts are beyond a gap (for example
   part 3 committed before parts 0-2) has no visible parts. If it also
   has no full segment object, it MUST NOT be rendered at all. If no
   track has any renderable segment, the window does not yet exist.
@@ -90,32 +90,28 @@ Each timeline position accepts at most one committed object per role:
   its completed form (Section 5.5, Section 8).
 
 Re-commits of the same slot are resolved by the idempotency rules of
-Section 4.5.2 before any duplicate-position check applies.
+Section 4.5.2 before the duplicate-position rules apply.
 
 ## 5.5 Segment durations
 
-Core gives a position no time meaning. A sequence number orders
-segments; a part number orders parts within a segment. Durations,
-wall-clock timestamps, and any other timing facts are profile data: a
-profile defines them inside the `profile` object of a slot, commit, and
-committed object, and Core carries that object through the window
-unchanged (Section 4.5.1).
+Core gives a position no time meaning. A sequence number orders segments.
+A part number orders parts within a segment. Durations, wall-clock
+timestamps, and any other timing facts are profile data. A profile
+defines them inside the `profile` object of a slot, commit, and committed
+object. Core carries that object through the window unchanged
+(Section 4.5.1).
 
 A profile that defines durations MUST also define how a segment's
-duration is derived when it is described by parts, by a full segment
+duration is derived. Segments are described by parts, by a full segment
 object, or by both. Under the CMAF/LL-HLS profile, every segment and
-part object carries `profile.duration`; a parts-only segment's duration
-is the sum of its visible (contiguous) parts' `profile.duration` and
-grows as the prefix extends, and once a full-segment object exists at a
-position its `profile.duration` is authoritative, including when parts
-are also present (Section 8).
+part object carries `profile.duration` (Section 8.4.3).
 
 ## 5.6 Last visible part number
 
 The window's last visible part number is the highest `partNumber` among
 the visible parts of segments at the window's `lastSequenceNumber`,
-taken across all tracks. It is undefined when no track's last segment
-sits at that sequence number with visible parts. One such case is a last
+taken across all tracks. It is undefined when no track's last segment is
+at that sequence number with visible parts. One such case is a last
 segment that is a completed full segment without parts. When the value
 is undefined, the cursor's `window.lastPartNumber` MUST be absent. When
 `window.lastPartNumber` is present, it MUST equal this value
@@ -128,20 +124,20 @@ MUST be a positive integer:
 
 - When a track window holds more than `maxSegments` renderable
   segments, only the newest `maxSegments` segments (the tail of the
-  ordered list) are retained. The oldest segments fall off the front.
+  ordered list) are retained.
 - Trimming MUST preserve the ordering and uniqueness invariants of
   Section 5.1.
 - Objects trimmed out of the window become eligible for retention
   (Section 9).
 
-Trimming is per track. The window build MAY be given a profile-supplied
-track-window `profile` hook (Section 4.7). For each track the hook
-receives the `trackId`, the visible segments, and the segments trimmed
-off the front, both oldest first, and returns the track window's
-`profile` or nothing. Core stores the returned object unchanged and
-omits `profile` when the hook returns nothing. The CMAF/LL-HLS profile
-uses the hook to count trimmed segments flagged `discontinuityBefore`
-into the track window's `discontinuitySequence` (Section 8).
+Trimming is per track. The window build MAY take a profile-supplied
+track-window `profile` hook. For each track the hook receives the
+`trackId`, the visible segments, and the segments trimmed off the front,
+both oldest first. It returns the track window's `profile` or nothing.
+Core stores the returned object unchanged, and omits `profile` when the
+hook returns nothing. The CMAF/LL-HLS profile uses the hook to count
+trimmed segments flagged `discontinuityBefore` into the track window's
+`discontinuitySequence` (Section 8).
 
 ## 5.8 Sequence number range
 
@@ -150,19 +146,15 @@ The window's sequence number bounds are derived from its tracks:
 - `firstSequenceNumber` MUST equal the minimum segment sequence number
   across all tracks. `lastSequenceNumber` MUST equal the maximum. The
   first MUST NOT exceed the last.
-- Individual tracks MAY start later than the window-global minimum
-  (per-track trimming or empty segments can drop leading segments), so
-  a track's first segment sequence number MAY exceed
-  `firstSequenceNumber`.
+- A track's first segment sequence number MAY exceed
+  `firstSequenceNumber`. Per-track trimming or empty segments can drop
+  leading segments.
 - A session track MAY be entirely absent from the window until its
-  first segment or part commit lands. Renderers MUST NOT treat that
-  absence as an error; the playlist mapping for absent tracks is
-  specified in Section 8.
-- As a result, a renderer that declares a per-track starting sequence
-  MUST derive it from that track's own first rendered segment, not from
-  the window-global minimum. The playlist mapping is specified in
-  Section 8.
+  first segment or part commit is accepted. Renderers MUST NOT treat
+  that absence as an error.
+- A renderer that declares a per-track starting sequence MUST derive it
+  from that track's own first rendered segment (Section 8.4.2).
 
 The `epoch` field carried by the window is defined in Section 3.9.
-Discontinuity signaling is profile data (Section 5.7) and its playlist
+Discontinuity signaling is profile data (Section 5.7). Its playlist
 rendering is covered in Section 8.

@@ -15,20 +15,20 @@ A retention pass over a session's state identifies:
 - **Expired slots**: issued slots whose `expiresAt` (plus the configured
   late tolerance) is at or before the evaluation time and that never
   produced a commit.
-- **Retired objects**: committed objects whose sequence number is
-  strictly behind the first visible segment of their own track in the
-  retained window (`sequenceNumber <
-  retainedWindow.tracks[trackId].segments[0].sequenceNumber`) and whose
-  slot does not back any object still in the window. The comparison is
-  per track, like window trimming (Section 5.7): a window-global
-  minimum would let one lagging track pin every other track's trimmed
+- **Retired objects**: committed objects that meet both of these
+  conditions. The sequence number is strictly behind the first visible
+  segment of the object's own track in the retained window
+  (`sequenceNumber <
+  retainedWindow.tracks[trackId].segments[0].sequenceNumber`). The
+  object's slot backs no object still in the window. The comparison is
+  per track, like window trimming (Section 5.7). A window-global
+  minimum lets one lagging track pin every other track's trimmed
   commits. A commit whose track is absent from the window is kept.
-  Out-of-order commits *ahead* of the contiguous prefix MUST NOT be
-  retired. A future part that is not yet visible is live state, not
-  garbage (see Section 5).
+  Out-of-order commits ahead of the contiguous prefix MUST NOT be
+  retired (Section 5).
 
-Retention never moves the cursor. Pruning changes what is stored, not
-what is published.
+Retention never moves the cursor. Pruning changes what is stored. It
+does not change what is published.
 
 ## 9.2 Planning vs application
 
@@ -41,15 +41,14 @@ The protocol separates read-only **planning** from state-mutating
   `{ expiredSlots, retiredObjects, cursor? }` from the stored snapshot
   and the evaluation time (`now` query parameter or server clock). It
   MUST NOT write. Deployments use it to drive app-owned deletion jobs.
-- **Apply** (the mutation behind the S3 retention route; the reference
-  implementation's `applyCoordinatorRetention`): prunes expired slots
-  from `state.slots` and
-  retires commits behind the window from `state.commits`, then
-  persists the pruned state under optimistic concurrency
-  (Section 6.8). When the pass finds nothing to prune, the save MUST
-  be skipped entirely. Periodic sweeps then do not churn etags or
-  create spurious conflicts. The applied plan mirrors the planning
-  shape with the (unchanged) cursor attached.
+- **Apply** (the mutation behind the S3 retention route, Section 9.3):
+  prunes expired slots from `state.slots` and retires commits behind
+  the window from `state.commits`. It then persists the pruned state
+  under optimistic concurrency (Section 6.8). When the pass finds
+  nothing to prune, the coordinator MUST skip the save entirely.
+  Periodic sweeps then do not churn etags or create spurious
+  conflicts. The applied plan mirrors the planning shape with the
+  (unchanged) cursor attached.
 
 Commits themselves also apply inline retention (Section 5). Each
 successful commit prunes slots and commits that fell behind the
@@ -63,23 +62,17 @@ without `maxSegments`, ended sessions).
 `POST /sessions/:id/s3/retention` (Section 6.6.6) combines application
 with storage deletion, and the ordering is normative:
 
-1. Apply retention and **persist the pruned coordinator state**.
+1. Apply retention and persist the pruned coordinator state.
 2. Only then delete the retired objects from the object store.
 3. Respond `202` with `{ plan, result, summary }`. `result` lists
    `deletedObjects` and `failedObjects`. `summary` counts them (`ok`
    is `true` when, and only when, nothing failed).
 
-State MUST be persisted before any delete is attempted. Rationale:
-persisted state then never references already-deleted objects, so a
-crash between delete and persist cannot resurrect such a reference. A
-delete-first order that fails to persist leaves an unpruned snapshot.
-That snapshot keeps growing and re-plans deletes for objects that no
-longer exist. The trade-off: a failed delete is never re-planned,
-because the pruned state no longer references the object. Failures
-surface per object in `result.failedObjects` for the caller to retry
-(deletes are idempotent). Bucket lifecycle rules are the backstop for
-orphaned objects. If the persist step conflicts, the route MUST
-respond `409` and delete nothing.
+The coordinator MUST persist state before it attempts any delete.
+Persisted state then never references an already-deleted object.
+Bucket lifecycle rules are the backstop for orphaned objects. If the
+persist step conflicts, the route MUST respond `409` and delete
+nothing.
 
 Deletion requirements:
 
@@ -89,12 +82,11 @@ Deletion requirements:
 - **Failure isolation.** A failed delete MUST NOT abort the remaining
   deletes. Failures are reported per object in `result.failedObjects`
   for the caller to retry. Later sweeps do not re-plan them.
-- **Bounded concurrency** is an implementation option, not a protocol
-  requirement. Implementations MAY delete with a bounded worker pool
-  (the reference default is sequential). They MUST keep result
-  ordering stable by input position regardless of completion order.
-- Object keys MUST be re-validated as safe keys under the `objects/`
-  prefix (Section 7.5) before the implementation issues deletes.
+- **Bounded concurrency.** Implementations MAY delete with a bounded
+  worker pool. They MUST keep result ordering stable by input position
+  regardless of completion order.
+- Implementations MUST re-validate object keys as safe keys under the
+  `objects/` prefix (Section 7.5) before they issue deletes.
 
 The same delete requirements apply to the inline `retiredObjects`
 cleanup performed by S3 commit, completion-hint, event, and
@@ -107,10 +99,9 @@ because the commit itself already persisted the pruned state.
 
 Provider events and completion hints are best-effort. Reconciliation
 is the recovery path that makes them optional for correctness. It
-re-drives the verify-then-commit flow (Section 7.9) from the stored
-slot table.
+re-drives the upload flow of Section 7.9 from the stored slot table.
 
-### 9.4.1 Plan — `POST /sessions/:id/s3/reconcile-plan`
+### 9.4.1 Plan (`POST /sessions/:id/s3/reconcile-plan`)
 
 Request: `{ "slotIds"?: [ ... ] }`. The plan selects the session's
 slots in state `issued` or `upload_observed`. These are the in-flight
@@ -124,20 +115,22 @@ optionally filters them to the requested `slotIds`. Response (`200`):
 Planning MUST NOT mutate state and MUST NOT touch the object store.
 Unknown sessions are `404 olos.invalid_session`.
 
-### 9.4.2 Reconcile — `POST /sessions/:id/s3/reconcile`
+### 9.4.2 Reconcile (`POST /sessions/:id/s3/reconcile`)
 
-Request fields: `committedAt` (REQUIRED), `providerId` (REQUIRED
-unless configured server-side), plus optional `slotIds`, `versionId`,
-`lateToleranceMs`, `maxSegments`, and `profile` (profile-defined facts
-recorded on each reconciled commit, merged over the slot's `profile`
-as in Section 4.5.1).
+Request fields:
+
+- `committedAt` (REQUIRED).
+- `providerId` (REQUIRED unless configured server-side).
+- optional `slotIds`, `versionId`, `lateToleranceMs`, and
+  `maxSegments`.
+- optional `profile`, recorded on each reconciled commit and merged
+  over the slot's `profile` (Section 4.5.1).
 
 For each planned slot, in order, the coordinator attempts the standard
-S3 commit. It observes the slot's derived key (Section 7.3; `HeadObject`
-under Appendix C), makes sure that the object matches the slot, and
-commits. The commit id
-defaults to `reconcile_<slotId>` when the deployment supplies none.
-Response (`202`):
+S3 commit. It observes the slot's derived key (Section 7.3,
+`HeadObject` under Appendix C), matches the object against the slot,
+and commits. The commit id defaults to `reconcile_<slotId>` when the
+deployment supplies none. Response (`202`):
 
 - `results[]`: per slot, either
   `{ "status": "committed" | "idempotent", "slotId", "commit",

@@ -14,7 +14,7 @@ Two version identifiers exist. They MUST NOT be conflated:
   appears on the wire. It changes with every published spec revision,
   including editorial ones.
 
-The wire version changes **only** on breaking wire changes. A breaking
+The wire version changes only on breaking wire changes. A breaking
 wire change is one that can make a previously valid exchange invalid
 or reinterpret it, including:
 
@@ -43,21 +43,18 @@ version:
 
 Servers MUST NOT require fields that this specification marks
 OPTIONAL. Clients MUST ignore unknown fields in responses and stored
-documents. Schema validation of *incoming* payloads MAY remain strict
-on the server side. For this reason, a new **request** field is
-additive, but removal of tolerance for one is breaking.
+documents. Schema validation of incoming payloads MAY remain strict on
+the server side. For this reason, a new request field is additive, and
+removal of tolerance for one is breaking.
 
 **Profile evolution.** Profiles version their own contents. Core treats
-every `profile` field as opaque (Section 2.1, Section 3.1): it requires a
-JSON object and, on sessions and cursors, a non-empty string `id`, and
-never inspects or rejects the remaining keys. Adding a key to a profile's
-profile data, or introducing a profile with a new `id`, is therefore an
-additive change to the Core wire contract and does not touch the wire
-version. A profile that removes or reinterprets one of its own keys
-breaks that profile, not Core; such a change MUST be published under a
-new profile `id`, because a session's `profile.id` is the only signal a
-consumer has for which contract its profile data follows. The
-CMAF/LL-HLS profile's `id` is `cmaf-llhls` (Section 8).
+every `profile` field as opaque (Section 2.1). Adding a key to profile
+data, or introducing a profile with a new `id`, is additive and does
+not touch the wire version. A profile that removes or reinterprets one
+of its own keys MUST be published under a new profile `id`. A session's
+`profile.id` is the only signal a consumer has for which contract its
+profile data follows. The CMAF/LL-HLS profile's `id` is `cmaf-llhls`
+(Section 8).
 
 ## 11.3 Error-code registry growth
 
@@ -66,13 +63,11 @@ The error-code registry (Section 6.3.1) grows additively:
 - A new code is a non-breaking change and does not touch the wire
   version.
 - A deleted or renamed registered code, or a changed status mapping
-  for an existing code (Section 6.3.2), is breaking.
+  for an existing code (Section 6.3.1), is breaking.
 - Consumers MUST tolerate unknown `error.code` values. An
-  unrecognized code MUST be handled by its HTTP status class, not
-  treated as a malformed response. A registered but unemitted code
-  (`olos.provider_unavailable`, Section 6.3.1) exists so that
-  implementations can start to emit it without a
-  version bump.
+  unrecognized code MUST be handled by its HTTP status class. The
+  registry can hold a code that no implementation emits yet
+  (Section 6.3.1).
 
 ## 11.4 Revision policy
 
@@ -84,5 +79,5 @@ The error-code registry (Section 6.3.1) grows additively:
   the new version reject old documents by the `olos` const.
   Coordinators MAY serve both versions side by side during migration.
 
-Implementations SHOULD surface both identifiers in diagnostics. An
+Implementations SHOULD report both identifiers in diagnostics. An
 interoperability report can then name the exact contract under test.
