@@ -14,8 +14,9 @@ The reference implementation ships every layer below.
 | Profile                     | What do the objects contain, what do         |
 |                             | positions mean, and how is the committed     |
 |                             | window rendered for viewers?                 |
-| Storage binding             | What is the minimum a storage backend must   |
-|                             | provide?                                     |
+| Storage binding             | What is the minimum an object store must     |
+|                             | provide, and how does a given store          |
+|                             | provide it?                                  |
 | Delivery mapping            | How does a profile's rendering reach a       |
 |                             | client (for example LL-HLS playlists with    |
 |                             | blocking reload)?                            |
@@ -50,12 +51,13 @@ unchanged from the session onto cursors, from the slot and the commit
 request onto the commit, and from the commit onto the committed object.
 Core MUST NOT derive stream state from the contents of profile data.
 
-**The storage binding** (Section 7, the S3-compatible binding) specifies
-the minimum storage contract: exact-key uploads, conditional create,
-`HeadObject` consistency, and optional event notifications. Any
-S3-compatible store (S3, R2, GCS-S3, MinIO) can satisfy it. A store
-declares what it satisfies in a provider capability document (Section
-3.7).
+**The storage binding** (Section 7) is an abstract contract — exact-key
+create-if-absent, read-after-create observation, metadata echo, optional
+create events. It names operations and guarantees, not a store API, so
+any object store that can satisfy them can carry OLOS. Appendix C
+realises the contract on S3-compatible stores (S3, R2, GCS-S3, MinIO). A
+store declares what it satisfies in a provider capability document
+(Section 3.7).
 
 **The delivery mapping** (Section 8 for LL-HLS) renders a profile's view
 of the committed window into client-facing delivery documents. The LL-HLS

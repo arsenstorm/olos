@@ -148,9 +148,10 @@ codecs, object durations) and how the committed window renders into a
 playable LL-HLS manifest with blocking reload. Other profiles can define
 their own `profile` vocabulary on top of the same Core.
 
-**S3-Compatible Binding.** The minimum a storage backend must provide:
-exact-key uploads, conditional create, `HeadObject` consistency, optional
-event notifications. Works with S3, R2, GCS-S3, or any compatible store.
+**Storage Binding.** The abstract contract a storage backend must provide:
+exact-key create-if-absent uploads, read-after-create observation with
+metadata echo, optional create events. `@arsenstorm/olos/s3` realises it
+on S3, R2, GCS-S3, or any S3-compatible store.
 
 **Direct-Public Deployment Profile.** The configuration that says committed
 media bytes are served directly from the media origin. Requires a

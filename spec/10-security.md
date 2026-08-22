@@ -3,9 +3,10 @@
 OLOS's default publication mode, `direct-public`, serves committed
 objects straight from the object store's public origin. It gates
 publication at the manifest, not at the byte. This section states the
-requirements of that profile normatively. The reference is
-`olos/src/state/direct-public-security-policy.ts`, `cache-policy.ts`,
-and the direct-public deployment checklist in
+requirements of that profile normatively.
+
+Reference implementation (informative): `olos/src/state/direct-public-security-policy.ts`,
+`cache-policy.ts`, and the direct-public deployment checklist in
 `contributing/core/direct-public-deployment.md`.
 
 ## 10.1 Threat model boundary
@@ -53,8 +54,9 @@ forbidden response header on the delivery origin.
 
 This policy governs the delivery path for objects of any profile. The
 delivery origin MUST evaluate every object request against these
-rules, in order, and block on the first match
-(`resolveDirectPublicObjectRequestPolicy`, `@arsenstorm/olos/state`):
+rules, in order, and block on the first match (the reference
+implementation's `resolveDirectPublicObjectRequestPolicy`,
+`@arsenstorm/olos/state`):
 
 | Rule | Status |
 | --- | --- |
@@ -81,13 +83,16 @@ The security policy (`DirectPublicSecurityPolicy`,
 `@arsenstorm/olos/types`) carries `allowedObjectExtensions` and
 `objectContentType` as profile-supplied fields; Core does not pin an
 extension set or content type. The CMAF/LL-HLS profile supplies
-`.m4s`/`.mp4` and `video/mp4` via `createDirectPublicMediaSecurityPolicy`
+`.m4s`/`.mp4` and `video/mp4` for these fields. A deployment that
+delivers another profile's objects MUST apply the same rule order and
+headers with the content type and extension set that its profile
+defines. The byterange aggregation service (Section 7.10) likewise
+takes its `content-type` from the caller rather than pinning one.
+
+Reference implementation (informative): the CMAF/LL-HLS values are
+supplied by `createDirectPublicMediaSecurityPolicy`
 (`@arsenstorm/olos/media`), which wraps `createDirectPublicSecurityPolicy`
-(`@arsenstorm/olos/state`) with those values. A deployment that delivers
-another profile's objects MUST apply the same rule order and headers
-with the content type and extension set that its profile defines. The
-byterange aggregation service (Section 7.10) likewise takes its
-`content-type` from the caller rather than pinning one.
+(`@arsenstorm/olos/state`).
 
 ## 10.4 Cache policy, including negative caching
 

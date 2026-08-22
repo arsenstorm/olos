@@ -15,19 +15,18 @@ renders the committed window as LL-HLS playlists with blocking reload.
 
 ## Status
 
-This specification is a **draft**. The authoritative status string is the
-`OLOS_SPEC_STATUS` constant that the reference implementation exports from
-`olos/src/index.ts`. The text in this directory mirrors that constant. If
-the two disagree, the constant supersedes the text. The wire version is the
-`OLOS_WIRE_VERSION` constant (`"1.0"`). Every session and cursor carries
-the wire version in the `olos` field.
+This specification is a **draft**, at status `draft-v1.0.0`, wire version
+`1.0`. The wire version is carried in the `olos` field of every session and
+cursor. This text is normative.
 
-While the specification is a draft, the reference implementation
-(`@arsenstorm/olos`), its JSON Schemas (`@arsenstorm/olos/schema` for Core
-and `@arsenstorm/olos/media` for the CMAF/LL-HLS profile), and its
-conformance assertions (`@arsenstorm/olos/conformance`) remain the
-normative surface. If this text and the reference implementation disagree,
-the implementation wins. The text then has a bug.
+`@arsenstorm/olos` is the reference implementation. Together with its JSON
+Schemas (`@arsenstorm/olos/schema` for Core and `@arsenstorm/olos/media`
+for the CMAF/LL-HLS profile) and its conformance catalogue
+(`@arsenstorm/olos/conformance`), it is informative. Where the
+implementation, its schemas, or its conformance catalogue disagree with
+this text, the text governs and the implementation has a bug. The
+constants `OLOS_SPEC_STATUS` and `OLOS_WIRE_VERSION` that the
+implementation exports from `olos/src/index.ts` mirror this text.
 
 ## Scope
 
@@ -50,8 +49,9 @@ Section 2).
 
 ## Conformance levels
 
-Conformance assertions are grouped into five levels. The levels mirror the
-`OlosConformanceLevel` type in `olos/src/conformance/metadata.ts`:
+Conformance assertions are grouped into five levels. The reference
+implementation's `OlosConformanceLevel` type mirrors these levels
+(informative):
 
 | Level      | Meaning                                                        |
 | ---------- | -------------------------------------------------------------- |
@@ -59,8 +59,8 @@ Conformance assertions are grouped into five levels. The levels mirror the
 |            | commits, cursors, the committed window. Profile-agnostic.      |
 | `runtime`  | Operational glue: HTTP handlers, heartbeats, health,           |
 |            | retention, reconciliation, publisher loops.                    |
-| `object`   | The S3-compatible object binding: grants, layout, events,      |
-|            | publication flow, delivery caching.                            |
+| `object`   | The storage binding contract (Section 7): grants, layout,      |
+|            | observation, events, publication flow.                         |
 | `hls`      | The CMAF/LL-HLS profile: profile data, playlist rendering,     |
 |            | blocking reload, byterange parts, audio groups, end-of-stream. |
 | `security` | The direct-public deployment profile: origin allow-lists,      |
@@ -80,7 +80,7 @@ authoritative.
 | [4. Lifecycle](./04-lifecycle.md)                                            | State machine |
 | [5. Committed window](./05-committed-window.md)                              | Window invariants |
 | [6. HTTP API](./06-http-api.md)                                              | Routes, envelopes |
-| [7. Storage-provider binding (S3 profile)](./07-s3-binding.md)               | Grants, layout, events |
+| [7. Storage binding contract](./07-storage-binding.md)                      | Exact-key grants, observation, events, layout |
 | [8. CMAF/LL-HLS profile](./08-hls-mapping.md)                                | Profile data, playlist rendering |
 | [9. Retention and reconciliation](./09-retention-reconciliation.md)          | Pruning, recovery |
 | [10. Security profile: direct-public deployment](./10-security.md)           | Direct-public profile |
@@ -88,7 +88,10 @@ authoritative.
 
 Appendix A (JSON Schemas: A.1 Core, A.2 the CMAF/LL-HLS profile) and
 Appendix B (conformance assertion catalogue) are generated from the
-reference implementation. They MUST NOT be edited by hand.
+reference implementation and are informative reproductions of the
+normative text's schemas and assertion catalogue. They MUST NOT be edited
+by hand. Appendix C ([S3-compatible storage binding](./appendix-c-s3-binding.md))
+realises Section 7 on S3-compatible stores.
 
 ## Requirement keywords
 

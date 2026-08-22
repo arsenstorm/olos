@@ -39,11 +39,11 @@ shown here.
 
 ## 1.3 Terminology
 
-This specification uses the terms below with exactly these meanings. The
-definitions derive from the reference implementation's public types
-(`olos/src/types/`). Media terms appear only as examples drawn from the
-CMAF/LL-HLS profile (Section 8); Core attaches no media meaning to any
-term.
+This specification uses the terms below with exactly these meanings. Media
+terms appear only as examples drawn from the CMAF/LL-HLS profile
+(Section 8); Core attaches no media meaning to any term.
+
+Reference implementation (informative): `olos/src/types/`.
 
 **session** — the unit of one live stream. A session is a wire object
 identified by `sessionId`. It declares the wire version, an epoch, the
@@ -123,8 +123,9 @@ beyond that single exact-key upload.
 now exists in storage. The evidence carries the object key, content type,
 size, optional etag and metadata, the observing provider, and the
 observation time. Evidence comes from a storage read (for example
-`HeadObject`) or from a provider `object.created` event. After a publisher
-completion hint, the coordinator awaits such evidence (Section 4.4).
+`HeadObject` on S3, Appendix C) or from a provider `object.created` event.
+After a publisher completion hint, the coordinator awaits such evidence
+(Section 4.4).
 
 **commit** — the wire object that makes one observed upload part of stream
 state. It binds a `commitId` to the slot's position, object key, and
@@ -171,13 +172,13 @@ HTTP(S) URL or a safe relative path. In both cases the URL contains no
 query strings, fragments, control characters, `.` or `..` segments, or
 empty path segments.
 
-**object key** — the storage-relative name of an object. The reference
-derivation (`olos/src/state/object-key-derivation.ts`) produces
+**object key** — the storage-relative name of an object. Object keys follow
 `objects/<trackId>/s<seq>[-<nonce>][.<ext>]` for segments,
 `objects/<trackId>/s<seq>/p<part>[-<nonce>][.<ext>]` for parts, and
 `objects/<trackId>/init[-<nonce>][.<ext>]` for init objects, where
-`<seq>` is the sequence number. The prefix and the extension are
-configurable; Core attaches no extension by default and requires none.
+`<seq>` is the sequence number (the reference implementation's derivation:
+`olos/src/state/object-key-derivation.ts`). The prefix and the extension
+are configurable; Core attaches no extension by default and requires none.
 A profile MAY require an extension (the CMAF/LL-HLS profile requires
 `.mp4` for init objects and `.m4s` for segments and parts, Section 8).
 Object keys MUST be safe relative keys. A safe relative key is non-empty

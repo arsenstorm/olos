@@ -2,10 +2,11 @@
 
 Retention keeps persisted coordinator state and stored objects bounded
 by the live window. Reconciliation recovers uploads whose completion
-signals were lost. The normative reference is
-`olos/src/state/retention.ts`, `olos/src/protocol/coordinator-retention.ts`,
-`olos/src/runtime/retention.ts`, `olos/src/s3/retention.ts`, and
-`olos/src/s3/reconciliation.ts`.
+signals were lost.
+
+Reference implementation (informative): `olos/src/state/retention.ts`,
+`olos/src/protocol/coordinator-retention.ts`, `olos/src/runtime/retention.ts`,
+`olos/src/s3/retention.ts`, and `olos/src/s3/reconciliation.ts`.
 
 ## 9.1 Retention model
 
@@ -40,8 +41,9 @@ The protocol separates read-only **planning** from state-mutating
   `{ expiredSlots, retiredObjects, cursor? }` from the stored snapshot
   and the evaluation time (`now` query parameter or server clock). It
   MUST NOT write. Deployments use it to drive app-owned deletion jobs.
-- **Apply** (`applyCoordinatorRetention`, the mutation behind the S3
-  retention route): prunes expired slots from `state.slots` and
+- **Apply** (the mutation behind the S3 retention route; the reference
+  implementation's `applyCoordinatorRetention`): prunes expired slots
+  from `state.slots` and
   retires commits behind the window from `state.commits`, then
   persists the pruned state under optimistic concurrency
   (Section 6.8). When the pass finds nothing to prune, the save MUST
@@ -131,8 +133,9 @@ recorded on each reconciled commit, merged over the slot's `profile`
 as in Section 4.5.1).
 
 For each planned slot, in order, the coordinator attempts the standard
-S3 commit. It observes the slot's derived key with `HeadObject`, makes
-sure that the object matches the slot, and commits. The commit id
+S3 commit. It observes the slot's derived key (Section 7.3; `HeadObject`
+under Appendix C), makes sure that the object matches the slot, and
+commits. The commit id
 defaults to `reconcile_<slotId>` when the deployment supplies none.
 Response (`202`):
 

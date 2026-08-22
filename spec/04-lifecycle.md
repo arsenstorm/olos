@@ -110,8 +110,8 @@ Rules:
 
 The coordinator learns that an object exists through one of three paths:
 
-1. **Storage read** — a direct read of object metadata (for
-   S3-compatible stores, `HeadObject`, Section 7). The read is
+1. **Storage read** — a direct read of object metadata (for example
+   `HeadObject` on S3-compatible stores, Appendix C). The read is
    normalized into an observed upload. Its `observedAt` is the
    caller-supplied timestamp when one exists (the commit's
    `committedAt`, an event's observation time, or a hint's event time),

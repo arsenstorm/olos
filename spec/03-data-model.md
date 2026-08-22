@@ -2,12 +2,14 @@
 
 This section defines every Core wire object normatively, field by field.
 The machine-readable JSON Schemas in Appendix A.1 are generated from the
-reference implementation (`olos/src/schema.ts`). Constraints that JSON
-Schema 2020-12 cannot express (cross-field and cross-sibling rules) are
-stated here in prose. These prose constraints are equally binding. The
-contents of every `profile` field are defined by the session's profile,
-not here; the CMAF/LL-HLS profile's contents are defined in Section 8 and
-Appendix A.2.
+reference implementation and are an informative reproduction of this
+text. Constraints that JSON Schema 2020-12 cannot express (cross-field and
+cross-sibling rules) are stated here in prose. These prose constraints are
+equally binding. The contents of every `profile` field are defined by the
+session's profile, not here; the CMAF/LL-HLS profile's contents are
+defined in Section 8 and Appendix A.2.
+
+Reference implementation (informative): `olos/src/schema.ts`.
 
 ## 3.1 Wire object conventions
 
@@ -361,8 +363,9 @@ Every protocol error response body is an error envelope:
 }
 ```
 
-`error.code` is REQUIRED and MUST be a value from the `OLOS_ERROR_CODES`
-registry. `error.message` is a REQUIRED non-empty human-readable string.
+`error.code` is REQUIRED and MUST be one of the codes listed in the table
+below (the reference implementation's `OLOS_ERROR_CODES` registry).
+`error.message` is a REQUIRED non-empty human-readable string.
 Receivers MUST NOT parse it programmatically. `error.details` is an
 OPTIONAL object of machine-readable context.
 

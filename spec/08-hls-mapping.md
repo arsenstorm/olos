@@ -7,9 +7,10 @@ the blocking playlist reload protocol. The profile defines the
 contents of the `profile` field on sessions, tracks, upload slots,
 commits, committed objects, and track windows (Section 8.8). Core
 treats those values as opaque JSON objects; only this profile gives
-them meaning. Their JSON Schemas are Appendix A.2. The normative
-reference is `olos/src/media/*.ts` (profile data, validation, object
-keys, track-window hook, publisher pacing) and
+them meaning. Their JSON Schemas are Appendix A.2.
+
+Reference implementation (informative): `olos/src/media/*.ts` (profile
+data, validation, object keys, track-window hook, publisher pacing) and
 `olos/src/hls/master-playlist.ts`, `media-playlist.ts`,
 `manifest-artifacts.ts`, and `blocking-reload.ts` (rendering).
 
@@ -454,8 +455,9 @@ places on Core wire objects. Core validates each as a JSON object
 it unchanged; the rules below apply on top of Core validation. Every
 profile object is closed: keys outside those listed are a validation
 error. The JSON Schemas are Appendix A.2 (`mediaSessionProfile`,
-`mediaTrackProfile`, `mediaObjectProfile`, `mediaSession`). The
-normative reference is `olos/src/media/types.ts` and
+`mediaTrackProfile`, `mediaObjectProfile`, `mediaSession`).
+
+Reference implementation (informative): `olos/src/media/types.ts` and
 `olos/src/media/validation.ts`.
 
 ### 8.8.1 Session profile
@@ -521,7 +523,7 @@ winning, and stores the result on the committed object. Under this
 profile, the merged object profile of a `segment` or `part` object
 MUST carry a positive `duration`. Coordinators SHOULD reject a
 `segment` or `part` commit whose merged profile lacks one (the
-reference validator is `assertMediaObjectProfile` with
+reference implementation's `assertMediaObjectProfile` with
 `requireDuration`); a committed window that reaches the renderer
 without one is a rendering error (Sections 8.4.3 and 8.5).
 
@@ -559,7 +561,7 @@ layouts are:
 - segment: `objects/<trackId>/s<sequenceNumber>[-nonce].m4s`
 - part: `objects/<trackId>/s<sequenceNumber>/p<partNumber>[-nonce].m4s`
 
-The normative reference is `olos/src/media/object-key.ts`.
+Reference implementation (informative): `olos/src/media/object-key.ts`.
 
 ### 8.8.6 Publisher pacing
 
@@ -587,6 +589,7 @@ default extensions of Section 8.8.5 unless overridden with another
 supported extension. `cadenceSeconds` feeds slot expiry: an upload
 slot's TTL is `max(minUploadTtlSeconds, ceil(cadenceSeconds +
 targetLatency))` seconds. A deployment MAY tune these values, but the
-rendering floors of Section 8.4.1 still apply. The normative
-reference is `olos/src/media/latency-profile.ts` and
-`latency-profile-defaults.ts`.
+rendering floors of Section 8.4.1 still apply.
+
+Reference implementation (informative): `olos/src/media/latency-profile.ts`
+and `latency-profile-defaults.ts`.

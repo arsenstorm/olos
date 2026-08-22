@@ -8,9 +8,9 @@ MUST carry. Payload field types reference the Appendix A schema names
 (for example "OLOS Session"). Sections 3 through 5 define the
 underlying state semantics.
 
-The normative reference for this section is the stored coordinator
-runtime handler (`olos/src/runtime/http.ts`) and the S3 runtime handler
-that wraps it (`olos/src/s3/http.ts`).
+Reference implementation (informative): the stored coordinator runtime
+handler `olos/src/runtime/http.ts` and the S3 runtime handler that wraps
+it, `olos/src/s3/http.ts`.
 
 <!-- olos-conformance: 6 CORE-RUNTIME-001 CORE-RUNTIME-002 CORE-RUNTIME-003 CORE-RUNTIME-004 CORE-RUNTIME-005 CORE-RUNTIME-017 -->
 
@@ -58,8 +58,8 @@ serve the storage-binding (S3 profile) routes:
 
 Note: the completion-hint route sits directly under the session root
 (`upload-slots` segment). It does not sit under the `/s3/` segment.
-The reference implementation (`olos/src/s3/route.ts`,
-`olos/src/s3/http-route.ts`) produces and matches this wire path.
+Reference implementation (informative): `olos/src/s3/route.ts`,
+`olos/src/s3/http-route.ts`.
 
 ## 6.2 Common request handling
 
@@ -338,16 +338,18 @@ them.
 
 <!-- olos-conformance: 6.6 OBJ-RUNTIME-001 OBJ-RUNTIME-002 OBJ-RUNTIME-003 OBJ-RUNTIME-004 OBJ-RUNTIME-005 OBJ-RUNTIME-006 OBJ-RUNTIME-007 OBJ-RUNTIME-010 OBJ-RUNTIME-011 OBJ-RUNTIME-012 OBJ-RUNTIME-013 -->
 
-S3-binding routes extend the core routes. Requests that do not match
-an S3 path fall through to the core handler unchanged. All S3 routes
-are `POST` and share the validation rules of Section 6.2.
+These routes are the S3-compatible realisation (Appendix C) of the
+storage binding contract (Section 7). S3-binding routes extend the core
+routes. Requests that do not match an S3 path fall through to the core
+handler unchanged. All S3 routes are `POST` and share the validation
+rules of Section 6.2.
 
 ### 6.6.1 Issue upload grant — `POST /sessions/:id/s3/slots`
 
 Request body: identical to Section 6.5.1. Success: `201` with
 `{ "grant": <OLOS UploadGrant>, "slot": <OLOS UploadSlot> }`. The
-grant is a presigned exact-key `PUT` (Section 7.2). Errors: as in
-Section 6.5.1.
+grant is a presigned exact-key `PUT` (Section 7.2 (grant contract) /
+Appendix C (S3 realisation)). Errors: as in Section 6.5.1.
 
 ### 6.6.2 Commit upload — `POST /sessions/:id/s3/commits`
 
@@ -360,9 +362,10 @@ Request body: as Section 6.5.2 minus the `object` field, plus:
   rejects the request with `409 olos.key_mismatch`.
 - `versionId` (OPTIONAL): provider object version to verify.
 
-Before it commits, the coordinator observes the object with a
-`HeadObject` against the slot's derived key (Section 7.3). The
-publisher never supplies size or content type on this route.
+Before it commits, the coordinator observes the object against the
+slot's derived key (observation, Section 7.3; `HeadObject` under
+Appendix C). The publisher never supplies size or content type on this
+route.
 
 Success and errors: as Section 6.5.2.
 
@@ -376,9 +379,9 @@ The body is as Section 6.6.2 with these differences:
   `slotId`.
 - `commitId` defaults to `complete_<slotId>` when omitted.
 - `committedAt` defaults to the coordinator's current time.
-- `etag` and `size` MUST NOT be present. `HeadObject` (Section 7.3) is
-  the only source of truth for observed object metadata; requests that
-  carry either are `400`.
+- `etag` and `size` MUST NOT be present. Observation (Section 7.3;
+  `HeadObject` under Appendix C) is the only source of truth for
+  observed object metadata; requests that carry either are `400`.
 - `deliveryUrl` MUST NOT be present. Requests that carry it are `400`.
 
 Success and errors: as Section 6.6.2. When the coordinator rejects an
