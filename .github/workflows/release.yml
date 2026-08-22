@@ -21,12 +21,23 @@ jobs:
       pull-requests: write
 
     steps:
+      # A GitHub App token instead of GITHUB_TOKEN: pushes and pull requests
+      # made with GITHUB_TOKEN never trigger other workflows, so the version
+      # PR would get no Validate checks and stay blocked.
+      - name: Create App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       # persist-credentials stays on: changesets/action pushes the version
       # branch with the checked-out git credentials.
       - name: Check out repository code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -38,9 +49,8 @@ jobs:
 
       # Maintains the "Version Packages" PR only. Publishing stays
       # tag-triggered in publish.yml: after merging the version PR, push the
-      # matching olos-v<version> tag manually — tags pushed with GITHUB_TOKEN
-      # do not trigger workflows, and the manual tag plus the npm environment
-      # approval form the human release gate.
+      # matching olos-v<version> tag manually. The manual tag plus the npm
+      # environment approval form the human release gate.
       - name: Create or update version PR
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
@@ -48,4 +58,4 @@ jobs:
           commit: "chore: version @arsenstorm/olos"
           title: "chore: version @arsenstorm/olos"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
