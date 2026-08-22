@@ -24,7 +24,6 @@ import type {
   S3RuntimeRetentionRetiredObjectsPayload,
   S3RuntimeRetentionSummaryArrays,
   S3RuntimeRetentionSummaryCounts,
-  S3RuntimeRetentionSummaryOk,
   S3RuntimeRetiredObjectPayload,
 } from "./client-payload-types";
 import type { StoredS3CoordinatorRetentionResponse } from "./http-types";
@@ -253,7 +252,7 @@ function retentionSummary(
 ): StoredS3CoordinatorRetentionResponse["summary"] {
   const counts = retentionSummaryCounts(value);
   const arrays = retentionSummaryArrays(value);
-  const ok = retentionSummaryOk(value);
+  const ok = summaryOk(value, S3_RETENTION_SUMMARY_OK_MESSAGE);
 
   return {
     ...counts,
@@ -277,12 +276,6 @@ function retentionSummaryArrays(
       S3_RETENTION_SUMMARY_FAILED_SLOT_IDS_MESSAGE
     ),
   };
-}
-
-function retentionSummaryOk(
-  value: Record<string, unknown>
-): S3RuntimeRetentionSummaryOk {
-  return summaryOk(value, S3_RETENTION_SUMMARY_OK_MESSAGE);
 }
 
 function retentionSummaryCounts(

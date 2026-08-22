@@ -55,24 +55,6 @@ export type StoredS3CoordinatorRuntimeHandler = (
   ctx?: StoredS3CoordinatorRuntimeHandlerContext
 ) => Promise<Response>;
 
-interface InvalidS3HttpRequestParse {
-  message: string;
-  status: "invalid";
-  /** Set when the request body exceeded the configured byte cap. */
-  tooLarge?: true;
-}
-
-export function invalid(
-  message: string,
-  status: "invalid" | "too_large" = "invalid"
-): InvalidS3HttpRequestParse {
-  return {
-    message,
-    status: "invalid",
-    ...(status === "too_large" ? { tooLarge: true } : {}),
-  };
-}
-
 /**
  * Create an HTTP handler that serves the S3 coordinator routes for a stored
  * session — slot grants (`s3/slots`, 201), commits and completion hints

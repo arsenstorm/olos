@@ -233,7 +233,7 @@ function revocationRefusal(
   return;
 }
 
-function findSlot(
+export function findSlot(
   state: CoordinatorPipelineState,
   slotId: OlosId
 ): UploadSlot | undefined {

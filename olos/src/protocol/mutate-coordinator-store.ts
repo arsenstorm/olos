@@ -277,36 +277,6 @@ export function runStoredCoordinatorMutationWithAdapters<
   });
 }
 
-export function runStoredCoordinatorMutationWithAdaptersAndConflict<
-  TAttempt,
-  TSaveAttempt extends TAttempt,
-  TResult,
->(
-  options: RunStoredMutationAdapterWithConflictResultOptions<
-    TAttempt,
-    TSaveAttempt,
-    TResult
-  >
-): Promise<TResult> {
-  return runStoredCoordinatorMutationWithAdapters<
-    TAttempt,
-    TSaveAttempt,
-    TResult
-  >({
-    attempts: options.attempts,
-    decide: options.decide,
-    mapSaved: options.mapSaved,
-    mutate: options.mutate,
-    onConflict: (current, attempt) =>
-      options.onConflictOrExhausted(current, attempt),
-    onExhausted: (snapshot) =>
-      options.onConflictOrExhausted(snapshot, undefined),
-    onMissing: options.onMissing,
-    sessionId: options.sessionId,
-    store: options.store,
-  });
-}
-
 export function runStoredCoordinatorMutationWithAdaptersAndResponse<
   TAttempt,
   TSaveAttempt extends TAttempt,
@@ -318,7 +288,7 @@ export function runStoredCoordinatorMutationWithAdaptersAndResponse<
     TResult
   >
 ): Promise<TResult> {
-  return runStoredCoordinatorMutationWithAdaptersAndConflict<
+  return runStoredCoordinatorMutationWithAdapters<
     TAttempt,
     TSaveAttempt,
     TResult
@@ -327,7 +297,10 @@ export function runStoredCoordinatorMutationWithAdaptersAndResponse<
     decide: options.decide,
     mapSaved: options.mapSaved,
     mutate: options.mutate,
-    onConflictOrExhausted: options.onConflictOrExhausted,
+    onConflict: (current, attempt) =>
+      options.onConflictOrExhausted(current, attempt),
+    onExhausted: (snapshot) =>
+      options.onConflictOrExhausted(snapshot, undefined),
     onMissing: options.onMissing,
     sessionId: options.sessionId,
     store: options.store,

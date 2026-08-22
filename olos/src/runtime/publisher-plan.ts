@@ -70,19 +70,6 @@ export interface RuntimePublisherObjectPlan {
   slot: RuntimeSlotIssuePayload;
 }
 
-type InitPublisherObjectPlanOptions =
-  CreateRuntimePublisherObjectPlanOptions & {
-    kind: "init";
-  };
-type PartPublisherObjectPlanOptions =
-  CreateRuntimePublisherObjectPlanOptions & {
-    kind: "part";
-  };
-type SegmentPublisherObjectPlanOptions =
-  CreateRuntimePublisherObjectPlanOptions & {
-    kind: "segment";
-  };
-
 /**
  * Build the slot issue payload for a planned object along with a
  * deterministic commit id and an object key preview. Ids are derived from
@@ -155,7 +142,7 @@ function assertPlanOptions(
 function assertPlanPartNumber(
   options: CreateRuntimePublisherObjectPlanOptions
 ): void {
-  if (isPartPublisherObjectPlan(options)) {
+  if (options.kind === "part") {
     if (!isNonNegativeInteger(options.partNumber)) {
       throw new Error("partNumber must be a non-negative integer for parts");
     }
@@ -207,33 +194,15 @@ function createObjectId(
   options: CreateRuntimePublisherObjectPlanOptions,
   prefix: string
 ): string {
-  if (isInitPublisherObjectPlan(options)) {
+  if (options.kind === "init") {
     return `${prefix}_init_${options.trackId}`;
   }
 
-  if (isSegmentPublisherObjectPlan(options)) {
+  if (options.kind === "segment") {
     return `${prefix}_${options.trackId}_s${options.sequenceNumber}`;
   }
 
   return `${prefix}_${options.trackId}_s${options.sequenceNumber}_p${options.partNumber}`;
-}
-
-function isInitPublisherObjectPlan(
-  options: CreateRuntimePublisherObjectPlanOptions
-): options is InitPublisherObjectPlanOptions {
-  return options.kind === "init";
-}
-
-function isPartPublisherObjectPlan(
-  options: CreateRuntimePublisherObjectPlanOptions
-): options is PartPublisherObjectPlanOptions {
-  return options.kind === "part";
-}
-
-function isSegmentPublisherObjectPlan(
-  options: CreateRuntimePublisherObjectPlanOptions
-): options is SegmentPublisherObjectPlanOptions {
-  return options.kind === "segment";
 }
 
 function assertOptionalUrlSafeIdentifier(

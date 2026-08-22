@@ -1,10 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { isRecord } from "../validation/fields";
 import {
   jsonPost,
   normalizedBaseUrl,
   optionalRecordField,
-  optionalRecordPayload,
   requiredArrayField,
   requiredRecord,
   requiredRecordField,
@@ -35,31 +33,11 @@ describe("runtime HTTP client helpers", () => {
       cursor: { sessionId: "session_1" },
       text: "not an object",
     };
-    const assertCursorRecord = (
-      value: unknown
-    ): asserts value is { sessionId: string } => {
-      if (!isRecord(value)) {
-        throw new Error("cursor must be an object");
-      }
-
-      if (typeof value.sessionId !== "string") {
-        throw new Error("cursor.sessionId must be a string");
-      }
-    };
 
     expect(optionalRecordField(value, "cursor")).toEqual({
       sessionId: "session_1",
     });
     expect(optionalRecordField(value, "text")).toBeUndefined();
-    expect(
-      optionalRecordPayload<"cursor", { sessionId: string }>(
-        value,
-        "cursor",
-        assertCursorRecord
-      )
-    ).toEqual({
-      cursor: { sessionId: "session_1" },
-    });
     expect(requiredRecordField(value, "cursor", "missing cursor")).toEqual({
       sessionId: "session_1",
     });
@@ -94,15 +72,6 @@ describe("runtime HTTP client helpers", () => {
 
   test("field helpers handle non-object payloads through their normal missing-field paths", () => {
     expect(optionalRecordField(null, "cursor")).toBeUndefined();
-    expect(
-      optionalRecordPayload<"cursor", { sessionId: string }>(
-        null,
-        "cursor",
-        () => {
-          throw new Error("assertion should not run");
-        }
-      )
-    ).toEqual({});
     expect(() => requiredStringField(null, "status", "missing status")).toThrow(
       "missing status"
     );

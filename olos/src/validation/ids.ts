@@ -13,16 +13,6 @@ export function isPositiveInteger(value: unknown): value is number {
   return isIntegerAtLeast(value, 1);
 }
 
-/** Alias of `isNonNegativeInteger` — every integer check is safe-bounded. */
-export function isNonNegativeSafeInteger(value: unknown): value is number {
-  return isIntegerAtLeast(value, 0);
-}
-
-/** Alias of `isPositiveInteger` — every integer check is safe-bounded. */
-export function isPositiveSafeInteger(value: unknown): value is number {
-  return isIntegerAtLeast(value, 1);
-}
-
 /**
  * Throws `Error("<name> must be a non-negative integer")` unless `value` is
  * an integer >= 0.
@@ -39,20 +29,6 @@ export function assertPositiveInteger(
   name: string
 ): asserts value is number {
   assertInteger(value, name, isPositiveInteger, "positive");
-}
-
-export function assertNonNegativeSafeInteger(
-  value: unknown,
-  name: string
-): asserts value is number {
-  assertInteger(value, name, isNonNegativeSafeInteger, "non-negative");
-}
-
-export function assertPositiveSafeInteger(
-  value: unknown,
-  name: string
-): asserts value is number {
-  assertInteger(value, name, isPositiveSafeInteger, "positive");
 }
 
 function isIntegerAtLeast(value: unknown, minimum: number): value is number {

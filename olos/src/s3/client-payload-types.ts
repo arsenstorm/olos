@@ -45,15 +45,6 @@ export type S3RuntimeFailedReconciliationResultStatus = Exclude<
   S3RuntimeSuccessfulReconciliationResultStatus
 >;
 
-export interface S3RuntimeCommitPayloadFields {
-  commit: Record<string, unknown>;
-}
-
-export interface S3RuntimeGrantPayloadFields {
-  grant: Record<string, unknown>;
-  slot: Record<string, unknown>;
-}
-
 export interface S3RuntimeReconciliationPayloadFields {
   results: unknown;
   summary: Record<string, unknown>;

@@ -185,7 +185,11 @@ export function assertProviderCapabilityDocument(
     assertEvents(value.events);
   }
 
-  assertCapabilityPreconditions(value);
+  assertCapabilityPreconditions(value, {
+    consistency: value.consistency,
+    delivery: value.delivery,
+    publication: value.publication,
+  });
 }
 
 function assertApi(value: unknown): void {
@@ -199,7 +203,9 @@ function assertApi(value: unknown): void {
   assertNonEmptyStringField(value, "family", name);
 }
 
-function assertConsistency(value: unknown): void {
+function assertConsistency(
+  value: unknown
+): asserts value is Record<string, unknown> {
   const name = "providerCapability.consistency";
 
   if (!isRecord(value)) {
@@ -222,7 +228,9 @@ function assertConsistency(value: unknown): void {
   );
 }
 
-function assertPublication(value: unknown): void {
+function assertPublication(
+  value: unknown
+): asserts value is Record<string, unknown> {
   const name = "providerCapability.publication";
 
   if (!isRecord(value)) {
@@ -283,7 +291,9 @@ function assertUploadGrantMechanism(
   }
 }
 
-function assertDelivery(value: unknown): void {
+function assertDelivery(
+  value: unknown
+): asserts value is Record<string, unknown> {
   const name = "providerCapability.delivery";
 
   if (!isRecord(value)) {
@@ -340,24 +350,15 @@ function assertOptionalOneOfField(
   }
 }
 
-function assertCapabilityPreconditions(value: Record<string, unknown>): void {
+function assertCapabilityPreconditions(
+  value: Record<string, unknown>,
+  context: DirectPublicationPreconditionContext
+): void {
   if (!usesDirectObjectPublication(value)) {
     return;
   }
 
-  assertDirectPublicationPreconditions(
-    directPublicationPreconditionContext(value)
-  );
-}
-
-function directPublicationPreconditionContext(
-  value: Record<string, unknown>
-): DirectPublicationPreconditionContext {
-  return {
-    consistency: providerCapabilityRecordField(value, "consistency"),
-    delivery: providerCapabilityRecordField(value, "delivery"),
-    publication: providerCapabilityRecordField(value, "publication"),
-  };
+  assertDirectPublicationPreconditions(context);
 }
 
 function assertDirectPublicationPreconditions(
@@ -375,15 +376,4 @@ function usesDirectObjectPublication(value: Record<string, unknown>): boolean {
     isRecord(value.publication) &&
     value.publication.directObjectPublication === true
   );
-}
-
-function providerCapabilityRecordField(
-  value: Record<string, unknown>,
-  field: "consistency" | "delivery" | "publication"
-): Record<string, unknown> {
-  if (!isRecord(value[field])) {
-    throw new Error(`providerCapability.${field} must be an object`);
-  }
-
-  return value[field];
 }

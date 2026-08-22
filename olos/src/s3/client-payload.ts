@@ -1,15 +1,8 @@
 import { requiredRecordField } from "../runtime/http-client";
-import type { Commit } from "../types/commit";
-import type { UploadGrant } from "../types/upload-grant";
-import type { UploadSlot } from "../types/upload-slot";
 import { parseCommit } from "../validation/commit";
 import { parseUploadGrant } from "../validation/upload-grant";
 import { parseUploadSlot } from "../validation/upload-slot";
 import { optionalCursorPayload } from "./client-payload-shared";
-import type {
-  S3RuntimeCommitPayloadFields,
-  S3RuntimeGrantPayloadFields,
-} from "./client-payload-types";
 import type {
   S3RuntimeCompleteUploadResponse,
   S3RuntimeIssueUploadGrantResponse,
@@ -23,33 +16,20 @@ const S3_UPLOAD_COMMIT_RESPONSE_FIELDS_MESSAGE =
 export function grantPayload(
   value: unknown
 ): Omit<S3RuntimeIssueUploadGrantResponse, "response"> {
-  const fields = grantPayloadFields(value);
-
   return {
-    grant: uploadGrantPayload(fields.grant),
-    slot: uploadSlotPayload(fields.slot),
-  };
-}
-
-function uploadGrantPayload(value: Record<string, unknown>): UploadGrant {
-  return parseUploadGrant(value);
-}
-
-function uploadSlotPayload(value: Record<string, unknown>): UploadSlot {
-  return parseUploadSlot(value);
-}
-
-function grantPayloadFields(value: unknown): S3RuntimeGrantPayloadFields {
-  return {
-    grant: requiredRecordField(
-      value,
-      "grant",
-      S3_UPLOAD_GRANT_RESPONSE_FIELDS_MESSAGE
+    grant: parseUploadGrant(
+      requiredRecordField(
+        value,
+        "grant",
+        S3_UPLOAD_GRANT_RESPONSE_FIELDS_MESSAGE
+      )
     ),
-    slot: requiredRecordField(
-      value,
-      "slot",
-      S3_UPLOAD_GRANT_RESPONSE_FIELDS_MESSAGE
+    slot: parseUploadSlot(
+      requiredRecordField(
+        value,
+        "slot",
+        S3_UPLOAD_GRANT_RESPONSE_FIELDS_MESSAGE
+      )
     ),
   };
 }
@@ -57,24 +37,14 @@ function grantPayloadFields(value: unknown): S3RuntimeGrantPayloadFields {
 export function commitPayload(
   value: unknown
 ): Omit<S3RuntimeCompleteUploadResponse, "response"> {
-  const fields = commitPayloadFields(value);
-
   return {
-    commit: commitResponsePayload(fields.commit),
-    ...optionalCursorPayload(value),
-  };
-}
-
-function commitResponsePayload(value: Record<string, unknown>): Commit {
-  return parseCommit(value);
-}
-
-function commitPayloadFields(value: unknown): S3RuntimeCommitPayloadFields {
-  return {
-    commit: requiredRecordField(
-      value,
-      "commit",
-      S3_UPLOAD_COMMIT_RESPONSE_FIELDS_MESSAGE
+    commit: parseCommit(
+      requiredRecordField(
+        value,
+        "commit",
+        S3_UPLOAD_COMMIT_RESPONSE_FIELDS_MESSAGE
+      )
     ),
+    ...optionalCursorPayload(value),
   };
 }

@@ -124,7 +124,7 @@ export function retentionPayload(value: unknown): CoordinatorRetentionPlan {
   );
 }
 
-export function coordinatorRetentionPlanPayload(
+function coordinatorRetentionPlanPayload(
   value: Record<string, unknown>
 ): CoordinatorRetentionPlan {
   const cursor = optionalRetentionPlanCursor(value);
@@ -136,7 +136,7 @@ export function coordinatorRetentionPlanPayload(
   };
 }
 
-export function retentionPlanExpiredSlots(
+function retentionPlanExpiredSlots(
   value: Record<string, unknown>
 ): UploadSlot[] {
   return requiredArrayField(
@@ -146,27 +146,23 @@ export function retentionPlanExpiredSlots(
   ).map((slot, index) => retentionPlanExpiredSlot(slot, index));
 }
 
-export function retentionPlanExpiredSlot(
-  value: unknown,
-  index: number
-): UploadSlot {
+function retentionPlanExpiredSlot(value: unknown, index: number): UploadSlot {
   if (!isRecord(value)) {
-    throw new Error(retentionPlanExpiredSlotObjectMessage(index));
+    throw new Error(
+      `runtime session retention plan expiredSlots[${index}] must be an object`
+    );
   }
 
   try {
     return parseUploadSlot(value);
   } catch (error) {
     throw new Error(
-      retentionPlanExpiredSlotValidMessage(
-        index,
-        errorMessage(error, String(error))
-      )
+      `runtime session retention plan expiredSlots[${index}] must be valid: ${errorMessage(error, String(error))}`
     );
   }
 }
 
-export function retentionPlanRetiredObjects(
+function retentionPlanRetiredObjects(
   value: Record<string, unknown>
 ): CoordinatorRetentionPlan["retiredObjects"] {
   return requiredArrayField(
@@ -178,12 +174,14 @@ export function retentionPlanRetiredObjects(
   );
 }
 
-export function retentionPlanRetiredObject(
+function retentionPlanRetiredObject(
   value: unknown,
   index: number
 ): CoordinatorRetentionPlan["retiredObjects"][number] {
   if (!isRecord(value)) {
-    throw new Error(retentionPlanRetiredObjectObjectMessage(index));
+    throw new Error(
+      `runtime session retention plan retiredObjects[${index}] must be an object`
+    );
   }
 
   return {
@@ -219,29 +217,14 @@ export function optionalRetentionPlanCursor(
   return parseCursor(value.cursor);
 }
 
-export function retentionPlanExpiredSlotObjectMessage(index: number): string {
-  return `runtime session retention plan expiredSlots[${index}] must be an object`;
-}
-
-export function retentionPlanExpiredSlotValidMessage(
-  index: number,
-  message: string
-): string {
-  return `runtime session retention plan expiredSlots[${index}] must be valid: ${message}`;
-}
-
-export function retentionPlanRetiredObjectObjectMessage(index: number): string {
-  return `runtime session retention plan retiredObjects[${index}] must be an object`;
-}
-
-export function retentionPlanRetiredObjectFieldMessage(
+function retentionPlanRetiredObjectFieldMessage(
   index: number,
   field: "commitId" | "objectKey" | "slotId"
 ): string {
   return `runtime session retention plan retiredObjects[${index}].${field} must be set`;
 }
 
-export function assertRuntimeLiveHealth(
+function assertRuntimeLiveHealth(
   value: unknown
 ): asserts value is RuntimeLiveHealth {
   if (!isRecord(value)) {
@@ -281,9 +264,7 @@ export function assertRuntimeLiveHealth(
   }
 }
 
-export function requiredStringLiteralField<
-  const Allowed extends readonly string[],
->(
+function requiredStringLiteralField<const Allowed extends readonly string[]>(
   value: Record<string, unknown>,
   field: string,
   messages: {
@@ -302,7 +283,7 @@ export function requiredStringLiteralField<
   return fieldValue;
 }
 
-export function assertOptionalStringLiteralField<
+function assertOptionalStringLiteralField<
   const Field extends string,
   const Allowed extends readonly string[],
 >(
@@ -321,7 +302,7 @@ export function assertOptionalStringLiteralField<
   }
 }
 
-export function assertOptionalFiniteNumberField(
+function assertOptionalFiniteNumberField(
   value: Record<string, unknown>,
   field: string,
   invalidMessage: string

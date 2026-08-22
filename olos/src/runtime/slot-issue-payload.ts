@@ -3,6 +3,7 @@ import type { Byterange } from "../types/byterange";
 import type { ObjectKind } from "../types/storage-object";
 import { OBJECT_KINDS } from "../types/storage-object";
 import { assertByterange, assertByterangeKind } from "../validation/byterange";
+import { isRecord } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafePath, assertSafePathSegment } from "./path";
 import {
@@ -15,6 +16,11 @@ import {
   stringField,
   urlSafeIdentifierField,
 } from "./request-fields";
+import {
+  parseRuntimeJsonRequest,
+  type RuntimeJsonRequestInvalidBuilder,
+  type RuntimeJsonRequestParse,
+} from "./request-json";
 
 /**
  * Wire payload for requesting an upload slot: the planned object's
@@ -24,6 +30,38 @@ import {
  */
 export interface RuntimeSlotIssuePayload
   extends Omit<IssueCoordinatorSlotOptions, "state"> {}
+
+export type SlotIssueRequestParse<Invalid> = RuntimeJsonRequestParse<
+  RuntimeSlotIssuePayload,
+  Invalid
+>;
+
+export function parseSlotIssueRequest<Invalid>(
+  request: Request | RuntimeSlotIssuePayload,
+  invalid: RuntimeJsonRequestInvalidBuilder<Invalid>,
+  fallbackMessage: string,
+  payloadName = "slot issue request",
+  maxBodyBytes?: number
+): Promise<SlotIssueRequestParse<Invalid>> {
+  return parseRuntimeJsonRequest(
+    request,
+    (value) => parsePayload(value, payloadName),
+    invalid,
+    fallbackMessage,
+    maxBodyBytes
+  );
+}
+
+function parsePayload(
+  value: unknown,
+  payloadName: string
+): RuntimeSlotIssuePayload {
+  if (!isRecord(value)) {
+    throw new Error(`${payloadName} must be a JSON object`);
+  }
+
+  return parseRuntimeSlotIssuePayload(value);
+}
 
 export function parseRuntimeSlotIssuePayload(
   value: Record<string, unknown>

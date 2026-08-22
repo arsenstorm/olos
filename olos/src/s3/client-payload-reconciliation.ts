@@ -23,7 +23,6 @@ import type {
   S3RuntimeReconciliationResultsPayload,
   S3RuntimeReconciliationSummaryArrays,
   S3RuntimeReconciliationSummaryCounts,
-  S3RuntimeReconciliationSummaryOk,
   S3RuntimeReconciliationSummaryPayload,
   S3RuntimeReconciliationSummaryStatus,
   S3RuntimeSuccessfulReconciliationResultStatus,
@@ -271,7 +270,7 @@ function reconciliationSummaryPayload(
   const counts = reconciliationSummaryCounts(value);
   const status = reconciliationSummaryStatus(value);
   const arrays = reconciliationSummaryArrays(value);
-  const ok = reconciliationSummaryOk(value);
+  const ok = summaryOk(value, S3_RECONCILIATION_SUMMARY_OK_MESSAGE);
 
   return {
     ...counts,
@@ -335,10 +334,4 @@ function reconciliationSummaryArrays(
       S3_RECONCILIATION_SUMMARY_SLOT_IDS_MESSAGE
     ),
   };
-}
-
-function reconciliationSummaryOk(
-  value: Record<string, unknown>
-): S3RuntimeReconciliationSummaryOk {
-  return summaryOk(value, S3_RECONCILIATION_SUMMARY_OK_MESSAGE);
 }

@@ -152,10 +152,3 @@ export function isGroupedAudioTrack(
 export function isVideoTrack(track: MediaTrack): track is VideoTrack {
   return track.profile.kind === "video";
 }
-
-export function defaultMediaPlaylistPath(
-  session: Session,
-  track: Track
-): string {
-  return `/v1/live/${session.sessionId}/${track.trackId}/media.m3u8`;
-}

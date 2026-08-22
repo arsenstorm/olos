@@ -28,14 +28,16 @@ import {
   serveBlockingCoordinatorManifest,
   serveCoordinatorManifest,
 } from "./manifest";
-import { jsonConflictResponse, jsonErrorResponse } from "./response";
+import { jsonErrorResponse } from "./response";
+import { conflict, notFound } from "./session-state";
+import type { StoredRuntimeSessionMutation } from "./session-types";
 import {
   invalidSlotIssue,
   issueCoordinatorSlotFromRequest,
   type RuntimeCoordinatorSlotIssue,
   type RuntimeSlotIssueRequest,
 } from "./slot";
-import { parseSlotIssueRequest } from "./slot-issue-request-parser";
+import { parseSlotIssueRequest } from "./slot-issue-payload";
 
 /** Options for `issueStoredCoordinatorSlotFromRequest`. */
 export interface IssueStoredCoordinatorSlotFromRequestOptions {
@@ -106,16 +108,7 @@ export interface ServeStoredBlockingCoordinatorManifestOptions
  * snapshot when available — or `not_found` (404) when the session does not
  * exist.
  */
-export type StoredRuntimeMutation =
-  | {
-      current?: CoordinatorPipelineSnapshot;
-      response: Response;
-      status: "conflict";
-    }
-  | {
-      response: Response;
-      status: "not_found";
-    };
+export type StoredRuntimeMutation = StoredRuntimeSessionMutation;
 
 /**
  * Outcome of `issueStoredCoordinatorSlotFromRequest`: the in-memory
@@ -315,7 +308,6 @@ export async function commitStoredCoordinatorUploadFromRequest(
     options.request,
     invalidUploadCommit,
     "invalid commit request",
-    undefined,
     options.maxBodyBytes
   );
 
@@ -405,29 +397,6 @@ function defaultTrackWindowProfile(
   return mediaTrackWindowProfileFor(profile);
 }
 
-function notFound(): StoredRuntimeMutation {
-  return {
-    response: jsonErrorResponse(
-      "olos.invalid_session",
-      "coordinator session was not found",
-      404
-    ),
-    status: "not_found",
-  };
-}
-
 function manifestNotFound(): Response {
   return jsonErrorResponse("olos.not_found", "manifest not found", 404);
-}
-
-function conflict(
-  current: CoordinatorPipelineSnapshot | undefined
-): StoredRuntimeMutation {
-  return {
-    ...(current === undefined ? {} : { current }),
-    response: jsonConflictResponse(
-      "coordinator session changed during mutation"
-    ),
-    status: "conflict",
-  };
 }

@@ -3,7 +3,6 @@ import type {
   BlockingHlsManifestArtifactResponseResolution,
   CreateCoordinatorManifestArtifactsOptions,
   CreateHlsManifestArtifactResponseOptions,
-  HlsManifestErrorResolution,
 } from "../hls/manifest-artifact-types";
 import { createCoordinatorManifestArtifacts } from "../hls/manifest-artifacts";
 import {
@@ -58,7 +57,9 @@ export function serveCoordinatorManifest(
 ): Response {
   const resolved = resolveCoordinatorManifestResponse(options);
 
-  return optionalManifestResponse(resolved);
+  return resolved === undefined
+    ? manifestNotFoundResponse()
+    : createHlsManifestWebResponse(resolved);
 }
 
 /**
@@ -126,28 +127,14 @@ function manifestArtifactResponses(
   }));
 }
 
-function optionalManifestResponse(
-  resolved: ReturnType<typeof resolveHlsManifestArtifactResponse>
-): Response {
-  return resolved === undefined
-    ? manifestNotFoundResponse()
-    : createHlsManifestWebResponse(resolved);
-}
-
 function blockingManifestResponse(
   resolved: BlockingHlsManifestArtifactResponseResolution
 ): Response {
-  if (isHlsManifestErrorResolution(resolved)) {
+  if (!isServableBlockingCoordinatorManifestResolution(resolved)) {
     return createHlsManifestErrorWebResponse(resolved);
   }
 
   return createHlsManifestWebResponse(resolved.response);
-}
-
-function isHlsManifestErrorResolution(
-  resolved: BlockingHlsManifestArtifactResponseResolution
-): resolved is HlsManifestErrorResolution {
-  return !isServableBlockingCoordinatorManifestResolution(resolved);
 }
 
 function isServableBlockingCoordinatorManifestResolution(

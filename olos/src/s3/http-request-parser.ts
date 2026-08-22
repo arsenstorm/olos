@@ -1,5 +1,4 @@
 import {
-  parseCommitTimestamp,
   parseCommitTimestampOrNow,
   parseOptionalUrlSafeIdentifierArrayField,
 } from "../runtime/commit-payload-parser";
@@ -19,7 +18,7 @@ import {
 import { createCompletionHintDefaults } from "./completion-hint";
 import type { CreateStoredS3CoordinatorRuntimeHandlerOptions } from "./http-types";
 
-interface InvalidS3HttpRequestParse {
+export interface InvalidS3HttpRequestParse {
   message: string;
   status: "invalid";
   /** Set when the request body exceeded the configured byte cap. */
@@ -63,8 +62,6 @@ export async function parseS3CommitRequest(
     fallbackMessage: "invalid S3 slot grant request",
     invalid,
     maxBodyBytes: options.maxBodyBytes,
-    parseCommittedAt: parseCommitTimestamp,
-    payloadName: "S3 commit request",
     provider: options,
   });
 
@@ -96,8 +93,6 @@ export async function parseS3ReconciliationRequest(
     fallbackMessage: "invalid S3 reconciliation request",
     invalid,
     maxBodyBytes: options.maxBodyBytes,
-    parseCommittedAt: parseCommitTimestamp,
-    payloadName: "S3 reconciliation request",
     provider: options,
   });
 
@@ -232,7 +227,7 @@ function parseRecordPayload<Payload>(
   }
 }
 
-function invalid(
+export function invalid(
   message: string,
   status: "invalid" | "too_large" = "invalid"
 ): InvalidS3HttpRequestParse {

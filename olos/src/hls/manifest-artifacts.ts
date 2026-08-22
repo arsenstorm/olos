@@ -182,7 +182,7 @@ export function createMasterPlaylistArtifact(
  * four fields are fixed for a whole render, so they travel as one value
  * rather than as four arguments repeated per track.
  */
-export interface MediaPlaylistRenderContext {
+interface MediaPlaylistRenderContext {
   committedWindow: CommittedWindow;
   mediaPlaylistPath: NonNullable<
     CreateHlsManifestArtifactsOptions["mediaPlaylistPath"]

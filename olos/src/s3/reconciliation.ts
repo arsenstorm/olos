@@ -19,10 +19,6 @@ import type { S3HeadObjectClient } from "./object-observation";
 import {
   completedStoredS3CoordinatorUploadReconciliationSummary,
   initialStoredS3CoordinatorUploadReconciliationSummary,
-  isMissingStoredS3CoordinatorReconciliationPlan,
-  isMissingStoredS3CoordinatorUploadReconciliation,
-  loadStoredS3CoordinatorReconciliationPlan,
-  missingStoredS3CoordinatorUploadReconciliation,
   missingStoredS3CoordinatorUploadReconciliationSummary,
   planStoredS3CoordinatorReconciliation,
   reconcileStoredS3CoordinatorUploadSlots,
@@ -200,10 +196,10 @@ export async function reconcileStoredS3CoordinatorUploads(
 ): Promise<StoredS3CoordinatorUploadReconciliation> {
   assertReconciliationOptions(options);
 
-  const plan = await loadStoredS3CoordinatorReconciliationPlan(options);
+  const plan = await planStoredS3CoordinatorReconciliation(options);
 
-  if (isMissingStoredS3CoordinatorReconciliationPlan(plan)) {
-    return missingStoredS3CoordinatorUploadReconciliation();
+  if (plan.status === "not_found") {
+    return { status: "not_found" };
   }
 
   return {
@@ -227,7 +223,7 @@ function assertReconciliationOptions(
 export function summarizeStoredS3CoordinatorUploadReconciliation(
   result: StoredS3CoordinatorUploadReconciliation
 ): StoredS3CoordinatorUploadReconciliationSummary {
-  if (isMissingStoredS3CoordinatorUploadReconciliation(result)) {
+  if (result.status === "not_found") {
     return missingStoredS3CoordinatorUploadReconciliationSummary();
   }
 

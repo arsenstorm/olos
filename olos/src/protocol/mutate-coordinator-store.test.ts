@@ -13,7 +13,6 @@ import {
   positiveMutationAttempts,
   runStoredCoordinatorMutation,
   runStoredCoordinatorMutationWithAdapters,
-  runStoredCoordinatorMutationWithAdaptersAndConflict,
   runStoredCoordinatorMutationWithAdaptersAndResponse,
 } from "./mutate-coordinator-store";
 
@@ -682,12 +681,12 @@ describe("runStoredCoordinatorMutation", () => {
     };
 
     const conflictResult =
-      await runStoredCoordinatorMutationWithAdaptersAndConflict<
+      await runStoredCoordinatorMutationWithAdaptersAndResponse<
         Attempt,
         Attempt,
         StoredMutationResult
       >({
-        attempts: 2,
+        maxAttempts: 2,
         mutate: () => ({
           state: "retrying",
         }),
@@ -708,12 +707,12 @@ describe("runStoredCoordinatorMutation", () => {
       });
 
     const exhaustedResult =
-      await runStoredCoordinatorMutationWithAdaptersAndConflict<
+      await runStoredCoordinatorMutationWithAdaptersAndResponse<
         Attempt,
         Attempt,
         StoredMutationResult
       >({
-        attempts: 2,
+        maxAttempts: 2,
         mutate: () => ({
           state: "retrying",
         }),

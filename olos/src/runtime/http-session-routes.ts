@@ -346,7 +346,7 @@ function healthPublisherInstanceId(request: Request): string | undefined {
   );
 }
 
-function notifyCursor(
+export function notifyCursor(
   notifier: RuntimeCursorNotifier | undefined,
   cursor: Cursor | undefined
 ): void {

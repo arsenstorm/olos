@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseRuntimeSlotIssuePayload } from "./slot-issue-payload";
+import {
+  parseRuntimeSlotIssuePayload,
+  parseSlotIssueRequest,
+} from "./slot-issue-payload";
 
 describe("runtime slot issue payload parser", () => {
   test("parses intent payloads for slot issue requests", () => {
@@ -200,3 +203,68 @@ describe("runtime slot issue payload parser", () => {
     ).toBe("json");
   });
 });
+
+const slotPayload = {
+  contentType: "video/mp4",
+  expiresAt: "2026-01-01T00:00:05.000Z",
+  kind: "segment",
+  maxBytes: 100_000,
+  profile: { duration: 2 },
+  sequenceNumber: 3810,
+  trackId: "v1080",
+  slotId: "slot_3810",
+} as const;
+
+describe("runtime slot issue request parser", () => {
+  test("parses direct slot issue payload objects", async () => {
+    await expect(parseSlotIssue(slotPayload)).resolves.toEqual({
+      status: "valid",
+      value: slotPayload,
+    });
+  });
+
+  test("parses slot issue payload requests", async () => {
+    await expect(parseSlotIssue(jsonRequest(slotPayload))).resolves.toEqual({
+      status: "valid",
+      value: slotPayload,
+    });
+  });
+
+  test("rejects non-object slot issue payloads", async () => {
+    await expect(parseSlotIssue(jsonRequest(123))).resolves.toEqual({
+      message: "slot issue request must be a JSON object",
+      status: "invalid",
+    });
+  });
+
+  test("maps malformed slot issue JSON to request errors", async () => {
+    await expect(
+      parseSlotIssue(
+        new Request("https://edge.example.com/sessions/session_1/slots", {
+          body: "{",
+          headers: { "content-type": "application/json" },
+          method: "POST",
+        })
+      )
+    ).resolves.toEqual({
+      message: "JSON Parse error: Expected '}'",
+      status: "invalid",
+    });
+  });
+});
+
+function parseSlotIssue(request: Request | typeof slotPayload) {
+  return parseSlotIssueRequest(
+    request,
+    (message) => ({ message, status: "invalid" as const }),
+    "invalid slot issue request"
+  );
+}
+
+function jsonRequest(body: unknown): Request {
+  return new Request("https://edge.example.com/sessions/session_1/slots", {
+    body: JSON.stringify(body),
+    headers: { "content-type": "application/json" },
+    method: "POST",
+  });
+}

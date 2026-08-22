@@ -44,7 +44,9 @@ export function requiredStringArrayField(
 
   for (const [index, item] of values.entries()) {
     if (typeof item !== "string") {
-      throw new Error(requiredStringArrayItemMessage(message, index));
+      throw new Error(
+        `${indexedFieldContext(message, index)} must be a string`
+      );
     }
   }
 
@@ -94,13 +96,6 @@ export function requiredSummaryNumber(
   }
 
   return value[field];
-}
-
-export function requiredStringArrayItemMessage(
-  message: string,
-  index: number
-): string {
-  return `${indexedFieldContext(message, index)} must be a string`;
 }
 
 export function optionalCursorPayload(

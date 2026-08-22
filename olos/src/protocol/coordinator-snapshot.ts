@@ -8,7 +8,7 @@ import {
   errorMessage,
   isRecord,
 } from "../validation/fields";
-import { assertNonNegativeSafeInteger } from "../validation/ids";
+import { assertNonNegativeInteger } from "../validation/ids";
 import { assertSession } from "../validation/session";
 import { assertUploadSlot } from "../validation/upload-slot";
 import type {
@@ -90,7 +90,7 @@ export function createNextCoordinatorPipelineEtag(current?: string): string {
 
   const value = Number(current);
 
-  assertNonNegativeSafeInteger(value, "coordinator pipeline etag");
+  assertNonNegativeInteger(value, "coordinator pipeline etag");
 
   return String(value + 1);
 }

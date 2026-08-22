@@ -16,15 +16,6 @@ export const BYTERANGE_FIELDS = [
   "segmentObjectKey",
 ] as const;
 
-export function isByterange(value: unknown): value is Byterange {
-  try {
-    assertByterange(value, "byterange");
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function assertByterange(
   value: unknown,
   name: string

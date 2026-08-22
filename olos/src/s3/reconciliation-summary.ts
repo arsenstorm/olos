@@ -9,8 +9,6 @@ import type {
 } from "./coordinator-types";
 import {
   type FailedStoredS3CoordinatorUploadReconciliationResult,
-  type MissingStoredS3CoordinatorReconciliationPlan,
-  type MissingStoredS3CoordinatorUploadReconciliation,
   type MutableStoredS3CoordinatorUploadReconciliationSummary,
   type PlanStoredS3CoordinatorReconciliationOptions,
   type ReconcileStoredS3CoordinatorUploadsOptions,
@@ -19,7 +17,6 @@ import {
   reconcileStoredS3CoordinatorUploads,
   type SlotValue,
   type StoredS3CoordinatorReconciliationPlan,
-  type StoredS3CoordinatorUploadReconciliation,
   type StoredS3CoordinatorUploadReconciliationResult,
   type StoredS3CoordinatorUploadReconciliationSummary,
   type StoredS3CoordinatorUploadReconciliationSummaryContribution,
@@ -138,19 +135,13 @@ export function completedStoredS3CoordinatorUploadReconciliationSummary(
  * objects or mutating stored state. Returns `not_found` when the session
  * does not exist.
  */
-export function planStoredS3CoordinatorReconciliation(
-  options: PlanStoredS3CoordinatorReconciliationOptions
-): Promise<StoredS3CoordinatorReconciliationPlan> {
-  return loadStoredS3CoordinatorReconciliationPlan(options);
-}
-
-export async function loadStoredS3CoordinatorReconciliationPlan(
+export async function planStoredS3CoordinatorReconciliation(
   options: PlanStoredS3CoordinatorReconciliationOptions
 ): Promise<StoredS3CoordinatorReconciliationPlan> {
   const snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
-    return missingStoredS3CoordinatorReconciliationPlan();
+    return { status: "not_found" };
   }
 
   const slots = reconciliationSlots(snapshot.state.slots, options);
@@ -207,7 +198,7 @@ function reconciliationCommitOptions(
     bucket: options.bucket,
     client: options.client,
     commitId: resolveSlotValue(options.commitId, slot) ?? commitId(slot),
-    committedAt: resolveRequiredSlotValue(options.committedAt, slot),
+    committedAt: resolveSlotValue(options.committedAt, slot),
     commitPolicy: options.commitPolicy,
     providerId: options.providerId,
     sessionId: options.sessionId,
@@ -221,14 +212,6 @@ function reconciliationCommitOptions(
     ...optionalField("publicationControl", options.publicationControl),
     ...optionalField("versionId", options.versionId),
   };
-}
-
-export function missingStoredS3CoordinatorUploadReconciliation(): MissingStoredS3CoordinatorUploadReconciliation {
-  return { status: "not_found" };
-}
-
-function missingStoredS3CoordinatorReconciliationPlan(): MissingStoredS3CoordinatorReconciliationPlan {
-  return { status: "not_found" };
 }
 
 function failedStoredS3CoordinatorUploadReconciliationResult(
@@ -266,18 +249,6 @@ function isRejectedS3CoordinatorUploadCommit(
   return result?.status === "rejected";
 }
 
-export function isMissingStoredS3CoordinatorUploadReconciliation(
-  result: StoredS3CoordinatorUploadReconciliation
-): result is MissingStoredS3CoordinatorUploadReconciliation {
-  return result.status === "not_found";
-}
-
-export function isMissingStoredS3CoordinatorReconciliationPlan(
-  plan: StoredS3CoordinatorReconciliationPlan
-): plan is MissingStoredS3CoordinatorReconciliationPlan {
-  return plan.status === "not_found";
-}
-
 function reconciliationSlots(
   slots: readonly UploadSlot[],
   options: {
@@ -306,16 +277,7 @@ function isAllowedSlot(
   return allowedIds === undefined || allowedIds.has(slot.slotId);
 }
 
-function resolveSlotValue<T>(
-  value: SlotValue<T> | undefined,
-  slot: UploadSlot
-): T | undefined {
-  return typeof value === "function"
-    ? (value as (slot: UploadSlot) => T)(slot)
-    : value;
-}
-
-function resolveRequiredSlotValue<T>(value: SlotValue<T>, slot: UploadSlot): T {
+function resolveSlotValue<T>(value: SlotValue<T>, slot: UploadSlot): T {
   return typeof value === "function"
     ? (value as (slot: UploadSlot) => T)(slot)
     : value;

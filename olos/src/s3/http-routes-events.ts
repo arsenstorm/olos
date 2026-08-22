@@ -1,14 +1,12 @@
+import { sessionNotFound } from "../runtime/http-parse";
+import { notifyCursor } from "../runtime/http-session-routes";
 import { rejectionStatusCode } from "../runtime/rejection-status";
-import {
-  jsonBadRequestResponse,
-  jsonErrorResponse,
-  jsonResponse,
-} from "../runtime/response";
+import { optionalField } from "../runtime/request-fields";
+import { jsonBadRequestResponse, jsonResponse } from "../runtime/response";
 import {
   applyStoredCoordinatorRetention,
   summarizeRetiredCoordinatorObjectDeletions,
 } from "../runtime/retention";
-import type { Cursor } from "../types/cursor";
 import { isRecord } from "../validation/fields";
 import {
   type completeStoredS3CoordinatorUpload,
@@ -25,12 +23,11 @@ import {
 import {
   eventRouteResult,
   isSuccessfulS3MutationResult,
-  optionalCursorResponse,
   reconciliationResult,
   rejectionBody,
   s3ResponseConflict,
-  s3ResponseNotFound,
 } from "./http-response";
+import { invalidS3RequestResponse } from "./http-routes";
 import type {
   CreateStoredS3CoordinatorRuntimeHandlerOptions,
   StoredS3CoordinatorCommitResponse,
@@ -49,20 +46,6 @@ import { deleteRetiredS3CoordinatorObjects } from "./retention";
 
 /** Provider event batches beyond this size are rejected before routing. */
 const MAX_S3_EVENT_RECORDS = 1000;
-
-/**
- * Turn an invalid S3 request parse into its response: 413
- * `olos.invalid_request` when the body exceeded `maxBodyBytes`, otherwise
- * the usual 400.
- */
-function invalidS3RequestResponse(parsed: {
-  message: string;
-  tooLarge?: true;
-}): Response {
-  return parsed.tooLarge
-    ? jsonErrorResponse("olos.invalid_request", parsed.message, 413)
-    : jsonBadRequestResponse(parsed.message);
-}
 
 export async function scheduleRetiredObjectDeletes(
   result: Awaited<ReturnType<typeof completeStoredS3CoordinatorUpload>>,
@@ -101,7 +84,7 @@ export function s3CommitResponse(
 
     const body: StoredS3CoordinatorCommitResponse = {
       commit: result.commit,
-      ...optionalCursorResponse(result.cursor),
+      ...optionalField("cursor", result.cursor),
     };
 
     return jsonResponse(body, result.status === "committed" ? 201 : 200);
@@ -115,21 +98,10 @@ export function s3CommitResponse(
   }
 
   if (result.status === "not_found") {
-    return s3ResponseNotFound();
+    return sessionNotFound();
   }
 
   return s3ResponseConflict();
-}
-
-function notifyCursor(
-  notifier:
-    | CreateStoredS3CoordinatorRuntimeHandlerOptions["cursorNotifier"]
-    | undefined,
-  cursor: Cursor | undefined
-): void {
-  if (notifier !== undefined && cursor !== undefined) {
-    notifier.notify(cursor);
-  }
 }
 
 export async function handleS3Events(
@@ -245,7 +217,7 @@ export async function handleS3ReconciliationPlan(
   });
 
   if (result.status === "not_found") {
-    return s3ResponseNotFound();
+    return sessionNotFound();
   }
 
   return jsonResponse(result, 200);
@@ -291,7 +263,7 @@ export async function handleS3Reconciliation(
   });
 
   if (result.status === "not_found") {
-    return s3ResponseNotFound();
+    return sessionNotFound();
   }
 
   await settleReconciledCommits(result.results, options, ctx);
@@ -327,7 +299,7 @@ export async function handleS3Retention(
   });
 
   if (applied.status === "not_found") {
-    return s3ResponseNotFound();
+    return sessionNotFound();
   }
 
   if (applied.status === "conflict") {

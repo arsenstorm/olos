@@ -11,15 +11,13 @@ import type { OlosError } from "../types/errors";
 import { errorMessage } from "../validation/fields";
 import {
   committedUploadRuntimeCommandResponse,
-  invalidRuntimeCommandResponse,
+  invalidRuntimeCommandOutcome,
   rejectedRuntimeCommandResult,
 } from "./command-response";
 import {
   parseRuntimeCommitPayloadRequest,
   type RuntimeCommitPayload,
 } from "./commit-payload-parser";
-import type { RuntimeJsonRequestParse } from "./request-json";
-import { jsonErrorResponse } from "./response";
 
 /**
  * Commit input: either a web `Request` whose JSON body is parsed and
@@ -79,11 +77,6 @@ type InvalidRuntimeCoordinatorUploadCommit = Extract<
   RuntimeCoordinatorUploadCommit,
   { status: "invalid" }
 >;
-type RuntimeCommitRequestParse = RuntimeJsonRequestParse<
-  RuntimeCommitPayload,
-  InvalidRuntimeCoordinatorUploadCommit
->;
-
 /**
  * Apply an upload commit against in-memory coordinator state and build the
  * matching HTTP response. Pure with respect to storage — the caller is
@@ -96,7 +89,11 @@ type RuntimeCommitRequestParse = RuntimeJsonRequestParse<
 export async function commitCoordinatorUploadFromRequest(
   options: CommitCoordinatorUploadFromRequestOptions
 ): Promise<RuntimeCoordinatorUploadCommit> {
-  const payload = await parseRequest(options.request);
+  const payload = await parseRuntimeCommitPayloadRequest(
+    options.request,
+    invalidUploadCommit,
+    "invalid commit request"
+  );
 
   if (payload.status === "invalid") {
     return payload;
@@ -133,20 +130,9 @@ function isRejectedCoordinatorUploadCommit(
   return result.status === "rejected";
 }
 
-function parseRequest(
-  request: RuntimeCommitRequest
-): Promise<RuntimeCommitRequestParse> {
-  return parseRuntimeCommitPayloadRequest(
-    request,
-    invalidUploadCommit,
-    "invalid commit request"
-  );
-}
-
 /**
  * Build an `invalid` upload commit outcome. A `"too_large"` status answers
- * 413 `olos.invalid_request` instead of the usual 400
- * `invalidRuntimeCommandResponse`.
+ * 413 `olos.invalid_request` instead of the usual 400 response.
  */
 export function invalidUploadCommit(
   message: string,
@@ -154,10 +140,7 @@ export function invalidUploadCommit(
 ): InvalidRuntimeCoordinatorUploadCommit {
   return {
     message,
-    response:
-      status === "too_large"
-        ? jsonErrorResponse("olos.invalid_request", message, 413)
-        : invalidRuntimeCommandResponse(message),
+    response: invalidRuntimeCommandOutcome(message, status),
     status: "invalid",
   };
 }

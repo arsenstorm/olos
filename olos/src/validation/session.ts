@@ -23,7 +23,7 @@ const SESSION_FIELDS = [
   "tracks",
 ] as const;
 
-export const TRACK_FIELDS = ["contentType", "profile", "trackId"] as const;
+const TRACK_FIELDS = ["contentType", "profile", "trackId"] as const;
 
 /** Returns whether `value` is a valid `Session` (see `assertSession`). */
 export function isSession(value: unknown): value is Session {

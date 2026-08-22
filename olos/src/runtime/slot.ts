@@ -9,13 +9,14 @@ import type { OlosError } from "../types/errors";
 import type { UploadSlot } from "../types/upload-slot";
 import { errorMessage } from "../validation/fields";
 import {
-  invalidRuntimeCommandResponse,
+  invalidRuntimeCommandOutcome,
   issuedSlotRuntimeCommandResponse,
   rejectedRuntimeCommandResult,
 } from "./command-response";
-import { jsonErrorResponse } from "./response";
-import type { RuntimeSlotIssuePayload } from "./slot-issue-payload";
-import { parseSlotIssueRequest } from "./slot-issue-request-parser";
+import {
+  parseSlotIssueRequest,
+  type RuntimeSlotIssuePayload,
+} from "./slot-issue-payload";
 /**
  * Slot issue input: either a web `Request` whose JSON body is parsed and
  * validated, or an already-built payload object.
@@ -115,7 +116,7 @@ export async function issueCoordinatorSlotFromRequest(
 
 /**
  * Build an `invalid` slot issue outcome. A `"too_large"` status answers 413
- * `olos.invalid_request` instead of the usual 400 `invalidRuntimeCommandResponse`.
+ * `olos.invalid_request` instead of the usual 400 response.
  */
 export function invalidSlotIssue(
   message: string,
@@ -123,10 +124,7 @@ export function invalidSlotIssue(
 ): InvalidRuntimeCoordinatorSlotIssue {
   return {
     message,
-    response:
-      status === "too_large"
-        ? jsonErrorResponse("olos.invalid_request", message, 413)
-        : invalidRuntimeCommandResponse(message),
+    response: invalidRuntimeCommandOutcome(message, status),
     status: "invalid",
   };
 }

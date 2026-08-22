@@ -130,7 +130,7 @@ export async function parseRuntimeJsonRequest<Value, Invalid>(
   maxBodyBytes?: number
 ): Promise<RuntimeJsonRequestParse<Value, Invalid>> {
   if (isParsedRuntimeJsonRequestValue<Value>(request)) {
-    return parsedRuntimeJsonRequestValue(request);
+    return validRuntimeJsonRequestParse(request);
   }
 
   return await parsedRuntimeJsonRequestBody(
@@ -140,12 +140,6 @@ export async function parseRuntimeJsonRequest<Value, Invalid>(
     fallbackMessage,
     maxBodyBytes
   );
-}
-
-function parsedRuntimeJsonRequestValue<Value, Invalid>(
-  value: Value
-): RuntimeJsonRequestParse<Value, Invalid> {
-  return validRuntimeJsonRequestParse(value);
 }
 
 async function parsedRuntimeJsonRequestBody<Value, Invalid>(

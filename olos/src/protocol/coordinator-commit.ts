@@ -17,6 +17,7 @@ import type { UploadSlot } from "../types/upload-slot";
 import { timestampMs } from "../validation/fields";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { commitIntoState } from "./coordinator-commit-state";
+import { findSlot } from "./coordinator-slot";
 import type {
   CommitCoordinatorUploadOptions,
   CoordinatorCommitPolicyDecision,
@@ -418,13 +419,6 @@ function rejectCoordinatorCommitPolicy({
   }
 
   return rejectCommit(options.state, policy.error);
-}
-
-function findSlot(
-  state: CoordinatorPipelineState,
-  slotId: OlosId
-): UploadSlot | undefined {
-  return state.slots.find((slot) => slot.slotId === slotId);
 }
 
 function findCommit(

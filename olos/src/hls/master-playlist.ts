@@ -5,8 +5,8 @@ import type {
 } from "../media/types";
 import { assertMediaSession } from "../media/validation";
 import type { Session, Track } from "../types/session";
+import { defaultMediaPlaylistPath } from "./manifest-request-parse";
 import {
-  defaultMediaPlaylistPath,
   distinct,
   isAudioTrack,
   isGroupedAudioTrack,

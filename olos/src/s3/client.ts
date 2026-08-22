@@ -26,8 +26,8 @@ import type {
 } from "./client-types";
 import {
   S3_ROUTE_ACTIONS,
-  s3CompletionHintRoutePathFromOptions,
-  s3RoutePathFromOptions,
+  s3CompletionHintRoutePath,
+  s3RoutePath,
 } from "./route";
 
 export type {
@@ -185,10 +185,7 @@ export async function applyS3RuntimeRetention(
 function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
   assertUrlSafeIdentifier(sessionId, "sessionId");
 
-  return new URL(
-    s3RoutePathFromOptions(sessionId, action, {}),
-    normalizedBaseUrl(baseUrl)
-  );
+  return new URL(s3RoutePath(sessionId, action), normalizedBaseUrl(baseUrl));
 }
 
 function completionUrl(
@@ -200,7 +197,7 @@ function completionUrl(
   assertUrlSafeIdentifier(slotId, "slotId");
 
   return new URL(
-    s3CompletionHintRoutePathFromOptions(sessionId, slotId, {}),
+    s3CompletionHintRoutePath(sessionId, slotId),
     normalizedBaseUrl(baseUrl)
   );
 }

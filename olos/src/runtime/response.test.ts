@@ -1,12 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { createOlosError } from "../types/errors";
 import {
   jsonBadRequestResponse,
   jsonConflictResponse,
   jsonErrorResponse,
   jsonMethodNotAllowedResponse,
   jsonNotFoundResponse,
-  jsonOlosErrorResponse,
   jsonResponse,
 } from "./response";
 import { expectOlosErrorEnvelope } from "./test-error-envelope.test-helper";
@@ -33,23 +31,6 @@ describe("runtime JSON responses", () => {
     await expectOlosErrorEnvelope(response);
     await expect(response.json()).resolves.toEqual({
       error: { code: "olos.invalid_session", message: "missing session" },
-    });
-  });
-
-  test("jsonOlosErrorResponse serializes pre-built OLOS errors", async () => {
-    const error = createOlosError("olos.slot_expired", "slot expired", {
-      slotId: "slot_1",
-    });
-    const response = jsonOlosErrorResponse(error, 409);
-
-    expect(response.status).toBe(409);
-    await expectOlosErrorEnvelope(response);
-    await expect(response.json()).resolves.toEqual({
-      error: {
-        code: "olos.slot_expired",
-        details: { slotId: "slot_1" },
-        message: "slot expired",
-      },
     });
   });
 

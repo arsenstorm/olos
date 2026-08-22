@@ -4,7 +4,7 @@ import { createOlosError } from "../types/errors";
 import type { UploadSlot } from "../types/upload-slot";
 import {
   committedUploadRuntimeCommandResponse,
-  invalidRuntimeCommandResponse,
+  invalidRuntimeCommandOutcome,
   issuedSlotRuntimeCommandResponse,
   rejectedRuntimeCommandResult,
 } from "./command-response";
@@ -26,11 +26,26 @@ const slot: UploadSlot = {
 
 describe("runtime command response helpers", () => {
   test("formats invalid command responses", async () => {
-    const response = invalidRuntimeCommandResponse("invalid request");
+    const response = invalidRuntimeCommandOutcome("invalid request");
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
       error: { code: "olos.invalid_request", message: "invalid request" },
+    });
+  });
+
+  test("formats too-large command responses as 413", async () => {
+    const response = invalidRuntimeCommandOutcome(
+      "request body is too large",
+      "too_large"
+    );
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "olos.invalid_request",
+        message: "request body is too large",
+      },
     });
   });
 

@@ -61,7 +61,10 @@ export function requiredRecordPayload<T>(
   message: string,
   assert: RecordPayloadAssertion<T>
 ): T {
-  return recordPayload<T>(requiredRecordField(value, field, message), assert);
+  return requiredParsedPayload<T>(value, field, message, (v) => {
+    assert(v);
+    return v;
+  });
 }
 
 export function requiredArrayField(
@@ -103,21 +106,9 @@ function recordFieldValue(value: unknown, field: string): unknown {
   return recordValue(value)?.[field];
 }
 
-export function optionalRecordPayload<Field extends string, T>(
-  value: unknown,
-  field: Field,
-  assert: RecordPayloadAssertion<T>
-): Partial<Record<Field, T>> {
-  const record = optionalRecordField(value, field);
-
-  return record === undefined
-    ? {}
-    : optionalField(field, recordPayload<T>(record, assert));
-}
-
 /**
- * `optionalRecordPayload` for tolerant `parseX` parsers, which return a
- * pruned copy of the record rather than asserting it in place.
+ * Parses an optional record field with a tolerant `parseX` parser, which
+ * returns a pruned copy of the record rather than asserting it in place.
  */
 export function optionalParsedPayload<Field extends string, T>(
   value: unknown,
@@ -140,14 +131,6 @@ export function requiredParsedPayload<T>(
   parse: (value: unknown) => T
 ): T {
   return parse(requiredRecordField(value, field, message));
-}
-
-export function recordPayload<T>(
-  value: Record<string, unknown>,
-  assert: RecordPayloadAssertion<T>
-): T {
-  assert(value);
-  return value;
 }
 
 export async function responseBody(response: Response): Promise<unknown> {

@@ -12,7 +12,6 @@ import {
   assertPositiveIntegerField,
   assertPositiveNumberField,
   assertUrlSafeField,
-  isRecord,
 } from "../validation/fields";
 import { assertProfileData } from "../validation/profile";
 import { assertSession } from "../validation/session";
@@ -295,9 +294,7 @@ function assertAudioGroup(tracks: readonly MediaTrack[]): void {
 // The effective EXT-X-MEDIA NAME is `name ?? trackId`; duplicates within
 // a group are ambiguous to players (RFC 8216 §4.3.4.1.1). The full group
 // is checked, so any availability-filtered subset stays distinct.
-export function assertDistinctAudioTrackNames(
-  grouped: readonly MediaTrack[]
-): void {
+function assertDistinctAudioTrackNames(grouped: readonly MediaTrack[]): void {
   const names = new Set<string>();
 
   for (const track of grouped) {
@@ -381,9 +378,4 @@ function assertTrackDimensions(
   if (hasWidth !== hasHeight) {
     throw new Error(`${name} must define width and height together`);
   }
-}
-
-/** Returns whether `value` looks like a record with a media profile. */
-export function hasMediaProfile(value: unknown): value is { profile: unknown } {
-  return isRecord(value) && value.profile !== undefined;
 }

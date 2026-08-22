@@ -1,8 +1,4 @@
-import {
-  createOlosError,
-  type OlosError,
-  type OlosErrorCode,
-} from "../types/errors";
+import { createOlosError, type OlosErrorCode } from "../types/errors";
 
 const JSON_CONTENT_TYPE = "application/json; charset=utf-8";
 const BAD_REQUEST_STATUS = 400;
@@ -20,19 +16,12 @@ export function jsonResponse(body: unknown, status: number): Response {
   });
 }
 
-export function jsonOlosErrorResponse(
-  error: OlosError,
-  status: number
-): Response {
-  return jsonResponse(error, status);
-}
-
 export function jsonErrorResponse(
   code: OlosErrorCode,
   message: string,
   status: number
 ): Response {
-  return jsonOlosErrorResponse(createOlosError(code, message), status);
+  return jsonResponse(createOlosError(code, message), status);
 }
 
 export function jsonBadRequestResponse(message: string): Response {

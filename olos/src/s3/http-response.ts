@@ -2,13 +2,12 @@ import {
   isSuccessfulCommitStatus,
   type SuccessfulCommitStatus,
 } from "../runtime/commit-status";
-import { jsonConflictResponse, jsonErrorResponse } from "../runtime/response";
+import { optionalField } from "../runtime/request-fields";
+import { jsonConflictResponse } from "../runtime/response";
 import type { Commit } from "../types/commit";
-import type { Cursor } from "../types/cursor";
 import type { OlosError } from "../types/errors";
 import type { StoredS3CoordinatorUploadEventRoute } from "./coordinator-types";
 import type {
-  StoredS3CoordinatorCommitResponse,
   StoredS3CoordinatorEventRouteResponseResult,
   StoredS3CoordinatorReconciliationResponseResult,
   StoredS3CoordinatorRouteError,
@@ -19,20 +18,6 @@ export function isSuccessfulS3MutationResult<Result extends { status: string }>(
   result: Result
 ): result is Extract<Result, { status: SuccessfulCommitStatus }> {
   return isSuccessfulCommitStatus(result.status);
-}
-
-export function optionalCursorResponse(
-  cursor: Cursor | undefined
-): Pick<StoredS3CoordinatorCommitResponse, "cursor"> | Record<string, never> {
-  return cursor === undefined ? {} : { cursor };
-}
-
-export function s3ResponseNotFound(): Response {
-  return jsonErrorResponse(
-    "olos.invalid_session",
-    "coordinator session was not found",
-    404
-  );
 }
 
 export function s3ResponseConflict(): Response {
@@ -138,7 +123,7 @@ function successfulReconciliationResult(
 ): StoredS3CoordinatorReconciliationResponseResult {
   return {
     commit: result.commit.commit,
-    ...optionalCursorResponse(result.commit.cursor),
+    ...optionalField("cursor", result.commit.cursor),
     slotId: result.slot.slotId,
     status: result.status,
   };

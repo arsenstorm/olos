@@ -1,22 +1,24 @@
+import { sessionNotFound } from "../runtime/http-parse";
 import { rejectionStatusCode } from "../runtime/rejection-status";
 import {
   jsonBadRequestResponse,
   jsonErrorResponse,
   jsonResponse,
 } from "../runtime/response";
-import { parseSlotIssueRequest } from "../runtime/slot-issue-request-parser";
+import { parseSlotIssueRequest } from "../runtime/slot-issue-payload";
 import { createOlosError } from "../types/errors";
 import { completeStoredS3CoordinatorUpload } from "./coordinator-event";
 import {
   issueStoredS3CoordinatorUploadGrant,
   S3SlotIssueError,
 } from "./coordinator-grant";
-import { invalid, type StoredS3CoordinatorRuntimeHandlerContext } from "./http";
+import type { StoredS3CoordinatorRuntimeHandlerContext } from "./http";
 import {
+  invalid,
   parseS3CommitRequest,
   parseS3CompletionHintRequest,
 } from "./http-request-parser";
-import { s3ResponseConflict, s3ResponseNotFound } from "./http-response";
+import { s3ResponseConflict } from "./http-response";
 import {
   s3CommitResponse,
   scheduleRetiredObjectDeletes,
@@ -94,7 +96,7 @@ function slotGrantResponse(
   }
 
   if (result.status === "not_found") {
-    return s3ResponseNotFound();
+    return sessionNotFound();
   }
 
   if (result.status === "rejected") {

@@ -2,7 +2,6 @@ import {
   selectExpiredUploadSlots,
   selectRetiredCommittedObjects,
 } from "../state/retention";
-import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
 import type { Session } from "../types/session";
 import type { PublicationMode } from "../types/upload-slot";
@@ -69,19 +68,9 @@ function retainedCoordinatorCursorFields(
 
   return {
     cursor,
-    retiredObjects: retainedCoordinatorObjects(
-      state.commits,
-      cursor.committedWindow
-    ),
+    retiredObjects: selectRetiredCommittedObjects({
+      commits: state.commits,
+      retainedWindow: cursor.committedWindow,
+    }),
   };
-}
-
-function retainedCoordinatorObjects(
-  commits: CoordinatorPipelineState["commits"],
-  retainedWindow: CommittedWindow
-): CoordinatorRetentionPlan["retiredObjects"] {
-  return selectRetiredCommittedObjects({
-    commits,
-    retainedWindow,
-  });
 }

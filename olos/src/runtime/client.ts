@@ -250,15 +250,16 @@ export async function getRuntimeMediaPlaylist(
   };
 }
 
+function clientUrl(baseUrl: string, relativePath: string): URL {
+  return new URL(stripLeadingSlash(relativePath), normalizedBaseUrl(baseUrl));
+}
+
 function sessionsUrl(options: RuntimeHttpClientOptions): URL {
   const relativePath = sessionRootPathFromOptions({
     sessionPath: normalizedSessionPath(options),
   });
 
-  return new URL(
-    stripLeadingSlash(relativePath),
-    normalizedBaseUrl(options.baseUrl)
-  );
+  return clientUrl(options.baseUrl, relativePath);
 }
 
 function sessionUrl(
@@ -270,10 +271,7 @@ function sessionUrl(
     sessionPath: normalizedSessionPath(options),
   });
 
-  return new URL(
-    stripLeadingSlash(relativePath),
-    normalizedBaseUrl(options.baseUrl)
-  );
+  return clientUrl(options.baseUrl, relativePath);
 }
 
 function normalizedSessionPath(options: RuntimeHttpClientOptions): string {
@@ -294,10 +292,7 @@ function liveUrl(options: RuntimeMasterPlaylistOptions, trackId?: string): URL {
       ? liveMasterPath(livePath, options.sessionId)
       : liveMediaPath(livePath, options.sessionId, trackId);
 
-  return new URL(
-    stripLeadingSlash(relativePath),
-    normalizedBaseUrl(options.baseUrl)
-  );
+  return clientUrl(options.baseUrl, relativePath);
 }
 
 function stripLeadingSlash(path: string): string {

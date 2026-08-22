@@ -217,7 +217,10 @@ export function handledStoredSessionMutation(
   return result.status === "not_found" ? notFound() : conflict(result.current);
 }
 
-function notFound(): StoredRuntimeSessionMutation {
+export function notFound(): Extract<
+  StoredRuntimeSessionMutation,
+  { status: "not_found" }
+> {
   return {
     response: jsonErrorResponse(
       "olos.invalid_session",

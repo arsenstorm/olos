@@ -62,8 +62,8 @@ export type S3ReconciliationPayloadRequestParse<Invalid> =
 
 /**
  * How to turn a request body into a parsed payload, and how to report a body
- * that will not parse. `parseCommittedAt`, `overrides`, and `payloadName`
- * carry the same defaults the individual parsers use.
+ * that will not parse. `parseCommittedAt` and `payloadName` carry the same
+ * defaults the individual parsers use.
  */
 export interface ParseS3PayloadRequestOptions<Invalid> {
   /** Message used when the body is not readable as JSON at all. */
@@ -79,14 +79,9 @@ export interface ParseS3PayloadRequestOptions<Invalid> {
   provider: ProviderIdOptions;
 }
 
-export interface ParseS3CommitPayloadRequestOptions<Invalid>
-  extends ParseS3PayloadRequestOptions<Invalid> {
-  overrides?: S3CommitPayloadParseOverrides;
-}
-
 export function parseS3CommitPayloadRequest<Invalid>(
   request: Request | ParsedS3CommitPayload,
-  options: ParseS3CommitPayloadRequestOptions<Invalid>
+  options: ParseS3PayloadRequestOptions<Invalid>
 ): Promise<S3CommitPayloadRequestParse<Invalid>> {
   const payloadName = options.payloadName ?? "S3 commit request";
 
@@ -96,8 +91,7 @@ export function parseS3CommitPayloadRequest<Invalid>(
       parseS3CommitPayload(
         parseRecordPayload(value, payloadName),
         options.provider,
-        options.parseCommittedAt,
-        options.overrides
+        options.parseCommittedAt
       ),
     options.invalid,
     options.fallbackMessage,

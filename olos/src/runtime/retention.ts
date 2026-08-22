@@ -17,13 +17,8 @@ import {
   assertUrlSafeIdentifier,
 } from "../validation/ids";
 import { timestampMs } from "./request-fields";
-import {
-  jsonConflictResponse,
-  jsonErrorResponse,
-  jsonResponse,
-} from "./response";
-
-const RETENTION_SESSION_NOT_FOUND_MESSAGE = "coordinator session was not found";
+import { jsonConflictResponse, jsonResponse } from "./response";
+import { notFound } from "./session-state";
 
 /** Options for `applyStoredCoordinatorRetention`. */
 export interface ApplyStoredCoordinatorRetentionOptions
@@ -259,7 +254,7 @@ export async function planStoredCoordinatorRetention(
   const snapshot = await options.store.load(options.sessionId);
 
   if (snapshot === undefined) {
-    return storedRetentionNotFound();
+    return notFound();
   }
 
   const plan = planCoordinatorRetention({
@@ -304,24 +299,10 @@ export async function applyStoredCoordinatorRetention(
       applied.state === snapshot.state
         ? { status: "terminal", result: storedRetentionUnchanged(applied) }
         : { attempt: applied, status: "save", state: applied.state },
-    onMissing: () => storedRetentionNotFound(),
+    onMissing: notFound,
     mapSaved: (saved, applied) => storedRetentionApplied(saved, applied),
     onConflictOrExhausted: (current) => storedRetentionConflict(current),
   });
-}
-
-function storedRetentionNotFound(): {
-  response: Response;
-  status: "not_found";
-} {
-  return {
-    response: jsonErrorResponse(
-      "olos.invalid_session",
-      RETENTION_SESSION_NOT_FOUND_MESSAGE,
-      404
-    ),
-    status: "not_found",
-  };
 }
 
 function storedRetentionApplied(

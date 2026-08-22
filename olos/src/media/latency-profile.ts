@@ -9,10 +9,7 @@ import type {
 import { optionalField } from "../runtime/request-fields";
 import type { ObjectKind } from "../types/storage-object";
 import { positiveNumber } from "../validation/fields";
-import {
-  isNonNegativeSafeInteger,
-  isPositiveSafeInteger,
-} from "../validation/ids";
+import { isNonNegativeInteger, isPositiveInteger } from "../validation/ids";
 import {
   DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE,
   type RuntimeObjectLowLatencyProfile,
@@ -174,10 +171,14 @@ function publisherObjectDefaults(options: {
   const extension =
     options.object.extension ?? DEFAULT_MEDIA_OBJECT_EXTENSIONS[options.kind];
 
-  assertPublisherObjectContentType(options.contentType);
-  assertPublisherObjectDuration(options.duration);
+  if (options.contentType.length === 0) {
+    throw new Error("contentType must be a non-empty string");
+  }
+
+  positiveNumber(options.duration, "duration");
   assertSupportedMediaExtension(extension, options.kind, "extension");
-  assertPublisherObjectByteBounds(options.object);
+  assertPublisherObjectMaxBytes(options.object.maxBytes);
+  assertPublisherObjectMinBytes(options.object);
 
   return {
     cadenceSeconds: options.duration,
@@ -189,25 +190,8 @@ function publisherObjectDefaults(options: {
   };
 }
 
-function assertPublisherObjectContentType(contentType: string): void {
-  if (contentType.length === 0) {
-    throw new Error("contentType must be a non-empty string");
-  }
-}
-
-function assertPublisherObjectDuration(duration: number): void {
-  positiveNumber(duration, "duration");
-}
-
-function assertPublisherObjectByteBounds(
-  object: RuntimeObjectLowLatencyPublisherObjectOptions
-): void {
-  assertPublisherObjectMaxBytes(object.maxBytes);
-  assertPublisherObjectMinBytes(object);
-}
-
 function assertPublisherObjectMaxBytes(maxBytes: number): void {
-  if (!isPositiveSafeInteger(maxBytes)) {
+  if (!isPositiveInteger(maxBytes)) {
     throw new Error("maxBytes must be a positive integer");
   }
 }
@@ -217,7 +201,7 @@ function assertPublisherObjectMinBytes(
 ): void {
   if (
     object.minBytes !== undefined &&
-    (!isNonNegativeSafeInteger(object.minBytes) ||
+    (!isNonNegativeInteger(object.minBytes) ||
       object.minBytes > object.maxBytes)
   ) {
     throw new Error("minBytes must be a non-negative integer up to maxBytes");

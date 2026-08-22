@@ -107,23 +107,19 @@ export function parseRuntimeCommitPayloadRequest<Invalid>(
   request: Request | RuntimeCommitPayload,
   invalid: RuntimeJsonRequestInvalidBuilder<Invalid>,
   fallbackMessage: string,
-  payloadName = "commit request",
   maxBodyBytes?: number
 ): Promise<RuntimeCommitRequestParse<Invalid>> {
   return parseRuntimeJsonRequest(
     request,
-    (value) => parseRuntimeCommitPayload(value, payloadName),
+    parseRuntimeCommitPayload,
     invalid,
     fallbackMessage,
     maxBodyBytes
   );
 }
 
-function parseRuntimeCommitPayload(
-  value: unknown,
-  payloadName: string
-): RuntimeCommitPayload {
-  const payload = parseRecordPayload(value, payloadName);
+function parseRuntimeCommitPayload(value: unknown): RuntimeCommitPayload {
+  const payload = parseRecordPayload(value, "commit request");
 
   return {
     ...parseCommitRequestPayload(payload),
@@ -234,28 +230,14 @@ export function parseCommitRequestPayload(
   };
 }
 
-/** Overrides for how the provider id is read and reported when missing. */
-export interface ProviderIdFieldOptions {
-  field?: string;
-  missingError?: string;
-}
-
 export function parseProviderResolvedCommitPayload(
   value: Record<string, unknown>,
   options: ProviderIdOptions,
-  parseCommittedAt: ParseTimestampField = parseCommitTimestamp,
-  providerIdField: ProviderIdFieldOptions = {}
+  parseCommittedAt: ParseTimestampField = parseCommitTimestamp
 ): ProviderResolvedCommitPayload {
-  const field = providerIdField.field ?? "providerId";
-
   return {
     committedAt: parseCommittedAt(value, "committedAt"),
-    providerId: parseProviderId(
-      value,
-      options,
-      field,
-      providerIdField.missingError ?? `${field} must be configured or provided`
-    ),
+    providerId: parseProviderId(value, options),
     ...parseCommitPayloadOptions(value),
   };
 }

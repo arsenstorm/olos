@@ -11,9 +11,7 @@ import {
 } from "../validation/fields";
 import {
   assertNonNegativeInteger,
-  assertNonNegativeSafeInteger,
   assertPositiveInteger,
-  assertPositiveSafeInteger,
   assertUrlSafeIdentifier,
 } from "../validation/ids";
 import { assertProfileData } from "../validation/profile";
@@ -151,7 +149,7 @@ export function nonNegativeInteger(value: unknown, name: string): number {
 }
 
 export function nonNegativeSafeInteger(value: unknown, name: string): number {
-  assertNonNegativeSafeInteger(value, name);
+  assertNonNegativeInteger(value, name);
   return value;
 }
 
@@ -177,7 +175,7 @@ export function positiveInteger(value: unknown, name: string): number {
 }
 
 export function positiveSafeInteger(value: unknown, name: string): number {
-  assertPositiveSafeInteger(value, name);
+  assertPositiveInteger(value, name);
   return value;
 }
 

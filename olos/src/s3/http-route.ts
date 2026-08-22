@@ -1,3 +1,4 @@
+import { routeSessionIdError } from "../runtime/http-parse";
 import { routeIdentifierError, sessionRouteParts } from "../runtime/route";
 import {
   S3_COMPLETION_HINT_ACTION,
@@ -208,27 +209,19 @@ function invalidPostS3Route(
     return;
   }
 
-  const slotIdError = routeSlotIdError(route.slotId);
+  const slotIdError = routeIdentifierError(
+    route.slotId,
+    "slotId",
+    "invalid route slotId"
+  );
 
   if (slotIdError !== undefined) {
     return invalidS3Route(slotIdError);
   }
 }
 
-function routeSessionIdError(sessionId: string): string | undefined {
-  return routeIdentifierError(
-    sessionId,
-    "sessionId",
-    "invalid route sessionId"
-  );
-}
-
-function routeSlotIdError(slotId: string): string | undefined {
-  return routeIdentifierError(slotId, "slotId", "invalid route slotId");
-}
-
 function invalidS3Route(message: string): InvalidS3Route {
   return { message, status: "invalid" };
 }
 
-export type { InvalidS3Route, S3Route };
+export type { S3Route };
