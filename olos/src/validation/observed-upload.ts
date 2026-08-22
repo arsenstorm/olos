@@ -1,6 +1,6 @@
 import type { StorageObject } from "../types/storage-object";
 import type { UploadSlot } from "../types/upload-slot";
-import { nonNegativeNumber, passes } from "./fields";
+import { nonNegativeNumber, passes, timestampMs } from "./fields";
 import { isOptionalHttpHeaderStringMap } from "./http-header";
 import { assertStorageObject, MEDIA_OBJECT_FIELDS } from "./storage-object";
 import { assertUploadSlot } from "./upload-slot";
@@ -27,9 +27,80 @@ export interface ObservedUploadMatchOptions {
   slot: UploadSlot;
 }
 
-type ObservableUploadSlot = UploadSlot & {
+export type ObservableUploadSlot = UploadSlot & {
   state: "issued" | "upload_observed";
 };
+
+/** The rule an object breaks against its slot. */
+export type ObjectSlotMismatch =
+  | "contentType"
+  | "maxBytes"
+  | "minBytes"
+  | "objectKey";
+
+const OBSERVED_UPLOAD_MISMATCH_MESSAGES: Readonly<
+  Record<ObjectSlotMismatch, string>
+> = {
+  contentType: "observedUpload.contentType must match uploadSlot.contentType",
+  maxBytes:
+    "observedUpload.size must be less than or equal to uploadSlot.maxBytes",
+  minBytes:
+    "observedUpload.size must be greater than or equal to uploadSlot.minBytes",
+  objectKey: "observedUpload.objectKey must match uploadSlot.objectKey",
+};
+
+/** First rule the object breaks against its slot, or `undefined` when it matches. */
+export function objectSlotMismatch(
+  object: StorageObject,
+  slot: UploadSlot,
+  options: { includeKeyMismatch: boolean }
+): ObjectSlotMismatch | undefined {
+  if (options.includeKeyMismatch && object.objectKey !== slot.objectKey) {
+    return "objectKey";
+  }
+
+  if (object.contentType !== slot.contentType) {
+    return "contentType";
+  }
+
+  if (object.size > slot.maxBytes) {
+    return "maxBytes";
+  }
+
+  if (slot.minBytes !== undefined && object.size < slot.minBytes) {
+    return "minBytes";
+  }
+}
+
+/** Whether `timestamp` falls after the slot's expiry plus the tolerance. */
+export function isAfterSlotExpiry(
+  timestamp: string,
+  slot: UploadSlot,
+  lateToleranceMs: number | undefined,
+  timestampName: string
+): boolean {
+  const tolerance = nonNegativeNumber(lateToleranceMs ?? 0, "lateToleranceMs");
+
+  return (
+    timestampMs(timestamp, timestampName) >
+    timestampMs(slot.expiresAt, "uploadSlot.expiresAt") + tolerance
+  );
+}
+
+/**
+ * The `x-olos-slot-id` the upload's metadata carries when it names a slot
+ * other than `slot`, or `undefined` when it matches or is absent.
+ */
+export function observedSlotIdMismatch(
+  object: ObservedUpload,
+  slot: UploadSlot
+): string | undefined {
+  const observedSlotId = object.metadata?.["x-olos-slot-id"];
+
+  return observedSlotId === undefined || observedSlotId === slot.slotId
+    ? undefined
+    : observedSlotId;
+}
 
 /**
  * Returns whether `value` is a valid `ObservedUpload` (see
@@ -98,96 +169,51 @@ function assertObservableSlotState(slot: UploadSlot): void {
   }
 }
 
-function isObservableUploadSlot(
+export function isObservableUploadSlot(
   slot: UploadSlot
 ): slot is ObservableUploadSlot {
   return slot.state === "issued" || slot.state === "upload_observed";
 }
 
 function assertObjectMatchesSlot(options: ObservedUploadMatchOptions): void {
-  assertObjectIdentityMatchesSlot(options);
-  assertObjectSizeWithinSlot(options);
+  assertObjectMatchesSlotRules(options);
   assertObservationBeforeSlotExpiry(options);
   assertObservedSlotMetadataMatchesSlot(options);
 }
 
-function assertObjectIdentityMatchesSlot(
+function assertObjectMatchesSlotRules(
   options: ObservedUploadMatchOptions
 ): void {
-  const { object, slot } = options;
+  const mismatch = objectSlotMismatch(options.object, options.slot, {
+    includeKeyMismatch: true,
+  });
 
-  if (object.objectKey !== slot.objectKey) {
-    throw new Error("observedUpload.objectKey must match uploadSlot.objectKey");
-  }
-
-  if (object.contentType !== slot.contentType) {
-    throw new Error(
-      "observedUpload.contentType must match uploadSlot.contentType"
-    );
-  }
-}
-
-function assertObjectSizeWithinSlot(options: ObservedUploadMatchOptions): void {
-  const { object, slot } = options;
-
-  assertObjectSizeDoesNotExceedSlotMax(object, slot);
-  assertObjectSizeMeetsSlotMin(object, slot);
-}
-
-function assertObjectSizeDoesNotExceedSlotMax(
-  object: ObservedUpload,
-  slot: UploadSlot
-): void {
-  if (object.size > slot.maxBytes) {
-    throw new Error(
-      "observedUpload.size must be less than or equal to uploadSlot.maxBytes"
-    );
-  }
-}
-
-function assertObjectSizeMeetsSlotMin(
-  object: ObservedUpload,
-  slot: UploadSlot
-): void {
-  if (slot.minBytes !== undefined && object.size < slot.minBytes) {
-    throw new Error(
-      "observedUpload.size must be greater than or equal to uploadSlot.minBytes"
-    );
+  if (mismatch !== undefined) {
+    throw new Error(OBSERVED_UPLOAD_MISMATCH_MESSAGES[mismatch]);
   }
 }
 
 function assertObservationBeforeSlotExpiry(
   options: ObservedUploadMatchOptions
 ): void {
-  const { object, slot } = options;
-
-  if (Date.parse(object.observedAt) > toleratedSlotExpiryMs(slot, options)) {
+  if (
+    isAfterSlotExpiry(
+      options.object.observedAt,
+      options.slot,
+      options.lateToleranceMs,
+      "observedUpload.observedAt"
+    )
+  ) {
     throw new Error(
       "observedUpload.observedAt must be before or equal to uploadSlot.expiresAt"
     );
   }
 }
 
-function toleratedSlotExpiryMs(
-  slot: UploadSlot,
-  options: ObservedUploadMatchOptions
-): number {
-  const lateToleranceMs = nonNegativeNumber(
-    options.lateToleranceMs ?? 0,
-    "lateToleranceMs"
-  );
-
-  return Date.parse(slot.expiresAt) + lateToleranceMs;
-}
-
 function assertObservedSlotMetadataMatchesSlot(
   options: ObservedUploadMatchOptions
 ): void {
-  const { object, slot } = options;
-
-  const observedSlotId = object.metadata?.["x-olos-slot-id"];
-
-  if (observedSlotId !== undefined && observedSlotId !== slot.slotId) {
+  if (observedSlotIdMismatch(options.object, options.slot) !== undefined) {
     throw new Error(
       "observedUpload.metadata.x-olos-slot-id must match uploadSlot.slotId"
     );

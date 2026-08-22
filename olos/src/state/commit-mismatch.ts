@@ -4,7 +4,11 @@ import { createOlosError } from "../types/errors";
 import type { StorageObject } from "../types/storage-object";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertCommit } from "../validation/commit";
-import { nonNegativeNumber, timestampMs } from "../validation/fields";
+import {
+  isAfterSlotExpiry,
+  type ObjectSlotMismatch,
+  objectSlotMismatch,
+} from "../validation/observed-upload";
 import type {
   CreateCommitOptions,
   DuplicateCommitResolution,
@@ -19,26 +23,12 @@ import { sameProfileData } from "./profile-data";
 export function resolveObjectSlotMismatch(
   options: ResolveObjectSlotMismatchOptions
 ): ObjectSlotMismatchResolution | undefined {
-  if (
-    options.includeKeyMismatch === true &&
-    options.mediaObject.objectKey !== options.slot.objectKey
-  ) {
-    return keyMismatch(options);
-  }
+  const mismatch = objectSlotMismatch(options.mediaObject, options.slot, {
+    includeKeyMismatch: options.includeKeyMismatch === true,
+  });
 
-  if (options.mediaObject.contentType !== options.slot.contentType) {
-    return contentTypeMismatch(options);
-  }
-
-  if (options.mediaObject.size > options.slot.maxBytes) {
-    return objectTooLarge(options);
-  }
-
-  if (
-    options.slot.minBytes !== undefined &&
-    options.mediaObject.size < options.slot.minBytes
-  ) {
-    return objectTooSmall(options);
+  if (mismatch !== undefined) {
+    return OBJECT_SLOT_MISMATCH_RESOLUTIONS[mismatch](options);
   }
 }
 
@@ -113,6 +103,27 @@ function objectTooSmall(
   };
 }
 
+const OBJECT_SLOT_MISMATCH_RESOLUTIONS: Readonly<
+  Record<
+    ObjectSlotMismatch,
+    (options: ResolveObjectSlotMismatchOptions) => ObjectSlotMismatchResolution
+  >
+> = {
+  contentType: contentTypeMismatch,
+  maxBytes: objectTooLarge,
+  minBytes: objectTooSmall,
+  objectKey: keyMismatch,
+};
+
+const COMMIT_OBJECT_MISMATCH_MESSAGES: Readonly<
+  Record<ObjectSlotMismatch, string>
+> = {
+  contentType: "mediaObject.contentType must match uploadSlot.contentType",
+  maxBytes: "mediaObject.size must be less than or equal to maxBytes",
+  minBytes: "mediaObject.size must be greater than or equal to minBytes",
+  objectKey: "mediaObject.objectKey must match uploadSlot.objectKey",
+};
+
 /**
  * Decide whether a repeated commit for the same slot is a benign retry or
  * a conflict. The duplicate is `idempotent` — the existing commit is
@@ -154,8 +165,7 @@ export function assertCommitPreconditions(options: CreateCommitOptions): void {
   const { mediaObject, slot } = options;
 
   assertObservedUploadSlot(slot);
-  assertMatchingCommitObject(mediaObject, slot);
-  assertCommitObjectSize(mediaObject, slot);
+  assertCommitObjectMatchesSlot(mediaObject, slot);
   assertCommitDeadline(options);
 }
 
@@ -167,46 +177,28 @@ function assertObservedUploadSlot(
   }
 }
 
-function assertMatchingCommitObject(
+function assertCommitObjectMatchesSlot(
   mediaObject: StorageObject,
   slot: UploadSlot
 ): void {
-  if (mediaObject.objectKey !== slot.objectKey) {
-    throw new Error("mediaObject.objectKey must match uploadSlot.objectKey");
-  }
+  const mismatch = objectSlotMismatch(mediaObject, slot, {
+    includeKeyMismatch: true,
+  });
 
-  if (mediaObject.contentType !== slot.contentType) {
-    throw new Error(
-      "mediaObject.contentType must match uploadSlot.contentType"
-    );
-  }
-}
-
-function assertCommitObjectSize(
-  mediaObject: StorageObject,
-  slot: UploadSlot
-): void {
-  if (mediaObject.size > slot.maxBytes) {
-    throw new Error("mediaObject.size must be less than or equal to maxBytes");
-  }
-
-  if (slot.minBytes !== undefined && mediaObject.size < slot.minBytes) {
-    throw new Error(
-      "mediaObject.size must be greater than or equal to minBytes"
-    );
+  if (mismatch !== undefined) {
+    throw new Error(COMMIT_OBJECT_MISMATCH_MESSAGES[mismatch]);
   }
 }
 
 function assertCommitDeadline(options: CreateCommitOptions): void {
-  const { slot } = options;
-  const committedAt = timestampMs(options.committedAt, "commit.committedAt");
-  const expiresAt = timestampMs(slot.expiresAt, "uploadSlot.expiresAt");
-  const lateToleranceMs = nonNegativeNumber(
-    options.lateToleranceMs ?? 0,
-    "lateToleranceMs"
-  );
-
-  if (committedAt > expiresAt + lateToleranceMs) {
+  if (
+    isAfterSlotExpiry(
+      options.committedAt,
+      options.slot,
+      options.lateToleranceMs,
+      "commit.committedAt"
+    )
+  ) {
     throw new Error("commit.committedAt must be before uploadSlot.expiresAt");
   }
 }

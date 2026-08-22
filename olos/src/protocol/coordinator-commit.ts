@@ -14,8 +14,12 @@ import type { Cursor } from "../types/cursor";
 import { createOlosError, type OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
-import { timestampMs } from "../validation/fields";
-import type { ObservedUpload } from "../validation/observed-upload";
+import {
+  isAfterSlotExpiry,
+  isObservableUploadSlot,
+  type ObservedUpload,
+  observedSlotIdMismatch,
+} from "../validation/observed-upload";
 import { commitIntoState } from "./coordinator-commit-state";
 import { findSlot } from "./coordinator-slot";
 import type {
@@ -118,11 +122,14 @@ function settleBeforeNewCommit(
   // §4.5.1 orders duplicate resolution before the deadline check, so this
   // only rejects a genuinely new commit; retries returned above already.
   if (slot !== undefined) {
-    const lateCommit = rejectLateCommittedAt({
-      committedAt: options.committedAt,
+    const lateCommit = rejectLateTimestamp({
+      detailKey: "committedAt",
       lateToleranceMs: options.lateToleranceMs,
+      message: "commit was recorded after the slot expired",
       slot,
       state: options.state,
+      timestamp: options.committedAt,
+      timestampName: "commit.committedAt",
     });
     if (lateCommit !== undefined) {
       return lateCommit;
@@ -278,9 +285,9 @@ function rejectInvalidObservedUpload(options: {
     return invalidState;
   }
 
-  const observedSlotId = object.metadata?.["x-olos-slot-id"];
+  const observedSlotId = observedSlotIdMismatch(object, slot);
 
-  if (observedSlotId !== undefined && observedSlotId !== slot.slotId) {
+  if (observedSlotId !== undefined) {
     return rejectCommit(
       options.state,
       createOlosError(
@@ -295,11 +302,14 @@ function rejectInvalidObservedUpload(options: {
     );
   }
 
-  const late = rejectLateObservation({
+  const late = rejectLateTimestamp({
+    detailKey: "observedAt",
     lateToleranceMs: options.lateToleranceMs,
-    object,
+    message: "upload was observed after the slot expired",
     slot,
     state: options.state,
+    timestamp: object.observedAt,
+    timestampName: "observedUpload.observedAt",
   });
   if (late !== undefined) {
     return late;
@@ -323,11 +333,7 @@ function rejectInvalidSlotState(options: {
 }): Extract<CoordinatorUploadCommit, { status: "rejected" }> | undefined {
   const { existingCommit, slot } = options;
 
-  if (
-    existingCommit === undefined &&
-    slot.state !== "issued" &&
-    slot.state !== "upload_observed"
-  ) {
+  if (existingCommit === undefined && !isObservableUploadSlot(slot)) {
     return rejectCommit(
       options.state,
       createOlosError(
@@ -339,59 +345,36 @@ function rejectInvalidSlotState(options: {
   }
 }
 
-function rejectLateObservation(options: {
+function rejectLateTimestamp(options: {
+  detailKey: "committedAt" | "observedAt";
   lateToleranceMs?: number;
-  object: ObservedUpload;
+  message: string;
   slot: UploadSlot;
   state: CoordinatorPipelineState;
+  timestamp: string;
+  timestampName: "commit.committedAt" | "observedUpload.observedAt";
 }): Extract<CoordinatorUploadCommit, { status: "rejected" }> | undefined {
-  const { object, slot } = options;
-  const expiresAtMs = timestampMs(slot.expiresAt, "uploadSlot.expiresAt");
-  const observedAtMs = timestampMs(
-    object.observedAt,
-    "observedUpload.observedAt"
+  const { slot, timestamp } = options;
+
+  if (
+    !isAfterSlotExpiry(
+      timestamp,
+      slot,
+      options.lateToleranceMs,
+      options.timestampName
+    )
+  ) {
+    return;
+  }
+
+  return rejectCommit(
+    options.state,
+    createOlosError("olos.slot_expired", options.message, {
+      [options.detailKey]: timestamp,
+      expiresAt: slot.expiresAt,
+      slotId: slot.slotId,
+    })
   );
-
-  if (observedAtMs > expiresAtMs + (options.lateToleranceMs ?? 0)) {
-    return rejectCommit(
-      options.state,
-      createOlosError(
-        "olos.slot_expired",
-        "upload was observed after the slot expired",
-        {
-          expiresAt: slot.expiresAt,
-          observedAt: object.observedAt,
-          slotId: slot.slotId,
-        }
-      )
-    );
-  }
-}
-
-function rejectLateCommittedAt(options: {
-  committedAt: string;
-  lateToleranceMs?: number;
-  slot: UploadSlot;
-  state: CoordinatorPipelineState;
-}): Extract<CoordinatorUploadCommit, { status: "rejected" }> | undefined {
-  const { committedAt, slot } = options;
-  const expiresAtMs = timestampMs(slot.expiresAt, "uploadSlot.expiresAt");
-  const committedAtMs = timestampMs(committedAt, "commit.committedAt");
-
-  if (committedAtMs > expiresAtMs + (options.lateToleranceMs ?? 0)) {
-    return rejectCommit(
-      options.state,
-      createOlosError(
-        "olos.slot_expired",
-        "commit was recorded after the slot expired",
-        {
-          committedAt,
-          expiresAt: slot.expiresAt,
-          slotId: slot.slotId,
-        }
-      )
-    );
-  }
 }
 
 function rejectCoordinatorCommitPolicy({

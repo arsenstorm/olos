@@ -4,6 +4,7 @@ import { assertContentType } from "../validation/content-type";
 import { isSafeObjectKey } from "../validation/object-key";
 import { assertProviderCapabilityDocument } from "../validation/provider-capability";
 import { createDeliveryCachePolicy } from "./cache-policy";
+import { assertPublicationModeCapability } from "./publication";
 
 /** Options for {@link createDirectPublicSecurityPolicy}. */
 export interface CreateDirectPublicSecurityPolicyOptions {
@@ -79,11 +80,6 @@ export interface CreateDirectPublicNegativeObjectResponseHeadersOptions {
   policy: DirectPublicSecurityPolicy;
 }
 
-interface DirectPublicCapabilityRequirement {
-  isSupported: (capability: ProviderCapabilityDocument) => boolean;
-  message: string;
-}
-
 interface DirectPublicObjectRequestBlockRule {
   isBlocked: (
     options: ResolveDirectPublicObjectRequestPolicyOptions
@@ -91,27 +87,6 @@ interface DirectPublicObjectRequestBlockRule {
   reason: DirectPublicObjectRequestBlockReason;
   status: 403 | 404;
 }
-
-const DIRECT_PUBLIC_CAPABILITY_REQUIREMENTS = [
-  {
-    isSupported: (capability) =>
-      capability.publication.directObjectPublication === true,
-    message:
-      "providerCapability.publication.directObjectPublication must be true for direct-public security",
-  },
-  {
-    isSupported: (capability) =>
-      capability.publication.manifestGatedPublication === true,
-    message:
-      "providerCapability.publication.manifestGatedPublication must be true for direct-public security",
-  },
-  {
-    isSupported: (capability) =>
-      capability.delivery.documentNavigationCanBeBlocked === true,
-    message:
-      "providerCapability.delivery.documentNavigationCanBeBlocked must be true for direct-public security",
-  },
-] satisfies readonly DirectPublicCapabilityRequirement[];
 
 const DIRECT_PUBLIC_OBJECT_REQUEST_BLOCK_RULES = [
   {
@@ -155,7 +130,11 @@ export function createDirectPublicSecurityPolicy(
   options: CreateDirectPublicSecurityPolicyOptions
 ): DirectPublicSecurityPolicy {
   assertProviderCapabilityDocument(options.capability);
-  assertDirectPublicCapability(options.capability);
+  assertPublicationModeCapability(
+    options.capability,
+    "direct-public",
+    "security"
+  );
   assertAllowedObjectExtensions(options.allowedObjectExtensions);
   assertContentType(options.objectContentType, "objectContentType");
 
@@ -278,23 +257,6 @@ export function createDirectPublicNegativeObjectResponseHeaders(
     ...options.policy.objectResponseHeaders,
     "cache-control": options.policy.negativeObjectCachePolicy.cacheControl,
   };
-}
-
-function assertDirectPublicCapability(
-  capability: ProviderCapabilityDocument
-): void {
-  for (const requirement of DIRECT_PUBLIC_CAPABILITY_REQUIREMENTS) {
-    assertDirectPublicCapabilityRequirement(capability, requirement);
-  }
-}
-
-function assertDirectPublicCapabilityRequirement(
-  capability: ProviderCapabilityDocument,
-  requirement: DirectPublicCapabilityRequirement
-): void {
-  if (!requirement.isSupported(capability)) {
-    throw new Error(requirement.message);
-  }
 }
 
 function publicBaseOrigin(publicBaseUrl: string): string {

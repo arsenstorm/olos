@@ -4,17 +4,14 @@ import { isOptionalHttpHeaderStringMap } from "../validation/http-header";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import { assertObservedUpload } from "../validation/observed-upload";
-import {
-  createObservedUploadFromObjectCreatedEvent,
-  createUploadCompletionHint,
-} from "./observed-upload";
+import { createUploadCompletionHint } from "./observed-upload";
 import {
   type CreateObservedUploadFromObjectCreatedEventOptions,
   type CreateUploadCompletionHintOptions,
   type NormalizeUploadEventOptions,
   OBJECT_CREATED_EVENT_TYPE,
   type ObjectCreatedEventSlotResolution,
-  type ObjectCreatedUploadEventPayload,
+  type ObservedUploadObjectCreatedEvent,
   type ResolveObjectCreatedEventSlotOptions,
   UPLOAD_COMPLETED_HINT_TYPE,
   type UploadCompletionHintPayload,
@@ -61,9 +58,7 @@ function normalizeObjectCreatedUploadEvent(
   event: Record<string, unknown>
 ): UploadEventNormalization {
   return {
-    event: createObservedUploadFromObjectCreatedEvent(
-      objectCreatedUploadEventPayload(event)
-    ),
+    event: objectCreatedUploadEvent(event),
     status: "object_created",
   };
 }
@@ -135,15 +130,16 @@ function isObjectLikeRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
 
-function objectCreatedUploadEventPayload(
+function objectCreatedUploadEvent(
   event: Record<string, unknown>
-): ObjectCreatedUploadEventPayload {
+): ObservedUploadObjectCreatedEvent {
   assertUrlSafeIdentifier(event.eventId, "objectCreatedEvent.eventId");
 
+  const metadata = optionalUploadEventMetadata(event.metadata);
   const object = {
     contentType: event.contentType,
-    etag: event.etag,
-    metadata: optionalUploadEventMetadata(event.metadata),
+    ...(event.etag === undefined ? {} : { etag: event.etag }),
+    ...(metadata === undefined ? {} : { metadata }),
     objectKey: event.objectKey,
     observedAt: event.eventTime,
     providerId: event.providerId,
@@ -153,15 +149,9 @@ function objectCreatedUploadEventPayload(
   assertObservedUpload(object);
 
   return {
-    contentType: object.contentType,
-    etag: object.etag,
     eventId: event.eventId,
-    eventTime: object.observedAt,
     eventType: OBJECT_CREATED_EVENT_TYPE,
-    metadata: object.metadata,
-    objectKey: object.objectKey,
-    providerId: object.providerId,
-    size: object.size,
+    object,
   };
 }
 

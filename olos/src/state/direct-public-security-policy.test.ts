@@ -166,7 +166,27 @@ describe("direct-public security policy", () => {
         objectContentType,
       })
     ).toThrow(
-      "providerCapability.delivery.immutableCaching must be true for media-object cache policies"
+      "providerCapability.delivery.immutableCaching must be true for direct-public security"
+    );
+  });
+
+  // The capability document itself already rejects direct object publication
+  // without a declared negative-caching policy, so that message wins here.
+  test("requires a declared negative-caching policy", () => {
+    expect(() =>
+      createDirectPublicSecurityPolicy({
+        allowedObjectExtensions,
+        capability: {
+          ...capability,
+          delivery: {
+            ...capability.delivery,
+            negativeCachingPolicyDeclared: false,
+          },
+        },
+        objectContentType,
+      })
+    ).toThrow(
+      "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct object publication"
     );
   });
 

@@ -3,6 +3,7 @@ import type { PublicationMode } from "../types/publication";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertProviderCapabilityDocument } from "../validation/provider-capability";
 import { assertUploadSlot } from "../validation/upload-slot";
+import { assertPublicationModeCapability } from "./publication";
 
 /**
  * Options for {@link canProviderIssueUploadGrant} and
@@ -120,75 +121,12 @@ export function assertProviderCanIssueUploadGrant(
   assertProviderCapabilityDocument(options.capability);
   assertUploadSlot(options.slot);
 
-  assertProviderMatchesPublicationMode(options);
+  assertPublicationModeCapability(
+    options.capability,
+    options.publicationMode ?? "direct-public",
+    "slots"
+  );
   assertUploadGrantCapabilities(options);
-}
-
-/** Direct-public slots are readable the moment they are written, so the
- * provider must publish directly, gate visibility on the manifest, declare
- * a negative-caching policy, be able to block document navigation to the
- * object, and cache it immutably. */
-function assertDirectPublicCapability(
-  capability: ProviderUploadGrantPolicyOptions["capability"]
-): void {
-  if (!capability.publication.directObjectPublication) {
-    throw new Error(
-      "providerCapability.publication.directObjectPublication must be true for direct-public slots"
-    );
-  }
-
-  if (capability.publication.manifestGatedPublication !== true) {
-    throw new Error(
-      "providerCapability.publication.manifestGatedPublication must be true for direct-public slots"
-    );
-  }
-
-  if (!capability.delivery.negativeCachingPolicyDeclared) {
-    throw new Error(
-      "providerCapability.delivery.negativeCachingPolicyDeclared must be true for direct-public slots"
-    );
-  }
-
-  if (!capability.delivery.documentNavigationCanBeBlocked) {
-    throw new Error(
-      "providerCapability.delivery.documentNavigationCanBeBlocked must be true for direct-public slots"
-    );
-  }
-
-  if (!capability.delivery.immutableCaching) {
-    throw new Error(
-      "providerCapability.delivery.immutableCaching must be true for direct-public slots"
-    );
-  }
-}
-
-function assertProviderMatchesPublicationMode(
-  options: ProviderUploadGrantPolicyOptions
-): void {
-  const { capability } = options;
-  const publicationMode = options.publicationMode ?? "direct-public";
-
-  if (publicationMode === "direct-public") {
-    assertDirectPublicCapability(capability);
-  }
-
-  if (
-    publicationMode === "read-gated" &&
-    capability.publication.readGateAvailable !== true
-  ) {
-    throw new Error(
-      "providerCapability.publication.readGateAvailable must be true for read-gated slots"
-    );
-  }
-
-  if (
-    publicationMode === "private-upload-public-promotion" &&
-    capability.publication.privateUploadPublicPromotion !== true
-  ) {
-    throw new Error(
-      "providerCapability.publication.privateUploadPublicPromotion must be true for private-upload-public-promotion slots"
-    );
-  }
 }
 
 function assertUploadGrantCapabilities(

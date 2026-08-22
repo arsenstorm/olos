@@ -102,9 +102,6 @@ export interface NormalizeUploadEventOptions {
   event: unknown;
 }
 
-export type ObjectCreatedUploadEventPayload =
-  CreateObservedUploadFromObjectCreatedEventOptions;
-
 export type UploadCompletionHintPayload = CreateUploadCompletionHintOptions;
 
 /**

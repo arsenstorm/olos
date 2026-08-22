@@ -12,6 +12,8 @@ const capability: ProviderCapabilityDocument = {
     readAfterCreate: "strong",
   },
   delivery: {
+    documentNavigationCanBeBlocked: true,
+    immutableCaching: true,
     negativeCachingPolicyDeclared: true,
     publicBaseUrl: "https://media.example.com/live",
   },
