@@ -164,5 +164,4 @@ application MUST provide them:
 - content scanning, moderation, and DRM.
 
 A conforming coordinator implementation is not a safe deployment by
-itself. Conformance claims (Appendix in Section 1's conventions) cover
-protocol behavior only.
+itself. Conformance claims (Appendix B) cover protocol behavior only.

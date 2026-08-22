@@ -69,9 +69,9 @@ The error-code registry (Section 6.3.1) grows additively:
   for an existing code (Section 6.3.2), is breaking.
 - Consumers MUST tolerate unknown `error.code` values. An
   unrecognized code MUST be handled by its HTTP status class, not
-  treated as a malformed response. Registered-but-unemitted codes
-  (`olos.slot_expired`, `olos.provider_unavailable`, Section 6.3.1)
-  exist so that implementations can start to emit them without a
+  treated as a malformed response. A registered but unemitted code
+  (`olos.provider_unavailable`, Section 6.3.1) exists so that
+  implementations can start to emit it without a
   version bump.
 
 ## 11.4 Revision policy

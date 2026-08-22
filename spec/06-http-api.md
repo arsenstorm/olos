@@ -91,7 +91,7 @@ path segment. The following rules apply to every route:
   coordinator MUST reject a larger body with `413` and code
   `olos.invalid_request` before it parses the body.
 
-Timestamps are ISO 8601 strings. Identifiers are URL-safe identifiers.
+Timestamps are RFC 3339 strings (Section 1.2). Identifiers are URL-safe identifiers.
 Object keys MUST satisfy the path-safety rules of Section 7.5.
 
 ## 6.3 Error envelope
@@ -159,10 +159,8 @@ Note: an oversized request body maps to `413` with code
 
 A domain rejection MUST map to HTTP status as follows:
 
-- `olos.unknown_slot` maps to `404`.
-- Every other domain code carried on a rejection maps to `409`. The
-  exception is `olos.invalid_session`, which maps to `404` when it
-  reports a missing session.
+- `olos.unknown_slot` and `olos.invalid_session` map to `404`.
+- Every other domain code maps to `409`.
 
 An unhandled error in any route maps to `500` with code
 `olos.internal`. The envelope carries the fixed message only.
@@ -240,7 +238,7 @@ Errors: `404 olos.invalid_session`.
 ### 6.4.5 Retention plan — `GET /sessions/:id/retention`
 
 This route is read-only planning (see Section 9.2). The optional query
-parameter `now` (ISO 8601) overrides the evaluation clock. Success:
+parameter `now` (RFC 3339) overrides the evaluation clock. Success:
 `200` with `{ "plan": { expiredSlots, retiredObjects, cursor? } }`.
 Retired objects are identified by track and sequence number, not by
 any profile-defined duration. This route MUST NOT mutate stored state.

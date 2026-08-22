@@ -151,7 +151,7 @@ observed object MUST match the slot before the transition is applied:
 - `size` MUST be at most `maxBytes`. When `minBytes` is present, `size`
   MUST be at least `minBytes`.
 - `observedAt` MUST NOT be after `expiresAt` plus the configured late
-  tolerance (Section 4.5.3).
+  tolerance (`olos.slot_expired`, Section 4.5.3).
 - When the object carries `x-olos-slot-id` metadata, its value MUST
   equal the slot's `slotId`.
 
@@ -194,7 +194,8 @@ MUST evaluate, in order:
 9. **Key match.** An evidence `objectKey` that differs from the slot's
    key is rejected with `olos.key_mismatch`.
 10. **Deadline.** `committedAt` MUST NOT be after the slot's `expiresAt`
-    plus the configured late tolerance.
+    plus the configured late tolerance. A later value is rejected with
+    `olos.slot_expired`.
 
 On acceptance the coordinator MUST do all of the following in one atomic
 operation:
@@ -247,7 +248,8 @@ Two independent lateness rules apply:
 - **Slot deadline.** Both the observation time and `committedAt` MUST be
   at or before the slot's `expiresAt` plus a configured non-negative
   `lateToleranceMs` (default 0). A commit exactly at the tolerated
-  deadline MUST be accepted. A commit beyond it MUST be rejected.
+  deadline MUST be accepted. A commit beyond it MUST be rejected with
+  `olos.slot_expired`.
 - **Cursor position.** When a cursor exists and a commit's slot position
   is already behind its own track's live edge within the cursor's
   committed window (the last visible segment, and its last visible part
