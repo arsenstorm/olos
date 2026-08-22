@@ -105,7 +105,11 @@ export function renderMediaPlaylist(
   for (let index = track.segments.length - 1; index >= 0; index -= 1) {
     const segment = track.segments[index] as CommittedSegment;
     rendered.unshift(
-      renderSegment(segment, options, distanceFromEnd < retainWithinSeconds)
+      renderSegment(
+        segment,
+        options,
+        distanceFromEnd < retainWithinSeconds ? (segment.parts ?? []) : []
+      )
     );
     distanceFromEnd += mediaSegmentDuration(segment);
   }
@@ -198,12 +202,12 @@ function resolveDiscontinuitySequence(
 function renderSegment(
   segment: CommittedSegment,
   policy: MediaUriPolicy,
-  retainParts: boolean
+  retainedParts: readonly CommittedPart[]
 ): string[] {
   const lines = renderSegmentHeaders(segment);
 
   if (hasFullCommittedSegment(segment)) {
-    return [...lines, ...renderFullSegment(segment, policy, retainParts)];
+    return [...lines, ...renderFullSegment(segment, policy, retainedParts)];
   }
 
   return [...lines, ...renderPartialSegment(segment, policy)];
@@ -232,16 +236,10 @@ function renderSegmentHeaders(segment: CommittedSegment): string[] {
 function renderFullSegment(
   segment: FullCommittedSegment,
   policy: MediaUriPolicy,
-  retainParts: boolean
+  retainedParts: readonly CommittedPart[]
 ): string[] {
-  const parts = segment.parts ?? [];
-  const partLines =
-    retainParts && parts.length > 0
-      ? parts.map((part) => renderPart(part, policy))
-      : [];
-
   return [
-    ...partLines,
+    ...retainedParts.map((part) => renderPart(part, policy)),
     `#EXTINF:${formatSeconds(mediaSegmentDuration(segment))},`,
     renderMediaUri(segment.segment.deliveryUrl, policy, "segment.deliveryUrl"),
   ];
