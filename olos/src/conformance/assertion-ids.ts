@@ -134,5 +134,6 @@ export const OLOS_CONFORMANCE_ASSERTION_IDS = [
   "SEC-DIRECT-007",
 ] as const;
 
+/** Identifier of one assertion in the OLOS conformance suite. */
 export type OlosConformanceAssertionId =
   (typeof OLOS_CONFORMANCE_ASSERTION_IDS)[number];

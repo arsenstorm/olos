@@ -77,21 +77,27 @@ function readLiveS3Prefix(env: LiveS3Env): string {
     ""
   );
 
-  if (
-    prefix === "" ||
-    hasControlCharacter(prefix) ||
-    prefix.includes("?") ||
-    prefix.includes("#") ||
-    prefix
-      .split("/")
-      .some((segment) => segment === "" || segment === "." || segment === "..")
-  ) {
+  if (!isSafeObjectPrefix(prefix)) {
     throw new Error(
       "OLOS_LIVE_S3_PREFIX must be a safe relative object prefix"
     );
   }
 
   return prefix;
+}
+
+function isSafeObjectPrefix(prefix: string): boolean {
+  if (prefix === "" || hasControlCharacter(prefix)) {
+    return false;
+  }
+  if (prefix.includes("?") || prefix.includes("#")) {
+    return false;
+  }
+  return prefix.split("/").every(isSafePathSegment);
+}
+
+function isSafePathSegment(segment: string): boolean {
+  return segment !== "" && segment !== "." && segment !== "..";
 }
 
 function assertLiveS3Bucket(value: string): void {

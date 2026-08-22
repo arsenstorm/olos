@@ -76,16 +76,20 @@ function assertRuntimeHandlerOptions(
 
 function assertAllowedMediaOrigins(origins: readonly string[]): void {
   for (const origin of origins) {
-    let url: URL;
-
-    try {
-      url = new URL(origin);
-    } catch {
-      throw new Error("allowedMediaOrigins must contain HTTPS origins");
-    }
-
-    if (url.protocol !== "https:" || url.origin !== origin) {
+    if (!isHttpsOrigin(origin)) {
       throw new Error("allowedMediaOrigins must contain HTTPS origins");
     }
   }
+}
+
+function isHttpsOrigin(origin: string): boolean {
+  let url: URL;
+
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+
+  return url.protocol === "https:" && url.origin === origin;
 }

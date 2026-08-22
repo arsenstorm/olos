@@ -41,10 +41,13 @@ export async function createByterangeSegmentResponse(
     return new Response("not found", { status: 404 });
   }
 
-  return new Response(createByterangeStream(options, initial, range), {
-    headers: responseHeaders(range, options.range !== undefined),
-    status: options.range === undefined ? 200 : 206,
-  });
+  const body = createByterangeStream(options, initial, range);
+
+  if (options.range === undefined) {
+    return new Response(body, { headers: baseHeaders(), status: 200 });
+  }
+
+  return new Response(body, { headers: rangeHeaders(range), status: 206 });
 }
 
 function isSatisfiableRange(range: ByterangeRangeRequest): boolean {
@@ -65,27 +68,30 @@ function normalizeRange(range: ByterangeRangeRequest): ByterangeRangeRequest {
   return range;
 }
 
-function responseHeaders(
-  range: ByterangeRangeRequest,
-  explicitRange: boolean
-): Headers {
-  const headers = new Headers({
+function baseHeaders(): Headers {
+  return new Headers({
     "accept-ranges": "bytes",
     "cache-control": "no-store",
     "content-type": "video/mp4",
   });
+}
+
+/** Headers for a 206 answer to a request that carried a Range header. */
+function rangeHeaders(range: ByterangeRangeRequest): Headers {
+  const headers = baseHeaders();
 
   if (range.end !== undefined) {
     headers.set("content-range", `bytes ${range.start}-${range.end}/*`);
     headers.set("content-length", String(range.end - range.start + 1));
-  } else if (explicitRange) {
-    // RFC 8673 §2: an open-ended live range answers with a very large
-    // last-byte-pos and no content-length; the body streams to the live edge
-    // and a clean close marks the end of the available content.
-    headers.set(
-      "content-range",
-      `bytes ${range.start}-${OPEN_ENDED_LAST_BYTE_POS}/*`
-    );
+    return headers;
   }
+
+  // RFC 8673 §2: an open-ended live range answers with a very large
+  // last-byte-pos and no content-length; the body streams to the live edge
+  // and a clean close marks the end of the available content.
+  headers.set(
+    "content-range",
+    `bytes ${range.start}-${OPEN_ENDED_LAST_BYTE_POS}/*`
+  );
   return headers;
 }

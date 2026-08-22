@@ -89,32 +89,15 @@ export async function createStoredCoordinatorSession(
  * transitions from the current state yield `rejected` with 409
  * `olos.invalid_state` rather than throwing.
  */
-export async function transitionStoredCoordinatorSession(
+export function transitionStoredCoordinatorSession(
   options: TransitionStoredCoordinatorSessionOptions
 ): Promise<StoredRuntimeSessionTransition> {
-  // Request-shape validation runs before any store read and fails with 400
-  // `olos.invalid_request`; only state-machine rejections below are 409.
-  try {
-    assertTransitionOptions(options);
-  } catch (error) {
-    return {
-      response: invalidRequestResponse(
-        error,
-        "coordinator session transition options were invalid"
-      ),
-      status: "rejected",
-    };
-  }
-
-  try {
-    return await applySessionTransition(options);
-  } catch (error) {
-    if (error instanceof StoredSessionRejectionError) {
-      return rejected(error);
-    }
-
-    throw error;
-  }
+  return runStoredSessionMutation({
+    apply: () => applySessionTransition(options),
+    assert: () => assertTransitionOptions(options),
+    invalidMessage: "coordinator session transition options were invalid",
+    rejected,
+  });
 }
 
 async function applySessionTransition(
@@ -153,32 +136,15 @@ async function applySessionTransition(
  * before any store read; heartbeats against `ended` or `aborted` sessions
  * yield `rejected` with 409 `olos.invalid_state`.
  */
-export async function heartbeatStoredCoordinatorPublisher(
+export function heartbeatStoredCoordinatorPublisher(
   options: HeartbeatStoredCoordinatorPublisherOptions
 ): Promise<StoredRuntimePublisherHeartbeat> {
-  // Same split as the transition path: malformed options are 400
-  // `olos.invalid_request` before any store read.
-  try {
-    assertHeartbeatOptions(options);
-  } catch (error) {
-    return {
-      response: invalidRequestResponse(
-        error,
-        "publisher heartbeat options were invalid"
-      ),
-      status: "rejected",
-    };
-  }
-
-  try {
-    return await refreshPublisherLease(options);
-  } catch (error) {
-    if (error instanceof StoredSessionRejectionError) {
-      return rejectedHeartbeat(error);
-    }
-
-    throw error;
-  }
+  return runStoredSessionMutation({
+    apply: () => refreshPublisherLease(options),
+    assert: () => assertHeartbeatOptions(options),
+    invalidMessage: "publisher heartbeat options were invalid",
+    rejected: rejectedHeartbeat,
+  });
 }
 
 async function refreshPublisherLease(
@@ -214,4 +180,54 @@ async function refreshPublisherLease(
     state: result.state,
     status: "refreshed",
   };
+}
+
+interface StoredSessionMutationSteps<Result> {
+  apply(): Promise<Result>;
+  /** Validates the request shape; any throw becomes a 400 `olos.invalid_request`. */
+  assert(): void;
+  invalidMessage: string;
+  /** Maps a `StoredSessionRejectionError` to the 409 `olos.invalid_state` result. */
+  rejected(error: StoredSessionRejectionError): Result;
+}
+
+/**
+ * Shared shape of every stored-session mutation: request-shape validation
+ * runs before any store read and fails with 400 `olos.invalid_request`;
+ * only state-machine rejections raised inside `apply` are 409. Any other
+ * throw propagates to the handler's opaque 500.
+ */
+async function runStoredSessionMutation<Result>(
+  steps: StoredSessionMutationSteps<Result>
+): Promise<Result | StoredSessionInvalidRequest> {
+  try {
+    steps.assert();
+  } catch (error) {
+    return {
+      response: invalidRequestResponse(error, steps.invalidMessage),
+      status: "rejected",
+    };
+  }
+
+  try {
+    return await steps.apply();
+  } catch (error) {
+    return rejectedOrRethrow(error, steps.rejected);
+  }
+}
+
+interface StoredSessionInvalidRequest {
+  response: Response;
+  status: "rejected";
+}
+
+function rejectedOrRethrow<Result>(
+  error: unknown,
+  rejected: (error: StoredSessionRejectionError) => Result
+): Result {
+  if (error instanceof StoredSessionRejectionError) {
+    return rejected(error);
+  }
+
+  throw error;
 }

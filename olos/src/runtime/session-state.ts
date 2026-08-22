@@ -61,10 +61,9 @@ export function transitionState(
   try {
     assertSessionTransition(state.session.state, nextState);
   } catch (error) {
-    throw new StoredSessionRejectionError(
-      error instanceof Error
-        ? error.message
-        : "coordinator session transition was rejected"
+    throw storedSessionRejection(
+      error,
+      "coordinator session transition was rejected"
     );
   }
 
@@ -135,14 +134,27 @@ function heartbeatLease(
       ttlMs: options.ttlMs,
     });
   } catch (error) {
-    // A heartbeat clocked before its lease was issued is a state-machine
-    // rejection (409 `olos.invalid_state`), not an internal failure.
-    if (error instanceof RuntimePublisherLeaseClockError) {
-      throw new StoredSessionRejectionError(error.message);
-    }
-
-    throw error;
+    throw leaseClockRejection(error);
   }
+}
+
+/**
+ * A heartbeat clocked before its lease was issued is a state-machine
+ * rejection (409 `olos.invalid_state`), not an internal failure.
+ */
+function leaseClockRejection(error: unknown): unknown {
+  return error instanceof RuntimePublisherLeaseClockError
+    ? new StoredSessionRejectionError(error.message)
+    : error;
+}
+
+function storedSessionRejection(
+  error: unknown,
+  fallbackMessage: string
+): StoredSessionRejectionError {
+  return new StoredSessionRejectionError(
+    error instanceof Error ? error.message : fallbackMessage
+  );
 }
 
 function currentPublisherLease(

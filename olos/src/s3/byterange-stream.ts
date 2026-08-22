@@ -90,14 +90,25 @@ async function pullByterange(
     await drainByterange(context, state);
     context.controller.close();
   } catch (error) {
-    // After an abort the stream is already dead; erroring it would only
-    // produce noise (and `close()` throws once the consumer cancels).
-    if (!abort.signal.aborted) {
-      context.controller.error(error);
-    }
+    failUnlessAborted(context, abort, error);
   } finally {
     abort.release();
   }
+}
+
+/**
+ * After an abort the stream is already dead; erroring it would only
+ * produce noise (and `close()` throws once the consumer cancels).
+ */
+function failUnlessAborted(
+  context: ByterangeStreamContext,
+  abort: LinkedAbort,
+  error: unknown
+): void {
+  if (abort.signal.aborted) {
+    return;
+  }
+  context.controller.error(error);
 }
 
 interface LinkedAbort {

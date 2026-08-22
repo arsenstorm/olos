@@ -119,31 +119,33 @@ export async function handleS3CompletionHint(
     return jsonBadRequestResponse(parsed.message);
   }
 
-  let result: Awaited<ReturnType<typeof completeStoredS3CoordinatorUpload>>;
+  const result = await completeStoredS3CoordinatorUpload({
+    ...parsed.payload,
+    bucket: options.bucket,
+    client: tagCompletionHintObservationFailures(
+      options.objectClient ?? options.client
+    ),
+    commitPolicy: options.commitPolicy,
+    maxAttempts: options.maxAttempts,
+    publicationControl: options.publicationControl,
+    sessionId,
+    store: options.store,
+  }).catch(completionHintNotObservedOrRethrow);
 
-  try {
-    result = await completeStoredS3CoordinatorUpload({
-      ...parsed.payload,
-      bucket: options.bucket,
-      client: tagCompletionHintObservationFailures(
-        options.objectClient ?? options.client
-      ),
-      commitPolicy: options.commitPolicy,
-      maxAttempts: options.maxAttempts,
-      publicationControl: options.publicationControl,
-      sessionId,
-      store: options.store,
-    });
-  } catch (error) {
-    if (error instanceof S3CompletionHintObservationError) {
-      return completionHintNotObservedResponse(error);
-    }
-
-    throw error;
+  if (result instanceof Response) {
+    return result;
   }
 
   await scheduleRetiredObjectDeletes(result, options, ctx);
   return s3CommitResponse(result, options);
+}
+
+function completionHintNotObservedOrRethrow(error: unknown): Response {
+  if (error instanceof S3CompletionHintObservationError) {
+    return completionHintNotObservedResponse(error);
+  }
+
+  throw error;
 }
 
 /**

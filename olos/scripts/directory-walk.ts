@@ -28,24 +28,26 @@ export async function listDirectoryEntries(
       continue;
     }
 
-    for (const entry of await readdir(current.absolutePath, {
-      withFileTypes: true,
-    })) {
-      const walkEntry = createDirectoryWalkEntry(current, entry.name, {
-        isDirectory: entry.isDirectory(),
-        isFile: entry.isFile(),
-      });
-
-      entries.push(walkEntry);
-
-      if (entry.isDirectory()) {
-        pending.push(walkEntry);
-      }
-    }
+    const children = await listChildEntries(current);
+    entries.push(...children);
+    pending.push(...children.filter((child) => child.isDirectory));
   }
 
   return entries.sort((left, right) =>
     left.relativePath.localeCompare(right.relativePath)
+  );
+}
+
+async function listChildEntries(
+  parent: PendingDirectory
+): Promise<DirectoryWalkEntry[]> {
+  const entries = await readdir(parent.absolutePath, { withFileTypes: true });
+
+  return entries.map((entry) =>
+    createDirectoryWalkEntry(parent, entry.name, {
+      isDirectory: entry.isDirectory(),
+      isFile: entry.isFile(),
+    })
   );
 }
 
