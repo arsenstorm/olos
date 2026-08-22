@@ -109,18 +109,15 @@ function createByteStoreHeadClient(
   };
 }
 
-export async function createLocalOlos(
-  options: LocalOlosOptions
-): Promise<LocalOlos> {
-  const mediaBaseUrl = `https://127.0.0.1:${options.port}`;
-  assertLoopback(mediaBaseUrl);
-
-  const byteStore = new Map<string, Uint8Array>();
+function createBenchHandler(
+  mediaBaseUrl: string,
+  byteStore: Map<string, Uint8Array>
+): (request: Request) => Promise<Response> {
   const profile = createRuntimeObjectLowLatencyProfile();
   const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(profile);
   const notifier = createMemoryRuntimeCursorNotifier();
 
-  const handle = createStoredS3CoordinatorRuntimeHandler({
+  return createStoredS3CoordinatorRuntimeHandler({
     allowedMediaOrigins: [mediaBaseUrl],
     blockingReload: {
       timeoutMs: BLOCKING_TIMEOUT_MS,
@@ -137,8 +134,11 @@ export async function createLocalOlos(
     store: createMemoryCoordinatorStore(),
     ...manifestOptions.manifest,
   });
+}
 
-  const session = {
+function benchSession(fps: number): Session {
+  const profile = createRuntimeObjectLowLatencyProfile();
+  return {
     createdAt: new Date().toISOString(),
     epoch: 1,
     latencyProfile: profile.latencyProfile,
@@ -148,7 +148,7 @@ export async function createLocalOlos(
       {
         bitrate: 5_000_000,
         codec: "avc1.640028",
-        frameRate: options.fps,
+        frameRate: fps,
         height: 1080,
         kind: "video",
         renditionId: RENDITION_ID,
@@ -158,12 +158,18 @@ export async function createLocalOlos(
     segmentTarget: profile.segmentTarget,
     sessionId: SESSION_ID,
     state: "live",
-  } satisfies Session;
+  };
+}
 
+// Loopback TLS origin that serves published bytes straight out of `byteStore`.
+async function serveByteStore(
+  port: number,
+  byteStore: Map<string, Uint8Array>
+): Promise<{ stop(): Promise<void> }> {
   const certDir = await mkdtemp(join(tmpdir(), "olos-bench-cert-"));
   const { certPath, keyPath } = generateSelfSignedCert(certDir);
   const server = serve({
-    port: options.port,
+    port,
     tls: { cert: file(certPath), key: file(keyPath) },
     fetch(request) {
       const key = new URL(request.url).pathname.replace(LEADING_SLASHES, "");
@@ -173,6 +179,25 @@ export async function createLocalOlos(
         : new Response(bytes, { headers: { "content-type": "video/mp4" } });
     },
   });
+
+  return {
+    async stop() {
+      server.stop(true);
+      await rm(certDir, { force: true, recursive: true });
+    },
+  };
+}
+
+export async function createLocalOlos(
+  options: LocalOlosOptions
+): Promise<LocalOlos> {
+  const mediaBaseUrl = `https://127.0.0.1:${options.port}`;
+  assertLoopback(mediaBaseUrl);
+
+  const byteStore = new Map<string, Uint8Array>();
+  const handle = createBenchHandler(mediaBaseUrl, byteStore);
+  const session = benchSession(options.fps);
+  const server = await serveByteStore(options.port, byteStore);
 
   return {
     handle,
@@ -186,6 +211,16 @@ export async function createLocalOlos(
         "create session"
       );
     },
+    ...publishMethods(handle, byteStore),
+    stop: () => server.stop(),
+  };
+}
+
+function publishMethods(
+  handle: (request: Request) => Promise<Response>,
+  byteStore: Map<string, Uint8Array>
+): Pick<LocalOlos, "publishInit" | "publishPart" | "publishSegment"> {
+  return {
     publishInit: (bytes) =>
       publishObject(handle, byteStore, {
         commitId: "commit_init",
@@ -219,9 +254,5 @@ export async function createLocalOlos(
         slotId: `slot_${mediaSequenceNumber}`,
         bytes,
       }),
-    async stop() {
-      server.stop(true);
-      await rm(certDir, { force: true, recursive: true });
-    },
   };
 }

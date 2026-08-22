@@ -36,76 +36,115 @@ export interface DecoderPool {
   results(): readonly FinalSample[];
 }
 
+interface DecodeOptions {
+  onIdle(): void;
+  onResult(final: FinalSample): Promise<void> | void;
+}
+
+interface PoolState {
+  active: number;
+  drainResolver?: () => void;
+  finals: FinalSample[];
+  queue: DecoderInput[];
+}
+
 export function createDecoderPool(opts: {
   concurrency: number;
   onResult(final: FinalSample): Promise<void> | void;
 }): DecoderPool {
-  const queue: DecoderInput[] = [];
-  const finals: FinalSample[] = [];
-  let active = 0;
-  let drainResolver: (() => void) | undefined;
-
-  const runWorker = async (): Promise<void> => {
-    while (true) {
-      const sample = queue.shift();
-      if (sample === undefined) {
-        active -= 1;
-        if (active === 0 && queue.length === 0 && drainResolver !== undefined) {
-          drainResolver();
-          drainResolver = undefined;
-        }
-        return;
-      }
-      try {
-        const mp4 =
-          sample.initBytes === undefined
-            ? sample.fragmentBytes
-            : concat(sample.initBytes, sample.fragmentBytes);
-        const captureAt = await decodeFirstFrameAsync(mp4);
-        if (Number.isFinite(captureAt)) {
-          const final: FinalSample = {
-            captureAt,
-            committedAt: sample.committedAt,
-            latencyMs: sample.renderedAt - captureAt,
-            msn: sample.msn,
-            partNumber: sample.partNumber,
-            playlistVisibleAt: sample.playlistVisibleAt,
-            renderedAt: sample.renderedAt,
-            seq: sample.seq,
-            uploadedAt: sample.uploadedAt,
-          };
-          finals.push(final);
-          await opts.onResult(final);
-        }
-      } catch {
-        // One sample's decode failure shouldn't take down the run.
-      }
-    }
+  const state: PoolState = { active: 0, finals: [], queue: [] };
+  const decodeOptions: DecodeOptions = {
+    onIdle: () => workerIdle(state),
+    onResult: opts.onResult,
   };
 
   return {
-    drain() {
-      return new Promise((resolve) => {
-        if (active === 0 && queue.length === 0) {
-          resolve();
-          return;
-        }
-        drainResolver = resolve;
-      });
-    },
+    drain: () => waitForIdle(state),
     enqueue(sample) {
-      queue.push(sample);
-      if (active < opts.concurrency) {
-        active += 1;
-        runWorker().catch(() => {
-          // runWorker swallows per-sample errors internally; this guards the
-          // outer promise so a fire-and-forget start can't reject unhandled.
+      state.queue.push(sample);
+      if (state.active < opts.concurrency) {
+        state.active += 1;
+        decodeUntilEmpty(state, decodeOptions).catch(() => {
+          // decodeUntilEmpty swallows per-sample errors internally; this
+          // guards the outer promise so a fire-and-forget start can't reject
+          // unhandled.
         });
       }
     },
-    results() {
-      return finals;
-    },
+    results: () => state.finals,
+  };
+}
+
+function waitForIdle(state: PoolState): Promise<void> {
+  return new Promise((resolve) => {
+    if (state.active === 0 && state.queue.length === 0) {
+      resolve();
+      return;
+    }
+    state.drainResolver = resolve;
+  });
+}
+
+function workerIdle(state: PoolState): void {
+  state.active -= 1;
+  if (state.active === 0 && state.queue.length === 0) {
+    state.drainResolver?.();
+    state.drainResolver = undefined;
+  }
+}
+
+async function decodeUntilEmpty(
+  state: PoolState,
+  opts: DecodeOptions
+): Promise<void> {
+  for (let s = state.queue.shift(); s; s = state.queue.shift()) {
+    await decodeSampleQuietly(s, state.finals, opts);
+  }
+  opts.onIdle();
+}
+
+// One sample's decode failure shouldn't take down the run.
+async function decodeSampleQuietly(
+  sample: DecoderInput,
+  finals: FinalSample[],
+  opts: DecodeOptions
+): Promise<void> {
+  try {
+    await decodeSample(sample, finals, opts);
+  } catch {
+    // swallowed: see above
+  }
+}
+
+async function decodeSample(
+  sample: DecoderInput,
+  finals: FinalSample[],
+  opts: DecodeOptions
+): Promise<void> {
+  const mp4 =
+    sample.initBytes === undefined
+      ? sample.fragmentBytes
+      : concat(sample.initBytes, sample.fragmentBytes);
+  const captureAt = await decodeFirstFrameAsync(mp4);
+  if (!Number.isFinite(captureAt)) {
+    return;
+  }
+  const final = toFinalSample(sample, captureAt);
+  finals.push(final);
+  await opts.onResult(final);
+}
+
+function toFinalSample(sample: DecoderInput, captureAt: number): FinalSample {
+  return {
+    captureAt,
+    committedAt: sample.committedAt,
+    latencyMs: sample.renderedAt - captureAt,
+    msn: sample.msn,
+    partNumber: sample.partNumber,
+    playlistVisibleAt: sample.playlistVisibleAt,
+    renderedAt: sample.renderedAt,
+    seq: sample.seq,
+    uploadedAt: sample.uploadedAt,
   };
 }
 

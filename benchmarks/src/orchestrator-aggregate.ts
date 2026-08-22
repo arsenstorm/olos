@@ -2,12 +2,9 @@
 // runId prefix, computes one AggregateStats, writes the aggregate sidecar
 // JSON, prints the cross-worker report.
 
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import os from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import {
   CONCURRENCY,
   CSV_PATH,
@@ -21,9 +18,14 @@ import {
   TARGET_SAMPLES,
 } from "./orchestrator-config";
 import type { WorkerStatus } from "./orchestrator-worker";
+import {
+  hostLine,
+  printBenchNote,
+  printLatencySummary,
+  printStages,
+} from "./report-sections";
+import { gitCommit, machineInfo } from "./run-metadata";
 import { type AggregateInput, type AggregateStats, aggregate } from "./stats";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 interface CsvRow extends AggregateInput {
   runId: string;
@@ -74,15 +76,7 @@ export async function writeAggregateSidecar(
       segmentMs: SEGMENT_MS,
     },
     endedAt: new Date().toISOString(),
-    machine: {
-      arch: os.arch(),
-      bun: process.versions.bun ?? "",
-      cpuCount: os.cpus().length,
-      cpuModel: os.cpus()[0]?.model ?? "",
-      node: process.versions.node ?? "",
-      platform: os.platform(),
-      totalMemMb: Math.round(os.totalmem() / (1024 * 1024)),
-    },
+    machine: machineInfo(),
     ...(gitCommit() === undefined ? {} : { olosCommit: gitCommit() }),
     results,
     runId: RUN_ID,
@@ -104,65 +98,37 @@ export function printAggregateReport(
   sidecarPath: string,
   workerStatuses: readonly WorkerStatus[]
 ): void {
-  const fmt = (ms: number) => `${ms.toFixed(3)} ms`;
   const fragmentMs = PART_MS > 0 && PART_MS < SEGMENT_MS ? PART_MS : SEGMENT_MS;
-  const overheadMs = Math.max(0, results.p50 - fragmentMs);
 
   if (HAS_TTY) {
     process.stdout.write("\x1b[2J\x1b[H");
   }
   console.log("OLOS end-to-end benchmark — aggregate across workers");
-  console.log(
-    `  host              : ${os.platform()} ${os.arch()} ${os.cpus()[0]?.model ?? "?"}`
-  );
+  console.log(hostLine());
   console.log(`  concurrency       : ${CONCURRENCY}`);
   console.log(`  fragment duration : ${fragmentMs} ms`);
   console.log(
     `  samples measured  : ${results.samples} (target ${TARGET_SAMPLES})`
   );
   console.log("");
-  console.log("End-to-end latency (renderedAt − captureAt):");
-  console.log(`  p50               : ${fmt(results.p50)}`);
-  console.log(`  p95               : ${fmt(results.p95)}`);
-  console.log(`  p99               : ${fmt(results.p99)}`);
-  console.log(`  mean              : ${fmt(results.mean)}`);
-  console.log(`  olos overhead p50 : ~${fmt(overheadMs)}  (p50 − fragment ms)`);
-  console.log("");
-  console.log("Stage breakdown:");
-  for (const [name, pct, desc] of [
-    [
-      "encode fill",
-      results.stagePercentiles.encodeFill,
-      "uploadedAt − captureAt",
-    ],
-    ["publish", results.stagePercentiles.publish, "committedAt − uploadedAt"],
-    ["wake", results.stagePercentiles.wake, "visibleAt − committedAt"],
-    ["fetch", results.stagePercentiles.fetch, "renderedAt − visibleAt"],
-  ] as const) {
-    console.log(
-      `  ${name.padEnd(18)}: p50 ${fmt(pct.p50)}  p95 ${fmt(pct.p95)}  (${desc})`
-    );
-  }
-  console.log("");
-  console.log(
-    "Note: `publish` tail in this single-process bench reflects JS event-loop"
-  );
-  console.log(
-    "contention between producer and consumer sharing the same handler — see"
-  );
-  console.log("README for why production deploys don't see this term.");
-  console.log("");
+  printLatencySummary(results, fragmentMs);
+  printStages(results);
+  printBenchNote();
   if (CONCURRENCY > 1) {
-    console.log("Per-worker:");
-    for (const w of workerStatuses) {
-      console.log(
-        `  ${w.runId}: ${w.samples}/${w.target}${w.interrupted ? " (interrupted)" : ""}`
-      );
-    }
-    console.log("");
+    printPerWorker(workerStatuses);
   }
   console.log(`Per-sample CSV   : ${CSV_PATH}`);
   console.log(`Aggregate sidecar: ${sidecarPath}`);
+  console.log("");
+}
+
+function printPerWorker(workerStatuses: readonly WorkerStatus[]): void {
+  console.log("Per-worker:");
+  for (const w of workerStatuses) {
+    console.log(
+      `  ${w.runId}: ${w.samples}/${w.target}${w.interrupted ? " (interrupted)" : ""}`
+    );
+  }
   console.log("");
 }
 
@@ -173,19 +139,4 @@ export async function finalize(
   const results = aggregate(rows);
   const sidecarPath = await writeAggregateSidecar(results, workerStatuses);
   printAggregateReport(results, sidecarPath, workerStatuses);
-}
-
-function gitCommit(): string | undefined {
-  try {
-    const result = spawnSync("git", ["rev-parse", "HEAD"], {
-      cwd: __dirname,
-      encoding: "utf8",
-    });
-    if (result.status === 0) {
-      return result.stdout.trim();
-    }
-  } catch {
-    // not a git checkout
-  }
-  return;
 }
