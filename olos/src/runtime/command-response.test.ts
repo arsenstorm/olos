@@ -4,7 +4,7 @@ import { createOlosError } from "../types/errors";
 import type { UploadSlot } from "../types/upload-slot";
 import {
   committedUploadRuntimeCommandResponse,
-  invalidRuntimeCommandResponse,
+  invalidRuntimeCommandOutcome,
   issuedSlotRuntimeCommandResponse,
   rejectedRuntimeCommandResult,
 } from "./command-response";
@@ -12,14 +12,13 @@ import {
 const slot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-  duration: 2,
   epoch: 0,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  mediaSequenceNumber: 3810,
+  sequenceNumber: 3810,
   objectKey: "media/v1080/s3810.m4s",
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "session_1",
   slotId: "slot_3810",
   state: "issued",
@@ -27,11 +26,26 @@ const slot: UploadSlot = {
 
 describe("runtime command response helpers", () => {
   test("formats invalid command responses", async () => {
-    const response = invalidRuntimeCommandResponse("invalid request");
+    const response = invalidRuntimeCommandOutcome("invalid request");
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
-      error: { message: "invalid request" },
+      error: { code: "olos.invalid_request", message: "invalid request" },
+    });
+  });
+
+  test("formats too-large command responses as 413", async () => {
+    const response = invalidRuntimeCommandOutcome(
+      "request body is too large",
+      "too_large"
+    );
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "olos.invalid_request",
+        message: "request body is too large",
+      },
     });
   });
 
@@ -48,12 +62,11 @@ describe("runtime command response helpers", () => {
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
         deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-        duration: 2,
         epoch: 0,
-        independent: true,
-        mediaSequenceNumber: 3810,
+        profile: { duration: 2, independent: true },
+        sequenceNumber: 3810,
         objectKey: "media/v1080/s3810.m4s",
-        renditionId: "v1080",
+        trackId: "v1080",
         sessionId: "session_1",
         size: 98_304,
         slotId: "slot_3810",
@@ -74,11 +87,11 @@ describe("runtime command response helpers", () => {
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
         deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-        duration: 2,
         epoch: 0,
-        mediaSequenceNumber: 3810,
+        profile: { duration: 2 },
+        sequenceNumber: 3810,
         objectKey: "media/v1080/s3810.m4s",
-        renditionId: "v1080",
+        trackId: "v1080",
         sessionId: "session_1",
         size: 98_304,
         slotId: "slot_3810",

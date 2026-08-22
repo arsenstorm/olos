@@ -1,14 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import type { Cursor } from "../types/cursor";
-import { assertCursor, isCursor } from "./cursor";
+import { assertCursor, isCursor, parseCursor } from "./cursor";
 
 const validCursor: Cursor = {
   committedWindow: {
-    discontinuitySequence: 0,
     epoch: 4,
-    firstMediaSequenceNumber: 3810,
-    lastMediaSequenceNumber: 3811,
-    renditions: {
+    firstSequenceNumber: 3810,
+    lastSequenceNumber: 3811,
+    tracks: {
       v1080: {
         init: {
           commitId: "commit_init",
@@ -16,26 +15,26 @@ const validCursor: Cursor = {
           objectKey: "tenant/session/v1080/init.mp4",
           slotId: "slot_init",
         },
-        renditionId: "v1080",
+        trackId: "v1080",
         segments: [
           {
-            duration: 1,
-            mediaSequenceNumber: 3810,
+            sequenceNumber: 3810,
             segment: {
               commitId: "commit_3810",
               deliveryUrl: "/media/3810.m4s",
               objectKey: "tenant/session/v1080/3810.m4s",
               slotId: "slot_3810",
+              profile: { duration: 1 },
             },
           },
           {
-            duration: 1,
-            mediaSequenceNumber: 3811,
+            sequenceNumber: 3811,
             segment: {
               commitId: "commit_3811",
               deliveryUrl: "/media/3811.m4s",
               objectKey: "tenant/session/v1080/3811.m4s",
               slotId: "slot_3811",
+              profile: { duration: 1 },
             },
           },
         ],
@@ -43,17 +42,57 @@ const validCursor: Cursor = {
     },
   },
   epoch: 4,
-  latencyProfile: "object-ll",
-  mediaBaseUrl: "https://media.example.com",
+  deliveryBaseUrl: "https://media.example.com",
   olos: "1.0",
-  partTarget: 0.333,
-  segmentTarget: 1,
+  profile: { id: "cmaf-llhls", partTarget: 0.333, segmentTarget: 1 },
   sessionId: "session_1",
   state: "live",
   updatedAt: "2026-06-08T12:00:01.820Z",
   window: {
-    firstMediaSequenceNumber: 3810,
-    lastMediaSequenceNumber: 3811,
+    firstSequenceNumber: 3810,
+    lastSequenceNumber: 3811,
+  },
+};
+
+const validTrack = validCursor.committedWindow.tracks.v1080;
+
+if (validTrack === undefined) {
+  throw new Error("missing v1080 fixture");
+}
+
+const cursorWithVisibleParts: Cursor = {
+  ...validCursor,
+  committedWindow: {
+    ...validCursor.committedWindow,
+    tracks: {
+      v1080: {
+        ...validTrack,
+        segments: [
+          ...validTrack.segments.slice(0, 1),
+          {
+            sequenceNumber: 3811,
+            parts: [
+              {
+                commitId: "commit_3811_p0",
+                deliveryUrl: "/media/3811.0.m4s",
+                profile: { duration: 0.5, independent: true },
+                objectKey: "tenant/session/v1080/3811.0.m4s",
+                partNumber: 0,
+                slotId: "slot_3811_p0",
+              },
+              {
+                commitId: "commit_3811_p1",
+                deliveryUrl: "/media/3811.1.m4s",
+                profile: { duration: 0.5 },
+                objectKey: "tenant/session/v1080/3811.1.m4s",
+                partNumber: 1,
+                slotId: "slot_3811_p1",
+              },
+            ],
+          },
+        ],
+      },
+    },
   },
 };
 
@@ -86,10 +125,10 @@ describe("cursor validation", () => {
     );
   });
 
-  test("rejects invalid latency profile", () => {
+  test("rejects cursor profiles without an id", () => {
     expect(() =>
-      assertCursor({ ...validCursor, latencyProfile: "slow" })
-    ).toThrow("cursor.latencyProfile must be one of:");
+      assertCursor({ ...validCursor, profile: { segmentTarget: 1 } })
+    ).toThrow("cursor.profile.id must be a non-empty string");
   });
 
   test("rejects invalid timestamps", () => {
@@ -98,11 +137,11 @@ describe("cursor validation", () => {
     ).toThrow("cursor.updatedAt must be a valid timestamp");
   });
 
-  test("rejects unsafe mediaBaseUrl", () => {
+  test("rejects unsafe deliveryBaseUrl", () => {
     expect(() =>
-      assertCursor({ ...validCursor, mediaBaseUrl: "javascript:alert(1)" })
+      assertCursor({ ...validCursor, deliveryBaseUrl: "javascript:alert(1)" })
     ).toThrow(
-      "cursor.mediaBaseUrl must be an absolute HTTP(S) URL or safe relative path"
+      "cursor.deliveryBaseUrl must be an absolute HTTP(S) URL or safe relative path"
     );
   });
 
@@ -111,12 +150,12 @@ describe("cursor validation", () => {
       assertCursor({
         ...validCursor,
         window: {
-          firstMediaSequenceNumber: 3811,
-          lastMediaSequenceNumber: 3810,
+          firstSequenceNumber: 3811,
+          lastSequenceNumber: 3810,
         },
       })
     ).toThrow(
-      "cursor.window.firstMediaSequenceNumber must be less than or equal to lastMediaSequenceNumber"
+      "cursor.window.firstSequenceNumber must be less than or equal to lastSequenceNumber"
     );
   });
 
@@ -135,13 +174,40 @@ describe("cursor validation", () => {
   test("accepts cursor part progress with matching media sequence bounds", () => {
     expect(() =>
       assertCursor({
+        ...cursorWithVisibleParts,
+        window: {
+          ...cursorWithVisibleParts.window,
+          lastPartNumber: 1,
+        },
+      })
+    ).not.toThrow();
+  });
+
+  test("rejects cursor part progress the committed window does not show", () => {
+    // §3.8: a present lastPartNumber must equal the window's last visible
+    // part number — 1 in the parts fixture, absent in the full-segment one.
+    expect(() =>
+      assertCursor({
+        ...cursorWithVisibleParts,
+        window: {
+          ...cursorWithVisibleParts.window,
+          lastPartNumber: 5,
+        },
+      })
+    ).toThrow(
+      "cursor.window.lastPartNumber must equal the committed window's last visible part number"
+    );
+    expect(() =>
+      assertCursor({
         ...validCursor,
         window: {
           ...validCursor.window,
           lastPartNumber: 1,
         },
       })
-    ).not.toThrow();
+    ).toThrow(
+      "cursor.window.lastPartNumber must equal the committed window's last visible part number"
+    );
   });
 
   test("rejects cursor epoch mismatches", () => {
@@ -155,10 +221,67 @@ describe("cursor validation", () => {
       assertCursor({
         ...validCursor,
         window: {
-          firstMediaSequenceNumber: 3810,
-          lastMediaSequenceNumber: 3810,
+          firstSequenceNumber: 3810,
+          lastSequenceNumber: 3810,
         },
       })
-    ).toThrow("cursor.window must match committedWindow media sequence");
+    ).toThrow("cursor.window must match committedWindow sequence bounds");
+  });
+});
+
+describe("tolerant cursor parsing", () => {
+  test("strips unknown fields and returns a fresh cursor", () => {
+    const parsed = parseCursor({ ...validCursor, extra: 1 });
+
+    expect(parsed).toEqual(validCursor);
+    expect(parsed).not.toBe(validCursor);
+  });
+
+  test("strips unknown fields at every nesting level", () => {
+    const track = cursorWithVisibleParts.committedWindow.tracks.v1080;
+    const partsSegment = track?.segments[1];
+    const firstPart = partsSegment?.parts?.[0];
+    const secondPart = partsSegment?.parts?.[1];
+
+    if (
+      track === undefined ||
+      partsSegment === undefined ||
+      firstPart === undefined ||
+      secondPart === undefined
+    ) {
+      throw new Error("missing parts fixture");
+    }
+
+    const parsed = parseCursor({
+      ...cursorWithVisibleParts,
+      committedWindow: {
+        ...cursorWithVisibleParts.committedWindow,
+        extra: 1,
+        tracks: {
+          v1080: {
+            ...track,
+            extra: 1,
+            segments: [
+              track.segments[0],
+              {
+                ...partsSegment,
+                extra: 1,
+                parts: [{ ...firstPart, extra: 1 }, secondPart],
+              },
+            ],
+          },
+        },
+      },
+      extra: 1,
+      window: { ...cursorWithVisibleParts.window, extra: 1 },
+    });
+
+    expect(parsed).toEqual(cursorWithVisibleParts);
+  });
+
+  test("still rejects invalid known fields", () => {
+    expect(() =>
+      parseCursor({ ...validCursor, extra: 1, updatedAt: "not-a-date" })
+    ).toThrow("cursor.updatedAt must be a valid timestamp");
   });
 });

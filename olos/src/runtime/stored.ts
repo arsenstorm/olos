@@ -1,18 +1,27 @@
+import { mediaTrackWindowProfileFor } from "../media/window";
 import type {
   CoordinatorCommitPolicy,
   CoordinatorPipelineSnapshot,
   CoordinatorPipelineStore,
-} from "../protocol";
-import { runStoredCoordinatorMutationWithAdaptersAndResponse } from "../protocol/mutate-coordinator-store";
+} from "../protocol/coordinator-types";
+import {
+  runStoredCoordinatorMutationWithAdaptersAndResponse,
+  type StoredMutationDecision,
+} from "../protocol/mutate-coordinator-store";
+import type { CreateCommittedWindowOptions } from "../state/committed-window";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { Cursor } from "../types/cursor";
 import type { OlosId } from "../types/ids";
+import type { StreamProfile } from "../types/profile";
 import type { Session } from "../types/session";
+import { isAllowedString } from "../validation/fields";
 import {
   commitCoordinatorUploadFromRequest,
+  invalidUploadCommit,
   type RuntimeCommitRequest,
   type RuntimeCoordinatorUploadCommit,
 } from "./commit";
+import { parseRuntimeCommitPayloadRequest } from "./commit-payload-parser";
 import {
   type ServeBlockingCoordinatorManifestOptions,
   type ServeCoordinatorManifestOptions,
@@ -20,54 +29,92 @@ import {
   serveCoordinatorManifest,
 } from "./manifest";
 import { jsonErrorResponse } from "./response";
+import { conflict, notFound } from "./session-state";
+import type { StoredRuntimeSessionMutation } from "./session-types";
 import {
+  invalidSlotIssue,
   issueCoordinatorSlotFromRequest,
   type RuntimeCoordinatorSlotIssue,
   type RuntimeSlotIssueRequest,
 } from "./slot";
-import { isStringLiteral } from "./string-literals";
+import { parseSlotIssueRequest } from "./slot-issue-payload";
 
+/** Options for `issueStoredCoordinatorSlotFromRequest`. */
 export interface IssueStoredCoordinatorSlotFromRequestOptions {
+  /** Max optimistic-save attempts; defaults to 2. */
   maxAttempts?: number;
+  /**
+   * Largest accepted JSON request body, in bytes; defaults to 1 MiB.
+   * Oversized bodies are rejected with 413 before parsing.
+   */
+  maxBodyBytes?: number;
   publicationControl?: PublicationControlPolicy;
   request: RuntimeSlotIssueRequest;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
 }
 
+/** Options for `commitStoredCoordinatorUploadFromRequest`. */
 export interface CommitStoredCoordinatorUploadFromRequestOptions {
   commitPolicy?: CoordinatorCommitPolicy;
+  /**
+   * How far behind the cursor a commit may land and still be accepted, in
+   * milliseconds. A `lateToleranceMs` in the payload takes precedence.
+   */
   lateToleranceMs?: number;
+  /** Max optimistic-save attempts; defaults to 2. */
   maxAttempts?: number;
+  /**
+   * Largest accepted JSON request body, in bytes; defaults to 1 MiB.
+   * Oversized bodies are rejected with 413 before parsing.
+   */
+  maxBodyBytes?: number;
   publicationControl?: PublicationControlPolicy;
   request: RuntimeCommitRequest;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
+  /**
+   * Profile hook for track window `profile` data. Defaults to
+   * `mediaTrackWindowProfileFor(session.profile)` (olos/media): the
+   * CMAF/LL-HLS hook for media sessions, none for other profiles.
+   */
+  trackWindowProfile?: CreateCommittedWindowOptions["trackWindowProfile"];
 }
 
+/**
+ * Options for `serveStoredCoordinatorManifest`: the manifest options with
+ * the coordinator state replaced by a store and session id to load it from.
+ */
 export interface ServeStoredCoordinatorManifestOptions
   extends Omit<ServeCoordinatorManifestOptions, "state"> {
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
 }
 
+/**
+ * Options for `serveStoredBlockingCoordinatorManifest`: the blocking
+ * manifest options with the coordinator state replaced by a store and
+ * session id to load it from.
+ */
 export interface ServeStoredBlockingCoordinatorManifestOptions
   extends Omit<ServeBlockingCoordinatorManifestOptions, "state"> {
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
 }
 
-export type StoredRuntimeMutation =
-  | {
-      current?: CoordinatorPipelineSnapshot;
-      response: Response;
-      status: "conflict";
-    }
-  | {
-      response: Response;
-      status: "not_found";
-    };
+/**
+ * Failure outcomes shared by stored mutations: `conflict` (409) when
+ * concurrent writes exhausted the optimistic retries — with the latest
+ * snapshot when available — or `not_found` (404) when the session does not
+ * exist.
+ */
+export type StoredRuntimeMutation = StoredRuntimeSessionMutation;
 
+/**
+ * Outcome of `issueStoredCoordinatorSlotFromRequest`: the in-memory
+ * `RuntimeCoordinatorSlotIssue` outcomes — `issued` gaining the saved
+ * snapshot's `etag` — plus the stored `conflict` / `not_found` failures.
+ */
 export type StoredRuntimeSlotIssue =
   | (Extract<RuntimeCoordinatorSlotIssue, { status: "issued" }> & {
       etag: string;
@@ -92,15 +139,17 @@ type TerminalRuntimeCoordinatorUploadCommit = Extract<
   RuntimeCoordinatorUploadCommit,
   { status: "invalid" | "rejected" }
 >;
-type TerminalStoredRuntimeUploadCommit =
-  | TerminalRuntimeCoordinatorUploadCommit
-  | (IdempotentRuntimeCoordinatorUploadCommit & { etag: string });
 
 const TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES = [
   "invalid",
   "rejected",
 ] as const satisfies readonly TerminalRuntimeCoordinatorUploadCommit["status"][];
 
+/**
+ * Outcome of `commitStoredCoordinatorUploadFromRequest`: the in-memory
+ * `RuntimeCoordinatorUploadCommit` outcomes — `committed` and `idempotent`
+ * gaining an `etag` — plus the stored `conflict` / `not_found` failures.
+ */
 export type StoredRuntimeUploadCommit =
   | (SuccessfulRuntimeCoordinatorUploadCommit & {
       etag: string;
@@ -111,6 +160,13 @@ export type StoredRuntimeUploadCommit =
     >
   | StoredRuntimeMutation;
 
+/**
+ * Load a session's cursor and session record from the store (using the
+ * store's hot-path `loadCursor` when implemented) and serve the playlist
+ * matching the request URL via `serveCoordinatorManifest`. Read-only.
+ * Returns a plain-text 404 when the session does not exist, and a 404 when
+ * no commit has landed yet or the path matches no playlist.
+ */
 export async function serveStoredCoordinatorManifest(
   options: ServeStoredCoordinatorManifestOptions
 ): Promise<Response> {
@@ -128,6 +184,15 @@ export async function serveStoredCoordinatorManifest(
   });
 }
 
+/**
+ * Stored variant of `serveBlockingCoordinatorManifest`: loads the session's
+ * cursor view from the store, then serves the media playlist, holding
+ * `_HLS_msn` / `_HLS_part` requests open via `waitForCursor` until the
+ * session reaches the requested position or `timeoutMs` (milliseconds)
+ * elapses. Note the loaded cursor is a point-in-time view — the wait
+ * resolves against cursors pushed by the notifier, not by re-reading the
+ * store. Returns a plain-text 404 when the session does not exist.
+ */
 export async function serveStoredBlockingCoordinatorManifest(
   options: ServeStoredBlockingCoordinatorManifestOptions
 ): Promise<Response> {
@@ -145,10 +210,12 @@ export async function serveStoredBlockingCoordinatorManifest(
   });
 }
 
-// Manifest rendering only consumes cursor + session. Prefer the store's
-// hot-path read when available; fall back to a full load+extract for
-// stores that don't implement it.
-async function loadCursorView(
+/**
+ * Load the session's cursor view — the store's hot-path `loadCursor` when
+ * implemented, else projected from the full snapshot. Undefined when the
+ * session does not exist.
+ */
+export async function loadCursorView(
   store: CoordinatorPipelineStore,
   sessionId: OlosId
 ): Promise<{ cursor?: Cursor; session: Session } | undefined> {
@@ -175,93 +242,138 @@ async function loadCursorView(
   };
 }
 
-export function issueStoredCoordinatorSlotFromRequest(
+/**
+ * Issue an upload slot against the stored session and persist the updated
+ * state via optimistic-retry (up to `maxAttempts`, default 2). The request
+ * body is parsed once, before the retry loop, so a `Request` input is read
+ * exactly once even across retries. Terminal `invalid` / `rejected`
+ * outcomes are returned without saving; retry exhaustion yields `conflict`
+ * (409).
+ */
+export async function issueStoredCoordinatorSlotFromRequest(
   options: IssueStoredCoordinatorSlotFromRequestOptions
 ): Promise<StoredRuntimeSlotIssue> {
-  return Promise.resolve().then(() =>
-    runStoredCoordinatorMutationWithAdaptersAndResponse<
-      RuntimeCoordinatorSlotIssue,
-      Exclude<RuntimeCoordinatorSlotIssue, { status: "issued" }>,
-      StoredRuntimeSlotIssue
-    >({
-      maxAttempts: options.maxAttempts,
-      mutate: (state) =>
-        issueCoordinatorSlotFromRequest({
-          publicationControl: options.publicationControl,
-          request: requestForAttempt(options.request),
-          state,
-        }),
-      sessionId: options.sessionId,
-      store: options.store,
-      decide: (issued) =>
-        isIssuedRuntimeCoordinatorSlotIssue(issued)
-          ? { status: "save", state: issued.state }
-          : { status: "terminal", result: issued },
-      mapTerminal: (issued) => issued,
-      onMissing: () => notFound(),
-      mapSaved: (saved, attempt) => ({
-        ...(attempt as IssuedRuntimeCoordinatorSlotIssue),
-        etag: saved.etag,
-        state: saved.state,
-      }),
-      onConflictOrExhausted: (snapshot) => conflict(snapshot),
-    })
+  const parsed = await parseSlotIssueRequest(
+    options.request,
+    invalidSlotIssue,
+    "invalid slot issue request",
+    undefined,
+    options.maxBodyBytes
   );
+
+  if (parsed.status === "invalid") {
+    return parsed;
+  }
+
+  return await runStoredCoordinatorMutationWithAdaptersAndResponse<
+    RuntimeCoordinatorSlotIssue,
+    IssuedRuntimeCoordinatorSlotIssue,
+    StoredRuntimeSlotIssue
+  >({
+    maxAttempts: options.maxAttempts,
+    mutate: (state) =>
+      issueCoordinatorSlotFromRequest({
+        publicationControl: options.publicationControl,
+        request: parsed.value,
+        state,
+      }),
+    sessionId: options.sessionId,
+    store: options.store,
+    decide: (issued) =>
+      isIssuedRuntimeCoordinatorSlotIssue(issued)
+        ? { attempt: issued, status: "save", state: issued.state }
+        : { status: "terminal", result: issued },
+    onMissing: () => notFound(),
+    mapSaved: (saved, attempt) => ({
+      ...attempt,
+      etag: saved.etag,
+      state: saved.state,
+    }),
+    onConflictOrExhausted: (snapshot) => conflict(snapshot),
+  });
 }
 
-export function commitStoredCoordinatorUploadFromRequest(
+/**
+ * Commit an upload against the stored session and persist the advanced
+ * state via optimistic-retry (up to `maxAttempts`, default 2). The request
+ * body is parsed once, before the retry loop, so a `Request` input is read
+ * exactly once even across retries. Idempotent replays return the current
+ * snapshot's etag without saving; `invalid` / `rejected` outcomes are
+ * returned without saving; retry exhaustion yields `conflict` (409).
+ */
+export async function commitStoredCoordinatorUploadFromRequest(
   options: CommitStoredCoordinatorUploadFromRequestOptions
 ): Promise<StoredRuntimeUploadCommit> {
-  return Promise.resolve().then(() =>
-    runStoredCoordinatorMutationWithAdaptersAndResponse<
-      RuntimeCoordinatorUploadCommit,
-      TerminalStoredRuntimeUploadCommit,
-      StoredRuntimeUploadCommit
-    >({
-      maxAttempts: options.maxAttempts,
-      mutate: (state) =>
-        commitCoordinatorUploadFromRequest({
-          commitPolicy: options.commitPolicy,
-          lateToleranceMs: options.lateToleranceMs,
-          publicationControl: options.publicationControl,
-          request: requestForAttempt(options.request),
-          state,
-        }),
-      sessionId: options.sessionId,
-      store: options.store,
-      decide: (committed, snapshot) => {
-        if (isTerminalRuntimeCoordinatorUploadCommit(committed)) {
-          return { status: "terminal", result: committed };
-        }
-
-        if (isIdempotentRuntimeCoordinatorUploadCommit(committed)) {
-          return {
-            status: "terminal",
-            result: {
-              ...committed,
-              etag: snapshot.etag,
-            },
-          };
-        }
-
-        return { status: "save", state: committed.state };
-      },
-      mapTerminal: (committed) => committed,
-      onMissing: () => notFound(),
-      mapSaved: (saved, attempt) => ({
-        ...(attempt as RuntimeCoordinatorUploadCommit),
-        etag: saved.etag,
-        state: saved.state,
-      }),
-      onConflictOrExhausted: (snapshot) => conflict(snapshot),
-    })
+  const parsed = await parseRuntimeCommitPayloadRequest(
+    options.request,
+    invalidUploadCommit,
+    "invalid commit request",
+    options.maxBodyBytes
   );
+
+  if (parsed.status === "invalid") {
+    return parsed;
+  }
+
+  return await runStoredCoordinatorMutationWithAdaptersAndResponse<
+    RuntimeCoordinatorUploadCommit,
+    SuccessfulRuntimeCoordinatorUploadCommit,
+    StoredRuntimeUploadCommit
+  >({
+    maxAttempts: options.maxAttempts,
+    mutate: (state) =>
+      commitCoordinatorUploadFromRequest({
+        commitPolicy: options.commitPolicy,
+        lateToleranceMs: options.lateToleranceMs,
+        publicationControl: options.publicationControl,
+        request: parsed.value,
+        state,
+        trackWindowProfile:
+          options.trackWindowProfile ??
+          defaultTrackWindowProfile(state.session.profile),
+      }),
+    sessionId: options.sessionId,
+    store: options.store,
+    decide: decideRuntimeCommit,
+    onMissing: () => notFound(),
+    mapSaved: (saved, attempt) => ({
+      ...attempt,
+      etag: saved.etag,
+      state: saved.state,
+    }),
+    onConflictOrExhausted: (snapshot) => conflict(snapshot),
+  });
+}
+
+/**
+ * A rejected commit and a replayed `commitId` both settle without a save;
+ * only a fresh commit is persisted.
+ */
+function decideRuntimeCommit(
+  committed: RuntimeCoordinatorUploadCommit,
+  snapshot: CoordinatorPipelineSnapshot
+): StoredMutationDecision<
+  SuccessfulRuntimeCoordinatorUploadCommit,
+  StoredRuntimeUploadCommit
+> {
+  if (isTerminalRuntimeCoordinatorUploadCommit(committed)) {
+    return { result: committed, status: "terminal" };
+  }
+
+  if (isIdempotentRuntimeCoordinatorUploadCommit(committed)) {
+    return {
+      result: { ...committed, etag: snapshot.etag },
+      status: "terminal",
+    };
+  }
+
+  return { attempt: committed, state: committed.state, status: "save" };
 }
 
 function isTerminalRuntimeCoordinatorUploadCommit(
   result: RuntimeCoordinatorUploadCommit
 ): result is TerminalRuntimeCoordinatorUploadCommit {
-  return isStringLiteral(
+  return isAllowedString(
     result.status,
     TERMINAL_RUNTIME_COORDINATOR_UPLOAD_COMMIT_STATUSES
   );
@@ -279,39 +391,12 @@ function isIdempotentRuntimeCoordinatorUploadCommit(
   return result.status === "idempotent";
 }
 
-function requestForAttempt(request: RuntimeCommitRequest): RuntimeCommitRequest;
-function requestForAttempt(
-  request: RuntimeSlotIssueRequest
-): RuntimeSlotIssueRequest;
-function requestForAttempt(
-  request: RuntimeCommitRequest | RuntimeSlotIssueRequest
-): RuntimeCommitRequest | RuntimeSlotIssueRequest {
-  return request instanceof Request ? new Request(request) : request;
-}
-
-function notFound(): StoredRuntimeMutation {
-  return {
-    response: jsonErrorResponse("coordinator session was not found", 404),
-    status: "not_found",
-  };
+function defaultTrackWindowProfile(
+  profile: StreamProfile
+): CreateCommittedWindowOptions["trackWindowProfile"] {
+  return mediaTrackWindowProfileFor(profile);
 }
 
 function manifestNotFound(): Response {
-  return new Response("manifest not found", {
-    headers: { "content-type": "text/plain; charset=utf-8" },
-    status: 404,
-  });
-}
-
-function conflict(
-  current: CoordinatorPipelineSnapshot | undefined
-): StoredRuntimeMutation {
-  return {
-    ...(current === undefined ? {} : { current }),
-    response: jsonErrorResponse(
-      "coordinator session changed during mutation",
-      409
-    ),
-    status: "conflict",
-  };
+  return jsonErrorResponse("olos.not_found", "manifest not found", 404);
 }

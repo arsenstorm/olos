@@ -1,0 +1,64 @@
+import type { StorageObject } from "../types/storage-object";
+import { assertContentType } from "./content-type";
+import {
+  assertIsoDateField,
+  assertKnownFieldsObject,
+  assertNonEmptyStringField,
+  assertPositiveIntegerField,
+  assertUrlSafeField,
+  passes,
+} from "./fields";
+import { assertSafeObjectKey } from "./object-key";
+
+/** Every field the wire-format `StorageObject` observation may carry. */
+export const MEDIA_OBJECT_FIELDS = [
+  "contentType",
+  "etag",
+  "objectKey",
+  "observedAt",
+  "providerId",
+  "size",
+] as const;
+
+/**
+ * Returns whether `value` is a valid `StorageObject` (see
+ * `assertStorageObject`).
+ */
+export function isStorageObject(value: unknown): value is StorageObject {
+  return passes(assertStorageObject, value);
+}
+
+/**
+ * Validates an untrusted value as a `StorageObject` observation, throwing an
+ * `Error` naming the first offending field. Rejects unknown fields and
+ * requires a safe object key, a well-formed content type, an ISO 8601
+ * `observedAt`, and a positive integer `size`. `allowed` widens the closed
+ * field set for callers that layer extra fields on the observation shape
+ * (`assertObservedUpload`); wire documents use the default list.
+ */
+export function assertStorageObject(
+  value: unknown,
+  allowed: readonly string[] = MEDIA_OBJECT_FIELDS
+): asserts value is StorageObject {
+  assertKnownFieldsObject(value, allowed, "mediaObject");
+  assertStorageObjectIdentity(value);
+  assertStorageObjectObservation(value);
+  assertOptionalMediaObjectFields(value);
+}
+
+function assertStorageObjectIdentity(value: Record<string, unknown>): void {
+  assertUrlSafeField(value, "providerId", "mediaObject");
+  assertSafeObjectKey(value.objectKey, "mediaObject.objectKey");
+  assertContentType(value.contentType, "mediaObject.contentType");
+}
+
+function assertStorageObjectObservation(value: Record<string, unknown>): void {
+  assertIsoDateField(value, "observedAt", "mediaObject");
+  assertPositiveIntegerField(value, "size", "mediaObject");
+}
+
+function assertOptionalMediaObjectFields(value: Record<string, unknown>): void {
+  if (value.etag !== undefined) {
+    assertNonEmptyStringField(value, "etag", "mediaObject");
+  }
+}

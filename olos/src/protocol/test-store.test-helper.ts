@@ -1,4 +1,4 @@
-import type { CoordinatorStoreSave } from "./coordinator";
+import type { CoordinatorStoreSave } from "./coordinator-types";
 
 export function savedStoreResult(
   result: CoordinatorStoreSave,

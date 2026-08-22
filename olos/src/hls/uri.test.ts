@@ -39,7 +39,7 @@ describe("HLS URI helpers", () => {
     expect(() =>
       assertSafeMediaUri(
         "https://media.example.com/live/3810.m4s",
-        { allowedMediaOrigins: [mediaOrigin] },
+        { allowedDeliveryOrigins: [mediaOrigin] },
         "uri"
       )
     ).not.toThrow();

@@ -24,8 +24,8 @@ describe("runtime commit adapter", () => {
     expect(result.response.status).toBe(201);
     expect(result.state.commits).toHaveLength(1);
     expect(result.state.cursor?.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
     expect(await result.response.json()).toMatchObject({
       commit: { commitId: "commit_3810" },
@@ -47,8 +47,8 @@ describe("runtime commit adapter", () => {
     expect(result.response.status).toBe(201);
     expect(result.state.commits).toHaveLength(1);
     expect(result.state.cursor?.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
     expect(await result.response.json()).toMatchObject({
       commit: { commitId: "commit_3810" },
@@ -181,10 +181,10 @@ describe("runtime commit adapter", () => {
         },
       },
       {
-        expected: "programDateTime must be a valid timestamp",
+        expected: "profile must be an object",
         payload: {
           ...commitPayload(),
-          programDateTime: "soon",
+          profile: "soon",
         },
       },
     ] as const;
@@ -223,14 +223,14 @@ function commitPayload() {
   return {
     commitId: "commit_3810",
     committedAt: "2026-01-01T00:00:02.000Z",
-    independent: true,
     object: {
       contentType: "video/mp4",
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "objects/v1080/s3810",
       observedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
       size: 98_304,
     },
+    profile: { independent: true },
     slotId: "slot_3810",
   };
 }

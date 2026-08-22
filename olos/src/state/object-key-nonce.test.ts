@@ -24,6 +24,17 @@ describe("runtime object key nonce", () => {
     ).toBe("obj_00000000000000000000000000000000");
   });
 
+  test("hex-encodes high bytes with lowercase zero-padded pairs", () => {
+    expect(
+      createRuntimePublisherObjectKeyNonce({
+        bytes: new Uint8Array([
+          0xde, 0xad, 0xbe, 0xef, 0x00, 0x0f, 0xf0, 0x7f, 0x80, 0x01, 0x10,
+          0xa0, 0x0a, 0xcc, 0x33, 0xff,
+        ]),
+      })
+    ).toBe("slot_deadbeef000ff07f800110a00acc33ff");
+  });
+
   test("accepts exactly the minimum entropy byte count", () => {
     expect(
       createRuntimePublisherObjectKeyNonce({

@@ -36,11 +36,18 @@ function forwardSignal(signal: NodeJS.Signals): void {
   }
   console.log(`\n[bench] ${signal} received, asking workers to drain…`);
   for (const proc of workerProcs) {
-    try {
-      proc.kill(signal === "SIGINT" ? "SIGINT" : "SIGTERM");
-    } catch {
-      // already dead
-    }
+    killQuietly(proc, signal === "SIGINT" ? "SIGINT" : "SIGTERM");
+  }
+}
+
+function killQuietly(
+  proc: (typeof workerProcs)[number],
+  signal: NodeJS.Signals
+): void {
+  try {
+    proc.kill(signal);
+  } catch {
+    // already dead
   }
 }
 

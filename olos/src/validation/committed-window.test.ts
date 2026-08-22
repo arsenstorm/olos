@@ -4,16 +4,15 @@ import type {
   CommittedPart,
   CommittedSegment,
   CommittedWindow,
-  RenditionWindow,
+  TrackWindow,
 } from "../types/committed-window";
 import { assertCommittedWindow, isCommittedWindow } from "./committed-window";
 
 const validWindow: CommittedWindow = {
-  discontinuitySequence: 0,
   epoch: 1,
-  firstMediaSequenceNumber: 3810,
-  lastMediaSequenceNumber: 3812,
-  renditions: {
+  firstSequenceNumber: 3810,
+  lastSequenceNumber: 3812,
+  tracks: {
     v1080: {
       init: {
         commitId: "commit_init",
@@ -22,40 +21,38 @@ const validWindow: CommittedWindow = {
         objectKey: "media/tenant/sess/e1/v1080/init.mp4",
         slotId: "slot_init",
       },
-      renditionId: "v1080",
+      trackId: "v1080",
       segments: [
         {
-          duration: 2,
-          mediaSequenceNumber: 3810,
+          sequenceNumber: 3810,
           segment: {
             commitId: "commit_3810",
             deliveryUrl:
               "https://media.example.com/media/tenant/sess/e1/v1080/s3810.m4s",
             objectKey: "media/tenant/sess/e1/v1080/s3810.m4s",
             slotId: "slot_3810",
+            profile: { duration: 2 },
           },
         },
         {
-          duration: 2,
-          mediaSequenceNumber: 3811,
+          sequenceNumber: 3811,
           segment: {
             commitId: "commit_3811",
             deliveryUrl:
               "https://media.example.com/media/tenant/sess/e1/v1080/s3811.m4s",
             objectKey: "media/tenant/sess/e1/v1080/s3811.m4s",
             slotId: "slot_3811",
+            profile: { duration: 2 },
           },
         },
         {
-          duration: 2,
-          mediaSequenceNumber: 3812,
+          sequenceNumber: 3812,
           parts: [
             {
               commitId: "commit_3812_0",
               deliveryUrl:
                 "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p0.m4s",
-              duration: 0.5,
-              independent: true,
+              profile: { duration: 0.5, independent: true },
               objectKey: "media/tenant/sess/e1/v1080/s3812/p0.m4s",
               partNumber: 0,
               slotId: "slot_3812_0",
@@ -64,7 +61,7 @@ const validWindow: CommittedWindow = {
               commitId: "commit_3812_1",
               deliveryUrl:
                 "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p1.m4s",
-              duration: 0.5,
+              profile: { duration: 0.5 },
               objectKey: "media/tenant/sess/e1/v1080/s3812/p1.m4s",
               partNumber: 1,
               slotId: "slot_3812_1",
@@ -76,18 +73,18 @@ const validWindow: CommittedWindow = {
   },
 };
 
-function validRendition(): RenditionWindow {
-  const rendition = validWindow.renditions.v1080;
+function validTrack(): TrackWindow {
+  const track = validWindow.tracks.v1080;
 
-  if (!rendition) {
+  if (!track) {
     throw new Error("missing v1080 test fixture");
   }
 
-  return rendition;
+  return track;
 }
 
 function validSegment(index: number): CommittedSegment {
-  const segment = validRendition().segments[index];
+  const segment = validTrack().segments[index];
 
   if (!segment) {
     throw new Error(`missing segment test fixture at index ${index}`);
@@ -112,6 +109,28 @@ describe("committed window validation", () => {
     expect(() => assertCommittedWindow(validWindow)).not.toThrow();
   });
 
+  test("accepts an optional track window profile", () => {
+    expect(
+      isCommittedWindow({
+        ...validWindow,
+        tracks: {
+          v1080: { ...validTrack(), profile: { discontinuitySequence: 2 } },
+        },
+      })
+    ).toBe(true);
+  });
+
+  test("rejects non-object track window profiles", () => {
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        tracks: {
+          v1080: { ...validTrack(), profile: 2 },
+        },
+      })
+    ).toThrow("committedWindow.tracks.v1080.profile must be an object");
+  });
+
   test("rejects non-object values", () => {
     expect(isCommittedWindow(null)).toBe(false);
     expect(() => assertCommittedWindow(null)).toThrow(
@@ -123,18 +142,18 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             init: {
-              ...validRendition().init,
+              ...validTrack().init,
               deliveryUrl: "",
             },
           },
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.init.deliveryUrl must be a non-empty string"
+      "committedWindow.tracks.v1080.init.deliveryUrl must be a non-empty string"
     );
   });
 
@@ -146,26 +165,26 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             init: {
-              ...validRendition().init,
+              ...validTrack().init,
               deliveryUrl: "media/v1080/init.mp4",
             },
           },
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.init.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
+      "committedWindow.tracks.v1080.init.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
     );
 
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               {
                 ...firstSegment,
@@ -180,15 +199,15 @@ describe("committed window validation", () => {
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments[].segment.deliveryUrl must not contain query strings or fragments"
+      "committedWindow.tracks.v1080.segments[].segment.deliveryUrl must not contain query strings or fragments"
     );
 
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               {
                 ...liveSegment,
@@ -204,7 +223,7 @@ describe("committed window validation", () => {
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments[].parts[].deliveryUrl must not contain control characters"
+      "committedWindow.tracks.v1080.segments[].parts[].deliveryUrl must not contain control characters"
     );
   });
 
@@ -216,26 +235,26 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             init: {
-              ...validRendition().init,
+              ...validTrack().init,
               objectKey: "/media/v1080/init.mp4",
             },
           },
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.init.objectKey must be a safe relative object key"
+      "committedWindow.tracks.v1080.init.objectKey must be a safe relative object key"
     );
 
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               {
                 ...firstSegment,
@@ -249,15 +268,15 @@ describe("committed window validation", () => {
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments[].segment.objectKey must be a safe relative object key"
+      "committedWindow.tracks.v1080.segments[].segment.objectKey must be a safe relative object key"
     );
 
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               {
                 ...liveSegment,
@@ -273,7 +292,7 @@ describe("committed window validation", () => {
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments[].parts[].objectKey must not contain query strings or fragments"
+      "committedWindow.tracks.v1080.segments[].parts[].objectKey must not contain query strings or fragments"
     );
   });
 
@@ -283,9 +302,9 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               {
                 ...firstSegment,
@@ -299,15 +318,15 @@ describe("committed window validation", () => {
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments[].segment.contentType must be a non-empty string"
+      "committedWindow.tracks.v1080.segments[].segment.contentType must be a valid content type"
     );
 
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               {
                 ...firstSegment,
@@ -321,7 +340,33 @@ describe("committed window validation", () => {
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments[].segment.etag must be a non-empty string"
+      "committedWindow.tracks.v1080.segments[].segment.etag must be a non-empty string"
+    );
+  });
+
+  test("rejects committed object content types that are not a valid MIME type", () => {
+    const firstSegment = validSegment(0);
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        tracks: {
+          v1080: {
+            ...validTrack(),
+            segments: [
+              {
+                ...firstSegment,
+                segment: {
+                  ...firstSegment.segment,
+                  contentType: "not a mime type",
+                },
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.tracks.v1080.segments[].segment.contentType must be a valid content type"
     );
   });
 
@@ -332,15 +377,15 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [secondSegment, firstSegment],
           },
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments must have monotonic media sequences"
+      "committedWindow.tracks.v1080.segments must have monotonic sequence numbers"
     );
   });
 
@@ -350,15 +395,15 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [firstSegment, firstSegment],
           },
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments must not contain duplicate positions"
+      "committedWindow.tracks.v1080.segments must not contain duplicate positions"
     );
   });
 
@@ -368,21 +413,21 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               firstSegment,
               {
                 ...firstSegment,
-                duration: 3,
+                segment: { ...firstSegment.segment, commitId: "commit_retry" },
               },
             ],
           },
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments must not contain duplicate positions"
+      "committedWindow.tracks.v1080.segments must not contain duplicate positions"
     );
   });
 
@@ -393,9 +438,9 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [firstSegment, thirdSegment],
           },
         },
@@ -410,9 +455,9 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               {
                 ...firstSegment,
@@ -433,9 +478,9 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               {
                 ...liveSegment,
@@ -460,9 +505,9 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               {
                 ...liveSegment,
@@ -473,7 +518,7 @@ describe("committed window validation", () => {
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments[].parts must have monotonic part numbers"
+      "committedWindow.tracks.v1080.segments[].parts must have monotonic part numbers"
     );
   });
 
@@ -484,9 +529,9 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               {
                 ...liveSegment,
@@ -504,7 +549,7 @@ describe("committed window validation", () => {
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments[].parts must not contain duplicate positions with different URLs"
+      "committedWindow.tracks.v1080.segments[].parts must not contain duplicate positions with different URLs"
     );
   });
 
@@ -515,9 +560,9 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               {
                 ...liveSegment,
@@ -528,29 +573,11 @@ describe("committed window validation", () => {
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments[].parts must not contain duplicate positions"
+      "committedWindow.tracks.v1080.segments[].parts must not contain duplicate positions"
     );
   });
 
-  test("rejects missing segment duration", () => {
-    const firstSegment = validSegment(0);
-
-    expect(() =>
-      assertCommittedWindow({
-        ...validWindow,
-        renditions: {
-          v1080: {
-            ...validRendition(),
-            segments: [{ ...firstSegment, duration: 0 }],
-          },
-        },
-      })
-    ).toThrow(
-      "committedWindow.renditions.v1080.segments[].duration must be a positive number"
-    );
-  });
-
-  test("rejects invalid program date-times", () => {
+  test("rejects non-object committed object profiles", () => {
     const firstSegment = validSegment(0);
     const liveSegment = validSegment(2);
     const firstPart = validPart(0);
@@ -558,78 +585,81 @@ describe("committed window validation", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
-            segments: [{ ...firstSegment, programDateTime: "soon" }],
-          },
-        },
-      })
-    ).toThrow(
-      "committedWindow.renditions.v1080.segments[].programDateTime must be a valid timestamp"
-    );
-
-    expect(() =>
-      assertCommittedWindow({
-        ...validWindow,
-        renditions: {
-          v1080: {
-            ...validRendition(),
-            segments: [
-              {
-                ...liveSegment,
-                parts: [{ ...firstPart, programDateTime: "soon" }],
-              },
-            ],
-          },
-        },
-      })
-    ).toThrow(
-      "committedWindow.renditions.v1080.segments[].parts[].programDateTime must be a valid timestamp"
-    );
-  });
-
-  test("rejects invalid optional segment booleans", () => {
-    const firstSegment = validSegment(0);
-
-    expect(() =>
-      assertCommittedWindow({
-        ...validWindow,
-        renditions: {
-          v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               {
                 ...firstSegment,
-                discontinuityBefore: "yes",
+                segment: { ...firstSegment.segment, profile: "soon" },
               },
             ],
           },
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments[].discontinuityBefore must be a boolean"
+      "committedWindow.tracks.v1080.segments[].segment.profile must be an object"
     );
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        tracks: {
+          v1080: {
+            ...validTrack(),
+            segments: [
+              {
+                ...liveSegment,
+                parts: [{ ...firstPart, profile: [] }],
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.tracks.v1080.segments[].parts[].profile must be an object"
+    );
+  });
+
+  test("passes committed object profiles through untouched", () => {
+    const firstSegment = validSegment(0);
+
+    expect(
+      isCommittedWindow({
+        ...validWindow,
+        tracks: {
+          v1080: {
+            ...validTrack(),
+            segments: [
+              {
+                ...firstSegment,
+                segment: {
+                  ...firstSegment.segment,
+                  profile: { anything: { nested: true } },
+                },
+              },
+              validSegment(1),
+              validSegment(2),
+            ],
+          },
+        },
+      })
+    ).toBe(true);
   });
 
   test("rejects unrenderable segments", () => {
     expect(() =>
       assertCommittedWindow({
         ...validWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
-            segments: [
-              {
-                duration: 2,
-                mediaSequenceNumber: 3810,
-              },
-            ],
+            ...validTrack(),
+            segments: [{ sequenceNumber: 3810 }],
           },
         },
       })
     ).toThrow(
-      "committedWindow.renditions.v1080.segments[] must contain a segment or parts"
+      "committedWindow.tracks.v1080.segments[] must contain a segment or parts"
     );
   });
 });

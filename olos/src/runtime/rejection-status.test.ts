@@ -1,17 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { rejectionStatus, rejectionStatusCode } from "./rejection-status";
+import { rejectionStatusCode } from "./rejection-status";
 
 describe("runtime rejection status mapping", () => {
   test("maps unknown slot rejections to not found", () => {
     expect(rejectionStatusCode("olos.unknown_slot")).toBe(404);
-    expect(
-      rejectionStatus({
-        error: {
-          code: "olos.unknown_slot",
-          message: "unknown slot",
-        },
-      })
-    ).toBe(404);
   });
 
   test("maps other known rejections to conflict", () => {

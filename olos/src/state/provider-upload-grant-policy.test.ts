@@ -11,7 +11,7 @@ const capability: ProviderCapabilityDocument = {
     family: "s3-compatible",
   },
   consistency: {
-    headAfterCreate: "strong",
+    observeAfterCreate: "strong",
     readAfterCreate: "strong",
   },
   delivery: {
@@ -51,14 +51,14 @@ const capability: ProviderCapabilityDocument = {
 const slot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl: "/objects/tenant/session/v1080/3810.m4s",
-  duration: 2,
+  profile: { duration: 2 },
   epoch: 0,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  mediaSequenceNumber: 3810,
+  sequenceNumber: 3810,
   objectKey: "tenant/session/v1080/3810.m4s",
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "session_1",
   slotId: "slot_1",
   state: "issued",
@@ -318,6 +318,40 @@ describe("provider upload grant policy", () => {
       })
     ).toThrow(
       "providerCapability.publication.manifestGatedPublication must be true for direct object publication"
+    );
+  });
+
+  test("rejects direct-public slots without blockable document navigation", () => {
+    expect(() =>
+      assertProviderCanIssueUploadGrant({
+        capability: {
+          ...capability,
+          delivery: {
+            ...capability.delivery,
+            documentNavigationCanBeBlocked: false,
+          },
+        },
+        slot,
+      })
+    ).toThrow(
+      "providerCapability.delivery.documentNavigationCanBeBlocked must be true for direct-public slots"
+    );
+  });
+
+  test("rejects direct-public slots without immutable caching", () => {
+    expect(() =>
+      assertProviderCanIssueUploadGrant({
+        capability: {
+          ...capability,
+          delivery: {
+            ...capability.delivery,
+            immutableCaching: false,
+          },
+        },
+        slot,
+      })
+    ).toThrow(
+      "providerCapability.delivery.immutableCaching must be true for direct-public slots"
     );
   });
 

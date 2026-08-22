@@ -3,6 +3,7 @@ import { join } from "node:path";
 import {
   OLOS_CONFORMANCE_ASSERTION_IDS,
   OLOS_CONFORMANCE_COVERAGE,
+  OLOS_CONFORMANCE_SPEC_REFS,
   type OlosConformanceAssertionId,
   type OlosConformanceLevel,
 } from "../src/conformance";
@@ -11,6 +12,14 @@ import { repoRoot } from "./script-paths";
 
 const reportRoot = join(repoRoot, "out", "conformance");
 const reportPath = join(reportRoot, "conformance.md");
+
+export const specConformanceAppendixPath = join(
+  repoRoot,
+  "spec",
+  "appendix-b-conformance.md"
+);
+
+const SPEC_REF_PLACEHOLDER = "—";
 
 const levels = ["core", "runtime", "object", "hls", "security"] as const;
 const coveredAssertionIds = new Set(
@@ -24,6 +33,7 @@ if (isCliEntry(import.meta.url)) {
 
   await mkdir(reportRoot, { recursive: true });
   await writeFile(reportPath, report);
+  await writeFile(specConformanceAppendixPath, buildConformanceSpecAppendix());
 
   if (process.env.GITHUB_STEP_SUMMARY) {
     await appendFile(process.env.GITHUB_STEP_SUMMARY, `\n${report}`);
@@ -60,6 +70,58 @@ export function buildConformanceReport(): string {
   ];
 
   return `${lines.join("\n")}\n`;
+}
+
+export function buildConformanceSpecAppendix(): string {
+  const lines = [
+    "# Appendix B: Conformance Assertion Catalogue",
+    "",
+    "<!-- GENERATED FILE - DO NOT EDIT. Regenerate with `bun run spec:generate` (in olos/), source: olos/scripts/write-conformance-report.ts -->",
+    "",
+    "This appendix is generated from the conformance metadata in",
+    "`olos/src/conformance` (published as `@arsenstorm/olos/conformance`):",
+    "one table per conformance level, linking each assertion id to the spec",
+    "section that claims it and the test file that covers it.",
+    ...levels.flatMap((level) => appendixLevelSection(level)),
+    ...unreferencedAssertionsSection(),
+  ];
+
+  return `${lines.join("\n")}\n`;
+}
+
+function appendixLevelSection(level: OlosConformanceLevel): string[] {
+  return [
+    "",
+    `## ${labelLevel(level)}`,
+    "",
+    "| Assertion ID | Spec § | Test file(s) |",
+    "| --- | --- | --- |",
+    ...coverageForLevel(level).map(formatAppendixRow),
+  ];
+}
+
+function formatAppendixRow(entry: ConformanceCoverageEntry): string {
+  return `| \`${entry.id}\` | ${formatSpecRef(entry.id)} | \`${entry.testFile}\` |`;
+}
+
+function unreferencedAssertionsSection(): string[] {
+  const unreferenced = OLOS_CONFORMANCE_ASSERTION_IDS.filter(
+    (id) => OLOS_CONFORMANCE_SPEC_REFS[id] === null
+  );
+
+  if (unreferenced.length === 0) {
+    return [];
+  }
+
+  return [
+    "",
+    "## Unreferenced assertions",
+    "",
+    "The following assertions are enforced by the reference implementation",
+    "but are not yet referenced by a spec section:",
+    "",
+    ...unreferenced.map(formatListId),
+  ];
 }
 
 function summaryTable(
@@ -106,14 +168,20 @@ function mappedAssertionsSection(
     "",
     `### ${labelLevel(level)}`,
     "",
-    "| ID | Status | Test file |",
-    "| --- | --- | --- |",
+    "| ID | Spec § | Status | Test file |",
+    "| --- | --- | --- | --- |",
     ...entries.map(formatMappedAssertionRow),
   ];
 }
 
 function formatMappedAssertionRow(entry: ConformanceCoverageEntry): string {
-  return `| \`${entry.id}\` | ${entry.status} | \`${entry.testFile}\` |`;
+  return `| \`${entry.id}\` | ${formatSpecRef(entry.id)} | ${entry.status} | \`${entry.testFile}\` |`;
+}
+
+function formatSpecRef(id: OlosConformanceAssertionId): string {
+  const section = OLOS_CONFORMANCE_SPEC_REFS[id];
+
+  return section === null ? SPEC_REF_PLACEHOLDER : `§${section}`;
 }
 
 function formatListId(id: OlosConformanceAssertionId): string {
@@ -181,7 +249,9 @@ function countCoverageStatus(
 }
 
 function labelLevel(level: OlosConformanceLevel): string {
-  return level === "hls" ? "HLS" : `${level[0].toUpperCase()}${level.slice(1)}`;
+  return level === "hls"
+    ? "HLS"
+    : `${level.charAt(0).toUpperCase()}${level.slice(1)}`;
 }
 
 function levelFromAssertionId(

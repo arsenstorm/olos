@@ -1,43 +1,76 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseRuntimeSlotIssuePayload } from "./slot-issue-payload";
+import {
+  parseRuntimeSlotIssuePayload,
+  parseSlotIssueRequest,
+} from "./slot-issue-payload";
 
 describe("runtime slot issue payload parser", () => {
   test("parses intent payloads for slot issue requests", () => {
     const payload = parseRuntimeSlotIssuePayload({
       contentType: "video/mp4",
-      duration: 2,
       expiresAt: "2026-01-01T00:00:00.000Z",
       kind: "segment",
       maxBytes: 1_000_000,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       minBytes: 1,
-      renditionId: "v1080",
+      profile: { duration: 2 },
+      trackId: "v1080",
       slotId: "slot_3810",
     });
 
     expect(payload).toEqual({
       contentType: "video/mp4",
-      duration: 2,
       expiresAt: "2026-01-01T00:00:00.000Z",
       kind: "segment",
       maxBytes: 1_000_000,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       minBytes: 1,
-      renditionId: "v1080",
+      profile: { duration: 2 },
+      trackId: "v1080",
       slotId: "slot_3810",
     });
+  });
+
+  test("omits profile when the payload carries none", () => {
+    const payload = parseRuntimeSlotIssuePayload({
+      contentType: "application/octet-stream",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      kind: "segment",
+      maxBytes: 1_000_000,
+      sequenceNumber: 3810,
+      trackId: "v1080",
+      slotId: "slot_3810",
+    });
+
+    expect(payload.profile).toBeUndefined();
+  });
+
+  test("rejects a profile that is not an object", () => {
+    for (const profile of [null, "x", 1, []]) {
+      expect(() =>
+        parseRuntimeSlotIssuePayload({
+          contentType: "video/mp4",
+          expiresAt: "2026-01-01T00:00:00.000Z",
+          kind: "segment",
+          maxBytes: 1_000_000,
+          profile,
+          sequenceNumber: 3810,
+          trackId: "v1080",
+          slotId: "slot_3810",
+        })
+      ).toThrow("profile must be an object");
+    }
   });
 
   test("parses init slot intent fields", () => {
     const payload = parseRuntimeSlotIssuePayload({
       contentType: "video/mp4",
-      duration: 1,
       expiresAt: "2026-01-01T00:00:00.000Z",
       kind: "init",
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
-      renditionId: "v1080",
+      sequenceNumber: 0,
+      trackId: "v1080",
       slotId: "slot_init",
     });
 
@@ -50,15 +83,14 @@ describe("runtime slot issue payload parser", () => {
   test("threads optional derivation hints", () => {
     const payload = parseRuntimeSlotIssuePayload({
       contentType: "video/mp4",
-      duration: 2,
       expiresAt: "2026-01-01T00:00:00.000Z",
       extension: "m4s",
       kind: "segment",
       maxBytes: 1_000_000,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       objectKeyNonce: "slot_01JZ",
       objectKeyPrefix: "live/session",
-      renditionId: "v1080",
+      trackId: "v1080",
       slotId: "slot_3810",
     });
 
@@ -73,13 +105,12 @@ describe("runtime slot issue payload parser", () => {
     expect(() =>
       parseRuntimeSlotIssuePayload({
         contentType: "video/mp4",
-        duration: 2,
         expiresAt: "2026-01-01T00:00:00.000Z",
         kind: "segment",
         maxBytes: 1_000_000,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKey: "any/key.m4s",
-        renditionId: "v1080",
+        trackId: "v1080",
         slotId: "slot_3810",
       })
     ).toThrow(
@@ -92,12 +123,11 @@ describe("runtime slot issue payload parser", () => {
       parseRuntimeSlotIssuePayload({
         contentType: "video/mp4",
         deliveryUrl: "https://media.example.com/anything.m4s",
-        duration: 2,
         expiresAt: "2026-01-01T00:00:00.000Z",
         kind: "segment",
         maxBytes: 1_000_000,
-        mediaSequenceNumber: 3810,
-        renditionId: "v1080",
+        sequenceNumber: 3810,
+        trackId: "v1080",
         slotId: "slot_3810",
       })
     ).toThrow(
@@ -109,13 +139,12 @@ describe("runtime slot issue payload parser", () => {
     expect(() =>
       parseRuntimeSlotIssuePayload({
         contentType: "video/mp4",
-        duration: 2,
         expiresAt: "2026-01-01T00:00:00.000Z",
         kind: "segment",
         maxBytes: 1_000_000,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         partNumber: 0,
-        renditionId: "v1080",
+        trackId: "v1080",
         slotId: "slot_3810",
       })
     ).toThrow("partNumber is only valid for parts");
@@ -125,12 +154,11 @@ describe("runtime slot issue payload parser", () => {
     expect(() =>
       parseRuntimeSlotIssuePayload({
         contentType: "video/mp4",
-        duration: 0.5,
         expiresAt: "2026-01-01T00:00:00.000Z",
         kind: "part",
         maxBytes: 25_000,
-        mediaSequenceNumber: 3810,
-        renditionId: "v1080",
+        sequenceNumber: 3810,
+        trackId: "v1080",
         slotId: "slot_3810_p0",
       })
     ).toThrow('partNumber is required when kind is "part"');
@@ -139,12 +167,11 @@ describe("runtime slot issue payload parser", () => {
   test("rejects unsafe derivation hints", () => {
     const base = {
       contentType: "video/mp4",
-      duration: 2,
       expiresAt: "2026-01-01T00:00:00.000Z",
       kind: "segment",
       maxBytes: 1_000_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
     };
 
@@ -157,7 +184,87 @@ describe("runtime slot issue payload parser", () => {
     ).toThrow("objectKeyNonce must be a non-empty URL-safe identifier");
 
     expect(() =>
-      parseRuntimeSlotIssuePayload({ ...base, extension: "html" })
-    ).toThrow("extension must use a supported media extension");
+      parseRuntimeSlotIssuePayload({ ...base, extension: "../m4s" })
+    ).toThrow("extension must be a safe path segment without dots");
+  });
+
+  test("accepts any safe extension without media validation", () => {
+    expect(
+      parseRuntimeSlotIssuePayload({
+        contentType: "application/json",
+        expiresAt: "2026-01-01T00:00:00.000Z",
+        extension: "json",
+        kind: "segment",
+        maxBytes: 1_000_000,
+        sequenceNumber: 3810,
+        trackId: "v1080",
+        slotId: "slot_3810",
+      }).extension
+    ).toBe("json");
   });
 });
+
+const slotPayload = {
+  contentType: "video/mp4",
+  expiresAt: "2026-01-01T00:00:05.000Z",
+  kind: "segment",
+  maxBytes: 100_000,
+  profile: { duration: 2 },
+  sequenceNumber: 3810,
+  trackId: "v1080",
+  slotId: "slot_3810",
+} as const;
+
+describe("runtime slot issue request parser", () => {
+  test("parses direct slot issue payload objects", async () => {
+    await expect(parseSlotIssue(slotPayload)).resolves.toEqual({
+      status: "valid",
+      value: slotPayload,
+    });
+  });
+
+  test("parses slot issue payload requests", async () => {
+    await expect(parseSlotIssue(jsonRequest(slotPayload))).resolves.toEqual({
+      status: "valid",
+      value: slotPayload,
+    });
+  });
+
+  test("rejects non-object slot issue payloads", async () => {
+    await expect(parseSlotIssue(jsonRequest(123))).resolves.toEqual({
+      message: "slot issue request must be a JSON object",
+      status: "invalid",
+    });
+  });
+
+  test("maps malformed slot issue JSON to request errors", async () => {
+    await expect(
+      parseSlotIssue(
+        new Request("https://edge.example.com/sessions/session_1/slots", {
+          body: "{",
+          headers: { "content-type": "application/json" },
+          method: "POST",
+        })
+      )
+    ).resolves.toEqual({
+      message: "JSON Parse error: Expected '}'",
+      status: "invalid",
+    });
+  });
+});
+
+function parseSlotIssue(request: Request | typeof slotPayload) {
+  return parseSlotIssueRequest(
+    request,
+    (message) => ({ message, status: "invalid" as const }),
+    "invalid slot issue request"
+  );
+}
+
+function jsonRequest(body: unknown): Request {
+  return new Request("https://edge.example.com/sessions/session_1/slots", {
+    body: JSON.stringify(body),
+    headers: { "content-type": "application/json" },
+    method: "POST",
+  });
+}

@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
 
+import { createCoordinatorPipeline } from "../protocol/coordinator-lifecycle";
+import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
 import {
-  type CoordinatorPipelineStore,
-  createCoordinatorPipeline,
-  createMemoryCoordinatorStore,
-} from "../protocol";
-import type { CoordinatorPipelineState } from "../protocol/coordinator";
-import {
-  TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
+  TEST_COORDINATOR_DELIVERY_BASE_URL as deliveryBaseUrl,
   testCoordinatorSession,
 } from "../protocol/coordinator-state.test-helper";
+import type {
+  CoordinatorPipelineState,
+  CoordinatorPipelineStore,
+} from "../protocol/coordinator-types";
 import { savedStoreResult } from "../protocol/test-store.test-helper";
 import type { Cursor } from "../types/cursor";
 import type { Session } from "../types/session";
@@ -26,7 +26,7 @@ describe("stored session runtime", () => {
     const store = createMemoryCoordinatorStore();
 
     const result = await createStoredCoordinatorSession({
-      mediaBaseUrl,
+      deliveryBaseUrl,
       session,
       store,
     });
@@ -46,7 +46,7 @@ describe("stored session runtime", () => {
 
     expect(result.etag).toBe(snapshot.etag);
     expect(snapshot.state.session).toEqual(session);
-    expect(snapshot.state.mediaBaseUrl).toBe(mediaBaseUrl);
+    expect(snapshot.state.deliveryBaseUrl).toBe(deliveryBaseUrl);
   });
 
   test("rejects duplicate coordinator session creation", async () => {
@@ -54,7 +54,7 @@ describe("stored session runtime", () => {
     await seedCreatedSession(store);
 
     const result = await createStoredCoordinatorSession({
-      mediaBaseUrl,
+      deliveryBaseUrl,
       session,
       store,
     });
@@ -90,7 +90,7 @@ describe("stored session runtime", () => {
     const store = createMemoryCoordinatorStore();
     await seedStore(store, {
       ...createCoordinatorPipeline({
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session: { ...session, state: "live" },
       }),
       cursor: cursor("live"),
@@ -196,12 +196,43 @@ describe("stored session runtime", () => {
     ]);
   });
 
+  test("rejects publisher heartbeats clocked before the lease was issued", async () => {
+    const store = createMemoryCoordinatorStore();
+    await seedCreatedSession(store);
+
+    const first = await heartbeatStoredCoordinatorPublisher({
+      now: "2026-01-01T00:00:02.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 3000,
+    });
+    // A rewound clock is a protocol rejection, not an opaque 500.
+    const rewound = await heartbeatStoredCoordinatorPublisher({
+      now: "2026-01-01T00:00:01.000Z",
+      publisherInstanceId: "publisher_1",
+      sessionId: session.sessionId,
+      store,
+      ttlMs: 3000,
+    });
+
+    expect(first.status).toBe("refreshed");
+    expect(rewound.status).toBe("rejected");
+    expect(rewound.response.status).toBe(409);
+    expect(await rewound.response.json()).toEqual({
+      error: {
+        code: "olos.invalid_state",
+        message: "now must be after or equal to publisherLease.issuedAt",
+      },
+    });
+  });
+
   test("rejects publisher heartbeats for terminal sessions", async () => {
     const store = createMemoryCoordinatorStore();
     await seedStore(
       store,
       createCoordinatorPipeline({
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session: { ...session, state: "ended" },
       })
     );
@@ -231,7 +262,10 @@ describe("stored session runtime", () => {
     expect(result.status).toBe("rejected");
     expect(result.response.status).toBe(409);
     expect(await result.response.json()).toEqual({
-      error: { message: "Invalid session transition: live -> ended" },
+      error: {
+        code: "olos.invalid_state",
+        message: "Invalid session transition: live -> ended",
+      },
     });
   });
 
@@ -250,15 +284,19 @@ describe("stored session runtime", () => {
     });
 
     expect(invalidSessionId.status).toBe("rejected");
-    expect(invalidSessionId.response.status).toBe(409);
+    expect(invalidSessionId.response.status).toBe(400);
     expect(await invalidSessionId.response.json()).toEqual({
-      error: { message: "sessionId must be a non-empty URL-safe identifier" },
+      error: {
+        code: "olos.invalid_request",
+        message: "sessionId must be a non-empty URL-safe identifier",
+      },
     });
 
     expect(invalidState.status).toBe("rejected");
-    expect(invalidState.response.status).toBe(409);
+    expect(invalidState.response.status).toBe(400);
     expect(await invalidState.response.json()).toEqual({
       error: {
+        code: "olos.invalid_request",
         message: "state must be one of: live, ending, ended, aborted",
       },
     });
@@ -342,23 +380,30 @@ describe("stored session runtime", () => {
     });
 
     expect(invalidPublisher.status).toBe("rejected");
-    expect(invalidPublisher.response.status).toBe(409);
+    expect(invalidPublisher.response.status).toBe(400);
     expect(await invalidPublisher.response.json()).toEqual({
       error: {
+        code: "olos.invalid_request",
         message: "publisherInstanceId must be a non-empty URL-safe identifier",
       },
     });
 
     expect(invalidNow.status).toBe("rejected");
-    expect(invalidNow.response.status).toBe(409);
+    expect(invalidNow.response.status).toBe(400);
     expect(await invalidNow.response.json()).toEqual({
-      error: { message: "now must be a valid timestamp" },
+      error: {
+        code: "olos.invalid_request",
+        message: "now must be a valid timestamp",
+      },
     });
 
     expect(invalidTtl.status).toBe("rejected");
-    expect(invalidTtl.response.status).toBe(409);
+    expect(invalidTtl.response.status).toBe(400);
     expect(await invalidTtl.response.json()).toEqual({
-      error: { message: "ttlMs must be a positive number" },
+      error: {
+        code: "olos.invalid_request",
+        message: "ttlMs must be a positive number",
+      },
     });
   });
 });
@@ -366,7 +411,10 @@ describe("stored session runtime", () => {
 async function seedCreatedSession(
   store: ReturnType<typeof createMemoryCoordinatorStore>
 ): Promise<void> {
-  await seedStore(store, createCoordinatorPipeline({ mediaBaseUrl, session }));
+  await seedStore(
+    store,
+    createCoordinatorPipeline({ deliveryBaseUrl, session })
+  );
 }
 
 async function seedStore(
@@ -403,11 +451,10 @@ function countingStore(): CoordinatorPipelineStore & {
 function cursor(state: Cursor["state"]): Cursor {
   return {
     committedWindow: {
-      discontinuitySequence: 0,
       epoch: session.epoch,
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
-      renditions: {
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
+      tracks: {
         v1080: {
           init: {
             commitId: "commit_init",
@@ -415,16 +462,15 @@ function cursor(state: Cursor["state"]): Cursor {
             objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
-          renditionId: "v1080",
+          trackId: "v1080",
           segments: [
             {
-              duration: 2,
-              independent: true,
-              mediaSequenceNumber: 3810,
+              sequenceNumber: 3810,
               segment: {
                 commitId: "commit_3810",
                 deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
                 objectKey: "media/v1080/s3810.m4s",
+                profile: { duration: 2, independent: true },
                 slotId: "slot_3810",
               },
             },
@@ -433,17 +479,15 @@ function cursor(state: Cursor["state"]): Cursor {
       },
     },
     epoch: session.epoch,
-    latencyProfile: session.latencyProfile,
     olos: "1.0",
-    mediaBaseUrl: "https://media.example.com",
-    partTarget: session.partTarget,
-    segmentTarget: session.segmentTarget,
+    deliveryBaseUrl: "https://media.example.com",
+    profile: session.profile,
     sessionId: session.sessionId,
     state,
     updatedAt: "2026-01-01T00:00:02.000Z",
     window: {
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     },
   };
 }

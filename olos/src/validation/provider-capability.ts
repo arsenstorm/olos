@@ -1,19 +1,73 @@
+import type { ProviderCapabilityDocument } from "../types/provider-capability";
 import {
   PROVIDER_CONSISTENCY_LEVELS,
   PROVIDER_EVENT_DELIVERY_MODES,
   PROVIDER_KINDS,
-} from "../config/provider-capability";
-import { OLOS_WIRE_VERSION } from "../index";
-import type { ProviderCapabilityDocument } from "../types/provider-capability";
+} from "../types/provider-capability";
+import { OLOS_WIRE_VERSION } from "../types/session";
 import {
-  assertAbsoluteHttpUrl,
   assertBooleanField,
+  assertKnownFieldsObject,
   assertNonEmptyStringField,
   assertOneOfField,
+  assertOnlyKnownFields,
+  assertOptionalFields,
   assertPositiveIntegerField,
   assertUrlSafeField,
   isRecord,
+  passes,
 } from "./fields";
+import { assertAbsoluteHttpUrl } from "./http-url";
+
+const PROVIDER_CAPABILITY_FIELDS = [
+  "api",
+  "consistency",
+  "delivery",
+  "events",
+  "kind",
+  "olos",
+  "providerId",
+  "publication",
+  "uploadGrants",
+] as const;
+
+const PROVIDER_API_FIELDS = ["family"] as const;
+
+const PROVIDER_CONSISTENCY_FIELDS = [
+  "observeAfterCreate",
+  "listAfterCreate",
+  "readAfterCreate",
+] as const;
+
+const PROVIDER_PUBLICATION_FIELDS = [
+  "createIfAbsent",
+  "directObjectPublication",
+  "manifestGatedPublication",
+  "overwritesAllowed",
+  "privateUploadPublicPromotion",
+  "readGateAvailable",
+] as const;
+
+const PROVIDER_UPLOAD_GRANT_FIELDS = [
+  "contentTypeBound",
+  "exactKey",
+  "maxRecommendedTtlSeconds",
+  "methodBound",
+  "objectSizeCanBeObserved",
+  "presignedPut",
+  "requiredHeadersCanBeSigned",
+  "temporaryCredentials",
+] as const;
+
+const PROVIDER_DELIVERY_FIELDS = [
+  "documentNavigationCanBeBlocked",
+  "immutableCaching",
+  "negativeCachingPolicyDeclared",
+  "publicBaseUrl",
+  "rangeRequests",
+] as const;
+
+const PROVIDER_EVENTS_FIELDS = ["delivery", "objectCreated"] as const;
 
 const OPTIONAL_PUBLICATION_BOOLEAN_FIELDS = [
   "manifestGatedPublication",
@@ -60,9 +114,10 @@ const DIRECT_PUBLICATION_PRECONDITIONS = [
       "providerCapability.publication.manifestGatedPublication must be true for direct object publication",
   },
   {
-    isSatisfied: ({ consistency }) => consistency.headAfterCreate === "strong",
+    isSatisfied: ({ consistency }) =>
+      consistency.observeAfterCreate === "strong",
     message:
-      "providerCapability.consistency.headAfterCreate must be strong for direct object publication",
+      "providerCapability.consistency.observeAfterCreate must be strong for direct object publication",
   },
   {
     isSatisfied: ({ publication }) => publication.overwritesAllowed !== true,
@@ -77,17 +132,25 @@ const DIRECT_PUBLICATION_PRECONDITIONS = [
   },
 ] satisfies readonly DirectPublicationPrecondition[];
 
+/**
+ * Returns whether `value` is a valid `ProviderCapabilityDocument` (see
+ * `assertProviderCapabilityDocument`).
+ */
 export function isProviderCapabilityDocument(
   value: unknown
 ): value is ProviderCapabilityDocument {
-  try {
-    assertProviderCapabilityDocument(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertProviderCapabilityDocument, value);
 }
 
+/**
+ * Validates an untrusted value as a `ProviderCapabilityDocument`, throwing
+ * an `Error` naming the first offending field. Rejects unknown fields at
+ * the top level and inside every sub-object, checks the `olos` wire
+ * version and, when the provider declares `directObjectPublication`,
+ * enforces its preconditions: strong `observeAfterCreate` consistency,
+ * manifest-gated publication, no overwrites, and a declared
+ * negative-caching policy.
+ */
 export function assertProviderCapabilityDocument(
   value: unknown
 ): asserts value is ProviderCapabilityDocument {
@@ -99,6 +162,11 @@ export function assertProviderCapabilityDocument(
     throw new Error(`providerCapability.olos must be ${OLOS_WIRE_VERSION}`);
   }
 
+  assertOnlyKnownFields(
+    value,
+    PROVIDER_CAPABILITY_FIELDS,
+    "providerCapability"
+  );
   assertUrlSafeField(value, "providerId", "providerCapability");
   assertOneOfField(value, "kind", PROVIDER_KINDS, "providerCapability");
 
@@ -115,28 +183,33 @@ export function assertProviderCapabilityDocument(
     assertEvents(value.events);
   }
 
-  assertCapabilityPreconditions(value);
+  assertCapabilityPreconditions(value, {
+    consistency: value.consistency,
+    delivery: value.delivery,
+    publication: value.publication,
+  });
 }
 
 function assertApi(value: unknown): void {
   const name = "providerCapability.api";
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
+  assertKnownFieldsObject(value, PROVIDER_API_FIELDS, name);
   assertNonEmptyStringField(value, "family", name);
 }
 
-function assertConsistency(value: unknown): void {
+function assertConsistency(
+  value: unknown
+): asserts value is Record<string, unknown> {
   const name = "providerCapability.consistency";
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
+  assertKnownFieldsObject(value, PROVIDER_CONSISTENCY_FIELDS, name);
   assertOneOfField(value, "readAfterCreate", PROVIDER_CONSISTENCY_LEVELS, name);
-  assertOneOfField(value, "headAfterCreate", PROVIDER_CONSISTENCY_LEVELS, name);
+  assertOneOfField(
+    value,
+    "observeAfterCreate",
+    PROVIDER_CONSISTENCY_LEVELS,
+    name
+  );
   assertOptionalOneOfField(
     value,
     "listAfterCreate",
@@ -145,13 +218,12 @@ function assertConsistency(value: unknown): void {
   );
 }
 
-function assertPublication(value: unknown): void {
+function assertPublication(
+  value: unknown
+): asserts value is Record<string, unknown> {
   const name = "providerCapability.publication";
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
+  assertKnownFieldsObject(value, PROVIDER_PUBLICATION_FIELDS, name);
   assertBooleanField(value, "directObjectPublication", name);
   assertBooleanField(value, "createIfAbsent", name);
   assertOptionalBooleanFields(value, OPTIONAL_PUBLICATION_BOOLEAN_FIELDS, name);
@@ -160,10 +232,7 @@ function assertPublication(value: unknown): void {
 function assertUploadGrants(value: unknown): void {
   const name = "providerCapability.uploadGrants";
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
+  assertKnownFieldsObject(value, PROVIDER_UPLOAD_GRANT_FIELDS, name);
   assertUploadGrantBooleanFields(value, name);
   assertUploadGrantTtl(value, name);
   assertUploadGrantMechanism(value, name);
@@ -204,13 +273,12 @@ function assertUploadGrantMechanism(
   }
 }
 
-function assertDelivery(value: unknown): void {
+function assertDelivery(
+  value: unknown
+): asserts value is Record<string, unknown> {
   const name = "providerCapability.delivery";
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
+  assertKnownFieldsObject(value, PROVIDER_DELIVERY_FIELDS, name);
   assertAbsoluteHttpUrl(value.publicBaseUrl, `${name}.publicBaseUrl`);
   assertBooleanField(value, "negativeCachingPolicyDeclared", name);
   assertOptionalBooleanFields(value, OPTIONAL_DELIVERY_BOOLEAN_FIELDS, name);
@@ -221,19 +289,15 @@ function assertOptionalBooleanFields(
   fields: readonly string[],
   name: string
 ): void {
-  for (const field of fields) {
-    if (value[field] !== undefined) {
-      assertBooleanField(value, field, name);
-    }
-  }
+  assertOptionalFields(value, fields, (_value, field) =>
+    assertBooleanField(value, field, name)
+  );
 }
 
 function assertEvents(value: unknown): void {
   const name = "providerCapability.events";
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
+  assertKnownFieldsObject(value, PROVIDER_EVENTS_FIELDS, name);
 
   if (value.objectCreated !== undefined) {
     assertBooleanField(value, "objectCreated", name);
@@ -258,24 +322,15 @@ function assertOptionalOneOfField(
   }
 }
 
-function assertCapabilityPreconditions(value: Record<string, unknown>): void {
+function assertCapabilityPreconditions(
+  value: Record<string, unknown>,
+  context: DirectPublicationPreconditionContext
+): void {
   if (!usesDirectObjectPublication(value)) {
     return;
   }
 
-  assertDirectPublicationPreconditions(
-    directPublicationPreconditionContext(value)
-  );
-}
-
-function directPublicationPreconditionContext(
-  value: Record<string, unknown>
-): DirectPublicationPreconditionContext {
-  return {
-    consistency: providerCapabilityRecordField(value, "consistency"),
-    delivery: providerCapabilityRecordField(value, "delivery"),
-    publication: providerCapabilityRecordField(value, "publication"),
-  };
+  assertDirectPublicationPreconditions(context);
 }
 
 function assertDirectPublicationPreconditions(
@@ -293,15 +348,4 @@ function usesDirectObjectPublication(value: Record<string, unknown>): boolean {
     isRecord(value.publication) &&
     value.publication.directObjectPublication === true
   );
-}
-
-function providerCapabilityRecordField(
-  value: Record<string, unknown>,
-  field: "consistency" | "delivery" | "publication"
-): Record<string, unknown> {
-  if (!isRecord(value[field])) {
-    throw new Error(`providerCapability.${field} must be an object`);
-  }
-
-  return value[field];
 }

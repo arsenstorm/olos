@@ -1,321 +1,78 @@
-import { OLOS_ERROR_CODES } from "./config/errors";
-import { MEDIA_OBJECT_KINDS } from "./config/media-object";
 import {
-  PROVIDER_CONSISTENCY_LEVELS,
-  PROVIDER_EVENT_DELIVERY_MODES,
-  PROVIDER_KINDS,
-} from "./config/provider-capability";
-import {
-  LATENCY_PROFILES,
-  RENDITION_KINDS,
-  SESSION_STATES,
-} from "./config/session";
-import { UPLOAD_SLOT_STATES } from "./config/upload-slot";
-import { CONTENT_TYPE_SCHEMA_PATTERN } from "./validation/content-type";
-import { HTTP_HEADER_NAME_SCHEMA_PATTERN } from "./validation/http-header";
+  absoluteHttpUrl,
+  byterangeSchema,
+  contentType,
+  deliveryUrl,
+  headerMap,
+  id,
+  JSON_SCHEMA_DRAFT,
+  nonEmptyString,
+  nonNegativeInteger,
+  type OlosJsonSchema,
+  objectKey,
+  positiveInteger,
+  profileData,
+  providerApiSchema,
+  providerConsistencySchema,
+  providerDeliverySchema,
+  providerDirectObjectPublicationPrecondition,
+  providerEventsSchema,
+  providerPublicationSchema,
+  providerUploadGrantSchema,
+  streamProfile,
+  stringEnum,
+  timestamp,
+  trackSchema,
+  trackWindowSchema,
+} from "./schema-fragments";
+import { OLOS_ERROR_CODES } from "./types/errors";
+import { PROVIDER_KINDS } from "./types/provider-capability";
+import { SESSION_STATES } from "./types/session";
+import { OBJECT_KINDS } from "./types/storage-object";
+import { UPLOAD_SLOT_STATES } from "./types/upload-slot";
 
-export interface OlosJsonSchema {
-  readonly [key: string]: unknown;
-}
-
-const JSON_SCHEMA_DRAFT = "https://json-schema.org/draft/2020-12/schema";
-const JSON_SCHEMA_THEN = "then";
-const ID_PATTERN = "^[A-Za-z0-9_-]+$";
-const SAFE_OBJECT_KEY_PATTERN =
-  "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$";
-
-const id = { minLength: 1, pattern: ID_PATTERN, type: "string" } as const;
-const nonEmptyString = { minLength: 1, type: "string" } as const;
-const contentType = {
-  pattern: CONTENT_TYPE_SCHEMA_PATTERN,
-  type: "string",
-} as const;
-const nonNegativeInteger = { minimum: 0, type: "integer" } as const;
-const positiveNumber = { exclusiveMinimum: 0, type: "number" } as const;
-const timestamp = { format: "date-time", type: "string" } as const;
-const absoluteHttpUrl = {
-  format: "uri",
-  minLength: 1,
-  type: "string",
-} as const;
-const pathwayBaseUrl = {
-  format: "uri",
-  minLength: 1,
-  pattern: "^https?://[^?#]+$",
-  type: "string",
-} as const;
-const deliveryUrl = {
-  minLength: 1,
-  pattern:
-    "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
-  type: "string",
-} as const;
-const headerMap = {
-  additionalProperties: { type: "string" },
-  propertyNames: { pattern: HTTP_HEADER_NAME_SCHEMA_PATTERN },
-  type: "object",
-} as const;
-const objectKey = {
-  minLength: 1,
-  pattern: SAFE_OBJECT_KEY_PATTERN,
-  type: "string",
-} as const;
-
-function stringEnum<const Values extends readonly string[]>(values: Values) {
-  return { enum: values, type: "string" } as const;
-}
-
-const byterangeSchema = {
-  additionalProperties: false,
-  properties: {
-    length: { exclusiveMinimum: 0, type: "integer" },
-    offset: { minimum: 0, type: "integer" },
-    segmentDeliveryUrl: deliveryUrl,
-    segmentObjectKey: objectKey,
-  },
-  required: ["length", "offset", "segmentDeliveryUrl", "segmentObjectKey"],
-  type: "object",
-} as const;
-
-const providerApiSchema = {
-  additionalProperties: false,
-  properties: {
-    family: nonEmptyString,
-  },
-  required: ["family"],
-  type: "object",
-} as const;
-
-const providerConsistencySchema = {
-  additionalProperties: false,
-  properties: {
-    headAfterCreate: stringEnum(PROVIDER_CONSISTENCY_LEVELS),
-    listAfterCreate: stringEnum(PROVIDER_CONSISTENCY_LEVELS),
-    readAfterCreate: stringEnum(PROVIDER_CONSISTENCY_LEVELS),
-  },
-  required: ["headAfterCreate", "readAfterCreate"],
-  type: "object",
-} as const;
-
-const providerPublicationSchema = {
-  additionalProperties: false,
-  properties: {
-    createIfAbsent: { type: "boolean" },
-    directObjectPublication: { type: "boolean" },
-    manifestGatedPublication: { type: "boolean" },
-    overwritesAllowed: { type: "boolean" },
-    privateUploadPublicPromotion: { type: "boolean" },
-    readGateAvailable: { type: "boolean" },
-  },
-  required: ["createIfAbsent", "directObjectPublication"],
-  type: "object",
-} as const;
-
-const providerUploadGrantSchema = {
-  additionalProperties: false,
-  anyOf: [
-    {
-      properties: {
-        presignedPut: { const: true },
-      },
-      required: ["presignedPut"],
-    },
-    {
-      properties: {
-        temporaryCredentials: { const: true },
-      },
-      required: ["temporaryCredentials"],
-    },
-  ],
-  properties: {
-    contentTypeBound: { type: "boolean" },
-    exactKey: { type: "boolean" },
-    maxRecommendedTtlSeconds: { exclusiveMinimum: 0, type: "integer" },
-    methodBound: { type: "boolean" },
-    objectSizeCanBeObserved: { type: "boolean" },
-    presignedPut: { type: "boolean" },
-    requiredHeadersCanBeSigned: { type: "boolean" },
-    temporaryCredentials: { type: "boolean" },
-  },
-  required: [
-    "contentTypeBound",
-    "exactKey",
-    "methodBound",
-    "objectSizeCanBeObserved",
-    "requiredHeadersCanBeSigned",
-  ],
-  type: "object",
-} as const;
-
-const providerDeliverySchema = {
-  additionalProperties: false,
-  properties: {
-    documentNavigationCanBeBlocked: { type: "boolean" },
-    immutableCaching: { type: "boolean" },
-    negativeCachingPolicyDeclared: { type: "boolean" },
-    publicBaseUrl: pathwayBaseUrl,
-    rangeRequests: { type: "boolean" },
-  },
-  required: ["negativeCachingPolicyDeclared", "publicBaseUrl"],
-  type: "object",
-} as const;
-
-const providerEventsSchema = {
-  additionalProperties: false,
-  properties: {
-    delivery: stringEnum(PROVIDER_EVENT_DELIVERY_MODES),
-    objectCreated: { type: "boolean" },
-  },
-  type: "object",
-} as const;
-
-const providerDirectObjectPublicationCondition = {
-  properties: {
-    publication: {
-      properties: {
-        directObjectPublication: { const: true },
-      },
-      required: ["directObjectPublication"],
-    },
-  },
-} as const;
-
-const providerDirectObjectPublicationRequirements = {
-  properties: {
-    consistency: {
-      properties: {
-        headAfterCreate: { const: "strong" },
-      },
-      required: ["headAfterCreate"],
-    },
-    delivery: {
-      properties: {
-        negativeCachingPolicyDeclared: { const: true },
-      },
-      required: ["negativeCachingPolicyDeclared"],
-    },
-    publication: {
-      properties: {
-        manifestGatedPublication: { const: true },
-        overwritesAllowed: { not: { const: true } },
-      },
-      required: ["manifestGatedPublication"],
-    },
-  },
-} as const;
-
-const providerDirectObjectPublicationPrecondition = {
-  if: providerDirectObjectPublicationCondition,
-  [JSON_SCHEMA_THEN]: providerDirectObjectPublicationRequirements,
-} as const;
-
-const committedObjectSchema = {
-  additionalProperties: false,
-  properties: {
-    commitId: id,
-    contentType,
-    deliveryUrl,
-    duration: positiveNumber,
-    etag: nonEmptyString,
-    objectKey,
-    slotId: id,
-  },
-  required: ["commitId", "deliveryUrl", "objectKey", "slotId"],
-  type: "object",
-} as const;
-
-const committedPartSchema = {
-  additionalProperties: false,
-  properties: {
-    ...committedObjectSchema.properties,
-    byterange: byterangeSchema,
-    duration: positiveNumber,
-    independent: { type: "boolean" },
-    partNumber: nonNegativeInteger,
-    programDateTime: timestamp,
-  },
-  required: [...committedObjectSchema.required, "duration", "partNumber"],
-  type: "object",
-} as const;
-
-const committedSegmentSchema = {
-  additionalProperties: false,
-  properties: {
-    discontinuityBefore: { type: "boolean" },
-    duration: positiveNumber,
-    independent: { type: "boolean" },
-    mediaSequenceNumber: nonNegativeInteger,
-    parts: { items: committedPartSchema, type: "array" },
-    programDateTime: timestamp,
-    segment: committedObjectSchema,
-  },
-  required: ["duration", "mediaSequenceNumber"],
-  type: "object",
-} as const;
-
-const renditionWindowSchema = {
-  additionalProperties: false,
-  properties: {
-    init: committedObjectSchema,
-    renditionId: id,
-    segments: { items: committedSegmentSchema, type: "array" },
-  },
-  required: ["init", "renditionId", "segments"],
-  type: "object",
-} as const;
-
+export type { OlosJsonSchema } from "./schema-fragments";
+/**
+ * JSON Schema (2020-12) for the wire-format `Session` document. The
+ * session `profile` and each track `profile` are opaque objects here;
+ * profile modules publish their own schemas for the contents (for example
+ * olos/media).
+ */
 export const OLOS_SESSION_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
   properties: {
     createdAt: timestamp,
     epoch: nonNegativeInteger,
-    latencyProfile: stringEnum(LATENCY_PROFILES),
     olos: { const: "1.0" },
-    partTarget: positiveNumber,
-    renditions: {
-      items: {
-        additionalProperties: false,
-        dependentRequired: {
-          height: ["width"],
-          width: ["height"],
-        },
-        properties: {
-          bitrate: { exclusiveMinimum: 0, type: "integer" },
-          channels: { exclusiveMinimum: 0, type: "integer" },
-          codec: nonEmptyString,
-          frameRate: positiveNumber,
-          height: { exclusiveMinimum: 0, type: "integer" },
-          kind: stringEnum(RENDITION_KINDS),
-          renditionId: id,
-          sampleRate: { exclusiveMinimum: 0, type: "integer" },
-          width: { exclusiveMinimum: 0, type: "integer" },
-        },
-        required: ["codec", "kind", "renditionId"],
-        type: "object",
-      },
+    profile: streamProfile,
+    sessionId: id,
+    state: stringEnum(SESSION_STATES),
+    tracks: {
+      items: trackSchema,
       minItems: 1,
       type: "array",
     },
-    segmentTarget: positiveNumber,
-    sessionId: id,
-    state: stringEnum(SESSION_STATES),
   },
   required: [
     "createdAt",
     "epoch",
-    "latencyProfile",
     "olos",
-    "partTarget",
-    "renditions",
-    "segmentTarget",
+    "profile",
     "sessionId",
     "state",
+    "tracks",
   ],
   title: "OLOS Session",
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/**
+ * JSON Schema (2020-12) for the wire-format `UploadSlot` document. JSON
+ * Schema cannot express the sibling relation `minBytes <= maxBytes`; only
+ * the runtime validator (`assertUploadSlot`) enforces it. The drift harness
+ * covers the gap via its validator-only invalid payloads.
+ */
 export const OLOS_UPLOAD_SLOT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -323,39 +80,39 @@ export const OLOS_UPLOAD_SLOT_SCHEMA = {
     byterange: byterangeSchema,
     contentType,
     deliveryUrl,
-    duration: positiveNumber,
     epoch: nonNegativeInteger,
     expiresAt: timestamp,
-    kind: stringEnum(MEDIA_OBJECT_KINDS),
-    maxBytes: positiveNumber,
-    mediaSequenceNumber: nonNegativeInteger,
+    kind: stringEnum(OBJECT_KINDS),
+    maxBytes: positiveInteger,
     minBytes: nonNegativeInteger,
     objectKey,
     partNumber: nonNegativeInteger,
-    renditionId: id,
+    profile: profileData,
+    sequenceNumber: nonNegativeInteger,
     sessionId: id,
     slotId: id,
     state: stringEnum(UPLOAD_SLOT_STATES),
+    trackId: id,
   },
   required: [
     "contentType",
     "deliveryUrl",
-    "duration",
     "epoch",
     "expiresAt",
     "kind",
     "maxBytes",
-    "mediaSequenceNumber",
     "objectKey",
-    "renditionId",
+    "sequenceNumber",
     "sessionId",
     "slotId",
     "state",
+    "trackId",
   ],
   title: "OLOS UploadSlot",
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/** JSON Schema (2020-12) for the wire-format `Commit` document. */
 export const OLOS_COMMIT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -364,36 +121,34 @@ export const OLOS_COMMIT_SCHEMA = {
     commitId: id,
     committedAt: timestamp,
     deliveryUrl,
-    duration: positiveNumber,
     epoch: nonNegativeInteger,
     etag: nonEmptyString,
-    independent: { type: "boolean" },
-    mediaSequenceNumber: nonNegativeInteger,
     objectKey,
     partNumber: nonNegativeInteger,
-    programDateTime: timestamp,
-    renditionId: id,
+    profile: profileData,
+    sequenceNumber: nonNegativeInteger,
     sessionId: id,
-    size: positiveNumber,
+    size: positiveInteger,
     slotId: id,
+    trackId: id,
   },
   required: [
     "commitId",
     "committedAt",
     "deliveryUrl",
-    "duration",
     "epoch",
-    "mediaSequenceNumber",
     "objectKey",
-    "renditionId",
+    "sequenceNumber",
     "sessionId",
     "size",
     "slotId",
+    "trackId",
   ],
   title: "OLOS Commit",
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/** JSON Schema (2020-12) for the wire-format `UploadGrant` document. */
 export const OLOS_UPLOAD_GRANT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -409,22 +164,29 @@ export const OLOS_UPLOAD_GRANT_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
-export const OLOS_MEDIA_OBJECT_SCHEMA = {
+/** JSON Schema (2020-12) for the wire-format `StorageObject` observation. */
+export const OLOS_STORAGE_OBJECT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
   properties: {
     contentType,
     etag: nonEmptyString,
+    metadata: headerMap,
     objectKey,
     observedAt: timestamp,
     providerId: id,
-    size: positiveNumber,
+    size: positiveInteger,
   },
   required: ["contentType", "objectKey", "observedAt", "providerId", "size"],
-  title: "OLOS MediaObject",
+  title: "OLOS StorageObject",
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/**
+ * JSON Schema (2020-12) for `ProviderCapabilityDocument`, including the
+ * conditional preconditions a provider must meet before declaring
+ * `directObjectPublication`.
+ */
 export const OLOS_PROVIDER_CAPABILITY_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -453,6 +215,10 @@ export const OLOS_PROVIDER_CAPABILITY_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/**
+ * JSON Schema (2020-12) for the OLOS error body: an `error` object with a
+ * known `olos.*` code, a message, and optional `details`.
+ */
 export const OLOS_ERROR_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
@@ -473,63 +239,61 @@ export const OLOS_ERROR_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/**
+ * JSON Schema (2020-12) for the `CommittedWindow` document. Ordering
+ * invariants (monotonic, duplicate-free sequence and part numbers) are only
+ * enforced by `assertCommittedWindow` (olos/validation).
+ */
 export const OLOS_COMMITTED_WINDOW_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
   properties: {
-    discontinuitySequence: nonNegativeInteger,
     epoch: nonNegativeInteger,
-    firstMediaSequenceNumber: nonNegativeInteger,
-    lastMediaSequenceNumber: nonNegativeInteger,
-    renditions: {
-      additionalProperties: renditionWindowSchema,
+    firstSequenceNumber: nonNegativeInteger,
+    lastSequenceNumber: nonNegativeInteger,
+    tracks: {
+      additionalProperties: trackWindowSchema,
       type: "object",
     },
   },
-  required: [
-    "discontinuitySequence",
-    "epoch",
-    "firstMediaSequenceNumber",
-    "lastMediaSequenceNumber",
-    "renditions",
-  ],
+  required: ["epoch", "firstSequenceNumber", "lastSequenceNumber", "tracks"],
   title: "OLOS CommittedWindow",
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/**
+ * JSON Schema (2020-12) for the wire-format `Cursor` document, embedding
+ * `OLOS_COMMITTED_WINDOW_SCHEMA` for its `committedWindow` field.
+ */
 export const OLOS_CURSOR_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
   properties: {
     committedWindow: OLOS_COMMITTED_WINDOW_SCHEMA,
+    deliveryBaseUrl: deliveryUrl,
     epoch: nonNegativeInteger,
-    latencyProfile: stringEnum(LATENCY_PROFILES),
-    mediaBaseUrl: deliveryUrl,
     olos: { const: "1.0" },
-    partTarget: positiveNumber,
-    segmentTarget: positiveNumber,
+    profile: streamProfile,
     sessionId: id,
     state: stringEnum(SESSION_STATES),
     updatedAt: timestamp,
     window: {
       additionalProperties: false,
       properties: {
-        firstMediaSequenceNumber: nonNegativeInteger,
-        lastMediaSequenceNumber: nonNegativeInteger,
+        firstSequenceNumber: nonNegativeInteger,
         lastPartNumber: nonNegativeInteger,
+        lastSequenceNumber: nonNegativeInteger,
       },
-      required: ["firstMediaSequenceNumber", "lastMediaSequenceNumber"],
+      required: ["firstSequenceNumber", "lastSequenceNumber"],
       type: "object",
     },
   },
   required: [
     "committedWindow",
+    "deliveryBaseUrl",
     "epoch",
-    "latencyProfile",
-    "mediaBaseUrl",
     "olos",
-    "partTarget",
-    "segmentTarget",
+    "profile",
     "sessionId",
     "state",
     "updatedAt",
@@ -539,14 +303,18 @@ export const OLOS_CURSOR_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
+/**
+ * All OLOS wire-format schemas keyed by document name — convenient for
+ * registering the whole set with a validator in one pass.
+ */
 export const OLOS_JSON_SCHEMAS = {
   commit: OLOS_COMMIT_SCHEMA,
   committedWindow: OLOS_COMMITTED_WINDOW_SCHEMA,
   cursor: OLOS_CURSOR_SCHEMA,
   error: OLOS_ERROR_SCHEMA,
-  mediaObject: OLOS_MEDIA_OBJECT_SCHEMA,
   providerCapability: OLOS_PROVIDER_CAPABILITY_SCHEMA,
   session: OLOS_SESSION_SCHEMA,
+  storageObject: OLOS_STORAGE_OBJECT_SCHEMA,
   uploadGrant: OLOS_UPLOAD_GRANT_SCHEMA,
   uploadSlot: OLOS_UPLOAD_SLOT_SCHEMA,
 } as const;

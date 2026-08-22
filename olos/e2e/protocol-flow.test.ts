@@ -1,20 +1,20 @@
 import { renderMediaPlaylist } from "@arsenstorm/olos/hls";
 import {
+  createDirectPublicMediaSecurityPolicy,
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
-} from "@arsenstorm/olos/runtime";
+} from "@arsenstorm/olos/media";
 import {
   commitObservedUpload,
   createCommit,
   createCommittedWindow,
   createCursor,
-  createDirectPublicSecurityPolicy,
   createObjectPublication,
   createObservedUpload,
 } from "@arsenstorm/olos/state";
 import type {
-  MediaObject,
   ProviderCapabilityDocument,
+  StorageObject,
   UploadSlot,
 } from "@arsenstorm/olos/types";
 import {
@@ -22,27 +22,29 @@ import {
   assertCursor,
 } from "@arsenstorm/olos/validation";
 import { describe, expect, test } from "vitest";
+import { createTestSession } from "./protocol-fixtures";
 
+const session = createTestSession();
 const latency = createRuntimeObjectLowLatencyProfile();
 const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(latency);
 
 const slot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl: "/media/v1080/s3810.m4s",
-  duration: 2,
   epoch: 1,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  mediaSequenceNumber: 3810,
+  sequenceNumber: 3810,
   objectKey: "media/v1080/s3810.m4s",
-  renditionId: "v1080",
+  profile: { duration: 2 },
+  trackId: "v1080",
   sessionId: "session_1",
   slotId: "slot_3810",
   state: "upload_observed",
 };
 
-const mediaObject: MediaObject = createObservedUpload({
+const mediaObject: StorageObject = createObservedUpload({
   contentType: "video/mp4",
   objectKey: "media/v1080/s3810.m4s",
   observedAt: "2026-01-01T00:00:01.000Z",
@@ -52,7 +54,7 @@ const mediaObject: MediaObject = createObservedUpload({
 
 const directPublicCapability: ProviderCapabilityDocument = {
   consistency: {
-    headAfterCreate: "strong",
+    observeAfterCreate: "strong",
     readAfterCreate: "strong",
   },
   delivery: {
@@ -93,11 +95,11 @@ describe("protocol flow", () => {
       slot: {
         ...slot,
         deliveryUrl: "/media/v1080/init.mp4",
-        duration: 1,
         kind: "init",
         maxBytes: 2048,
-        mediaSequenceNumber: 0,
+        sequenceNumber: 0,
         objectKey: "media/v1080/init.mp4",
+        profile: { duration: 1 },
         slotId: "slot_init",
       },
     });
@@ -105,9 +107,11 @@ describe("protocol flow", () => {
     const { commit: mediaCommit } = commitObservedUpload({
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
-      independent: true,
       object: mediaObject,
-      programDateTime: "2026-01-01T00:00:00.000Z",
+      profile: {
+        independent: true,
+        programDateTime: "2026-01-01T00:00:00.000Z",
+      },
       slot: { ...slot, state: "issued" },
     });
 
@@ -122,10 +126,8 @@ describe("protocol flow", () => {
 
     const cursor = createCursor({
       committedWindow,
-      latencyProfile: latency.latencyProfile,
-      mediaBaseUrl: "https://media.example.com",
-      partTarget: latency.partTarget,
-      segmentTarget: latency.segmentTarget,
+      deliveryBaseUrl: "https://media.example.com",
+      profile: session.profile,
       sessionId: "session_1",
       state: "live",
       updatedAt: "2026-01-01T00:00:02.000Z",
@@ -135,12 +137,12 @@ describe("protocol flow", () => {
 
     const playlist = renderMediaPlaylist(committedWindow, {
       ...manifestOptions.manifest,
-      renditionId: "v1080",
+      trackId: "v1080",
     });
 
     expect(cursor.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
     expect(playlist).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
     expect(playlist).toContain('#EXT-X-MAP:URI="/media/v1080/init.mp4"');
@@ -156,11 +158,11 @@ describe("protocol flow", () => {
     const initSlot = {
       ...directPublicSlot,
       deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
-      duration: 1,
       kind: "init" as const,
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
+      sequenceNumber: 0,
       objectKey: "media/v1080/init.mp4",
+      profile: { duration: 1 },
       slotId: "slot_init",
     };
 
@@ -178,7 +180,7 @@ describe("protocol flow", () => {
     const { commit: mediaCommit } = commitObservedUpload({
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
-      independent: true,
+      profile: { independent: true },
       object: mediaObject,
       slot: { ...directPublicSlot, state: "issued" },
     });
@@ -191,7 +193,7 @@ describe("protocol flow", () => {
       capability: directPublicCapability,
       commit: mediaCommit,
     });
-    const securityPolicy = createDirectPublicSecurityPolicy({
+    const securityPolicy = createDirectPublicMediaSecurityPolicy({
       capability: directPublicCapability,
       manifestMaxAgeSeconds: 2,
       targetLatencySeconds: manifestOptions.response.targetLatencySeconds,
@@ -205,9 +207,9 @@ describe("protocol flow", () => {
     });
 
     const playlist = renderMediaPlaylist(committedWindow, {
-      allowedMediaOrigins: securityPolicy.allowedMediaOrigins,
+      allowedDeliveryOrigins: securityPolicy.allowedDeliveryOrigins,
       ...manifestOptions.manifest,
-      renditionId: "v1080",
+      trackId: "v1080",
     });
 
     expect(initPublication.deliveryUrl).toBe(initCommit.deliveryUrl);

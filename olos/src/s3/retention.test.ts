@@ -94,6 +94,40 @@ describe("S3 retention", () => {
     ]);
   });
 
+  test("passes delete concurrency through to bounded S3 deletes", async () => {
+    const inputs: unknown[] = [];
+
+    const result = await deleteRetiredS3CoordinatorObjects({
+      bucket: "media",
+      client: createTestS3DeleteObjectClient(inputs, "media/fail.m4s"),
+      concurrency: 2,
+      objects: [FAILED_RETIRED_OBJECT, RETIRED_OBJECT, OK_RETIRED_OBJECT],
+    });
+
+    expect(result.deletedObjects).toEqual([RETIRED_OBJECT, OK_RETIRED_OBJECT]);
+    expect(result.failedObjects).toEqual([
+      {
+        error: "delete failed",
+        object: FAILED_RETIRED_OBJECT,
+      },
+    ]);
+    expect(inputs).toHaveLength(3);
+  });
+
+  test("rejects invalid S3 delete concurrency before deleting objects", async () => {
+    const inputs: unknown[] = [];
+
+    await expect(
+      deleteRetiredS3CoordinatorObjects({
+        bucket: "media",
+        client: createTestS3DeleteObjectClient(inputs),
+        concurrency: 0,
+        objects: [RETIRED_OBJECT],
+      })
+    ).rejects.toThrow("concurrency must be a positive integer");
+    expect(inputs).toEqual([]);
+  });
+
   test("rejects empty S3 retention buckets before deleting objects", async () => {
     const inputs: unknown[] = [];
 

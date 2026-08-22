@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { createMemoryCoordinatorStore } from "../protocol";
+import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
 import {
-  TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
+  TEST_COORDINATOR_DELIVERY_BASE_URL as deliveryBaseUrl,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import {
@@ -12,11 +12,10 @@ import {
   getRuntimeSessionHealth,
   getRuntimeSessionRetentionPlan,
   issueRuntimeSlot,
-  type RuntimeFetch,
-  RuntimeHttpError,
   sendRuntimePublisherHeartbeat,
   transitionRuntimeSession,
 } from "./client";
+import { type RuntimeFetch, RuntimeHttpError } from "./client-types";
 import { createStoredCoordinatorRuntimeHandler } from "./http";
 import { runtimeFetchFor } from "./test-fetch.test-helper";
 import {
@@ -31,7 +30,7 @@ describe("runtime HTTP client", () => {
   test("creates sessions, issues slots, commits uploads, and transitions state", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       store,
     });
     const clientFetch = runtimeFetchFor(handle);
@@ -39,7 +38,7 @@ describe("runtime HTTP client", () => {
     const created = await createRuntimeSession({
       baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
-      mediaBaseUrl,
+      deliveryBaseUrl,
       session: { ...session, state: "live" },
     });
     const issued = await issueRuntimeSlot({
@@ -47,13 +46,13 @@ describe("runtime HTTP client", () => {
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
-        duration: 1,
         expiresAt: "2026-01-01T00:00:05.000Z",
+        extension: "mp4",
         kind: "init",
         maxBytes: 2048,
-        mediaSequenceNumber: 0,
+        sequenceNumber: 0,
         objectKeyNonce: "slot_1",
-        renditionId: "v1080",
+        trackId: "v1080",
         slotId: "slot_init",
       },
       sessionId: session.sessionId,
@@ -84,10 +83,115 @@ describe("runtime HTTP client", () => {
     expect(committed.commit.slotId).toBe("slot_init");
   });
 
+  test("ignores unknown fields in slot, commit, and cursor responses", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
+      store,
+    });
+    const handlerFetch = runtimeFetchFor(handle);
+    // Spec §11.2: consumers must ignore unknown fields. Simulate a newer
+    // coordinator by injecting extras into every payload the client parses.
+    const clientFetch: RuntimeFetch = async (input, init) => {
+      const response = await handlerFetch(input, init);
+      const body = await response.json();
+
+      return new Response(JSON.stringify(withUnknownResponseFields(body)), {
+        headers: { "content-type": "application/json" },
+        status: response.status,
+      });
+    };
+
+    await createRuntimeSession({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      deliveryBaseUrl,
+      session: { ...session, state: "live" },
+    });
+    const issuedInit = await issueRuntimeSlot({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      payload: {
+        contentType: "video/mp4",
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        extension: "mp4",
+        kind: "init",
+        maxBytes: 2048,
+        sequenceNumber: 0,
+        objectKeyNonce: "slot_1",
+        trackId: "v1080",
+        slotId: "slot_init",
+      },
+      sessionId: session.sessionId,
+    });
+    await commitRuntimeUpload({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      payload: {
+        commitId: "commit_init",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        object: {
+          contentType: "video/mp4",
+          objectKey: issuedInit.slot.objectKey,
+          observedAt: "2026-01-01T00:00:02.000Z",
+          providerId: "s3_primary",
+          size: 1024,
+        },
+        slotId: "slot_init",
+      },
+      sessionId: session.sessionId,
+    });
+    const issuedSegment = await issueRuntimeSlot({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      payload: {
+        contentType: "video/mp4",
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        extension: "m4s",
+        kind: "segment",
+        maxBytes: 200_000,
+        profile: { duration: 2 },
+        sequenceNumber: 0,
+        objectKeyNonce: "slot_2",
+        trackId: "v1080",
+        slotId: "slot_seg",
+      },
+      sessionId: session.sessionId,
+    });
+    const committed = await commitRuntimeUpload({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      payload: {
+        commitId: "commit_seg",
+        committedAt: "2026-01-01T00:00:03.000Z",
+        object: {
+          contentType: "video/mp4",
+          objectKey: issuedSegment.slot.objectKey,
+          observedAt: "2026-01-01T00:00:03.000Z",
+          providerId: "s3_primary",
+          size: 4096,
+        },
+        slotId: "slot_seg",
+      },
+      sessionId: session.sessionId,
+    });
+
+    expect(issuedSegment.slot.slotId).toBe("slot_seg");
+    expect("extra" in issuedSegment.slot).toBe(false);
+    expect(committed.commit.slotId).toBe("slot_seg");
+    expect("extra" in committed.commit).toBe(false);
+
+    if (committed.cursor === undefined) {
+      throw new Error("expected a cursor after the segment commit");
+    }
+
+    expect("extra" in committed.cursor).toBe(false);
+  });
+
   test("sends publisher heartbeats and reads stored health", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       now: () => "2026-01-01T00:00:02.000Z",
       store,
     });
@@ -95,7 +199,7 @@ describe("runtime HTTP client", () => {
 
     await handle(
       jsonPostRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -168,13 +272,75 @@ describe("runtime HTTP client", () => {
       hlsMsn: 3810,
       hlsPart: 3,
       livePath: "/live",
-      renditionId: "v1080",
+      trackId: "v1080",
       sessionId: session.sessionId,
     });
 
     expect(media.playlist).toBe("#EXTM3U\n");
     expect(requestedUrl).toBe(
       "https://edge.example.com/runtime/live/session_1/v1080/media.m3u8?_HLS_msn=3810&_HLS_part=3"
+    );
+  });
+
+  test("resolves session routes underneath a baseUrl path prefix", async () => {
+    const requestedUrls: string[] = [];
+    const clientFetch: RuntimeFetch = (request) => {
+      requestedUrls.push(String(request));
+      return Promise.resolve(jsonErrorTestResponse("stub", 404));
+    };
+
+    await createRuntimeSession({
+      baseUrl: "https://host/api/",
+      fetch: clientFetch,
+      deliveryBaseUrl,
+      session,
+    }).catch(() => undefined);
+    await issueRuntimeSlot({
+      baseUrl: "https://host/api/",
+      fetch: clientFetch,
+      payload: {
+        contentType: "video/mp4",
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "init",
+        maxBytes: 2048,
+        sequenceNumber: 0,
+        trackId: "v1080",
+        slotId: "slot_init",
+      },
+      sessionId: session.sessionId,
+    }).catch(() => undefined);
+
+    expect(requestedUrls[0]).toBe("https://host/api/sessions");
+    expect(requestedUrls[1]).toBe(
+      `https://host/api/sessions/${session.sessionId}/slots`
+    );
+  });
+
+  test("resolves session routes under a custom sessionPath", async () => {
+    const requestedUrls: string[] = [];
+    const clientFetch: RuntimeFetch = (request) => {
+      requestedUrls.push(String(request));
+      return Promise.resolve(jsonErrorTestResponse("stub", 404));
+    };
+
+    await issueRuntimeSlot({
+      baseUrl: "https://host/api/",
+      fetch: clientFetch,
+      payload: {
+        contentType: "video/mp4",
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "init",
+        maxBytes: 2048,
+        sequenceNumber: 0,
+        trackId: "v1080",
+        slotId: "slot_init",
+      },
+      sessionId: session.sessionId,
+      sessionPath: "coord",
+    }).catch(() => undefined);
+
+    expect(requestedUrls[0]).toBe(
+      `https://host/api/coord/${session.sessionId}/slots`
     );
   });
 
@@ -187,7 +353,7 @@ describe("runtime HTTP client", () => {
     const options = {
       baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
-      renditionId: "v1080",
+      trackId: "v1080",
       sessionId: session.sessionId,
     };
 
@@ -219,7 +385,7 @@ describe("runtime HTTP client", () => {
       getRuntimeMediaPlaylist({
         ...options,
         livePath: "../live",
-        renditionId: "v1080",
+        trackId: "v1080",
       })
     ).rejects.toThrow("livePath must be a safe relative path");
     expect(requests).toBe(0);
@@ -251,7 +417,7 @@ describe("runtime HTTP client", () => {
       createRuntimeSession({
         baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     ).rejects.toThrow("session create failed with status 404");
@@ -271,12 +437,11 @@ describe("runtime HTTP client", () => {
         fetch: clientFetch,
         payload: {
           contentType: "video/mp4",
-          duration: 1,
           expiresAt: "2026-01-01T00:00:05.000Z",
           kind: "init",
           maxBytes: 2048,
-          mediaSequenceNumber: 0,
-          renditionId: "v1080",
+          sequenceNumber: 0,
+          trackId: "v1080",
           slotId: "slot_init",
         },
         sessionId: session.sessionId,
@@ -331,7 +496,7 @@ describe("runtime HTTP client", () => {
       getRuntimeMediaPlaylist({
         baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
-        renditionId: "v1080",
+        trackId: "v1080",
         sessionId: session.sessionId,
       })
     ).rejects.toThrow("media playlist failed with status 404");
@@ -378,12 +543,11 @@ describe("runtime HTTP client", () => {
         fetch: clientFetch,
         payload: {
           contentType: "video/mp4",
-          duration: 1,
           expiresAt: "2026-01-01T00:00:05.000Z",
           kind: "init",
           maxBytes: 2048,
-          mediaSequenceNumber: 0,
-          renditionId: "v1080",
+          sequenceNumber: 0,
+          trackId: "v1080",
           slotId: "slot_init",
         },
         sessionId: session.sessionId,
@@ -422,7 +586,7 @@ describe("runtime HTTP client", () => {
         },
         sessionId: session.sessionId,
       })
-    ).rejects.toThrow('commit contains unknown property "status"');
+    ).rejects.toThrow("commit.commitId");
   });
 
   test("validates session health response payloads", async () => {
@@ -601,3 +765,22 @@ describe("runtime HTTP client", () => {
     );
   });
 });
+
+function withUnknownResponseFields(body: unknown): unknown {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return body;
+  }
+
+  const record = body as Record<string, unknown>;
+  const noisy: Record<string, unknown> = { ...record, extra: 1 };
+
+  for (const field of ["commit", "cursor", "slot"] as const) {
+    const value = record[field];
+
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      noisy[field] = { ...value, extra: 1 };
+    }
+  }
+
+  return noisy;
+}

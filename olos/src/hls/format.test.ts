@@ -1,10 +1,25 @@
 import { describe, expect, test } from "bun:test";
-import { escapePlaylistValue, formatFrameRate, formatSeconds } from "./format";
+import { formatFrameRate, formatSeconds, quotedPlaylistValue } from "./format";
 
 describe("HLS formatting helpers", () => {
-  test("escapes playlist quoted-string values", () => {
-    expect(escapePlaylistValue('avc1.4d401f,"quoted"\\path')).toBe(
-      'avc1.4d401f,\\"quoted\\"\\\\path'
+  test("passes quoted-string values through verbatim, including backslashes", () => {
+    expect(quotedPlaylistValue("avc1.4d401f,mp4a.40.2", "codecs")).toBe(
+      "avc1.4d401f,mp4a.40.2"
+    );
+    expect(quotedPlaylistValue("media\\odd\\path.m4s", "uri")).toBe(
+      "media\\odd\\path.m4s"
+    );
+  });
+
+  test("rejects values a quoted-string cannot represent", () => {
+    expect(() =>
+      quotedPlaylistValue('English "director cut"', "track name")
+    ).toThrow("track name must not contain double quotes or line breaks");
+    expect(() => quotedPlaylistValue("line\rreturn", "track name")).toThrow(
+      "track name must not contain double quotes or line breaks"
+    );
+    expect(() => quotedPlaylistValue("line\nfeed", "track name")).toThrow(
+      "track name must not contain double quotes or line breaks"
     );
   });
 

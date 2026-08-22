@@ -1,129 +1,47 @@
 import type { Commit } from "../types/commit";
-import type { Cursor } from "../types/cursor";
-import type { OlosError } from "../types/errors";
 import { createOlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
-import type { MediaObject } from "../types/media-object";
-import type { Session } from "../types/session";
-import type { UploadSlot } from "../types/upload-slot";
 import { assertCommit } from "../validation/commit";
-import { nonNegativeNumber } from "../validation/fields";
-import { assertMediaObject } from "../validation/media-object";
-import type { ObservedUpload } from "../validation/observed-upload";
+import { assertObservedUpload } from "../validation/observed-upload";
 import { assertUploadSlot } from "../validation/upload-slot";
-import { timestampMs } from "./timestamp";
-import { assertUploadSlotTransition, observeUpload } from "./upload-slot";
-
-export interface CreateCommitOptions {
-  commitId: OlosId;
-  committedAt: string;
-  independent?: boolean;
-  lateToleranceMs?: number;
-  mediaObject: MediaObject;
-  programDateTime?: string;
-  slot: UploadSlot;
-}
-
-export type ResolveUploadCommitOptions = CreateCommitOptions;
-
-export interface UploadCommitResolution {
-  commit: Commit;
-  slot: UploadSlot;
-}
-
-export interface ResolveCommitAttemptOptions
-  extends Omit<CreateCommitOptions, "slot"> {
-  cursor?: Cursor;
-  objectVerified?: true;
-  session?: Session;
-  slot?: UploadSlot;
-  slotId: OlosId;
-}
-
-export type CommitAttemptResolution =
-  | {
-      commit: Commit;
-      slot: UploadSlot;
-      status: "committed";
-    }
-  | {
-      error: OlosError;
-      status:
-        | "content_type_mismatch"
-        | "invalid_state"
-        | "key_mismatch"
-        | "late_object"
-        | "object_too_small"
-        | "object_too_large"
-        | "unverified_object"
-        | "unknown_slot";
-    };
-
-type ObjectSlotMismatchStatus =
-  | "content_type_mismatch"
-  | "key_mismatch"
-  | "object_too_large"
-  | "object_too_small";
-
-type CommitAttemptRejection = Exclude<
+import {
+  assertCommitPreconditions,
+  isLateSlot,
+  resolveObjectSlotMismatch,
+} from "./commit-mismatch";
+import type {
+  CommitAttemptOptionsWithSlot,
+  CommitAttemptRejection,
   CommitAttemptResolution,
-  { status: "committed" }
->;
-
-type CommitAttemptOptionsWithSlot = ResolveCommitAttemptOptions & {
-  slot: UploadSlot;
-};
-
-export interface ResolveObjectSlotMismatchOptions {
-  includeKeyMismatch?: boolean;
-  mediaObject: MediaObject;
-  slot: UploadSlot;
-}
-
-export interface ObjectSlotMismatchResolution {
-  error: OlosError;
-  status: ObjectSlotMismatchStatus;
-}
-
-export interface CommitObservedUploadOptions {
-  commitId: OlosId;
-  committedAt: string;
-  independent?: boolean;
-  lateToleranceMs?: number;
-  object: ObservedUpload;
-  programDateTime?: string;
-  slot: UploadSlot;
-}
-
-export interface CommitObservedUploadResult {
-  commit: Commit;
-  slot: UploadSlot;
-}
-
-type ObservedUploadSlot = UploadSlot & {
-  state: "upload_observed";
-};
-
-export interface ResolveDuplicateCommitOptions {
-  candidateCommit: Commit;
-  existingCommit: Commit;
-}
-
-export type DuplicateCommitResolution =
-  | {
-      commit: Commit;
-      status: "idempotent";
-    }
-  | {
-      error: OlosError;
-      status: "conflict";
-    };
-
+  CommitObservedUploadOptions,
+  CommitObservedUploadResult,
+  CreateCommitOptions,
+  ResolveCommitAttemptOptions,
+  ResolveUploadCommitOptions,
+  UploadCommitResolution,
+} from "./commit-types";
+import { trackWindowBounds } from "./committed-window";
+import { mergeProfileData } from "./profile-data";
+import {
+  assertUploadSlotTransition,
+  observeUpload,
+} from "./upload-slot-observe";
+/**
+ * Build the immutable {@link Commit} record for an observed upload. Pure —
+ * the slot is not modified; use {@link resolveUploadCommit} to also advance
+ * the slot to `committed`. Throws when the slot is not `upload_observed`,
+ * the object's key or content type does not match the slot, the size is
+ * outside the slot's `minBytes`/`maxBytes` bounds, or `committedAt` is
+ * later than `slot.expiresAt + lateToleranceMs`.
+ */
 export function createCommit(options: CreateCommitOptions): Commit {
   assertUploadSlot(options.slot);
-  assertMediaObject(options.mediaObject);
+  // Observed-upload validation: commit evidence may carry the provider
+  // `metadata` map, which the closed wire `StorageObject` validator rejects.
+  assertObservedUpload(options.mediaObject);
   assertCommitPreconditions(options);
 
+  const profile = mergeProfileData(options.slot.profile, options.profile);
   const commit: Commit = {
     ...(options.slot.byterange === undefined
       ? {}
@@ -131,23 +49,17 @@ export function createCommit(options: CreateCommitOptions): Commit {
     commitId: options.commitId,
     committedAt: options.committedAt,
     deliveryUrl: options.slot.deliveryUrl,
-    duration: options.slot.duration,
     epoch: options.slot.epoch,
     ...(options.mediaObject.etag === undefined
       ? {}
       : { etag: options.mediaObject.etag }),
-    ...(options.independent === undefined
-      ? {}
-      : { independent: options.independent }),
-    mediaSequenceNumber: options.slot.mediaSequenceNumber,
+    sequenceNumber: options.slot.sequenceNumber,
     objectKey: options.slot.objectKey,
     ...(options.slot.partNumber === undefined
       ? {}
       : { partNumber: options.slot.partNumber }),
-    ...(options.programDateTime === undefined
-      ? {}
-      : { programDateTime: options.programDateTime }),
-    renditionId: options.slot.renditionId,
+    ...(profile === undefined ? {} : { profile }),
+    trackId: options.slot.trackId,
     sessionId: options.slot.sessionId,
     size: options.mediaObject.size,
     slotId: options.slot.slotId,
@@ -157,6 +69,13 @@ export function createCommit(options: CreateCommitOptions): Commit {
   return commit;
 }
 
+/**
+ * Observe an upload and commit it in one step: advances the slot to
+ * `upload_observed` (via {@link observeUpload}) and then to `committed`
+ * (via {@link resolveUploadCommit}). Pure — returns new slot copies.
+ * Throws when the observed object does not match the slot or a commit
+ * precondition fails.
+ */
 export function commitObservedUpload(
   options: CommitObservedUploadOptions
 ): CommitObservedUploadResult {
@@ -169,14 +88,19 @@ export function commitObservedUpload(
   return resolveUploadCommit({
     commitId: options.commitId,
     committedAt: options.committedAt,
-    independent: options.independent,
     lateToleranceMs: options.lateToleranceMs,
     mediaObject: options.object,
-    programDateTime: options.programDateTime,
+    profile: options.profile,
     slot,
   });
 }
 
+/**
+ * Commit an observed upload: builds the {@link Commit} via
+ * {@link createCommit} and returns a copy of the slot advanced to the
+ * `committed` state. Pure; throws when a commit precondition fails or the
+ * slot cannot transition to `committed`.
+ */
 export function resolveUploadCommit(
   options: ResolveUploadCommitOptions
 ): UploadCommitResolution {
@@ -193,6 +117,16 @@ export function resolveUploadCommit(
   };
 }
 
+/**
+ * Resolve a full commit attempt without throwing on protocol-level
+ * failures. Returns `committed` with the commit and updated slot on
+ * success; otherwise a rejection: `unknown_slot` (no `slot` supplied),
+ * `invalid_state` (session is aborted), `unverified_object`
+ * (`objectVerified` not set), `late_object` (slot position at or behind
+ * the cursor), or `key_mismatch` / `content_type_mismatch` /
+ * `object_too_large` / `object_too_small` (object does not satisfy the
+ * slot's constraints). Pure; still throws on structurally invalid inputs.
+ */
 export function resolveCommitAttempt(
   options: ResolveCommitAttemptOptions
 ): CommitAttemptResolution {
@@ -221,13 +155,19 @@ export function resolveCommitAttempt(
     return mismatch;
   }
 
+  return committedCommitAttempt(options, slot);
+}
+
+function committedCommitAttempt(
+  options: ResolveCommitAttemptOptions,
+  slot: NonNullable<ResolveCommitAttemptOptions["slot"]>
+): CommitAttemptResolution {
   const result = resolveUploadCommit({
     commitId: options.commitId,
     committedAt: options.committedAt,
-    independent: options.independent,
     lateToleranceMs: options.lateToleranceMs,
     mediaObject: options.mediaObject,
-    programDateTime: options.programDateTime,
+    profile: options.profile,
     slot,
   });
 
@@ -297,15 +237,19 @@ function unverifiedObjectCommitAttempt(
 function lateObjectCommitAttempt(
   options: CommitAttemptOptionsWithSlot
 ): CommitAttemptRejection {
+  const edge =
+    options.cursor === undefined
+      ? undefined
+      : trackWindowBounds(options.cursor.committedWindow, options.slot.trackId);
+
   return {
     error: createOlosError(
       "olos.invalid_state",
       "object is behind the current cursor",
       {
-        cursorLastMediaSequenceNumber:
-          options.cursor?.window.lastMediaSequenceNumber,
-        cursorLastPartNumber: options.cursor?.window.lastPartNumber,
-        mediaSequenceNumber: options.slot.mediaSequenceNumber,
+        trackLastSequenceNumber: edge?.lastSequenceNumber,
+        trackLastPartNumber: edge?.lastPartNumber,
+        sequenceNumber: options.slot.sequenceNumber,
         partNumber: options.slot.partNumber,
         slotId: options.slot.slotId,
       }
@@ -313,243 +257,3 @@ function lateObjectCommitAttempt(
     status: "late_object",
   };
 }
-
-export function resolveObjectSlotMismatch(
-  options: ResolveObjectSlotMismatchOptions
-): ObjectSlotMismatchResolution | undefined {
-  if (
-    options.includeKeyMismatch === true &&
-    options.mediaObject.objectKey !== options.slot.objectKey
-  ) {
-    return keyMismatch(options);
-  }
-
-  if (options.mediaObject.contentType !== options.slot.contentType) {
-    return contentTypeMismatch(options);
-  }
-
-  if (options.mediaObject.size > options.slot.maxBytes) {
-    return objectTooLarge(options);
-  }
-
-  if (
-    options.slot.minBytes !== undefined &&
-    options.mediaObject.size < options.slot.minBytes
-  ) {
-    return objectTooSmall(options);
-  }
-}
-
-function keyMismatch(
-  options: ResolveObjectSlotMismatchOptions
-): ObjectSlotMismatchResolution {
-  return {
-    error: createOlosError(
-      "olos.key_mismatch",
-      "object key does not match slot",
-      {
-        objectKey: options.mediaObject.objectKey,
-        slotId: options.slot.slotId,
-        slotObjectKey: options.slot.objectKey,
-      }
-    ),
-    status: "key_mismatch",
-  };
-}
-
-function contentTypeMismatch(
-  options: ResolveObjectSlotMismatchOptions
-): ObjectSlotMismatchResolution {
-  return {
-    error: createOlosError(
-      "olos.content_type_mismatch",
-      "object content type does not match slot",
-      {
-        contentType: options.mediaObject.contentType,
-        objectKey: options.mediaObject.objectKey,
-        slotContentType: options.slot.contentType,
-        slotId: options.slot.slotId,
-      }
-    ),
-    status: "content_type_mismatch",
-  };
-}
-
-function objectTooLarge(
-  options: ResolveObjectSlotMismatchOptions
-): ObjectSlotMismatchResolution {
-  return {
-    error: createOlosError(
-      "olos.object_too_large",
-      "object exceeds slot limit",
-      {
-        maxBytes: options.slot.maxBytes,
-        objectKey: options.mediaObject.objectKey,
-        size: options.mediaObject.size,
-        slotId: options.slot.slotId,
-      }
-    ),
-    status: "object_too_large",
-  };
-}
-
-function objectTooSmall(
-  options: ResolveObjectSlotMismatchOptions
-): ObjectSlotMismatchResolution {
-  return {
-    error: createOlosError(
-      "olos.object_too_small",
-      "mediaObject.size must be at least minBytes",
-      {
-        minBytes: options.slot.minBytes,
-        objectKey: options.mediaObject.objectKey,
-        size: options.mediaObject.size,
-        slotId: options.slot.slotId,
-      }
-    ),
-    status: "object_too_small",
-  };
-}
-
-export function resolveDuplicateCommit(
-  options: ResolveDuplicateCommitOptions
-): DuplicateCommitResolution {
-  assertCommit(options.existingCommit);
-  assertCommit(options.candidateCommit);
-
-  if (commitsAreIdempotent(options.existingCommit, options.candidateCommit)) {
-    return {
-      commit: options.existingCommit,
-      status: "idempotent",
-    };
-  }
-
-  return {
-    error: createOlosError(
-      "olos.duplicate_commit_conflict",
-      "duplicate commit conflicts with the existing commit",
-      {
-        candidateCommitId: options.candidateCommit.commitId,
-        existingCommitId: options.existingCommit.commitId,
-        slotId: options.existingCommit.slotId,
-      }
-    ),
-    status: "conflict",
-  };
-}
-
-function assertCommitPreconditions(options: CreateCommitOptions): void {
-  const { mediaObject, slot } = options;
-
-  assertObservedUploadSlot(slot);
-  assertMatchingCommitObject(mediaObject, slot);
-  assertCommitObjectSize(mediaObject, slot);
-  assertCommitDeadline(options);
-}
-
-function assertObservedUploadSlot(
-  slot: UploadSlot
-): asserts slot is ObservedUploadSlot {
-  if (!isObservedUploadSlot(slot)) {
-    throw new Error("uploadSlot.state must be upload_observed");
-  }
-}
-
-function assertMatchingCommitObject(
-  mediaObject: MediaObject,
-  slot: UploadSlot
-): void {
-  if (mediaObject.objectKey !== slot.objectKey) {
-    throw new Error("mediaObject.objectKey must match uploadSlot.objectKey");
-  }
-
-  if (mediaObject.contentType !== slot.contentType) {
-    throw new Error(
-      "mediaObject.contentType must match uploadSlot.contentType"
-    );
-  }
-}
-
-function assertCommitObjectSize(
-  mediaObject: MediaObject,
-  slot: UploadSlot
-): void {
-  if (mediaObject.size > slot.maxBytes) {
-    throw new Error("mediaObject.size must be less than or equal to maxBytes");
-  }
-
-  if (slot.minBytes !== undefined && mediaObject.size < slot.minBytes) {
-    throw new Error(
-      "mediaObject.size must be greater than or equal to minBytes"
-    );
-  }
-}
-
-function assertCommitDeadline(options: CreateCommitOptions): void {
-  const { slot } = options;
-  const committedAt = timestampMs(options.committedAt, "commit.committedAt");
-  const expiresAt = timestampMs(slot.expiresAt, "uploadSlot.expiresAt");
-  const lateToleranceMs = nonNegativeNumber(
-    options.lateToleranceMs ?? 0,
-    "lateToleranceMs"
-  );
-
-  if (committedAt > expiresAt + lateToleranceMs) {
-    throw new Error("commit.committedAt must be before uploadSlot.expiresAt");
-  }
-}
-
-function isObservedUploadSlot(slot: UploadSlot): slot is ObservedUploadSlot {
-  return slot.state === "upload_observed";
-}
-
-function isLateSlot(slot: UploadSlot, cursor: Cursor): boolean {
-  if (isBeforeCursorMediaSequence(slot, cursor)) {
-    return true;
-  }
-
-  return isLateCursorPartPosition(slot, cursor);
-}
-
-function isBeforeCursorMediaSequence(
-  slot: UploadSlot,
-  cursor: Cursor
-): boolean {
-  return slot.mediaSequenceNumber < cursor.window.lastMediaSequenceNumber;
-}
-
-function isLateCursorPartPosition(slot: UploadSlot, cursor: Cursor): boolean {
-  const lastPartNumber = cursor.window.lastPartNumber;
-
-  if (
-    slot.mediaSequenceNumber !== cursor.window.lastMediaSequenceNumber ||
-    slot.partNumber === undefined ||
-    lastPartNumber === undefined
-  ) {
-    return false;
-  }
-
-  return slot.partNumber <= lastPartNumber;
-}
-
-function commitsAreIdempotent(first: Commit, second: Commit): boolean {
-  return COMMIT_IDEMPOTENCY_FIELDS.every(
-    (field) => first[field] === second[field]
-  );
-}
-
-const COMMIT_IDEMPOTENCY_FIELDS = [
-  "deliveryUrl",
-  "duration",
-  "epoch",
-  "etag",
-  "independent",
-  "mediaSequenceNumber",
-  "objectKey",
-  "partNumber",
-  "programDateTime",
-  "renditionId",
-  "sessionId",
-  "size",
-  "slotId",
-] as const satisfies readonly (keyof Commit)[];

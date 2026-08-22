@@ -5,29 +5,31 @@ import { assertSession, isSession } from "./session";
 const validSession: Session = {
   createdAt: "2026-06-08T12:00:00.000Z",
   epoch: 0,
-  latencyProfile: "object-ll",
   olos: "1.0",
-  partTarget: 0.333,
-  renditions: [
+  profile: { id: "cmaf-llhls", partTarget: 0.333, segmentTarget: 1 },
+  tracks: [
     {
-      bitrate: 4_500_000,
-      codec: "avc1.640028",
-      frameRate: 30,
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
+      profile: {
+        bitrate: 4_500_000,
+        codec: "avc1.640028",
+        frameRate: 30,
+        height: 1080,
+        kind: "video",
+        width: 1920,
+      },
+      trackId: "v1080",
     },
     {
-      bitrate: 128_000,
-      channels: 2,
-      codec: "mp4a.40.2",
-      kind: "audio",
-      renditionId: "a128",
-      sampleRate: 48_000,
+      profile: {
+        bitrate: 128_000,
+        channels: 2,
+        codec: "mp4a.40.2",
+        kind: "audio",
+        sampleRate: 48_000,
+      },
+      trackId: "a128",
     },
   ],
-  segmentTarget: 1,
   sessionId: "session_1",
   state: "live",
 };
@@ -61,8 +63,30 @@ describe("session validation", () => {
     );
 
     expect(() =>
-      assertSession({ ...validSession, latencyProfile: "slow" })
-    ).toThrow("session.latencyProfile must be one of:");
+      assertSession({ ...validSession, profile: { id: "" } })
+    ).toThrow("session.profile.id must be a non-empty string");
+  });
+
+  test("rejects missing or non-object profiles", () => {
+    const { profile, ...session } = validSession;
+
+    expect(profile).toBeDefined();
+    expect(() => assertSession(session)).toThrow(
+      "session.profile must be an object"
+    );
+    expect(() => assertSession({ ...validSession, profile: [] })).toThrow(
+      "session.profile must be an object"
+    );
+  });
+
+  test("passes profile contents through untouched", () => {
+    expect(() =>
+      assertSession({
+        ...validSession,
+        profile: { id: "custom", nested: { anything: [1, 2] } },
+        tracks: [{ profile: { schema: "telemetry/v1" }, trackId: "t1" }],
+      })
+    ).not.toThrow();
   });
 
   test("rejects invalid timing fields", () => {
@@ -70,116 +94,74 @@ describe("session validation", () => {
       "session.epoch must be a non-negative integer"
     );
 
-    expect(() => assertSession({ ...validSession, segmentTarget: 0 })).toThrow(
-      "session.segmentTarget must be a positive number"
-    );
-
     expect(() =>
       assertSession({ ...validSession, createdAt: "not-a-date" })
     ).toThrow("session.createdAt must be a valid timestamp");
   });
 
-  test("rejects empty renditions", () => {
-    expect(() => assertSession({ ...validSession, renditions: [] })).toThrow(
-      "session.renditions must be a non-empty array"
+  test("rejects empty tracks", () => {
+    expect(() => assertSession({ ...validSession, tracks: [] })).toThrow(
+      "session.tracks must be a non-empty array"
     );
   });
 
-  test("rejects duplicate rendition IDs", () => {
+  test("rejects duplicate track IDs", () => {
     expect(() =>
       assertSession({
         ...validSession,
-        renditions: [validSession.renditions[0], validSession.renditions[0]],
+        tracks: [validSession.tracks[0], validSession.tracks[0]],
       })
-    ).toThrow("session.renditions must not contain duplicate IDs");
+    ).toThrow("session.tracks must not contain duplicate IDs");
   });
 
-  test("accepts optional audio rendition metrics", () => {
+  test("accepts tracks without profiles and with content types", () => {
     expect(() =>
       assertSession({
         ...validSession,
-        renditions: [
-          {
-            bitrate: 128_000,
-            channels: 2,
-            codec: "mp4a.40.2",
-            kind: "audio",
-            renditionId: "a128",
-            sampleRate: 48_000,
-          },
-        ],
+        tracks: [{ contentType: "application/json", trackId: "events" }],
       })
     ).not.toThrow();
   });
 
-  test("accepts renditions without dimensions", () => {
+  test("accepts dotted identifiers", () => {
     expect(() =>
       assertSession({
         ...validSession,
-        renditions: [
-          {
-            codec: "mp4a.40.2",
-            kind: "audio",
-            renditionId: "a128",
-          },
-        ],
+        sessionId: "cam.front",
+        tracks: [{ trackId: "cam.front.v1080" }],
       })
     ).not.toThrow();
   });
 
-  test("rejects invalid rendition fields", () => {
+  test("rejects invalid track fields", () => {
     expect(() =>
       assertSession({
         ...validSession,
-        renditions: [{ ...validSession.renditions[0], renditionId: "../v" }],
+        tracks: [{ ...validSession.tracks[0], trackId: "../v" }],
       })
     ).toThrow(
-      "session.renditions[].renditionId must be a non-empty URL-safe identifier"
+      "session.tracks[].trackId must be a non-empty URL-safe identifier"
     );
 
     expect(() =>
       assertSession({
         ...validSession,
-        renditions: [{ ...validSession.renditions[0], kind: "image" }],
+        tracks: [{ ...validSession.tracks[0], profile: "video" }],
       })
-    ).toThrow("session.renditions[].kind must be one of:");
+    ).toThrow("session.tracks[].profile must be an object");
 
     expect(() =>
       assertSession({
         ...validSession,
-        renditions: [{ ...validSession.renditions[0], codec: "" }],
+        tracks: [{ ...validSession.tracks[0], contentType: "video" }],
       })
-    ).toThrow("session.renditions[].codec must be a non-empty string");
+    ).toThrow("session.tracks[].contentType must be a valid content type");
 
     expect(() =>
       assertSession({
         ...validSession,
-        renditions: [{ ...validSession.renditions[0], width: 0 }],
+        tracks: [{ ...validSession.tracks[0], codec: "avc1" }],
       })
-    ).toThrow("session.renditions[].width must be a positive integer");
-
-    expect(() =>
-      assertSession({
-        ...validSession,
-        renditions: [
-          {
-            ...validSession.renditions[0],
-            height: undefined,
-          },
-        ],
-      })
-    ).toThrow("session.renditions[] must define width and height together");
-
-    expect(() =>
-      assertSession({
-        ...validSession,
-        renditions: [
-          {
-            ...validSession.renditions[0],
-            width: undefined,
-          },
-        ],
-      })
-    ).toThrow("session.renditions[] must define width and height together");
+    ).toThrow('session.tracks[] contains unknown property "codec"');
   });
 });

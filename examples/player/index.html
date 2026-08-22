@@ -187,8 +187,8 @@
         <input id="session" placeholder="obs_1719...">
       </div>
       <div>
-        <label for="rendition">Rendition</label>
-        <input id="rendition" value="v1080">
+        <label for="track">Track</label>
+        <input id="track" value="v1080">
       </div>
       <div>
         <label>&nbsp;</label>
@@ -337,12 +337,12 @@
     $("play").onclick = () => {
       const base = $("base").value.replace(BASE_URL_TRAILING_SLASH_PATTERN, "");
       const session = $("session").value.trim();
-      const rendition = $("rendition").value.trim() || "v1080";
+      const track = $("track").value.trim() || "v1080";
       if (!session) {
         log("enter a session ID");
         return;
       }
-      const manifestUrl = `${base}/v1/live/${session}/${rendition}/media.m3u8`;
+      const manifestUrl = `${base}/v1/live/${session}/${track}/media.m3u8`;
       log(`loading ${manifestUrl}`);
 
       if (hls) {

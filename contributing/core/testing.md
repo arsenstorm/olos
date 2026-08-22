@@ -1,6 +1,8 @@
 # Testing
 
-OLOS currently uses Bun's test runner.
+OLOS uses Bun's test runner for unit tests (`olos/src` and `olos/scripts`) and
+Vitest for the `test:e2e` and `test:live-s3` suites (configured in
+`olos/vitest.e2e.config.ts` and `olos/vitest.live-s3.config.ts`).
 
 Run the default test suite from the repository root:
 
@@ -97,13 +99,14 @@ bun run build
 
 ## Test module boundaries
 
-- E2E tests should drive behavior through public package entrypoints in `OLOS`
-  and `OLOS/*` so they validate installed-package contracts:
-  `OLOS` APIs, configuration, runtime adapters, and user-facing runtime
-  behavior.
+- E2E tests should drive behavior through public package entrypoints in
+  `@arsenstorm/olos` and `@arsenstorm/olos/*` so they validate
+  installed-package contracts: package APIs, configuration, runtime adapters,
+  and user-facing runtime behavior.
 - Practical rule:
-  - Import public subpaths such as `olos`, `olos/runtime`, `olos/s3`,
-    `olos/protocol`, and `olos/types` in `olos/e2e/*.test.ts`.
+  - Import public subpaths such as `@arsenstorm/olos`, `@arsenstorm/olos/runtime`,
+    `@arsenstorm/olos/s3`, `@arsenstorm/olos/protocol`, and
+    `@arsenstorm/olos/types` in `olos/e2e/*.test.ts`.
   - Do not import from `olos/src/*` directly in E2E tests.
   - If a test scenario needs behavior not exposed publicly, first expand the
     public API before switching E2E tests to internal imports.

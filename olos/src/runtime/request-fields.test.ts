@@ -1,15 +1,19 @@
 import { describe, expect, test } from "bun:test";
 import {
+  errorMessage,
+  nonNegativeNumber,
+  positiveNumber,
+} from "../validation/fields";
+import {
   booleanField,
-  isRecord,
   nonNegativeInteger,
   nonNegativeIntegerField,
-  nonNegativeNumber,
   nonNegativeNumberField,
   nonNegativeSafeInteger,
   numberField,
   oneOfStringField,
   optionalBooleanField,
+  optionalField,
   optionalNonNegativeIntegerField,
   optionalNonNegativeNumberField,
   optionalPositiveIntegerField,
@@ -19,7 +23,6 @@ import {
   optionalUrlSafeIdentifierValueField,
   positiveInteger,
   positiveIntegerField,
-  positiveNumber,
   positiveNumberField,
   positiveSafeInteger,
   stringField,
@@ -29,10 +32,18 @@ import {
 } from "./request-fields";
 
 describe("runtime request field helpers", () => {
-  test("isRecord rejects arrays and null values", () => {
-    expect(isRecord({ ok: true })).toBe(true);
-    expect(isRecord([])).toBe(false);
-    expect(isRecord(null)).toBe(false);
+  test("errorMessage uses Error messages and falls back otherwise", () => {
+    expect(errorMessage(new Error("specific failure"), "fallback")).toBe(
+      "specific failure"
+    );
+    expect(errorMessage("plain failure", "fallback")).toBe("fallback");
+    expect(errorMessage(undefined, "fallback")).toBe("fallback");
+  });
+
+  test("optionalField includes defined values and omits undefined", () => {
+    expect(optionalField("maxSegments", 3)).toEqual({ maxSegments: 3 });
+    expect(optionalField("enabled", false)).toEqual({ enabled: false });
+    expect(optionalField("maxSegments", undefined)).toEqual({});
   });
 
   test("validates required scalar fields", () => {

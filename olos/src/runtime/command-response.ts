@@ -1,25 +1,40 @@
-import type { CoordinatorUploadCommit } from "../protocol";
-import type { CoordinatorPipelineState } from "../protocol/coordinator";
+import type {
+  CoordinatorPipelineState,
+  CoordinatorUploadCommit,
+} from "../protocol/coordinator-types";
 import type { OlosError } from "../types/errors";
 import type { UploadSlot } from "../types/upload-slot";
-import { rejectionStatus } from "./rejection-status";
-import { jsonErrorResponse, jsonResponse } from "./response";
+import { rejectionStatusCode } from "./rejection-status";
+import {
+  jsonBadRequestResponse,
+  jsonErrorResponse,
+  jsonResponse,
+} from "./response";
 
 type SuccessfulCoordinatorUploadCommit = Extract<
   CoordinatorUploadCommit,
   { status: "committed" | "idempotent" }
 >;
 
-const HTTP_BAD_REQUEST = 400;
 const HTTP_CREATED = 201;
 const HTTP_OK = 200;
 
-export function invalidRuntimeCommandResponse(message: string): Response {
-  return jsonErrorResponse(message, HTTP_BAD_REQUEST);
+/**
+ * Build the response for an invalid slot issue or upload commit. A
+ * `"too_large"` status answers 413 `olos.invalid_request` instead of the
+ * usual 400 response.
+ */
+export function invalidRuntimeCommandOutcome(
+  message: string,
+  status: "invalid" | "too_large" = "invalid"
+): Response {
+  return status === "too_large"
+    ? jsonErrorResponse("olos.invalid_request", message, 413)
+    : jsonBadRequestResponse(message);
 }
 
 export function rejectedRuntimeCommandResponse(error: OlosError): Response {
-  return jsonResponse(error, rejectionStatus(error));
+  return jsonResponse(error, rejectionStatusCode(error.error.code));
 }
 
 export function issuedSlotRuntimeCommandResponse(slot: UploadSlot): Response {

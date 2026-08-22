@@ -1,31 +1,49 @@
+import type { ProfileData } from "../types/profile";
 import {
   booleanValue,
   finiteNumber,
   isAllowedString,
-  isRecord as isValidationRecord,
+  nonNegativeNumber,
+  positiveNumber,
   stringValue,
   timestampString,
-  nonNegativeNumber as validationNonNegativeNumber,
-  positiveNumber as validationPositiveNumber,
-  recordValue as validationRecordValue,
+  timestampMs as validationTimestampMs,
 } from "../validation/fields";
 import {
   assertNonNegativeInteger,
-  assertNonNegativeSafeInteger,
   assertPositiveInteger,
-  assertPositiveSafeInteger,
   assertUrlSafeIdentifier,
 } from "../validation/ids";
-import { optionalField } from "./optional-field";
+import { assertProfileData } from "../validation/profile";
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return isValidationRecord(value);
+export function optionalField<Key extends string, Value>(
+  key: Key,
+  value: Value | undefined
+): Partial<Record<Key, Value>> {
+  const fields: Partial<Record<Key, Value>> = {};
+
+  if (value !== undefined) {
+    fields[key] = value;
+  }
+
+  return fields;
 }
 
-export function recordValue(
-  value: unknown
-): Record<string, unknown> | undefined {
-  return validationRecordValue(value);
+/**
+ * Reads an optional `profile` field as opaque profile data: when present it
+ * must be a plain JSON object; its contents are the profile module's concern.
+ */
+export function optionalProfileField(
+  value: Record<string, unknown>,
+  name = "profile"
+): { profile?: ProfileData } {
+  if (value.profile === undefined) {
+    return {};
+  }
+
+  assertProfileData(value.profile, name);
+
+  return { profile: value.profile };
 }
 
 export function stringField(
@@ -109,10 +127,6 @@ export function optionalNonNegativeNumberField<Field extends string>(
   return optionalParsedField(value, field, nonNegativeNumberField);
 }
 
-export function nonNegativeNumber(value: number, name: string): number {
-  return validationNonNegativeNumber(value, name);
-}
-
 export function nonNegativeIntegerField(
   value: Record<string, unknown>,
   field: string
@@ -135,7 +149,7 @@ export function nonNegativeInteger(value: unknown, name: string): number {
 }
 
 export function nonNegativeSafeInteger(value: unknown, name: string): number {
-  assertNonNegativeSafeInteger(value, name);
+  assertNonNegativeInteger(value, name);
   return value;
 }
 
@@ -161,7 +175,7 @@ export function positiveInteger(value: unknown, name: string): number {
 }
 
 export function positiveSafeInteger(value: unknown, name: string): number {
-  assertPositiveSafeInteger(value, name);
+  assertPositiveInteger(value, name);
   return value;
 }
 
@@ -172,10 +186,6 @@ export function positiveNumberField(
   const number = numberField(value, field);
 
   return positiveNumber(number, field);
-}
-
-export function positiveNumber(value: number, name: string): number {
-  return validationPositiveNumber(value, name);
 }
 
 export function timestampField(
@@ -231,15 +241,13 @@ function hasOptionalField(
 }
 
 export function timestampMs(value: Date | string, name: string): number {
-  const timestamp = timestampValueMs(value);
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) {
+      throw new Error(`${name} must be a valid timestamp`);
+    }
 
-  if (Number.isNaN(timestamp)) {
-    throw new Error(`${name} must be a valid timestamp`);
+    return value.getTime();
   }
 
-  return timestamp;
-}
-
-function timestampValueMs(value: Date | string): number {
-  return value instanceof Date ? value.getTime() : Date.parse(value);
+  return validationTimestampMs(value, name);
 }

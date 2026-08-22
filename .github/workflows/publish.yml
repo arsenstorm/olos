@@ -5,12 +5,18 @@ on:
     tags:
       - olos-v*
 
-permissions: read-all
+permissions: {}
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish:
     name: Publish npm package
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: npm
     permissions:
       contents: write # gh release create
       id-token: write # npm provenance OIDC
@@ -18,26 +24,54 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify tag commit is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+          no-cache: true
 
       - name: Set up npm registry
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
+          package-manager-cache: false
           registry-url: https://registry.npmjs.org
 
+      # No dependency cache in the release workflow: a poisoned cache entry
+      # must not be able to reach a published artifact.
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Verify release tag
-        run: bun --filter '@arsenstorm/olos' release:verify-tag
+        run: |
+          version=$(jq -r .version olos/package.json)
+          test "$GITHUB_REF_NAME" = "olos-v${version}"
+          grep -q "^## ${version}\$" olos/CHANGELOG.md
 
       - name: Publish check
         run: bun run publish:check
 
+      # A re-run after a flaked post-publish step must complete the
+      # remaining steps instead of dying on a publish conflict.
+      - name: Check whether the version is already published
+        id: published
+        run: |
+          version=$(jq -r .version olos/package.json)
+          if npm view "@arsenstorm/olos@${version}" version >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to npm
+        if: steps.published.outputs.already == 'false'
         # setup-node writes a placeholder NODE_AUTH_TOKEN into the temp .npmrc;
         # remove it so npm falls back to OIDC and matches Trusted Publisher.
         run: |
@@ -49,10 +83,19 @@ jobs:
       - name: Verify published package
         run: bun --filter '@arsenstorm/olos' release:verify-published
 
-      - name: Write release notes
-        run: bun --filter '@arsenstorm/olos' release:notes
+      - name: Extract release notes
+        run: |
+          version="${GITHUB_REF_NAME#olos-v}"
+          awk -v ver="$version" '$0 == "## " ver { found = 1; next } /^## / && found { exit } found { print }' \
+            olos/CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          test -s "$RUNNER_TEMP/notes.md"
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file out/release/notes.md
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME already exists; skipping"
+          else
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+          fi

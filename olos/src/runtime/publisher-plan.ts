@@ -1,66 +1,83 @@
-import { PUBLICATION_MODES } from "../config/publication";
 import { createPublisherObjectKey } from "../state/object-key-derivation";
-import type { MediaObjectKind } from "../types/media-object";
-import type { PublicationMode } from "../types/upload-slot";
+import type { ProfileData } from "../types/profile";
+import type { PublicationMode } from "../types/publication";
+import { PUBLICATION_MODES } from "../types/publication";
+import type { ObjectKind } from "../types/storage-object";
+import { positiveNumber } from "../validation/fields";
 import {
   assertUrlSafeIdentifier,
   isNonNegativeInteger,
 } from "../validation/ids";
-import { assertSupportedMediaExtension } from "../validation/object-key";
-import { optionalField } from "./optional-field";
+import { assertProfileData } from "../validation/profile";
 import { assertSafePath, assertSafePathSegment } from "./path";
-import { positiveNumber, timestampMs } from "./request-fields";
+import { optionalField, timestampMs } from "./request-fields";
 import type { RuntimeSlotIssuePayload } from "./slot";
 
-// Publisher plan policies record the publisher's intent for the next object
-// and a client-side preview of the object key the coordinator will derive
-// from that intent. The wire payload (`slot`) does not carry objectKey or
-// deliveryUrl; the coordinator chooses them server-side. The preview field
-// lets a publisher SDK that supplies its own nonce predict the eventual
-// address before issuance.
+// The wire payload (`slot`) carries no objectKey or deliveryUrl; the
+// coordinator chooses them server-side. The preview only lets a publisher
+// that supplies its own nonce predict the eventual address before issuance.
 
+/** Options for `createRuntimePublisherObjectPlan`. */
 export interface CreateRuntimePublisherObjectPlanOptions {
+  /** Prefix for the derived commit id; defaults to `commit`. */
   commitIdPrefix?: string;
   contentType: string;
-  duration: number;
+  /** Slot expiry as an ISO 8601 timestamp. */
   expiresAt: string;
+  /** File extension used in the object key; omitted for none. */
   extension?: string;
   kind: RuntimePublisherPlannedObjectKind;
   maxBytes: number;
-  mediaSequenceNumber: number;
+  /** Lower byte bound; must not exceed `maxBytes`. */
   minBytes?: number;
+  /**
+   * Nonce mixed into the derived object key. Required when
+   * `publicationMode` is `direct-public` (the default) so public object
+   * addresses are unguessable.
+   */
   objectKeyNonce?: string;
   objectKeyPrefix?: string;
+  /** Zero-based part index; required for parts, forbidden otherwise. */
   partNumber?: number;
+  /** Profile data carried on the slot (opaque to Core). */
+  profile?: ProfileData;
+  /** Defaults to `direct-public`. */
   publicationMode?: PublicationMode;
-  renditionId: string;
+  sequenceNumber: number;
+  /** Prefix for the derived slot id; defaults to `slot`. */
   slotIdPrefix?: string;
+  trackId: string;
 }
 
+/** Object kinds a publisher can plan: `init`, `part`, or `segment`. */
 export type RuntimePublisherPlannedObjectKind = Extract<
-  MediaObjectKind,
+  ObjectKind,
   "init" | "part" | "segment"
 >;
 
+/**
+ * Result of `createRuntimePublisherObjectPlan`: the slot issue payload plus
+ * the deterministic commit id and a client-side preview of the object key
+ * the coordinator will derive.
+ */
 export interface RuntimePublisherObjectPlan {
   commitId: string;
+  /**
+   * Predicted object key. The wire payload never carries it — the
+   * coordinator derives the authoritative key at issuance.
+   */
   objectKey: string;
   slot: RuntimeSlotIssuePayload;
 }
 
-type InitPublisherObjectPlanOptions =
-  CreateRuntimePublisherObjectPlanOptions & {
-    kind: "init";
-  };
-type PartPublisherObjectPlanOptions =
-  CreateRuntimePublisherObjectPlanOptions & {
-    kind: "part";
-  };
-type SegmentPublisherObjectPlanOptions =
-  CreateRuntimePublisherObjectPlanOptions & {
-    kind: "segment";
-  };
-
+/**
+ * Build the slot issue payload for a planned object along with a
+ * deterministic commit id and an object key preview. Ids are derived from
+ * the track and timeline position (e.g. `slot_video_s12_p3`), so
+ * retrying the same position reuses the same ids and commits stay
+ * idempotent. Validates identifiers, timeline fields, byte bounds, and the
+ * nonce policy, throwing on any violation.
+ */
 export function createRuntimePublisherObjectPlan(
   options: CreateRuntimePublisherObjectPlanOptions
 ): RuntimePublisherObjectPlan {
@@ -74,18 +91,18 @@ export function createRuntimePublisherObjectPlan(
     objectKey,
     slot: {
       contentType: options.contentType,
-      duration: options.duration,
       expiresAt: options.expiresAt,
       kind: options.kind,
       maxBytes: options.maxBytes,
-      mediaSequenceNumber: options.mediaSequenceNumber,
-      renditionId: options.renditionId,
+      sequenceNumber: options.sequenceNumber,
+      trackId: options.trackId,
       slotId,
       ...optionalField("extension", options.extension),
       ...optionalField("minBytes", options.minBytes),
       ...optionalField("objectKeyNonce", options.objectKeyNonce),
       ...optionalField("objectKeyPrefix", options.objectKeyPrefix),
       ...optionalField("partNumber", options.partNumber),
+      ...optionalField("profile", options.profile),
     },
   };
 }
@@ -93,7 +110,7 @@ export function createRuntimePublisherObjectPlan(
 function assertPlanOptions(
   options: CreateRuntimePublisherObjectPlanOptions
 ): void {
-  assertUrlSafeIdentifier(options.renditionId, "renditionId");
+  assertUrlSafeIdentifier(options.trackId, "trackId");
   assertUrlSafeIdentifier(options.slotIdPrefix ?? "slot", "slotIdPrefix");
   assertUrlSafeIdentifier(options.commitIdPrefix ?? "commit", "commitIdPrefix");
   assertOptionalUrlSafeIdentifier(options.objectKeyNonce, "objectKeyNonce");
@@ -105,16 +122,17 @@ function assertPlanOptions(
 
   if (options.extension !== undefined) {
     assertSafePathSegment(options.extension, "extension");
-    assertSupportedMediaExtension(options.extension, options.kind, "extension");
+  }
+
+  if (options.profile !== undefined) {
+    assertProfileData(options.profile, "profile");
   }
 
   assertPlanPartNumber(options);
 
-  if (!isNonNegativeInteger(options.mediaSequenceNumber)) {
-    throw new Error("mediaSequenceNumber must be a non-negative integer");
+  if (!isNonNegativeInteger(options.sequenceNumber)) {
+    throw new Error("sequenceNumber must be a non-negative integer");
   }
-
-  positiveNumber(options.duration, "duration");
 
   timestampMs(options.expiresAt, "expiresAt");
 
@@ -124,7 +142,7 @@ function assertPlanOptions(
 function assertPlanPartNumber(
   options: CreateRuntimePublisherObjectPlanOptions
 ): void {
-  if (isPartPublisherObjectPlan(options)) {
+  if (options.kind === "part") {
     if (!isNonNegativeInteger(options.partNumber)) {
       throw new Error("partNumber must be a non-negative integer for parts");
     }
@@ -176,33 +194,15 @@ function createObjectId(
   options: CreateRuntimePublisherObjectPlanOptions,
   prefix: string
 ): string {
-  if (isInitPublisherObjectPlan(options)) {
-    return `${prefix}_init_${options.renditionId}`;
+  if (options.kind === "init") {
+    return `${prefix}_init_${options.trackId}`;
   }
 
-  if (isSegmentPublisherObjectPlan(options)) {
-    return `${prefix}_${options.renditionId}_s${options.mediaSequenceNumber}`;
+  if (options.kind === "segment") {
+    return `${prefix}_${options.trackId}_s${options.sequenceNumber}`;
   }
 
-  return `${prefix}_${options.renditionId}_s${options.mediaSequenceNumber}_p${options.partNumber}`;
-}
-
-function isInitPublisherObjectPlan(
-  options: CreateRuntimePublisherObjectPlanOptions
-): options is InitPublisherObjectPlanOptions {
-  return options.kind === "init";
-}
-
-function isPartPublisherObjectPlan(
-  options: CreateRuntimePublisherObjectPlanOptions
-): options is PartPublisherObjectPlanOptions {
-  return options.kind === "part";
-}
-
-function isSegmentPublisherObjectPlan(
-  options: CreateRuntimePublisherObjectPlanOptions
-): options is SegmentPublisherObjectPlanOptions {
-  return options.kind === "segment";
+  return `${prefix}_${options.trackId}_s${options.sequenceNumber}_p${options.partNumber}`;
 }
 
 function assertOptionalUrlSafeIdentifier(

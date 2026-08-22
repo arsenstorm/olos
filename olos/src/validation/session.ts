@@ -1,64 +1,43 @@
-import {
-  LATENCY_PROFILES,
-  RENDITION_KINDS,
-  SESSION_STATES,
-} from "../config/session";
-import { OLOS_WIRE_VERSION } from "../index";
-import type { Rendition, Session } from "../types/session";
+import type { Session, Track } from "../types/session";
+import { OLOS_WIRE_VERSION, SESSION_STATES } from "../types/session";
+import { assertContentType } from "./content-type";
 import {
   assertIsoDateField,
-  assertNonEmptyStringField,
+  assertKnownFieldsObject,
   assertNonNegativeIntegerField,
   assertOneOfField,
   assertOnlyKnownFields,
-  assertPositiveIntegerField,
-  assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
   nonEmptyArray,
+  passes,
 } from "./fields";
+import { assertOptionalProfileField, assertStreamProfile } from "./profile";
 
 const SESSION_FIELDS = [
   "createdAt",
   "epoch",
-  "latencyProfile",
   "olos",
-  "partTarget",
-  "renditions",
-  "segmentTarget",
+  "profile",
   "sessionId",
   "state",
+  "tracks",
 ] as const;
 
-const RENDITION_FIELDS = [
-  "bitrate",
-  "channels",
-  "codec",
-  "frameRate",
-  "height",
-  "kind",
-  "renditionId",
-  "sampleRate",
-  "width",
-] as const;
+const TRACK_FIELDS = ["contentType", "profile", "trackId"] as const;
 
-const OPTIONAL_RENDITION_INTEGER_FIELDS = [
-  "bitrate",
-  "channels",
-  "sampleRate",
-] as const;
-
-const RENDITION_DIMENSION_FIELDS = ["width", "height"] as const;
-
+/** Returns whether `value` is a valid `Session` (see `assertSession`). */
 export function isSession(value: unknown): value is Session {
-  try {
-    assertSession(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertSession, value);
 }
 
+/**
+ * Validates an untrusted value as a wire-format `Session`, throwing an
+ * `Error` naming the first offending field. Checks the `olos` wire version,
+ * rejects unknown fields, requires a `profile` with an `id`, and requires a
+ * non-empty list of tracks with distinct IDs. Profile contents (session and
+ * track) are not inspected; the profile module validates them.
+ */
 export function assertSession(value: unknown): asserts value is Session {
   if (!isRecord(value)) {
     throw new Error("session must be an object");
@@ -72,75 +51,33 @@ export function assertSession(value: unknown): asserts value is Session {
   assertUrlSafeField(value, "sessionId", "session");
   assertNonNegativeIntegerField(value, "epoch", "session");
   assertOneOfField(value, "state", SESSION_STATES, "session");
-  assertOneOfField(value, "latencyProfile", LATENCY_PROFILES, "session");
-  assertPositiveNumberField(value, "segmentTarget", "session");
-  assertPositiveNumberField(value, "partTarget", "session");
   assertIsoDateField(value, "createdAt", "session");
-  assertRenditions(value.renditions);
+  assertStreamProfile(value.profile, "session.profile");
+  assertTracks(value.tracks);
 }
 
-function assertRenditions(value: unknown): void {
-  const renditions = nonEmptyArray<Rendition>(value, "session.renditions");
+function assertTracks(value: unknown): void {
+  const tracks = nonEmptyArray<Track>(value, "session.tracks");
+  const seenTracks = new Set<string>();
 
-  const seenRenditions = new Set<string>();
+  for (const track of tracks) {
+    assertTrack(track);
 
-  for (const rendition of renditions) {
-    assertRendition(rendition);
-
-    if (seenRenditions.has(rendition.renditionId)) {
-      throw new Error("session.renditions must not contain duplicate IDs");
+    if (seenTracks.has(track.trackId)) {
+      throw new Error("session.tracks must not contain duplicate IDs");
     }
 
-    seenRenditions.add(rendition.renditionId);
+    seenTracks.add(track.trackId);
   }
 }
 
-function assertRendition(value: unknown): asserts value is Rendition {
-  if (!isRecord(value)) {
-    throw new Error("session.renditions[] must be an object");
+function assertTrack(value: unknown): asserts value is Track {
+  assertKnownFieldsObject(value, TRACK_FIELDS, "session.tracks[]");
+  assertUrlSafeField(value, "trackId", "session.tracks[]");
+
+  if (value.contentType !== undefined) {
+    assertContentType(value.contentType, "session.tracks[].contentType");
   }
 
-  assertOnlyKnownFields(value, RENDITION_FIELDS, "session.renditions[]");
-  assertUrlSafeField(value, "renditionId", "session.renditions[]");
-  assertOneOfField(value, "kind", RENDITION_KINDS, "session.renditions[]");
-  assertNonEmptyStringField(value, "codec", "session.renditions[]");
-  assertOptionalRenditionMetrics(value);
-}
-
-function assertOptionalRenditionMetrics(value: Record<string, unknown>): void {
-  assertOptionalPositiveIntegerFields(value, OPTIONAL_RENDITION_INTEGER_FIELDS);
-  assertOptionalPositiveIntegerFields(value, RENDITION_DIMENSION_FIELDS);
-  assertRenditionDimensions(value);
-
-  if (value.frameRate !== undefined) {
-    assertPositiveNumberField(value, "frameRate", "session.renditions[]");
-  }
-}
-
-function assertOptionalPositiveIntegerFields(
-  value: Record<string, unknown>,
-  fields: readonly string[]
-): void {
-  for (const field of fields) {
-    if (value[field] !== undefined) {
-      assertPositiveIntegerField(value, field, "session.renditions[]");
-    }
-  }
-}
-
-function assertRenditionDimensions(value: Record<string, unknown>): void {
-  if (hasPartialRenditionDimensions(value)) {
-    throw new Error(
-      "session.renditions[] must define width and height together"
-    );
-  }
-}
-
-function hasPartialRenditionDimensions(
-  value: Record<string, unknown>
-): boolean {
-  return (
-    (value.width === undefined && value.height !== undefined) ||
-    (value.width !== undefined && value.height === undefined)
-  );
+  assertOptionalProfileField(value, "session.tracks[]");
 }

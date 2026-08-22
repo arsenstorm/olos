@@ -1,8 +1,11 @@
+import {
+  createRuntimeObjectLowLatencyManifestOptions,
+  createRuntimeObjectLowLatencyProfile,
+  type MediaSession,
+} from "@arsenstorm/olos/media";
 import { createMemoryCoordinatorStore } from "@arsenstorm/olos/protocol";
 import {
   createMemoryRuntimeCursorNotifier,
-  createRuntimeObjectLowLatencyManifestOptions,
-  createRuntimeObjectLowLatencyProfile,
   type RuntimeFetch,
 } from "@arsenstorm/olos/runtime";
 import {
@@ -11,7 +14,6 @@ import {
   createStoredS3CoordinatorRuntimeHandler,
   issueS3RuntimeUploadGrant,
 } from "@arsenstorm/olos/s3";
-import type { Session } from "@arsenstorm/olos/types";
 import { describe, expect, test } from "vitest";
 import {
   createTestDeleteObjectClient,
@@ -26,44 +28,50 @@ const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(latency);
 const session = {
   createdAt: "2026-01-01T00:00:00.000Z",
   epoch: 1,
-  latencyProfile: latency.latencyProfile,
   olos: "1.0",
-  partTarget: latency.partTarget,
-  renditions: [v1080Rendition()],
-  segmentTarget: latency.segmentTarget,
+  profile: {
+    id: "cmaf-llhls",
+    partTarget: latency.partTarget,
+    segmentTarget: latency.segmentTarget,
+  },
+  tracks: [v1080Track()],
   sessionId: "session_1",
   state: "live",
-} satisfies Session;
+} satisfies MediaSession;
 
-function v1080Rendition() {
+function v1080Track() {
   return {
-    bitrate: 5_000_000,
-    codec: "avc1.640028",
-    frameRate: 30,
-    height: 1080,
-    kind: "video",
-    renditionId: "v1080",
-    width: 1920,
+    profile: {
+      bitrate: 5_000_000,
+      codec: "avc1.640028",
+      frameRate: 30,
+      height: 1080,
+      kind: "video",
+      width: 1920,
+    },
+    trackId: "v1080",
   } as const;
 }
 
-const multiRenditionSession = {
+const multiTrackSession = {
   ...session,
-  renditions: [
-    v1080Rendition(),
+  tracks: [
+    v1080Track(),
     {
-      bitrate: 2_800_000,
-      codec: "avc1.64001f",
-      frameRate: 30,
-      height: 720,
-      kind: "video",
-      renditionId: "v720",
-      width: 1280,
+      profile: {
+        bitrate: 2_800_000,
+        codec: "avc1.64001f",
+        frameRate: 30,
+        height: 720,
+        kind: "video",
+        width: 1280,
+      },
+      trackId: "v720",
     },
   ],
-} satisfies Session;
+} satisfies MediaSession;
 
-const mediaBaseUrl = "https://media.example.com";
+const deliveryBaseUrl = "https://media.example.com";
 const BASE_URL = "https://edge.example.com";
 
 describe("S3 HTTP pipeline", () => {
@@ -76,7 +84,7 @@ describe("S3 HTTP pipeline", () => {
 
     const created = await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -88,7 +96,7 @@ describe("S3 HTTP pipeline", () => {
         duration: 1,
         kind: "init",
         maxBytes: 2048,
-        mediaSequenceNumber: 0,
+        sequenceNumber: 0,
         objectKey: "media/v1080/init.mp4",
         slotId: "slot_init",
       }),
@@ -102,7 +110,7 @@ describe("S3 HTTP pipeline", () => {
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKey: "media/v1080/s3810.m4s",
         slotId: "slot_3810",
       }),
@@ -124,10 +132,8 @@ describe("S3 HTTP pipeline", () => {
       payload: {
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
-        etag: '"publisher-hint"',
-        independent: true,
+        profile: { independent: true },
         objectKey: segmentGrant.slot.objectKey,
-        size: 1,
       },
       sessionId: session.sessionId,
       slotId: segmentGrant.slot.slotId,
@@ -171,7 +177,7 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3811,
+          sequenceNumber: 3811,
           objectKey: "media/v1080/s3811.m4s",
           slotId: "slot_3811",
         })
@@ -217,7 +223,7 @@ describe("S3 HTTP pipeline", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -229,7 +235,7 @@ describe("S3 HTTP pipeline", () => {
           duration: 1,
           kind: "init",
           maxBytes: 2048,
-          mediaSequenceNumber: 0,
+          sequenceNumber: 0,
           objectKey: "media/v1080/init.mp4",
           slotId: "slot_init",
         })
@@ -243,7 +249,7 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
+          sequenceNumber: 3810,
           objectKey: "media/v1080/s3810.m4s",
           slotId: "slot_3810",
         })
@@ -301,7 +307,7 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3811,
+          sequenceNumber: 3811,
           objectKey: "media/v1080/s3811.m4s",
           slotId: "slot_3811",
         })
@@ -342,7 +348,7 @@ describe("S3 HTTP pipeline", () => {
     ]);
   });
 
-  test("publishes multiple S3 renditions through coherent HLS manifests", async () => {
+  test("publishes multiple S3 tracks through coherent HLS manifests", async () => {
     const { handle, headObjectInputs } = createS3HttpPipeline({
       objectSizes: {
         "media/v1080/s3810.m4s": 98_304,
@@ -354,16 +360,16 @@ describe("S3 HTTP pipeline", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
-        session: multiRenditionSession,
+        deliveryBaseUrl,
+        session: multiTrackSession,
       })
     );
 
     for (const object of [
-      renditionObject("v1080", "init"),
-      renditionObject("v720", "init"),
-      renditionObject("v1080", "segment"),
-      renditionObject("v720", "segment"),
+      trackObject("v1080", "init"),
+      trackObject("v720", "init"),
+      trackObject("v1080", "segment"),
+      trackObject("v720", "segment"),
     ]) {
       await handle(
         jsonRequest(
@@ -375,7 +381,7 @@ describe("S3 HTTP pipeline", () => {
         jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
           commitId: object.commitId,
           committedAt: object.committedAt,
-          independent: object.kind === "segment",
+          profile: { independent: object.kind === "segment" },
           slotId: object.slotId,
         })
       );
@@ -429,7 +435,7 @@ describe("S3 HTTP pipeline", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -441,7 +447,7 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
+          sequenceNumber: 3810,
           objectKey: "media/v1080/s3810.m4s",
           slotId: "slot_3810",
         })
@@ -491,7 +497,7 @@ describe("S3 HTTP pipeline", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -503,7 +509,7 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
+          sequenceNumber: 3810,
           objectKey: "media/v1080/s3810.m4s",
           slotId: "slot_3810",
         })
@@ -560,7 +566,7 @@ describe("S3 HTTP pipeline", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -572,7 +578,7 @@ describe("S3 HTTP pipeline", () => {
           duration: 1,
           kind: "init",
           maxBytes: 2048,
-          mediaSequenceNumber: 0,
+          sequenceNumber: 0,
           objectKey: "media/v1080/init.mp4",
           slotId: "slot_init",
         })
@@ -586,7 +592,7 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
+          sequenceNumber: 3810,
           objectKey: "media/v1080/s3810.m4s",
           slotId: "slot_3810",
         })
@@ -645,8 +651,8 @@ describe("S3 HTTP pipeline", () => {
         commit: { slotId: "slot_3810" },
         cursor: {
           window: {
-            firstMediaSequenceNumber: 3810,
-            lastMediaSequenceNumber: 3810,
+            firstSequenceNumber: 3810,
+            lastSequenceNumber: 3810,
           },
         },
         slotId: "slot_3810",
@@ -677,7 +683,7 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3811,
+          sequenceNumber: 3811,
           objectKey: "media/v1080/s3811.m4s",
           slotId: "slot_3811",
         })
@@ -740,12 +746,12 @@ describe("S3 HTTP pipeline", () => {
     ]);
   });
 
-  test("deletes retired S3 objects through the retention route", async () => {
+  test("reports an empty retention plan after commit-time auto-retention already deleted", async () => {
     const { deleteInputs, handle } = createRetentionPipeline();
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -761,7 +767,7 @@ describe("S3 HTTP pipeline", () => {
         jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
           commitId: object.commitId,
           committedAt: "2026-01-01T00:00:02.000Z",
-          independent: object.kind === "segment",
+          profile: { independent: object.kind === "segment" },
           ...(object.maxSegments === undefined
             ? {}
             : { maxSegments: object.maxSegments }),
@@ -814,14 +820,14 @@ describe("S3 HTTP pipeline", () => {
     expect(mediaBody).toContain("media/v1080/s3812.m4s");
   });
 
-  test("reports failed S3 retention deletes without changing the cursor", async () => {
+  test("leaves failed auto-retention deletes orphaned and keeps the cursor unchanged", async () => {
     const { deleteInputs, handle, store } = createRetentionPipeline({
       failingDeleteKey: "media/v1080/s3810.m4s",
     });
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -837,7 +843,7 @@ describe("S3 HTTP pipeline", () => {
         jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
           commitId: object.commitId,
           committedAt: "2026-01-01T00:00:02.000Z",
-          independent: object.kind === "segment",
+          profile: { independent: object.kind === "segment" },
           ...(object.maxSegments === undefined
             ? {}
             : { maxSegments: object.maxSegments }),
@@ -904,44 +910,46 @@ interface SlotPayloadOptions {
   kind: "init" | "segment";
   maxBytes: number;
   maxSegments?: number;
-  mediaSequenceNumber: number;
   objectKey: string;
-  renditionId?: string;
+  sequenceNumber: number;
   slotId: string;
+  trackId?: string;
 }
 
-function renditionObject(
-  renditionId: "v1080" | "v720",
+function trackObject(
+  trackId: "v1080" | "v720",
   kind: "init" | "segment"
 ): SlotPayloadOptions & { commitId: string; committedAt: string } {
   const name = kind === "init" ? "init.mp4" : "3810.m4s";
-  const objectKey = `media/${renditionId}/${name}`;
+  const objectKey = `media/${trackId}/${name}`;
   const slotSuffix = kind === "init" ? "init" : "3810";
 
   return {
-    commitId: `commit_${renditionId}_${slotSuffix}`,
+    commitId: `commit_${trackId}_${slotSuffix}`,
     committedAt:
       kind === "init" ? "2026-01-01T00:00:01.000Z" : "2026-01-01T00:00:02.000Z",
     deliveryUrl: `https://media.example.com/${objectKey}`,
     duration: kind === "init" ? 1 : 2,
     kind,
     maxBytes: kind === "init" ? 2048 : 100_000,
-    mediaSequenceNumber: kind === "init" ? 0 : 3810,
+    sequenceNumber: kind === "init" ? 0 : 3810,
     objectKey,
-    renditionId,
-    slotId: `slot_${renditionId}_${slotSuffix}`,
+    trackId,
+    slotId: `slot_${trackId}_${slotSuffix}`,
   };
 }
 
 function slotPayload(options: SlotPayloadOptions) {
   return {
     contentType: "video/mp4",
-    duration: options.duration,
     expiresAt: "2026-01-01T00:00:05.000Z",
+    extension: options.kind === "init" ? "mp4" : "m4s",
     kind: options.kind,
+    objectKeyPrefix: "media",
+    profile: { duration: options.duration },
     maxBytes: options.maxBytes,
-    mediaSequenceNumber: options.mediaSequenceNumber,
-    renditionId: options.renditionId ?? "v1080",
+    sequenceNumber: options.sequenceNumber,
+    trackId: options.trackId ?? "v1080",
     slotId: options.slotId,
   };
 }
@@ -979,7 +987,7 @@ function createS3HttpPipeline(options: S3HttpPipelineOptions = {}) {
   const store = createMemoryCoordinatorStore();
   let waits = 0;
   const handle = createStoredS3CoordinatorRuntimeHandler({
-    allowedMediaOrigins: ["https://media.example.com"],
+    allowedDeliveryOrigins: ["https://media.example.com"],
     publicationMode: "read-gated",
     ...(notifier === undefined
       ? {}
@@ -1069,7 +1077,7 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
       duration: 1,
       kind: "init",
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
+      sequenceNumber: 0,
       objectKey: "media/v1080/init.mp4",
       slotId: "slot_init",
     },
@@ -1079,7 +1087,7 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
       duration: 2,
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       objectKey: "media/v1080/s3810.m4s",
       slotId: "slot_3810",
     },
@@ -1089,7 +1097,7 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
       duration: 2,
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3811,
+      sequenceNumber: 3811,
       objectKey: "media/v1080/s3811.m4s",
       slotId: "slot_3811",
     },
@@ -1100,7 +1108,7 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
       kind: "segment",
       maxBytes: 100_000,
       maxSegments: 2,
-      mediaSequenceNumber: 3812,
+      sequenceNumber: 3812,
       objectKey: "media/v1080/s3812.m4s",
       slotId: "slot_3812",
     },

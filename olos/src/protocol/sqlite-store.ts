@@ -4,26 +4,45 @@ import type {
   SerializedCoordinatorStoreBackend,
   SerializedCoordinatorStoreRecord,
   SerializedCoordinatorStoreSave,
+  SerializedCursorViewRecord,
 } from "./serialized-store";
 
 const DEFAULT_TABLE_NAME = "olos_coordinator_snapshots";
 const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+/**
+ * Narrowed SQLite client surface the store backend needs: prepared
+ * statements with positional binding. Structurally compatible with
+ * Cloudflare D1 and other promise-based SQLite clients, so callers can pass
+ * their database handle (or a thin wrapper) instead of a specific driver.
+ */
 export interface SqliteSerializedCoordinatorStoreDatabase {
   prepare(sql: string): SqliteSerializedCoordinatorStoreStatement;
 }
 
+/** Prepared statement that binds positional (`?`) parameters. */
 export interface SqliteSerializedCoordinatorStoreStatement {
   bind(
     ...values: readonly unknown[]
   ): SqliteSerializedCoordinatorStoreBoundStatement;
 }
 
+/** Bound statement ready to fetch one row or execute a write. */
 export interface SqliteSerializedCoordinatorStoreBoundStatement {
-  first<T>(): Promise<T | undefined>;
+  /**
+   * Resolve the first result row, or no row: Cloudflare D1 resolves `null`
+   * for missing rows while other SQLite clients resolve `undefined` — both
+   * are accepted.
+   */
+  first<T>(): Promise<T | null | undefined>;
   run(): Promise<SqliteSerializedCoordinatorStoreRunResult>;
 }
 
+/**
+ * Result of executing a write statement. The changed-row count may live at
+ * the top level (`changes`, better-sqlite3 style) or under `meta.changes`
+ * (Cloudflare D1); at least one must be present or the backend throws.
+ */
 export interface SqliteSerializedCoordinatorStoreRunResult {
   changes?: number;
   meta?: {
@@ -31,15 +50,50 @@ export interface SqliteSerializedCoordinatorStoreRunResult {
   };
 }
 
+/** Options for `createSqliteSerializedCoordinatorStoreBackend`. */
 export interface CreateSqliteSerializedCoordinatorStoreBackendOptions {
   database: SqliteSerializedCoordinatorStoreDatabase;
+  /**
+   * Snapshot table name; defaults to `"olos_coordinator_snapshots"` and
+   * must be a plain SQLite identifier (letters, digits, underscores).
+   */
   tableName?: string;
 }
 
+/** Options for `createSqliteSerializedCoordinatorStoreSchema`. */
 export interface CreateSqliteSerializedCoordinatorStoreSchemaOptions {
+  /**
+   * Snapshot table name; defaults to `"olos_coordinator_snapshots"` and
+   * must be a plain SQLite identifier (letters, digits, underscores).
+   */
   tableName?: string;
 }
 
+/** Options for `migrateSqliteSerializedCoordinatorStoreSchema`. */
+export interface MigrateSqliteSerializedCoordinatorStoreSchemaOptions {
+  database: SqliteSerializedCoordinatorStoreDatabase;
+  /**
+   * Snapshot table name; defaults to `"olos_coordinator_snapshots"` and
+   * must be a plain SQLite identifier (letters, digits, underscores).
+   */
+  tableName?: string;
+}
+
+/**
+ * Create a `SerializedCoordinatorStoreBackend` on top of a SQLite database
+ * (Cloudflare D1 or any client matching the narrowed interface). Pair it
+ * with `createSerializedCoordinatorStore` for a full pipeline store, and
+ * apply `createSqliteSerializedCoordinatorStoreSchema` first.
+ *
+ * Optimistic concurrency rides on single atomic statements: inserts use
+ * `insert or ignore` and etag-checked updates a conditional `update`, with
+ * zero changed rows reported as a conflict that carries the currently
+ * stored record when one exists. Implements the `loadCursorView` fast path
+ * from the `cursor_view` column; rows with a NULL `cursor_view` (created
+ * before the column migration) surface as null-view records so the wrapping
+ * store falls back to the full snapshot. Throws when `tableName` is not a
+ * plain SQLite identifier.
+ */
 export function createSqliteSerializedCoordinatorStoreBackend(
   options: CreateSqliteSerializedCoordinatorStoreBackendOptions
 ): SerializedCoordinatorStoreBackend {
@@ -53,12 +107,29 @@ export function createSqliteSerializedCoordinatorStoreBackend(
     load(sessionId) {
       return loadRecord(options.database, sql.load, sessionId);
     },
+    loadCursorView(sessionId) {
+      return loadCursorViewRecord(
+        options.database,
+        sql.loadCursorView,
+        sessionId
+      );
+    },
     save(saveOptions) {
       return saveRecord(options.database, sql, saveOptions);
     },
   };
 }
 
+/**
+ * Return the `create table if not exists` DDL for the snapshot table used
+ * by `createSqliteSerializedCoordinatorStoreBackend`. Idempotent for fresh
+ * installs only: `if not exists` leaves an existing table untouched, so a
+ * table created by 0.5.x (without the `cursor_view` column) is NOT
+ * upgraded by re-running this DDL — run
+ * `migrateSqliteSerializedCoordinatorStoreSchema` instead, which both
+ * creates the table and adds any missing columns. Throws when `tableName`
+ * is not a plain SQLite identifier.
+ */
 export function createSqliteSerializedCoordinatorStoreSchema(
   options: CreateSqliteSerializedCoordinatorStoreSchemaOptions = {}
 ): string {
@@ -70,15 +141,83 @@ export function createSqliteSerializedCoordinatorStoreSchema(
   return `create table if not exists ${tableName} (
   session_id text primary key,
   etag text not null,
-  snapshot text not null
+  snapshot text not null,
+  cursor_view text
 )`;
+}
+
+/**
+ * Create or upgrade the snapshot table in place: runs the
+ * `create table if not exists` DDL, then adds the `cursor_view` column when
+ * a pre-0.6 table lacks it. Idempotent and safe to run on every startup.
+ * Uses only prepared statements (no PRAGMA writes or transactional DDL),
+ * so it works on Cloudflare D1 as well as plain SQLite clients; a racing
+ * migrator's duplicate `alter table` is caught and ignored. Throws when
+ * `tableName` is not a plain SQLite identifier.
+ */
+export async function migrateSqliteSerializedCoordinatorStoreSchema(
+  options: MigrateSqliteSerializedCoordinatorStoreSchemaOptions
+): Promise<void> {
+  const tableName = sqliteIdentifier(
+    options.tableName ?? DEFAULT_TABLE_NAME,
+    "tableName"
+  );
+
+  await options.database
+    .prepare(createSqliteSerializedCoordinatorStoreSchema({ tableName }))
+    .bind()
+    .run();
+
+  if (await hasCursorViewColumn(options.database, tableName)) {
+    return;
+  }
+
+  await addCursorViewColumn(options.database, tableName);
+}
+
+async function hasCursorViewColumn(
+  database: SqliteSerializedCoordinatorStoreDatabase,
+  tableName: string
+): Promise<boolean> {
+  // `tableName` is identifier-validated above, so inlining it is safe.
+  const row = await database
+    .prepare(
+      `select name from pragma_table_info('${tableName}') where name = 'cursor_view'`
+    )
+    .bind()
+    .first<{ name: string }>();
+
+  return row !== null && row !== undefined;
+}
+
+async function addCursorViewColumn(
+  database: SqliteSerializedCoordinatorStoreDatabase,
+  tableName: string
+): Promise<void> {
+  try {
+    await database
+      .prepare(`alter table ${tableName} add column cursor_view text`)
+      .bind()
+      .run();
+  } catch (error) {
+    // A racing migrator added the column between the probe and the alter;
+    // that leaves the schema exactly as intended.
+    if (!isDuplicateColumnError(error)) {
+      throw error;
+    }
+  }
+}
+
+function isDuplicateColumnError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("duplicate column");
 }
 
 function statements(tableName: string) {
   return {
-    insert: `insert or ignore into ${tableName} (session_id, etag, snapshot) values (?, ?, ?)`,
+    insert: `insert or ignore into ${tableName} (session_id, etag, snapshot, cursor_view) values (?, ?, ?, ?)`,
     load: `select etag, snapshot from ${tableName} where session_id = ?`,
-    update: `update ${tableName} set etag = ?, snapshot = ? where session_id = ? and etag = ?`,
+    loadCursorView: `select etag, cursor_view from ${tableName} where session_id = ?`,
+    update: `update ${tableName} set etag = ?, snapshot = ?, cursor_view = ? where session_id = ? and etag = ?`,
   };
 }
 
@@ -92,7 +231,7 @@ async function loadRecord(
     .bind(sessionId)
     .first<SerializedCoordinatorStoreRecord>();
 
-  if (row === undefined) {
+  if (row === null || row === undefined) {
     return;
   }
 
@@ -102,15 +241,49 @@ async function loadRecord(
   };
 }
 
+interface SqliteCursorViewRow {
+  cursor_view: string | null | undefined;
+  etag: string;
+}
+
+async function loadCursorViewRecord(
+  database: SqliteSerializedCoordinatorStoreDatabase,
+  sql: string,
+  sessionId: OlosId
+): Promise<SerializedCursorViewRecord | undefined> {
+  const row = await database
+    .prepare(sql)
+    .bind(sessionId)
+    .first<SqliteCursorViewRow>();
+
+  if (row === null || row === undefined) {
+    return;
+  }
+
+  return {
+    etag: row.etag,
+    // NULL cursor_view (a pre-migration row) surfaces as a null view so the
+    // wrapping store falls back to the full snapshot.
+    view: row.cursor_view ?? null,
+  };
+}
+
 async function saveRecord(
   database: SqliteSerializedCoordinatorStoreDatabase,
   sql: ReturnType<typeof statements>,
   options: SaveSerializedCoordinatorStoreOptions
 ): Promise<SerializedCoordinatorStoreSave> {
+  const cursorView = options.cursorView?.view ?? null;
+
   if (options.expectedEtag === undefined) {
     const inserted = await database
       .prepare(sql.insert)
-      .bind(options.sessionId, options.record.etag, options.record.snapshot)
+      .bind(
+        options.sessionId,
+        options.record.etag,
+        options.record.snapshot,
+        cursorView
+      )
       .run();
 
     return savedOrConflict(database, sql.load, options.sessionId, inserted);
@@ -121,6 +294,7 @@ async function saveRecord(
     .bind(
       options.record.etag,
       options.record.snapshot,
+      cursorView,
       options.sessionId,
       options.expectedEtag
     )

@@ -38,6 +38,7 @@ import { createLocalOlos, type LocalOlos } from "./local-olos";
 import {
   appendCsvRow,
   emitDone,
+  emitInterrupted,
   ensureCsv,
   report,
   writeSidecar,
@@ -66,19 +67,21 @@ async function cleanup(): Promise<void> {
   if (cleanupState.encoder !== undefined && !progress.ffmpegExited) {
     cleanupState.encoder.kill("SIGKILL");
   }
-  if (cleanupState.olos !== undefined) {
-    try {
-      await cleanupState.olos.stop();
-    } catch {
-      // best-effort
-    }
+  const { olos, outDir } = cleanupState;
+  if (olos !== undefined) {
+    await stopQuietly(() => olos.stop());
   }
-  if (cleanupState.outDir !== undefined) {
-    try {
-      await rm(cleanupState.outDir, { force: true, recursive: true });
-    } catch {
-      // best-effort
-    }
+  if (outDir !== undefined) {
+    await stopQuietly(() => rm(outDir, { force: true, recursive: true }));
+  }
+}
+
+// best-effort teardown: a failure here must not mask the run's own outcome.
+async function stopQuietly(stop: () => Promise<void>): Promise<void> {
+  try {
+    await stop();
+  } catch {
+    // best-effort
   }
 }
 
@@ -96,7 +99,7 @@ function installSignalHandlers(decoder: DecoderPool): void {
       const samples = decoder.results() as readonly FinalSample[];
       const sidecarPath = await writeSidecar(samples);
       if (IS_WORKER) {
-        emitDone(samples.length, sidecarPath, true);
+        emitInterrupted(samples.length, sidecarPath);
       } else {
         report(samples, sidecarPath);
       }
@@ -134,12 +137,7 @@ async function main(): Promise<void> {
 
   await olos.createSession();
 
-  const frameTimer = setInterval(
-    () => {
-      encoder.stdin?.write(Buffer.from(encodeFrame(Date.now())));
-    },
-    Math.round(1000 / FPS)
-  );
+  const frameTimer = startFrameTimer(encoder);
   cleanupState.frameTimer = frameTimer;
 
   const decoder = createDecoderPool({
@@ -153,18 +151,32 @@ async function main(): Promise<void> {
     await Promise.all([runProducer(outDir, olos), runConsumer(olos, decoder)]);
     clearInterval(frameTimer);
     encoder.stdin?.end();
-
-    await decoder.drain();
-    stopProgressBar();
-    const samples = decoder.results();
-    const sidecarPath = await writeSidecar(samples);
-    if (IS_WORKER) {
-      emitDone(samples.length, sidecarPath, false);
-    } else {
-      report(samples, sidecarPath);
-    }
+    await finishRun(decoder);
   } finally {
     await cleanup();
+  }
+}
+
+function startFrameTimer(
+  encoder: ReturnType<typeof spawnEncoder>
+): ReturnType<typeof setInterval> {
+  return setInterval(
+    () => {
+      encoder.stdin?.write(Buffer.from(encodeFrame(Date.now())));
+    },
+    Math.round(1000 / FPS)
+  );
+}
+
+async function finishRun(decoder: DecoderPool): Promise<void> {
+  await decoder.drain();
+  stopProgressBar();
+  const samples = decoder.results();
+  const sidecarPath = await writeSidecar(samples);
+  if (IS_WORKER) {
+    emitDone(samples.length, sidecarPath);
+  } else {
+    report(samples, sidecarPath);
   }
 }
 

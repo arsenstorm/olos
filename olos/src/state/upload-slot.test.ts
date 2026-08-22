@@ -4,38 +4,36 @@ import type { Session } from "../types/session";
 import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
 
+import { createIssuedUploadSlot } from "./upload-slot";
 import {
   assertUploadSlotTransition,
   canTransitionUploadSlot,
-  createIssuedUploadSlot,
-  expireUpload,
   observeUpload,
-  rejectUpload,
   resolveUploadExpiry,
   resolveUploadObservation,
   resolveUploadRejection,
   resolveUploadRevocation,
   revokeUpload,
-} from "./upload-slot";
+} from "./upload-slot-observe";
 
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
   epoch: 0,
-  latencyProfile: "object-ll",
   olos: "1.0",
-  partTarget: 0.5,
-  renditions: [
+  profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
+  tracks: [
     {
-      bitrate: 5_000_000,
-      codec: "avc1.640028",
-      frameRate: 30,
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
+      profile: {
+        bitrate: 5_000_000,
+        codec: "avc1.640028",
+        frameRate: 30,
+        height: 1080,
+        kind: "video",
+        width: 1920,
+      },
+      trackId: "v1080",
     },
   ],
-  segmentTarget: 2,
   sessionId: "session_1",
   state: "live",
 };
@@ -43,15 +41,15 @@ const session: Session = {
 const slot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-  duration: 2,
+  profile: { duration: 2 },
   epoch: 0,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  mediaSequenceNumber: 3810,
+  sequenceNumber: 3810,
   minBytes: 1000,
   objectKey: "media/v1080/s3810.m4s",
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "session_1",
   slotId: "slot_1",
   state: "issued",
@@ -71,11 +69,10 @@ const object: ObservedUpload = {
 
 const cursor: Cursor = {
   committedWindow: {
-    discontinuitySequence: 0,
     epoch: 0,
-    firstMediaSequenceNumber: 3810,
-    lastMediaSequenceNumber: 3810,
-    renditions: {
+    firstSequenceNumber: 3810,
+    lastSequenceNumber: 3810,
+    tracks: {
       v1080: {
         init: {
           commitId: "commit_init",
@@ -83,16 +80,16 @@ const cursor: Cursor = {
           objectKey: "media/v1080/init.mp4",
           slotId: "slot_init",
         },
-        renditionId: "v1080",
+        trackId: "v1080",
         segments: [
           {
-            duration: 2,
-            mediaSequenceNumber: 3810,
+            sequenceNumber: 3810,
             segment: {
               commitId: "commit_3810",
               deliveryUrl: "/media/3810.m4s",
               objectKey: "media/3810.m4s",
               slotId: "slot_3810",
+              profile: { duration: 2 },
             },
           },
         ],
@@ -100,17 +97,15 @@ const cursor: Cursor = {
     },
   },
   epoch: 0,
-  latencyProfile: "object-ll",
-  mediaBaseUrl: "https://media.example.com",
+  deliveryBaseUrl: "https://media.example.com",
   olos: "1.0",
-  partTarget: 0.5,
-  segmentTarget: 2,
+  profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
   sessionId: "session_1",
   state: "live",
   updatedAt: "2026-01-01T00:00:02.000Z",
   window: {
-    firstMediaSequenceNumber: 3810,
-    lastMediaSequenceNumber: 3810,
+    firstSequenceNumber: 3810,
+    lastSequenceNumber: 3810,
   },
 };
 
@@ -120,14 +115,14 @@ describe("upload slot issuance", () => {
       createIssuedUploadSlot({
         contentType: "video/mp4",
         deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-        duration: 2,
+        profile: { duration: 2 },
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         minBytes: 1000,
         objectKey: "media/v1080/s3810.m4s",
-        renditionId: "v1080",
+        trackId: "v1080",
         session,
         slotId: "slot_1",
       })
@@ -139,14 +134,14 @@ describe("upload slot issuance", () => {
       createIssuedUploadSlot({
         contentType: "video/mp4",
         deliveryUrl: "https://media.example.com/live/session/v1080/3810/0.m4s",
-        duration: 0.5,
+        profile: { duration: 0.5 },
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "part",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKey: "live/session/v1080/3810/0.m4s",
         partNumber: 0,
-        renditionId: "v1080",
+        trackId: "v1080",
         session,
         slotId: "slot_3810_0",
       }).partNumber
@@ -158,35 +153,35 @@ describe("upload slot issuance", () => {
       createIssuedUploadSlot({
         contentType: "video/mp4",
         deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-        duration: 2,
+        profile: { duration: 2 },
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKey: "media/v1080/s3810.m4s",
-        renditionId: "v1080",
+        trackId: "v1080",
         session: { ...session, state: "ended" },
         slotId: "slot_1",
       })
     ).toThrow("session.state must be live");
   });
 
-  test("rejects renditions outside the session", () => {
+  test("rejects tracks outside the session", () => {
     expect(() =>
       createIssuedUploadSlot({
         contentType: "video/mp4",
         deliveryUrl: "https://media.example.com/live/session/v720/3810.m4s",
-        duration: 2,
+        profile: { duration: 2 },
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKey: "live/session/v720/3810.m4s",
-        renditionId: "v720",
+        trackId: "v720",
         session,
         slotId: "slot_1",
       })
-    ).toThrow("uploadSlot.renditionId must belong to session.renditions");
+    ).toThrow("uploadSlot.trackId must belong to session.tracks");
   });
 });
 
@@ -268,18 +263,6 @@ describe("observe upload", () => {
 });
 
 describe("expire upload", () => {
-  test("marks an expired issued slot as expired", () => {
-    expect(
-      expireUpload({
-        now: "2026-01-01T00:00:05.000Z",
-        slot,
-      })
-    ).toEqual({
-      ...slot,
-      state: "expired",
-    });
-  });
-
   test("returns an expiry result", () => {
     expect(
       resolveUploadExpiry({
@@ -325,7 +308,7 @@ describe("expire upload", () => {
 
   test("rejects premature expiry", () => {
     expect(() =>
-      expireUpload({
+      resolveUploadExpiry({
         now: "2026-01-01T00:00:04.999Z",
         slot,
       })
@@ -334,7 +317,7 @@ describe("expire upload", () => {
 
   test("rejects invalid expiry timestamps", () => {
     expect(() =>
-      expireUpload({
+      resolveUploadExpiry({
         now: "soon",
         slot,
       })
@@ -343,7 +326,7 @@ describe("expire upload", () => {
 
   test("rejects non-expirable slots", () => {
     expect(() =>
-      expireUpload({
+      resolveUploadExpiry({
         now: "2026-01-01T00:00:06.000Z",
         slot: { ...slot, state: "upload_observed" },
       })
@@ -353,13 +336,6 @@ describe("expire upload", () => {
 
 describe("reject upload", () => {
   const observedSlot: UploadSlot = { ...slot, state: "upload_observed" };
-
-  test("marks an observed slot as rejected", () => {
-    expect(rejectUpload({ slot: observedSlot })).toEqual({
-      ...observedSlot,
-      state: "rejected",
-    });
-  });
 
   test("returns a rejection result", () => {
     expect(resolveUploadRejection({ slot: observedSlot })).toEqual({
@@ -381,7 +357,7 @@ describe("reject upload", () => {
   });
 
   test("rejects non-rejectable slots", () => {
-    expect(() => rejectUpload({ slot })).toThrow(
+    expect(() => resolveUploadRejection({ slot })).toThrow(
       "Invalid upload slot transition: issued -> rejected"
     );
   });

@@ -1,9 +1,8 @@
-import type { MediaObjectKind } from "../types/media-object";
-import { hasControlCharacter } from "./fields";
+import { hasControlCharacter, hasQueryOrFragment } from "./fields";
 
-// Object-key policy for payload fields that identify S3/object storage locations.
-// These are treated as internal object names, so we reject traversal, query/frag,
-// control chars, and unsafe absolute/empty keys before any storage use.
+// Keys are internal object names, so traversal, query/fragment, control
+// chars, and absolute/empty keys are rejected before any storage use. Core
+// imposes no extension rule; profiles (e.g. olos/media) may layer their own.
 export function isSafeObjectKey(value: unknown): value is string {
   return typeof value === "string" && safeObjectKeyError(value) === undefined;
 }
@@ -16,28 +15,6 @@ export function assertSafeObjectKey(
 
   if (error !== undefined) {
     throw new Error(`${name} ${error}`);
-  }
-}
-
-export function assertSafeMediaObjectKey(
-  value: unknown,
-  kind: MediaObjectKind,
-  name: string
-): void {
-  assertSafeObjectKey(value, name);
-
-  if (!hasSupportedMediaObjectExtension(value, kind)) {
-    throw new Error(`${name} must use a supported media extension`);
-  }
-}
-
-export function assertSupportedMediaExtension(
-  extension: string,
-  kind: MediaObjectKind,
-  name: string
-): void {
-  if (!isSupportedMediaExtension(extension, kind)) {
-    throw new Error(`${name} must use a supported media extension`);
   }
 }
 
@@ -54,17 +31,13 @@ function safeObjectKeyError(value: unknown): string | undefined {
     return "must not contain control characters";
   }
 
-  if (hasObjectKeyQueryOrFragment(value)) {
+  if (hasQueryOrFragment(value)) {
     return "must not contain query strings or fragments";
   }
 }
 
 function hasUnsafeRelativeObjectKeyShape(value: string): boolean {
   return hasUnsafeObjectKeyBoundary(value) || hasUnsafeObjectKeySegment(value);
-}
-
-function hasObjectKeyQueryOrFragment(value: string): boolean {
-  return value.includes("?") || value.includes("#");
 }
 
 function hasUnsafeObjectKeyBoundary(value: string): boolean {
@@ -78,35 +51,3 @@ function hasUnsafeObjectKeySegment(value: string): boolean {
 function isUnsafeObjectKeySegment(segment: string): boolean {
   return segment === "" || segment === "." || segment === "..";
 }
-
-function hasSupportedMediaObjectExtension(
-  objectKey: string,
-  kind: MediaObjectKind
-): boolean {
-  const allowedExtensions = MEDIA_OBJECT_EXTENSIONS[kind];
-
-  return (
-    allowedExtensions === undefined ||
-    allowedExtensions.some((extension) => objectKey.endsWith(extension))
-  );
-}
-
-function isSupportedMediaExtension(
-  extension: string,
-  kind: MediaObjectKind
-): boolean {
-  const allowedExtensions = MEDIA_OBJECT_EXTENSIONS[kind];
-
-  return (
-    allowedExtensions === undefined ||
-    allowedExtensions.includes(`.${extension}`)
-  );
-}
-
-const MEDIA_OBJECT_EXTENSIONS: Partial<
-  Record<MediaObjectKind, readonly string[]>
-> = {
-  init: [".mp4"],
-  part: [".m4s"],
-  segment: [".m4s"],
-};

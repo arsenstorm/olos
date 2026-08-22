@@ -5,7 +5,11 @@ import { isCliEntry } from "./script-entry";
 import { packageRoot } from "./script-paths";
 
 const distRoot = join(packageRoot, "dist");
-const relativeImportPattern = /(from\s+["'])(\.[^"']+)(["'])/g;
+// Covers static `from "..."`, side-effect `import "..."`, and dynamic
+// `import("...")` specifiers — Node's ESM resolver rejects every
+// extensionless relative form, not just the `from` clause.
+const relativeImportPattern =
+  /((?:from\s+|import\s+|import\(\s*)["'])(\.[^"']+)(["'])/g;
 
 if (isCliEntry(import.meta.url)) {
   await fixDeclarationImports();
@@ -34,13 +38,19 @@ async function fixDeclarationEntry(
     return;
   }
 
-  if (isDeclarationFile(entry)) {
+  if (isEmittedModuleFile(entry)) {
     await fixDeclaration(path);
   }
 }
 
-function isDeclarationFile(entry: Dirent): boolean {
-  return entry.isFile() && entry.name.endsWith(".d.ts");
+// Runtime .js output needs the same treatment as declarations: tsc emits
+// relative specifiers verbatim, and Node's ESM resolver rejects
+// extensionless paths that Bun tolerates.
+function isEmittedModuleFile(entry: Dirent): boolean {
+  return (
+    entry.isFile() &&
+    (entry.name.endsWith(".d.ts") || entry.name.endsWith(".js"))
+  );
 }
 
 async function fixDeclaration(path: string): Promise<void> {

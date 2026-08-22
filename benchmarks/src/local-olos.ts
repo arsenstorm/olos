@@ -7,17 +7,18 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createMemoryCoordinatorStore } from "@arsenstorm/olos/protocol";
 import {
-  createMemoryRuntimeCursorNotifier,
+  CMAF_LLHLS_PROFILE_ID,
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
-} from "@arsenstorm/olos/runtime";
+  type MediaSession,
+} from "@arsenstorm/olos/media";
+import { createMemoryCoordinatorStore } from "@arsenstorm/olos/protocol";
+import { createMemoryRuntimeCursorNotifier } from "@arsenstorm/olos/runtime";
 import {
   createStoredS3CoordinatorRuntimeHandler,
   type S3HeadObjectClient,
 } from "@arsenstorm/olos/s3";
-import type { Session } from "@arsenstorm/olos/types";
 import {
   type HeadObjectCommand,
   type HeadObjectCommandOutput,
@@ -30,8 +31,8 @@ import {
   createSessionRequest,
   type PublishTimestamps,
   publishObject,
-  RENDITION_ID,
   SESSION_ID,
+  TRACK_ID,
 } from "./publish";
 
 export type { PublishTimestamps } from "./publish";
@@ -48,27 +49,27 @@ export interface LocalOlosOptions {
 
 export interface PublishPartOptions {
   bytes: Uint8Array;
-  mediaSequenceNumber: number;
   partNumber: number;
   partSeconds: number;
+  sequenceNumber: number;
 }
 
 export interface PublishSegmentOptions {
   bytes: Uint8Array;
-  mediaSequenceNumber: number;
   segmentSeconds: number;
+  sequenceNumber: number;
 }
 
 export interface LocalOlos {
   createSession(): Promise<void>;
+  deliveryBaseUrl: string;
   handle(request: Request): Promise<Response>;
-  mediaBaseUrl: string;
   publishInit(bytes: Uint8Array): Promise<PublishTimestamps>;
   publishPart(options: PublishPartOptions): Promise<PublishTimestamps>;
   publishSegment(options: PublishSegmentOptions): Promise<PublishTimestamps>;
-  renditionId: string;
   sessionId: string;
   stop(): Promise<void>;
+  trackId: string;
 }
 
 // Presign-only S3 client: the handler signs URLs against this endpoint but the
@@ -109,19 +110,16 @@ function createByteStoreHeadClient(
   };
 }
 
-export async function createLocalOlos(
-  options: LocalOlosOptions
-): Promise<LocalOlos> {
-  const mediaBaseUrl = `https://127.0.0.1:${options.port}`;
-  assertLoopback(mediaBaseUrl);
-
-  const byteStore = new Map<string, Uint8Array>();
+function createBenchHandler(
+  deliveryBaseUrl: string,
+  byteStore: Map<string, Uint8Array>
+): (request: Request) => Promise<Response> {
   const profile = createRuntimeObjectLowLatencyProfile();
   const manifestOptions = createRuntimeObjectLowLatencyManifestOptions(profile);
   const notifier = createMemoryRuntimeCursorNotifier();
 
-  const handle = createStoredS3CoordinatorRuntimeHandler({
-    allowedMediaOrigins: [mediaBaseUrl],
+  return createStoredS3CoordinatorRuntimeHandler({
+    allowedDeliveryOrigins: [deliveryBaseUrl],
     blockingReload: {
       timeoutMs: BLOCKING_TIMEOUT_MS,
       waitForCursor: (context) => notifier.waitForCursor(context),
@@ -137,33 +135,46 @@ export async function createLocalOlos(
     store: createMemoryCoordinatorStore(),
     ...manifestOptions.manifest,
   });
+}
 
-  const session = {
+function benchSession(fps: number): MediaSession {
+  const profile = createRuntimeObjectLowLatencyProfile();
+  return {
     createdAt: new Date().toISOString(),
     epoch: 1,
-    latencyProfile: profile.latencyProfile,
     olos: "1.0",
-    partTarget: profile.partTarget,
-    renditions: [
+    profile: {
+      id: CMAF_LLHLS_PROFILE_ID,
+      partTarget: profile.partTarget,
+      segmentTarget: profile.segmentTarget,
+    },
+    tracks: [
       {
-        bitrate: 5_000_000,
-        codec: "avc1.640028",
-        frameRate: options.fps,
-        height: 1080,
-        kind: "video",
-        renditionId: RENDITION_ID,
-        width: 1920,
+        profile: {
+          bitrate: 5_000_000,
+          codec: "avc1.640028",
+          frameRate: fps,
+          height: 1080,
+          kind: "video",
+          width: 1920,
+        },
+        trackId: TRACK_ID,
       },
     ],
-    segmentTarget: profile.segmentTarget,
     sessionId: SESSION_ID,
     state: "live",
-  } satisfies Session;
+  };
+}
 
+// Loopback TLS origin that serves published bytes straight out of `byteStore`.
+async function serveByteStore(
+  port: number,
+  byteStore: Map<string, Uint8Array>
+): Promise<{ stop(): Promise<void> }> {
   const certDir = await mkdtemp(join(tmpdir(), "olos-bench-cert-"));
   const { certPath, keyPath } = generateSelfSignedCert(certDir);
   const server = serve({
-    port: options.port,
+    port,
     tls: { cert: file(certPath), key: file(keyPath) },
     fetch(request) {
       const key = new URL(request.url).pathname.replace(LEADING_SLASHES, "");
@@ -175,53 +186,78 @@ export async function createLocalOlos(
   });
 
   return {
+    async stop() {
+      server.stop(true);
+      await rm(certDir, { force: true, recursive: true });
+    },
+  };
+}
+
+export async function createLocalOlos(
+  options: LocalOlosOptions
+): Promise<LocalOlos> {
+  const deliveryBaseUrl = `https://127.0.0.1:${options.port}`;
+  assertLoopback(deliveryBaseUrl);
+
+  const byteStore = new Map<string, Uint8Array>();
+  const handle = createBenchHandler(deliveryBaseUrl, byteStore);
+  const session = benchSession(options.fps);
+  const server = await serveByteStore(options.port, byteStore);
+
+  return {
     handle,
-    mediaBaseUrl,
-    renditionId: RENDITION_ID,
+    deliveryBaseUrl,
+    trackId: TRACK_ID,
     sessionId: SESSION_ID,
     async createSession() {
       await callHandlerExpectOk(
         handle,
-        createSessionRequest(mediaBaseUrl, session),
+        createSessionRequest(deliveryBaseUrl, session),
         "create session"
       );
     },
+    ...publishMethods(handle, byteStore),
+    stop: () => server.stop(),
+  };
+}
+
+function publishMethods(
+  handle: (request: Request) => Promise<Response>,
+  byteStore: Map<string, Uint8Array>
+): Pick<LocalOlos, "publishInit" | "publishPart" | "publishSegment"> {
+  return {
     publishInit: (bytes) =>
       publishObject(handle, byteStore, {
         commitId: "commit_init",
         duration: INIT_DURATION_SECONDS,
         independent: false,
         kind: "init",
-        mediaSequenceNumber: 0,
+        sequenceNumber: 0,
         slotId: "slot_init",
         bytes,
       }),
-    publishPart: ({ bytes, mediaSequenceNumber, partNumber, partSeconds }) => {
-      const id = `${mediaSequenceNumber}_p${partNumber}`;
+    publishPart: ({ bytes, sequenceNumber, partNumber, partSeconds }) => {
+      const id = `${sequenceNumber}_p${partNumber}`;
       return publishObject(handle, byteStore, {
         commitId: `commit_${id}`,
         duration: partSeconds,
         independent: true,
         kind: "part",
-        mediaSequenceNumber,
+        sequenceNumber,
         partNumber,
         slotId: `slot_${id}`,
         bytes,
       });
     },
-    publishSegment: ({ bytes, mediaSequenceNumber, segmentSeconds }) =>
+    publishSegment: ({ bytes, sequenceNumber, segmentSeconds }) =>
       publishObject(handle, byteStore, {
-        commitId: `commit_${mediaSequenceNumber}`,
+        commitId: `commit_${sequenceNumber}`,
         duration: segmentSeconds,
         independent: true,
         kind: "segment",
-        mediaSequenceNumber,
-        slotId: `slot_${mediaSequenceNumber}`,
+        sequenceNumber,
+        slotId: `slot_${sequenceNumber}`,
         bytes,
       }),
-    async stop() {
-      server.stop(true);
-      await rm(certDir, { force: true, recursive: true });
-    },
   };
 }

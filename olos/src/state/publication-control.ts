@@ -1,5 +1,6 @@
 import type { OlosError } from "../types/errors";
 
+/** All operations a {@link PublicationControlPolicy} can disable. */
 export const PUBLICATION_CONTROL_OPERATIONS = [
   "issue_slot",
   "commit_upload",
@@ -7,14 +8,19 @@ export const PUBLICATION_CONTROL_OPERATIONS = [
   "advance_cursor",
 ] as const;
 
+/** A publication pipeline operation subject to control policies. */
 export type PublicationControlOperation =
   (typeof PUBLICATION_CONTROL_OPERATIONS)[number];
 
+/** Policy disabling selected publication operations (e.g. a kill switch). */
 export interface PublicationControlPolicy {
+  /** Operations to block; anything not listed stays allowed. */
   disabledOperations?: readonly PublicationControlOperation[];
+  /** Human-readable explanation included in blocked-operation errors. */
   reason?: string;
 }
 
+/** Outcome of {@link resolvePublicationControl}. */
 export type PublicationControlResolution =
   | { status: "allowed" }
   | {
@@ -23,11 +29,17 @@ export type PublicationControlResolution =
       status: "blocked";
     };
 
+/** Options for {@link resolvePublicationControl}. */
 export interface ResolvePublicationControlOptions {
   operation: PublicationControlOperation;
+  /** Active control policy; omitting it allows every operation. */
   policy?: PublicationControlPolicy;
 }
 
+/**
+ * Build a policy that disables every publication operation, optionally
+ * recording the reason surfaced in blocked-operation errors. Pure.
+ */
 export function createPublicationKillSwitch(
   reason?: string
 ): PublicationControlPolicy {
@@ -37,6 +49,12 @@ export function createPublicationKillSwitch(
   };
 }
 
+/**
+ * Check an operation against the control policy. Returns `allowed` when
+ * no policy is given or the operation is not disabled; otherwise
+ * `blocked` with an `olos.security_policy_violation` error carrying the
+ * policy's reason. Pure.
+ */
 export function resolvePublicationControl(
   options: ResolvePublicationControlOptions
 ): PublicationControlResolution {
@@ -51,6 +69,10 @@ export function resolvePublicationControl(
   };
 }
 
+/**
+ * Throwing variant of {@link resolvePublicationControl}: throws an
+ * `Error` when the operation is blocked, returns nothing otherwise.
+ */
 export function assertPublicationAllowed(
   options: ResolvePublicationControlOptions
 ): void {

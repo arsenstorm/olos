@@ -1,30 +1,27 @@
 import {
   createPublisherDeliveryUrl,
   createPublisherObjectKey,
-  type DerivableMediaObjectKind,
+  type DerivableObjectKind,
 } from "../state/object-key-derivation";
 import { createRuntimePublisherObjectKeyNonce } from "../state/object-key-nonce";
 import { assertPublicationAllowed } from "../state/publication-control";
+import { createIssuedUploadSlot } from "../state/upload-slot";
 import {
   canTransitionUploadSlot,
-  createIssuedUploadSlot,
   revokeUpload,
-} from "../state/upload-slot";
-import type {
-  CommittedSegment,
-  RenditionWindow,
-} from "../types/committed-window";
+} from "../state/upload-slot-observe";
+import type { CommittedSegment, TrackWindow } from "../types/committed-window";
+import { createOlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
-import type { MediaObjectKind } from "../types/media-object";
-import type { UploadSlot } from "../types/upload-slot";
+import type { ObjectKind } from "../types/storage-object";
+import type { UploadSlot, UploadSlotState } from "../types/upload-slot";
 import type {
   CoordinatorPipelineState,
   CoordinatorSlotIssue,
   CoordinatorUploadRevocation,
   IssueCoordinatorSlotOptions,
   RevokeCoordinatorUploadOptions,
-} from "./coordinator";
-import { coordinatorError } from "./coordinator-error";
+} from "./coordinator-types";
 
 type RevocableCoordinatorUpload =
   | Extract<CoordinatorUploadRevocation, { status: "rejected" }>
@@ -33,6 +30,30 @@ type RevocableCoordinatorUpload =
       status: "revocable";
     };
 
+// A slot in any of these states still occupies its track/kind/sequence/part
+// position: an issued grant not yet resolved, an observed upload awaiting
+// commit, or a commit already recorded. Only a slot that failed out
+// (expired, rejected, revoked) frees the position for reissue.
+const OPEN_UPLOAD_SLOT_STATES: readonly UploadSlotState[] = [
+  "issued",
+  "upload_observed",
+  "committed",
+];
+
+/**
+ * Issue an upload slot for an init, part, or segment object and return the
+ * next pipeline state with the slot appended. Pure function on state —
+ * persisting the result is the caller's job.
+ *
+ * The slot's `objectKey` and `deliveryUrl` are derived from the state's
+ * `deliveryBaseUrl` plus the slot coordinates (track, sequence number, part
+ * number); in `"direct-public"` publication mode a random nonce is mixed in
+ * when `objectKeyNonce` is not supplied, making keys unguessable. Throws on
+ * a duplicate `slotId`, an open slot already occupying the same
+ * track/kind/sequence-number/part-number position, an object kind whose key
+ * cannot be derived, or a publication control policy that blocks slot
+ * issuance.
+ */
 export function issueCoordinatorSlot(
   options: IssueCoordinatorSlotOptions
 ): CoordinatorSlotIssue {
@@ -43,6 +64,10 @@ export function issueCoordinatorSlot(
 
   if (findSlot(options.state, options.slotId) !== undefined) {
     throw new Error("slotId must be unique");
+  }
+
+  if (findOpenSlotAtPosition(options.state, options) !== undefined) {
+    throw new Error("an open slot already exists for this position");
   }
 
   const { objectKey, deliveryUrl } = resolveSlotObjectAddress(options);
@@ -62,36 +87,46 @@ export function issueCoordinatorSlot(
   };
 }
 
+function findOpenSlotAtPosition(
+  state: CoordinatorPipelineState,
+  options: IssueCoordinatorSlotOptions
+): UploadSlot | undefined {
+  return state.slots.find(
+    (slot) =>
+      slot.trackId === options.trackId &&
+      slot.kind === options.kind &&
+      slot.sequenceNumber === options.sequenceNumber &&
+      slot.partNumber === options.partNumber &&
+      OPEN_UPLOAD_SLOT_STATES.includes(slot.state)
+  );
+}
+
 function resolveSlotObjectAddress(options: IssueCoordinatorSlotOptions): {
   objectKey: string;
   deliveryUrl: string;
 } {
-  if (!isDerivableMediaObjectKind(options.kind)) {
-    throw new Error(
-      `cannot derive objectKey for media object kind ${options.kind}`
-    );
+  if (!isDerivableObjectKind(options.kind)) {
+    throw new Error(`cannot derive objectKey for object kind ${options.kind}`);
   }
 
   const objectKey = createPublisherObjectKey({
     extension: options.extension,
     kind: options.kind,
-    mediaSequenceNumber: options.mediaSequenceNumber,
+    sequenceNumber: options.sequenceNumber,
     objectKeyNonce: resolveSlotObjectKeyNonce(options),
     objectKeyPrefix: options.objectKeyPrefix,
     partNumber: options.partNumber,
-    renditionId: options.renditionId,
+    trackId: options.trackId,
   });
   const deliveryUrl = createPublisherDeliveryUrl(
-    options.state.mediaBaseUrl,
+    options.state.deliveryBaseUrl,
     objectKey
   );
 
   return { deliveryUrl, objectKey };
 }
 
-function isDerivableMediaObjectKind(
-  kind: MediaObjectKind
-): kind is DerivableMediaObjectKind {
+function isDerivableObjectKind(kind: ObjectKind): kind is DerivableObjectKind {
   return kind === "init" || kind === "part" || kind === "segment";
 }
 
@@ -113,6 +148,17 @@ function resolveSlotObjectKeyNonce(
   });
 }
 
+/**
+ * Revoke an upload slot and drop any commits recorded against it from the
+ * returned state. Pure function on state — persisting the result is the
+ * caller's job. Revoking an already-revoked slot is idempotent and reports
+ * `"already_revoked"`.
+ *
+ * Rejects when the slot does not exist, when its current state cannot
+ * transition to `"revoked"`, or when the slot is referenced by the live
+ * cursor's committed window — content that players may already be fetching
+ * must not silently disappear.
+ */
 export function revokeCoordinatorUpload(
   options: RevokeCoordinatorUploadOptions
 ): CoordinatorUploadRevocation {
@@ -141,40 +187,22 @@ function resolveRevocableCoordinatorUpload(
 
   if (slot === undefined) {
     return {
-      error: coordinatorError(
-        "olos.unknown_slot",
-        "upload slot was not found",
-        {
-          slotId: options.slotId,
-        }
-      ),
+      error: createOlosError("olos.unknown_slot", "upload slot was not found", {
+        slotId: options.slotId,
+      }),
       state: options.state,
       status: "rejected",
     };
   }
 
-  if (isSlotInCursor(options.state, slot)) {
-    return {
-      error: coordinatorError(
-        "olos.invalid_state",
-        "upload slots reflected in the live cursor cannot be silently revoked",
-        { slotId: slot.slotId, state: slot.state }
-      ),
-      state: options.state,
-      status: "rejected",
-    };
-  }
+  const reason = revocationRefusal(options.state, slot);
 
-  if (
-    slot.state !== "revoked" &&
-    !canTransitionUploadSlot(slot.state, "revoked")
-  ) {
+  if (reason !== undefined) {
     return {
-      error: coordinatorError(
-        "olos.invalid_state",
-        "upload slot cannot be revoked from its current state",
-        { slotId: slot.slotId, state: slot.state }
-      ),
+      error: createOlosError("olos.invalid_state", reason, {
+        slotId: slot.slotId,
+        state: slot.state,
+      }),
       state: options.state,
       status: "rejected",
     };
@@ -186,7 +214,26 @@ function resolveRevocableCoordinatorUpload(
   };
 }
 
-function findSlot(
+/** Why this slot may not be silently revoked, or `undefined` if it may. */
+function revocationRefusal(
+  state: CoordinatorPipelineState,
+  slot: UploadSlot
+): string | undefined {
+  if (isSlotInCursor(state, slot)) {
+    return "upload slots reflected in the live cursor cannot be silently revoked";
+  }
+
+  if (
+    slot.state !== "revoked" &&
+    !canTransitionUploadSlot(slot.state, "revoked")
+  ) {
+    return "upload slot cannot be revoked from its current state";
+  }
+
+  return;
+}
+
+export function findSlot(
   state: CoordinatorPipelineState,
   slotId: OlosId
 ): UploadSlot | undefined {
@@ -203,20 +250,18 @@ function isSlotInCursor(
     return false;
   }
 
-  return Object.values(cursor.committedWindow.renditions).some((rendition) =>
-    cursorRenditionContainsSlot(rendition, slot)
+  return Object.values(cursor.committedWindow.tracks).some((track) =>
+    cursorTrackContainsSlot(track, slot)
   );
 }
 
-function cursorRenditionContainsSlot(
-  rendition: RenditionWindow,
+function cursorTrackContainsSlot(
+  track: TrackWindow,
   slot: UploadSlot
 ): boolean {
   return (
-    rendition.init.slotId === slot.slotId ||
-    rendition.segments.some((segment) =>
-      cursorSegmentContainsSlot(segment, slot)
-    )
+    track.init?.slotId === slot.slotId ||
+    track.segments.some((segment) => cursorSegmentContainsSlot(segment, slot))
   );
 }
 

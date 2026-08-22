@@ -9,11 +9,10 @@ import {
 
 const cursor: Cursor = {
   committedWindow: {
-    discontinuitySequence: 0,
     epoch: 1,
-    firstMediaSequenceNumber: 3810,
-    lastMediaSequenceNumber: 3812,
-    renditions: {
+    firstSequenceNumber: 3810,
+    lastSequenceNumber: 3812,
+    tracks: {
       v1080: {
         init: {
           commitId: "commit_init",
@@ -21,26 +20,25 @@ const cursor: Cursor = {
           objectKey: "media/v1080/init.mp4",
           slotId: "slot_init",
         },
-        renditionId: "v1080",
+        trackId: "v1080",
         segments: [
           {
-            duration: 2,
-            mediaSequenceNumber: 3812,
+            sequenceNumber: 3812,
             parts: [
               {
                 commitId: "commit_3812_0",
                 deliveryUrl: "/media/3812.0.m4s",
-                duration: 0.5,
                 objectKey: "media/3812.0.m4s",
                 partNumber: 0,
+                profile: { duration: 0.5 },
                 slotId: "slot_3812_0",
               },
               {
                 commitId: "commit_3812_1",
                 deliveryUrl: "/media/3812.1.m4s",
-                duration: 0.5,
                 objectKey: "media/3812.1.m4s",
                 partNumber: 1,
+                profile: { duration: 0.5 },
                 slotId: "slot_3812_1",
               },
             ],
@@ -49,52 +47,49 @@ const cursor: Cursor = {
       },
     },
   },
+  deliveryBaseUrl: "https://media.example.com",
   epoch: 1,
-  latencyProfile: "object-ll",
   olos: "1.0",
-  mediaBaseUrl: "https://media.example.com",
-  partTarget: 0.5,
-  segmentTarget: 2,
+  profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
   sessionId: "session_1",
   state: "live",
   updatedAt: "2026-01-01T00:00:02.000Z",
   window: {
-    firstMediaSequenceNumber: 3810,
-    lastMediaSequenceNumber: 3812,
+    firstSequenceNumber: 3810,
+    lastSequenceNumber: 3812,
     lastPartNumber: 1,
   },
 };
 
-function validRendition() {
-  const rendition = cursor.committedWindow.renditions.v1080;
+function validTrack() {
+  const track = cursor.committedWindow.tracks.v1080;
 
-  if (!rendition) {
+  if (!track) {
     throw new Error("missing v1080 test fixture");
   }
 
-  return rendition;
+  return track;
 }
 
 const advancedCursor: Cursor = {
   ...cursor,
   committedWindow: {
     ...cursor.committedWindow,
-    lastMediaSequenceNumber: 3813,
-    renditions: {
+    lastSequenceNumber: 3813,
+    tracks: {
       v1080: {
-        ...validRendition(),
+        ...validTrack(),
         segments: [
-          ...validRendition().segments,
+          ...validTrack().segments,
           {
-            duration: 0.5,
-            mediaSequenceNumber: 3813,
+            sequenceNumber: 3813,
             parts: [
               {
                 commitId: "commit_3813_0",
                 deliveryUrl: "/media/3813.0.m4s",
-                duration: 0.5,
                 objectKey: "media/3813.0.m4s",
                 partNumber: 0,
+                profile: { duration: 0.5 },
                 slotId: "slot_3813_0",
               },
             ],
@@ -106,9 +101,79 @@ const advancedCursor: Cursor = {
   updatedAt: "2026-01-01T00:00:02.500Z",
   window: {
     ...cursor.window,
-    lastMediaSequenceNumber: 3813,
+    lastSequenceNumber: 3813,
     lastPartNumber: 0,
   },
+};
+
+// The audio track lags behind v1080: its own live edge is a full
+// segment at 3811 while the window-global edge is 3812 part 1.
+const laggingAudioCursor: Cursor = {
+  ...cursor,
+  committedWindow: {
+    ...cursor.committedWindow,
+    tracks: {
+      ...cursor.committedWindow.tracks,
+      a128: {
+        init: {
+          commitId: "commit_init_a128",
+          deliveryUrl: "/media/a128/init.mp4",
+          objectKey: "media/a128/init.mp4",
+          slotId: "slot_init_a128",
+        },
+        trackId: "a128",
+        segments: [
+          {
+            sequenceNumber: 3811,
+            segment: {
+              commitId: "commit_a128_3811",
+              deliveryUrl: "/media/a128/3811.m4s",
+              objectKey: "media/a128/3811.m4s",
+              profile: { duration: 2 },
+              slotId: "slot_a128_3811",
+            },
+          },
+        ],
+      },
+    },
+  },
+};
+
+function laggingAudioTrack() {
+  const track = laggingAudioCursor.committedWindow.tracks.a128;
+
+  if (!track) {
+    throw new Error("missing a128 test fixture");
+  }
+
+  return track;
+}
+
+const caughtUpAudioCursor: Cursor = {
+  ...laggingAudioCursor,
+  committedWindow: {
+    ...laggingAudioCursor.committedWindow,
+    tracks: {
+      ...laggingAudioCursor.committedWindow.tracks,
+      a128: {
+        ...laggingAudioTrack(),
+        segments: [
+          ...laggingAudioTrack().segments,
+          {
+            sequenceNumber: 3812,
+            segment: {
+              commitId: "commit_a128_3812",
+              deliveryUrl: "/media/a128/3812.m4s",
+              objectKey: "media/a128/3812.m4s",
+              profile: { duration: 2 },
+              slotId: "slot_a128_3812",
+            },
+          },
+        ],
+      },
+    },
+  },
+  updatedAt: "2026-01-01T00:00:02.500Z",
 };
 
 describe("HLS blocking reload", () => {
@@ -118,7 +183,7 @@ describe("HLS blocking reload", () => {
         "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3812&_HLS_part=1"
       )
     ).toEqual({
-      mediaSequenceNumber: 3812,
+      sequenceNumber: 3812,
       partNumber: 1,
     });
   });
@@ -133,12 +198,12 @@ describe("HLS blocking reload", () => {
   test("returns ready for positions already covered by the cursor", () => {
     expect(
       resolveHlsBlockingReload(cursor, {
-        mediaSequenceNumber: 3812,
+        sequenceNumber: 3812,
         partNumber: 1,
       })
     ).toEqual({
       request: {
-        mediaSequenceNumber: 3812,
+        sequenceNumber: 3812,
         partNumber: 1,
       },
       status: "ready",
@@ -148,12 +213,12 @@ describe("HLS blocking reload", () => {
   test("returns ready for older media sequences regardless of requested part", () => {
     expect(
       resolveHlsBlockingReload(cursor, {
-        mediaSequenceNumber: 3811,
+        sequenceNumber: 3811,
         partNumber: 999,
       })
     ).toEqual({
       request: {
-        mediaSequenceNumber: 3811,
+        sequenceNumber: 3811,
         partNumber: 999,
       },
       status: "ready",
@@ -163,12 +228,12 @@ describe("HLS blocking reload", () => {
   test("blocks when the request is beyond the live cursor", () => {
     expect(
       resolveHlsBlockingReload(cursor, {
-        mediaSequenceNumber: 3812,
+        sequenceNumber: 3812,
         partNumber: 2,
       })
     ).toEqual({
       request: {
-        mediaSequenceNumber: 3812,
+        sequenceNumber: 3812,
         partNumber: 2,
       },
       status: "block",
@@ -176,11 +241,11 @@ describe("HLS blocking reload", () => {
 
     expect(
       resolveHlsBlockingReload(cursor, {
-        mediaSequenceNumber: 3813,
+        sequenceNumber: 3813,
       })
     ).toEqual({
       request: {
-        mediaSequenceNumber: 3813,
+        sequenceNumber: 3813,
       },
       status: "block",
     });
@@ -196,17 +261,17 @@ describe("HLS blocking reload", () => {
           ...cursor,
           committedWindow: {
             ...cursor.committedWindow,
-            renditions: {
+            tracks: {
               v1080: {
-                ...validRendition(),
+                ...validTrack(),
                 segments: [
                   {
-                    duration: 2,
-                    mediaSequenceNumber: 3812,
+                    sequenceNumber: 3812,
                     segment: {
                       commitId: "commit_3812",
                       deliveryUrl: "/media/3812.m4s",
                       objectKey: "media/3812.m4s",
+                      profile: { duration: 2 },
                       slotId: "slot_3812",
                     },
                   },
@@ -217,17 +282,138 @@ describe("HLS blocking reload", () => {
           window: segmentOnlyWindow,
         },
         {
-          mediaSequenceNumber: 3812,
+          sequenceNumber: 3812,
           partNumber: 0,
         }
       )
     ).toEqual({
       request: {
-        mediaSequenceNumber: 3812,
+        sequenceNumber: 3812,
         partNumber: 0,
       },
       status: "ready",
     });
+  });
+
+  test("resolves per-track bounds when a trackId is set", () => {
+    expect(
+      resolveHlsBlockingReload(laggingAudioCursor, {
+        sequenceNumber: 3812,
+        trackId: "a128",
+      })
+    ).toEqual({
+      request: { sequenceNumber: 3812, trackId: "a128" },
+      status: "block",
+    });
+
+    // The same request without a track context resolves against the
+    // window-global live edge and is already servable.
+    expect(
+      resolveHlsBlockingReload(laggingAudioCursor, {
+        sequenceNumber: 3812,
+      })
+    ).toEqual({
+      request: { sequenceNumber: 3812 },
+      status: "ready",
+    });
+  });
+
+  test("waits until the requested track itself reaches the position", async () => {
+    const result = await waitForHlsBlockingReload({
+      cursor: laggingAudioCursor,
+      request: { sequenceNumber: 3812, trackId: "a128" },
+      timeoutMs: 100,
+      waitForCursor: () => Promise.resolve(caughtUpAudioCursor),
+    });
+
+    expect(result).toEqual({
+      cursor: caughtUpAudioCursor,
+      request: { sequenceNumber: 3812, trackId: "a128" },
+      status: "ready",
+    });
+  });
+
+  test("treats a full-segment track tail as a segment-only live edge", () => {
+    // cursor.window.lastPartNumber is 1 (set by v1080), but a128's own tail
+    // is a full segment — part requests at its live edge never block.
+    expect(
+      resolveHlsBlockingReload(laggingAudioCursor, {
+        sequenceNumber: 3811,
+        partNumber: 4,
+        trackId: "a128",
+      })
+    ).toEqual({
+      request: {
+        sequenceNumber: 3811,
+        partNumber: 4,
+        trackId: "a128",
+      },
+      status: "ready",
+    });
+  });
+
+  test("blocks for tracks absent from the window until they appear", async () => {
+    expect(
+      resolveHlsBlockingReload(cursor, {
+        sequenceNumber: 3810,
+        trackId: "a128",
+      })
+    ).toEqual({
+      request: { sequenceNumber: 3810, trackId: "a128" },
+      status: "block",
+    });
+
+    const result = await waitForHlsBlockingReload({
+      cursor,
+      request: { sequenceNumber: 3810, trackId: "a128" },
+      timeoutMs: 100,
+      waitForCursor: () => Promise.resolve(laggingAudioCursor),
+    });
+
+    expect(result).toEqual({
+      cursor: laggingAudioCursor,
+      request: { sequenceNumber: 3810, trackId: "a128" },
+      status: "ready",
+    });
+  });
+
+  test("resolves immediately when a terminal cursor arrives mid-wait", async () => {
+    const terminalCursor: Cursor = { ...cursor, state: "ended" };
+    let waiterCalls = 0;
+
+    const result = await waitForHlsBlockingReload({
+      cursor,
+      request: { sequenceNumber: 3814 },
+      timeoutMs: 10_000,
+      waitForCursor: () => {
+        waiterCalls += 1;
+        return Promise.resolve(terminalCursor);
+      },
+    });
+
+    expect(waiterCalls).toBe(1);
+    expect(result).toEqual({
+      cursor: terminalCursor,
+      request: { sequenceNumber: 3814 },
+      status: "timeout",
+    });
+  });
+
+  test("throws when waitForCursor produces a malformed cursor", async () => {
+    await expect(
+      waitForHlsBlockingReload({
+        cursor,
+        request: { sequenceNumber: 3813 },
+        timeoutMs: 100,
+        waitForCursor: () =>
+          Promise.resolve({
+            ...cursor,
+            window: { ...cursor.window, lastPartNumber: 7 },
+          }),
+      })
+    ).rejects.toThrow(
+      "cursor.window.lastPartNumber must equal the committed window's last visible part number"
+    );
   });
 
   test("rejects part-only blocking requests", () => {
@@ -250,11 +436,21 @@ describe("HLS blocking reload", () => {
     ).toThrow("_HLS_part must be a non-negative integer");
   });
 
+  test("rejects non-canonical integer literals for _HLS_msn", () => {
+    for (const value of ["", "0x10", "1e3", " 5", "+5"]) {
+      expect(() =>
+        parseHlsBlockingReloadRequest(
+          `/v1/live/session_1/v1080/media.m3u8?_HLS_msn=${encodeURIComponent(value)}`
+        )
+      ).toThrow("_HLS_msn must be a non-negative integer");
+    }
+  });
+
   test("waits for a cursor that satisfies a blocking request", async () => {
     const result = await waitForHlsBlockingReload({
       cursor,
       request: {
-        mediaSequenceNumber: 3813,
+        sequenceNumber: 3813,
         partNumber: 0,
       },
       timeoutMs: 100,
@@ -268,7 +464,7 @@ describe("HLS blocking reload", () => {
     expect(result).toEqual({
       cursor: advancedCursor,
       request: {
-        mediaSequenceNumber: 3813,
+        sequenceNumber: 3813,
         partNumber: 0,
       },
       status: "ready",
@@ -279,7 +475,7 @@ describe("HLS blocking reload", () => {
     const result = await waitForHlsBlockingReload({
       cursor,
       request: {
-        mediaSequenceNumber: 3812,
+        sequenceNumber: 3812,
         partNumber: 1,
       },
       timeoutMs: 100,
@@ -309,7 +505,7 @@ describe("HLS blocking reload", () => {
     const result = await waitForHlsBlockingReload({
       cursor,
       request: {
-        mediaSequenceNumber: 3813,
+        sequenceNumber: 3813,
       },
       timeoutMs: 0,
       waitForCursor: () =>
@@ -319,10 +515,33 @@ describe("HLS blocking reload", () => {
     expect(result).toEqual({
       cursor,
       request: {
-        mediaSequenceNumber: 3813,
+        sequenceNumber: 3813,
       },
       status: "timeout",
     });
+  });
+
+  test("resolves immediately for terminal sessions without waiting", async () => {
+    for (const state of ["ended", "aborted"] as const) {
+      const terminalCursor = { ...cursor, state };
+      const result = await waitForHlsBlockingReload({
+        cursor: terminalCursor,
+        request: {
+          sequenceNumber: 3813,
+        },
+        timeoutMs: 100,
+        waitForCursor: () =>
+          Promise.reject(new Error("waiter should not be called")),
+      });
+
+      expect(result).toEqual({
+        cursor: terminalCursor,
+        request: {
+          sequenceNumber: 3813,
+        },
+        status: "timeout",
+      });
+    }
   });
 
   test("uses injected clock for timeout calculations", async () => {
@@ -331,7 +550,7 @@ describe("HLS blocking reload", () => {
     const result = await waitForHlsBlockingReload({
       cursor,
       request: {
-        mediaSequenceNumber: 3813,
+        sequenceNumber: 3813,
       },
       timeoutMs: 100,
       now: () => {
@@ -347,35 +566,7 @@ describe("HLS blocking reload", () => {
     expect(result).toEqual({
       cursor,
       request: {
-        mediaSequenceNumber: 3813,
-      },
-      status: "timeout",
-    });
-  });
-
-  test("uses injected clock when direct now callback is omitted", async () => {
-    let clockCalls = 0;
-
-    const result = await waitForHlsBlockingReload({
-      cursor,
-      request: {
-        mediaSequenceNumber: 3813,
-      },
-      timeoutMs: 100,
-      clock: () => {
-        clockCalls += 1;
-
-        return clockCalls === 1 ? 1000 : 2000;
-      },
-      waitForCursor: () =>
-        Promise.reject(new Error("waiter should not be called")),
-    });
-
-    expect(clockCalls).toBe(2);
-    expect(result).toEqual({
-      cursor,
-      request: {
-        mediaSequenceNumber: 3813,
+        sequenceNumber: 3813,
       },
       status: "timeout",
     });
@@ -387,10 +578,10 @@ describe("HLS blocking reload", () => {
     const result = await waitForHlsBlockingReload({
       cursor,
       request: {
-        mediaSequenceNumber: 3813,
+        sequenceNumber: 3813,
       },
       timeoutMs: 100,
-      clock: () => 1000,
+      now: () => 1000,
       sleep: (durationMs, signal) => {
         sleepCalls += 1;
 
@@ -407,7 +598,7 @@ describe("HLS blocking reload", () => {
     expect(result).toEqual({
       cursor,
       request: {
-        mediaSequenceNumber: 3813,
+        sequenceNumber: 3813,
       },
       status: "timeout",
     });
@@ -417,7 +608,7 @@ describe("HLS blocking reload", () => {
     const result = await waitForHlsBlockingReload({
       cursor,
       request: {
-        mediaSequenceNumber: 3813,
+        sequenceNumber: 3813,
       },
       sleep: () => Promise.resolve(),
       timeoutMs: 100,
@@ -427,7 +618,7 @@ describe("HLS blocking reload", () => {
     expect(result).toEqual({
       cursor,
       request: {
-        mediaSequenceNumber: 3813,
+        sequenceNumber: 3813,
       },
       status: "timeout",
     });
@@ -440,7 +631,7 @@ describe("HLS blocking reload", () => {
     const result = await waitForHlsBlockingReload({
       cursor,
       request: {
-        mediaSequenceNumber: 3813,
+        sequenceNumber: 3813,
       },
       timeoutMs: 100,
       now: () => {

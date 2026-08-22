@@ -19,8 +19,8 @@
  * publisher MUST set them so the part slots and the eventual segment slot
  * agree on the segment address; the convention is to derive them from a
  * shared per-segment `objectKeyNonce` using
- * `createPublisherObjectKey({ kind: "segment", mediaSequenceNumber,
- * objectKeyNonce, renditionId })`. Future revisions may move derivation
+ * `createPublisherObjectKey({ kind: "segment", sequenceNumber,
+ * objectKeyNonce, trackId })`. Future revisions may move derivation
  * server-side; for now they are publisher-supplied.
  */
 export interface Byterange {

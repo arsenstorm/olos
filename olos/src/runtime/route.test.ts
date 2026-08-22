@@ -9,12 +9,6 @@ import {
   liveRouteParts,
   routeIdentifierError,
   routeParts,
-  S3_ROUTE_ACTIONS,
-  S3_SESSION_ROUTE_SEGMENT,
-  s3CompletionHintRoutePath,
-  s3CompletionHintRoutePathFromOptions,
-  s3RoutePath,
-  s3RoutePathFromOptions,
   sessionRootPath,
   sessionRootPathFromOptions,
   sessionRouteParts,
@@ -119,32 +113,6 @@ describe("route path builders", () => {
     );
   });
 
-  test("builds S3 session route paths", () => {
-    expect(s3RoutePathFromOptions("session_1", S3_ROUTE_ACTIONS.commits)).toBe(
-      "/sessions/session_1/s3/commits"
-    );
-    expect(
-      s3RoutePathFromOptions("session_1", S3_ROUTE_ACTIONS.commits, {
-        sessionPath: "custom",
-      })
-    ).toBe("/custom/session_1/s3/commits");
-    expect(
-      s3RoutePath(DEFAULT_SESSION_PATH, "session_1", S3_ROUTE_ACTIONS.commits)
-    ).toBe("/sessions/session_1/s3/commits");
-
-    expect(
-      s3CompletionHintRoutePath(DEFAULT_SESSION_PATH, "session_1", "slot 1")
-    ).toBe("/sessions/session_1/upload-slots/slot%201/complete");
-    expect(s3CompletionHintRoutePathFromOptions("session_1", "slot 1")).toBe(
-      "/sessions/session_1/upload-slots/slot%201/complete"
-    );
-    expect(
-      s3CompletionHintRoutePathFromOptions("session_1", "slot 1", {
-        sessionPath: "custom",
-      })
-    ).toBe("/custom/session_1/upload-slots/slot%201/complete");
-  });
-
   test("builds live route paths", () => {
     expect(liveMasterPath(DEFAULT_LIVE_PATH, "session_1")).toBe(
       "/v1/live/session_1/master.m3u8"
@@ -153,10 +121,6 @@ describe("route path builders", () => {
     expect(liveMediaPath(DEFAULT_LIVE_PATH, "session_1", "v1080")).toBe(
       "/v1/live/session_1/v1080/media.m3u8"
     );
-  });
-
-  test("exposes S3 route segment constants", () => {
-    expect(S3_SESSION_ROUTE_SEGMENT).toBe("s3");
   });
 
   test("rejects unsafe route path segments", () => {
@@ -171,7 +135,7 @@ describe("route path builders", () => {
   test("rejects unsafe route path shapes", () => {
     for (const routePath of ["", "sessions", "//sessions", "/sessions\n"]) {
       expect(() => assertRoutePath(routePath, "sessionPath")).toThrow(
-        "sessionPath must be a safe route path"
+        "sessionPath must be a safe relative path"
       );
     }
   });

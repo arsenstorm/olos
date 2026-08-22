@@ -1,7 +1,7 @@
-import { hasControlCharacter } from "../validation/fields";
+import { assertSafeRelativePath } from "../hls/uri";
+import { errorMessage } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
-import { errorMessage } from "./errors";
-import { trimSlashes } from "./path";
+import { trimSlashes } from "../validation/path";
 
 export const DEFAULT_LIVE_PATH = "/v1/live";
 export const DEFAULT_SESSION_PATH = "/sessions";
@@ -15,20 +15,8 @@ export const SESSION_ROUTE_ACTIONS = {
   transition: "transition",
 } as const;
 
-export const S3_ROUTE_ACTIONS = {
-  completionHint: "upload-slots",
-  commits: "commits",
-  events: "events",
-  reconcile: "reconcile",
-  reconcilePlan: "reconcile-plan",
-  retention: "retention",
-  slots: "slots",
-} as const;
-
-export const S3_SESSION_ROUTE_SEGMENT = "s3";
 const LIVE_MASTER_PLAYLIST_PATH = "master.m3u8";
 const LIVE_MEDIA_PLAYLIST_PATH = "media.m3u8";
-export const S3_COMPLETION_HINT_ACTION = "complete";
 
 export function sessionRootPath(sessionPath: string): string {
   return normalizePath(sessionPath);
@@ -54,48 +42,6 @@ export function sessionRoutePathFromOptions(
   );
 }
 
-export function s3RoutePath(
-  sessionPath: string,
-  sessionId: string,
-  action: string
-): string {
-  return sessionRoutePath(
-    sessionPath,
-    sessionId,
-    `${S3_SESSION_ROUTE_SEGMENT}/${action}`
-  );
-}
-
-export function s3RoutePathFromOptions(
-  sessionId: string,
-  action: string,
-  options: { sessionPath?: string } = {}
-): string {
-  return s3RoutePath(sessionRootPathFromOptions(options), sessionId, action);
-}
-
-export function s3CompletionHintRoutePath(
-  sessionPath: string,
-  sessionId: string,
-  slotId: string
-): string {
-  return `${sessionRoutePath(sessionPath, sessionId, S3_ROUTE_ACTIONS.completionHint)}/${encodeURIComponent(
-    slotId
-  )}/${S3_COMPLETION_HINT_ACTION}`;
-}
-
-export function s3CompletionHintRoutePathFromOptions(
-  sessionId: string,
-  slotId: string,
-  options: { sessionPath?: string } = {}
-): string {
-  return s3CompletionHintRoutePath(
-    sessionRootPathFromOptions(options),
-    sessionId,
-    slotId
-  );
-}
-
 export function sessionRootPathFromOptions(
   options: { sessionPath?: string } = {}
 ): string {
@@ -115,13 +61,6 @@ export function sessionRouteParts(
   return routeParts(pathname, sessionRootPathFromOptions(options));
 }
 
-export function s3RouteParts(
-  pathname: string,
-  options: { sessionPath?: string } = {}
-): "invalid" | readonly string[] | undefined {
-  return sessionRouteParts(pathname, options);
-}
-
 export function liveRouteParts(
   pathname: string,
   options: { livePath?: string } = {}
@@ -138,11 +77,11 @@ export function liveMasterPath(livePath: string, sessionId: string): string {
 export function liveMediaPath(
   livePath: string,
   sessionId: string,
-  renditionId: string
+  trackId: string
 ): string {
   return `${sessionRootPath(livePath)}/${encodeURIComponent(
     sessionId
-  )}/${encodeURIComponent(renditionId)}/${LIVE_MEDIA_PLAYLIST_PATH}`;
+  )}/${encodeURIComponent(trackId)}/${LIVE_MEDIA_PLAYLIST_PATH}`;
 }
 
 export function routeParts(
@@ -189,33 +128,8 @@ export function routeIdentifierError(
 }
 
 export function assertRoutePath(value: string, name: string): void {
-  assertRoutePathShape(value, name);
-  assertRoutePathHasNoQueryOrFragment(value, name);
+  assertSafeRelativePath(value, name);
   assertRoutePathSegments(value, name);
-}
-
-function assertRoutePathShape(value: string, name: string): void {
-  if (isUnsafeRoutePathShape(value)) {
-    throw new Error(`${name} must be a safe route path`);
-  }
-}
-
-function isUnsafeRoutePathShape(value: string): boolean {
-  return (
-    value.length === 0 ||
-    !value.startsWith("/") ||
-    value.startsWith("//") ||
-    hasControlCharacter(value)
-  );
-}
-
-function assertRoutePathHasNoQueryOrFragment(
-  value: string,
-  name: string
-): void {
-  if (value.includes("?") || value.includes("#")) {
-    throw new Error(`${name} must not contain query strings or fragments`);
-  }
 }
 
 function assertRoutePathSegments(value: string, name: string): void {

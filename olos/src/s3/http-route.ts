@@ -1,10 +1,10 @@
+import { routeSessionIdError } from "../runtime/http-parse";
+import { routeIdentifierError, sessionRouteParts } from "../runtime/route";
 import {
-  routeIdentifierError,
   S3_COMPLETION_HINT_ACTION,
   S3_ROUTE_ACTIONS,
   S3_SESSION_ROUTE_SEGMENT,
-  s3RouteParts,
-} from "../runtime/route";
+} from "./route";
 
 interface InvalidS3Route {
   message: string;
@@ -52,7 +52,8 @@ interface S3SessionRouteParts {
   sessionId: string;
 }
 
-interface S3CompletionHintRouteCandidate {
+/** The route path split into its named positions, before any matching. */
+interface S3RouteCandidate {
   action: string | undefined;
   completion: string | undefined;
   parts: readonly string[];
@@ -60,8 +61,13 @@ interface S3CompletionHintRouteCandidate {
   sessionId: string | undefined;
 }
 
-type S3CompletionHintRouteShape = S3CompletionHintRouteCandidate & {
+type S3CompletionHintRouteShape = S3RouteCandidate & {
   action: string;
+  sessionId: string;
+};
+
+type S3SessionRouteShape = S3RouteCandidate & {
+  action: S3SessionRouteAction;
   sessionId: string;
 };
 
@@ -69,7 +75,7 @@ type MatchedS3RouteParts = Extract<S3Route, { status: "matched" }>;
 
 export function s3Route(request: Request, options: S3RouteOptions): S3Route {
   const url = new URL(request.url);
-  const parts = s3RouteParts(url.pathname, options);
+  const parts = sessionRouteParts(url.pathname, options);
 
   if (parts === undefined) {
     return { status: "not_s3" };
@@ -98,13 +104,14 @@ function matchedS3RouteParts(
   parts: readonly string[]
 ): MatchedS3RouteParts | undefined {
   const [sessionId, provider, action, completion] = parts;
-  const completionHintParts = s3CompletionHintRouteParts(
-    parts,
-    sessionId,
-    provider,
+  const candidate: S3RouteCandidate = {
     action,
-    completion
-  );
+    completion,
+    parts,
+    provider,
+    sessionId,
+  };
+  const completionHintParts = s3CompletionHintRouteParts(candidate);
 
   if (completionHintParts !== undefined) {
     return {
@@ -115,7 +122,7 @@ function matchedS3RouteParts(
     };
   }
 
-  const sessionParts = s3SessionRouteParts(parts, sessionId, provider, action);
+  const sessionParts = s3SessionRouteParts(candidate);
 
   if (sessionParts === undefined) {
     return;
@@ -129,14 +136,8 @@ function matchedS3RouteParts(
 }
 
 function s3CompletionHintRouteParts(
-  parts: readonly string[],
-  sessionId: string | undefined,
-  provider: string | undefined,
-  action: string | undefined,
-  completion: string | undefined
+  candidate: S3RouteCandidate
 ): S3CompletionHintRouteParts | undefined {
-  const candidate = { action, completion, parts, provider, sessionId };
-
   if (!isS3CompletionHintRouteShape(candidate)) {
     return;
   }
@@ -145,7 +146,7 @@ function s3CompletionHintRouteParts(
 }
 
 function isS3CompletionHintRouteShape(
-  candidate: S3CompletionHintRouteCandidate
+  candidate: S3RouteCandidate
 ): candidate is S3CompletionHintRouteShape {
   return (
     candidate.sessionId !== undefined &&
@@ -157,21 +158,24 @@ function isS3CompletionHintRouteShape(
 }
 
 function s3SessionRouteParts(
-  parts: readonly string[],
-  sessionId: string | undefined,
-  provider: string | undefined,
-  action: string | undefined
+  candidate: S3RouteCandidate
 ): S3SessionRouteParts | undefined {
-  if (
-    sessionId === undefined ||
-    provider !== S3_SESSION_ROUTE_SEGMENT ||
-    !isS3SessionRouteAction(action) ||
-    parts.length !== 3
-  ) {
+  if (!isS3SessionRouteShape(candidate)) {
     return;
   }
 
-  return { action, sessionId };
+  return { action: candidate.action, sessionId: candidate.sessionId };
+}
+
+function isS3SessionRouteShape(
+  candidate: S3RouteCandidate
+): candidate is S3SessionRouteShape {
+  return (
+    candidate.sessionId !== undefined &&
+    candidate.provider === S3_SESSION_ROUTE_SEGMENT &&
+    isS3SessionRouteAction(candidate.action) &&
+    candidate.parts.length === 3
+  );
 }
 
 function isS3SessionRouteAction(
@@ -205,27 +209,19 @@ function invalidPostS3Route(
     return;
   }
 
-  const slotIdError = routeSlotIdError(route.slotId);
+  const slotIdError = routeIdentifierError(
+    route.slotId,
+    "slotId",
+    "invalid route slotId"
+  );
 
   if (slotIdError !== undefined) {
     return invalidS3Route(slotIdError);
   }
 }
 
-function routeSessionIdError(sessionId: string): string | undefined {
-  return routeIdentifierError(
-    sessionId,
-    "sessionId",
-    "invalid route sessionId"
-  );
-}
-
-function routeSlotIdError(slotId: string): string | undefined {
-  return routeIdentifierError(slotId, "slotId", "invalid route slotId");
-}
-
 function invalidS3Route(message: string): InvalidS3Route {
   return { message, status: "invalid" };
 }
 
-export type { InvalidS3Route, S3Route };
+export type { S3Route };

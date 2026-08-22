@@ -1,30 +1,42 @@
+import type { HlsCursorWaitContext } from "../hls/blocking-reload";
+import type {
+  BlockingHlsManifestArtifactResponseResolution,
+  CreateCoordinatorManifestArtifactsOptions,
+  CreateHlsManifestArtifactResponseOptions,
+} from "../hls/manifest-artifact-types";
+import { createCoordinatorManifestArtifacts } from "../hls/manifest-artifacts";
 import {
-  type BlockingHlsManifestArtifactResponseResolution,
-  type CreateHlsManifestArtifactResponseOptions,
   createHlsManifestArtifactResponse,
   createHlsManifestErrorWebResponse,
   createHlsManifestWebResponse,
-  type HlsCursorWaitContext,
-  type HlsManifestErrorResolution,
   resolveBlockingHlsManifestArtifactResponse,
   resolveHlsManifestArtifactResponse,
-} from "../hls";
-import {
-  type CreateCoordinatorManifestArtifactsOptions,
-  createCoordinatorManifestArtifacts,
-} from "../protocol/coordinator";
+} from "../hls/manifest-response";
 
+/**
+ * Playlist request: a web `Request` or a plain URL string. The URL's
+ * pathname selects which rendered playlist to serve; its `_HLS_msn` /
+ * `_HLS_part` query parameters drive blocking reloads.
+ */
 export type RuntimeManifestRequest = Request | string;
 
+/** Options for `serveCoordinatorManifest`. */
 export interface ServeCoordinatorManifestOptions
   extends CreateCoordinatorManifestArtifactsOptions {
   request: RuntimeManifestRequest;
+  /** Cache policy overrides for the manifest response. */
   response?: CreateHlsManifestArtifactResponseOptions;
 }
 
+/** Options for `serveBlockingCoordinatorManifest`. */
 export interface ServeBlockingCoordinatorManifestOptions
   extends ServeCoordinatorManifestOptions {
+  /** Max time the blocking reload is held open, in milliseconds. */
   timeoutMs: number;
+  /**
+   * Resolves with a newer cursor once the session advances (typically a
+   * `RuntimeCursorNotifier`'s `waitForCursor`), or `undefined` on abort.
+   */
   waitForCursor: (
     context: HlsCursorWaitContext
   ) => Promise<HlsCursorWaitContext["cursor"] | undefined>;
@@ -35,14 +47,30 @@ type ServableBlockingCoordinatorManifestResolution = Extract<
   { status: "ready" | "timeout" }
 >;
 
+/**
+ * Render the playlists for the given coordinator state and return the HTTP
+ * response for the one matching the request URL's pathname. Returns a 404
+ * when the state has no cursor yet or the path matches no playlist.
+ */
 export function serveCoordinatorManifest(
   options: ServeCoordinatorManifestOptions
 ): Response {
   const resolved = resolveCoordinatorManifestResponse(options);
 
-  return optionalManifestResponse(resolved);
+  return resolved === undefined
+    ? manifestNotFoundResponse()
+    : createHlsManifestWebResponse(resolved);
 }
 
+/**
+ * Serve a media playlist with low-latency blocking reload support. When the
+ * request carries `_HLS_msn` / `_HLS_part` parameters ahead of the current
+ * cursor, the response is held open via `waitForCursor` until the session
+ * reaches that position or `timeoutMs` (milliseconds) elapses — on timeout
+ * the playlist rendered from the newest cursor is served anyway. Returns a
+ * 404 when the state has no cursor yet or the path matches no playlist,
+ * and a 400 for malformed reload parameters.
+ */
 export async function serveBlockingCoordinatorManifest(
   options: ServeBlockingCoordinatorManifestOptions
 ): Promise<Response> {
@@ -99,28 +127,14 @@ function manifestArtifactResponses(
   }));
 }
 
-function optionalManifestResponse(
-  resolved: ReturnType<typeof resolveHlsManifestArtifactResponse>
-): Response {
-  return resolved === undefined
-    ? manifestNotFoundResponse()
-    : createHlsManifestWebResponse(resolved);
-}
-
 function blockingManifestResponse(
   resolved: BlockingHlsManifestArtifactResponseResolution
 ): Response {
-  if (isHlsManifestErrorResolution(resolved)) {
+  if (!isServableBlockingCoordinatorManifestResolution(resolved)) {
     return createHlsManifestErrorWebResponse(resolved);
   }
 
   return createHlsManifestWebResponse(resolved.response);
-}
-
-function isHlsManifestErrorResolution(
-  resolved: BlockingHlsManifestArtifactResponseResolution
-): resolved is HlsManifestErrorResolution {
-  return !isServableBlockingCoordinatorManifestResolution(resolved);
 }
 
 function isServableBlockingCoordinatorManifestResolution(

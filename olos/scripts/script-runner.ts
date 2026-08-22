@@ -25,7 +25,7 @@ export async function runCommand(
   });
 
   if (options.reject !== false && exitCode !== 0) {
-    throw new Error(commandExitMessage(command, args, exitCode));
+    throw new Error(commandExitMessage({ args, command, exitCode }));
   }
 
   return exitCode;
@@ -54,7 +54,13 @@ export async function runCommandAndCapture(
 
   if (options.reject !== false && exitCode !== 0) {
     throw new Error(
-      commandExitMessage(command, args, exitCode, output.stdout, output.stderr)
+      commandExitMessage({
+        args,
+        command,
+        exitCode,
+        stderr: output.stderr,
+        stdout: output.stdout,
+      })
     );
   }
 
@@ -113,15 +119,20 @@ function waitForExit(child: ReturnType<typeof spawn>): Promise<number | null> {
   });
 }
 
-function commandExitMessage(
-  command: string,
-  args: readonly string[],
-  exitCode: number | null,
-  stdout = "",
-  stderr = ""
-): string {
-  const base = `${command} ${args.join(" ")} exited with ${exitCode}`;
-  const details = capturedCommandOutputDetails({ stderr, stdout });
+interface CommandExit {
+  args: readonly string[];
+  command: string;
+  exitCode: number | null;
+  stderr?: string;
+  stdout?: string;
+}
+
+function commandExitMessage(exit: CommandExit): string {
+  const base = `${exit.command} ${exit.args.join(" ")} exited with ${exit.exitCode}`;
+  const details = capturedCommandOutputDetails({
+    stderr: exit.stderr ?? "",
+    stdout: exit.stdout ?? "",
+  });
 
   return `${base}${details ? `\n${details}` : ""}`;
 }
@@ -167,17 +178,24 @@ function stripAnsi(value: string): string {
       continue;
     }
 
-    index += 2;
-
-    while (index < value.length) {
-      const code = value.charCodeAt(index);
-      index += 1;
-
-      if (code >= 0x40 && code <= 0x7e) {
-        break;
-      }
-    }
+    index = csiSequenceEnd(value, index + 2);
   }
 
   return result;
+}
+
+/** Index just past the final byte (0x40-0x7e) of a CSI escape sequence. */
+function csiSequenceEnd(value: string, start: number): number {
+  let index = start;
+
+  while (index < value.length) {
+    const code = value.charCodeAt(index);
+    index += 1;
+
+    if (code >= 0x40 && code <= 0x7e) {
+      return index;
+    }
+  }
+
+  return index;
 }

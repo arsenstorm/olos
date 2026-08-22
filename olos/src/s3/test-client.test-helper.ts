@@ -8,6 +8,8 @@ import type { S3HeadObjectClient } from "./object-observation";
 type ObjectSizeResolver = (objectKey: string) => number | undefined;
 
 interface HeadObjectClientOptions {
+  /** Per-object `content-type`; defaults to video/mp4. */
+  contentTypes?: Record<string, string>;
   lastModified?: Record<string, string>;
   metadata?: Record<string, Record<string, string>>;
   missingObjectError?: (objectKey: string) => string;
@@ -37,24 +39,14 @@ export function createTestS3Client(): S3Client {
 export function createTestHeadObjectClient(
   sizes: Record<string, number> | ObjectSizeResolver,
   inputs: unknown[],
-  contentTypes: Record<string, string> = {},
-  lastModified: Record<string, string> = {},
   options: HeadObjectClientOptions = {}
 ): S3HeadObjectClient {
-  return createTestHeadObjectClientFor(
-    inputs,
-    sizes,
-    contentTypes,
-    lastModified,
-    options
-  );
+  return createTestHeadObjectClientFor(inputs, sizes, options);
 }
 
 export function createTestHeadObjectClientFor(
   inputs: unknown[],
   sizes: Record<string, number> | ObjectSizeResolver,
-  contentTypes: Record<string, string> = {},
-  lastModified: Record<string, string> = {},
   options: HeadObjectClientOptions = {}
 ): S3HeadObjectClient {
   const resolveSize = createObjectSizeResolver(sizes);
@@ -77,8 +69,8 @@ export function createTestHeadObjectClientFor(
       const objectMetadata = createHeadObjectMetadata(objectKey, metadata);
       return Promise.resolve(
         createHeadObjectOutput(objectKey, size, {
-          contentTypes,
-          lastModified,
+          contentTypes: options.contentTypes ?? {},
+          lastModified: options.lastModified ?? {},
           metadata: objectMetadata,
         })
       );
@@ -120,20 +112,25 @@ export function createTestHeadObjectClientForSingle(
   objectKey: string,
   size: number,
   inputs: unknown[],
-  contentType = "video/mp4",
-  metadata?: Record<string, string>,
-  missingObjectError?: (objectKey: string) => string
+  options: {
+    contentType?: string;
+    metadata?: Record<string, string>;
+    missingObjectError?: (objectKey: string) => string;
+  } = {}
 ): S3HeadObjectClient {
+  const { contentType = DEFAULT_HEAD_OBJECT_CONTENT_TYPE, metadata } = options;
+
   return createTestHeadObjectClientFor(
     inputs,
     { [objectKey]: size },
-    { [objectKey]: contentType },
-    {},
     {
+      contentTypes: { [objectKey]: contentType },
       ...(metadata === undefined
         ? {}
         : { metadata: { [objectKey]: metadata } }),
-      ...(missingObjectError === undefined ? {} : { missingObjectError }),
+      ...(options.missingObjectError === undefined
+        ? {}
+        : { missingObjectError: options.missingObjectError }),
     }
   );
 }

@@ -1,121 +1,165 @@
-import {
-  type CreateDeliveryCachePolicyOptions,
-  createDeliveryCachePolicy,
-} from "../state/cache-policy";
+import type { MediaSession, MediaTrack } from "../media/types";
+import { assertMediaCursor, assertMediaSession } from "../media/validation";
+import { isEndOfStreamSessionState } from "../state/session";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
-import type { Rendition, Session } from "../types/session";
+import type { Session } from "../types/session";
 import {
-  type HlsBlockingReloadRequest,
-  parseHlsBlockingReloadRequest,
-  type WaitForHlsBlockingReloadOptions,
-  waitForHlsBlockingReload,
-} from "./blocking-reload";
+  type CoordinatorHlsManifestOptions,
+  type CoordinatorManifestArtifacts,
+  type CreateCoordinatorManifestArtifactsOptions,
+  type CreateHlsManifestArtifactsOptions,
+  HLS_CONTENT_TYPE,
+  type HlsManifestArtifact,
+} from "./manifest-artifact-types";
 import {
-  type RenderMasterPlaylistOptions,
-  renderMasterPlaylist,
-} from "./master-playlist";
+  defaultMasterPath,
+  defaultMediaPlaylistPath,
+} from "./manifest-request-parse";
+import { renderMasterPlaylist } from "./master-playlist";
 import {
   type RenderMediaPlaylistOptions,
   renderMediaPlaylist,
 } from "./media-playlist";
-import { assertSafeRelativePath, HLS_RELATIVE_REQUEST_BASE_URL } from "./uri";
+import { assertSafeRelativePath } from "./uri";
 
-const HLS_CONTENT_TYPE = "application/vnd.apple.mpegurl";
-const HLS_TEXT_ERROR_CONTENT_TYPE = "text/plain; charset=utf-8";
-
-export interface HlsManifestArtifact {
-  body: string;
-  contentType: typeof HLS_CONTENT_TYPE;
-  path: string;
-}
-
-export interface HlsManifestArtifactResponse {
-  body: string;
-  headers: Record<string, string>;
-  status: 200;
-}
-
-export interface HlsManifestResponseArtifact extends HlsManifestArtifact {
-  response: HlsManifestArtifactResponse;
-}
-
-export interface CreateHlsManifestArtifactResponseOptions
-  extends Omit<CreateDeliveryCachePolicyOptions, "target"> {}
-
-export interface CreateHlsManifestArtifactsOptions
-  extends Omit<RenderMediaPlaylistOptions, "renditionId"> {
-  masterPath?: string;
-  mediaPlaylistPath?: RenderMasterPlaylistOptions["mediaPlaylistPath"];
-}
-
-export interface ResolveBlockingHlsManifestArtifactResponseOptions {
-  cursor: Cursor;
-  manifest: CreateHlsManifestArtifactsOptions;
-  requestUrl: string;
-  response?: CreateHlsManifestArtifactResponseOptions;
-  session: Session;
-  timeoutMs: number;
-  waitForCursor: WaitForHlsBlockingReloadOptions["waitForCursor"];
-}
-
-export type BlockingHlsManifestArtifactResponseResolution =
-  | {
-      cursor: Cursor;
-      response: HlsManifestArtifactResponse;
-      status: "ready" | "timeout";
-    }
-  | {
-      status: "not_found";
-    }
-  | {
-      message: string;
-      status: "invalid";
-    };
-
-export type HlsManifestErrorResolution = Extract<
-  BlockingHlsManifestArtifactResponseResolution,
-  { status: "invalid" | "not_found" }
->;
-
-type InvalidParsedBlockingReloadRequest = Extract<
-  BlockingHlsManifestArtifactResponseResolution,
-  { status: "invalid" }
->;
-
-type VideoRendition = Rendition & { kind: "video" };
-
-type ParsedBlockingReloadRequest =
-  | HlsBlockingReloadRequest
-  | InvalidParsedBlockingReloadRequest;
-
-type ServableBlockingReloadWait = Extract<
-  Awaited<ReturnType<typeof waitForHlsBlockingReload>>,
-  { status: "ready" | "timeout" }
->;
-
+/**
+ * Renders the full playlist set for a session: the master playlist plus one
+ * media playlist per video track and per grouped audio track (audio
+ * tracks without a `groupId` stay muxed into the video variants and get
+ * no standalone playlist). Tracks absent from the committed window (no
+ * media commits yet) are excluded from both the master playlist and the
+ * media-playlist set, so every advertised URI resolves; they appear on the
+ * next render after their first commit. A window with no video track
+ * yields no master artifact (master requests 404 until video media
+ * commits). When `options.endOfStream` is unset, it defaults
+ * to whether `session.state` is terminal (`ended` or `aborted`), which makes
+ * the media playlists emit `#EXT-X-ENDLIST`. Throws if the session is not a
+ * valid CMAF/LL-HLS media session or the paths or rendering options are
+ * invalid.
+ */
 export function createHlsManifestArtifacts(
   session: Session,
   committedWindow: CommittedWindow,
   options: CreateHlsManifestArtifactsOptions
 ): HlsManifestArtifact[] {
+  assertMediaSession(session);
+
   const masterPath = options.masterPath ?? defaultMasterPath(session);
   const mediaPlaylistPath =
     options.mediaPlaylistPath ?? defaultMediaPlaylistPath;
+  const availableTrackIds = new Set(Object.keys(committedWindow.tracks));
+  const master = hasAvailableVideoTrack(session, availableTrackIds)
+    ? [
+        createMasterPlaylistArtifact(
+          session,
+          availableTrackIds,
+          mediaPlaylistPath,
+          masterPath
+        ),
+      ]
+    : [];
 
   return [
-    createMasterPlaylistArtifact(session, mediaPlaylistPath, masterPath),
+    ...master,
     ...createMediaPlaylistArtifacts(
-      session,
-      committedWindow,
-      mediaPlaylistPath,
-      options
+      {
+        committedWindow,
+        mediaPlaylistPath,
+        options: {
+          ...options,
+          endOfStream:
+            options.endOfStream ?? isEndOfStreamSessionState(session.state),
+        },
+        session,
+      },
+      availableTrackIds
     ),
   ];
 }
 
-function createMasterPlaylistArtifact(
+/**
+ * Renders manifest artifacts from coordinator state. Returns an empty
+ * artifact list when the state has no cursor yet (nothing committed).
+ * `partTarget`, `segmentTarget`, and the discontinuity baseline are read
+ * from the cursor's CMAF/LL-HLS profile, and — unlike
+ * `createHlsManifestArtifacts` — the `endOfStream` default is derived from
+ * the cursor's session state rather than `session.state`, so terminal
+ * cursors emit `#EXT-X-ENDLIST` in the media playlists.
+ */
+export function createCoordinatorManifestArtifacts(
+  options: CreateCoordinatorManifestArtifactsOptions
+): CoordinatorManifestArtifacts {
+  const cursor = options.state.cursor;
+
+  if (cursor === undefined) {
+    return { artifacts: [] };
+  }
+
+  const { state, ...manifestOptions } = options;
+
+  return {
+    artifacts: createHlsManifestArtifacts(
+      state.session,
+      cursor.committedWindow,
+      {
+        ...cursorManifestOptions(cursor, manifestOptions),
+        endOfStream:
+          manifestOptions.endOfStream ??
+          isEndOfStreamSessionState(cursor.state),
+      }
+    ),
+    cursor,
+  };
+}
+
+/**
+ * Completes coordinator manifest options with the timing targets carried by
+ * the cursor's CMAF/LL-HLS session profile. Throws when the cursor does not
+ * run the media profile.
+ */
+export function cursorManifestOptions(
+  cursor: Cursor,
+  options: CoordinatorHlsManifestOptions
+): CreateHlsManifestArtifactsOptions {
+  assertMediaCursor(cursor);
+
+  return {
+    ...options,
+    ...mediaProfileRenderOptions(cursor),
+  };
+}
+
+function mediaProfileRenderOptions(
+  cursor: Cursor & { profile: MediaSession["profile"] }
+): Pick<
+  RenderMediaPlaylistOptions,
+  "discontinuitySequence" | "partTarget" | "segmentTarget"
+> {
+  const { discontinuitySequence, partTarget, segmentTarget } = cursor.profile;
+
+  return {
+    ...(discontinuitySequence === undefined ? {} : { discontinuitySequence }),
+    partTarget,
+    segmentTarget,
+  };
+}
+
+export function hasAvailableVideoTrack(
+  session: MediaSession,
+  availableTrackIds: ReadonlySet<string>
+): boolean {
+  const tracks: readonly MediaTrack[] = session.tracks;
+
+  return tracks.some(
+    (track) =>
+      track.profile.kind === "video" && availableTrackIds.has(track.trackId)
+  );
+}
+
+export function createMasterPlaylistArtifact(
   session: Session,
+  availableTrackIds: ReadonlySet<string>,
   mediaPlaylistPath: NonNullable<
     CreateHlsManifestArtifactsOptions["mediaPlaylistPath"]
   >,
@@ -124,248 +168,65 @@ function createMasterPlaylistArtifact(
   assertSafeRelativePath(masterPath, "master playlist path");
 
   return {
-    body: renderMasterPlaylist(session, { mediaPlaylistPath }),
+    body: renderMasterPlaylist(session, {
+      availableTrackIds: [...availableTrackIds],
+      mediaPlaylistPath,
+    }),
     contentType: HLS_CONTENT_TYPE,
     path: masterPath,
   };
 }
 
-function createMediaPlaylistArtifacts(
-  session: Session,
-  committedWindow: CommittedWindow,
+/**
+ * Everything a media playlist needs except which track it is for. The
+ * four fields are fixed for a whole render, so they travel as one value
+ * rather than as four arguments repeated per track.
+ */
+interface MediaPlaylistRenderContext {
+  committedWindow: CommittedWindow;
   mediaPlaylistPath: NonNullable<
     CreateHlsManifestArtifactsOptions["mediaPlaylistPath"]
-  >,
-  options: CreateHlsManifestArtifactsOptions
-): HlsManifestArtifact[] {
-  return session.renditions
-    .filter(isVideoRendition)
-    .map((rendition) =>
-      createMediaPlaylistArtifact(
-        session,
-        committedWindow,
-        rendition,
-        mediaPlaylistPath,
-        options
-      )
-    );
+  >;
+  options: CreateHlsManifestArtifactsOptions;
+  session: Session;
 }
 
-function createMediaPlaylistArtifact(
-  session: Session,
-  committedWindow: CommittedWindow,
-  rendition: VideoRendition,
-  mediaPlaylistPath: NonNullable<
-    CreateHlsManifestArtifactsOptions["mediaPlaylistPath"]
-  >,
-  options: CreateHlsManifestArtifactsOptions
+function createMediaPlaylistArtifacts(
+  context: MediaPlaylistRenderContext & { session: MediaSession },
+  availableTrackIds: ReadonlySet<string>
+): HlsManifestArtifact[] {
+  const tracks: readonly MediaTrack[] = context.session.tracks;
+
+  return tracks
+    .filter(
+      (track) =>
+        isMediaPlaylistTrack(track) && availableTrackIds.has(track.trackId)
+    )
+    .map((track) => createMediaPlaylistArtifact(context, track));
+}
+
+export function createMediaPlaylistArtifact(
+  context: MediaPlaylistRenderContext,
+  track: MediaTrack
 ): HlsManifestArtifact {
-  const path = mediaPlaylistPath(session, rendition);
+  const path = context.mediaPlaylistPath(context.session, track);
   assertSafeRelativePath(path, "media playlist path");
 
   return {
-    body: renderMediaPlaylist(committedWindow, {
-      ...options,
-      renditionId: rendition.renditionId,
+    body: renderMediaPlaylist(context.committedWindow, {
+      ...context.options,
+      trackId: track.trackId,
     }),
     contentType: HLS_CONTENT_TYPE,
     path,
   };
 }
 
-function isVideoRendition(rendition: Rendition): rendition is VideoRendition {
-  return rendition.kind === "video";
-}
-
-export function createHlsManifestArtifactResponse(
-  artifact: HlsManifestArtifact,
-  options: CreateHlsManifestArtifactResponseOptions = {}
-): HlsManifestArtifactResponse {
-  const cache = createDeliveryCachePolicy({
-    ...options,
-    target: "manifest",
-  });
-
-  return {
-    body: artifact.body,
-    headers: {
-      "cache-control": cache.cacheControl,
-      "content-type": artifact.contentType,
-    },
-    status: 200,
-  };
-}
-
-export function createHlsManifestWebResponse(
-  response: HlsManifestArtifactResponse
-): Response {
-  return new Response(response.body, {
-    headers: response.headers,
-    status: response.status,
-  });
-}
-
-export function createHlsManifestErrorWebResponse(
-  resolution: HlsManifestErrorResolution
-): Response {
-  if (resolution.status === "invalid") {
-    return createHlsTextErrorWebResponse(resolution.message, 400);
-  }
-
-  return createHlsTextErrorWebResponse("manifest not found", 404);
-}
-
-export function resolveHlsManifestArtifactResponse(
-  artifacts: readonly HlsManifestResponseArtifact[],
-  requestPath: string
-): HlsManifestArtifactResponse | undefined {
-  const pathname = parseRequestPath(requestPath);
-
-  if (pathname === undefined) {
-    return;
-  }
-
-  return artifacts.find((artifact) => artifact.path === pathname)?.response;
-}
-
-export async function resolveBlockingHlsManifestArtifactResponse(
-  options: ResolveBlockingHlsManifestArtifactResponseOptions
-): Promise<BlockingHlsManifestArtifactResponseResolution> {
-  const request = parseBlockingReloadRequest(options.requestUrl);
-
-  if (isInvalidParsedBlockingReloadRequest(request)) {
-    return request;
-  }
-
-  const wait = await waitForHlsBlockingReload({
-    cursor: options.cursor,
-    request,
-    timeoutMs: options.timeoutMs,
-    waitForCursor: options.waitForCursor,
-  });
-
-  if (!isServableBlockingReloadWait(wait)) {
-    return wait;
-  }
-
-  return blockingHlsManifestArtifactResponseResolution(options, wait);
-}
-
-function blockingHlsManifestArtifactResponseResolution(
-  options: ResolveBlockingHlsManifestArtifactResponseOptions,
-  wait: ServableBlockingReloadWait
-): BlockingHlsManifestArtifactResponseResolution {
-  const response = resolveHlsManifestArtifactResponse(
-    createResponseArtifacts(options.session, wait.cursor, options),
-    options.requestUrl
+// Ungrouped audio is muxed into the video segments, so it never gets a
+// standalone playlist. Callers also require committed-window membership.
+export function isMediaPlaylistTrack(track: MediaTrack): boolean {
+  return (
+    track.profile.kind === "video" ||
+    (track.profile.kind === "audio" && track.profile.groupId !== undefined)
   );
-
-  if (!response) {
-    return { status: "not_found" };
-  }
-
-  return {
-    cursor: wait.cursor,
-    response,
-    status: wait.status,
-  };
-}
-
-function parseBlockingReloadRequest(
-  requestUrl: string
-): ParsedBlockingReloadRequest {
-  try {
-    return parseHlsBlockingReloadRequest(requestUrl);
-  } catch (error) {
-    return invalidParsedBlockingReloadRequest(
-      error instanceof Error ? error.message : "invalid request URL"
-    );
-  }
-}
-
-function invalidParsedBlockingReloadRequest(
-  message: string
-): InvalidParsedBlockingReloadRequest {
-  return {
-    message,
-    status: "invalid",
-  };
-}
-
-function isInvalidParsedBlockingReloadRequest(
-  request: ParsedBlockingReloadRequest
-): request is InvalidParsedBlockingReloadRequest {
-  return "status" in request;
-}
-
-function isServableBlockingReloadWait(
-  wait: Awaited<ReturnType<typeof waitForHlsBlockingReload>>
-): wait is ServableBlockingReloadWait {
-  return wait.status === "ready" || wait.status === "timeout";
-}
-
-function defaultMasterPath(session: Session): string {
-  return `/v1/live/${session.sessionId}/master.m3u8`;
-}
-
-function defaultMediaPlaylistPath(
-  session: Session,
-  rendition: Rendition
-): string {
-  return `/v1/live/${session.sessionId}/${rendition.renditionId}/media.m3u8`;
-}
-
-function parseRequestPath(value: string): string | undefined {
-  if (isRelativeRequestPath(value)) {
-    return new URL(value, HLS_RELATIVE_REQUEST_BASE_URL).pathname;
-  }
-
-  return parseAbsoluteRequestPath(value);
-}
-
-function isRelativeRequestPath(value: string): boolean {
-  return value.startsWith("/");
-}
-
-function parseAbsoluteRequestPath(value: string): string | undefined {
-  try {
-    const url = new URL(value);
-
-    if (!isHttpRequestUrl(url)) {
-      return;
-    }
-
-    return url.pathname;
-  } catch {
-    return;
-  }
-}
-
-function isHttpRequestUrl(url: URL): boolean {
-  return url.protocol === "http:" || url.protocol === "https:";
-}
-
-function createResponseArtifacts(
-  session: Session,
-  cursor: Cursor,
-  options: ResolveBlockingHlsManifestArtifactResponseOptions
-): HlsManifestResponseArtifact[] {
-  return createHlsManifestArtifacts(
-    session,
-    cursor.committedWindow,
-    options.manifest
-  ).map((artifact) => ({
-    ...artifact,
-    response: createHlsManifestArtifactResponse(artifact, options.response),
-  }));
-}
-
-function createHlsTextErrorWebResponse(
-  body: string,
-  status: 400 | 404
-): Response {
-  return new Response(body, {
-    headers: { "content-type": HLS_TEXT_ERROR_CONTENT_TYPE },
-    status,
-  });
 }

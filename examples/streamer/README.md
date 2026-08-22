@@ -15,12 +15,12 @@ example synthesises spec-compliant byte-range LL-HLS on top of ffmpeg:
    (`-hls_time 0.5`), giving a stream of micro-segments
    `part-00000.m4s`, `part-00001.m4s`, …
 2. Treats each micro-segment as an OLOS **byterange part**:
-   - `mediaSequenceNumber = floor(index / 4)` — 4 parts per logical 2 s segment
+   - `sequenceNumber = floor(index / 4)` — 4 parts per logical 2 s segment
    - `partNumber = index % 4`
    - `byterange.offset = sum of previous parts' bytes in this segment`
    - `byterange.length = bytes.length`
-   - `byterange.segmentObjectKey = live/<sid>/<rendition>/<msn>.m4s` (logical)
-   - `byterange.segmentDeliveryUrl = <MEDIA_ORIGIN>/v/<sid>/<rendition>/<msn>.m4s`
+   - `byterange.segmentObjectKey = live/<sid>/<track>/<msn>.m4s` (logical)
+   - `byterange.segmentDeliveryUrl = <MEDIA_ORIGIN>/v/<sid>/<track>/<msn>.m4s`
 3. Publishes the part as its own S3 object AND a part commit with that
    byterange. OLOS renders `#EXT-X-PART:BYTERANGE="L@O",URI="<virtual>"`
    instead of a per-part URL, and emits a
@@ -29,13 +29,15 @@ example synthesises spec-compliant byte-range LL-HLS on top of ffmpeg:
 4. When the 4th part lands, concatenates the four part files and
    publishes an OLOS segment commit.
 
-The **Worker's `/v/:session/:rendition/:msn.m4s` route** aggregates the
+The **Worker's `/v/:session/:track/:msn.m4s` route** aggregates the
 per-part S3 objects on the fly to satisfy Range requests against the
 virtual segment URL. If a Range extends past committed parts, the Worker
 holds the response open via the per-session DO cursor waiter until the
 next commit lands — the `EXT-X-PRELOAD-HINT` mechanism.
 
-End-to-end glass-to-glass latency on a local stack: **~1.5–2.5 s**, with
+Design-target end-to-end glass-to-glass latency on a local stack:
+**~1.5–2.5 s** (a curated measured baseline is pending; see the
+[benchmarks guide](../../benchmarks/README.md#reference-numbers)), with
 the manifest looking exactly like Apple's reference LL-HLS form.
 
 ### Why not Shaka Packager?
@@ -52,6 +54,9 @@ chunked output later.
 ## Prerequisites
 
 - Bun
+- A workspace install and build at the repository root: `bun install`,
+  then `bun run build`. The workspace `@arsenstorm/olos` dependency
+  resolves to `olos/dist/`.
 - `ffmpeg` on PATH (`brew install ffmpeg`, `apt install ffmpeg`, etc.)
 - The `examples/api` Worker running (`bun run dev` in `examples/api`)
 - MinIO running (`docker compose up -d` in `examples/api`)
@@ -124,16 +129,10 @@ ffmpeg -re -i some-clip.mp4 \
 
 ## What it intentionally does not show
 
-- Multiple renditions / bitrate ladder.
+- Multiple tracks / bitrate ladder.
 - Re-encode at the streamer side. `-c:v copy -c:a copy` passes OBS
   H.264 + AAC through. If your encoder uses a different codec, ffmpeg
   will fail at startup.
-- Byte-range LL-HLS parts (Apple's preferred form). OLOS's `CommittedPart`
-  expects one URL per part, so we publish each part as its own S3 object
-  rather than as a byte range inside the segment file. The wire result
-  is identical from hls.js's perspective; the cost is more S3 round-trips.
-- `#EXT-X-PRELOAD-HINT`. OLOS's manifest renderer can emit it, but it's
-  not wired up in `examples/api`.
 - Concurrent streams. `ffmpeg -listen 1` accepts exactly one RTMP
   connection then exits; re-run for the next stream.
 - Publisher heartbeat / lease.

@@ -1,0 +1,6 @@
+rules:
+  artipacked:
+    # changesets/action pushes the version branch with the checked-out git
+    # credentials, so release.yml keeps persist-credentials on.
+    ignore:
+      - release.yml

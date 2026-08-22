@@ -1,60 +1,87 @@
-import { MEDIA_OBJECT_KINDS } from "../config/media-object";
-import { UPLOAD_SLOT_STATES } from "../config/upload-slot";
+import { OBJECT_KINDS } from "../types/storage-object";
 import type { UploadSlot } from "../types/upload-slot";
-import { assertByterange, assertByterangeKind } from "./byterange";
+import { UPLOAD_SLOT_STATES } from "../types/upload-slot";
+import {
+  assertByterange,
+  assertByterangeKind,
+  BYTERANGE_FIELDS,
+} from "./byterange";
 import { assertContentType } from "./content-type";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
   assertIsoDateField,
+  assertKnownFieldsObject,
   assertNonNegativeIntegerField,
   assertOneOfField,
-  assertOnlyKnownFields,
-  assertPositiveNumberField,
+  assertPositiveIntegerField,
   assertUrlSafeField,
-  isRecord,
+  type KnownFieldsShape,
+  parseWithShape,
+  passes,
 } from "./fields";
-import { assertSafeMediaObjectKey } from "./object-key";
+import { assertSafeObjectKey } from "./object-key";
+import { assertOptionalProfileField } from "./profile";
 
 const UPLOAD_SLOT_FIELDS = [
   "byterange",
   "contentType",
   "deliveryUrl",
-  "duration",
   "epoch",
   "expiresAt",
   "kind",
   "maxBytes",
-  "mediaSequenceNumber",
   "minBytes",
   "objectKey",
   "partNumber",
-  "renditionId",
+  "profile",
+  "sequenceNumber",
   "sessionId",
   "slotId",
   "state",
+  "trackId",
 ] as const;
 
+const UPLOAD_SLOT_SHAPE: KnownFieldsShape = {
+  fields: UPLOAD_SLOT_FIELDS,
+  nested: {
+    byterange: { kind: "object", shape: { fields: BYTERANGE_FIELDS } },
+  },
+};
+
+/**
+ * Returns whether `value` is a valid `UploadSlot` (see `assertUploadSlot`).
+ */
 export function isUploadSlot(value: unknown): value is UploadSlot {
-  try {
-    assertUploadSlot(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertUploadSlot, value);
 }
 
+/**
+ * Validates an untrusted value as an `UploadSlot`, throwing an `Error`
+ * naming the first offending field. Rejects unknown fields, unsafe object
+ * keys and delivery URLs, `minBytes` above `maxBytes`, and a `byterange` on
+ * anything but a part slot. `profile` is only checked to be an object.
+ */
 export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
-  if (!isRecord(value)) {
-    throw new Error("uploadSlot must be an object");
-  }
-
-  assertOnlyKnownFields(value, UPLOAD_SLOT_FIELDS, "uploadSlot");
+  assertKnownFieldsObject(value, UPLOAD_SLOT_FIELDS, "uploadSlot");
   assertUploadSlotIdentifiers(value);
   assertUploadSlotSequenceFields(value);
   assertUploadSlotByteFields(value);
-  assertUploadSlotMediaFields(value);
+  assertUploadSlotObjectFields(value);
   assertUploadSlotByterange(value);
+  assertUploadSlotPartNumberPresence(value);
+  assertOptionalProfileField(value, "uploadSlot");
   assertOneOfField(value, "state", UPLOAD_SLOT_STATES, "uploadSlot");
+}
+
+/**
+ * Tolerant read-path parser for an `UploadSlot` (spec §11.2): unknown
+ * fields — including inside `byterange` — are stripped from a fresh copy,
+ * which is then validated by the unchanged closed `assertUploadSlot` and
+ * returned. Known fields are still rejected when invalid. `profile` is
+ * passed through untouched.
+ */
+export function parseUploadSlot(value: unknown): UploadSlot {
+  return parseWithShape(value, UPLOAD_SLOT_SHAPE, assertUploadSlot);
 }
 
 function assertUploadSlotByterange(value: Record<string, unknown>): void {
@@ -66,15 +93,29 @@ function assertUploadSlotByterange(value: Record<string, unknown>): void {
   assertByterangeKind(value.kind as string, "uploadSlot");
 }
 
+function assertUploadSlotPartNumberPresence(
+  value: Record<string, unknown>
+): void {
+  const isPart = value.kind === "part";
+
+  if (isPart && value.partNumber === undefined) {
+    throw new Error("uploadSlot.partNumber is required for part slots");
+  }
+
+  if (!isPart && value.partNumber !== undefined) {
+    throw new Error("uploadSlot.partNumber is only valid on part slots");
+  }
+}
+
 function assertUploadSlotIdentifiers(value: Record<string, unknown>): void {
   assertUrlSafeField(value, "slotId", "uploadSlot");
   assertUrlSafeField(value, "sessionId", "uploadSlot");
-  assertUrlSafeField(value, "renditionId", "uploadSlot");
+  assertUrlSafeField(value, "trackId", "uploadSlot");
 }
 
 function assertUploadSlotSequenceFields(value: Record<string, unknown>): void {
   assertNonNegativeIntegerField(value, "epoch", "uploadSlot");
-  assertNonNegativeIntegerField(value, "mediaSequenceNumber", "uploadSlot");
+  assertNonNegativeIntegerField(value, "sequenceNumber", "uploadSlot");
 
   if (value.partNumber !== undefined) {
     assertNonNegativeIntegerField(value, "partNumber", "uploadSlot");
@@ -82,8 +123,7 @@ function assertUploadSlotSequenceFields(value: Record<string, unknown>): void {
 }
 
 function assertUploadSlotByteFields(value: Record<string, unknown>): void {
-  assertPositiveNumberField(value, "duration", "uploadSlot");
-  assertPositiveNumberField(value, "maxBytes", "uploadSlot");
+  assertPositiveIntegerField(value, "maxBytes", "uploadSlot");
   assertIsoDateField(value, "expiresAt", "uploadSlot");
   if (value.minBytes !== undefined) {
     assertNonNegativeIntegerField(value, "minBytes", "uploadSlot");
@@ -101,14 +141,9 @@ function assertUploadSlotMinBytesWithinMaxBytes(
   }
 }
 
-function assertUploadSlotMediaFields(value: Record<string, unknown>): void {
-  const kind = assertOneOfField(
-    value,
-    "kind",
-    MEDIA_OBJECT_KINDS,
-    "uploadSlot"
-  );
-  assertSafeMediaObjectKey(value.objectKey, kind, "uploadSlot.objectKey");
+function assertUploadSlotObjectFields(value: Record<string, unknown>): void {
+  assertOneOfField(value, "kind", OBJECT_KINDS, "uploadSlot");
+  assertSafeObjectKey(value.objectKey, "uploadSlot.objectKey");
   assertSafeDeliveryUrl(value.deliveryUrl, "uploadSlot.deliveryUrl");
   assertContentType(value.contentType, "uploadSlot.contentType");
 }

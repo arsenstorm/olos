@@ -1,38 +1,125 @@
 # Releases
 
-The npm package is published from `olos/`.
+The npm package publishes from `olos/`.
+[Changesets](https://github.com/changesets/changesets) drives versioning and
+changelogs. A tag push starts the publish, which uses npm OIDC trusted
+publishing.
 
-Before publishing:
+## Changesets
+
+Every user-visible change merges with a changeset:
+
+```bash
+bun changeset
+```
+
+Pick the bump level (`patch`/`minor`/`major`) and describe the change in
+user-facing terms. The text becomes the changelog entry. A cleanup that
+keeps public behavior can omit a changeset only when its pull request or
+commit states `Public behavior unchanged`.
+
+Changeset descriptions should cover:
+
+- new or removed public exports
+- protocol, runtime, HLS, S3, or storage behavior changes
+- migration steps for existing applications
+- known compatibility limits or deployment requirements
+
+The `Release PR` workflow (`.github/workflows/release.yml`) maintains a
+"Version Packages" PR on every push to `main`. The workflow runs
+`changeset version`, which bumps `olos/package.json` and folds pending
+changesets into `olos/CHANGELOG.md`. It also regenerates `bun.lock` so that
+the PR passes the frozen lockfile install.
+
+**The Version Packages PR starts with no check runs.** The workflow pushes
+its branch with `GITHUB_TOKEN`, and GitHub does not trigger workflows for
+events created with that token. When branch protection requires status
+checks, satisfy them by manually dispatching the `Validate` and `Zizmor`
+workflows on the `changeset-release/main` branch (Actions tab → workflow →
+"Run workflow"). The check runs attach to the branch head commit and count
+toward the required checks.
+
+## Cutting a release
+
+1. Dispatch `Validate` and `Zizmor` on `changeset-release/main`, then merge
+   the "Version Packages" PR once those runs are green.
+2. Pull `main` and push the matching tag:
+
+   ```bash
+   git pull
+   version=$(jq -r .version olos/package.json)
+   git tag "olos-v${version}"
+   git push origin "olos-v${version}"
+   ```
+
+   The tag push is manual by design. Together with the `npm` environment
+   approval, it forms the human release gate.
+
+3. Approve the `npm` environment when the publish workflow requests it.
+
+The publish workflow (`.github/workflows/publish.yml`) then:
+
+- makes sure that the tag commit is reachable from `main`
+- makes sure that the tag matches `olos/package.json` and that
+  `olos/CHANGELOG.md` has a matching section
+- reruns `publish:check`
+- publishes from `olos/` with `npm publish --provenance`. Authentication is
+  npm **OIDC trusted publishing**. The workflow deletes the setup-node
+  `.npmrc` and unsets `NODE_AUTH_TOKEN`, so npm authenticates through the
+  Trusted Publisher relationship configured on npmjs.com for this repository
+  and workflow file. No `NPM_TOKEN` secret exists, and none is necessary.
+- makes sure that the published package installs and imports
+  (`release:verify-published`)
+- creates a GitHub Release from the changelog section
+
+## Local verification
+
+Before merging release-bound work:
 
 ```bash
 bun install --frozen-lockfile
 bun run publish:check
 ```
 
-`publish:check` verifies the changelog, checks conformance coverage, runs type
-checking, Bun unit tests, Vitest E2E tests, build, export-map dry pack, and
-packed-package runtime/type import smoke tests.
-The validation workflow also uploads the generated package tarball as a CI
-artifact for inspection.
+`publish:check` runs the conformance checks, the type checks (source and
+generated `dist` declarations), the Bun unit tests, the build, the Vitest
+E2E tests, `publint` + `@arethetypeswrong/cli` against the packed tarball,
+and the packed-package smoke test. It is the deterministic release gate. It
+does not contact a live S3-compatible provider.
 
-`publish:check` is the deterministic release gate. It does not contact a live
-S3-compatible provider. Run `bun run test:live-s3` separately when a release
-changes S3 upload grants, object observation, provider events, reconciliation,
-or retention behavior that should be proven against a real provider.
+There is no `prepublishOnly` hook: a local `npm publish` runs no gates and
+ships no provenance. Never publish from a workstation — publishes go
+through the tag-triggered workflow only. Configure npm Trusted Publishing
+for this repository and disallow token-based publishes so a workstation
+publish cannot authenticate.
 
-## v0.1 Readiness
+If a release changes S3 upload grants, object observation, provider
+events, reconciliation, or retention, run `bun run test:live-s3` against a
+real provider.
 
-Treat `v0.1` as package-ready when these are true:
+After publishing, verify the live package from the repository:
 
-- The public export map is intentional and verified by packed-package smoke
-  tests.
-- `publish:check` passes from a clean checkout.
-- The conformance report has no unmapped assertions.
-- The production wiring E2E passes and is referenced from the production
-  pipeline guide.
-- README import examples are covered by package smoke tests.
-- Known deployment responsibilities are documented as application-owned, not
-  implied package behavior.
+```bash
+bun --filter '@arsenstorm/olos' release:verify-published X.Y.Z
+```
+
+Pass the npm package version, not the git tag name. Then check the
+registry signatures and provenance attestations from a temporary npm
+consumer project:
+
+```bash
+mkdir /tmp/olos-npm-verify
+cd /tmp/olos-npm-verify
+npm init -y
+npm install @arsenstorm/olos@X.Y.Z
+npm audit signatures
+```
+
+`npm audit signatures` must report verified registry signatures. For a
+provenance-enabled release, it must also report at least one verified
+attestation.
+
+## Deployment readiness
 
 Treat a deployment as production-ready only after the application also proves:
 
@@ -44,74 +131,8 @@ Treat a deployment as production-ready only after the application also proves:
 - health polling, stale lease alerts, recovery scheduling, and retention retry
   handling
 
-Release checklist:
-
-1. Update `olos/package.json` to the intended version.
-2. Move relevant `CHANGELOG.md` entries from `Unreleased` into the new version.
-3. Run `bun run publish:check` from the repository root.
-4. Run `bun run test:live-s3` when the release needs live provider validation.
-5. Run `bun --filter '@arsenstorm/olos' release:verify-tag olos-vX.Y.Z`.
-6. Push a tag named `olos-vX.Y.Z` to run the publish workflow.
-7. Confirm the workflow published from `olos/` with npm provenance enabled.
-8. Confirm the workflow verified the published package subpaths.
-9. Confirm the workflow created a GitHub Release from the changelog notes.
-10. Verify npm registry signatures and provenance attestations from a fresh npm
-   install.
-
-The workflow requires an `NPM_TOKEN` repository secret with publish access.
-See [repository checks](./checks.md) for the expected branch and release tag
+See [repository checks](./checks.md) for branch protection and release tag
 protection rules.
-
-## 0.1.0 Commands
-
-```bash
-bun install --frozen-lockfile
-bun run publish:check
-bun --filter '@arsenstorm/olos' release:verify-tag olos-v0.1.0
-git tag olos-v0.1.0
-git push origin olos-v0.1.0
-```
-
-After the workflow finishes, verify the published package from a fresh checkout
-or local working tree:
-
-```bash
-bun --filter '@arsenstorm/olos' release:verify-published 0.1.0
-```
-
-Pass the npm package version, not the git tag name, to
-`release:verify-published`.
-
-Then verify npm signatures and provenance attestations from a temporary npm
-consumer project:
-
-```bash
-mkdir /tmp/olos-npm-verify
-cd /tmp/olos-npm-verify
-npm init -y
-npm install @arsenstorm/olos@0.1.0
-npm audit signatures
-```
-
-`npm audit signatures` should report verified registry signatures. For
-provenance-enabled releases, it should also report at least one verified
-attestation.
-
-## Release Notes
-
-Every release should include notes that cover:
-
-- new or removed public exports
-- protocol, runtime, HLS, S3, or storage behavior changes
-- migration steps for existing applications
-- known compatibility limits or deployment requirements
-
-Keep release notes focused on user-visible behavior. Internal refactors only
-need mention when they affect package users, conformance, or deployment.
-Behavior-preserving public-facing cleanups can stay out of the changelog only
-when their pull request or commit explicitly states `Public behavior unchanged`.
-Any cleanup that changes public behavior must update the README, changelog, or
-release notes before release.
 
 Do not publish from the repository root. It is a private workspace wrapper, not
 the package.

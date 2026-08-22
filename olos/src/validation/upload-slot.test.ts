@@ -1,22 +1,22 @@
 import { describe, expect, test } from "bun:test";
 
 import type { UploadSlot } from "../types/upload-slot";
-import { assertUploadSlot, isUploadSlot } from "./upload-slot";
+import { assertUploadSlot, isUploadSlot, parseUploadSlot } from "./upload-slot";
 
 const validUploadSlot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl:
     "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p3.m4s",
-  duration: 0.5,
+  profile: { duration: 0.5 },
   epoch: 1,
   expiresAt: "2026-06-08T12:00:05Z",
   kind: "part",
   maxBytes: 524_288,
-  mediaSequenceNumber: 3812,
+  sequenceNumber: 3812,
   minBytes: 1024,
   objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
   partNumber: 3,
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "sess_01JZLIVE",
   slotId: "slot_01JZ",
   state: "issued",
@@ -85,8 +85,8 @@ describe("upload slot validation", () => {
 
   test("rejects invalid sequence numbers", () => {
     expect(() =>
-      assertUploadSlot({ ...validUploadSlot, mediaSequenceNumber: -1 })
-    ).toThrow("uploadSlot.mediaSequenceNumber must be a non-negative integer");
+      assertUploadSlot({ ...validUploadSlot, sequenceNumber: -1 })
+    ).toThrow("uploadSlot.sequenceNumber must be a non-negative integer");
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, partNumber: -1 })
     ).toThrow("uploadSlot.partNumber must be a non-negative integer");
@@ -118,20 +118,19 @@ describe("upload slot validation", () => {
     }
   });
 
-  test("rejects unsupported media object extensions", () => {
+  test("accepts object keys with any extension", () => {
     expect(() =>
-      assertUploadSlot({ ...validUploadSlot, objectKey: "media/key.html" })
-    ).toThrow("uploadSlot.objectKey must use a supported media extension");
+      assertUploadSlot({ ...validUploadSlot, objectKey: "media/key.json" })
+    ).not.toThrow();
     expect(() =>
-      assertUploadSlot({ ...validUploadSlot, objectKey: "media/playlist.m3u8" })
-    ).toThrow("uploadSlot.objectKey must use a supported media extension");
+      assertUploadSlot({ ...validUploadSlot, objectKey: "media/key" })
+    ).not.toThrow();
+  });
+
+  test("rejects non-object profiles", () => {
     expect(() =>
-      assertUploadSlot({
-        ...validUploadSlot,
-        kind: "init",
-        objectKey: "media/init.m4s",
-      })
-    ).toThrow("uploadSlot.objectKey must use a supported media extension");
+      assertUploadSlot({ ...validUploadSlot, profile: 0.5 })
+    ).toThrow("uploadSlot.profile must be an object");
   });
 
   test("rejects invalid content types", () => {
@@ -147,6 +146,12 @@ describe("upload slot validation", () => {
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, minBytes: 20, maxBytes: 10 })
     ).toThrow("uploadSlot.minBytes must be less than or equal to maxBytes");
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, maxBytes: 1024.5 })
+    ).toThrow("uploadSlot.maxBytes must be a positive integer");
+    expect(() => assertUploadSlot({ ...validUploadSlot, maxBytes: 0 })).toThrow(
+      "uploadSlot.maxBytes must be a positive integer"
+    );
   });
 
   test("accepts zero minimum byte limits", () => {
@@ -165,5 +170,55 @@ describe("upload slot validation", () => {
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, state: "unknown" })
     ).toThrow("uploadSlot.state must be one of:");
+  });
+
+  test("requires partNumber on part slots", () => {
+    const { partNumber: _partNumber, ...slotWithoutPartNumber } =
+      validUploadSlot;
+
+    expect(() => assertUploadSlot(slotWithoutPartNumber)).toThrow(
+      "uploadSlot.partNumber is required for part slots"
+    );
+  });
+
+  test("rejects partNumber on non-part slots", () => {
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, kind: "segment" })
+    ).toThrow("uploadSlot.partNumber is only valid on part slots");
+  });
+});
+
+describe("tolerant upload slot parsing", () => {
+  test("strips unknown fields and returns a fresh slot", () => {
+    const parsed = parseUploadSlot({ ...validUploadSlot, extra: 1 });
+
+    expect(parsed).toEqual(validUploadSlot);
+    expect(parsed).not.toBe(validUploadSlot);
+  });
+
+  test("strips unknown fields inside the byterange", () => {
+    const slotWithByterange: UploadSlot = {
+      ...validUploadSlot,
+      byterange: {
+        length: 12_500,
+        offset: 0,
+        segmentDeliveryUrl:
+          "https://media.example.com/media/tenant/sess/e1/v1080/s3812.m4s",
+        segmentObjectKey: "media/tenant/sess/e1/v1080/s3812.m4s",
+      },
+    };
+
+    const parsed = parseUploadSlot({
+      ...slotWithByterange,
+      byterange: { ...slotWithByterange.byterange, extra: 1 },
+    });
+
+    expect(parsed).toEqual(slotWithByterange);
+  });
+
+  test("still rejects invalid known fields", () => {
+    expect(() =>
+      parseUploadSlot({ ...validUploadSlot, extra: 1, maxBytes: 0 })
+    ).toThrow("uploadSlot.maxBytes");
   });
 });

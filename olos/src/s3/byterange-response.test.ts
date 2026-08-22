@@ -4,17 +4,15 @@ import type {
   GetObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import type { CoordinatorPipelineSnapshot } from "../protocol";
-import { createMemoryCoordinatorStore } from "../protocol";
+import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
+import type { CoordinatorPipelineSnapshot } from "../protocol/coordinator-types";
 import type {
   CommittedPart,
   CommittedSegment,
 } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
-import {
-  createByterangeSegmentResponse,
-  type S3GetObjectClient,
-} from "./byterange-response";
+import { createByterangeSegmentResponse } from "./byterange-response";
+import type { ByterangeCursorWait, S3GetObjectClient } from "./byterange-types";
 
 const SESSION_ID = "session_byterange_test";
 const SEGMENT_OBJECT_KEY = "live/session/v1080/segment-0.m4s";
@@ -40,8 +38,7 @@ function makePart(
     },
     commitId: `commit_${index}`,
     deliveryUrl: `https://media.example.com/live/session/v1080/part-${index}.m4s`,
-    duration: 0.5,
-    independent: true,
+    profile: { duration: 0.5, independent: true },
     objectKey: `live/session/v1080/part-${index}.m4s`,
     partNumber: index,
     slotId: `slot_${index}`,
@@ -50,17 +47,15 @@ function makePart(
 
 function makeCursor(parts: readonly CommittedPart[]): Cursor {
   const segment: CommittedSegment = {
-    duration: 2,
-    mediaSequenceNumber: 0,
+    sequenceNumber: 0,
     parts: [...parts],
   };
   return {
     committedWindow: {
-      discontinuitySequence: 0,
       epoch: 1,
-      firstMediaSequenceNumber: 0,
-      lastMediaSequenceNumber: 0,
-      renditions: {
+      firstSequenceNumber: 0,
+      lastSequenceNumber: 0,
+      tracks: {
         v1080: {
           init: {
             commitId: "commit_init",
@@ -68,23 +63,21 @@ function makeCursor(parts: readonly CommittedPart[]): Cursor {
             objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
-          renditionId: "v1080",
+          trackId: "v1080",
           segments: [segment],
         },
       },
     },
+    deliveryBaseUrl: "https://media.example.com",
     epoch: 1,
-    latencyProfile: "object-ll",
     olos: "1.0",
-    mediaBaseUrl: "https://media.example.com",
-    partTarget: 0.5,
-    segmentTarget: 2,
+    profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
     sessionId: SESSION_ID,
     state: "live",
     updatedAt: "2026-06-26T00:00:00.000Z",
     window: {
-      firstMediaSequenceNumber: 0,
-      lastMediaSequenceNumber: 0,
+      firstSequenceNumber: 0,
+      lastSequenceNumber: 0,
       lastPartNumber: parts.at(-1)?.partNumber,
     },
   };
@@ -142,6 +135,77 @@ function createFakeS3(parts: readonly CommittedPart[]): FakeS3 {
   };
 }
 
+const TIMED_OUT = Symbol("timed out");
+
+/**
+ * Read the response body to completion, resolving with the stream error (or
+ * `undefined` on a clean read). The timeout guard makes a regression that
+ * loops forever fail the test instead of hanging it.
+ */
+async function readStreamError(
+  response: Response,
+  timeoutMs = 1000
+): Promise<unknown> {
+  return await Promise.race([
+    response.arrayBuffer().then(
+      () => undefined,
+      (cause: unknown) => cause
+    ),
+    new Promise((resolve) => {
+      setTimeout(() => resolve(TIMED_OUT), timeoutMs);
+    }),
+  ]);
+}
+
+/**
+ * Await `promise` or resolve with {@link TIMED_OUT}, so a regression that
+ * never settles fails the test instead of hanging it.
+ */
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs = 1000
+): Promise<T | typeof TIMED_OUT> {
+  return await Promise.race([
+    promise,
+    new Promise<typeof TIMED_OUT>((resolve) => {
+      setTimeout(() => resolve(TIMED_OUT), timeoutMs);
+    }),
+  ]);
+}
+
+/**
+ * Fake S3 client whose part body enqueues one chunk and then stalls forever,
+ * for tests that need a read in flight when the response is torn down.
+ * `bodyCancelled` resolves once the underlying part stream is cancelled.
+ */
+function createStallingS3(chunk: Uint8Array): {
+  bodyCancelled: Promise<void>;
+  client: S3GetObjectClient;
+} {
+  let resolveCancelled: () => void;
+  const bodyCancelled = new Promise<void>((resolve) => {
+    resolveCancelled = resolve;
+  });
+  const body = {
+    transformToWebStream(): ReadableStream<Uint8Array> {
+      return new ReadableStream({
+        start(controller) {
+          controller.enqueue(chunk);
+          // No close: the next read stalls until the stream is cancelled.
+        },
+        cancel() {
+          resolveCancelled();
+        },
+      });
+    },
+  };
+  const client: S3GetObjectClient = {
+    send: () =>
+      Promise.resolve({ Body: body } as unknown as GetObjectCommandOutput),
+  };
+  return { bodyCancelled, client };
+}
+
 async function seedStore(
   parts: readonly CommittedPart[]
 ): Promise<ReturnType<typeof createMemoryCoordinatorStore>> {
@@ -152,26 +216,26 @@ async function seedStore(
       commits: [],
       cursor: makeCursor(parts),
       initCommits: [],
-      mediaBaseUrl: "https://media.example.com",
+      deliveryBaseUrl: "https://media.example.com",
       publisherLeases: [],
       session: {
         createdAt: "2026-06-26T00:00:00.000Z",
         epoch: 1,
-        latencyProfile: "object-ll",
         olos: "1.0",
-        partTarget: 0.5,
-        renditions: [
+        profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
+        tracks: [
           {
-            bitrate: 5_000_000,
-            codec: "avc1.640028",
-            frameRate: 30,
-            height: 1080,
-            kind: "video",
-            renditionId: "v1080",
-            width: 1920,
+            profile: {
+              bitrate: 5_000_000,
+              codec: "avc1.640028",
+              frameRate: 30,
+              height: 1080,
+              kind: "video",
+              width: 1920,
+            },
+            trackId: "v1080",
           },
         ],
-        segmentTarget: 2,
         sessionId: SESSION_ID,
         state: "live",
       },
@@ -197,6 +261,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
       store,
@@ -218,6 +283,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       range: { end: 119, start: 80 },
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
@@ -225,6 +291,8 @@ describe("createByterangeSegmentResponse", () => {
     });
 
     expect(response.status).toBe(206);
+    expect(response.headers.get("content-range")).toBe("bytes 80-119/*");
+    expect(response.headers.get("content-length")).toBe("40");
     const body = new Uint8Array(await response.arrayBuffer());
     expect(body.length).toBe(40);
     for (let i = 0; i < body.length; i += 1) {
@@ -232,13 +300,183 @@ describe("createByterangeSegmentResponse", () => {
     }
   });
 
+  test("serves open-ended offset requests as 206 with an open-ended content-range", async () => {
+    const parts = [makePart(0, 0, 100), makePart(1, 100, 80)];
+    const store = await seedStore(parts);
+    const client = createFakeS3(parts);
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      contentType: "video/mp4",
+      range: { start: 50 },
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    expect(response.status).toBe(206);
+    expect(response.headers.get("content-range")).toBe(
+      "bytes 50-9007199254740991/*"
+    );
+    expect(response.headers.get("content-length")).toBeNull();
+    const body = new Uint8Array(await response.arrayBuffer());
+    expect(body.length).toBe(130);
+    for (let i = 0; i < body.length; i += 1) {
+      expect(body[i]).toBe((50 + i) % 256);
+    }
+  });
+
+  test("errors the stream when a part object returns no body", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const client: S3GetObjectClient = {
+      send: () => Promise.resolve({} as GetObjectCommandOutput),
+    };
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      contentType: "video/mp4",
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    const error = await readStreamError(response);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("returned no body");
+  });
+
+  test("errors the stream when a part object returns zero bytes", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const body = {
+      transformToWebStream(): ReadableStream<Uint8Array> {
+        return new ReadableStream({
+          start(controller) {
+            controller.close();
+          },
+        });
+      },
+    };
+    const client: S3GetObjectClient = {
+      send: () =>
+        Promise.resolve({ Body: body } as unknown as GetObjectCommandOutput),
+    };
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      contentType: "video/mp4",
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    const error = await readStreamError(response);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("returned no bytes");
+  });
+
+  test("surfaces the Range error when a part object is shorter than its committed byterange", async () => {
+    // The part is committed as 100 bytes but only 60 landed in storage. The
+    // tail re-request (`Range: bytes=60-99`) gets S3's InvalidRange (416),
+    // which must error the stream instead of closing the bounded 206 short.
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const actualSize = 60;
+    const requestedRanges: (string | undefined)[] = [];
+    const client: S3GetObjectClient = {
+      send: (command) => {
+        requestedRanges.push(command.input.Range);
+        const rangeMatch = command.input.Range?.match(RANGE_PATTERN);
+        const start =
+          rangeMatch === null || rangeMatch === undefined
+            ? 0
+            : Number(rangeMatch[1]);
+        if (start >= actualSize) {
+          return Promise.reject(
+            new Error("InvalidRange: The requested range is not satisfiable")
+          );
+        }
+        const end = Math.min(
+          rangeMatch === null || rangeMatch === undefined
+            ? actualSize - 1
+            : Number(rangeMatch[2]),
+          actualSize - 1
+        );
+        const slice = new Uint8Array(end - start + 1);
+        const body = {
+          transformToWebStream(): ReadableStream<Uint8Array> {
+            return new ReadableStream({
+              start(controller) {
+                controller.enqueue(slice);
+                controller.close();
+              },
+            });
+          },
+        };
+        return Promise.resolve({
+          Body: body,
+        } as unknown as GetObjectCommandOutput);
+      },
+    };
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      contentType: "video/mp4",
+      range: { end: 99, start: 0 },
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    expect(response.status).toBe(206);
+    expect(response.headers.get("content-length")).toBe("100");
+    const error = await readStreamError(response);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("InvalidRange");
+    expect(requestedRanges).toEqual(["bytes=0-99", "bytes=60-99"]);
+  });
+
+  test("errors a bounded range when the committed parts end early", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const client = createFakeS3(parts);
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      contentType: "video/mp4",
+      range: { end: 149, start: 0 },
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    expect(response.status).toBe(206);
+    expect(response.headers.get("content-range")).toBe("bytes 0-149/*");
+    expect(response.headers.get("content-length")).toBe("150");
+    const error = await readStreamError(response);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("ended before requested end");
+  });
+
   test("404s when the virtual segment has no committed parts", async () => {
-    const store = await seedStore([]);
+    const otherSegmentPart = makePart(0, 0, 100);
+    otherSegmentPart.byterange = {
+      ...otherSegmentPart.byterange,
+      segmentObjectKey: "live/session/v1080/segment-9.m4s",
+    } as CommittedPart["byterange"];
+    const store = await seedStore([otherSegmentPart]);
     const client = createFakeS3([]);
 
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
       store,
@@ -257,6 +495,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       range: { start: -10 },
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
@@ -264,5 +503,223 @@ describe("createByterangeSegmentResponse", () => {
     });
 
     expect(response.status).toBe(416);
+  });
+
+  test("consumer cancellation cancels the in-flight part body", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const { bodyCancelled, client } = createStallingS3(new Uint8Array(10));
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      contentType: "video/mp4",
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    const body = response.body;
+    if (body === null) {
+      throw new Error("expected a response body");
+    }
+    const reader = body.getReader();
+    const first = await reader.read();
+    expect(first.done).toBe(false);
+    await reader.cancel();
+
+    expect(await withTimeout(bodyCancelled)).not.toBe(TIMED_OUT);
+  });
+
+  test("request signal abort cancels the in-flight part body", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const { bodyCancelled, client } = createStallingS3(new Uint8Array(10));
+    const viewer = new AbortController();
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      contentType: "video/mp4",
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      signal: viewer.signal,
+      store,
+    });
+
+    const body = response.body;
+    if (body === null) {
+      throw new Error("expected a response body");
+    }
+    const reader = body.getReader();
+    const first = await reader.read();
+    expect(first.done).toBe(false);
+    viewer.abort();
+
+    expect(await withTimeout(bodyCancelled)).not.toBe(TIMED_OUT);
+  });
+
+  test("pre-aborted signal never invokes cursorWait", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    const client = createFakeS3(parts);
+    const viewer = new AbortController();
+    viewer.abort();
+    let waits = 0;
+    const cursorWait: ByterangeCursorWait = () => {
+      waits += 1;
+      return Promise.resolve(undefined);
+    };
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      contentType: "video/mp4",
+      cursorWait,
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      signal: viewer.signal,
+      store,
+    });
+
+    const body = await withTimeout(response.arrayBuffer());
+    expect(body).not.toBe(TIMED_OUT);
+    expect(new Uint8Array(body as ArrayBuffer).length).toBe(0);
+    expect(waits).toBe(0);
+    expect(client.inputs.length).toBe(0);
+  });
+
+  test("bounded 206 clamps a part body that overshoots the requested range", async () => {
+    const parts = [makePart(0, 0, 100)];
+    const store = await seedStore(parts);
+    // A loose client that ignores `Range` and always returns the whole part.
+    const client: S3GetObjectClient = {
+      send: () => {
+        const partBytes = new Uint8Array(100);
+        for (let i = 0; i < partBytes.length; i += 1) {
+          partBytes[i] = i % 256;
+        }
+        const body = {
+          transformToWebStream(): ReadableStream<Uint8Array> {
+            return new ReadableStream({
+              start(controller) {
+                controller.enqueue(partBytes);
+                controller.close();
+              },
+            });
+          },
+        };
+        return Promise.resolve({
+          Body: body,
+        } as unknown as GetObjectCommandOutput);
+      },
+    };
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      contentType: "video/mp4",
+      range: { end: 49, start: 0 },
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    expect(response.status).toBe(206);
+    expect(response.headers.get("content-length")).toBe("50");
+    const body = new Uint8Array(await response.arrayBuffer());
+    expect(body.length).toBe(50);
+    for (let i = 0; i < body.length; i += 1) {
+      expect(body[i]).toBe(i % 256);
+    }
+  });
+
+  test("a slow consumer does not make the drain fetch every part up front", async () => {
+    const parts = [
+      makePart(0, 0, 1),
+      makePart(1, 1, 1),
+      makePart(2, 2, 1),
+      makePart(3, 3, 1),
+      makePart(4, 4, 1),
+    ];
+    const store = await seedStore(parts);
+    const client = createFakeS3(parts);
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      contentType: "video/mp4",
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    const body = response.body;
+    if (body === null) {
+      throw new Error("expected a response body");
+    }
+
+    // Give the drain time to run without ever reading: with the default
+    // queue (highWaterMark 1) it can enqueue one part and open the next,
+    // then it must park on backpressure rather than racing ahead to fetch
+    // every part before the consumer has read anything.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(client.inputs.length).toBeLessThan(parts.length);
+
+    const reader = body.getReader();
+    const first = await reader.read();
+    expect(first.done).toBe(false);
+
+    const chunks = [first.value];
+    for (;;) {
+      const next = await reader.read();
+      if (next.done) {
+        break;
+      }
+      chunks.push(next.value);
+    }
+
+    const drained = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+    let offset = 0;
+    for (const chunk of chunks) {
+      drained.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    expect(drained.length).toBe(5);
+    for (let i = 0; i < drained.length; i += 1) {
+      expect(drained[i]).toBe(i % 256);
+    }
+    expect(client.inputs.length).toBe(parts.length);
+  });
+
+  test("cancelling while the drain is parked on backpressure resolves promptly", async () => {
+    const parts = [makePart(0, 0, 1), makePart(1, 1, 1), makePart(2, 2, 1)];
+    const store = await seedStore(parts);
+    const client = createFakeS3(parts);
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      contentType: "video/mp4",
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    const body = response.body;
+    if (body === null) {
+      throw new Error("expected a response body");
+    }
+    // Never read: with a highWaterMark of 1, the drain fills the queue with
+    // the first part and then parks on `demand.wait()` for the second,
+    // since nothing ever dequeues to wake it.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Part 0's fetch completed and part 1's is open but unread: confirms the
+    // drain is actually parked on backpressure, not merely slow to start.
+    expect(client.inputs.length).toBe(2);
+
+    const reader = body.getReader();
+    expect(await withTimeout(reader.cancel())).not.toBe(TIMED_OUT);
   });
 });

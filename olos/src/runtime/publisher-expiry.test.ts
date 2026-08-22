@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "./latency-profile";
-import { resolveRuntimePublisherObjectExpiry } from "./publisher-expiry";
+import {
+  DEFAULT_PUBLISHER_OBJECT_MIN_TTL_SECONDS,
+  resolveRuntimePublisherObjectExpiry,
+} from "./publisher-expiry";
 
 describe("runtime publisher object expiry", () => {
-  test("derives segment expiry from duration and target latency", () => {
+  test("derives segment expiry from cadence and target latency", () => {
     expect(
       resolveRuntimePublisherObjectExpiry({
-        duration: 2,
+        cadenceSeconds: 2,
         now: "2026-01-01T00:00:00.000Z",
         targetLatency: 3,
       })
@@ -19,7 +21,7 @@ describe("runtime publisher object expiry", () => {
   test("rounds part expiry up to a whole-second ttl", () => {
     expect(
       resolveRuntimePublisherObjectExpiry({
-        duration: 0.5,
+        cadenceSeconds: 0.5,
         now: "2026-01-01T00:00:00.000Z",
         targetLatency: 3,
       })
@@ -32,7 +34,7 @@ describe("runtime publisher object expiry", () => {
   test("honors a minimum ttl", () => {
     expect(
       resolveRuntimePublisherObjectExpiry({
-        duration: 0.2,
+        cadenceSeconds: 0.2,
         minTtlSeconds: 2,
         now: new Date("2026-01-01T00:00:00.000Z"),
         targetLatency: 0.3,
@@ -46,7 +48,7 @@ describe("runtime publisher object expiry", () => {
   test("uses calculated ttl when it exceeds the explicit minimum", () => {
     expect(
       resolveRuntimePublisherObjectExpiry({
-        duration: 2.1,
+        cadenceSeconds: 2.1,
         minTtlSeconds: 1,
         now: "2026-01-01T00:00:00.000Z",
         targetLatency: 3.1,
@@ -60,7 +62,7 @@ describe("runtime publisher object expiry", () => {
   test("uses exact whole-second calculated ttl values", () => {
     expect(
       resolveRuntimePublisherObjectExpiry({
-        duration: 2,
+        cadenceSeconds: 2,
         minTtlSeconds: 1,
         now: "2026-01-01T00:00:00.000Z",
         targetLatency: 3,
@@ -71,25 +73,25 @@ describe("runtime publisher object expiry", () => {
   test("defaults minimum ttl to low-latency profile setting", () => {
     expect(
       resolveRuntimePublisherObjectExpiry({
-        duration: 0.001,
+        cadenceSeconds: 0.001,
         now: "2026-01-01T00:00:00.000Z",
         targetLatency: 0.001,
       }).ttlSeconds
-    ).toBe(DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE.minUploadTtlSeconds);
+    ).toBe(DEFAULT_PUBLISHER_OBJECT_MIN_TTL_SECONDS);
   });
 
   test("rejects invalid expiry inputs", () => {
     expect(() =>
       resolveRuntimePublisherObjectExpiry({
-        duration: 0,
+        cadenceSeconds: 0,
         now: "2026-01-01T00:00:00.000Z",
         targetLatency: 3,
       })
-    ).toThrow("duration must be a positive number");
+    ).toThrow("cadenceSeconds must be a positive number");
 
     expect(() =>
       resolveRuntimePublisherObjectExpiry({
-        duration: 2,
+        cadenceSeconds: 2,
         now: "2026-01-01T00:00:00.000Z",
         targetLatency: 0,
       })
@@ -97,7 +99,7 @@ describe("runtime publisher object expiry", () => {
 
     expect(() =>
       resolveRuntimePublisherObjectExpiry({
-        duration: 2,
+        cadenceSeconds: 2,
         minTtlSeconds: 0,
         now: "2026-01-01T00:00:00.000Z",
         targetLatency: 3,
@@ -106,7 +108,7 @@ describe("runtime publisher object expiry", () => {
 
     expect(() =>
       resolveRuntimePublisherObjectExpiry({
-        duration: 2,
+        cadenceSeconds: 2,
         now: "not-a-date",
         targetLatency: 3,
       })

@@ -1,8 +1,16 @@
+import type { MediaObjectProfile } from "@arsenstorm/olos/media";
 import {
   commitS3RuntimeUpload,
   issueS3RuntimeUploadGrant,
 } from "@arsenstorm/olos/s3";
-import type { Byterange, Session } from "@arsenstorm/olos/types";
+import type { Byterange } from "@arsenstorm/olos/types";
+import {
+  type CreateSessionOptions,
+  createSession,
+  endSession,
+} from "./olos-session";
+
+export type { CreateSessionOptions } from "./olos-session";
 
 // Slot expiry must be >= the Worker's upload-grant TTL (5s). 10s is a
 // comfortable margin so the slot doesn't lapse before ffmpeg finishes
@@ -21,55 +29,52 @@ type IngestFetch = (
 
 type ObjectKind = "init" | "part" | "segment";
 
+// Object keys carry the conventional CMAF extensions so the media proxy and
+// players can tell init segments (`.mp4`) from media (`.m4s`) by name.
+const OBJECT_EXTENSIONS: Record<ObjectKind, string> = {
+  init: "mp4",
+  part: "m4s",
+  segment: "m4s",
+};
+
 export interface OlosClientOptions {
   baseUrl: string;
   ingestKey: string;
   mediaOrigin: string;
-  renditionId: string;
   sessionId: string;
-}
-
-export interface CreateSessionOptions {
-  partTarget: number;
-  segmentTarget: number;
+  trackId: string;
 }
 
 export interface PublishInitOptions {
   bytes: Uint8Array;
   duration: number;
-  mediaSequenceNumber: number;
+  sequenceNumber: number;
 }
 
-export interface PublishSegmentOptions {
-  bytes: Uint8Array;
-  duration: number;
-  mediaSequenceNumber: number;
-}
+export type PublishSegmentOptions = PublishInitOptions;
 
 export interface PublishPartOptions {
   byterange?: Byterange;
   bytes: Uint8Array;
   duration: number;
   independent: boolean;
-  mediaSequenceNumber: number;
   partNumber: number;
-}
-
-export interface IssuedGrant {
-  bytes: Uint8Array;
-  commitId: string;
-  independent: boolean;
-  objectKey: string;
-  requiredHeaders: Record<string, string>;
-  slotId: string;
-  uploadUrl: string;
+  sequenceNumber: number;
 }
 
 export interface PendingPublication {
   commitId: string;
-  independent: boolean;
   objectKey: string;
+  // Commit-time profile facts; merged over the slot's profile (which
+  // already carries `duration`) by the coordinator.
+  profile: MediaObjectProfile;
   slotId: string;
+}
+
+export interface IssuedGrant extends PendingPublication {
+  bytes: Uint8Array;
+  requiredHeaders: Record<string, string>;
+  uploadUrl: string;
 }
 
 export interface OlosClient {
@@ -97,140 +102,138 @@ interface PublishSpec {
   duration: number;
   independent: boolean;
   kind: ObjectKind;
-  mediaSequenceNumber: number;
   partNumber?: number;
+  programDateTime?: string;
+  sequenceNumber: number;
   slotId: string;
 }
 
-export function createOlosClient(options: OlosClientOptions): OlosClient {
-  const ingestHeaders = {
-    authorization: `Bearer ${options.ingestKey}`,
-    "content-type": "application/json",
+function commitProfile(spec: PublishSpec): MediaObjectProfile {
+  return {
+    independent: spec.independent,
+    ...(spec.programDateTime === undefined
+      ? {}
+      : { programDateTime: spec.programDateTime }),
   };
+}
 
-  const ingestFetch: IngestFetch = (input, init) => {
+interface SegmentStartAnchor {
+  anchor(sequenceNumber: number): string;
+  release(sequenceNumber: number): string;
+}
+
+export function createOlosClient(options: OlosClientOptions): OlosClient {
+  const ingestFetch = createIngestFetch(options.ingestKey);
+  const segmentStart = createSegmentStartAnchor();
+  const publishSpec = (spec: PublishSpec) =>
+    publish(options, ingestFetch, spec);
+
+  return {
+    commitPublication: (pending) =>
+      commitPublication(options, ingestFetch, pending),
+    createSession: (input) => createSession(options, ingestFetch, input),
+    endSession: () => endSession(options, ingestFetch),
+    issueGrant: (input) =>
+      issueGrant(options, ingestFetch, partSpec(options, segmentStart, input)),
+    publishInit: (input) => publishSpec(initSpec(options, input)),
+    publishPart: (input) => publishSpec(partSpec(options, segmentStart, input)),
+    publishSegment: (input) =>
+      publishSpec(segmentSpec(options, segmentStart, input)),
+    uploadGranted,
+  };
+}
+
+function createIngestFetch(ingestKey: string): IngestFetch {
+  return (input, init) => {
     const headers = new Headers(init?.headers);
-    headers.set("authorization", `Bearer ${options.ingestKey}`);
+    headers.set("authorization", `Bearer ${ingestKey}`);
     return fetch(input, { ...init, headers });
+  };
+}
+
+// Apple's low-latency profile requires EXT-X-PROGRAM-DATE-TIME; without it
+// the player reports "Low Latency: Playlist does not have
+// EXT-X-PROGRAM-DATE-TIME tag" (CoreMedia -15412) and drops out of
+// low-latency mode. The tag must come from whichever commit first creates
+// the segment entry — that is part 0, not the later full-segment commit —
+// so the segment's start time is anchored once and reused.
+function createSegmentStartAnchor(): SegmentStartAnchor {
+  const segmentStartTimes = new Map<number, string>();
+
+  const anchor = (sequenceNumber: number): string => {
+    const existing = segmentStartTimes.get(sequenceNumber);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const startedAt = new Date().toISOString();
+    segmentStartTimes.set(sequenceNumber, startedAt);
+    return startedAt;
   };
 
   return {
-    createSession({ partTarget, segmentTarget }) {
-      return createSession(options, ingestHeaders, partTarget, segmentTarget);
-    },
-    publishInit({ bytes, duration, mediaSequenceNumber }) {
-      return publish(options, ingestFetch, {
-        bytes,
-        commitId: `${options.sessionId}_commit_init`,
-        duration,
-        independent: false,
-        kind: "init",
-        mediaSequenceNumber,
-        slotId: `${options.sessionId}_slot_init`,
-      });
-    },
-    publishPart({
-      byterange,
-      bytes,
-      duration,
-      independent,
-      mediaSequenceNumber,
-      partNumber,
-    }) {
-      return publish(options, ingestFetch, {
-        byterange,
-        bytes,
-        commitId: `${options.sessionId}_commit_${mediaSequenceNumber}_part_${partNumber}`,
-        duration,
-        independent,
-        kind: "part",
-        mediaSequenceNumber,
-        partNumber,
-        slotId: `${options.sessionId}_slot_${mediaSequenceNumber}_part_${partNumber}`,
-      });
-    },
-    publishSegment({ bytes, duration, mediaSequenceNumber }) {
-      return publish(options, ingestFetch, {
-        bytes,
-        commitId: `${options.sessionId}_commit_${mediaSequenceNumber}`,
-        duration,
-        independent: true,
-        kind: "segment",
-        mediaSequenceNumber,
-        slotId: `${options.sessionId}_slot_${mediaSequenceNumber}`,
-      });
-    },
-    endSession() {
-      return endSession(options, ingestHeaders);
-    },
-    issueGrant({
-      byterange,
-      bytes,
-      duration,
-      independent,
-      mediaSequenceNumber,
-      partNumber,
-    }) {
-      return issueGrant(options, ingestFetch, {
-        byterange,
-        bytes,
-        commitId: `${options.sessionId}_commit_${mediaSequenceNumber}_part_${partNumber}`,
-        duration,
-        independent,
-        kind: "part",
-        mediaSequenceNumber,
-        partNumber,
-        slotId: `${options.sessionId}_slot_${mediaSequenceNumber}_part_${partNumber}`,
-      });
-    },
-    uploadGranted(grant) {
-      return uploadGranted(grant);
-    },
-    commitPublication(pending) {
-      return commitPublication(options, ingestFetch, pending);
+    anchor,
+    release(sequenceNumber) {
+      const startedAt = anchor(sequenceNumber);
+      segmentStartTimes.delete(sequenceNumber);
+      return startedAt;
     },
   };
 }
 
-async function createSession(
+function initSpec(
   options: OlosClientOptions,
-  ingestHeaders: Record<string, string>,
-  partTarget: number,
-  segmentTarget: number
-): Promise<void> {
-  const session: Session = {
-    createdAt: new Date().toISOString(),
-    epoch: 1,
-    latencyProfile: "object-ll",
-    olos: "1.0",
-    partTarget,
-    renditions: [
-      {
-        bitrate: 5_000_000,
-        codec: "avc1.640028",
-        frameRate: 30,
-        height: 1080,
-        kind: "video",
-        renditionId: options.renditionId,
-        width: 1920,
-      },
-    ],
-    segmentTarget,
-    sessionId: options.sessionId,
-    state: "live",
+  { bytes, duration, sequenceNumber }: PublishInitOptions
+): PublishSpec {
+  return {
+    bytes,
+    commitId: `${options.sessionId}_commit_init`,
+    duration,
+    independent: false,
+    kind: "init",
+    sequenceNumber,
+    slotId: `${options.sessionId}_slot_init`,
   };
+}
 
-  const response = await fetch(`${options.baseUrl}/sessions`, {
-    body: JSON.stringify({ mediaBaseUrl: options.mediaOrigin, session }),
-    headers: ingestHeaders,
-    method: "POST",
-  });
+function partSpec(
+  options: OlosClientOptions,
+  segmentStart: SegmentStartAnchor,
+  input: PublishPartOptions
+): PublishSpec {
+  const { sequenceNumber, partNumber } = input;
+  const id = `${sequenceNumber}_part_${partNumber}`;
 
-  if (response.status !== 201) {
-    throw new Error(
-      `session create ${response.status}: ${await response.text()}`
-    );
-  }
+  return {
+    byterange: input.byterange,
+    bytes: input.bytes,
+    commitId: `${options.sessionId}_commit_${id}`,
+    duration: input.duration,
+    independent: input.independent,
+    kind: "part",
+    sequenceNumber,
+    partNumber,
+    ...(partNumber === 0
+      ? { programDateTime: segmentStart.anchor(sequenceNumber) }
+      : {}),
+    slotId: `${options.sessionId}_slot_${id}`,
+  };
+}
+
+function segmentSpec(
+  options: OlosClientOptions,
+  segmentStart: SegmentStartAnchor,
+  { bytes, duration, sequenceNumber }: PublishSegmentOptions
+): PublishSpec {
+  return {
+    bytes,
+    commitId: `${options.sessionId}_commit_${sequenceNumber}`,
+    duration,
+    independent: true,
+    kind: "segment",
+    sequenceNumber,
+    programDateTime: segmentStart.release(sequenceNumber),
+    slotId: `${options.sessionId}_slot_${sequenceNumber}`,
+  };
 }
 
 async function publish(
@@ -258,13 +261,14 @@ async function issueGrant(
     payload: {
       ...(spec.byterange === undefined ? {} : { byterange: spec.byterange }),
       contentType: "video/mp4",
-      duration: spec.duration,
       expiresAt,
+      extension: OBJECT_EXTENSIONS[spec.kind],
       kind: spec.kind,
       maxBytes: spec.bytes.length,
-      mediaSequenceNumber: spec.mediaSequenceNumber,
+      sequenceNumber: spec.sequenceNumber,
       ...(spec.partNumber === undefined ? {} : { partNumber: spec.partNumber }),
-      renditionId: options.renditionId,
+      profile: { duration: spec.duration },
+      trackId: options.trackId,
       slotId: spec.slotId,
     },
     sessionId: options.sessionId,
@@ -273,8 +277,8 @@ async function issueGrant(
   return {
     bytes: spec.bytes,
     commitId: spec.commitId,
-    independent: spec.independent,
     objectKey: granted.slot.objectKey,
+    profile: commitProfile(spec),
     requiredHeaders: granted.grant.requiredHeaders ?? {},
     slotId: spec.slotId,
     uploadUrl: granted.grant.url,
@@ -296,8 +300,8 @@ async function uploadGranted(grant: IssuedGrant): Promise<PendingPublication> {
 
   return {
     commitId: grant.commitId,
-    independent: grant.independent,
     objectKey: grant.objectKey,
+    profile: grant.profile,
     slotId: grant.slotId,
   };
 }
@@ -313,29 +317,11 @@ async function commitPublication(
     payload: {
       commitId: pending.commitId,
       committedAt: new Date().toISOString(),
-      independent: pending.independent,
       maxSegments: LIVE_WINDOW_SEGMENTS,
       objectKey: pending.objectKey,
+      profile: pending.profile,
       slotId: pending.slotId,
     },
     sessionId: options.sessionId,
   });
-}
-
-async function endSession(
-  options: OlosClientOptions,
-  ingestHeaders: Record<string, string>
-): Promise<void> {
-  const response = await fetch(
-    `${options.baseUrl}/sessions/${options.sessionId}/transition`,
-    {
-      body: JSON.stringify({ state: "ending" }),
-      headers: ingestHeaders,
-      method: "POST",
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`session end ${response.status}: ${await response.text()}`);
-  }
 }

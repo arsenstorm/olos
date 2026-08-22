@@ -75,21 +75,41 @@ async function drainStdout(
   const decoder = new TextDecoder();
   let buffer = "";
   for await (const chunk of proc.stdout as ReadableStream<Uint8Array>) {
-    buffer += decoder.decode(chunk, { stream: true });
-    let nl = buffer.indexOf("\n");
-    while (nl >= 0) {
-      const line = buffer.slice(0, nl).trim();
-      buffer = buffer.slice(nl + 1);
-      if (line.startsWith("{")) {
-        try {
-          handleWorkerMessage(status, JSON.parse(line) as WorkerMessage);
-        } catch {
-          // Malformed JSON — ignore; orchestrator must not crash on noise.
-        }
-      }
-      nl = buffer.indexOf("\n");
+    const { lines, rest } = splitLines(
+      buffer + decoder.decode(chunk, { stream: true })
+    );
+    buffer = rest;
+    for (const line of lines) {
+      handleWorkerLine(status, line);
     }
     renderPanel(workers);
+  }
+}
+
+function handleWorkerLine(status: WorkerStatus, line: string): void {
+  const msg = parseWorkerMessage(line);
+  if (msg !== undefined) {
+    handleWorkerMessage(status, msg);
+  }
+}
+
+// Splits off every complete line; `rest` is the trailing partial line that
+// waits for the next chunk.
+function splitLines(buffer: string): { lines: string[]; rest: string } {
+  const parts = buffer.split("\n");
+  const rest = parts.pop() ?? "";
+  return { lines: parts.map((line) => line.trim()), rest };
+}
+
+// Malformed JSON — ignore; orchestrator must not crash on noise.
+function parseWorkerMessage(line: string): WorkerMessage | undefined {
+  if (!line.startsWith("{")) {
+    return;
+  }
+  try {
+    return JSON.parse(line) as WorkerMessage;
+  } catch {
+    return;
   }
 }
 

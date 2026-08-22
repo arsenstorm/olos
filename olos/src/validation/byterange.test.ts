@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { assertByterange, assertByterangeKind, isByterange } from "./byterange";
+import { assertByterange, assertByterangeKind } from "./byterange";
 
 const validByterange = {
   length: 12_500,
@@ -13,7 +13,6 @@ const validByterange = {
 describe("Byterange validation", () => {
   test("accepts a valid byterange", () => {
     expect(() => assertByterange(validByterange, "byterange")).not.toThrow();
-    expect(isByterange(validByterange)).toBe(true);
   });
 
   test("rejects negative offset", () => {
@@ -59,6 +58,12 @@ describe("Byterange validation", () => {
         "byterange"
       )
     ).toThrow();
+  });
+
+  test("rejects unknown fields", () => {
+    expect(() =>
+      assertByterange({ ...validByterange, extra: 1 }, "byterange")
+    ).toThrow('byterange contains unknown property "extra"');
   });
 
   test("rejects non-object input", () => {

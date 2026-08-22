@@ -7,32 +7,60 @@ import {
 } from "../state/upload-grant";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
-import { parseAbsoluteHttpUrl } from "../validation/fields";
+import { positiveNumber } from "../validation/fields";
+import { parseAbsoluteHttpUrl } from "../validation/http-url";
 import { assertUploadSlot } from "../validation/upload-slot";
 import { assertS3BucketName } from "./bucket";
-import { assertPositiveExpiresInSeconds } from "./options";
 
 const S3_METADATA_HEADER_PREFIX = "x-amz-meta-olos-";
 const DEFAULT_UPLOAD_GRANT_NOW = () => new Date();
 
+/** Options for {@link createS3UploadGrant}. */
 export interface CreateS3UploadGrantOptions {
+  /**
+   * Extra headers the uploader must send; must not override the
+   * `x-amz-meta-olos-*` slot metadata headers.
+   */
   additionalHeaders?: Record<string, string>;
+  /** Required to validate path-style (bucket-in-path) presigned URLs. */
   bucket?: string;
+  /** ISO 8601 expiry recorded on the grant. */
   expiresAt?: string;
+  /** Presigned S3 PUT URL; its path must match the slot's object key. */
   presignedUrl: string;
   slot: UploadSlot;
 }
 
+/** Options for {@link createPresignedS3UploadGrant}. */
 export interface CreatePresignedS3UploadGrantOptions {
+  /**
+   * Extra headers the uploader must send; must not override the
+   * `x-amz-meta-olos-*` slot metadata headers.
+   */
   additionalHeaders?: Record<string, string>;
   bucket: string;
   client: S3Client;
+  /** Fallback timestamp source when `now` is unset (default: `new Date`). */
   clock?: () => Date | string;
+  /**
+   * Presigned URL lifetime in seconds. The grant must not outlive the
+   * slot's own `expiresAt`.
+   */
   expiresInSeconds: number;
+  /** Timestamp the grant expiry is computed from; wins over `clock`. */
   now?: Date | string;
+  /** Slot to presign for; must be in the `issued` state. */
   slot: UploadSlot;
 }
 
+/**
+ * Wrap an externally presigned S3 PUT URL in an OLOS upload grant. Verifies
+ * the URL's path matches the slot's object key (virtual-hosted style, or
+ * path style when `bucket` is given) and merges the slot metadata headers
+ * with any additional headers; throws on a mismatch or when additional
+ * headers try to override `x-amz-meta-olos-*` metadata. Use
+ * {@link createPresignedS3UploadGrant} to presign in the same call.
+ */
 export function createS3UploadGrant(
   options: CreateS3UploadGrantOptions
 ): UploadGrant {
@@ -101,12 +129,39 @@ function pathParts(value: string): string[] {
   return value.split("/").filter(Boolean);
 }
 
+/**
+ * Presign an S3 PUT for an issued slot and wrap it in an OLOS upload grant.
+ * The signed request pins the slot's content type, sets `If-None-Match: *`
+ * so the upload cannot overwrite an existing object, and signs the
+ * `x-amz-meta-olos-*` slot metadata headers so uploaders cannot drop or
+ * alter them. Throws when the slot is not in the `issued` state or when the
+ * grant would expire after the slot's own `expiresAt`.
+ */
 export async function createPresignedS3UploadGrant(
   options: CreatePresignedS3UploadGrantOptions
 ): Promise<UploadGrant> {
   assertPresignedS3UploadGrantOptions(options);
 
   const requiredHeaders = createRequiredHeaders(options);
+  const presignedUrl = await presignPutObjectUrl(options, requiredHeaders);
+
+  return createS3UploadGrant({
+    additionalHeaders: options.additionalHeaders,
+    bucket: options.bucket,
+    expiresAt: expiresAt(options),
+    presignedUrl,
+    slot: options.slot,
+  });
+}
+
+/**
+ * Presign a PUT whose signature covers the slot's required headers, so an
+ * upload that omits or alters them is rejected by S3 rather than accepted.
+ */
+function presignPutObjectUrl(
+  options: CreatePresignedS3UploadGrantOptions,
+  requiredHeaders: Record<string, string>
+): Promise<string> {
   const command = new PutObjectCommand({
     Bucket: options.bucket,
     ContentType: options.slot.contentType,
@@ -119,34 +174,20 @@ export async function createPresignedS3UploadGrant(
       const request = args.request;
 
       if (isHeaderRequest(request)) {
-        request.headers = {
-          ...request.headers,
-          ...requiredHeaders,
-        };
+        request.headers = { ...request.headers, ...requiredHeaders };
       }
 
       return next(args);
     },
-    {
-      name: "olosS3UploadGrantHeaders",
-      step: "build",
-    }
+    { name: "olosS3UploadGrantHeaders", step: "build" }
   );
 
-  const presignedUrl = await getSignedUrl(options.client, command, {
+  return getSignedUrl(options.client, command, {
     expiresIn: options.expiresInSeconds,
     signableHeaders: new Set(Object.keys(requiredHeaders).map(lowercase)),
     unhoistableHeaders: new Set(
       Object.keys(requiredHeaders).filter(isAmzHeader).map(lowercase)
     ),
-  });
-
-  return createS3UploadGrant({
-    additionalHeaders: options.additionalHeaders,
-    bucket: options.bucket,
-    expiresAt: expiresAt(options),
-    presignedUrl,
-    slot: options.slot,
   });
 }
 
@@ -155,7 +196,7 @@ function assertPresignedS3UploadGrantOptions(
 ): void {
   assertUploadSlot(options.slot);
   assertS3BucketName(options.bucket);
-  assertPositiveExpiresInSeconds(options.expiresInSeconds);
+  positiveNumber(options.expiresInSeconds, "expiresInSeconds");
 
   assertPresignedGrantSlotIsIssued(options.slot);
   assertPresignedGrantExpiresWithinSlot(options);
@@ -221,8 +262,8 @@ function createBaseS3SlotMetadataHeaders(
   return {
     "x-amz-meta-olos-epoch": String(slot.epoch),
     "x-amz-meta-olos-kind": slot.kind,
-    "x-amz-meta-olos-media-sequence-number": String(slot.mediaSequenceNumber),
-    "x-amz-meta-olos-rendition-id": slot.renditionId,
+    "x-amz-meta-olos-sequence-number": String(slot.sequenceNumber),
+    "x-amz-meta-olos-track-id": slot.trackId,
     "x-amz-meta-olos-session-id": slot.sessionId,
     "x-amz-meta-olos-slot-id": slot.slotId,
   };

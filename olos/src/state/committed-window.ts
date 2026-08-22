@@ -1,26 +1,54 @@
 import type { Commit } from "../types/commit";
 import type {
-  CommittedObject,
-  CommittedPart,
   CommittedSegment,
   CommittedWindow,
-  RenditionWindow,
+  TrackWindow,
 } from "../types/committed-window";
+import type { PartNumber, SequenceNumber } from "../types/ids";
+import type { ProfileData } from "../types/profile";
 import { assertCommit } from "../validation/commit";
 import { assertCommittedWindow } from "../validation/committed-window";
-import { assertPositiveInteger } from "../validation/ids";
+import { createTrackWindow, groupByTrack } from "./committed-window-segments";
 
-const SEGMENT_COMMIT_PART_ORDER = -1;
+export const SEGMENT_COMMIT_PART_ORDER = -1;
 
-export interface CreateCommittedWindowOptions {
-  commits: readonly Commit[];
-  discontinuitySequence?: number;
-  epoch: number;
-  initCommits: readonly Commit[];
-  maxSegments?: number;
-  sessionId: string;
+/** Input of the {@link CreateCommittedWindowOptions.trackWindowProfile} hook. */
+export interface TrackWindowProfileInput {
+  /** Visible segments, oldest first. */
+  segments: readonly CommittedSegment[];
+  trackId: string;
+  /** Segments trimmed off the front by `maxSegments`, oldest first. */
+  trimmedSegments: readonly CommittedSegment[];
 }
 
+/** Options for {@link createCommittedWindow}. */
+export interface CreateCommittedWindowOptions {
+  /** Segment and part commits; must be non-empty. */
+  commits: readonly Commit[];
+  epoch: number;
+  /** Init commits, at most one per track. Tracks without one are fine. */
+  initCommits?: readonly Commit[];
+  /** When set, only the newest `maxSegments` segments per track are kept. */
+  maxSegments?: number;
+  sessionId: string;
+  /**
+   * Profile hook producing each track window's `profile` from its visible
+   * and trimmed segments (for example `createMediaTrackWindowProfile` from
+   * olos/media). Core records whatever it returns, unchanged.
+   */
+  trackWindowProfile?: (
+    input: TrackWindowProfileInput
+  ) => ProfileData | undefined;
+}
+
+/**
+ * Aggregate commits into the {@link CommittedWindow} that backs stream
+ * rendering. Commits are grouped by track and sequence number; within a
+ * segment only the contiguous prefix of parts (starting at part 0) becomes
+ * visible. Pure. Throws when `commits` is empty, a commit's `sessionId` or
+ * `epoch` does not match, a segment or part position is duplicated, or the
+ * commits produce no visible segment.
+ */
 export function createCommittedWindow(
   options: CreateCommittedWindowOptions
 ): CommittedWindow {
@@ -31,70 +59,76 @@ export function createCommittedWindow(
   return window;
 }
 
-// Like createCommittedWindow but returns undefined when no contiguous prefix
-// of parts has landed yet. Used by the state machine to tolerate out-of-order
-// commits at the same media-sequence-number — the new commit is recorded in
-// state.commits but the cursor doesn't advance until the contiguous prefix
-// is complete.
+/**
+ * Like {@link createCommittedWindow} but returns undefined when no
+ * contiguous prefix of parts has landed yet. Used by the state machine to
+ * tolerate out-of-order commits at the same sequence number — the new
+ * commit is recorded in state.commits but the cursor doesn't advance until
+ * the contiguous prefix is complete.
+ */
 export function tryCreateCommittedWindow(
   options: CreateCommittedWindowOptions
 ): CommittedWindow | undefined {
-  const initCommits = validateCommits(options.initCommits, options);
+  const initCommits = validateCommits(options.initCommits ?? [], options);
   const mediaCommits = validateCommits(options.commits, options);
-
-  if (initCommits.length === 0) {
-    throw new Error("initCommits must be a non-empty array");
-  }
 
   if (mediaCommits.length === 0) {
     throw new Error("commits must be a non-empty array");
   }
 
-  const renditions = createRenditions(initCommits, mediaCommits, options);
-  const mediaSequenceRange = committedWindowMediaSequenceRange(renditions);
-  if (mediaSequenceRange === undefined) {
+  const tracks = createTracks(initCommits, mediaCommits, options);
+  const sequenceRange = committedWindowSequenceRange(tracks);
+  if (sequenceRange === undefined) {
     return;
   }
 
   const window: CommittedWindow = {
-    discontinuitySequence: options.discontinuitySequence ?? 0,
     epoch: options.epoch,
-    firstMediaSequenceNumber: mediaSequenceRange.firstMediaSequenceNumber,
-    lastMediaSequenceNumber: mediaSequenceRange.lastMediaSequenceNumber,
-    renditions,
+    firstSequenceNumber: sequenceRange.firstSequenceNumber,
+    lastSequenceNumber: sequenceRange.lastSequenceNumber,
+    tracks,
   };
 
   assertCommittedWindow(window);
   return window;
 }
 
-// Returns the highest part number on the visible window's last segment
-// across all renditions, or undefined when the last segment is a full
-// segment (no parts) or no segments exist.
-export function lastVisiblePartNumber(
-  window: CommittedWindow
-): number | undefined {
-  let max: number | undefined;
+// biome-ignore lint/performance/noBarrelFile: single deliberate re-export keeping the state-layer import path stable
+export { lastVisiblePartNumber } from "../validation/committed-window";
 
-  for (const rendition of Object.values(window.renditions)) {
-    const lastSegment = rendition.segments.at(-1);
+/**
+ * One track's live edge within a committed window: the sequence number of
+ * its last visible segment and, when that segment is parts-only, the last
+ * visible part number.
+ */
+export interface TrackWindowBounds {
+  /** Absent when the track's last segment is a full segment. */
+  lastPartNumber?: PartNumber;
+  lastSequenceNumber: SequenceNumber;
+}
 
-    if (lastSegment?.mediaSequenceNumber !== window.lastMediaSequenceNumber) {
-      continue;
-    }
+/**
+ * Returns the given track's own live edge within the committed window,
+ * or undefined when the track is absent or has no visible segments.
+ * Deliberately not compared against the window-global last sequence
+ * number — a lagging track's own last segment is its live edge.
+ */
+export function trackWindowBounds(
+  window: CommittedWindow,
+  trackId: string
+): TrackWindowBounds | undefined {
+  const lastSegment = window.tracks[trackId]?.segments.at(-1);
 
-    const lastPart = lastSegment.parts?.at(-1);
-
-    if (lastPart === undefined) {
-      continue;
-    }
-
-    if (max === undefined || lastPart.partNumber > max) {
-      max = lastPart.partNumber;
-    }
+  if (lastSegment === undefined) {
+    return;
   }
 
-  return max;
+  const lastPart = lastSegment.parts?.at(-1);
+
+  return {
+    lastSequenceNumber: lastSegment.sequenceNumber,
+    ...(lastPart === undefined ? {} : { lastPartNumber: lastPart.partNumber }),
+  };
 }
 
 function validateCommits(
@@ -116,268 +150,66 @@ function validateCommits(
   });
 }
 
-function createRenditions(
+function createTracks(
   initCommits: readonly Commit[],
   mediaCommits: readonly Commit[],
   options: CreateCommittedWindowOptions
-): Record<string, RenditionWindow> {
-  const initByRendition = createInitCommitsByRendition(initCommits);
-  const commitsByRendition = groupByRendition(mediaCommits);
-  const renditions: Record<string, RenditionWindow> = {};
+): Record<string, TrackWindow> {
+  const initByTrack = createInitCommitsByTrack(initCommits);
+  const commitsByTrack = groupByTrack(mediaCommits);
+  const tracks: Record<string, TrackWindow> = {};
 
-  for (const [renditionId, commits] of commitsByRendition) {
-    const init = initByRendition.get(renditionId);
-
-    if (!init) {
-      throw new Error(`missing init commit for rendition: ${renditionId}`);
-    }
-
-    renditions[renditionId] = createRenditionWindow({
+  for (const [trackId, commits] of commitsByTrack) {
+    const track = createTrackWindow({
       commits,
-      init,
+      init: initByTrack.get(trackId),
       maxSegments: options.maxSegments,
-      renditionId,
+      trackId,
+      trackWindowProfile: options.trackWindowProfile,
     });
+
+    // A track with only out-of-order parts (no contiguous prefix yet) is
+    // omitted from the window, like a track with no commits, so the commit
+    // stays recorded without rendering (§5.2, §5.3).
+    if (track.segments.length > 0) {
+      tracks[trackId] = track;
+    }
   }
 
-  return renditions;
+  return tracks;
 }
 
-function committedWindowMediaSequenceRange(
-  renditions: Record<string, RenditionWindow>
+function committedWindowSequenceRange(
+  tracks: Record<string, TrackWindow>
 ):
-  | Pick<
-      CommittedWindow,
-      "firstMediaSequenceNumber" | "lastMediaSequenceNumber"
-    >
+  | Pick<CommittedWindow, "firstSequenceNumber" | "lastSequenceNumber">
   | undefined {
-  const mediaSequenceNumbers = Object.values(renditions).flatMap((rendition) =>
-    rendition.segments.map((segment) => segment.mediaSequenceNumber)
+  const sequenceNumbers = Object.values(tracks).flatMap((track) =>
+    track.segments.map((segment) => segment.sequenceNumber)
   );
 
-  if (mediaSequenceNumbers.length === 0) {
+  if (sequenceNumbers.length === 0) {
     return;
   }
 
   return {
-    firstMediaSequenceNumber: Math.min(...mediaSequenceNumbers),
-    lastMediaSequenceNumber: Math.max(...mediaSequenceNumbers),
+    firstSequenceNumber: Math.min(...sequenceNumbers),
+    lastSequenceNumber: Math.max(...sequenceNumbers),
   };
 }
 
-function createInitCommitsByRendition(
+function createInitCommitsByTrack(
   initCommits: readonly Commit[]
 ): Map<string, Commit> {
-  const initByRendition = new Map<string, Commit>();
+  const initByTrack = new Map<string, Commit>();
 
   for (const commit of initCommits) {
-    if (initByRendition.has(commit.renditionId)) {
-      throw new Error("initCommits must not contain duplicate rendition IDs");
+    if (initByTrack.has(commit.trackId)) {
+      throw new Error("initCommits must not contain duplicate track IDs");
     }
 
-    initByRendition.set(commit.renditionId, commit);
+    initByTrack.set(commit.trackId, commit);
   }
 
-  return initByRendition;
-}
-
-function createRenditionWindow({
-  commits,
-  init,
-  maxSegments,
-  renditionId,
-}: {
-  commits: readonly Commit[];
-  init: Commit;
-  maxSegments?: number;
-  renditionId: string;
-}): RenditionWindow {
-  return {
-    init: committedObject(init),
-    renditionId,
-    segments: createSegments(commits, maxSegments),
-  };
-}
-
-function groupByRendition(commits: readonly Commit[]): Map<string, Commit[]> {
-  const groups = new Map<string, Commit[]>();
-
-  for (const commit of commits) {
-    const group = groups.get(commit.renditionId);
-
-    if (group) {
-      group.push(commit);
-    } else {
-      groups.set(commit.renditionId, [commit]);
-    }
-  }
-
-  return groups;
-}
-
-function createSegments(
-  commits: readonly Commit[],
-  maxSegments: number | undefined
-): CommittedSegment[] {
-  const segments = finalizeCommittedSegments(createSegmentsBySequence(commits));
-
-  return limitCommittedSegments(segments, maxSegments);
-}
-
-function createSegmentsBySequence(
-  commits: readonly Commit[]
-): Map<number, CommittedSegment> {
-  const segmentsBySequence = new Map<number, CommittedSegment>();
-  const sortedCommits = [...commits].sort(compareCommitPosition);
-
-  for (const commit of sortedCommits) {
-    const segment = segmentForCommit(segmentsBySequence, commit);
-    addCommitToSegment(segment, commit);
-  }
-
-  return segmentsBySequence;
-}
-
-function finalizeCommittedSegments(
-  segmentsBySequence: Map<number, CommittedSegment>
-): CommittedSegment[] {
-  return [...segmentsBySequence.values()]
-    .map(commitContiguousParts)
-    .filter(hasCommittedMedia)
-    .sort(
-      (left, right) => left.mediaSequenceNumber - right.mediaSequenceNumber
-    );
-}
-
-function limitCommittedSegments(
-  segments: readonly CommittedSegment[],
-  maxSegments: number | undefined
-): CommittedSegment[] {
-  if (maxSegments !== undefined) {
-    assertPositiveInteger(maxSegments, "maxSegments");
-    return segments.slice(-maxSegments);
-  }
-
-  return [...segments];
-}
-
-function addCommitToSegment(segment: CommittedSegment, commit: Commit): void {
-  if (commit.partNumber === undefined) {
-    if (segment.segment !== undefined) {
-      throw new Error("commits must not contain duplicate segment positions");
-    }
-
-    segment.segment = committedObject(commit);
-    return;
-  }
-
-  const parts = segment.parts ?? [];
-  parts.push(committedPart(commit));
-  segment.parts = parts;
-}
-
-function commitContiguousParts(segment: CommittedSegment): CommittedSegment {
-  if (segment.parts === undefined) {
-    return segment;
-  }
-
-  assertUniqueParts(segment.parts);
-
-  const parts = contiguousPartsPrefix(segment.parts);
-
-  return parts.length === 0
-    ? { ...segment, parts: undefined }
-    : { ...segment, parts };
-}
-
-function contiguousPartsPrefix(
-  parts: readonly CommittedPart[]
-): CommittedPart[] {
-  const contiguousParts: CommittedPart[] = [];
-
-  for (const part of parts) {
-    if (part.partNumber !== contiguousParts.length) {
-      break;
-    }
-
-    contiguousParts.push(part);
-  }
-
-  return contiguousParts;
-}
-
-function hasCommittedMedia(segment: CommittedSegment): boolean {
-  return segment.segment !== undefined || segment.parts !== undefined;
-}
-
-function assertUniqueParts(parts: readonly CommittedPart[]): void {
-  const seen = new Set<number>();
-
-  for (const part of parts) {
-    if (seen.has(part.partNumber)) {
-      throw new Error("commits must not contain duplicate part positions");
-    }
-
-    seen.add(part.partNumber);
-  }
-}
-
-function segmentForCommit(
-  segmentsBySequence: Map<number, CommittedSegment>,
-  commit: Commit
-): CommittedSegment {
-  const existing = segmentsBySequence.get(commit.mediaSequenceNumber);
-
-  if (existing) {
-    return existing;
-  }
-
-  const segment: CommittedSegment = {
-    duration: commit.duration,
-    mediaSequenceNumber: commit.mediaSequenceNumber,
-  };
-
-  segmentsBySequence.set(commit.mediaSequenceNumber, segment);
-  return segment;
-}
-
-function committedObject(commit: Commit): CommittedObject {
-  return {
-    commitId: commit.commitId,
-    deliveryUrl: commit.deliveryUrl,
-    duration: commit.duration,
-    ...(commit.etag === undefined ? {} : { etag: commit.etag }),
-    objectKey: commit.objectKey,
-    slotId: commit.slotId,
-  };
-}
-
-function committedPart(commit: Commit): CommittedPart {
-  if (commit.partNumber === undefined) {
-    throw new Error("commit.partNumber must be defined for parts");
-  }
-
-  return {
-    ...committedObject(commit),
-    ...(commit.byterange === undefined ? {} : { byterange: commit.byterange }),
-    duration: commit.duration,
-    ...(commit.independent === undefined
-      ? {}
-      : { independent: commit.independent }),
-    partNumber: commit.partNumber,
-    ...(commit.programDateTime === undefined
-      ? {}
-      : { programDateTime: commit.programDateTime }),
-  };
-}
-
-function compareCommitPosition(left: Commit, right: Commit): number {
-  if (left.mediaSequenceNumber !== right.mediaSequenceNumber) {
-    return left.mediaSequenceNumber - right.mediaSequenceNumber;
-  }
-
-  return (
-    (left.partNumber ?? SEGMENT_COMMIT_PART_ORDER) -
-    (right.partNumber ?? SEGMENT_COMMIT_PART_ORDER)
-  );
+  return initByTrack;
 }

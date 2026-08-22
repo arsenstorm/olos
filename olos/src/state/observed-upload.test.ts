@@ -6,11 +6,12 @@ import {
   createObservedUploadFromHeadObject,
   createObservedUploadFromObjectCreatedEvent,
   createUploadCompletionHint,
-  normalizeUploadEvent,
-  resolveObjectCreatedEventObservation,
-  resolveObjectCreatedEventSlot,
   resolveUploadEvidence,
 } from "./observed-upload";
+import {
+  normalizeUploadEvent,
+  resolveObjectCreatedEventSlot,
+} from "./observed-upload-event";
 
 describe("observed upload builder", () => {
   test("creates an observed upload from provider metadata", () => {
@@ -66,7 +67,7 @@ describe("observed upload builder", () => {
         providerId: "s3_primary",
         size: 0,
       })
-    ).toThrow("mediaObject.size must be a positive number");
+    ).toThrow("mediaObject.size must be a positive integer");
   });
 
   test("rejects invalid observation timestamps", () => {
@@ -149,6 +150,18 @@ describe("head object normalization", () => {
     ).toBe("2026-01-01T00:00:01.000Z");
   });
 
+  test("normalizes HTTP-date last-modified strings to RFC 3339", () => {
+    expect(
+      createObservedUploadFromHeadObject({
+        contentLength: 98_304,
+        contentType: "video/mp4",
+        lastModified: "Thu, 01 Jan 2026 00:00:01 GMT",
+        objectKey: "media/session/v1080/3810.m4s",
+        providerId: "s3_primary",
+      }).observedAt
+    ).toBe("2026-01-01T00:00:01.000Z");
+  });
+
   test("rejects missing content length", () => {
     expect(() =>
       createObservedUploadFromHeadObject({
@@ -158,7 +171,7 @@ describe("head object normalization", () => {
         objectKey: "media/session/v1080/3810.m4s",
         providerId: "s3_primary",
       })
-    ).toThrow("mediaObject.size must be a positive number");
+    ).toThrow("mediaObject.size must be a positive integer");
   });
 
   test("rejects invalid last-modified values", () => {
@@ -170,7 +183,7 @@ describe("head object normalization", () => {
         objectKey: "media/session/v1080/3810.m4s",
         providerId: "s3_primary",
       })
-    ).toThrow("mediaObject.observedAt must be a valid timestamp");
+    ).toThrow("lastModified must be a valid timestamp");
   });
 });
 
@@ -178,14 +191,14 @@ describe("object created event normalization", () => {
   const slot: UploadSlot = {
     contentType: "video/mp4",
     deliveryUrl: "/objects/media/session/v1080/3810.m4s",
-    duration: 2,
+    profile: { duration: 2 },
     epoch: 0,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment",
     maxBytes: 100_000,
-    mediaSequenceNumber: 3810,
+    sequenceNumber: 3810,
     objectKey: "media/session/v1080/3810.m4s",
-    renditionId: "v1080",
+    trackId: "v1080",
     sessionId: "session_1",
     slotId: "slot_1",
     state: "issued",
@@ -331,6 +344,29 @@ describe("object created event normalization", () => {
         event: {
           eventId: "hint_1",
           eventTime: "not-a-date",
+          eventType: "upload.completed",
+          objectKey: "media/session/v1080/3810.m4s",
+          slotId: "slot_1",
+        },
+      })
+    ).toEqual({
+      error: {
+        error: {
+          code: "olos.invalid_state",
+          message: "uploadCompletionHint.eventTime must be a valid timestamp",
+        },
+      },
+      status: "invalid_event",
+    });
+
+    // eventTime is strict RFC 3339: formats Date.parse happens to accept
+    // (HTTP dates, date-only strings) must be normalized by the caller, not
+    // smuggled into commit timestamps.
+    expect(
+      normalizeUploadEvent({
+        event: {
+          eventId: "hint_1",
+          eventTime: "Mon, 08 Jun 2026 12:00:00 GMT",
           eventType: "upload.completed",
           objectKey: "media/session/v1080/3810.m4s",
           slotId: "slot_1",
@@ -495,30 +531,6 @@ describe("object created event normalization", () => {
 
   test("idles without upload evidence", () => {
     expect(resolveUploadEvidence({})).toEqual({ status: "idle" });
-  });
-
-  test("observes object-created events once", () => {
-    expect(
-      resolveObjectCreatedEventObservation({
-        event: objectCreatedEvent,
-        observedEventIds: [],
-      })
-    ).toEqual({
-      event: objectCreatedEvent,
-      status: "observed",
-    });
-  });
-
-  test("treats duplicate object-created events idempotently", () => {
-    expect(
-      resolveObjectCreatedEventObservation({
-        event: objectCreatedEvent,
-        observedEventIds: new Set(["evt_1"]),
-      })
-    ).toEqual({
-      eventId: "evt_1",
-      status: "duplicate",
-    });
   });
 
   test("rejects invalid event ids", () => {

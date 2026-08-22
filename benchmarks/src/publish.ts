@@ -9,17 +9,25 @@ const EDGE_URL = "https://edge.example.com";
 const MAX_BYTES = 5_000_000;
 const WINDOW_SEGMENTS = 6;
 const SLOT_TTL_MS = 60_000;
-const RENDITION_ID = "v1080";
+const TRACK_ID = "v1080";
 const SESSION_ID = "benchmark_session";
+
+type ObjectKind = "init" | "part" | "segment";
+
+const OBJECT_EXTENSIONS: Record<ObjectKind, string> = {
+  init: "mp4",
+  part: "m4s",
+  segment: "m4s",
+};
 
 export interface PublishSpec {
   bytes: Uint8Array;
   commitId: string;
   duration: number;
   independent: boolean;
-  kind: "init" | "part" | "segment";
-  mediaSequenceNumber: number;
+  kind: ObjectKind;
   partNumber?: number;
+  sequenceNumber: number;
   slotId: string;
 }
 
@@ -34,21 +42,7 @@ export async function publishObject(
   spec: PublishSpec
 ): Promise<PublishTimestamps> {
   const slotResponse = await expectOk(
-    handle(
-      jsonRequest(`/sessions/${SESSION_ID}/s3/slots`, {
-        contentType: "video/mp4",
-        duration: spec.duration,
-        expiresAt: new Date(Date.now() + SLOT_TTL_MS).toISOString(),
-        kind: spec.kind,
-        maxBytes: MAX_BYTES,
-        mediaSequenceNumber: spec.mediaSequenceNumber,
-        ...(spec.partNumber === undefined
-          ? {}
-          : { partNumber: spec.partNumber }),
-        renditionId: RENDITION_ID,
-        slotId: spec.slotId,
-      })
-    ),
+    handle(jsonRequest(`/sessions/${SESSION_ID}/s3/slots`, slotPayload(spec))),
     `slot ${spec.slotId}`
   );
   const { slot } = (await slotResponse.json()) as {
@@ -59,24 +53,43 @@ export async function publishObject(
 
   await expectOk(
     handle(
-      jsonRequest(`/sessions/${SESSION_ID}/s3/commits`, {
-        commitId: spec.commitId,
-        committedAt: new Date().toISOString(),
-        independent: spec.independent,
-        maxSegments: WINDOW_SEGMENTS,
-        slotId: spec.slotId,
-      })
+      jsonRequest(`/sessions/${SESSION_ID}/s3/commits`, commitPayload(spec))
     ),
     `commit ${spec.slotId}`
   );
   return { uploadedAt, committedAt: now() };
 }
 
+function slotPayload(spec: PublishSpec): Record<string, unknown> {
+  return {
+    contentType: "video/mp4",
+    expiresAt: new Date(Date.now() + SLOT_TTL_MS).toISOString(),
+    extension: OBJECT_EXTENSIONS[spec.kind],
+    kind: spec.kind,
+    maxBytes: MAX_BYTES,
+    sequenceNumber: spec.sequenceNumber,
+    ...(spec.partNumber === undefined ? {} : { partNumber: spec.partNumber }),
+    profile: { duration: spec.duration },
+    trackId: TRACK_ID,
+    slotId: spec.slotId,
+  };
+}
+
+function commitPayload(spec: PublishSpec): Record<string, unknown> {
+  return {
+    commitId: spec.commitId,
+    committedAt: new Date().toISOString(),
+    maxSegments: WINDOW_SEGMENTS,
+    profile: { independent: spec.independent },
+    slotId: spec.slotId,
+  };
+}
+
 export function createSessionRequest(
-  mediaBaseUrl: string,
+  deliveryBaseUrl: string,
   session: unknown
 ): Request {
-  return jsonRequest("/sessions", { mediaBaseUrl, session });
+  return jsonRequest("/sessions", { deliveryBaseUrl, session });
 }
 
 export function callHandlerExpectOk(
@@ -106,4 +119,4 @@ async function expectOk(
   return result;
 }
 
-export { RENDITION_ID, SESSION_ID };
+export { SESSION_ID, TRACK_ID };

@@ -4,14 +4,17 @@ import {
   resolveHlsManifestArtifactResponse,
 } from "@arsenstorm/olos/hls";
 import {
-  createCoordinatorPipeline,
-  createMemoryCoordinatorStore,
-} from "@arsenstorm/olos/protocol";
-import {
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
   createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
+  type MediaSession,
+} from "@arsenstorm/olos/media";
+import {
+  createCoordinatorPipeline,
+  createMemoryCoordinatorStore,
+} from "@arsenstorm/olos/protocol";
+import {
   createRuntimePublisherObjectPlan,
   planStoredCoordinatorRetention,
   type RuntimePublisherObjectPlan,
@@ -32,7 +35,6 @@ import {
   summarizeStoredS3PublisherUploadStep,
 } from "@arsenstorm/olos/s3";
 import { normalizeUploadEvent } from "@arsenstorm/olos/state";
-import type { Session } from "@arsenstorm/olos/types";
 import { assertCursor } from "@arsenstorm/olos/validation";
 import { describe, expect, test } from "vitest";
 import {
@@ -63,44 +65,50 @@ const publisherDefaults = createRuntimeObjectLowLatencyPublisherDefaults({
 const session = {
   createdAt: "2026-01-01T00:00:00.000Z",
   epoch: 1,
-  latencyProfile: latency.latencyProfile,
   olos: "1.0",
-  partTarget: latency.partTarget,
-  renditions: [v1080Rendition()],
-  segmentTarget: latency.segmentTarget,
+  profile: {
+    id: "cmaf-llhls",
+    partTarget: latency.partTarget,
+    segmentTarget: latency.segmentTarget,
+  },
+  tracks: [v1080Track()],
   sessionId: "session_1",
   state: "live",
-} satisfies Session;
+} satisfies MediaSession;
 
-function v1080Rendition() {
+function v1080Track() {
   return {
-    bitrate: 5_000_000,
-    codec: "avc1.640028",
-    frameRate: 30,
-    height: 1080,
-    kind: "video",
-    renditionId: "v1080",
-    width: 1920,
+    profile: {
+      bitrate: 5_000_000,
+      codec: "avc1.640028",
+      frameRate: 30,
+      height: 1080,
+      kind: "video",
+      width: 1920,
+    },
+    trackId: "v1080",
   } as const;
 }
 
-const multiRenditionSession = {
+const multiTrackSession = {
   ...session,
-  renditions: [
-    v1080Rendition(),
+  tracks: [
+    v1080Track(),
     {
-      bitrate: 2_800_000,
-      codec: "avc1.64001f",
-      frameRate: 30,
-      height: 720,
-      kind: "video",
-      renditionId: "v720",
-      width: 1280,
+      profile: {
+        bitrate: 2_800_000,
+        codec: "avc1.64001f",
+        frameRate: 30,
+        height: 720,
+        kind: "video",
+        width: 1280,
+      },
+      trackId: "v720",
     },
   ],
-} satisfies Session;
+} satisfies MediaSession;
 
-const mediaBaseUrl = "https://media.example.com";
+const deliveryBaseUrl = "https://media.example.com";
 
 const publishNow = "2026-01-01T00:00:00.000Z";
 describe("object-store flow", () => {
@@ -127,9 +135,9 @@ describe("object-store flow", () => {
       client: createTestHeadObjectClient(headObjectInputs, 98_304),
       commitId: issued.segmentPlan.commitId,
       committedAt: "2026-01-01T00:00:02.000Z",
-      independent: true,
+      profile: { independent: true },
       manifest: {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedDeliveryOrigins: ["https://media.example.com"],
         ...manifestOptions.manifest,
         response: manifestOptions.response,
       },
@@ -177,8 +185,8 @@ describe("object-store flow", () => {
           );
 
     expect(cursor.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
     expect(segmentCommit.manifest?.cursor).toEqual(cursor);
     expect(master?.response).toMatchObject({
@@ -201,10 +209,10 @@ describe("object-store flow", () => {
     });
     expect(resolvedMedia).toEqual(media?.response);
     expect(media?.response.body).toContain(
-      `#EXT-X-MAP:URI="${mediaBaseUrl}/${issued.initPlan.objectKey}"`
+      `#EXT-X-MAP:URI="${deliveryBaseUrl}/${issued.initPlan.objectKey}"`
     );
     expect(media?.response.body).toContain(
-      `${mediaBaseUrl}/${issued.segmentPlan.objectKey}`
+      `${deliveryBaseUrl}/${issued.segmentPlan.objectKey}`
     );
     expect(headObjectInputs).toEqual([
       {
@@ -225,7 +233,7 @@ describe("object-store flow", () => {
     const initPlan = createUploadPlan({
       kind: "init",
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
+      sequenceNumber: 0,
     });
     const init = await issuePlannedUploadGrant({ plan: initPlan, store });
 
@@ -251,9 +259,9 @@ describe("object-store flow", () => {
       cursorWindow: storedBeforeStep?.state.cursor?.window,
       defaults: publisherDefaults,
       headObjectClient: createTestHeadObjectClient(headObjectInputs, 98_304),
-      independent: true,
+      profile: { independent: true },
       manifest: {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedDeliveryOrigins: ["https://media.example.com"],
         ...manifestOptions.manifest,
       },
       now: publishNow,
@@ -261,9 +269,9 @@ describe("object-store flow", () => {
       objectKeyPrefix: "media",
       providerId: "s3_primary",
       publicationMode: "direct-public",
-      renditionId: "v1080",
+      trackId: "v1080",
       sessionId: session.sessionId,
-      startMediaSequenceNumber: 3810,
+      startSequenceNumber: 3810,
       store,
       minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
       targetLatency: publisherOptions.expiry.targetLatency,
@@ -277,7 +285,7 @@ describe("object-store flow", () => {
 
     expect(step.position).toEqual({
       kind: "segment",
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
     });
     expect(step.status).toBe("committed");
     expect(step.expiry).toEqual({
@@ -310,8 +318,8 @@ describe("object-store flow", () => {
     assertCursor(cursor);
 
     expect(cursor.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
     expect(media?.body).toContain(step.slot?.deliveryUrl);
     expect(uploadedUrls).toHaveLength(1);
@@ -348,7 +356,7 @@ describe("object-store flow", () => {
     expect(init.status).toBe("committed");
     expect(init.position).toEqual({
       kind: "init",
-      mediaSequenceNumber: 0,
+      sequenceNumber: 0,
     });
 
     let stored = await store.load(session.sessionId);
@@ -367,7 +375,7 @@ describe("object-store flow", () => {
     expect(firstSegment.status).toBe("committed");
     expect(firstSegment.position).toEqual({
       kind: "segment",
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
     });
 
     stored = await store.load(session.sessionId);
@@ -386,7 +394,7 @@ describe("object-store flow", () => {
     expect(nextSegment.status).toBe("committed");
     expect(nextSegment.position).toEqual({
       kind: "segment",
-      mediaSequenceNumber: 3811,
+      sequenceNumber: 3811,
     });
 
     if (
@@ -419,8 +427,8 @@ describe("object-store flow", () => {
     );
 
     expect(cursor.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3811,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3811,
     });
     expect(media?.body).toContain(init.slot.deliveryUrl);
     expect(media?.body).toContain(firstSegment.slot.deliveryUrl);
@@ -476,7 +484,7 @@ describe("object-store flow", () => {
     const thirdSegmentPlan = createUploadPlan({
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3812,
+      sequenceNumber: 3812,
     });
     const thirdSegment = await issuePlannedUploadGrant({
       plan: thirdSegmentPlan,
@@ -531,8 +539,8 @@ describe("object-store flow", () => {
       committedAt: (slot) =>
         slot.kind === "init"
           ? "2026-01-01T00:00:01.000Z"
-          : `2026-01-01T00:00:0${slot.mediaSequenceNumber - 3808}.000Z`,
-      independent: (slot) => slot.kind === "segment",
+          : `2026-01-01T00:00:0${slot.sequenceNumber - 3808}.000Z`,
+      profile: (slot) => ({ independent: slot.kind === "segment" }),
       maxSegments: 2,
       providerId: "s3_primary",
       sessionId: session.sessionId,
@@ -562,8 +570,8 @@ describe("object-store flow", () => {
       planned: 4,
     });
     expect(cursor.window).toEqual({
-      firstMediaSequenceNumber: 3811,
-      lastMediaSequenceNumber: 3812,
+      firstSequenceNumber: 3811,
+      lastSequenceNumber: 3812,
     });
 
     const retention = await planStoredCoordinatorRetention({
@@ -583,7 +591,7 @@ describe("object-store flow", () => {
       objects: retention.plan.retiredObjects,
     });
 
-    // commit-time pruning already retired the out-of-window segment;
+    // Commit-time pruning already retired the out-of-window segment;
     // planStoredCoordinatorRetention only surfaces commits still in state.
     expect(retention.plan.retiredObjects).toEqual([]);
     expect(deleted.failedObjects).toEqual([]);
@@ -667,9 +675,9 @@ describe("object-store flow", () => {
         event.event.object.size
       ),
       event,
-      independent: true,
+      profile: { independent: true },
       manifest: {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedDeliveryOrigins: ["https://media.example.com"],
         ...manifestOptions.manifest,
       },
       providerId: event.event.object.providerId,
@@ -689,14 +697,14 @@ describe("object-store flow", () => {
     assertCursor(cursor);
 
     const playlist = renderMediaPlaylist(cursor.committedWindow, {
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedDeliveryOrigins: ["https://media.example.com"],
       ...manifestOptions.manifest,
-      renditionId: "v1080",
+      trackId: "v1080",
     });
 
     expect(cursor.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
     const response =
       segmentCommit.status === "committed" && segmentCommit.manifest
@@ -707,10 +715,10 @@ describe("object-store flow", () => {
         : undefined;
 
     expect(playlist).toContain(
-      `${mediaBaseUrl}/${issued.segmentPlan.objectKey}`
+      `${deliveryBaseUrl}/${issued.segmentPlan.objectKey}`
     );
     expect(response?.body).toContain(
-      `${mediaBaseUrl}/${issued.segmentPlan.objectKey}`
+      `${deliveryBaseUrl}/${issued.segmentPlan.objectKey}`
     );
     expect(headObjectInputs).toEqual([
       {
@@ -778,14 +786,14 @@ describe("object-store flow", () => {
     assertCursor(cursor);
 
     const playlist = renderMediaPlaylist(cursor.committedWindow, {
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedDeliveryOrigins: ["https://media.example.com"],
       ...manifestOptions.manifest,
-      renditionId: "v1080",
+      trackId: "v1080",
     });
 
     expect(cursor.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3811,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3811,
       lastPartNumber: 1,
     });
     expect(latency.targetLatency).toBeLessThanOrEqual(4);
@@ -794,13 +802,13 @@ describe("object-store flow", () => {
     );
     expect(playlist).toContain("#EXT-X-PART-INF:PART-TARGET=0.500");
     expect(playlist).toContain(
-      "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=3.000,HOLD-BACK=3.000"
+      "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=3.000,HOLD-BACK=6.000"
     );
     expect(playlist).toContain(
-      `#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="${mediaBaseUrl}/${issued.part0Plan.objectKey}"`
+      `#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES,URI="${deliveryBaseUrl}/${issued.part0Plan.objectKey}"`
     );
     expect(playlist).toContain(
-      `#EXT-X-PART:DURATION=0.500,URI="${mediaBaseUrl}/${issued.part1Plan.objectKey}"`
+      `#EXT-X-PART:DURATION=0.500,URI="${deliveryBaseUrl}/${issued.part1Plan.objectKey}"`
     );
     expect(headObjectInputs).toEqual([
       {
@@ -858,14 +866,14 @@ describe("object-store flow", () => {
 
     assertCursor(cursor);
     expect(cursor.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
 
     const result = await resolveBlockingHlsManifestArtifactResponse({
       cursor,
       manifest: {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedDeliveryOrigins: ["https://media.example.com"],
         ...manifestOptions.manifest,
       },
       requestUrl: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3811",
@@ -900,11 +908,11 @@ describe("object-store flow", () => {
     }
 
     expect(result.cursor.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3811,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3811,
     });
     expect(result.response.body).toContain(
-      `${mediaBaseUrl}/${issued.nextSegmentPlan.objectKey}`
+      `${deliveryBaseUrl}/${issued.nextSegmentPlan.objectKey}`
     );
     expect(headObjectInputs).toEqual([
       {
@@ -922,10 +930,10 @@ describe("object-store flow", () => {
     ]);
   });
 
-  test("publishes multiple S3 renditions into coherent HLS manifests", async () => {
+  test("publishes multiple S3 tracks into coherent HLS manifests", async () => {
     const headObjectInputs: unknown[] = [];
-    const store = await createStoredPipeline(multiRenditionSession);
-    const issued = await issueMultiRenditionSlots(store);
+    const store = await createStoredPipeline(multiTrackSession);
+    const issued = await issueMultiTrackSlots(store);
 
     for (const issue of [
       issued.v1080Init,
@@ -942,7 +950,7 @@ describe("object-store flow", () => {
       commitId: issued.v1080InitPlan.commitId,
       committedAt: "2026-01-01T00:00:01.000Z",
       providerId: "s3_primary",
-      sessionId: multiRenditionSession.sessionId,
+      sessionId: multiTrackSession.sessionId,
       slotId: issued.v1080InitPlan.slot.slotId,
       store,
     });
@@ -952,7 +960,7 @@ describe("object-store flow", () => {
       commitId: issued.v720InitPlan.commitId,
       committedAt: "2026-01-01T00:00:01.000Z",
       providerId: "s3_primary",
-      sessionId: multiRenditionSession.sessionId,
+      sessionId: multiTrackSession.sessionId,
       slotId: issued.v720InitPlan.slot.slotId,
       store,
     });
@@ -961,9 +969,9 @@ describe("object-store flow", () => {
       client: createTestHeadObjectClient(headObjectInputs, 98_304),
       commitId: issued.v1080SegmentPlan.commitId,
       committedAt: "2026-01-01T00:00:02.000Z",
-      independent: true,
+      profile: { independent: true },
       providerId: "s3_primary",
-      sessionId: multiRenditionSession.sessionId,
+      sessionId: multiTrackSession.sessionId,
       slotId: issued.v1080SegmentPlan.slot.slotId,
       store,
     });
@@ -972,13 +980,13 @@ describe("object-store flow", () => {
       client: createTestHeadObjectClient(headObjectInputs, 64_000),
       commitId: issued.v720SegmentPlan.commitId,
       committedAt: "2026-01-01T00:00:02.000Z",
-      independent: true,
+      profile: { independent: true },
       manifest: {
-        allowedMediaOrigins: ["https://media.example.com"],
+        allowedDeliveryOrigins: ["https://media.example.com"],
         ...manifestOptions.manifest,
       },
       providerId: "s3_primary",
-      sessionId: multiRenditionSession.sessionId,
+      sessionId: multiTrackSession.sessionId,
       slotId: issued.v720SegmentPlan.slot.slotId,
       store,
     });
@@ -1012,16 +1020,16 @@ describe("object-store flow", () => {
     expect(master?.body).toContain("/v1/live/session_1/v1080/media.m3u8");
     expect(master?.body).toContain("/v1/live/session_1/v720/media.m3u8");
     expect(v1080?.body).toContain(
-      `#EXT-X-MAP:URI="${mediaBaseUrl}/${issued.v1080InitPlan.objectKey}"`
+      `#EXT-X-MAP:URI="${deliveryBaseUrl}/${issued.v1080InitPlan.objectKey}"`
     );
     expect(v1080?.body).toContain(
-      `${mediaBaseUrl}/${issued.v1080SegmentPlan.objectKey}`
+      `${deliveryBaseUrl}/${issued.v1080SegmentPlan.objectKey}`
     );
     expect(v720?.body).toContain(
-      `#EXT-X-MAP:URI="${mediaBaseUrl}/${issued.v720InitPlan.objectKey}"`
+      `#EXT-X-MAP:URI="${deliveryBaseUrl}/${issued.v720InitPlan.objectKey}"`
     );
     expect(v720?.body).toContain(
-      `${mediaBaseUrl}/${issued.v720SegmentPlan.objectKey}`
+      `${deliveryBaseUrl}/${issued.v720SegmentPlan.objectKey}`
     );
     expect(headObjectInputs).toEqual([
       {
@@ -1044,11 +1052,14 @@ describe("object-store flow", () => {
   });
 });
 
-async function createStoredPipeline(activeSession: Session = session) {
+async function createStoredPipeline(activeSession: MediaSession = session) {
   const store = createMemoryCoordinatorStore();
   await store.save({
     sessionId: activeSession.sessionId,
-    state: createCoordinatorPipeline({ mediaBaseUrl, session: activeSession }),
+    state: createCoordinatorPipeline({
+      deliveryBaseUrl,
+      session: activeSession,
+    }),
   });
 
   return store;
@@ -1060,12 +1071,12 @@ async function issueInitAndSegment(
   const initPlan = createUploadPlan({
     kind: "init",
     maxBytes: 2048,
-    mediaSequenceNumber: 0,
+    sequenceNumber: 0,
   });
   const segmentPlan = createUploadPlan({
     kind: "segment",
     maxBytes: 100_000,
-    mediaSequenceNumber: 3810,
+    sequenceNumber: 3810,
   });
   const init = await issuePlannedUploadGrant({ plan: initPlan, store });
   const segment = await issuePlannedUploadGrant({ plan: segmentPlan, store });
@@ -1080,13 +1091,13 @@ async function issueLowLatencySlots(
   const part0Plan = createUploadPlan({
     kind: "part",
     maxBytes: 25_000,
-    mediaSequenceNumber: 3811,
+    sequenceNumber: 3811,
     partNumber: 0,
   });
   const part1Plan = createUploadPlan({
     kind: "part",
     maxBytes: 25_000,
-    mediaSequenceNumber: 3811,
+    sequenceNumber: 3811,
     partNumber: 1,
   });
   const part0 = await issuePlannedUploadGrant({ plan: part0Plan, store });
@@ -1102,7 +1113,7 @@ async function issueBlockingReloadSlots(
   const nextSegmentPlan = createUploadPlan({
     kind: "segment",
     maxBytes: 100_000,
-    mediaSequenceNumber: 3811,
+    sequenceNumber: 3811,
   });
   const nextSegment = await issuePlannedUploadGrant({
     plan: nextSegmentPlan,
@@ -1112,51 +1123,51 @@ async function issueBlockingReloadSlots(
   return { ...issued, nextSegment, nextSegmentPlan };
 }
 
-async function issueMultiRenditionSlots(
+async function issueMultiTrackSlots(
   store: ReturnType<typeof createMemoryCoordinatorStore>
 ) {
   const v1080InitPlan = createUploadPlan({
     kind: "init",
     maxBytes: 2048,
-    mediaSequenceNumber: 0,
-    renditionId: "v1080",
+    sequenceNumber: 0,
+    trackId: "v1080",
   });
   const v720InitPlan = createUploadPlan({
     kind: "init",
     maxBytes: 2048,
-    mediaSequenceNumber: 0,
-    renditionId: "v720",
+    sequenceNumber: 0,
+    trackId: "v720",
   });
   const v1080SegmentPlan = createUploadPlan({
     kind: "segment",
     maxBytes: 100_000,
-    mediaSequenceNumber: 3810,
-    renditionId: "v1080",
+    sequenceNumber: 3810,
+    trackId: "v1080",
   });
   const v720SegmentPlan = createUploadPlan({
     kind: "segment",
     maxBytes: 75_000,
-    mediaSequenceNumber: 3810,
-    renditionId: "v720",
+    sequenceNumber: 3810,
+    trackId: "v720",
   });
   const v1080Init = await issuePlannedUploadGrant({
     plan: v1080InitPlan,
-    sessionId: multiRenditionSession.sessionId,
+    sessionId: multiTrackSession.sessionId,
     store,
   });
   const v720Init = await issuePlannedUploadGrant({
     plan: v720InitPlan,
-    sessionId: multiRenditionSession.sessionId,
+    sessionId: multiTrackSession.sessionId,
     store,
   });
   const v1080Segment = await issuePlannedUploadGrant({
     plan: v1080SegmentPlan,
-    sessionId: multiRenditionSession.sessionId,
+    sessionId: multiTrackSession.sessionId,
     store,
   });
   const v720Segment = await issuePlannedUploadGrant({
     plan: v720SegmentPlan,
-    sessionId: multiRenditionSession.sessionId,
+    sessionId: multiTrackSession.sessionId,
     store,
   });
 
@@ -1175,13 +1186,13 @@ async function issueMultiRenditionSlots(
 function createUploadPlan(options: {
   kind: RuntimePublisherPlannedObjectKind;
   maxBytes: number;
-  mediaSequenceNumber: number;
+  sequenceNumber: number;
   partNumber?: number;
-  renditionId?: string;
+  trackId?: string;
 }): RuntimePublisherObjectPlan {
   const duration = plannedDuration(options.kind);
   const expiry = resolveRuntimePublisherObjectExpiry({
-    duration,
+    cadenceSeconds: duration,
     minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
     now: publishNow,
     targetLatency: publisherOptions.expiry.targetLatency,
@@ -1189,37 +1200,37 @@ function createUploadPlan(options: {
 
   return createRuntimePublisherObjectPlan({
     contentType: "video/mp4",
-    duration,
     expiresAt: expiry.expiresAt,
     extension: options.kind === "init" ? "mp4" : "m4s",
     kind: options.kind,
     maxBytes: options.maxBytes,
-    mediaSequenceNumber: options.mediaSequenceNumber,
+    sequenceNumber: options.sequenceNumber,
     objectKeyNonce: objectKeyNonceForPlan(options),
     objectKeyPrefix: "media",
     partNumber: options.partNumber,
+    profile: { duration },
     publicationMode: "direct-public",
-    renditionId: options.renditionId ?? "v1080",
+    trackId: options.trackId ?? "v1080",
   });
 }
 
 function objectKeyNonceForPlan(options: {
   kind: RuntimePublisherPlannedObjectKind;
-  mediaSequenceNumber: number;
+  sequenceNumber: number;
   partNumber?: number;
-  renditionId?: string;
+  trackId?: string;
 }): string {
-  const renditionId = options.renditionId ?? "v1080";
+  const trackId = options.trackId ?? "v1080";
 
   if (options.kind === "init") {
-    return `slot_${renditionId}_init`;
+    return `slot_${trackId}_init`;
   }
 
   if (options.kind === "segment") {
-    return `slot_${renditionId}_s${options.mediaSequenceNumber}`;
+    return `slot_${trackId}_s${options.sequenceNumber}`;
   }
 
-  return `slot_${renditionId}_s${options.mediaSequenceNumber}_p${options.partNumber}`;
+  return `slot_${trackId}_s${options.sequenceNumber}_p${options.partNumber}`;
 }
 
 function plannedDuration(kind: RuntimePublisherPlannedObjectKind): number {
@@ -1236,7 +1247,7 @@ function issuePlannedUploadGrant(options: {
   store: ReturnType<typeof createMemoryCoordinatorStore>;
 }) {
   const expiry = resolveRuntimePublisherObjectExpiry({
-    duration: options.plan.slot.duration,
+    cadenceSeconds: plannedDuration(options.plan.slot.kind),
     minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
     now: publishNow,
     targetLatency: publisherOptions.expiry.targetLatency,
@@ -1267,9 +1278,9 @@ function publisherLoopOptions(options: {
       options.headObjectInputs,
       options.size
     ),
-    independent: true,
+    profile: { independent: true },
     manifest: {
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedDeliveryOrigins: ["https://media.example.com"],
       ...manifestOptions.manifest,
     },
     minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
@@ -1278,9 +1289,9 @@ function publisherLoopOptions(options: {
     objectKeyPrefix: "media",
     providerId: "s3_primary",
     publicationMode: "direct-public" as const,
-    renditionId: "v1080",
+    trackId: "v1080",
     sessionId: session.sessionId,
-    startMediaSequenceNumber: 3810,
+    startSequenceNumber: 3810,
     store: options.store,
     targetLatency: publisherOptions.expiry.targetLatency,
     upload: (grant: { url: string }) => {
@@ -1316,7 +1327,9 @@ async function routeUploadEvent(options: {
     bucket: "media",
     client: createTestHeadObjectClient(options.headObjectInputs, options.size),
     event,
-    independent: options.independent,
+    ...(options.independent === undefined
+      ? {}
+      : { profile: { independent: options.independent } }),
     providerId: "s3_primary",
     sessionId: session.sessionId,
     store: options.store,

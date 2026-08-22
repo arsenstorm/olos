@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { s3Route } from "./http-route";
 import {
   S3_ROUTE_ACTIONS,
-  s3CompletionHintRoutePathFromOptions,
-  s3RoutePathFromOptions,
-} from "../runtime/route";
-import { s3Route } from "./http-route";
+  s3CompletionHintRoutePath,
+  s3RoutePath,
+} from "./route";
 
 const routeOptions = {
   sessionPath: "/sessions",
@@ -14,13 +14,7 @@ describe("S3 HTTP route matching", () => {
   test("matches S3 session action routes", () => {
     expect(
       s3Route(
-        routeRequest(
-          s3RoutePathFromOptions(
-            "session_1",
-            S3_ROUTE_ACTIONS.reconcilePlan,
-            routeOptions
-          )
-        ),
+        routeRequest(s3RoutePath("session_1", S3_ROUTE_ACTIONS.reconcilePlan)),
         routeOptions
       )
     ).toEqual({
@@ -33,13 +27,7 @@ describe("S3 HTTP route matching", () => {
   test("matches S3 completion hint routes", () => {
     expect(
       s3Route(
-        routeRequest(
-          s3CompletionHintRoutePathFromOptions(
-            "session_1",
-            "slot_1",
-            routeOptions
-          )
-        ),
+        routeRequest(s3CompletionHintRoutePath("session_1", "slot_1")),
         routeOptions
       )
     ).toEqual({
@@ -54,11 +42,7 @@ describe("S3 HTTP route matching", () => {
     expect(
       s3Route(
         routeRequest(
-          `${s3CompletionHintRoutePathFromOptions(
-            "session_1",
-            "slot_1",
-            routeOptions
-          )}/extra`
+          `${s3CompletionHintRoutePath("session_1", "slot_1")}/extra`
         ),
         routeOptions
       )
@@ -77,13 +61,7 @@ describe("S3 HTTP route matching", () => {
   test("reports invalid route identifiers", () => {
     expect(
       s3Route(
-        routeRequest(
-          s3CompletionHintRoutePathFromOptions(
-            "session_1",
-            "../slot",
-            routeOptions
-          )
-        ),
+        routeRequest(s3CompletionHintRoutePath("session_1", "../slot")),
         routeOptions
       )
     ).toEqual({

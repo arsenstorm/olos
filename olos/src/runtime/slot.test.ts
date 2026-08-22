@@ -55,8 +55,8 @@ describe("runtime slot adapter", () => {
   test("returns invalid responses for unsafe JSON slot identifiers", async () => {
     const cases = [
       {
-        expected: "renditionId must be a non-empty URL-safe identifier",
-        field: "renditionId",
+        expected: "trackId must be a non-empty URL-safe identifier",
+        field: "trackId",
       },
       {
         expected: "slotId must be a non-empty URL-safe identifier",
@@ -80,18 +80,13 @@ describe("runtime slot adapter", () => {
   test("returns invalid responses for invalid JSON slot numbers", async () => {
     const cases = [
       {
-        expected: "duration must be a positive number",
-        field: "duration",
-        value: 0,
-      },
-      {
         expected: "maxBytes must be a positive number",
         field: "maxBytes",
         value: 0,
       },
       {
-        expected: "mediaSequenceNumber must be a non-negative integer",
-        field: "mediaSequenceNumber",
+        expected: "sequenceNumber must be a non-negative integer",
+        field: "sequenceNumber",
         value: 1.5,
       },
       {
@@ -119,7 +114,7 @@ describe("runtime slot adapter", () => {
     }
   });
 
-  test("returns invalid responses for invalid JSON media object kinds", async () => {
+  test("returns invalid responses for invalid JSON object kinds", async () => {
     const result = await issueCoordinatorSlotFromRequest({
       request: slotRequest({
         ...slotPayload(),
@@ -137,13 +132,13 @@ describe("runtime slot adapter", () => {
     const result = await issueCoordinatorSlotFromRequest({
       request: {
         ...slotPayload(),
-        renditionId: "missing",
+        trackId: "missing",
       },
       state: createEmptyCoordinatorState(),
     });
 
     expect(invalidResultMessage(result)).toBe(
-      "uploadSlot.renditionId must belong to session.renditions"
+      "uploadSlot.trackId must belong to session.tracks"
     );
   });
 });
@@ -151,12 +146,12 @@ describe("runtime slot adapter", () => {
 function slotPayload() {
   return {
     contentType: "video/mp4",
-    duration: 2,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment" as const,
+    profile: { duration: 2 },
     maxBytes: 100_000,
-    mediaSequenceNumber: 3810,
-    renditionId: "v1080",
+    sequenceNumber: 3810,
+    trackId: "v1080",
     slotId: "slot_3810",
   };
 }

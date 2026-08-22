@@ -1,17 +1,37 @@
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
+import { timestampMs } from "../validation/fields";
 import { assertHttpHeaderStringMap } from "../validation/http-header";
 import { assertUploadGrant } from "../validation/upload-grant";
 import { assertUploadSlot } from "../validation/upload-slot";
-import { timestampMs } from "./timestamp";
 
+/** Options for {@link createUploadGrant}. */
 export interface CreateUploadGrantOptions {
+  /**
+   * Extra headers the publisher must send with the upload. Merged into
+   * the base required headers; must not override `Content-Type`,
+   * `If-None-Match`, or `x-olos-slot-id`.
+   */
   additionalHeaders?: Record<string, string>;
+  /**
+   * Grant expiry as an ISO timestamp. Defaults to `slot.expiresAt` and
+   * must not be later than it.
+   */
   expiresAt?: string;
+  /** Slot the grant authorizes; must be in the `issued` state. */
   slot: UploadSlot;
+  /** Presigned upload URL the publisher will `PUT` the object to. */
   url: string;
 }
 
+/**
+ * Build the {@link UploadGrant} handed to a publisher for an issued slot.
+ * The grant is always a `PUT` and requires `Content-Type` (the slot's
+ * content type), `If-None-Match: *` (create-if-absent), and
+ * `x-olos-slot-id`; `additionalHeaders` are merged in but may not
+ * override those. Pure; throws when the slot is not `issued`, the grant
+ * would outlive the slot, or a header is invalid.
+ */
 export function createUploadGrant(
   options: CreateUploadGrantOptions
 ): UploadGrant {

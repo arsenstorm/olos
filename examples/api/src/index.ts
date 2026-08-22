@@ -47,7 +47,7 @@ export default {
       );
     }
 
-    if (request.method === "GET" && url.pathname.startsWith("/media/")) {
+    if (request.method === "GET" && url.pathname.startsWith("/objects/")) {
       return withCors(await proxyMediaObject(request, env, readClient));
     }
 
@@ -55,32 +55,39 @@ export default {
       return new Response("unauthorised", { status: 401 });
     }
 
-    const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: [env.MEDIA_ORIGIN],
-      blockingReload: {
-        timeoutMs: BLOCKING_RELOAD_TIMEOUT_MS,
-        waitForCursor: createCursorWaiter(
-          env.STREAMS,
-          BLOCKING_RELOAD_TIMEOUT_MS
-        ),
-      },
-      bucket: env.S3_BUCKET,
-      client,
-      expiresInSeconds: UPLOAD_GRANT_EXPIRY_SECONDS,
-      providerId: PROVIDER_ID,
-      store,
-      targetLatency: TARGET_LATENCY_SECONDS,
-    });
-
+    const handle = createHandler(env, client, store);
     const response = await handle(request, ctx);
     return isPublicRoute(url.pathname) ? withCors(response) : response;
   },
 } satisfies ExportedHandler<Env>;
 
+function createHandler(
+  env: Env,
+  client: ReturnType<typeof createS3Client>,
+  store: ReturnType<typeof createSerializedCoordinatorStore>
+): ReturnType<typeof createStoredS3CoordinatorRuntimeHandler> {
+  return createStoredS3CoordinatorRuntimeHandler({
+    allowedDeliveryOrigins: [env.MEDIA_ORIGIN],
+    blockingReload: {
+      timeoutMs: BLOCKING_RELOAD_TIMEOUT_MS,
+      waitForCursor: createCursorWaiter(
+        env.STREAMS,
+        BLOCKING_RELOAD_TIMEOUT_MS
+      ),
+    },
+    bucket: env.S3_BUCKET,
+    client,
+    expiresInSeconds: UPLOAD_GRANT_EXPIRY_SECONDS,
+    providerId: PROVIDER_ID,
+    store,
+    targetLatency: TARGET_LATENCY_SECONDS,
+  });
+}
+
 function isPublicRoute(pathname: string): boolean {
   return (
     pathname.startsWith("/v1/live/") ||
-    pathname.startsWith("/media/") ||
+    pathname.startsWith("/objects/") ||
     pathname.startsWith("/v/")
   );
 }

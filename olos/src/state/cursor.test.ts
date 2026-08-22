@@ -3,11 +3,10 @@ import type { CommittedWindow } from "../types/committed-window";
 import { createCursor, resolveCursorUpdate } from "./cursor";
 
 const committedWindow: CommittedWindow = {
-  discontinuitySequence: 0,
   epoch: 7,
-  firstMediaSequenceNumber: 3810,
-  lastMediaSequenceNumber: 3811,
-  renditions: {
+  firstSequenceNumber: 3810,
+  lastSequenceNumber: 3811,
+  tracks: {
     v1080: {
       init: {
         commitId: "commit_init",
@@ -15,26 +14,25 @@ const committedWindow: CommittedWindow = {
         objectKey: "tenant/session/v1080/init.mp4",
         slotId: "slot_init",
       },
-      renditionId: "v1080",
+      trackId: "v1080",
       segments: [
         {
-          duration: 1,
-          mediaSequenceNumber: 3810,
+          sequenceNumber: 3810,
           segment: {
             commitId: "commit_3810",
             deliveryUrl: "/media/3810.m4s",
             objectKey: "tenant/session/v1080/3810.m4s",
             slotId: "slot_3810",
+            profile: { duration: 1 },
           },
         },
         {
-          duration: 1,
-          mediaSequenceNumber: 3811,
+          sequenceNumber: 3811,
           parts: [
             {
               commitId: "commit_3811_0",
               deliveryUrl: "/media/3811.0.m4s",
-              duration: 0.333,
+              profile: { duration: 0.333 },
               objectKey: "tenant/session/v1080/3811.0.m4s",
               partNumber: 0,
               slotId: "slot_3811_0",
@@ -48,16 +46,14 @@ const committedWindow: CommittedWindow = {
 
 const options = {
   committedWindow,
-  latencyProfile: "object-ll",
-  mediaBaseUrl: "https://media.example.com",
-  partTarget: 0.333,
-  segmentTarget: 1,
+  deliveryBaseUrl: "https://media.example.com",
+  profile: { id: "cmaf-llhls", partTarget: 0.333, segmentTarget: 1 },
   sessionId: "session_1",
   state: "live",
   updatedAt: "2026-06-08T12:00:01.820Z",
 } as const;
 
-const v1080 = committedWindow.renditions.v1080;
+const v1080 = committedWindow.tracks.v1080;
 
 if (v1080 === undefined) {
   throw new Error("missing v1080 fixture");
@@ -75,23 +71,23 @@ if (secondSegment === undefined) {
   throw new Error("missing second segment fixture");
 }
 
-const alternateRendition: CommittedWindow["renditions"][string] = {
+const alternateTrack: CommittedWindow["tracks"][string] = {
   init: {
     commitId: "commit_v720_init",
     deliveryUrl: "/media/v720/init.mp4",
     objectKey: "tenant/session/v720/init.mp4",
     slotId: "slot_v720_init",
   },
-  renditionId: "v720",
+  trackId: "v720",
   segments: [
     {
-      duration: 1,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       segment: {
         commitId: "commit_v720_3810",
         deliveryUrl: "/media/v720/s3810.m4s",
         objectKey: "tenant/session/v720/3810.m4s",
         slotId: "slot_v720_3810",
+        profile: { duration: 1 },
       },
     },
   ],
@@ -102,25 +98,23 @@ describe("cursor builder", () => {
     expect(createCursor(options)).toEqual({
       committedWindow,
       epoch: 7,
-      latencyProfile: "object-ll",
       olos: "1.0",
-      mediaBaseUrl: "https://media.example.com",
-      partTarget: 0.333,
-      segmentTarget: 1,
+      deliveryBaseUrl: "https://media.example.com",
+      profile: { id: "cmaf-llhls", partTarget: 0.333, segmentTarget: 1 },
       sessionId: "session_1",
       state: "live",
       updatedAt: "2026-06-08T12:00:01.820Z",
       window: {
-        firstMediaSequenceNumber: 3810,
-        lastMediaSequenceNumber: 3811,
+        firstSequenceNumber: 3810,
+        lastSequenceNumber: 3811,
       },
     });
   });
 
   test("includes an explicit last part number", () => {
     expect(createCursor({ ...options, lastPartNumber: 0 }).window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3811,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3811,
       lastPartNumber: 0,
     });
   });
@@ -140,20 +134,20 @@ describe("cursor update resolution", () => {
       ...options,
       committedWindow: {
         ...committedWindow,
-        lastMediaSequenceNumber: 3812,
-        renditions: {
+        lastSequenceNumber: 3812,
+        tracks: {
           v1080: {
             ...v1080,
             segments: [
               ...v1080.segments,
               {
-                duration: 1,
-                mediaSequenceNumber: 3812,
+                sequenceNumber: 3812,
                 segment: {
                   commitId: "commit_3812",
                   deliveryUrl: "/media/3812.m4s",
                   objectKey: "tenant/session/v1080/3812.m4s",
                   slotId: "slot_3812",
+                  profile: { duration: 1 },
                 },
               },
             ],
@@ -188,18 +182,18 @@ describe("cursor update resolution", () => {
     });
   });
 
-  test("treats equivalent committed windows as idempotent regardless of rendition key order", () => {
+  test("treats equivalent committed windows as idempotent regardless of track key order", () => {
     const firstWindow: CommittedWindow = {
       ...committedWindow,
-      renditions: {
+      tracks: {
         v1080,
-        v720: alternateRendition,
+        v720: alternateTrack,
       },
     };
     const secondWindow: CommittedWindow = {
       ...committedWindow,
-      renditions: {
-        v720: alternateRendition,
+      tracks: {
+        v720: alternateTrack,
         v1080,
       },
     };
@@ -229,9 +223,9 @@ describe("cursor update resolution", () => {
       ...options,
       committedWindow: {
         ...committedWindow,
-        renditions: {
-          ...committedWindow.renditions,
-          v720: alternateRendition,
+        tracks: {
+          ...committedWindow.tracks,
+          v720: alternateTrack,
         },
       },
     });
@@ -247,24 +241,24 @@ describe("cursor update resolution", () => {
     });
   });
 
-  test("accepts same-position candidates with changed rendition IDs", () => {
+  test("accepts same-position candidates with changed track IDs", () => {
     const candidateCursor = createCursor({
       ...options,
       committedWindow: {
         ...committedWindow,
-        renditions: {
+        tracks: {
           v720: {
-            ...alternateRendition,
+            ...alternateTrack,
             segments: [
-              ...alternateRendition.segments,
+              ...alternateTrack.segments,
               {
-                duration: 1,
-                mediaSequenceNumber: 3811,
+                sequenceNumber: 3811,
                 segment: {
                   commitId: "commit_v720_3811",
                   deliveryUrl: "/media/v720/3811.m4s",
                   objectKey: "tenant/session/v720/3811.m4s",
                   slotId: "slot_v720_3811",
+                  profile: { duration: 1 },
                 },
               },
             ],
@@ -284,12 +278,21 @@ describe("cursor update resolution", () => {
     });
   });
 
-  test("accepts same-position candidates with changed discontinuity sequence", () => {
+  test("accepts same-position candidates with changed track window profile", () => {
+    const track = committedWindow.tracks.v1080;
+
+    if (track === undefined) {
+      throw new Error("fixture track missing");
+    }
+
     const candidateCursor = createCursor({
       ...options,
       committedWindow: {
         ...committedWindow,
-        discontinuitySequence: 1,
+        tracks: {
+          ...committedWindow.tracks,
+          v1080: { ...track, profile: { discontinuitySequence: 1 } },
+        },
       },
     });
 
@@ -309,7 +312,7 @@ describe("cursor update resolution", () => {
       ...options,
       committedWindow: {
         ...committedWindow,
-        renditions: {
+        tracks: {
           v1080: {
             ...v1080,
             segments: [
@@ -345,7 +348,7 @@ describe("cursor update resolution", () => {
       ...options,
       committedWindow: {
         ...committedWindow,
-        renditions: {
+        tracks: {
           v1080: {
             ...v1080,
             segments: [
@@ -356,7 +359,7 @@ describe("cursor update resolution", () => {
                   {
                     commitId: "commit_3811_0_retry",
                     deliveryUrl: "/media/3811.0.m4s",
-                    duration: 0.333,
+                    profile: { duration: 0.333 },
                     objectKey: "tenant/session/v1080/3811.0.m4s",
                     partNumber: 0,
                     slotId: "slot_3811_0",
@@ -380,14 +383,79 @@ describe("cursor update resolution", () => {
     });
   });
 
+  test("accepts same-position candidates with changed part byterange", () => {
+    const partWithByterange = {
+      commitId: "commit_3811_0",
+      deliveryUrl: "/media/3811.0.m4s",
+      profile: { duration: 0.333 },
+      objectKey: "tenant/session/v1080/3811.0.m4s",
+      partNumber: 0,
+      slotId: "slot_3811_0",
+      byterange: {
+        length: 100,
+        offset: 0,
+        segmentDeliveryUrl: "/media/3811.m4s",
+        segmentObjectKey: "tenant/session/v1080/3811.m4s",
+      },
+    };
+    const baseCursor = createCursor({
+      ...options,
+      committedWindow: {
+        ...committedWindow,
+        tracks: {
+          v1080: {
+            ...v1080,
+            segments: [
+              firstSegment,
+              { ...secondSegment, parts: [partWithByterange] },
+            ],
+          },
+        },
+      },
+    });
+    const candidateCursor = createCursor({
+      ...options,
+      committedWindow: {
+        ...committedWindow,
+        tracks: {
+          v1080: {
+            ...v1080,
+            segments: [
+              firstSegment,
+              {
+                ...secondSegment,
+                parts: [
+                  {
+                    ...partWithByterange,
+                    byterange: { ...partWithByterange.byterange, length: 200 },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(
+      resolveCursorUpdate({
+        candidateCursor,
+        currentCursor: baseCursor,
+      })
+    ).toEqual({
+      cursor: candidateCursor,
+      status: "advanced",
+    });
+  });
+
   test("rejects candidates behind the current media sequence", () => {
     const candidateCursor = createCursor({
       ...options,
       committedWindow: {
         ...committedWindow,
-        firstMediaSequenceNumber: 3810,
-        lastMediaSequenceNumber: 3810,
-        renditions: {
+        firstSequenceNumber: 3810,
+        lastSequenceNumber: 3810,
+        tracks: {
           v1080: {
             ...v1080,
             segments: [firstSegment],
@@ -406,8 +474,8 @@ describe("cursor update resolution", () => {
         error: {
           code: "olos.cursor_regression",
           details: {
-            candidateLastMediaSequenceNumber: 3810,
-            currentLastMediaSequenceNumber: 3811,
+            candidateLastSequenceNumber: 3810,
+            currentLastSequenceNumber: 3811,
             sessionId: "session_1",
           },
           message: "candidate cursor is behind the current cursor",
@@ -418,7 +486,38 @@ describe("cursor update resolution", () => {
   });
 
   test("rejects candidates behind the current part number", () => {
-    const currentPartCursor = createCursor({ ...options, lastPartNumber: 1 });
+    // The current cursor's window must actually show part 1 (§3.8), so it
+    // extends the fixture's parts tail before claiming lastPartNumber 1.
+    const windowWithSecondPart: CommittedWindow = {
+      ...committedWindow,
+      tracks: {
+        v1080: {
+          ...v1080,
+          segments: [
+            firstSegment,
+            {
+              ...secondSegment,
+              parts: [
+                ...(secondSegment.parts ?? []),
+                {
+                  commitId: "commit_3811_1",
+                  deliveryUrl: "/media/3811.1.m4s",
+                  profile: { duration: 0.333 },
+                  objectKey: "tenant/session/v1080/3811.1.m4s",
+                  partNumber: 1,
+                  slotId: "slot_3811_1",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const currentPartCursor = createCursor({
+      ...options,
+      committedWindow: windowWithSecondPart,
+      lastPartNumber: 1,
+    });
     const candidateCursor = createCursor({ ...options, lastPartNumber: 0 });
 
     expect(

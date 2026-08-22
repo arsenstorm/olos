@@ -1,21 +1,23 @@
 import { describe, expect, test } from "bun:test";
-import { OLOS_ERROR_CODES } from "./config/errors";
-import { MEDIA_OBJECT_KINDS } from "./config/media-object";
-import {
-  PROVIDER_EVENT_DELIVERY_MODES,
-  PROVIDER_KINDS,
-} from "./config/provider-capability";
-import { LATENCY_PROFILES, SESSION_STATES } from "./config/session";
+import Ajv from "ajv";
+import addFormats from "ajv-formats";
 import {
   OLOS_COMMIT_SCHEMA,
   OLOS_ERROR_SCHEMA,
   OLOS_JSON_SCHEMAS,
-  OLOS_MEDIA_OBJECT_SCHEMA,
   OLOS_PROVIDER_CAPABILITY_SCHEMA,
   OLOS_SESSION_SCHEMA,
+  OLOS_STORAGE_OBJECT_SCHEMA,
   OLOS_UPLOAD_GRANT_SCHEMA,
   OLOS_UPLOAD_SLOT_SCHEMA,
 } from "./schema";
+import { OLOS_ERROR_CODES } from "./types/errors";
+import {
+  PROVIDER_EVENT_DELIVERY_MODES,
+  PROVIDER_KINDS,
+} from "./types/provider-capability";
+import { SESSION_STATES } from "./types/session";
+import { OBJECT_KINDS } from "./types/storage-object";
 import { CONTENT_TYPE_SCHEMA_PATTERN } from "./validation/content-type";
 
 describe("OLOS JSON schemas", () => {
@@ -25,9 +27,9 @@ describe("OLOS JSON schemas", () => {
       "committedWindow",
       "cursor",
       "error",
-      "mediaObject",
       "providerCapability",
       "session",
+      "storageObject",
       "uploadGrant",
       "uploadSlot",
     ]);
@@ -36,10 +38,11 @@ describe("OLOS JSON schemas", () => {
   test("describes the session wire version and enums", () => {
     expect(OLOS_SESSION_SCHEMA.properties.olos).toEqual({ const: "1.0" });
     expect(OLOS_SESSION_SCHEMA.properties.state.enum).toEqual(SESSION_STATES);
-    expect(OLOS_SESSION_SCHEMA.properties.latencyProfile.enum).toEqual(
-      LATENCY_PROFILES
-    );
-    expect(OLOS_SESSION_SCHEMA.required).toContain("renditions");
+    expect(OLOS_SESSION_SCHEMA.properties.profile).toMatchObject({
+      required: ["id"],
+      type: "object",
+    });
+    expect(OLOS_SESSION_SCHEMA.required).toContain("tracks");
   });
 
   test("describes upload slot and commit object keys", () => {
@@ -51,25 +54,30 @@ describe("OLOS JSON schemas", () => {
     });
     expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.deliveryUrl).toMatchObject({
       pattern:
-        "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+        "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
     });
     expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.contentType).toMatchObject({
       pattern: CONTENT_TYPE_SCHEMA_PATTERN,
     });
     expect(OLOS_COMMIT_SCHEMA.properties.deliveryUrl).toMatchObject({
       pattern:
-        "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+        "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
     });
+  });
+
+  test("accepts a one-character object key", () => {
+    const pattern = new RegExp(
+      OLOS_UPLOAD_SLOT_SCHEMA.properties.objectKey.pattern
+    );
+
+    expect(pattern.test("a")).toBe(true);
   });
 
   test("closes fixed-shape core objects", () => {
     expect(OLOS_SESSION_SCHEMA.additionalProperties).toBe(false);
-    expect(OLOS_SESSION_SCHEMA.properties.renditions.items).toMatchObject({
+    expect(OLOS_SESSION_SCHEMA.properties.tracks.items).toMatchObject({
       additionalProperties: false,
-      dependentRequired: {
-        height: ["width"],
-        width: ["height"],
-      },
+      required: ["trackId"],
     });
     expect(OLOS_UPLOAD_SLOT_SCHEMA.additionalProperties).toBe(false);
     expect(OLOS_COMMIT_SCHEMA.additionalProperties).toBe(false);
@@ -82,13 +90,13 @@ describe("OLOS JSON schemas", () => {
     expect(OLOS_UPLOAD_GRANT_SCHEMA.properties.requiredHeaders).toMatchObject({
       propertyNames: { pattern: "^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+$" },
     });
-    expect(OLOS_MEDIA_OBJECT_SCHEMA.properties.providerId).toMatchObject({
-      pattern: "^[A-Za-z0-9_-]+$",
+    expect(OLOS_STORAGE_OBJECT_SCHEMA.properties.providerId).toMatchObject({
+      pattern: "^[A-Za-z0-9._-]+$",
     });
-    expect(OLOS_MEDIA_OBJECT_SCHEMA.properties.contentType).toMatchObject({
+    expect(OLOS_STORAGE_OBJECT_SCHEMA.properties.contentType).toMatchObject({
       pattern: CONTENT_TYPE_SCHEMA_PATTERN,
     });
-    expect(Object.hasOwn(OLOS_MEDIA_OBJECT_SCHEMA.properties, "kind")).toBe(
+    expect(Object.hasOwn(OLOS_STORAGE_OBJECT_SCHEMA.properties, "kind")).toBe(
       false
     );
     expect(OLOS_PROVIDER_CAPABILITY_SCHEMA.properties.kind.enum).toEqual(
@@ -111,9 +119,31 @@ describe("OLOS JSON schemas", () => {
     expect(OLOS_ERROR_SCHEMA.properties.error.properties.code.enum).toEqual(
       OLOS_ERROR_CODES
     );
-    expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.kind.enum).toEqual(
-      MEDIA_OBJECT_KINDS
-    );
+    expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.kind.enum).toEqual(OBJECT_KINDS);
+  });
+
+  test("accepts optional string-valued metadata on storage objects", () => {
+    const ajv = new Ajv({ strictSchema: false, strictTypes: false });
+    addFormats(ajv);
+    const validate = ajv.compile({
+      ...OLOS_STORAGE_OBJECT_SCHEMA,
+      $schema: undefined,
+    });
+    const validStorageObject = {
+      contentType: "video/mp4",
+      objectKey: "media/tenant/sess/e1/v1080/s3810.m4s",
+      observedAt: "2026-06-08T12:00:01.820Z",
+      providerId: "r2_primary",
+      size: 98_304,
+    };
+
+    expect(
+      validate({
+        ...validStorageObject,
+        metadata: { "x-olos-slot-id": "s1" },
+      })
+    ).toBe(true);
+    expect(validate({ ...validStorageObject, metadata: { a: 1 } })).toBe(false);
   });
 
   test("describes provider capability preconditions", () => {
@@ -161,9 +191,9 @@ describe("OLOS JSON schemas", () => {
       properties: {
         consistency: {
           properties: {
-            headAfterCreate: { const: "strong" },
+            observeAfterCreate: { const: "strong" },
           },
-          required: ["headAfterCreate"],
+          required: ["observeAfterCreate"],
         },
         delivery: {
           properties: {

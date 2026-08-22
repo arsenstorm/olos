@@ -1,18 +1,19 @@
 import { describe, expect, test } from "bun:test";
+// biome-ignore lint/style/noRestrictedImports: conformance.ts is the defining module, not a facade
 import { assertCoordinatorPipelineStoreConformance } from "../conformance";
-import { issueCoordinatorSlot } from "./coordinator";
+import { issueCoordinatorSlot } from "./coordinator-slot";
 import {
   createCoordinatorStateWithCommittedSegment,
   createEmptyCoordinatorState,
   testCoordinatorSession as session,
 } from "./coordinator-state.test-helper";
 import {
-  assertSerializedCoordinatorStoreBackendConformance,
   createMemorySerializedCoordinatorStoreBackend,
   createSerializedCoordinatorStore,
   type SerializedCoordinatorStoreBackend,
   type SerializedCoordinatorStoreRecord,
 } from "./serialized-store";
+import { assertSerializedCoordinatorStoreBackendConformance } from "./serialized-store-conformance";
 import {
   conflictingStoreResult,
   savedStoreResult,
@@ -99,12 +100,12 @@ describe("serialized coordinator store", () => {
 
     const next = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 1,
+      profile: { duration: 1 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
-      renditionId: "v1080",
+      sequenceNumber: 0,
+      trackId: "v1080",
       slotId: "slot_init",
       state,
     });
@@ -163,12 +164,12 @@ describe("serialized coordinator store", () => {
 
     const issued = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 1,
+      profile: { duration: 1 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
-      renditionId: "v1080",
+      sequenceNumber: 0,
+      trackId: "v1080",
       slotId: "slot_init",
       state,
     });
@@ -241,6 +242,130 @@ describe("serialized coordinator store", () => {
       "cursor.epoch must match committedWindow.epoch"
     );
   });
+
+  test("parses valid cursor views from loadCursorView backends", async () => {
+    const state = createCoordinatorStateWithCommittedSegment();
+    const store = createSerializedCoordinatorStore(
+      cursorViewBackend(
+        JSON.stringify({
+          cursor: state.cursor,
+          etag: "1",
+          session: state.session,
+        })
+      )
+    );
+
+    await expect(store.loadCursor?.(session.sessionId)).resolves.toEqual({
+      cursor: state.cursor,
+      etag: "1",
+      session: state.session,
+    });
+  });
+
+  test("falls back to the full snapshot when loadCursorView returns a null view", async () => {
+    const backend = createBackend();
+    const store = createSerializedCoordinatorStore(backend);
+    const state = createCoordinatorStateWithCommittedSegment();
+    const saved = savedStoreResult(
+      await store.save({ sessionId: session.sessionId, state }),
+      "expected saved state"
+    );
+
+    const nullViewBackend: SerializedCoordinatorStoreBackend = {
+      load: (sessionId) => backend.load(sessionId),
+      loadCursorView: () => Promise.resolve({ etag: saved.etag, view: null }),
+      save: (options) => backend.save(options),
+    };
+    const fallbackStore = createSerializedCoordinatorStore(nullViewBackend);
+
+    await expect(
+      fallbackStore.loadCursor?.(session.sessionId)
+    ).resolves.toEqual({
+      cursor: state.cursor,
+      etag: saved.etag,
+      session: state.session,
+    });
+  });
+
+  test("resolves undefined when a null view races a deleted session", async () => {
+    const store = createSerializedCoordinatorStore({
+      load: () => Promise.resolve(undefined),
+      loadCursorView: () => Promise.resolve({ etag: "1", view: null }),
+      save: () => Promise.resolve({ status: "saved" }),
+    });
+
+    await expect(
+      store.loadCursor?.(session.sessionId)
+    ).resolves.toBeUndefined();
+  });
+
+  test("rejects cursor views with corrupt JSON", async () => {
+    const store = createSerializedCoordinatorStore(cursorViewBackend("{"));
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      SyntaxError
+    );
+  });
+
+  test("rejects cursor views that are not objects", async () => {
+    const store = createSerializedCoordinatorStore(cursorViewBackend("[]"));
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      "serialized cursor view must be an object"
+    );
+  });
+
+  test("rejects cursor views with a missing session", async () => {
+    const store = createSerializedCoordinatorStore(
+      cursorViewBackend(JSON.stringify({ etag: "1" }))
+    );
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      "session must be an object"
+    );
+  });
+
+  test("rejects cursor views with an invalid session", async () => {
+    const store = createSerializedCoordinatorStore(
+      cursorViewBackend(
+        JSON.stringify({ etag: "1", session: { ...session, olos: 1 } })
+      )
+    );
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      "session.olos must be"
+    );
+  });
+
+  test("rejects cursor views with a malformed cursor", async () => {
+    const store = createSerializedCoordinatorStore(
+      cursorViewBackend(JSON.stringify({ cursor: {}, etag: "1", session }))
+    );
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      "cursor.olos must be"
+    );
+  });
+
+  test("rejects cursor views without an embedded etag", async () => {
+    const store = createSerializedCoordinatorStore(
+      cursorViewBackend(JSON.stringify({ session }))
+    );
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      "serialized cursor view must include an etag"
+    );
+  });
+
+  test("rejects cursor views whose etag does not match the record", async () => {
+    const store = createSerializedCoordinatorStore(
+      cursorViewBackend(JSON.stringify({ etag: "2", session }))
+    );
+
+    await expect(store.loadCursor?.(session.sessionId)).rejects.toThrow(
+      "serialized cursor view etag must match record"
+    );
+  });
 });
 
 function createBackend(): SerializedCoordinatorStoreBackend & {
@@ -253,5 +378,13 @@ function record(etag: string): SerializedCoordinatorStoreRecord {
   return {
     etag,
     snapshot: `{"etag":"${etag}"}`,
+  };
+}
+
+function cursorViewBackend(view: string): SerializedCoordinatorStoreBackend {
+  return {
+    load: () => Promise.resolve(undefined),
+    loadCursorView: () => Promise.resolve({ etag: "1", view }),
+    save: () => Promise.resolve({ status: "saved" }),
   };
 }

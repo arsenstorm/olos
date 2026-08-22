@@ -4,49 +4,54 @@ export {
   OLOS_PROTOCOL_NAME,
   OLOS_PROTOCOL_SHORT_NAME,
   OLOS_SPEC_STATUS,
-  OLOS_WIRE_VERSION,
 } from "./index";
+export { commitCoordinatorUpload } from "./protocol/coordinator-commit";
 export {
-  type CommitCoordinatorUploadOptions,
-  type CoordinatorCommitPolicy,
-  type CoordinatorCommitPolicyContext,
-  type CoordinatorCommitPolicyDecision,
-  type CoordinatorCursorView,
-  type CoordinatorManifestArtifacts,
-  type CoordinatorPipelineMutation,
-  type CoordinatorPipelineSnapshot,
-  type CoordinatorPipelineState,
-  type CoordinatorPipelineStore,
-  type CoordinatorPublisherLease,
-  type CoordinatorRetentionPlan,
-  type CoordinatorSlotIssue,
-  type CoordinatorStoreSave,
-  type CoordinatorUploadCommit,
-  type CoordinatorUploadRevocation,
-  type CreateCoordinatorManifestArtifactsOptions,
-  type CreateCoordinatorPipelineOptions,
+  createCoordinatorPipeline,
+  planCoordinatorRetention,
+} from "./protocol/coordinator-lifecycle";
+export { createMemoryCoordinatorStore } from "./protocol/coordinator-memory-store";
+export { mutateCoordinatorPipeline } from "./protocol/coordinator-mutation";
+export {
+  type ApplyCoordinatorRetentionOptions,
+  applyCoordinatorRetention,
+  type CoordinatorRetentionApplication,
+} from "./protocol/coordinator-retention";
+export {
+  issueCoordinatorSlot,
+  revokeCoordinatorUpload,
+} from "./protocol/coordinator-slot";
+export {
   cloneCoordinatorPipelineSnapshot,
   cloneCoordinatorPipelineState,
-  commitCoordinatorUpload,
-  createCoordinatorManifestArtifacts,
-  createCoordinatorPipeline,
-  createMemoryCoordinatorStore,
   createNextCoordinatorPipelineEtag,
-  type IssueCoordinatorSlotOptions,
-  issueCoordinatorSlot,
-  type MutateCoordinatorPipelineOptions,
-  mutateCoordinatorPipeline,
-  type PlanCoordinatorRetentionOptions,
   parseCoordinatorPipelineSnapshot,
-  planCoordinatorRetention,
-  type RevokeCoordinatorUploadOptions,
-  revokeCoordinatorUpload,
-  type SaveCoordinatorPipelineOptions,
   serializeCoordinatorPipelineSnapshot,
-} from "./protocol/coordinator";
+} from "./protocol/coordinator-snapshot";
+export type {
+  CommitCoordinatorUploadOptions,
+  CoordinatorCommitPolicy,
+  CoordinatorCommitPolicyContext,
+  CoordinatorCommitPolicyDecision,
+  CoordinatorCursorView,
+  CoordinatorPipelineMutation,
+  CoordinatorPipelineSnapshot,
+  CoordinatorPipelineState,
+  CoordinatorPipelineStore,
+  CoordinatorPublisherLease,
+  CoordinatorRetentionPlan,
+  CoordinatorSlotIssue,
+  CoordinatorStoreSave,
+  CoordinatorUploadCommit,
+  CoordinatorUploadRevocation,
+  CreateCoordinatorPipelineOptions,
+  IssueCoordinatorSlotOptions,
+  MutateCoordinatorPipelineOptions,
+  PlanCoordinatorRetentionOptions,
+  RevokeCoordinatorUploadOptions,
+  SaveCoordinatorPipelineOptions,
+} from "./protocol/coordinator-types";
 export {
-  type AssertSerializedCoordinatorStoreBackendConformanceOptions,
-  assertSerializedCoordinatorStoreBackendConformance,
   createMemorySerializedCoordinatorStoreBackend,
   createSerializedCoordinatorStore,
   type MemorySerializedCoordinatorStoreBackend,
@@ -61,8 +66,11 @@ export {
   type CreateSqliteSerializedCoordinatorStoreSchemaOptions,
   createSqliteSerializedCoordinatorStoreBackend,
   createSqliteSerializedCoordinatorStoreSchema,
+  type MigrateSqliteSerializedCoordinatorStoreSchemaOptions,
+  migrateSqliteSerializedCoordinatorStoreSchema,
   type SqliteSerializedCoordinatorStoreBoundStatement,
   type SqliteSerializedCoordinatorStoreDatabase,
   type SqliteSerializedCoordinatorStoreRunResult,
   type SqliteSerializedCoordinatorStoreStatement,
 } from "./protocol/sqlite-store";
+export { OLOS_WIRE_VERSION } from "./types/session";

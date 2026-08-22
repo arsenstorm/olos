@@ -17,7 +17,7 @@ describe("S3 HTTP response mapping", () => {
           },
           eventType: "upload.rejected",
           maxBytes: 100_000,
-          objectKey: "media/v1080/s3810.m4s",
+          objectKey: "objects/v1080/s3810",
           observedBytes: 100_001,
           occurredAt: "2026-01-01T00:00:02.000Z",
           reason: "object_too_large",
@@ -42,7 +42,7 @@ describe("S3 HTTP response mapping", () => {
         },
         eventType: "upload.rejected",
         maxBytes: 100_000,
-        objectKey: "media/v1080/s3810.m4s",
+        objectKey: "objects/v1080/s3810",
         observedBytes: 100_001,
         occurredAt: "2026-01-01T00:00:02.000Z",
         reason: "object_too_large",
@@ -68,12 +68,15 @@ describe("S3 HTTP response mapping", () => {
   test("maps failed reconciliation results with thrown errors", () => {
     expect(
       reconciliationResult({
-        error: "missing object: media/v1080/s3810.m4s",
+        error: "missing object: objects/v1080/s3810",
         slot: testSlot(),
         status: "failed",
       })
     ).toEqual({
-      error: { message: "missing object: media/v1080/s3810.m4s" },
+      error: {
+        code: "olos.invalid_state",
+        message: "missing object: objects/v1080/s3810",
+      },
       slotId: "slot_3810",
       status: "failed",
     });
@@ -97,7 +100,7 @@ describe("S3 HTTP response mapping", () => {
 
   test("maps failed reconciliation results with thrown errors and statuses", () => {
     const result = {
-      error: "missing object: media/v1080/s3810.m4s",
+      error: "missing object: objects/v1080/s3810",
       result: {
         status: "conflict",
       },
@@ -106,7 +109,10 @@ describe("S3 HTTP response mapping", () => {
     } satisfies StoredS3CoordinatorUploadReconciliationResult;
 
     expect(reconciliationResult(result)).toEqual({
-      error: { message: "missing object: media/v1080/s3810.m4s" },
+      error: {
+        code: "olos.invalid_state",
+        message: "missing object: objects/v1080/s3810",
+      },
       resultStatus: "conflict",
       slotId: "slot_3810",
       status: "failed",
@@ -143,15 +149,15 @@ describe("S3 HTTP response mapping", () => {
 function testSlot(): UploadSlot {
   return {
     contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-    duration: 2,
+    deliveryUrl: "https://media.example.com/objects/v1080/s3810",
+    profile: { duration: 2 },
     epoch: 1,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment",
     maxBytes: 100_000,
-    mediaSequenceNumber: 3810,
-    objectKey: "media/v1080/s3810.m4s",
-    renditionId: "v1080",
+    sequenceNumber: 3810,
+    objectKey: "objects/v1080/s3810",
+    trackId: "v1080",
     sessionId: "session_1",
     slotId: "slot_3810",
     state: "issued",

@@ -1,34 +1,36 @@
-import { createHlsManifestArtifacts } from "../hls/manifest-artifacts";
 import {
   selectExpiredUploadSlots,
   selectRetiredCommittedObjects,
 } from "../state/retention";
-import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
+import type { PublicationMode } from "../types/publication";
 import type { Session } from "../types/session";
-import type { PublicationMode } from "../types/upload-slot";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import { assertSession } from "../validation/session";
 import type {
-  CoordinatorManifestArtifacts,
   CoordinatorPipelineState,
   CoordinatorRetentionPlan,
-  CreateCoordinatorManifestArtifactsOptions,
   PlanCoordinatorRetentionOptions,
-} from "./coordinator";
+} from "./coordinator-types";
 
+/**
+ * Create the initial pipeline state for a new streaming session: no slots,
+ * no commits, and no cursor. Validates the session and rejects unsafe
+ * `deliveryBaseUrl` values (throws on either). `publicationMode` defaults to
+ * `"direct-public"`.
+ */
 export function createCoordinatorPipeline(options: {
-  mediaBaseUrl: string;
+  deliveryBaseUrl: string;
   publicationMode?: PublicationMode;
   session: Session;
 }): CoordinatorPipelineState {
   assertSession(options.session);
-  assertSafeDeliveryUrl(options.mediaBaseUrl, "mediaBaseUrl");
+  assertSafeDeliveryUrl(options.deliveryBaseUrl, "deliveryBaseUrl");
 
   return {
     commits: [],
     initCommits: [],
-    mediaBaseUrl: options.mediaBaseUrl,
+    deliveryBaseUrl: options.deliveryBaseUrl,
     publicationMode: options.publicationMode ?? "direct-public",
     publisherLeases: [],
     session: options.session,
@@ -36,32 +38,19 @@ export function createCoordinatorPipeline(options: {
   };
 }
 
-export function createCoordinatorManifestArtifacts(
-  options: CreateCoordinatorManifestArtifactsOptions
-): CoordinatorManifestArtifacts {
-  const cursor = options.state.cursor;
-
-  if (cursor === undefined) {
-    return { artifacts: [] };
-  }
-
-  const { state, ...artifactOptions } = options;
-
-  return {
-    artifacts: createHlsManifestArtifacts(
-      state.session,
-      cursor.committedWindow,
-      artifactOptions
-    ),
-    cursor,
-  };
-}
-
+/**
+ * Compute what retention would remove from a pipeline state without
+ * modifying it: issued slots whose grant expired before `now` (plus
+ * `lateToleranceMs`, default 0) without an upload, and commits strictly
+ * older than their own track's retained window (none when there is no
+ * cursor yet). Use `applyCoordinatorRetention` to also prune the state.
+ */
 export function planCoordinatorRetention(
   options: PlanCoordinatorRetentionOptions
 ): CoordinatorRetentionPlan {
   return {
     expiredSlots: selectExpiredUploadSlots({
+      lateToleranceMs: options.lateToleranceMs,
       now: options.now,
       slots: options.state.slots,
     }),
@@ -79,19 +68,9 @@ function retainedCoordinatorCursorFields(
 
   return {
     cursor,
-    retiredObjects: retainedCoordinatorObjects(
-      state.commits,
-      cursor.committedWindow
-    ),
+    retiredObjects: selectRetiredCommittedObjects({
+      commits: state.commits,
+      retainedWindow: cursor.committedWindow,
+    }),
   };
-}
-
-function retainedCoordinatorObjects(
-  commits: CoordinatorPipelineState["commits"],
-  retainedWindow: CommittedWindow
-): CoordinatorRetentionPlan["retiredObjects"] {
-  return selectRetiredCommittedObjects({
-    commits,
-    retainedWindow,
-  });
 }

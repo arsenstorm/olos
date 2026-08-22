@@ -1,27 +1,33 @@
-import { LATENCY_PROFILES, SESSION_STATES } from "../config/session";
-import { OLOS_WIRE_VERSION } from "../index";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor, CursorWindow } from "../types/cursor";
-import { assertCommittedWindow } from "./committed-window";
+import { OLOS_WIRE_VERSION, SESSION_STATES } from "../types/session";
+import {
+  assertCommittedWindow,
+  assertCommittedWindowSequence,
+  COMMITTED_WINDOW_SHAPE,
+  lastVisiblePartNumber,
+} from "./committed-window";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
   assertIsoDateField,
+  assertKnownFieldsObject,
   assertNonNegativeIntegerField,
   assertOneOfField,
   assertOnlyKnownFields,
-  assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
+  type KnownFieldsShape,
+  parseWithShape,
+  passes,
 } from "./fields";
+import { assertStreamProfile } from "./profile";
 
 const CURSOR_FIELDS = [
   "committedWindow",
+  "deliveryBaseUrl",
   "epoch",
-  "latencyProfile",
-  "mediaBaseUrl",
   "olos",
-  "partTarget",
-  "segmentTarget",
+  "profile",
   "sessionId",
   "state",
   "updatedAt",
@@ -29,20 +35,31 @@ const CURSOR_FIELDS = [
 ] as const;
 
 const CURSOR_WINDOW_FIELDS = [
-  "firstMediaSequenceNumber",
-  "lastMediaSequenceNumber",
+  "firstSequenceNumber",
+  "lastSequenceNumber",
   "lastPartNumber",
 ] as const;
 
+const CURSOR_SHAPE: KnownFieldsShape = {
+  fields: CURSOR_FIELDS,
+  nested: {
+    committedWindow: { kind: "object", shape: COMMITTED_WINDOW_SHAPE },
+    window: { kind: "object", shape: { fields: CURSOR_WINDOW_FIELDS } },
+  },
+};
+
+/** Returns whether `value` is a valid `Cursor` (see `assertCursor`). */
 export function isCursor(value: unknown): value is Cursor {
-  try {
-    assertCursor(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertCursor, value);
 }
 
+/**
+ * Validates an untrusted value as a wire-format `Cursor`, throwing an
+ * `Error` naming the first offending field. Checks the `olos` wire version,
+ * rejects unknown fields, requires a `profile` with an `id`, validates the
+ * embedded committed window, and requires the cursor's `window` bounds and
+ * epoch to agree with it.
+ */
 export function assertCursor(value: unknown): asserts value is Cursor {
   if (!isRecord(value)) {
     throw new Error("cursor must be an object");
@@ -54,7 +71,7 @@ export function assertCursor(value: unknown): asserts value is Cursor {
 
   assertOnlyKnownFields(value, CURSOR_FIELDS, "cursor");
   assertCursorFields(value);
-  assertSafeDeliveryUrl(value.mediaBaseUrl, "cursor.mediaBaseUrl");
+  assertSafeDeliveryUrl(value.deliveryBaseUrl, "cursor.deliveryBaseUrl");
 
   const cursorWindow = value.window;
   assertCursorWindow(cursorWindow);
@@ -62,14 +79,23 @@ export function assertCursor(value: unknown): asserts value is Cursor {
   assertCursorCommittedWindow(value, cursorWindow, value.committedWindow);
 }
 
+/**
+ * Tolerant read-path parser for a wire-format `Cursor` (spec §11.2):
+ * unknown fields — at the top level and inside the embedded committed
+ * window — are stripped from a fresh copy, which is then validated by the
+ * unchanged closed `assertCursor` and returned. Known fields are still
+ * rejected when invalid. Profile data is passed through untouched.
+ */
+export function parseCursor(value: unknown): Cursor {
+  return parseWithShape(value, CURSOR_SHAPE, assertCursor);
+}
+
 function assertCursorFields(value: Record<string, unknown>): void {
   assertUrlSafeField(value, "sessionId", "cursor");
   assertOneOfField(value, "state", SESSION_STATES, "cursor");
-  assertOneOfField(value, "latencyProfile", LATENCY_PROFILES, "cursor");
   assertNonNegativeIntegerField(value, "epoch", "cursor");
-  assertPositiveNumberField(value, "segmentTarget", "cursor");
-  assertPositiveNumberField(value, "partTarget", "cursor");
   assertIsoDateField(value, "updatedAt", "cursor");
+  assertStreamProfile(value.profile, "cursor.profile");
 }
 
 function assertCursorCommittedWindow(
@@ -95,12 +121,21 @@ function assertCursorWindowMatchesCommittedWindow(
   committedWindow: CommittedWindow
 ): void {
   if (
-    cursorWindow.firstMediaSequenceNumber !==
-      committedWindow.firstMediaSequenceNumber ||
-    cursorWindow.lastMediaSequenceNumber !==
-      committedWindow.lastMediaSequenceNumber
+    cursorWindow.firstSequenceNumber !== committedWindow.firstSequenceNumber ||
+    cursorWindow.lastSequenceNumber !== committedWindow.lastSequenceNumber
   ) {
-    throw new Error("cursor.window must match committedWindow media sequence");
+    throw new Error("cursor.window must match committedWindow sequence bounds");
+  }
+
+  // §3.8: when present, lastPartNumber MUST equal the committed window's
+  // last visible part number; absence is always allowed.
+  if (
+    cursorWindow.lastPartNumber !== undefined &&
+    cursorWindow.lastPartNumber !== lastVisiblePartNumber(committedWindow)
+  ) {
+    throw new Error(
+      "cursor.window.lastPartNumber must equal the committed window's last visible part number"
+    );
   }
 }
 
@@ -108,30 +143,12 @@ export function assertCursorWindow(
   value: unknown,
   name = "cursor.window"
 ): asserts value is CursorWindow {
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
-  assertOnlyKnownFields(value, CURSOR_WINDOW_FIELDS, name);
-  assertNonNegativeIntegerField(value, "firstMediaSequenceNumber", name);
-  assertNonNegativeIntegerField(value, "lastMediaSequenceNumber", name);
-  assertCursorWindowSequence(value, name);
+  assertKnownFieldsObject(value, CURSOR_WINDOW_FIELDS, name);
+  assertNonNegativeIntegerField(value, "firstSequenceNumber", name);
+  assertNonNegativeIntegerField(value, "lastSequenceNumber", name);
+  assertCommittedWindowSequence(value, name);
 
   if (value.lastPartNumber !== undefined) {
     assertNonNegativeIntegerField(value, "lastPartNumber", name);
-  }
-}
-
-function assertCursorWindowSequence(
-  value: Record<string, unknown>,
-  name: string
-): void {
-  if (
-    Number(value.firstMediaSequenceNumber) >
-    Number(value.lastMediaSequenceNumber)
-  ) {
-    throw new Error(
-      `${name}.firstMediaSequenceNumber must be less than or equal to lastMediaSequenceNumber`
-    );
   }
 }

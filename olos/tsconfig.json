@@ -5,7 +5,8 @@
       "@arsenstorm/olos": ["./src/index.ts"],
       "@arsenstorm/olos/*": ["./src/*.ts"]
     },
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts", "e2e/**/*.ts"]
+  "include": ["src/**/*.ts", "e2e/**/*.ts", "scripts/**/*.ts", "live/**/*.ts"]
 }

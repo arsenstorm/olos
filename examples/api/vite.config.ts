@@ -55,6 +55,10 @@ export default defineConfig({
   server: {
     port: 8787,
     strictPort: true,
+    // Permit Tailscale Serve to front the dev server (e.g. for on-device
+    // playback testing): MagicDNS names only ever resolve to
+    // Tailscale-assigned addresses, so this keeps DNS-rebinding protection.
+    allowedHosts: [".ts.net"],
   },
   plugins: [cloudflare({}), awsSdkBrowserRuntime],
   // The Cloudflare plugin creates a per-worker Vite environment named after

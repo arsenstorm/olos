@@ -3,6 +3,7 @@ import type { Commit } from "../types/commit";
 import {
   createCommittedWindow,
   lastVisiblePartNumber,
+  trackWindowBounds,
   tryCreateCommittedWindow,
 } from "./committed-window";
 
@@ -10,11 +11,11 @@ const initCommit: Commit = {
   commitId: "commit_init",
   committedAt: "2026-01-01T00:00:00.000Z",
   deliveryUrl: "/media/v1080/init.mp4",
-  duration: 1,
+  profile: { duration: 1 },
   epoch: 1,
-  mediaSequenceNumber: 0,
+  sequenceNumber: 0,
   objectKey: "media/v1080/init.mp4",
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "session_1",
   size: 1024,
   slotId: "slot_init",
@@ -24,11 +25,11 @@ const segmentCommit: Commit = {
   commitId: "commit_3810",
   committedAt: "2026-01-01T00:00:02.000Z",
   deliveryUrl: "/media/v1080/s3810.m4s",
-  duration: 2,
+  profile: { duration: 2 },
   epoch: 1,
-  mediaSequenceNumber: 3810,
+  sequenceNumber: 3810,
   objectKey: "media/v1080/s3810.m4s",
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "session_1",
   size: 98_304,
   slotId: "slot_3810",
@@ -39,13 +40,12 @@ function partCommit(partNumber: number): Commit {
     commitId: `commit_3811_${partNumber}`,
     committedAt: "2026-01-01T00:00:03.000Z",
     deliveryUrl: `/media/v1080/3811.${partNumber}.m4s`,
-    duration: 0.5,
+    profile: { duration: 0.5, independent: partNumber === 0 },
     epoch: 1,
-    independent: partNumber === 0,
-    mediaSequenceNumber: 3811,
+    sequenceNumber: 3811,
     objectKey: `media/v1080/3811.${partNumber}.m4s`,
     partNumber,
-    renditionId: "v1080",
+    trackId: "v1080",
     sessionId: "session_1",
     size: 24_576,
     slotId: `slot_3811_${partNumber}`,
@@ -62,41 +62,37 @@ describe("committed window builder", () => {
         sessionId: "session_1",
       })
     ).toEqual({
-      discontinuitySequence: 0,
       epoch: 1,
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3811,
-      renditions: {
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3811,
+      tracks: {
         v1080: {
           init: {
             commitId: "commit_init",
             deliveryUrl: "/media/v1080/init.mp4",
-            duration: 1,
+            profile: { duration: 1 },
             objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
-          renditionId: "v1080",
+          trackId: "v1080",
           segments: [
             {
-              duration: 2,
-              mediaSequenceNumber: 3810,
+              sequenceNumber: 3810,
               segment: {
                 commitId: "commit_3810",
                 deliveryUrl: "/media/v1080/s3810.m4s",
-                duration: 2,
                 objectKey: "media/v1080/s3810.m4s",
                 slotId: "slot_3810",
+                profile: { duration: 2 },
               },
             },
             {
-              duration: 0.5,
-              mediaSequenceNumber: 3811,
+              sequenceNumber: 3811,
               parts: [
                 {
                   commitId: "commit_3811_0",
                   deliveryUrl: "/media/v1080/3811.0.m4s",
-                  duration: 0.5,
-                  independent: true,
+                  profile: { duration: 0.5, independent: true },
                   objectKey: "media/v1080/3811.0.m4s",
                   partNumber: 0,
                   slotId: "slot_3811_0",
@@ -104,8 +100,7 @@ describe("committed window builder", () => {
                 {
                   commitId: "commit_3811_1",
                   deliveryUrl: "/media/v1080/3811.1.m4s",
-                  duration: 0.5,
-                  independent: false,
+                  profile: { duration: 0.5, independent: false },
                   objectKey: "media/v1080/3811.1.m4s",
                   partNumber: 1,
                   slotId: "slot_3811_1",
@@ -125,7 +120,7 @@ describe("committed window builder", () => {
         {
           ...segmentCommit,
           commitId: "commit_3811",
-          mediaSequenceNumber: 3811,
+          sequenceNumber: 3811,
         },
       ],
       epoch: 1,
@@ -134,9 +129,12 @@ describe("committed window builder", () => {
       sessionId: "session_1",
     });
 
-    expect(window.firstMediaSequenceNumber).toBe(3811);
-    expect(window.lastMediaSequenceNumber).toBe(3811);
-    expect(window.renditions.v1080?.segments).toHaveLength(1);
+    expect(window.firstSequenceNumber).toBe(3811);
+    expect(window.lastSequenceNumber).toBe(3811);
+    expect(window.tracks.v1080?.segments).toHaveLength(1);
+    // Commits carry no discontinuity markers, so trimming accrues no track
+    // window profile.
+    expect(window.tracks.v1080?.profile).toBeUndefined();
   });
 
   test("rejects invalid committed window segment limits", () => {
@@ -159,17 +157,16 @@ describe("committed window builder", () => {
       sessionId: "session_1",
     });
 
-    expect(window.lastMediaSequenceNumber).toBe(3810);
-    expect(window.renditions.v1080?.segments).toEqual([
+    expect(window.lastSequenceNumber).toBe(3810);
+    expect(window.tracks.v1080?.segments).toEqual([
       {
-        duration: 2,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         segment: {
           commitId: "commit_3810",
           deliveryUrl: "/media/v1080/s3810.m4s",
-          duration: 2,
           objectKey: "media/v1080/s3810.m4s",
           slotId: "slot_3810",
+          profile: { duration: 2 },
         },
       },
     ]);
@@ -183,18 +180,16 @@ describe("committed window builder", () => {
       sessionId: "session_1",
     });
 
-    expect(window.firstMediaSequenceNumber).toBe(3811);
-    expect(window.lastMediaSequenceNumber).toBe(3811);
-    expect(window.renditions.v1080?.segments).toEqual([
+    expect(window.firstSequenceNumber).toBe(3811);
+    expect(window.lastSequenceNumber).toBe(3811);
+    expect(window.tracks.v1080?.segments).toEqual([
       {
-        duration: 0.5,
-        mediaSequenceNumber: 3811,
+        sequenceNumber: 3811,
         parts: [
           {
             commitId: "commit_3811_0",
             deliveryUrl: "/media/v1080/3811.0.m4s",
-            duration: 0.5,
-            independent: true,
+            profile: { duration: 0.5, independent: true },
             objectKey: "media/v1080/3811.0.m4s",
             partNumber: 0,
             slotId: "slot_3811_0",
@@ -212,16 +207,14 @@ describe("committed window builder", () => {
       sessionId: "session_1",
     });
 
-    expect(window.renditions.v1080?.segments).toEqual([
+    expect(window.tracks.v1080?.segments).toEqual([
       {
-        duration: 0.5,
-        mediaSequenceNumber: 3811,
+        sequenceNumber: 3811,
         parts: [
           {
             commitId: "commit_3811_0",
             deliveryUrl: "/media/v1080/3811.0.m4s",
-            duration: 0.5,
-            independent: true,
+            profile: { duration: 0.5, independent: true },
             objectKey: "media/v1080/3811.0.m4s",
             partNumber: 0,
             slotId: "slot_3811_0",
@@ -231,15 +224,16 @@ describe("committed window builder", () => {
     ]);
   });
 
-  test("rejects empty init commits", () => {
-    expect(() =>
-      createCommittedWindow({
-        commits: [segmentCommit],
-        epoch: 1,
-        initCommits: [],
-        sessionId: "session_1",
-      })
-    ).toThrow("initCommits must be a non-empty array");
+  test("builds tracks without init objects when no init commits exist", () => {
+    const window = createCommittedWindow({
+      commits: [segmentCommit],
+      epoch: 1,
+      initCommits: [],
+      sessionId: "session_1",
+    });
+
+    expect(window.tracks.v1080?.init).toBeUndefined();
+    expect(window.tracks.v1080?.segments).toHaveLength(1);
   });
 
   test("rejects empty media commits", () => {
@@ -275,18 +269,19 @@ describe("committed window builder", () => {
     ).toThrow("commit.epoch must match epoch");
   });
 
-  test("rejects media commits without init commits", () => {
-    expect(() =>
-      createCommittedWindow({
-        commits: [{ ...segmentCommit, renditionId: "v720" }],
-        epoch: 1,
-        initCommits: [initCommit],
-        sessionId: "session_1",
-      })
-    ).toThrow("missing init commit for rendition: v720");
+  test("accepts commits for tracks without an init commit", () => {
+    const window = createCommittedWindow({
+      commits: [{ ...segmentCommit, trackId: "v720" }],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    expect(window.tracks.v720?.init).toBeUndefined();
+    expect(window.tracks.v720?.segments).toHaveLength(1);
   });
 
-  test("rejects duplicate init commits for one rendition", () => {
+  test("rejects duplicate init commits for one track", () => {
     expect(() =>
       createCommittedWindow({
         commits: [segmentCommit],
@@ -301,7 +296,7 @@ describe("committed window builder", () => {
         ],
         sessionId: "session_1",
       })
-    ).toThrow("initCommits must not contain duplicate rendition IDs");
+    ).toThrow("initCommits must not contain duplicate track IDs");
   });
 
   test("rejects duplicate segment commits", () => {
@@ -324,6 +319,39 @@ describe("committed window builder", () => {
         sessionId: "session_1",
       })
     ).toBeUndefined();
+  });
+
+  test("omits tracks whose only commits are out-of-order parts", () => {
+    const audioInitCommit: Commit = {
+      ...initCommit,
+      commitId: "commit_init_a128",
+      deliveryUrl: "/media/a128/init.mp4",
+      objectKey: "media/a128/init.mp4",
+      trackId: "a128",
+      slotId: "slot_init_a128",
+    };
+    const audioPartCommit: Commit = {
+      ...partCommit(1),
+      commitId: "commit_a128_3811_1",
+      deliveryUrl: "/media/a128/3811.1.m4s",
+      objectKey: "media/a128/3811.1.m4s",
+      trackId: "a128",
+      slotId: "slot_a128_3811_1",
+    };
+
+    const window = createCommittedWindow({
+      commits: [segmentCommit, audioPartCommit],
+      epoch: 1,
+      initCommits: [initCommit, audioInitCommit],
+      sessionId: "session_1",
+    });
+
+    // Audio's only commit is part 1 without part 0 — no contiguous prefix
+    // yet, so the track is omitted instead of failing window validation,
+    // and the window-global range comes from the present tracks alone.
+    expect(Object.keys(window.tracks)).toEqual(["v1080"]);
+    expect(window.firstSequenceNumber).toBe(3810);
+    expect(window.lastSequenceNumber).toBe(3810);
   });
 
   test("createCommittedWindow still throws when no contiguous prefix exists", () => {
@@ -359,8 +387,131 @@ describe("committed window builder", () => {
       sessionId: "session_1",
     });
 
-    expect(window.lastMediaSequenceNumber).toBe(3810);
+    expect(window.lastSequenceNumber).toBe(3810);
     expect(lastVisiblePartNumber(window)).toBeUndefined();
+  });
+
+  test("copies commit profiles onto parts-only segments", () => {
+    const window = createCommittedWindow({
+      commits: [partCommit(0), partCommit(1)],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    expect(
+      window.tracks.v1080?.segments[0]?.parts?.map((part) => part.profile)
+    ).toEqual([
+      { duration: 0.5, independent: true },
+      { duration: 0.5, independent: false },
+    ]);
+    expect(window.tracks.v1080?.segments[0]?.segment).toBeUndefined();
+    expect(lastVisiblePartNumber(window)).toBe(1);
+  });
+
+  test("keeps the full-segment commit profile when parts are also committed", () => {
+    const fullSegmentCommit: Commit = {
+      ...segmentCommit,
+      commitId: "commit_3811",
+      deliveryUrl: "/media/v1080/s3811.m4s",
+      profile: { duration: 2 },
+      sequenceNumber: 3811,
+      objectKey: "media/v1080/s3811.m4s",
+      slotId: "slot_3811",
+    };
+
+    const window = createCommittedWindow({
+      commits: [fullSegmentCommit, partCommit(0), partCommit(1)],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    expect(window.tracks.v1080?.segments).toEqual([
+      expect.objectContaining({
+        segment: expect.objectContaining({ profile: { duration: 2 } }),
+        sequenceNumber: 3811,
+      }),
+    ]);
+  });
+
+  test("trackWindowBounds tracks a lagging track's own live edge", () => {
+    const audioInitCommit: Commit = {
+      ...initCommit,
+      commitId: "commit_init_a128",
+      deliveryUrl: "/media/a128/init.mp4",
+      objectKey: "media/a128/init.mp4",
+      trackId: "a128",
+      slotId: "slot_init_a128",
+    };
+    const audioSegmentCommit: Commit = {
+      ...segmentCommit,
+      commitId: "commit_a128_3810",
+      deliveryUrl: "/media/a128/s3810.m4s",
+      objectKey: "media/a128/s3810.m4s",
+      trackId: "a128",
+      slotId: "slot_a128_3810",
+    };
+
+    const window = createCommittedWindow({
+      commits: [
+        segmentCommit,
+        partCommit(0),
+        partCommit(1),
+        audioSegmentCommit,
+      ],
+      epoch: 1,
+      initCommits: [initCommit, audioInitCommit],
+      sessionId: "session_1",
+    });
+
+    // The lagging audio track's live edge is its own last segment, not
+    // the window-global last media sequence number.
+    expect(window.lastSequenceNumber).toBe(3811);
+    expect(trackWindowBounds(window, "a128")).toEqual({
+      lastSequenceNumber: 3810,
+    });
+    expect(trackWindowBounds(window, "v1080")).toEqual({
+      lastSequenceNumber: 3811,
+      lastPartNumber: 1,
+    });
+  });
+
+  test("trackWindowBounds omits lastPartNumber for full-segment tails", () => {
+    const partsWindow = createCommittedWindow({
+      commits: [segmentCommit, partCommit(0)],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+    const fullSegmentWindow = createCommittedWindow({
+      commits: [segmentCommit],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    expect(trackWindowBounds(partsWindow, "v1080")).toEqual({
+      lastSequenceNumber: 3811,
+      lastPartNumber: 0,
+    });
+    expect(trackWindowBounds(fullSegmentWindow, "v1080")).toEqual({
+      lastSequenceNumber: 3810,
+    });
+    expect(
+      trackWindowBounds(fullSegmentWindow, "v1080")?.lastPartNumber
+    ).toBeUndefined();
+  });
+
+  test("trackWindowBounds returns undefined for unknown tracks", () => {
+    const window = createCommittedWindow({
+      commits: [segmentCommit],
+      epoch: 1,
+      initCommits: [initCommit],
+      sessionId: "session_1",
+    });
+
+    expect(trackWindowBounds(window, "v720")).toBeUndefined();
   });
 
   test("rejects duplicate part commits", () => {

@@ -29,7 +29,7 @@ direction through a small set of stable layers.
 
 ## API boundaries
 
-- Keep public APIs stable in `olas/src/*.ts` facades and `olos/package.json`.
+- Keep public APIs stable in `olos/src/*.ts` facades and `olos/package.json`.
 - Prefer public-facing changes only through exported facades plus migration notes.
 - Keep transport helpers near their protocol/state use-sites; avoid scattering the
   same parsing or response-shaping logic across layers.

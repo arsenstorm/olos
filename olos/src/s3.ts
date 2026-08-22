@@ -1,13 +1,13 @@
 // biome-ignore-all lint/performance/noBarrelFile: public S3 facade for the olos/s3 export
 
-export {
-  type ByterangeCursorWait,
-  type ByterangeCursorWaitContext,
-  type ByterangeRangeRequest,
-  type CreateByterangeSegmentResponseOptions,
-  createByterangeSegmentResponse,
-  type S3GetObjectClient,
-} from "./s3/byterange-response";
+export { createByterangeSegmentResponse } from "./s3/byterange-response";
+export type {
+  ByterangeCursorWait,
+  ByterangeCursorWaitContext,
+  ByterangeRangeRequest,
+  CreateByterangeSegmentResponseOptions,
+  S3GetObjectClient,
+} from "./s3/byterange-types";
 export {
   applyS3RuntimeRetention,
   commitS3RuntimeUpload,
@@ -24,7 +24,6 @@ export {
   type S3RuntimeCompleteUploadResponse,
   type S3RuntimeCompletionHintPayload,
   type S3RuntimeHttpClientOptions,
-  S3RuntimeHttpError,
   type S3RuntimeIssueUploadGrantOptions,
   type S3RuntimeIssueUploadGrantResponse,
   type S3RuntimePlanReconciliationOptions,
@@ -35,31 +34,36 @@ export {
   type S3RuntimeReconciliationPlanResponse,
   type S3RuntimeRetentionPayload,
 } from "./s3/client";
+export { S3RuntimeHttpError } from "./s3/client-error";
 export {
-  type CommitS3CoordinatorUploadOptions,
-  type CommitStoredS3CoordinatorUploadOptions,
-  type CompleteStoredS3CoordinatorUploadByObjectKeyOptions,
-  type CompleteStoredS3CoordinatorUploadOptions,
-  commitS3CoordinatorUpload,
-  commitStoredS3CoordinatorUpload,
   completeStoredS3CoordinatorUpload,
   completeStoredS3CoordinatorUploadByObjectKey,
-  type IssueS3CoordinatorUploadGrantOptions,
-  type IssueStoredS3CoordinatorUploadGrantOptions,
+  routeStoredS3CoordinatorUploadEvent,
+} from "./s3/coordinator-event";
+export {
+  commitS3CoordinatorUpload,
+  commitStoredS3CoordinatorUpload,
   issueS3CoordinatorUploadGrant,
   issueStoredS3CoordinatorUploadGrant,
-  type RouteStoredS3CoordinatorUploadEventOptions,
-  routeStoredS3CoordinatorUploadEvent,
-  type S3CoordinatorUploadGrantIssue,
-  type StoredS3CoordinatorManifest,
-  type StoredS3CoordinatorManifestArtifact,
-  type StoredS3CoordinatorManifestOptions,
-  type StoredS3CoordinatorUploadAuditEvent,
-  type StoredS3CoordinatorUploadCommit,
-  type StoredS3CoordinatorUploadCompletion,
-  type StoredS3CoordinatorUploadEventRoute,
-  type StoredS3CoordinatorUploadGrantIssue,
-} from "./s3/coordinator";
+} from "./s3/coordinator-grant";
+export type {
+  CommitS3CoordinatorUploadOptions,
+  CommitStoredS3CoordinatorUploadOptions,
+  CompleteStoredS3CoordinatorUploadByObjectKeyOptions,
+  CompleteStoredS3CoordinatorUploadOptions,
+  IssueS3CoordinatorUploadGrantOptions,
+  IssueStoredS3CoordinatorUploadGrantOptions,
+  RouteStoredS3CoordinatorUploadEventOptions,
+  S3CoordinatorUploadGrantIssue,
+  StoredS3CoordinatorManifest,
+  StoredS3CoordinatorManifestArtifact,
+  StoredS3CoordinatorManifestOptions,
+  StoredS3CoordinatorUploadAuditEvent,
+  StoredS3CoordinatorUploadCommit,
+  StoredS3CoordinatorUploadCompletion,
+  StoredS3CoordinatorUploadEventRoute,
+  StoredS3CoordinatorUploadGrantIssue,
+} from "./s3/coordinator-types";
 export {
   type NormalizeS3ObjectCreatedEventRecordOptions,
   type NormalizeS3ObjectCreatedEventsOptions,
@@ -67,11 +71,11 @@ export {
   normalizeS3ObjectCreatedEvents,
 } from "./s3/event";
 export {
-  type CreateStoredS3CoordinatorRuntimeHandlerOptions,
   createStoredS3CoordinatorRuntimeHandler,
   type StoredS3CoordinatorRuntimeHandler,
 } from "./s3/http";
 export type {
+  CreateStoredS3CoordinatorRuntimeHandlerOptions,
   StoredS3CoordinatorCommitResponse,
   StoredS3CoordinatorEventRouteResponse,
   StoredS3CoordinatorEventRouteResponseResult,
@@ -89,29 +93,33 @@ export {
   type S3HeadObjectClient,
 } from "./s3/object-observation";
 export {
-  type NextStoredS3PublisherUploadStep,
-  type PlannedStoredS3PublisherUploadStep,
-  type RunNextStoredS3PublisherUploadStepOptions,
-  type RunPlannedStoredS3PublisherUploadStepOptions,
-  type RunStoredS3PublisherUploadStepOptions,
   runNextStoredS3PublisherUploadStep,
   runPlannedStoredS3PublisherUploadStep,
   runStoredS3PublisherUploadStep,
-  type StoredS3PublisherUploadStep,
-  type StoredS3PublisherUploadStepSummary,
-  summarizeStoredS3PublisherUploadStep,
 } from "./s3/publisher";
-export {
-  type PlanStoredS3CoordinatorReconciliationOptions,
-  planStoredS3CoordinatorReconciliation,
-  type ReconcileStoredS3CoordinatorUploadsOptions,
-  reconcileStoredS3CoordinatorUploads,
-  type StoredS3CoordinatorReconciliationPlan,
-  type StoredS3CoordinatorUploadReconciliation,
-  type StoredS3CoordinatorUploadReconciliationResult,
-  type StoredS3CoordinatorUploadReconciliationSummary,
-  summarizeStoredS3CoordinatorUploadReconciliation,
+export { summarizeStoredS3PublisherUploadStep } from "./s3/publisher-summary";
+export type {
+  NextStoredS3PublisherUploadStep,
+  PlannedStoredS3PublisherUploadStep,
+  RunNextStoredS3PublisherUploadStepOptions,
+  RunPlannedStoredS3PublisherUploadStepOptions,
+  RunStoredS3PublisherUploadStepOptions,
+  StoredS3PublisherUploadStep,
+  StoredS3PublisherUploadStepSummary,
+} from "./s3/publisher-types";
+export type {
+  PlanStoredS3CoordinatorReconciliationOptions,
+  ReconcileStoredS3CoordinatorUploadsOptions,
+  StoredS3CoordinatorReconciliationPlan,
+  StoredS3CoordinatorUploadReconciliation,
+  StoredS3CoordinatorUploadReconciliationResult,
+  StoredS3CoordinatorUploadReconciliationSummary,
 } from "./s3/reconciliation";
+export { summarizeStoredS3CoordinatorUploadReconciliation } from "./s3/reconciliation";
+export {
+  planStoredS3CoordinatorReconciliation,
+  reconcileStoredS3CoordinatorUploads,
+} from "./s3/reconciliation-summary";
 export {
   type DeleteRetiredS3CoordinatorObjectsOptions,
   deleteRetiredS3CoordinatorObjects,

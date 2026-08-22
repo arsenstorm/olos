@@ -1,42 +1,43 @@
+import { CONFORMANCE_DELIVERY_BASE_URL } from "../conformance/pipeline-store";
 import { createObservedUpload } from "../state/observed-upload";
+import type { ProfileData } from "../types/profile";
 import type { Session } from "../types/session";
-import {
-  type CoordinatorPipelineState,
-  commitCoordinatorUpload,
-  createCoordinatorPipeline,
-  issueCoordinatorSlot,
-} from "./coordinator";
+import { commitCoordinatorUpload } from "./coordinator-commit";
+import { createCoordinatorPipeline } from "./coordinator-lifecycle";
+import { issueCoordinatorSlot } from "./coordinator-slot";
+import type { CoordinatorPipelineState } from "./coordinator-types";
 
+/** A live CMAF/LL-HLS session with one 1080p video track. */
 export const testCoordinatorSession: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
   epoch: 1,
-  latencyProfile: "object-ll",
   olos: "1.0",
-  partTarget: 0.5,
-  renditions: [
-    {
-      bitrate: 5_000_000,
-      codec: "avc1.640028",
-      frameRate: 30,
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
-    },
-  ],
-  segmentTarget: 2,
+  profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
   sessionId: "session_1",
   state: "live",
+  tracks: [
+    {
+      profile: {
+        bitrate: 5_000_000,
+        codec: "avc1.640028",
+        frameRate: 30,
+        height: 1080,
+        kind: "video",
+        width: 1920,
+      },
+      trackId: "v1080",
+    },
+  ],
 };
 
-export const TEST_COORDINATOR_MEDIA_BASE_URL = "https://media.example.com";
+export const TEST_COORDINATOR_DELIVERY_BASE_URL = CONFORMANCE_DELIVERY_BASE_URL;
 
 // Helper sessions use read-gated publication so the coordinator derives
 // deterministic object addresses (no random nonce), letting tests assert
-// against known keys: media/<rendition>/init.mp4 and media/<rendition>/s<msn>.m4s.
+// against known keys: objects/<track>/init.mp4 and objects/<track>/s<n>.m4s.
 export function createEmptyCoordinatorState(): CoordinatorPipelineState {
   return createCoordinatorPipeline({
-    mediaBaseUrl: TEST_COORDINATOR_MEDIA_BASE_URL,
+    deliveryBaseUrl: TEST_COORDINATOR_DELIVERY_BASE_URL,
     publicationMode: "read-gated",
     session: testCoordinatorSession,
   });
@@ -46,10 +47,10 @@ export function createCoordinatorStateWithIssuedSegment(): CoordinatorPipelineSt
   const initCommit = commitTestCoordinatorSlot(createEmptyCoordinatorState(), {
     commitId: "commit_init",
     contentType: "video/mp4",
-    duration: 1,
     kind: "init",
+    profile: { duration: 1 },
     maxBytes: 2048,
-    mediaSequenceNumber: 0,
+    sequenceNumber: 0,
     size: 1024,
     slotId: "slot_init",
   });
@@ -64,7 +65,7 @@ export function createCoordinatorStateWithCommittedSegment(): CoordinatorPipelin
     {
       ...testCoordinatorSegmentSlot(),
       commitId: "commit_3810",
-      independent: true,
+      profile: { independent: true },
       size: 98_304,
     }
   );
@@ -73,11 +74,10 @@ export function createCoordinatorStateWithCommittedSegment(): CoordinatorPipelin
 interface TestCoordinatorSlot {
   commitId?: string;
   contentType: string;
-  duration: number;
-  independent?: boolean;
   kind: "init" | "segment";
   maxBytes: number;
-  mediaSequenceNumber: number;
+  profile?: ProfileData;
+  sequenceNumber: number;
   size?: number;
   slotId: string;
 }
@@ -85,10 +85,10 @@ interface TestCoordinatorSlot {
 function testCoordinatorSegmentSlot(): TestCoordinatorSlot {
   return {
     contentType: "video/mp4",
-    duration: 2,
     kind: "segment",
     maxBytes: 100_000,
-    mediaSequenceNumber: 3810,
+    profile: { duration: 2 },
+    sequenceNumber: 3810,
     slotId: "slot_3810",
   };
 }
@@ -118,7 +118,6 @@ function commitIssuedTestCoordinatorSlot(
   const committed = commitCoordinatorUpload({
     commitId: slot.commitId,
     committedAt: "2026-01-01T00:00:02.000Z",
-    independent: slot.independent,
     object: createObservedUpload({
       contentType: slot.contentType,
       objectKey,
@@ -126,6 +125,7 @@ function commitIssuedTestCoordinatorSlot(
       providerId: "s3_primary",
       size: slot.size,
     }),
+    profile: slot.profile,
     slotId: slot.slotId,
     state,
   });
@@ -143,12 +143,12 @@ function issueTestCoordinatorSlot(
 ) {
   return issueCoordinatorSlot({
     contentType: slot.contentType,
-    duration: slot.duration,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: slot.kind,
     maxBytes: slot.maxBytes,
-    mediaSequenceNumber: slot.mediaSequenceNumber,
-    renditionId: "v1080",
+    profile: slot.profile,
+    sequenceNumber: slot.sequenceNumber,
+    trackId: "v1080",
     slotId: slot.slotId,
     state,
   });

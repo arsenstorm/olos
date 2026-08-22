@@ -1,91 +1,65 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { assertInstalledPackageContents } from "./package-contents";
-import { writePackageSmokeFile } from "./package-smoke-fixture";
+import { which } from "bun";
+import packageJson from "../package.json" with { type: "json" };
 import { assertPublishedPackageVersion } from "./published-package";
-import { packageVersion } from "./release-metadata";
-import { resolveWorkspaceBin } from "./script-bin";
-import { packageRoot, repoRoot } from "./script-paths";
+import { repoRoot } from "./script-paths";
 import { runCommand } from "./script-runner";
+import { smokeRuntime, writeSmokeConsumerFiles } from "./smoke-consumer";
+
+const RETRIES = 12;
+const RETRY_DELAY_MS = 5000;
 
 const workRoot = join(repoRoot, "out", "published-package-smoke");
 const consumerRoot = join(workRoot, "consumer");
-const tempRoot = join(workRoot, "tmp");
-const version = process.argv[2] ?? packageVersion;
-const smokeEnv = {
-  ...process.env,
-  TEMP: tempRoot,
-  TMP: tempRoot,
-  TMPDIR: tempRoot,
-};
+const version = process.argv[2] ?? packageJson.version;
 
 assertPublishedPackageVersion(version);
 
 await rm(workRoot, { force: true, recursive: true });
 await mkdir(consumerRoot, { recursive: true });
-await mkdir(tempRoot, { recursive: true });
-await writeFile(
-  join(consumerRoot, "package.json"),
-  `${JSON.stringify(
-    {
-      private: true,
-      type: "module",
-    },
-    null,
-    2
-  )}\n`
-);
+await writeSmokeConsumerFiles(consumerRoot);
 
-await runWithRetries(
-  "bun",
-  ["add", "--no-cache", "--exact", `@arsenstorm/olos@${version}`],
-  {
-    cwd: consumerRoot,
-    retries: 12,
-  }
-);
-await assertInstalledPackageContents(
-  join(consumerRoot, "node_modules", "@arsenstorm", "olos")
-);
-await writePackageSmokeFile(consumerRoot);
-await run("bun", ["smoke.mjs"], { cwd: consumerRoot });
-await run(
-  await resolveWorkspaceBin("tsc", [packageRoot, repoRoot]),
-  ["--project", "tsconfig.json"],
-  { cwd: consumerRoot }
-);
+// Retry: registry propagation of a just-published version can lag.
+await installWithRetries(`@arsenstorm/olos@${version}`);
+await runCommand(smokeRuntime(), ["smoke.mjs"], { cwd: consumerRoot });
 
-async function runWithRetries(
-  command: string,
-  args: readonly string[],
-  options: { cwd?: string; retries: number }
-): Promise<void> {
-  for (let attempt = 1; attempt <= options.retries; attempt += 1) {
-    const result = await run(command, args, {
-      cwd: options.cwd,
-      reject: false,
-    });
+async function installWithRetries(specifier: string): Promise<void> {
+  for (let attempt = 1; attempt <= RETRIES; attempt += 1) {
+    const result = await installOnce(specifier);
 
     if (result === 0) {
       return;
     }
 
-    if (attempt === options.retries) {
-      throw new Error(`${command} ${args.join(" ")} exited with ${result}`);
+    if (attempt === RETRIES) {
+      throw new Error(`install of ${specifier} exited with ${result}`);
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
   }
 }
 
-function run(
-  command: string,
-  args: readonly string[],
-  options: { cwd?: string; reject?: boolean } = {}
-): Promise<number | null> {
-  return runCommand(command, args, {
-    cwd: options.cwd ?? packageRoot,
-    env: smokeEnv,
-    reject: options.reject,
-  });
+function installOnce(specifier: string): Promise<number | null> {
+  const npm = which("npm");
+
+  if (npm === null) {
+    return runCommand("bun", ["add", "--no-cache", "--exact", specifier], {
+      cwd: consumerRoot,
+      reject: false,
+    });
+  }
+
+  return runCommand(
+    npm,
+    [
+      "install",
+      "--no-audit",
+      "--no-fund",
+      "--prefer-online",
+      "--save-exact",
+      specifier,
+    ],
+    { cwd: consumerRoot, reject: false }
+  );
 }

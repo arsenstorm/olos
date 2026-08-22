@@ -1,8 +1,14 @@
-import { hasControlCharacter } from "./fields";
+import { hasControlCharacter, hasQueryOrFragment } from "./fields";
 
-// Delivery URL policy for externally visible manifest and media references.
-// The project permits only absolute HTTP(S) URLs or safe relative paths,
-// and forbids query strings, fragments, and control characters.
+const ABSOLUTE_URL_SCHEME_AND_AUTHORITY_PATTERN = /^[a-zA-Z]+:\/\/[^/?#]*/;
+
+/**
+ * Enforces the delivery URL policy for externally visible manifest and
+ * media references: only absolute HTTP(S) URLs or safe relative paths
+ * (leading `/`, no `.`/`..` segments, no `//`) are allowed, and query
+ * strings, fragments, and control characters are forbidden. Throws an
+ * `Error` prefixed with `name` on violation.
+ */
 export function assertSafeDeliveryUrl(value: unknown, name: string): void {
   const deliveryUrl = deliveryUrlString(value, name);
 
@@ -44,10 +50,6 @@ function assertDeliveryUrlHasNoQueryOrFragment(
   }
 }
 
-function hasQueryOrFragment(value: string): boolean {
-  return value.includes("?") || value.includes("#");
-}
-
 function isAllowedDeliveryReference(value: string): boolean {
   return (
     isAllowedRelativeDeliveryReference(value) ||
@@ -60,7 +62,12 @@ function isAllowedRelativeDeliveryReference(value: string): boolean {
 }
 
 function isAllowedAbsoluteDeliveryReference(value: string): boolean {
-  return parseAbsoluteUrl(value) !== undefined;
+  if (parseAbsoluteUrl(value) === undefined) {
+    return false;
+  }
+
+  const rawPath = value.replace(ABSOLUTE_URL_SCHEME_AND_AUTHORITY_PATTERN, "");
+  return rawPath === "" || isSafeRelativePath(rawPath);
 }
 
 function isSafeRelativePath(value: string): boolean {

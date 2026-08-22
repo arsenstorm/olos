@@ -116,6 +116,43 @@ describe("runtime live health", () => {
     });
   });
 
+  test("orders stored publisher leases by instant, not by timestamp string", () => {
+    // "T01:00:30+01:00" sorts lexicographically after "T00:00:45Z" but is
+    // the earlier instant (00:00:30Z); the UTC lease must win, and its
+    // unexpired lease keeps the session active.
+    expect(
+      resolveRuntimeLiveHealthFromState({
+        maxCursorAgeMs: 3000,
+        now: "2026-01-01T00:00:50.000Z",
+        state: {
+          ...createEmptyCoordinatorState(),
+          cursor: cursor("2026-01-01T00:00:48.000Z"),
+          publisherLeases: [
+            {
+              expiresAt: "2026-01-01T00:00:33.000Z",
+              issuedAt: "2026-01-01T00:00:00.000Z",
+              lastSeenAt: "2026-01-01T01:00:30.000+01:00",
+              publisherInstanceId: "publisher_offset",
+              sessionId: "session_1",
+            },
+            {
+              expiresAt: "2026-01-01T00:00:55.000Z",
+              issuedAt: "2026-01-01T00:00:00.000Z",
+              lastSeenAt: "2026-01-01T00:00:45.000Z",
+              publisherInstanceId: "publisher_utc",
+              sessionId: "session_1",
+            },
+          ],
+        },
+      })
+    ).toEqual({
+      cursorAgeMs: 2000,
+      cursorFreshness: "fresh",
+      leaseStatus: "active",
+      status: "active",
+    });
+  });
+
   test("resolves state health without stored publisher leases", () => {
     expect(
       resolveRuntimeLiveHealthFromState({
@@ -207,14 +244,22 @@ describe("runtime live health", () => {
         now: "not-a-date",
       })
     ).toThrow("now must be a valid timestamp");
+  });
 
-    expect(() =>
+  test("clamps cursor age to fresh when the cursor is ahead of now", () => {
+    // A publisher's committedAt can run ahead of this server's clock;
+    // forward skew must read as a fresh cursor, not a failure.
+    expect(
       resolveRuntimeLiveHealth({
         cursor: cursor(),
         maxCursorAgeMs: 3000,
         now: "2025-12-31T23:59:59.999Z",
       })
-    ).toThrow("now must be after or equal to cursor.updatedAt");
+    ).toEqual({
+      cursorAgeMs: 0,
+      cursorFreshness: "fresh",
+      status: "active",
+    });
   });
 });
 
@@ -234,11 +279,10 @@ function lease(
 function cursor(updatedAt = "2026-01-01T00:00:00.000Z"): Cursor {
   return {
     committedWindow: {
-      discontinuitySequence: 0,
       epoch: 1,
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
-      renditions: {
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
+      tracks: {
         v1080: {
           init: {
             commitId: "commit_init",
@@ -246,16 +290,15 @@ function cursor(updatedAt = "2026-01-01T00:00:00.000Z"): Cursor {
             objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
-          renditionId: "v1080",
+          trackId: "v1080",
           segments: [
             {
-              duration: 2,
-              independent: true,
-              mediaSequenceNumber: 3810,
+              sequenceNumber: 3810,
               segment: {
                 commitId: "commit_3810",
                 deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
                 objectKey: "media/v1080/s3810.m4s",
+                profile: { duration: 2, independent: true },
                 slotId: "slot_3810",
               },
             },
@@ -264,17 +307,15 @@ function cursor(updatedAt = "2026-01-01T00:00:00.000Z"): Cursor {
       },
     },
     epoch: 1,
-    latencyProfile: "object-ll",
     olos: "1.0",
-    mediaBaseUrl: "https://media.example.com",
-    partTarget: 0.5,
-    segmentTarget: 2,
+    deliveryBaseUrl: "https://media.example.com",
+    profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
     sessionId: "session_1",
     state: "live",
     updatedAt,
     window: {
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     },
   };
 }
