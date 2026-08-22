@@ -1,6 +1,5 @@
 import type { HlsCursorWaitContext } from "../hls/blocking-reload";
 import type { CreateHlsManifestArtifactResponseOptions } from "../hls/manifest-artifact-types";
-import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "../media/latency-profile-defaults";
 import type {
   CoordinatorCommitPolicy,
   CoordinatorPipelineStore,
@@ -10,14 +9,9 @@ import type { PublicationControlPolicy } from "../state/publication-control";
 import type { PublicationMode } from "../types/upload-slot";
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { SESSION_ROUTE_ACTIONS } from "./route";
-export const DEFAULT_RUNTIME_OBJECT_LOW_LATENCY =
-  DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE;
-export const DEFAULT_MAX_HEALTH_CURSOR_AGE_MS =
-  DEFAULT_RUNTIME_OBJECT_LOW_LATENCY.cursorMaxAgeMs;
-export const DEFAULT_PUBLISHER_LEASE_TTL_MS =
-  DEFAULT_RUNTIME_OBJECT_LOW_LATENCY.publisherLeaseTtlMs;
-export const DEFAULT_TARGET_LATENCY =
-  DEFAULT_RUNTIME_OBJECT_LOW_LATENCY.targetLatency;
+export const DEFAULT_MAX_HEALTH_CURSOR_AGE_MS = 5000;
+export const DEFAULT_PUBLISHER_LEASE_TTL_MS = 3000;
+export const DEFAULT_TARGET_LATENCY = 3;
 export const defaultRuntimeNow = () => new Date().toISOString();
 
 export const GET_ONLY_SESSION_ROUTE_ACTIONS = [

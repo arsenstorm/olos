@@ -261,6 +261,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
       store,
@@ -282,6 +283,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       range: { end: 119, start: 80 },
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
@@ -306,6 +308,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       range: { start: 50 },
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
@@ -334,6 +337,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
       store,
@@ -364,6 +368,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
       store,
@@ -421,6 +426,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       range: { end: 99, start: 0 },
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
@@ -443,6 +449,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       range: { end: 149, start: 0 },
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
@@ -464,6 +471,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
       store,
@@ -482,6 +490,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       range: { start: -10 },
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
@@ -499,6 +508,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
       store,
@@ -525,6 +535,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
       signal: viewer.signal,
@@ -558,6 +569,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       cursorWait,
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,
@@ -601,6 +613,7 @@ describe("createByterangeSegmentResponse", () => {
     const response = await createByterangeSegmentResponse({
       bucket: "media",
       client,
+      contentType: "video/mp4",
       range: { end: 49, start: 0 },
       segmentObjectKey: SEGMENT_OBJECT_KEY,
       sessionId: SESSION_ID,

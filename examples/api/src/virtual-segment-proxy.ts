@@ -39,6 +39,7 @@ export async function proxyVirtualSegment(
   return await createByterangeSegmentResponse({
     bucket: env.S3_BUCKET,
     client,
+    contentType: "video/mp4",
     cursorWait: createCursorWaiter(env.STREAMS, BLOCKING_RELOAD_TIMEOUT_MS),
     range,
     segmentObjectKey: `live/${sessionId}/${trackId}/${msn}.m4s`,

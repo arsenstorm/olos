@@ -59,7 +59,7 @@ rules, in order, and block on the first match
 | Rule | Status |
 | --- | --- |
 | Object key fails path safety (Section 7.5) | 404 |
-| Extension not in the allowed set (`allowedMediaExtensions`, reference default `.m4s`, `.mp4`) | 404 |
+| Extension not in the allowed set (`allowedObjectExtensions`) | 404 |
 | Document navigation (`Sec-Fetch-Dest: document` or `Sec-Fetch-Mode: navigate`) | 403 |
 | Request `Accept` includes `text/html` | 403 |
 
@@ -70,17 +70,24 @@ listing MUST be blocked at the provider.
 Object responses MUST carry:
 
 ```http
-Content-Type: video/mp4
+Content-Type: <policy objectContentType>
 X-Content-Type-Options: nosniff
 Access-Control-Allow-Credentials: false
 Cross-Origin-Resource-Policy: same-site
 Cache-Control: <object policy, Section 10.4>
 ```
 
-The reference policy pins the extension set and the `Content-Type` to
-the CMAF/LL-HLS profile's objects. A deployment that delivers another
-profile's objects MUST apply the same rule order and headers with the
-content type and extension set that its profile defines.
+The security policy (`DirectPublicSecurityPolicy`,
+`@arsenstorm/olos/types`) carries `allowedObjectExtensions` and
+`objectContentType` as profile-supplied fields; Core does not pin an
+extension set or content type. The CMAF/LL-HLS profile supplies
+`.m4s`/`.mp4` and `video/mp4` via `createDirectPublicMediaSecurityPolicy`
+(`@arsenstorm/olos/media`), which wraps `createDirectPublicSecurityPolicy`
+(`@arsenstorm/olos/state`) with those values. A deployment that delivers
+another profile's objects MUST apply the same rule order and headers
+with the content type and extension set that its profile defines. The
+byterange aggregation service (Section 7.10) likewise takes its
+`content-type` from the caller rather than pinning one.
 
 ## 10.4 Cache policy, including negative caching
 

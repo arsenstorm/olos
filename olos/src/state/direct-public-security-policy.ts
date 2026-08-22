@@ -1,14 +1,26 @@
 import type { DirectPublicSecurityPolicy } from "../types/direct-public-security-policy";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
+import { assertContentType } from "../validation/content-type";
 import { isSafeObjectKey } from "../validation/object-key";
 import { assertProviderCapabilityDocument } from "../validation/provider-capability";
 import { createDeliveryCachePolicy } from "./cache-policy";
 
 /** Options for {@link createDirectPublicSecurityPolicy}. */
 export interface CreateDirectPublicSecurityPolicyOptions {
+  /**
+   * Object file extensions (with leading dot, lower-case) the policy
+   * serves. Supplied by the media profile, e.g. `[".m4s", ".mp4"]` for
+   * CMAF/LL-HLS.
+   */
+  allowedObjectExtensions: readonly string[];
   capability: ProviderCapabilityDocument;
   /** Max age in seconds for the manifest cache policy (default 1). */
   manifestMaxAgeSeconds?: number;
+  /**
+   * Content type stamped on every served object. Supplied by the media
+   * profile, e.g. `video/mp4` for CMAF/LL-HLS.
+   */
+  objectContentType: string;
   /**
    * Latency budget in seconds bounding the manifest and negative-object
    * cache policies (default 3).
@@ -43,6 +55,11 @@ export type DirectPublicObjectRequestPolicy =
 export interface ResolveDirectPublicObjectRequestPolicyOptions {
   /** `Accept` request header; requests accepting `text/html` are blocked. */
   accept?: string | null;
+  /**
+   * Object file extensions (with leading dot) that may be served. Supplied
+   * by the media profile.
+   */
+  allowedObjectExtensions: readonly string[];
   /** `Sec-Fetch-Dest` request header; `document` requests are blocked. */
   fetchDestination?: string | null;
   /** `Sec-Fetch-Mode` request header; `navigate` requests are blocked. */
@@ -96,7 +113,7 @@ const DIRECT_PUBLIC_CAPABILITY_REQUIREMENTS = [
   },
 ] satisfies readonly DirectPublicCapabilityRequirement[];
 
-const DIRECT_PUBLIC_MEDIA_REQUEST_BLOCK_RULES = [
+const DIRECT_PUBLIC_OBJECT_REQUEST_BLOCK_RULES = [
   {
     isBlocked: (options) => !isSafeObjectKey(options.objectKey),
     reason: "unsafe-object-key",
@@ -104,7 +121,10 @@ const DIRECT_PUBLIC_MEDIA_REQUEST_BLOCK_RULES = [
   },
   {
     isBlocked: (options) =>
-      !hasSupportedDirectPublicMediaExtension(options.objectKey),
+      !hasSupportedObjectExtension(
+        options.objectKey,
+        options.allowedObjectExtensions
+      ),
     reason: "unsupported-extension",
     status: 404,
   },
@@ -126,22 +146,25 @@ const DIRECT_PUBLIC_MEDIA_REQUEST_BLOCK_RULES = [
  * `publication.directObjectPublication`,
  * `publication.manifestGatedPublication`, and
  * `delivery.documentNavigationCanBeBlocked`, plus an `https` public base
- * URL; throws otherwise. The policy pins the allowed media origin and
- * extensions (`.m4s`, `.mp4`), forbids `set-cookie`, and bundles cache
- * policies for manifests, media objects, and negative objects.
+ * URL; throws otherwise. The policy pins the allowed delivery origin and
+ * the caller-supplied `allowedObjectExtensions`/`objectContentType`,
+ * forbids `set-cookie`, and bundles cache policies for manifests, media
+ * objects, and negative objects.
  */
 export function createDirectPublicSecurityPolicy(
   options: CreateDirectPublicSecurityPolicyOptions
 ): DirectPublicSecurityPolicy {
   assertProviderCapabilityDocument(options.capability);
   assertDirectPublicCapability(options.capability);
+  assertAllowedObjectExtensions(options.allowedObjectExtensions);
+  assertContentType(options.objectContentType, "objectContentType");
 
   const origin = publicBaseOrigin(options.capability.delivery.publicBaseUrl);
   const targetLatencySeconds = options.targetLatencySeconds ?? 3;
 
   return {
     allowedDeliveryOrigins: [origin],
-    allowedMediaExtensions: DIRECT_PUBLIC_MEDIA_EXTENSIONS,
+    allowedObjectExtensions: options.allowedObjectExtensions,
     forbiddenResponseHeaders: ["set-cookie"],
     manifestCachePolicy: createDeliveryCachePolicy({
       maxAgeSeconds: options.manifestMaxAgeSeconds,
@@ -152,7 +175,8 @@ export function createDirectPublicSecurityPolicy(
       capability: options.capability,
       target: "media-object",
     }),
-    mediaResponseHeaders: DIRECT_PUBLIC_MEDIA_RESPONSE_HEADERS,
+    objectContentType: options.objectContentType,
+    objectResponseHeaders: DIRECT_PUBLIC_OBJECT_RESPONSE_HEADERS,
     negativeObjectCachePolicy: createDeliveryCachePolicy({
       capability: options.capability,
       target: "negative-object",
@@ -163,15 +187,15 @@ export function createDirectPublicSecurityPolicy(
 
 /**
  * Evaluate a direct-public media request against the block rules, in
- * order, first match wins: 404 when the object key is unsafe or lacks a
- * supported media extension (`.m4s`/`.mp4`); 403 when the request is a
- * document navigation (`Sec-Fetch-Dest: document` or
+ * order, first match wins: 404 when the object key is unsafe or lacks an
+ * extension in `options.allowedObjectExtensions`; 403 when the request is
+ * a document navigation (`Sec-Fetch-Dest: document` or
  * `Sec-Fetch-Mode: navigate`) or accepts `text/html`. Pure.
  */
 export function resolveDirectPublicObjectRequestPolicy(
   options: ResolveDirectPublicObjectRequestPolicyOptions
 ): DirectPublicObjectRequestPolicy {
-  for (const rule of DIRECT_PUBLIC_MEDIA_REQUEST_BLOCK_RULES) {
+  for (const rule of DIRECT_PUBLIC_OBJECT_REQUEST_BLOCK_RULES) {
     if (rule.isBlocked(options)) {
       return directPublicMediaRequestBlocked(rule);
     }
@@ -190,10 +214,13 @@ function directPublicMediaRequestBlocked(
   };
 }
 
-function hasSupportedDirectPublicMediaExtension(objectKey: string): boolean {
+function hasSupportedObjectExtension(
+  objectKey: string,
+  allowedObjectExtensions: readonly string[]
+): boolean {
   const lowerObjectKey = objectKey.toLowerCase();
 
-  return DIRECT_PUBLIC_MEDIA_EXTENSIONS.some((extension) =>
+  return allowedObjectExtensions.some((extension) =>
     lowerObjectKey.endsWith(extension)
   );
 }
@@ -212,24 +239,29 @@ function acceptsHtml(accept: string | null | undefined): boolean {
 
 /**
  * Build the response headers for serving a direct-public media object:
- * the policy's fixed media headers plus `cache-control` from the
- * media-object cache policy and a `content-type` of `video/mp4`. Throws
- * when the object key would be blocked by
+ * the policy's fixed object headers plus `cache-control` from the
+ * media-object cache policy and the policy's `content-type`. Throws when
+ * the object key would be blocked by
  * {@link resolveDirectPublicObjectRequestPolicy}.
  */
 export function createDirectPublicObjectResponseHeaders(
   options: CreateDirectPublicObjectResponseHeadersOptions
 ): Record<string, string> {
+  assertSupportedDirectPublicObject(
+    options.objectKey,
+    options.policy.allowedObjectExtensions
+  );
+
   return {
-    ...options.policy.mediaResponseHeaders,
+    ...options.policy.objectResponseHeaders,
     "cache-control": options.policy.mediaObjectCachePolicy.cacheControl,
-    "content-type": contentTypeForDirectPublicMediaObject(options.objectKey),
+    "content-type": options.policy.objectContentType,
   };
 }
 
 /**
  * Build the response headers for a negative (not-yet-uploaded) object
- * response: the policy's fixed media headers plus `cache-control` from
+ * response: the policy's fixed object headers plus `cache-control` from
  * the negative-object cache policy. No `content-type` is set. Throws when
  * the object key would be blocked by
  * {@link resolveDirectPublicObjectRequestPolicy}.
@@ -237,10 +269,13 @@ export function createDirectPublicObjectResponseHeaders(
 export function createDirectPublicNegativeObjectResponseHeaders(
   options: CreateDirectPublicNegativeObjectResponseHeadersOptions
 ): Record<string, string> {
-  assertSupportedDirectPublicMediaObject(options.objectKey);
+  assertSupportedDirectPublicObject(
+    options.objectKey,
+    options.policy.allowedObjectExtensions
+  );
 
   return {
-    ...options.policy.mediaResponseHeaders,
+    ...options.policy.objectResponseHeaders,
     "cache-control": options.policy.negativeObjectCachePolicy.cacheControl,
   };
 }
@@ -274,8 +309,33 @@ function publicBaseOrigin(publicBaseUrl: string): string {
   return url.origin;
 }
 
-function assertSupportedDirectPublicMediaObject(objectKey: string): void {
-  const policy = resolveDirectPublicObjectRequestPolicy({ objectKey });
+function assertAllowedObjectExtensions(
+  allowedObjectExtensions: readonly string[]
+): void {
+  const isValid =
+    allowedObjectExtensions.length > 0 &&
+    allowedObjectExtensions.every(
+      (extension) =>
+        extension.length > 0 &&
+        extension.startsWith(".") &&
+        extension === extension.toLowerCase()
+    );
+
+  if (!isValid) {
+    throw new Error(
+      "allowedObjectExtensions must be a non-empty list of lower-case extensions starting with '.'"
+    );
+  }
+}
+
+function assertSupportedDirectPublicObject(
+  objectKey: string,
+  allowedObjectExtensions: readonly string[]
+): void {
+  const policy = resolveDirectPublicObjectRequestPolicy({
+    allowedObjectExtensions,
+    objectKey,
+  });
 
   if (!policy.allowed) {
     throw new Error(
@@ -284,14 +344,7 @@ function assertSupportedDirectPublicMediaObject(objectKey: string): void {
   }
 }
 
-function contentTypeForDirectPublicMediaObject(objectKey: string): string {
-  assertSupportedDirectPublicMediaObject(objectKey);
-  return "video/mp4";
-}
-
-const DIRECT_PUBLIC_MEDIA_EXTENSIONS = [".m4s", ".mp4"] as const;
-
-const DIRECT_PUBLIC_MEDIA_RESPONSE_HEADERS = {
+const DIRECT_PUBLIC_OBJECT_RESPONSE_HEADERS = {
   "access-control-allow-credentials": "false",
   "cross-origin-resource-policy": "same-site",
   "x-content-type-options": "nosniff",

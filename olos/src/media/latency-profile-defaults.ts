@@ -1,3 +1,9 @@
+import {
+  DEFAULT_MAX_HEALTH_CURSOR_AGE_MS,
+  DEFAULT_PUBLISHER_LEASE_TTL_MS,
+  DEFAULT_TARGET_LATENCY,
+} from "../runtime/http-types";
+
 /**
  * Tuning knobs for the object-based low-latency HLS profile: one coherent
  * set of timings shared by manifest serving, publisher pacing, and health
@@ -8,7 +14,6 @@ export interface RuntimeObjectLowLatencyProfile {
   blockingReloadTimeoutMs: number;
   /** Cursor age at which session health reports stale, in ms. */
   cursorMaxAgeMs: number;
-  latencyProfile: "object-ll";
   /** `max-age` for playlist responses, in seconds. */
   manifestMaxAgeSeconds: number;
   /** Floor for issued upload slot TTLs, in seconds. */
@@ -28,13 +33,12 @@ export interface RuntimeObjectLowLatencyProfile {
 export const DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE: Readonly<RuntimeObjectLowLatencyProfile> =
   {
     blockingReloadTimeoutMs: 3000,
-    cursorMaxAgeMs: 5000,
-    latencyProfile: "object-ll",
+    cursorMaxAgeMs: DEFAULT_MAX_HEALTH_CURSOR_AGE_MS,
     manifestMaxAgeSeconds: 1,
     minUploadTtlSeconds: 1,
     partHoldBack: 3,
     partTarget: 0.5,
-    publisherLeaseTtlMs: 3000,
+    publisherLeaseTtlMs: DEFAULT_PUBLISHER_LEASE_TTL_MS,
     segmentTarget: 2,
-    targetLatency: 3,
+    targetLatency: DEFAULT_TARGET_LATENCY,
   };

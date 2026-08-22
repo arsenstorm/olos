@@ -1,3 +1,4 @@
+import { assertContentType } from "../validation/content-type";
 import { resolveCommittedParts } from "./byterange-parts";
 import { createByterangeStream } from "./byterange-stream";
 import {
@@ -26,6 +27,8 @@ import {
 export async function createByterangeSegmentResponse(
   options: CreateByterangeSegmentResponseOptions
 ): Promise<Response> {
+  assertContentType(options.contentType, "contentType");
+
   const requested = options.range ?? { start: 0 };
   if (!isSatisfiableRange(requested)) {
     return new Response("invalid range", { status: 416 });
@@ -44,10 +47,16 @@ export async function createByterangeSegmentResponse(
   const body = createByterangeStream(options, initial, range);
 
   if (options.range === undefined) {
-    return new Response(body, { headers: baseHeaders(), status: 200 });
+    return new Response(body, {
+      headers: baseHeaders(options.contentType),
+      status: 200,
+    });
   }
 
-  return new Response(body, { headers: rangeHeaders(range), status: 206 });
+  return new Response(body, {
+    headers: rangeHeaders(range, options.contentType),
+    status: 206,
+  });
 }
 
 function isSatisfiableRange(range: ByterangeRangeRequest): boolean {
@@ -68,17 +77,20 @@ function normalizeRange(range: ByterangeRangeRequest): ByterangeRangeRequest {
   return range;
 }
 
-function baseHeaders(): Headers {
+function baseHeaders(contentType: string): Headers {
   return new Headers({
     "accept-ranges": "bytes",
     "cache-control": "no-store",
-    "content-type": "video/mp4",
+    "content-type": contentType,
   });
 }
 
 /** Headers for a 206 answer to a request that carried a Range header. */
-function rangeHeaders(range: ByterangeRangeRequest): Headers {
-  const headers = baseHeaders();
+function rangeHeaders(
+  range: ByterangeRangeRequest,
+  contentType: string
+): Headers {
+  const headers = baseHeaders(contentType);
 
   if (range.end !== undefined) {
     headers.set("content-range", `bytes ${range.start}-${range.end}/*`);

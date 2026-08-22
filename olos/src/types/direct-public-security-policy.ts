@@ -9,14 +9,22 @@ import type { DeliveryCachePolicy } from "./cache-policy";
 export interface DirectPublicSecurityPolicy {
   /** Origins allowed to fetch media (CORS allow-list). */
   allowedDeliveryOrigins: readonly string[];
-  /** Media file extensions (with leading dot) that may be served. */
-  allowedMediaExtensions: readonly string[];
+  /**
+   * Object file extensions (with leading dot) that may be served. Supplied
+   * by the media profile (e.g. `.m4s`/`.mp4` for CMAF/LL-HLS), not Core.
+   */
+  allowedObjectExtensions: readonly string[];
   /** Response headers that must never reach clients (e.g. upload metadata). */
   forbiddenResponseHeaders: readonly string[];
   manifestCachePolicy: DeliveryCachePolicy;
   mediaObjectCachePolicy: DeliveryCachePolicy;
-  /** Headers stamped on every media response (e.g. CSP, nosniff). */
-  mediaResponseHeaders: Readonly<Record<string, string>>;
   /** Cache policy for 404-class responses to not-yet-published objects. */
   negativeObjectCachePolicy: DeliveryCachePolicy;
+  /**
+   * Content type stamped on every served object. Supplied by the media
+   * profile (e.g. `video/mp4` for CMAF/LL-HLS), not Core.
+   */
+  objectContentType: string;
+  /** Headers stamped on every object response (e.g. CSP, nosniff). */
+  objectResponseHeaders: Readonly<Record<string, string>>;
 }

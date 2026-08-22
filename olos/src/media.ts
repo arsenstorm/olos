@@ -1,5 +1,12 @@
 // biome-ignore-all lint/performance/noBarrelFile: public media-profile facade for the olos/media export
 
+export { mediaCommitPolicy } from "./media/commit-policy";
+export {
+  type CreateDirectPublicMediaSecurityPolicyOptions,
+  createDirectPublicMediaSecurityPolicy,
+  MEDIA_DIRECT_PUBLIC_OBJECT_CONTENT_TYPE,
+  MEDIA_DIRECT_PUBLIC_OBJECT_EXTENSIONS,
+} from "./media/direct-public";
 export {
   type CreateRuntimeObjectLowLatencyPublisherDefaultsOptions,
   createRuntimeObjectLowLatencyManifestOptions,

@@ -46,7 +46,6 @@ describe("media latency profile", () => {
     expect(DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE).toEqual({
       blockingReloadTimeoutMs: 3000,
       cursorMaxAgeMs: 5000,
-      latencyProfile: "object-ll",
       manifestMaxAgeSeconds: 1,
       minUploadTtlSeconds: 1,
       partHoldBack: 3,

@@ -1,5 +1,6 @@
 import { renderMediaPlaylist } from "@arsenstorm/olos/hls";
 import {
+  createDirectPublicMediaSecurityPolicy,
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
 } from "@arsenstorm/olos/media";
@@ -8,7 +9,6 @@ import {
   createCommit,
   createCommittedWindow,
   createCursor,
-  createDirectPublicSecurityPolicy,
   createObjectPublication,
   createObservedUpload,
 } from "@arsenstorm/olos/state";
@@ -193,7 +193,7 @@ describe("protocol flow", () => {
       capability: directPublicCapability,
       commit: mediaCommit,
     });
-    const securityPolicy = createDirectPublicSecurityPolicy({
+    const securityPolicy = createDirectPublicMediaSecurityPolicy({
       capability: directPublicCapability,
       manifestMaxAgeSeconds: 2,
       targetLatencySeconds: manifestOptions.response.targetLatencySeconds,

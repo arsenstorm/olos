@@ -47,6 +47,11 @@ export interface CreateByterangeSegmentResponseOptions {
   bucket: string;
   client: S3GetObjectClient;
   /**
+   * Content type of the virtual segment, e.g. `video/mp4` under the
+   * CMAF/LL-HLS profile.
+   */
+  contentType: string;
+  /**
    * Awaitable that resolves when a new commit advances the session's cursor.
    * The helper uses it to hold the response open for ranges that extend past
    * the bytes currently committed (the `EXT-X-PRELOAD-HINT` path).

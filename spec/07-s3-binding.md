@@ -283,10 +283,10 @@ time meaning to parts. Behavior:
 | Unknown session or no cursor | `404` | — | — |
 
 All success responses carry `accept-ranges: bytes`,
-`cache-control: no-store`, and `content-type: video/mp4`. The fixed
-content type reflects the reference service's CMAF deployment target;
-a deployment serving another profile's objects SHOULD substitute the
-profile's content type.
+`cache-control: no-store`, and a caller-supplied `content-type`
+(`createByterangeSegmentResponse`'s required `contentType` option). Under
+the CMAF/LL-HLS profile it is `video/mp4`; a deployment serving another
+profile's objects supplies that profile's content type.
 
 - Bounded responses use the RFC 9110 `content-range` form with an
   unknown complete length (`bytes <first>-<last>/*`), because the

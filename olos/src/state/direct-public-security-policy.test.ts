@@ -39,17 +39,22 @@ const capability: ProviderCapabilityDocument = {
   },
 };
 
+const allowedObjectExtensions = [".m4s", ".mp4"];
+const objectContentType = "video/mp4";
+
 describe("direct-public security policy", () => {
   test("creates direct-public delivery security settings", () => {
     expect(
       createDirectPublicSecurityPolicy({
+        allowedObjectExtensions,
         capability,
         manifestMaxAgeSeconds: 2,
+        objectContentType,
         targetLatencySeconds: 3,
       })
     ).toEqual({
       allowedDeliveryOrigins: [mediaOrigin],
-      allowedMediaExtensions: [".m4s", ".mp4"],
+      allowedObjectExtensions: [".m4s", ".mp4"],
       forbiddenResponseHeaders: ["set-cookie"],
       manifestCachePolicy: {
         cacheControl: "public, max-age=2, must-revalidate",
@@ -61,7 +66,8 @@ describe("direct-public security policy", () => {
         maxAgeSeconds: 31_536_000,
         target: "media-object",
       },
-      mediaResponseHeaders: {
+      objectContentType: "video/mp4",
+      objectResponseHeaders: {
         "access-control-allow-credentials": "false",
         "cross-origin-resource-policy": "same-site",
         "x-content-type-options": "nosniff",
@@ -77,6 +83,7 @@ describe("direct-public security policy", () => {
   test("rejects non-HTTPS public object origins", () => {
     expect(() =>
       createDirectPublicSecurityPolicy({
+        allowedObjectExtensions,
         capability: {
           ...capability,
           delivery: {
@@ -84,6 +91,7 @@ describe("direct-public security policy", () => {
             publicBaseUrl: "http://media.example.com/live",
           },
         },
+        objectContentType,
       })
     ).toThrow(
       "providerCapability.delivery.publicBaseUrl must use https for direct-public security"
@@ -93,6 +101,7 @@ describe("direct-public security policy", () => {
   test("rejects providers without direct-public publication", () => {
     expect(() =>
       createDirectPublicSecurityPolicy({
+        allowedObjectExtensions,
         capability: {
           ...capability,
           publication: {
@@ -100,6 +109,7 @@ describe("direct-public security policy", () => {
             directObjectPublication: false,
           },
         },
+        objectContentType,
       })
     ).toThrow(
       "providerCapability.publication.directObjectPublication must be true for direct-public security"
@@ -109,6 +119,7 @@ describe("direct-public security policy", () => {
   test("requires manifest-gated direct publication", () => {
     expect(() =>
       createDirectPublicSecurityPolicy({
+        allowedObjectExtensions,
         capability: {
           ...capability,
           publication: {
@@ -116,6 +127,7 @@ describe("direct-public security policy", () => {
             manifestGatedPublication: false,
           },
         },
+        objectContentType,
       })
     ).toThrow(
       "providerCapability.publication.manifestGatedPublication must be true for direct object publication"
@@ -125,6 +137,7 @@ describe("direct-public security policy", () => {
   test("requires document navigation blocking", () => {
     expect(() =>
       createDirectPublicSecurityPolicy({
+        allowedObjectExtensions,
         capability: {
           ...capability,
           delivery: {
@@ -132,6 +145,7 @@ describe("direct-public security policy", () => {
             documentNavigationCanBeBlocked: false,
           },
         },
+        objectContentType,
       })
     ).toThrow(
       "providerCapability.delivery.documentNavigationCanBeBlocked must be true for direct-public security"
@@ -141,6 +155,7 @@ describe("direct-public security policy", () => {
   test("requires immutable object caching", () => {
     expect(() =>
       createDirectPublicSecurityPolicy({
+        allowedObjectExtensions,
         capability: {
           ...capability,
           delivery: {
@@ -148,6 +163,7 @@ describe("direct-public security policy", () => {
             immutableCaching: false,
           },
         },
+        objectContentType,
       })
     ).toThrow(
       "providerCapability.delivery.immutableCaching must be true for media-object cache policies"
@@ -157,8 +173,10 @@ describe("direct-public security policy", () => {
   test("keeps manifest cache freshness within target latency", () => {
     expect(() =>
       createDirectPublicSecurityPolicy({
+        allowedObjectExtensions,
         capability,
         manifestMaxAgeSeconds: 4,
+        objectContentType,
         targetLatencySeconds: 3,
       })
     ).toThrow(
@@ -166,17 +184,68 @@ describe("direct-public security policy", () => {
     );
   });
 
+  test("rejects an empty allowed-extension list", () => {
+    expect(() =>
+      createDirectPublicSecurityPolicy({
+        allowedObjectExtensions: [],
+        capability,
+        objectContentType,
+      })
+    ).toThrow(
+      "allowedObjectExtensions must be a non-empty list of lower-case extensions starting with '.'"
+    );
+  });
+
+  test("rejects allowed extensions missing the leading dot", () => {
+    expect(() =>
+      createDirectPublicSecurityPolicy({
+        allowedObjectExtensions: ["m4s"],
+        capability,
+        objectContentType,
+      })
+    ).toThrow(
+      "allowedObjectExtensions must be a non-empty list of lower-case extensions starting with '.'"
+    );
+  });
+
+  test("rejects upper-case allowed extensions", () => {
+    expect(() =>
+      createDirectPublicSecurityPolicy({
+        allowedObjectExtensions: [".M4S"],
+        capability,
+        objectContentType,
+      })
+    ).toThrow(
+      "allowedObjectExtensions must be a non-empty list of lower-case extensions starting with '.'"
+    );
+  });
+
+  test("rejects an invalid object content type", () => {
+    expect(() =>
+      createDirectPublicSecurityPolicy({
+        allowedObjectExtensions,
+        capability,
+        objectContentType: "not a content type",
+      })
+    ).toThrow("objectContentType must be a valid content type");
+  });
+
   test("allows supported media object requests", () => {
     expect(
       resolveDirectPublicObjectRequestPolicy({
         accept: "video/*,*/*",
+        allowedObjectExtensions,
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
       })
     ).toEqual({ allowed: true });
   });
 
   test("creates safe media response headers", () => {
-    const policy = createDirectPublicSecurityPolicy({ capability });
+    const policy = createDirectPublicSecurityPolicy({
+      allowedObjectExtensions,
+      capability,
+      objectContentType,
+    });
 
     expect(
       createDirectPublicObjectResponseHeaders({
@@ -193,7 +262,11 @@ describe("direct-public security policy", () => {
   });
 
   test("rejects response headers for unknown media extensions", () => {
-    const policy = createDirectPublicSecurityPolicy({ capability });
+    const policy = createDirectPublicSecurityPolicy({
+      allowedObjectExtensions,
+      capability,
+      objectContentType,
+    });
 
     expect(() =>
       createDirectPublicObjectResponseHeaders({
@@ -206,7 +279,11 @@ describe("direct-public security policy", () => {
   });
 
   test("creates short negative-object response headers", () => {
-    const policy = createDirectPublicSecurityPolicy({ capability });
+    const policy = createDirectPublicSecurityPolicy({
+      allowedObjectExtensions,
+      capability,
+      objectContentType,
+    });
 
     expect(
       createDirectPublicNegativeObjectResponseHeaders({
@@ -222,7 +299,11 @@ describe("direct-public security policy", () => {
   });
 
   test("rejects negative response headers for unknown media extensions", () => {
-    const policy = createDirectPublicSecurityPolicy({ capability });
+    const policy = createDirectPublicSecurityPolicy({
+      allowedObjectExtensions,
+      capability,
+      objectContentType,
+    });
 
     expect(() =>
       createDirectPublicNegativeObjectResponseHeaders({
@@ -237,6 +318,7 @@ describe("direct-public security policy", () => {
   test("blocks unknown media object extensions", () => {
     expect(
       resolveDirectPublicObjectRequestPolicy({
+        allowedObjectExtensions,
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.html",
       })
     ).toEqual({
@@ -250,6 +332,7 @@ describe("direct-public security policy", () => {
     expect(
       resolveDirectPublicObjectRequestPolicy({
         accept: "text/html",
+        allowedObjectExtensions,
         fetchMode: "navigate",
         objectKey: "../media/tenant/session/e1/v1080/s1/p0-slot_1.html",
       })
@@ -263,9 +346,14 @@ describe("direct-public security policy", () => {
   test("blocks unsafe media object keys", () => {
     for (const objectKey of [
       "../media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
-      "media/tenant/session/e1/v1080/s1/\u0000p0-slot_1.m4s",
+      "media/tenant/session/e1/v1080/s1/ p0-slot_1.m4s",
     ]) {
-      expect(resolveDirectPublicObjectRequestPolicy({ objectKey })).toEqual({
+      expect(
+        resolveDirectPublicObjectRequestPolicy({
+          allowedObjectExtensions,
+          objectKey,
+        })
+      ).toEqual({
         allowed: false,
         reason: "unsafe-object-key",
         status: 404,
@@ -276,6 +364,7 @@ describe("direct-public security policy", () => {
   test("blocks document navigation to media objects", () => {
     expect(
       resolveDirectPublicObjectRequestPolicy({
+        allowedObjectExtensions,
         fetchDestination: "document",
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
       })
@@ -289,6 +378,7 @@ describe("direct-public security policy", () => {
   test("blocks navigate-mode requests to media objects", () => {
     expect(
       resolveDirectPublicObjectRequestPolicy({
+        allowedObjectExtensions,
         fetchMode: "navigate",
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
       })
@@ -303,6 +393,7 @@ describe("direct-public security policy", () => {
     expect(
       resolveDirectPublicObjectRequestPolicy({
         accept: "text/html,application/xhtml+xml",
+        allowedObjectExtensions,
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.mp4",
       })
     ).toEqual({

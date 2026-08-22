@@ -230,6 +230,11 @@ export interface CoordinatorCommitPolicyContext {
   commitId: OlosId;
   committedAt: string;
   object: ObservedUpload;
+  /**
+   * The slot's `profile` merged with the request's, commit keys winning per
+   * key — what the commit will record.
+   */
+  profile?: ProfileData;
   slot: UploadSlot;
   state: CoordinatorPipelineState;
 }
