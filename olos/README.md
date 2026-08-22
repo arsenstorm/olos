@@ -23,7 +23,7 @@ import type { Session } from "@arsenstorm/olos/types";
 | Subpath | Use for |
 | --- | --- |
 | `@arsenstorm/olos/runtime` | Session routes, publisher loops, HLS serving. |
-| `@arsenstorm/olos/s3` | S3 upload grants, observation, events, recovery, retention. |
+| `@arsenstorm/olos/s3` | S3 upload grants, observation, events, recovery, retention. Needs `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner` installed by the consumer (optional peer dependencies). |
 | `@arsenstorm/olos/media` | CMAF/LL-HLS profile: media session/track/object profiles, validators, schemas, publisher pacing. |
 | `@arsenstorm/olos/hls` | HLS rendering and blocking-reload helpers. |
 | `@arsenstorm/olos/protocol` | Coordinator stores and adapter conformance. |
