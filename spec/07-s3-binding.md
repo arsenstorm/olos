@@ -1,8 +1,11 @@
 # 7. Storage-provider binding (S3 profile)
 
-OLOS stores media as immutable objects on an S3-compatible object
-store. This section is the binding profile that a storage provider and
-its coordinator integration MUST satisfy. The normative reference is
+OLOS stores committed objects as immutable objects on an S3-compatible
+object store. This section is the binding profile that a storage
+provider and its coordinator integration MUST satisfy. The binding is
+profile-agnostic: it carries the Core coordinates (track, sequence
+number, part number) and the opaque `profile` data of slots and
+commits without interpreting them. The normative reference is
 `olos/src/s3/*` and `olos/src/state/object-key-derivation.ts`,
 `object-key-nonce.ts`, and `provider-upload-grant-policy.ts`.
 
@@ -16,7 +19,7 @@ A conforming provider binding MUST support:
 - **Conditional create.** The provider MUST create the upload only if
   the key does not already exist. In the S3 profile, this is the
   signed `If-None-Match: *` header on the presigned `PUT`. Overwrites
-  of live media keys are forbidden (see Section 10).
+  of live object keys are forbidden (see Section 10).
 - **Read-after-write `HeadObject`.** After a successful upload, a
   `HeadObject` for the key MUST return the object's size, content
   type, and metadata (`consistency.headAfterCreate: "strong"` in the
@@ -58,10 +61,11 @@ Requirements:
   - `If-None-Match: *` (conditional create),
   - `x-olos-slot-id: <slot.slotId>`,
   - the slot metadata headers `x-amz-meta-olos-epoch`,
-    `x-amz-meta-olos-kind`, `x-amz-meta-olos-media-sequence-number`,
-    `x-amz-meta-olos-rendition-id`, `x-amz-meta-olos-session-id`,
+    `x-amz-meta-olos-kind`, `x-amz-meta-olos-sequence-number`,
+    `x-amz-meta-olos-track-id`, `x-amz-meta-olos-session-id`,
     `x-amz-meta-olos-slot-id`, and, for parts,
-    `x-amz-meta-olos-part-number`.
+    `x-amz-meta-olos-part-number`. The slot's `profile` is not
+    written to object metadata.
 - Deployments MAY add extra required headers, but additional headers
   MUST NOT override the `x-amz-meta-olos-*` namespace.
 
@@ -132,25 +136,29 @@ verify-then-commit path. Neither bypasses observation.
 
 The coordinator derives every object key. Publishers MUST NOT choose
 keys (Section 6.5.1). The coordinator builds keys from a prefix
-(default `media`), the rendition id, and a kind-specific file name. With `<p>` the prefix, `<rid>` the
-rendition id, `<msn>` the media sequence number, `<n>` the part
-number, and `<ext>` the extension:
+(default `objects`), the track id, and a kind-specific file name
+(`createPublisherObjectKey`, `@arsenstorm/olos/state`). With `<p>` the
+prefix, `<tid>` the track id, `<seq>` the sequence number, `<n>` the
+part number, `[-nonce]` present only when a nonce is set (Section
+7.6), and `[.ext]` present only when an extension is set:
 
-| Kind | Without nonce | With nonce |
-| --- | --- | --- |
-| `init` | `<p>/<rid>/init.<ext>` | `<p>/<rid>/init-<nonce>.<ext>` |
-| `segment` | `<p>/<rid>/s<msn>.<ext>` | `<p>/<rid>/s<msn>-<nonce>.<ext>` |
-| `part` | `<p>/<rid>/s<msn>/p<n>.<ext>` | `<p>/<rid>/s<msn>/p<n>-<nonce>.<ext>` |
+| Kind | Key |
+| --- | --- |
+| `init` | `<p>/<tid>/init[-nonce][.ext]` |
+| `segment` | `<p>/<tid>/s<seq>[-nonce][.ext]` |
+| `part` | `<p>/<tid>/s<seq>/p<n>[-nonce][.ext]` |
 
-Default extensions: `mp4` for `init`, `m4s` for `segment` and `part`.
-An extension override received on the wire MUST be a dotless safe
-path segment in the supported set for the kind (`init`: `mp4`,
-`segment`/`part`: `m4s`). The coordinator rejects an override that
-carries a dot with `400`. It likewise rejects a prefix override with
-a leading or trailing slash. Only the internal derivation helper
-(`createPublisherObjectKey`, `@arsenstorm/olos/state`) trims prefix
-slashes and strips leading extension dots when a deployment calls it
-directly.
+The nonce is appended to the file name, after `init`, `s<seq>`, or
+`p<n>`, and before the extension. Core defines no default extension.
+When the slot-issue payload carries no `extension`, the key has none.
+A profile MAY require extensions; the CMAF/LL-HLS profile requires
+`mp4` for `init` and `m4s` for `segment` and `part` (Section 8). An
+`extension` received on the wire MUST be a non-empty safe path segment
+without `/` or `.`. The coordinator rejects a value that carries a dot
+with `400`. It likewise rejects a prefix override with a leading or
+trailing slash, or with empty, `.`, or `..` segments. Only the
+derivation helper trims prefix slashes and strips leading extension
+dots when a deployment calls it directly.
 
 Every object key, derived or received on the wire, MUST satisfy the
 path-safety rules:
@@ -163,7 +171,7 @@ path-safety rules:
 
 A key that fails these rules MUST be rejected wherever it appears.
 
-The delivery URL for an object is the session's `mediaBaseUrl` with
+The delivery URL for an object is the session's `deliveryBaseUrl` with
 `/<objectKey>` appended to its path. The coordinator omits any query
 or fragment on the base URL.
 
@@ -237,7 +245,7 @@ publication reference; an equivalent check is acceptable.
 
 <!-- olos-conformance: 7.9 OBJ-FLOW-001 OBJ-FLOW-002 OBJ-FLOW-003 -->
 
-The normative sequence for one media object:
+The normative sequence for one object:
 
 1. The publisher requests a slot (plus grant) as in Sections 6.5.1 and
    6.6.1.
@@ -247,8 +255,9 @@ The normative sequence for one media object:
    provider event, or reconciliation.
 4. The coordinator observes the object (Section 7.3) and makes sure
    that it matches the slot (key, content type, size bounds). The
-   coordinator then commits it. The commit advances the cursor and the
-   committed window (Sections 4 and 5).
+   coordinator then commits it, carrying the request `profile` merged
+   over the slot `profile` (Section 6.5.2). The commit advances the
+   cursor and the committed window (Sections 4 and 5).
 
 Steps 3 and 4 are idempotent. Any combination of hint, event, and
 reconciliation for the same upload MUST converge on exactly one
@@ -261,7 +270,9 @@ Deployments that address parts by byterange within a virtual segment
 (Section 8.5) MUST serve Range requests over the aggregate. The
 aggregate is the committed parts whose `byterange.segmentObjectKey`
 names the requested virtual segment, concatenated in offset order.
-Behavior:
+Aggregation is byte arithmetic over `byterange.offset` and
+`byterange.length` only. It reads no `profile` data and assigns no
+time meaning to parts. Behavior:
 
 | Request | Status | Headers | Body |
 | --- | --- | --- | --- |
@@ -272,7 +283,10 @@ Behavior:
 | Unknown session or no cursor | `404` | — | — |
 
 All success responses carry `accept-ranges: bytes`,
-`cache-control: no-store`, and `content-type: video/mp4`.
+`cache-control: no-store`, and `content-type: video/mp4`. The fixed
+content type reflects the reference service's CMAF deployment target;
+a deployment serving another profile's objects SHOULD substitute the
+profile's content type.
 
 - Bounded responses use the RFC 9110 `content-range` form with an
   unknown complete length (`bytes <first>-<last>/*`), because the
@@ -292,7 +306,7 @@ All success responses carry `accept-ranges: bytes`,
   is the transport for `EXT-X-PRELOAD-HINT` (Section 8.5).
 - Fail-fast: if a part object returns no body, or returns zero bytes
   for a requested range, the service MUST error the response stream.
-  The service does not emit silently truncated media.
+  The service does not emit silently truncated objects.
 - Short supply on a bounded range: after the service sends `206` with
   `content-length`, a shortfall MUST surface as a mid-stream error
   (aborted transfer), never as a silently short but cleanly closed

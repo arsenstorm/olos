@@ -35,16 +35,29 @@ version:
 
 - new OPTIONAL request fields, new response fields, and new routes.
 - new registered error codes (Section 11.3).
-- new provider capability fields and new session/rendition OPTIONAL
+- new provider capability fields and new session/track OPTIONAL
   fields.
+- new profiles, and new keys inside a profile's profile data.
 - new playlist tags or attributes that RFC 8216 requires clients to
-  ignore.
+  ignore (CMAF/LL-HLS profile).
 
 Servers MUST NOT require fields that this specification marks
 OPTIONAL. Clients MUST ignore unknown fields in responses and stored
 documents. Schema validation of *incoming* payloads MAY remain strict
 on the server side. For this reason, a new **request** field is
 additive, but removal of tolerance for one is breaking.
+
+**Profile evolution.** Profiles version their own contents. Core treats
+every `profile` field as opaque (Section 2.1, Section 3.1): it requires a
+JSON object and, on sessions and cursors, a non-empty string `id`, and
+never inspects or rejects the remaining keys. Adding a key to a profile's
+profile data, or introducing a profile with a new `id`, is therefore an
+additive change to the Core wire contract and does not touch the wire
+version. A profile that removes or reinterprets one of its own keys
+breaks that profile, not Core; such a change MUST be published under a
+new profile `id`, because a session's `profile.id` is the only signal a
+consumer has for which contract its profile data follows. The
+CMAF/LL-HLS profile's `id` is `cmaf-llhls` (Section 8).
 
 ## 11.3 Error-code registry growth
 

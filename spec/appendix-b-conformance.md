@@ -65,7 +65,7 @@ section that claims it and the test file that covers it.
 | `CORE-RUNTIME-009` | — | `src/runtime/publisher-plan.test.ts` |
 | `CORE-RUNTIME-010` | — | `src/runtime/publisher-expiry.test.ts` |
 | `CORE-RUNTIME-011` | §6.4.4 | `src/runtime/health.test.ts` |
-| `CORE-RUNTIME-012` | — | `src/runtime/latency-profile.test.ts` |
+| `CORE-RUNTIME-012` | — | `src/media/latency-profile.test.ts` |
 | `CORE-RUNTIME-013` | — | `src/runtime/publisher-cadence.test.ts` |
 | `CORE-RUNTIME-014` | — | `src/runtime/publisher-cadence.test.ts` |
 | `CORE-RUNTIME-015` | — | `src/runtime/publisher.test.ts` |

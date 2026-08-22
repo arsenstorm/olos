@@ -1,8 +1,9 @@
 # 9. Retention and reconciliation
 
-Retention keeps persisted coordinator state and stored media bounded
+Retention keeps persisted coordinator state and stored objects bounded
 by the live window. Reconciliation recovers uploads whose completion
 signals were lost. The normative reference is
+`olos/src/state/retention.ts`, `olos/src/protocol/coordinator-retention.ts`,
 `olos/src/runtime/retention.ts`, `olos/src/s3/retention.ts`, and
 `olos/src/s3/reconciliation.ts`.
 
@@ -10,11 +11,17 @@ signals were lost. The normative reference is
 
 A retention pass over a session's state identifies:
 
-- **Expired slots**: issued slots whose `expiresAt` is at or before
-  the evaluation time and that never produced a commit.
-- **Retired objects**: committed objects whose media sequence number
-  is strictly behind the retained window's first media sequence
-  number (`msn < retainedWindow.firstMediaSequenceNumber`).
+- **Expired slots**: issued slots whose `expiresAt` (plus the configured
+  late tolerance) is at or before the evaluation time and that never
+  produced a commit.
+- **Retired objects**: committed objects whose sequence number is
+  strictly behind the first visible segment of their own track in the
+  retained window (`sequenceNumber <
+  retainedWindow.tracks[trackId].segments[0].sequenceNumber`) and whose
+  slot does not back any object still in the window. The comparison is
+  per track, like window trimming (Section 5.7): a window-global
+  minimum would let one lagging track pin every other track's trimmed
+  commits. A commit whose track is absent from the window is kept.
   Out-of-order commits *ahead* of the contiguous prefix MUST NOT be
   retired. A future part that is not yet visible is live state, not
   garbage (see Section 5).
@@ -84,8 +91,8 @@ Deletion requirements:
   requirement. Implementations MAY delete with a bounded worker pool
   (the reference default is sequential). They MUST keep result
   ordering stable by input position regardless of completion order.
-- Object keys MUST be re-validated as safe keys (Section 7.5) before
-  the implementation issues deletes.
+- Object keys MUST be re-validated as safe keys under the `objects/`
+  prefix (Section 7.5) before the implementation issues deletes.
 
 The same delete requirements apply to the inline `retiredObjects`
 cleanup performed by S3 commit, completion-hint, event, and
@@ -119,7 +126,9 @@ Unknown sessions are `404 olos.invalid_session`.
 
 Request fields: `committedAt` (REQUIRED), `providerId` (REQUIRED
 unless configured server-side), plus optional `slotIds`, `versionId`,
-`independent`, `lateToleranceMs`, `maxSegments`, `programDateTime`.
+`lateToleranceMs`, `maxSegments`, and `profile` (profile-defined facts
+recorded on each reconciled commit, merged over the slot's `profile`
+as in Section 4.5.1).
 
 For each planned slot, in order, the coordinator attempts the standard
 S3 commit. It observes the slot's derived key with `HeadObject`, makes

@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { OLOS_MEDIA_JSON_SCHEMAS } from "../src/media";
 import { OLOS_JSON_SCHEMAS } from "../src/schema";
 import { isCliEntry } from "./script-entry";
 import { repoRoot } from "./script-paths";
@@ -40,21 +41,39 @@ export function buildSpecSchemasAppendix(): string {
     "<!-- GENERATED FILE - DO NOT EDIT. Regenerate with `bun run spec:generate` (in olos/), source: olos/scripts/write-spec-schemas.ts -->",
     "",
     "This appendix is generated from the `OLOS_JSON_SCHEMAS` export of",
-    "`olos/src/schema.ts` (published as `@arsenstorm/olos/schema`). Each",
-    "section reproduces one wire-format JSON Schema verbatim, keyed by its",
-    "document name.",
+    "`olos/src/schema.ts` (published as `@arsenstorm/olos/schema`) and the",
+    "`OLOS_MEDIA_JSON_SCHEMAS` export of `olos/src/media.ts` (published as",
+    "`@arsenstorm/olos/media`). Each section reproduces one JSON Schema",
+    "verbatim, keyed by its document name.",
+    "",
+    "## A.1 Core wire objects",
+    "",
+    "Profile data (`profile` fields) is an opaque JSON object in every Core",
+    "schema; the profile schemas in A.2 constrain its contents.",
     ...Object.entries(OLOS_JSON_SCHEMAS).flatMap(([name, schema]) =>
-      schemaSection(name, schema)
+      schemaSection(name, schema, "###")
+    ),
+    "",
+    "## A.2 CMAF/LL-HLS profile (`cmaf-llhls`)",
+    "",
+    "Schemas for the `profile` contents of sessions, tracks, slots, commits,",
+    "and committed objects under the CMAF/LL-HLS profile (Section 8).",
+    ...Object.entries(OLOS_MEDIA_JSON_SCHEMAS).flatMap(([name, schema]) =>
+      schemaSection(name, schema, "###")
     ),
   ];
 
   return `${lines.join("\n")}\n`;
 }
 
-function schemaSection(name: string, schema: unknown): string[] {
+function schemaSection(
+  name: string,
+  schema: unknown,
+  heading: string
+): string[] {
   return [
     "",
-    `## \`${name}\``,
+    `${heading} \`${name}\``,
     "",
     "```json",
     JSON.stringify(schema, null, JSON_INDENT),

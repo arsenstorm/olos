@@ -20,11 +20,13 @@ A coordinator serves two path roots:
 
 - the **session root**, default `/sessions`, for coordination commands.
 - the **live root**, default `/v1/live`, for HLS playlist delivery.
+  Live routes are served only for sessions that use the CMAF/LL-HLS
+  profile (Section 6.7).
 
 Both roots are deployment-configurable. A configured root MUST be an
 absolute path without query, fragment, control characters, `.` or `..`
 segments, and without a doubled leading slash. The tables below use the
-default roots. `:id`, `:rid`, and `:slotId` are URL-encoded
+default roots. `:id`, `:trackId`, and `:slotId` are URL-encoded
 identifiers.
 
 Core coordination routes:
@@ -39,7 +41,7 @@ Core coordination routes:
 | `GET` | `/sessions/:id/retention` | Plan retention (read-only). |
 | `GET` | `/sessions/:id/health` | Report live pipeline health. |
 | `GET` | `/v1/live/:id/master.m3u8` | Master playlist. |
-| `GET` | `/v1/live/:id/:rid/media.m3u8` | Media playlist. |
+| `GET` | `/v1/live/:id/:trackId/media.m3u8` | Media playlist. |
 
 Coordinators that bind an S3-compatible provider (see Section 7) also
 serve the storage-binding (S3 profile) routes:
@@ -64,7 +66,7 @@ The reference implementation (`olos/src/s3/route.ts`,
 A coordinator dispatches requests by the longest matching root, then by
 path segment. The following rules apply to every route:
 
-- Route identifiers (`:id`, `:rid`, `:slotId`) MUST be non-empty
+- Route identifiers (`:id`, `:trackId`, `:slotId`) MUST be non-empty
   URL-safe identifiers after percent-decoding (see Section 1). If an
   identifier fails this check, the coordinator MUST reject the path
   with `400` and code `olos.invalid_request`.
@@ -170,8 +172,14 @@ An unhandled error in any route maps to `500` with code
 
 Request body: a JSON object with
 
-- `session` (REQUIRED): an "OLOS Session" document (Appendix A).
-- `mediaBaseUrl` (REQUIRED): the absolute HTTP(S) base URL. The
+- `session` (REQUIRED): an "OLOS Session" document (Appendix A). It
+  carries `profile` (a JSON object with a non-empty string `id`) and
+  `tracks`, a non-empty array of `{ trackId, contentType?, profile? }`
+  with distinct `trackId` values. The Core route validates only the
+  Core shape. It does not validate the contents of `session.profile`
+  or `tracks[].profile`; the named profile (Section 8 for
+  `cmaf-llhls`) defines them.
+- `deliveryBaseUrl` (REQUIRED): the absolute HTTP(S) base URL. The
   coordinator derives delivery URLs from it (Section 7.5).
 
 Success: `201` with body `{ "sessionId": "<id>" }`.
@@ -216,10 +224,12 @@ checks to one publisher instance. An invalid identifier is `400`.
 
 Success: `200` with `{ "health": { ... } }`. The health document
 reports cursor freshness against the configured maximum cursor age,
-and it reports publisher lease freshness. The default maximum cursor
-age is the object low-latency profile's `cursorMaxAgeMs`. The
-coordinator reports a session that has no cursor yet as starting, not
-stale. If a requested publisher instance has no stored lease, the
+and it reports publisher lease freshness. Freshness is measured by
+cursor `updatedAt`, not by sequence number. The default maximum cursor
+age is the CMAF/LL-HLS publisher pacing default `cursorMaxAgeMs`
+(`@arsenstorm/olos/media`); deployments with other profiles SHOULD
+configure their own bound. The coordinator reports a session that has
+no cursor yet as starting, not stale. If a requested publisher instance has no stored lease, the
 coordinator MUST report it stale.
 
 Errors: `404 olos.invalid_session`.
@@ -229,7 +239,8 @@ Errors: `404 olos.invalid_session`.
 This route is read-only planning (see Section 9.2). The optional query
 parameter `now` (ISO 8601) overrides the evaluation clock. Success:
 `200` with `{ "plan": { expiredSlots, retiredObjects, cursor? } }`.
-This route MUST NOT mutate stored state.
+Retired objects are identified by track and sequence number, not by
+any profile-defined duration. This route MUST NOT mutate stored state.
 
 ## 6.5 Slot and commit routes
 
@@ -243,29 +254,32 @@ Request body fields (an issued slot is returned as "OLOS UploadSlot"):
 | --- | --- | --- |
 | `slotId` | yes | URL-safe unique slot identifier. |
 | `kind` | yes | `init`, `segment`, or `part`. |
-| `renditionId` | yes | Must belong to `session.renditions`. |
-| `mediaSequenceNumber` | yes | Non-negative integer. |
+| `trackId` | yes | Must belong to `session.tracks`. |
+| `sequenceNumber` | yes | Non-negative integer. |
 | `partNumber` | if `kind=part` | Non-negative integer. Forbidden otherwise. |
 | `contentType` | yes | Content type the upload MUST use. |
-| `duration` | yes | Positive seconds. |
+| `profile` | no | JSON object, opaque to Core. The issuer's expectation for the object (Section 3). |
 | `expiresAt` | yes | Slot expiry timestamp. |
 | `maxBytes` | yes | Positive upper size bound. |
 | `minBytes` | no | Non-negative lower size bound. |
-| `extension` | no | Object-key extension override (Section 7.5). |
+| `extension` | no | Object-key extension, without a dot (Section 7.5). Omitted, the key has no extension. |
 | `objectKeyNonce` | no | URL-safe nonce override (Section 7.6). |
 | `objectKeyPrefix` | no | Safe path prefix override. |
 | `byterange` | no | Parts only. Byterange-addressed part placement. |
 
 The payload MUST NOT include `objectKey` or `deliveryUrl`. The
 coordinator derives both (Section 7.5). If a payload contains either
-field, the coordinator MUST reject it with `400`.
+field, the coordinator MUST reject it with `400`. Core does not
+inspect `profile` beyond requiring a JSON object. A profile (for
+example `cmaf-llhls`, which expects `duration`) defines its contents.
+The coordinator stores the value on `slot.profile` unchanged.
 
 Success: `201` with `{ "slot": <OLOS UploadSlot> }`. The slot state is
 `issued`. The fields `slot.objectKey` and `slot.deliveryUrl` carry the
 derived addresses.
 
 Errors: `400 olos.invalid_request` (malformed payload, duplicate
-`slotId`, unknown rendition, session not `live`).
+`slotId`, unknown track, session not `live`).
 `404 olos.invalid_session` for an unknown session.
 `409 olos.security_policy_violation` when publication control disables
 slot issuance. `409 olos.conflict` on store contention.
@@ -282,15 +296,20 @@ Request body:
 | `slotId` | yes | Slot being committed. |
 | `committedAt` | yes | Commit timestamp. |
 | `object` | yes | Observed-upload evidence (below). |
-| `independent` | no | Marks a part as independently decodable. |
+| `profile` | no | JSON object, opaque to Core. Profile-defined facts about the object. |
 | `lateToleranceMs` | no | Per-commit late tolerance override. |
 | `maxSegments` | no | Retained-window bound (Section 5). |
-| `programDateTime` | no | Wall-clock timestamp for the segment. |
 
 `object` fields: `contentType`, `objectKey`, `observedAt`,
 `providerId`, `size` (all REQUIRED), `etag` and `metadata` (OPTIONAL).
 `object.size` MUST be positive. `object.objectKey` MUST be a safe
 object key.
+
+The coordinator merges the request `profile` over `slot.profile`, key
+by key, with the request value winning. The merged object is recorded
+as `commit.profile` and copied unchanged onto the committed object in
+the window (Section 5). Core does not interpret it. Idempotency
+(Section 6.8) compares `profile` structurally.
 
 Success: `201` with `{ "commit": <OLOS Commit>, "cursor"?: <OLOS
 Cursor> }` for a newly recorded commit. The response is `200` with the
@@ -302,8 +321,9 @@ Errors: `400` for malformed payloads. `404 olos.invalid_session` or
 `404 olos.unknown_slot`. `409` with `olos.key_mismatch`,
 `olos.content_type_mismatch`, `olos.object_too_large`,
 `olos.object_too_small`, `olos.duplicate_commit_conflict`,
-`olos.invalid_state` (aborted session, unverified object, late
-object), `olos.security_policy_violation`, or a commit-policy code
+`olos.invalid_state` (aborted session, unverified object, object
+behind the live cursor), `olos.security_policy_violation`, or a
+commit-policy code
 (for example `olos.quota_exceeded`). `409 olos.conflict` on
 contention.
 
@@ -389,8 +409,8 @@ than the configured bucket, the coordinator MUST report it
 See Section 9.4 for semantics. `POST /sessions/:id/s3/reconcile-plan`
 takes `{ "slotIds"?: [...] }` and returns `200` with the plan.
 `POST /sessions/:id/s3/reconcile` takes `{ "committedAt", "providerId"?,
-"versionId"?, "slotIds"?, "independent"?, "lateToleranceMs"?,
-"maxSegments"?, "programDateTime"? }` and returns `202` with
+"versionId"?, "slotIds"?, "profile"?, "lateToleranceMs"?,
+"maxSegments"? }` and returns `202` with
 `{ "results", "summary" }`. Both are `404 olos.invalid_session` for
 unknown sessions.
 
@@ -407,14 +427,25 @@ missing or invalid `now`.
 <!-- olos-conformance: 6.7 CORE-RUNTIME-022 CORE-RUNTIME-023 CORE-RUNTIME-024 -->
 
 `GET /v1/live/:id/master.m3u8` and
-`GET /v1/live/:id/:rid/media.m3u8` serve the playlists defined in
+`GET /v1/live/:id/:trackId/media.m3u8` serve the playlists defined in
 Section 8 with content type `application/vnd.apple.mpegurl` and the
 manifest cache policy of Section 10.4. Only `GET` is allowed (`405`
-otherwise). Unknown sessions are `404`. A session without a cursor has
-no playlists yet and is also `404`. A rendition with no committed
-media has no media playlist yet — its route is `404` and the master
-does not advertise it. A session whose committed window contains no
-video rendition has no master playlist yet — also `404` (Section 8.2).
+otherwise). Unknown sessions are `404`.
+
+Playlists exist only for sessions whose `session.profile.id` is
+`cmaf-llhls`. For any other profile, the coordinator MUST answer
+`400` with the JSON envelope and code `olos.invalid_request`; the
+message starts with `HLS playlists are only served for cmaf-llhls
+sessions`. The same rejection applies when the session or track
+`profile` fails the CMAF/LL-HLS profile validation (Appendix A.2). The
+coordinator performs this check after it loads the session and before
+it renders.
+
+A session without a cursor has no playlists yet and is also `404`. A
+track with no committed objects has no media playlist yet — its route
+is `404` and the master does not advertise it. A session whose
+committed window contains no video track has no master playlist yet —
+also `404` (Section 8.2).
 
 Media playlist requests MAY carry the LL-HLS blocking reload query
 parameters `_HLS_msn` and `_HLS_part`. When the coordinator has
@@ -426,9 +457,11 @@ without `_HLS_msn`, or non-integer values, the coordinator MUST reject
 it with `400`. Section 8.6 specifies the full blocking semantics, the
 unblocking conditions, and the timeout behavior.
 
-The coordinator serves playlist-route errors as `text/plain` bodies,
-not JSON envelopes. These errors are delivery artifacts, not
-coordination-API responses.
+The coordinator serves playlist-rendering errors (missing cursor,
+missing track, no master) as `text/plain` bodies, not JSON envelopes.
+These errors are delivery artifacts, not coordination-API responses.
+Routing errors (bad identifier, unknown session, wrong method, and the
+profile rejection above) use the JSON envelope of Section 6.3.
 
 ## 6.8 Optimistic concurrency
 

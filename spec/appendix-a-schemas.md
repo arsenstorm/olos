@@ -3,11 +3,17 @@
 <!-- GENERATED FILE - DO NOT EDIT. Regenerate with `bun run spec:generate` (in olos/), source: olos/scripts/write-spec-schemas.ts -->
 
 This appendix is generated from the `OLOS_JSON_SCHEMAS` export of
-`olos/src/schema.ts` (published as `@arsenstorm/olos/schema`). Each
-section reproduces one wire-format JSON Schema verbatim, keyed by its
-document name.
+`olos/src/schema.ts` (published as `@arsenstorm/olos/schema`) and the
+`OLOS_MEDIA_JSON_SCHEMAS` export of `olos/src/media.ts` (published as
+`@arsenstorm/olos/media`). Each section reproduces one JSON Schema
+verbatim, keyed by its document name.
 
-## `commit`
+## A.1 Core wire objects
+
+Profile data (`profile` fields) is an opaque JSON object in every Core
+schema; the profile schemas in A.2 constrain its contents.
+
+### `commit`
 
 ```json
 {
@@ -46,7 +52,7 @@ document name.
     },
     "commitId": {
       "minLength": 1,
-      "pattern": "^[A-Za-z0-9_-]+$",
+      "pattern": "^[A-Za-z0-9._-]+$",
       "type": "string"
     },
     "committedAt": {
@@ -59,10 +65,6 @@ document name.
       "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
       "type": "string"
     },
-    "duration": {
-      "exclusiveMinimum": 0,
-      "type": "number"
-    },
     "epoch": {
       "minimum": 0,
       "type": "integer"
@@ -70,13 +72,6 @@ document name.
     "etag": {
       "minLength": 1,
       "type": "string"
-    },
-    "independent": {
-      "type": "boolean"
-    },
-    "mediaSequenceNumber": {
-      "minimum": 0,
-      "type": "integer"
     },
     "objectKey": {
       "minLength": 1,
@@ -87,19 +82,16 @@ document name.
       "minimum": 0,
       "type": "integer"
     },
-    "programDateTime": {
-      "format": "date-time",
-      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
-      "type": "string"
+    "profile": {
+      "type": "object"
     },
-    "renditionId": {
-      "minLength": 1,
-      "pattern": "^[A-Za-z0-9_-]+$",
-      "type": "string"
+    "sequenceNumber": {
+      "minimum": 0,
+      "type": "integer"
     },
     "sessionId": {
       "minLength": 1,
-      "pattern": "^[A-Za-z0-9_-]+$",
+      "pattern": "^[A-Za-z0-9._-]+$",
       "type": "string"
     },
     "size": {
@@ -108,7 +100,12 @@ document name.
     },
     "slotId": {
       "minLength": 1,
-      "pattern": "^[A-Za-z0-9_-]+$",
+      "pattern": "^[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "trackId": {
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._-]+$",
       "type": "string"
     }
   },
@@ -116,57 +113,48 @@ document name.
     "commitId",
     "committedAt",
     "deliveryUrl",
-    "duration",
     "epoch",
-    "mediaSequenceNumber",
     "objectKey",
-    "renditionId",
+    "sequenceNumber",
     "sessionId",
     "size",
-    "slotId"
+    "slotId",
+    "trackId"
   ],
   "title": "OLOS Commit",
   "type": "object"
 }
 ```
 
-## `committedWindow`
+### `committedWindow`
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
-    "discontinuitySequence": {
-      "minimum": 0,
-      "type": "integer"
-    },
     "epoch": {
       "minimum": 0,
       "type": "integer"
     },
-    "firstMediaSequenceNumber": {
+    "firstSequenceNumber": {
       "minimum": 0,
       "type": "integer"
     },
-    "lastMediaSequenceNumber": {
+    "lastSequenceNumber": {
       "minimum": 0,
       "type": "integer"
     },
-    "renditions": {
+    "tracks": {
       "additionalProperties": {
         "additionalProperties": false,
         "properties": {
-          "discontinuitySequence": {
-            "minimum": 0,
-            "type": "integer"
-          },
           "init": {
             "additionalProperties": false,
             "properties": {
               "commitId": {
                 "minLength": 1,
-                "pattern": "^[A-Za-z0-9_-]+$",
+                "pattern": "^[A-Za-z0-9._-]+$",
                 "type": "string"
               },
               "contentType": {
@@ -178,10 +166,6 @@ document name.
                 "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
                 "type": "string"
               },
-              "duration": {
-                "exclusiveMinimum": 0,
-                "type": "number"
-              },
               "etag": {
                 "minLength": 1,
                 "type": "string"
@@ -191,9 +175,12 @@ document name.
                 "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
                 "type": "string"
               },
+              "profile": {
+                "type": "object"
+              },
               "slotId": {
                 "minLength": 1,
-                "pattern": "^[A-Za-z0-9_-]+$",
+                "pattern": "^[A-Za-z0-9._-]+$",
                 "type": "string"
               }
             },
@@ -205,36 +192,20 @@ document name.
             ],
             "type": "object"
           },
-          "renditionId": {
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9_-]+$",
-            "type": "string"
+          "profile": {
+            "type": "object"
           },
           "segments": {
             "items": {
               "additionalProperties": false,
               "properties": {
-                "discontinuityBefore": {
-                  "type": "boolean"
-                },
-                "duration": {
-                  "exclusiveMinimum": 0,
-                  "type": "number"
-                },
-                "independent": {
-                  "type": "boolean"
-                },
-                "mediaSequenceNumber": {
-                  "minimum": 0,
-                  "type": "integer"
-                },
                 "parts": {
                   "items": {
                     "additionalProperties": false,
                     "properties": {
                       "commitId": {
                         "minLength": 1,
-                        "pattern": "^[A-Za-z0-9_-]+$",
+                        "pattern": "^[A-Za-z0-9._-]+$",
                         "type": "string"
                       },
                       "contentType": {
@@ -246,10 +217,6 @@ document name.
                         "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
                         "type": "string"
                       },
-                      "duration": {
-                        "exclusiveMinimum": 0,
-                        "type": "number"
-                      },
                       "etag": {
                         "minLength": 1,
                         "type": "string"
@@ -259,9 +226,12 @@ document name.
                         "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
                         "type": "string"
                       },
+                      "profile": {
+                        "type": "object"
+                      },
                       "slotId": {
                         "minLength": 1,
-                        "pattern": "^[A-Za-z0-9_-]+$",
+                        "pattern": "^[A-Za-z0-9._-]+$",
                         "type": "string"
                       },
                       "byterange": {
@@ -294,17 +264,9 @@ document name.
                         ],
                         "type": "object"
                       },
-                      "independent": {
-                        "type": "boolean"
-                      },
                       "partNumber": {
                         "minimum": 0,
                         "type": "integer"
-                      },
-                      "programDateTime": {
-                        "format": "date-time",
-                        "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
-                        "type": "string"
                       }
                     },
                     "required": [
@@ -312,24 +274,18 @@ document name.
                       "deliveryUrl",
                       "objectKey",
                       "slotId",
-                      "duration",
                       "partNumber"
                     ],
                     "type": "object"
                   },
                   "type": "array"
                 },
-                "programDateTime": {
-                  "format": "date-time",
-                  "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
-                  "type": "string"
-                },
                 "segment": {
                   "additionalProperties": false,
                   "properties": {
                     "commitId": {
                       "minLength": 1,
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "pattern": "^[A-Za-z0-9._-]+$",
                       "type": "string"
                     },
                     "contentType": {
@@ -341,10 +297,6 @@ document name.
                       "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
                       "type": "string"
                     },
-                    "duration": {
-                      "exclusiveMinimum": 0,
-                      "type": "number"
-                    },
                     "etag": {
                       "minLength": 1,
                       "type": "string"
@@ -354,9 +306,12 @@ document name.
                       "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
                       "type": "string"
                     },
+                    "profile": {
+                      "type": "object"
+                    },
                     "slotId": {
                       "minLength": 1,
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "pattern": "^[A-Za-z0-9._-]+$",
                       "type": "string"
                     }
                   },
@@ -367,21 +322,28 @@ document name.
                     "slotId"
                   ],
                   "type": "object"
+                },
+                "sequenceNumber": {
+                  "minimum": 0,
+                  "type": "integer"
                 }
               },
               "required": [
-                "duration",
-                "mediaSequenceNumber"
+                "sequenceNumber"
               ],
               "type": "object"
             },
             "type": "array"
+          },
+          "trackId": {
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]+$",
+            "type": "string"
           }
         },
         "required": [
-          "init",
-          "renditionId",
-          "segments"
+          "segments",
+          "trackId"
         ],
         "type": "object"
       },
@@ -389,18 +351,17 @@ document name.
     }
   },
   "required": [
-    "discontinuitySequence",
     "epoch",
-    "firstMediaSequenceNumber",
-    "lastMediaSequenceNumber",
-    "renditions"
+    "firstSequenceNumber",
+    "lastSequenceNumber",
+    "tracks"
   ],
   "title": "OLOS CommittedWindow",
   "type": "object"
 }
 ```
 
-## `cursor`
+### `cursor`
 
 ```json
 {
@@ -411,36 +372,28 @@ document name.
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "properties": {
-        "discontinuitySequence": {
-          "minimum": 0,
-          "type": "integer"
-        },
         "epoch": {
           "minimum": 0,
           "type": "integer"
         },
-        "firstMediaSequenceNumber": {
+        "firstSequenceNumber": {
           "minimum": 0,
           "type": "integer"
         },
-        "lastMediaSequenceNumber": {
+        "lastSequenceNumber": {
           "minimum": 0,
           "type": "integer"
         },
-        "renditions": {
+        "tracks": {
           "additionalProperties": {
             "additionalProperties": false,
             "properties": {
-              "discontinuitySequence": {
-                "minimum": 0,
-                "type": "integer"
-              },
               "init": {
                 "additionalProperties": false,
                 "properties": {
                   "commitId": {
                     "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]+$",
+                    "pattern": "^[A-Za-z0-9._-]+$",
                     "type": "string"
                   },
                   "contentType": {
@@ -452,10 +405,6 @@ document name.
                     "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
                     "type": "string"
                   },
-                  "duration": {
-                    "exclusiveMinimum": 0,
-                    "type": "number"
-                  },
                   "etag": {
                     "minLength": 1,
                     "type": "string"
@@ -465,9 +414,12 @@ document name.
                     "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
                     "type": "string"
                   },
+                  "profile": {
+                    "type": "object"
+                  },
                   "slotId": {
                     "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]+$",
+                    "pattern": "^[A-Za-z0-9._-]+$",
                     "type": "string"
                   }
                 },
@@ -479,36 +431,20 @@ document name.
                 ],
                 "type": "object"
               },
-              "renditionId": {
-                "minLength": 1,
-                "pattern": "^[A-Za-z0-9_-]+$",
-                "type": "string"
+              "profile": {
+                "type": "object"
               },
               "segments": {
                 "items": {
                   "additionalProperties": false,
                   "properties": {
-                    "discontinuityBefore": {
-                      "type": "boolean"
-                    },
-                    "duration": {
-                      "exclusiveMinimum": 0,
-                      "type": "number"
-                    },
-                    "independent": {
-                      "type": "boolean"
-                    },
-                    "mediaSequenceNumber": {
-                      "minimum": 0,
-                      "type": "integer"
-                    },
                     "parts": {
                       "items": {
                         "additionalProperties": false,
                         "properties": {
                           "commitId": {
                             "minLength": 1,
-                            "pattern": "^[A-Za-z0-9_-]+$",
+                            "pattern": "^[A-Za-z0-9._-]+$",
                             "type": "string"
                           },
                           "contentType": {
@@ -520,10 +456,6 @@ document name.
                             "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
                             "type": "string"
                           },
-                          "duration": {
-                            "exclusiveMinimum": 0,
-                            "type": "number"
-                          },
                           "etag": {
                             "minLength": 1,
                             "type": "string"
@@ -533,9 +465,12 @@ document name.
                             "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
                             "type": "string"
                           },
+                          "profile": {
+                            "type": "object"
+                          },
                           "slotId": {
                             "minLength": 1,
-                            "pattern": "^[A-Za-z0-9_-]+$",
+                            "pattern": "^[A-Za-z0-9._-]+$",
                             "type": "string"
                           },
                           "byterange": {
@@ -568,17 +503,9 @@ document name.
                             ],
                             "type": "object"
                           },
-                          "independent": {
-                            "type": "boolean"
-                          },
                           "partNumber": {
                             "minimum": 0,
                             "type": "integer"
-                          },
-                          "programDateTime": {
-                            "format": "date-time",
-                            "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
-                            "type": "string"
                           }
                         },
                         "required": [
@@ -586,24 +513,18 @@ document name.
                           "deliveryUrl",
                           "objectKey",
                           "slotId",
-                          "duration",
                           "partNumber"
                         ],
                         "type": "object"
                       },
                       "type": "array"
                     },
-                    "programDateTime": {
-                      "format": "date-time",
-                      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
-                      "type": "string"
-                    },
                     "segment": {
                       "additionalProperties": false,
                       "properties": {
                         "commitId": {
                           "minLength": 1,
-                          "pattern": "^[A-Za-z0-9_-]+$",
+                          "pattern": "^[A-Za-z0-9._-]+$",
                           "type": "string"
                         },
                         "contentType": {
@@ -615,10 +536,6 @@ document name.
                           "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
                           "type": "string"
                         },
-                        "duration": {
-                          "exclusiveMinimum": 0,
-                          "type": "number"
-                        },
                         "etag": {
                           "minLength": 1,
                           "type": "string"
@@ -628,9 +545,12 @@ document name.
                           "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
                           "type": "string"
                         },
+                        "profile": {
+                          "type": "object"
+                        },
                         "slotId": {
                           "minLength": 1,
-                          "pattern": "^[A-Za-z0-9_-]+$",
+                          "pattern": "^[A-Za-z0-9._-]+$",
                           "type": "string"
                         }
                       },
@@ -641,21 +561,28 @@ document name.
                         "slotId"
                       ],
                       "type": "object"
+                    },
+                    "sequenceNumber": {
+                      "minimum": 0,
+                      "type": "integer"
                     }
                   },
                   "required": [
-                    "duration",
-                    "mediaSequenceNumber"
+                    "sequenceNumber"
                   ],
                   "type": "object"
                 },
                 "type": "array"
+              },
+              "trackId": {
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9._-]+$",
+                "type": "string"
               }
             },
             "required": [
-              "init",
-              "renditionId",
-              "segments"
+              "segments",
+              "trackId"
             ],
             "type": "object"
           },
@@ -663,44 +590,41 @@ document name.
         }
       },
       "required": [
-        "discontinuitySequence",
         "epoch",
-        "firstMediaSequenceNumber",
-        "lastMediaSequenceNumber",
-        "renditions"
+        "firstSequenceNumber",
+        "lastSequenceNumber",
+        "tracks"
       ],
       "title": "OLOS CommittedWindow",
       "type": "object"
+    },
+    "deliveryBaseUrl": {
+      "minLength": 1,
+      "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+      "type": "string"
     },
     "epoch": {
       "minimum": 0,
       "type": "integer"
     },
-    "latencyProfile": {
-      "enum": [
-        "object-ll"
-      ],
-      "type": "string"
-    },
-    "mediaBaseUrl": {
-      "minLength": 1,
-      "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
-      "type": "string"
-    },
     "olos": {
       "const": "1.0"
     },
-    "partTarget": {
-      "exclusiveMinimum": 0,
-      "type": "number"
-    },
-    "segmentTarget": {
-      "exclusiveMinimum": 0,
-      "type": "number"
+    "profile": {
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
     },
     "sessionId": {
       "minLength": 1,
-      "pattern": "^[A-Za-z0-9_-]+$",
+      "pattern": "^[A-Za-z0-9._-]+$",
       "type": "string"
     },
     "state": {
@@ -720,34 +644,32 @@ document name.
     "window": {
       "additionalProperties": false,
       "properties": {
-        "firstMediaSequenceNumber": {
-          "minimum": 0,
-          "type": "integer"
-        },
-        "lastMediaSequenceNumber": {
+        "firstSequenceNumber": {
           "minimum": 0,
           "type": "integer"
         },
         "lastPartNumber": {
           "minimum": 0,
           "type": "integer"
+        },
+        "lastSequenceNumber": {
+          "minimum": 0,
+          "type": "integer"
         }
       },
       "required": [
-        "firstMediaSequenceNumber",
-        "lastMediaSequenceNumber"
+        "firstSequenceNumber",
+        "lastSequenceNumber"
       ],
       "type": "object"
     }
   },
   "required": [
     "committedWindow",
+    "deliveryBaseUrl",
     "epoch",
-    "latencyProfile",
-    "mediaBaseUrl",
     "olos",
-    "partTarget",
-    "segmentTarget",
+    "profile",
     "sessionId",
     "state",
     "updatedAt",
@@ -758,7 +680,7 @@ document name.
 }
 ```
 
-## `error`
+### `error`
 
 ```json
 {
@@ -814,54 +736,7 @@ document name.
 }
 ```
 
-## `mediaObject`
-
-```json
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
-  "properties": {
-    "contentType": {
-      "pattern": "^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+/[!#$%&'*+\\-.^_`|~0-9A-Za-z]+(?:; *[!#$%&'*+\\-.^_`|~0-9A-Za-z]+=(?:[!#$%&'*+\\-.^_`|~0-9A-Za-z]+|\"[\\t !#-\\[\\]-~]*\"))*$",
-      "type": "string"
-    },
-    "etag": {
-      "minLength": 1,
-      "type": "string"
-    },
-    "objectKey": {
-      "minLength": 1,
-      "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
-      "type": "string"
-    },
-    "observedAt": {
-      "format": "date-time",
-      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
-      "type": "string"
-    },
-    "providerId": {
-      "minLength": 1,
-      "pattern": "^[A-Za-z0-9_-]+$",
-      "type": "string"
-    },
-    "size": {
-      "exclusiveMinimum": 0,
-      "type": "integer"
-    }
-  },
-  "required": [
-    "contentType",
-    "objectKey",
-    "observedAt",
-    "providerId",
-    "size"
-  ],
-  "title": "OLOS MediaObject",
-  "type": "object"
-}
-```
-
-## `providerCapability`
+### `providerCapability`
 
 ```json
 {
@@ -1029,7 +904,7 @@ document name.
     },
     "providerId": {
       "minLength": 1,
-      "pattern": "^[A-Za-z0-9_-]+$",
+      "pattern": "^[A-Za-z0-9._-]+$",
       "type": "string"
     },
     "publication": {
@@ -1135,7 +1010,7 @@ document name.
 }
 ```
 
-## `session`
+### `session`
 
 ```json
 {
@@ -1151,126 +1026,24 @@ document name.
       "minimum": 0,
       "type": "integer"
     },
-    "latencyProfile": {
-      "enum": [
-        "object-ll"
-      ],
-      "type": "string"
-    },
     "olos": {
       "const": "1.0"
     },
-    "partTarget": {
-      "exclusiveMinimum": 0,
-      "type": "number"
-    },
-    "renditions": {
-      "items": {
-        "additionalProperties": false,
-        "allOf": [
-          {
-            "if": {
-              "not": {
-                "properties": {
-                  "kind": {
-                    "const": "audio"
-                  }
-                },
-                "required": [
-                  "kind"
-                ]
-              }
-            },
-            "then": {
-              "properties": {
-                "defaultRendition": false,
-                "groupId": false,
-                "name": false
-              }
-            }
-          }
-        ],
-        "dependentRequired": {
-          "height": [
-            "width"
-          ],
-          "width": [
-            "height"
-          ]
-        },
-        "properties": {
-          "bitrate": {
-            "exclusiveMinimum": 0,
-            "type": "integer"
-          },
-          "channels": {
-            "exclusiveMinimum": 0,
-            "type": "integer"
-          },
-          "codec": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "defaultRendition": {
-            "type": "boolean"
-          },
-          "frameRate": {
-            "exclusiveMinimum": 0,
-            "type": "number"
-          },
-          "groupId": {
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9_-]+$",
-            "type": "string"
-          },
-          "height": {
-            "exclusiveMinimum": 0,
-            "type": "integer"
-          },
-          "kind": {
-            "enum": [
-              "audio",
-              "video",
-              "text",
-              "metadata"
-            ],
-            "type": "string"
-          },
-          "name": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "renditionId": {
-            "minLength": 1,
-            "pattern": "^[A-Za-z0-9_-]+$",
-            "type": "string"
-          },
-          "sampleRate": {
-            "exclusiveMinimum": 0,
-            "type": "integer"
-          },
-          "width": {
-            "exclusiveMinimum": 0,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "codec",
-          "kind",
-          "renditionId"
-        ],
-        "type": "object"
+    "profile": {
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        }
       },
-      "minItems": 1,
-      "type": "array"
-    },
-    "segmentTarget": {
-      "exclusiveMinimum": 0,
-      "type": "number"
+      "required": [
+        "id"
+      ],
+      "type": "object"
     },
     "sessionId": {
       "minLength": 1,
-      "pattern": "^[A-Za-z0-9_-]+$",
+      "pattern": "^[A-Za-z0-9._-]+$",
       "type": "string"
     },
     "state": {
@@ -1281,25 +1054,95 @@ document name.
         "aborted"
       ],
       "type": "string"
+    },
+    "tracks": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "contentType": {
+            "pattern": "^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+/[!#$%&'*+\\-.^_`|~0-9A-Za-z]+(?:; *[!#$%&'*+\\-.^_`|~0-9A-Za-z]+=(?:[!#$%&'*+\\-.^_`|~0-9A-Za-z]+|\"[\\t !#-\\[\\]-~]*\"))*$",
+            "type": "string"
+          },
+          "profile": {
+            "type": "object"
+          },
+          "trackId": {
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trackId"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
     }
   },
   "required": [
     "createdAt",
     "epoch",
-    "latencyProfile",
     "olos",
-    "partTarget",
-    "renditions",
-    "segmentTarget",
+    "profile",
     "sessionId",
-    "state"
+    "state",
+    "tracks"
   ],
   "title": "OLOS Session",
   "type": "object"
 }
 ```
 
-## `uploadGrant`
+### `storageObject`
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "contentType": {
+      "pattern": "^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+/[!#$%&'*+\\-.^_`|~0-9A-Za-z]+(?:; *[!#$%&'*+\\-.^_`|~0-9A-Za-z]+=(?:[!#$%&'*+\\-.^_`|~0-9A-Za-z]+|\"[\\t !#-\\[\\]-~]*\"))*$",
+      "type": "string"
+    },
+    "etag": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "objectKey": {
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+      "type": "string"
+    },
+    "observedAt": {
+      "format": "date-time",
+      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
+      "type": "string"
+    },
+    "providerId": {
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "size": {
+      "exclusiveMinimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "contentType",
+    "objectKey",
+    "observedAt",
+    "providerId",
+    "size"
+  ],
+  "title": "OLOS StorageObject",
+  "type": "object"
+}
+```
+
+### `uploadGrant`
 
 ```json
 {
@@ -1325,7 +1168,7 @@ document name.
     },
     "slotId": {
       "minLength": 1,
-      "pattern": "^[A-Za-z0-9_-]+$",
+      "pattern": "^[A-Za-z0-9._-]+$",
       "type": "string"
     },
     "url": {
@@ -1345,7 +1188,7 @@ document name.
 }
 ```
 
-## `uploadSlot`
+### `uploadSlot`
 
 ```json
 {
@@ -1391,10 +1234,6 @@ document name.
       "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
       "type": "string"
     },
-    "duration": {
-      "exclusiveMinimum": 0,
-      "type": "number"
-    },
     "epoch": {
       "minimum": 0,
       "type": "integer"
@@ -1416,10 +1255,6 @@ document name.
       "exclusiveMinimum": 0,
       "type": "integer"
     },
-    "mediaSequenceNumber": {
-      "minimum": 0,
-      "type": "integer"
-    },
     "minBytes": {
       "minimum": 0,
       "type": "integer"
@@ -1433,19 +1268,21 @@ document name.
       "minimum": 0,
       "type": "integer"
     },
-    "renditionId": {
-      "minLength": 1,
-      "pattern": "^[A-Za-z0-9_-]+$",
-      "type": "string"
+    "profile": {
+      "type": "object"
+    },
+    "sequenceNumber": {
+      "minimum": 0,
+      "type": "integer"
     },
     "sessionId": {
       "minLength": 1,
-      "pattern": "^[A-Za-z0-9_-]+$",
+      "pattern": "^[A-Za-z0-9._-]+$",
       "type": "string"
     },
     "slotId": {
       "minLength": 1,
-      "pattern": "^[A-Za-z0-9_-]+$",
+      "pattern": "^[A-Za-z0-9._-]+$",
       "type": "string"
     },
     "state": {
@@ -1458,24 +1295,382 @@ document name.
         "revoked"
       ],
       "type": "string"
+    },
+    "trackId": {
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._-]+$",
+      "type": "string"
     }
   },
   "required": [
     "contentType",
     "deliveryUrl",
-    "duration",
     "epoch",
     "expiresAt",
     "kind",
     "maxBytes",
-    "mediaSequenceNumber",
     "objectKey",
-    "renditionId",
+    "sequenceNumber",
     "sessionId",
     "slotId",
-    "state"
+    "state",
+    "trackId"
   ],
   "title": "OLOS UploadSlot",
+  "type": "object"
+}
+```
+
+## A.2 CMAF/LL-HLS profile (`cmaf-llhls`)
+
+Schemas for the `profile` contents of sessions, tracks, slots, commits,
+and committed objects under the CMAF/LL-HLS profile (Section 8).
+
+### `mediaObjectProfile`
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "discontinuityBefore": {
+      "type": "boolean"
+    },
+    "duration": {
+      "exclusiveMinimum": 0,
+      "type": "number"
+    },
+    "independent": {
+      "type": "boolean"
+    },
+    "programDateTime": {
+      "format": "date-time",
+      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
+      "type": "string"
+    }
+  },
+  "title": "OLOS Media Object Profile",
+  "type": "object"
+}
+```
+
+### `mediaSession`
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "createdAt": {
+      "format": "date-time",
+      "pattern": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$",
+      "type": "string"
+    },
+    "epoch": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "olos": {
+      "const": "1.0"
+    },
+    "profile": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "discontinuitySequence": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "const": "cmaf-llhls"
+        },
+        "partTarget": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "segmentTarget": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "partTarget",
+        "segmentTarget"
+      ],
+      "title": "OLOS Media Session Profile",
+      "type": "object"
+    },
+    "sessionId": {
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "live",
+        "ending",
+        "ended",
+        "aborted"
+      ],
+      "type": "string"
+    },
+    "tracks": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "contentType": {
+            "pattern": "^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+/[!#$%&'*+\\-.^_`|~0-9A-Za-z]+(?:; *[!#$%&'*+\\-.^_`|~0-9A-Za-z]+=(?:[!#$%&'*+\\-.^_`|~0-9A-Za-z]+|\"[\\t !#-\\[\\]-~]*\"))*$",
+            "type": "string"
+          },
+          "profile": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "not": {
+                    "properties": {
+                      "kind": {
+                        "const": "audio"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "defaultTrack": false,
+                    "groupId": false,
+                    "name": false
+                  }
+                }
+              }
+            ],
+            "dependentRequired": {
+              "height": [
+                "width"
+              ],
+              "width": [
+                "height"
+              ]
+            },
+            "properties": {
+              "bitrate": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "channels": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "codec": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "defaultTrack": {
+                "type": "boolean"
+              },
+              "frameRate": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "groupId": {
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9._-]+$",
+                "type": "string"
+              },
+              "height": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "kind": {
+                "enum": [
+                  "audio",
+                  "video",
+                  "text",
+                  "metadata"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "sampleRate": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "width": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "codec",
+              "kind"
+            ],
+            "title": "OLOS Media Track Profile",
+            "type": "object"
+          },
+          "trackId": {
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "trackId"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "createdAt",
+    "epoch",
+    "olos",
+    "profile",
+    "sessionId",
+    "state",
+    "tracks"
+  ],
+  "title": "OLOS Media Session",
+  "type": "object"
+}
+```
+
+### `mediaSessionProfile`
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "discontinuitySequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "id": {
+      "const": "cmaf-llhls"
+    },
+    "partTarget": {
+      "exclusiveMinimum": 0,
+      "type": "number"
+    },
+    "segmentTarget": {
+      "exclusiveMinimum": 0,
+      "type": "number"
+    }
+  },
+  "required": [
+    "id",
+    "partTarget",
+    "segmentTarget"
+  ],
+  "title": "OLOS Media Session Profile",
+  "type": "object"
+}
+```
+
+### `mediaTrackProfile`
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "not": {
+          "properties": {
+            "kind": {
+              "const": "audio"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        }
+      },
+      "then": {
+        "properties": {
+          "defaultTrack": false,
+          "groupId": false,
+          "name": false
+        }
+      }
+    }
+  ],
+  "dependentRequired": {
+    "height": [
+      "width"
+    ],
+    "width": [
+      "height"
+    ]
+  },
+  "properties": {
+    "bitrate": {
+      "exclusiveMinimum": 0,
+      "type": "integer"
+    },
+    "channels": {
+      "exclusiveMinimum": 0,
+      "type": "integer"
+    },
+    "codec": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "defaultTrack": {
+      "type": "boolean"
+    },
+    "frameRate": {
+      "exclusiveMinimum": 0,
+      "type": "number"
+    },
+    "groupId": {
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "height": {
+      "exclusiveMinimum": 0,
+      "type": "integer"
+    },
+    "kind": {
+      "enum": [
+        "audio",
+        "video",
+        "text",
+        "metadata"
+      ],
+      "type": "string"
+    },
+    "name": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "sampleRate": {
+      "exclusiveMinimum": 0,
+      "type": "integer"
+    },
+    "width": {
+      "exclusiveMinimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "codec",
+    "kind"
+  ],
+  "title": "OLOS Media Track Profile",
   "type": "object"
 }
 ```

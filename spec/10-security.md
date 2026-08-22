@@ -1,7 +1,7 @@
 # 10. Security profile: direct-public deployment
 
 OLOS's default publication mode, `direct-public`, serves committed
-media straight from the object store's public origin. It gates
+objects straight from the object store's public origin. It gates
 publication at the manifest, not at the byte. This section states the
 requirements of that profile normatively. The reference is
 `olos/src/state/direct-public-security-policy.ts`, `cache-policy.ts`,
@@ -17,8 +17,10 @@ MUST document and accept two facts before they use this mode:
 
 - If their URLs are known, uncommitted objects can be directly
   readable. Unguessable nonced keys (Section 7.6) are the mitigation.
-- OLOS does not prove that uploaded media bytes are safe or decodable.
-  Commit validation covers identity and bounds, not content.
+- OLOS does not prove that uploaded object bytes are safe or
+  decodable. Commit validation covers identity and bounds, not
+  content. Profile data (`profile` on slots and commits) is opaque to
+  Core and is not validated by it.
 
 If uncommitted-object readability is unacceptable, deployments MUST
 use `read-gated` or `private-upload-public-promotion` mode instead
@@ -34,28 +36,30 @@ provider capability document (Section 7.7):
 - `publication.directObjectPublication: true` and
   `publication.manifestGatedPublication: true`.
 - `delivery.documentNavigationCanBeBlocked: true`.
-- `delivery.immutableCaching: true` (for media-object cache policy).
+- `delivery.immutableCaching: true` (for the object cache policy).
 - `delivery.negativeCachingPolicyDeclared: true`.
 - an HTTPS `delivery.publicBaseUrl`. Non-HTTPS public origins MUST be
   rejected.
 
-The media origin MUST be dedicated and cookieless. It serves media
-bytes only. The public base URL determines the allowed media origins
-for playlist rendering (Section 8.1). Playlists MUST NOT reference
-other origins. `Set-Cookie` is a forbidden response header on the
-media origin.
+The delivery origin MUST be dedicated and cookieless. It serves object
+bytes only. The public base URL determines `allowedDeliveryOrigins`,
+the origins that playlist rendering may reference (Section 8.1).
+Playlists MUST NOT reference other origins. `Set-Cookie` is a
+forbidden response header on the delivery origin.
 
 ## 10.3 Media request policy
 
 <!-- olos-conformance: 10.3 SEC-DIRECT-003 SEC-DIRECT-004 SEC-DIRECT-006 SEC-DIRECT-007 -->
 
-The media origin MUST evaluate every object request against these
-rules, in order, and block on the first match:
+This policy governs the delivery path for objects of any profile. The
+delivery origin MUST evaluate every object request against these
+rules, in order, and block on the first match
+(`resolveDirectPublicObjectRequestPolicy`, `@arsenstorm/olos/state`):
 
 | Rule | Status |
 | --- | --- |
 | Object key fails path safety (Section 7.5) | 404 |
-| Extension not in the allowed set (`.m4s`, `.mp4`) | 404 |
+| Extension not in the allowed set (`allowedMediaExtensions`, reference default `.m4s`, `.mp4`) | 404 |
 | Document navigation (`Sec-Fetch-Dest: document` or `Sec-Fetch-Mode: navigate`) | 403 |
 | Request `Accept` includes `text/html` | 403 |
 
@@ -63,15 +67,20 @@ The key-safety check MUST come before the navigation-header rules.
 Traversal attempts then never reach later logic. Bucket and prefix
 listing MUST be blocked at the provider.
 
-Media responses MUST carry:
+Object responses MUST carry:
 
 ```http
 Content-Type: video/mp4
 X-Content-Type-Options: nosniff
 Access-Control-Allow-Credentials: false
 Cross-Origin-Resource-Policy: same-site
-Cache-Control: <media-object policy, Section 10.4>
+Cache-Control: <object policy, Section 10.4>
 ```
+
+The reference policy pins the extension set and the `Content-Type` to
+the CMAF/LL-HLS profile's objects. A deployment that delivers another
+profile's objects MUST apply the same rule order and headers with the
+content type and extension set that its profile defines.
 
 ## 10.4 Cache policy, including negative caching
 
@@ -81,17 +90,17 @@ Three cache targets, all `public`:
 
 | Target | Cache-Control | Constraint |
 | --- | --- | --- |
-| Media object | `public, max-age=31536000, immutable` | Requires provider `immutableCaching`. Keys are immutable and nonce-unique, so the max age MAY be a year. |
+| Object | `public, max-age=31536000, immutable` | Requires provider `immutableCaching`. Keys are immutable and nonce-unique, so the max age MAY be a year. |
 | Manifest | `public, max-age=1, must-revalidate` | `max-age` MUST NOT exceed the target latency in seconds (default 3). The default is 1 s. |
 | Negative object (404/miss) | `public, max-age=1, must-revalidate` | Same freshness bound. Requires provider `negativeCachingPolicyDeclared`. |
 
 Negative caching is load-bearing. Preload-hinted or predicted object
 URLs can be requested before the object exists. An unbounded cached
 404 can then poison playback after the object lands. Negative
-responses for media objects MUST use the short must-revalidate policy
+responses for objects MUST use the short must-revalidate policy
 above. They MUST be served only for keys that pass the Section 10.3
-policy. Because immutable caching forbids reuse, a live media object
-key MUST NOT be reused after overwrite or delete. A new upload always
+policy. Because immutable caching forbids reuse, a live object key
+MUST NOT be reused after overwrite or delete. A new upload always
 gets a new key (fresh nonce).
 
 ## 10.5 Upload-slot hardening
