@@ -22,7 +22,7 @@
     "@arsenstorm/olos": "workspace:*"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.40.2",
+    "@cloudflare/vite-plugin": "^1.52.1",
     "@smithy/fetch-http-handler": "^5.5.2",
     "typescript": "^5",
     "vite": "^8",
