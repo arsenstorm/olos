@@ -1,5 +1,6 @@
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
-import type { PublicationMode, UploadSlot } from "../types/upload-slot";
+import type { PublicationMode } from "../types/publication";
+import type { UploadSlot } from "../types/upload-slot";
 import { assertProviderCapabilityDocument } from "../validation/provider-capability";
 import { assertUploadSlot } from "../validation/upload-slot";
 

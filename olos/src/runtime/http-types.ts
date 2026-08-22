@@ -6,7 +6,7 @@ import type {
 } from "../protocol/coordinator-types";
 import type { CreateCommittedWindowOptions } from "../state/committed-window";
 import type { PublicationControlPolicy } from "../state/publication-control";
-import type { PublicationMode } from "../types/upload-slot";
+import type { PublicationMode } from "../types/publication";
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
 import { SESSION_ROUTE_ACTIONS } from "./route";
 export const DEFAULT_MAX_HEALTH_CURSOR_AGE_MS = 5000;

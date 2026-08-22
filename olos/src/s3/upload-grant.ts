@@ -7,7 +7,8 @@ import {
 } from "../state/upload-grant";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
-import { parseAbsoluteHttpUrl, positiveNumber } from "../validation/fields";
+import { positiveNumber } from "../validation/fields";
+import { parseAbsoluteHttpUrl } from "../validation/http-url";
 import { assertUploadSlot } from "../validation/upload-slot";
 import { assertS3BucketName } from "./bucket";
 

@@ -7,8 +7,8 @@ import type {
   CoordinatorStoreSave,
 } from "../protocol/coordinator-types";
 import type { OlosId } from "../types/ids";
+import type { PublicationMode } from "../types/publication";
 import type { Session, SessionState } from "../types/session";
-import type { PublicationMode } from "../types/upload-slot";
 /** Options for `createStoredCoordinatorSession`. */
 export interface CreateStoredCoordinatorSessionOptions {
   /** Public base URL that the session's object delivery URLs resolve to. */

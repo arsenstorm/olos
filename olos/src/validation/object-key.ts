@@ -1,4 +1,4 @@
-import { hasControlCharacter } from "./fields";
+import { hasControlCharacter, hasQueryOrFragment } from "./fields";
 
 // Keys are internal object names, so traversal, query/fragment, control
 // chars, and absolute/empty keys are rejected before any storage use. Core
@@ -31,17 +31,13 @@ function safeObjectKeyError(value: unknown): string | undefined {
     return "must not contain control characters";
   }
 
-  if (hasObjectKeyQueryOrFragment(value)) {
+  if (hasQueryOrFragment(value)) {
     return "must not contain query strings or fragments";
   }
 }
 
 function hasUnsafeRelativeObjectKeyShape(value: string): boolean {
   return hasUnsafeObjectKeyBoundary(value) || hasUnsafeObjectKeySegment(value);
-}
-
-function hasObjectKeyQueryOrFragment(value: string): boolean {
-  return value.includes("?") || value.includes("#");
 }
 
 function hasUnsafeObjectKeyBoundary(value: string): boolean {

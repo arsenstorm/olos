@@ -2,6 +2,13 @@ import type { Epoch, OlosId } from "./ids";
 import type { ProfileData, StreamProfile } from "./profile";
 
 /**
+ * Wire format version carried in the `olos` field of sessions, cursors, and
+ * provider capability documents. Validators reject documents whose `olos`
+ * field does not match this value.
+ */
+export const OLOS_WIRE_VERSION = "1.0";
+
+/**
  * Session lifecycle states. `ended` and `aborted` are terminal: no further
  * slots are issued and profiles mark the stream as complete (for example
  * `EXT-X-ENDLIST` in HLS). `SessionState` (olos/types) is the derived union

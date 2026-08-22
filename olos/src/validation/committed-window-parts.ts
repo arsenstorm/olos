@@ -4,25 +4,47 @@ import type {
   CommittedSegment,
 } from "../types/committed-window";
 import { assertByterange } from "./byterange";
-import {
-  COMMITTED_OBJECT_FIELDS,
-  COMMITTED_PART_FIELDS,
-  COMMITTED_SEGMENT_FIELDS,
-  type CommittedPartPositionTracker,
-  type CommittedSegmentPositionTracker,
+import type {
+  CommittedPartPositionTracker,
+  CommittedSegmentPositionTracker,
 } from "./committed-window";
 import { assertContentType } from "./content-type";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
+  assertKnownFieldsObject,
   assertNonEmptyStringField,
   assertNonNegativeIntegerField,
-  assertOnlyKnownFields,
   assertUrlSafeField,
   isRecord,
   nonEmptyArray,
 } from "./fields";
 import { assertSafeObjectKey } from "./object-key";
 import { assertOptionalProfileField } from "./profile";
+
+/** Every field a wire-format `CommittedObject` may carry. */
+export const COMMITTED_OBJECT_FIELDS = [
+  "commitId",
+  "contentType",
+  "deliveryUrl",
+  "etag",
+  "objectKey",
+  "profile",
+  "slotId",
+] as const;
+
+/** Every field a wire-format `CommittedPart` may carry. */
+export const COMMITTED_PART_FIELDS = [
+  ...COMMITTED_OBJECT_FIELDS,
+  "byterange",
+  "partNumber",
+] as const;
+
+/** Every field a wire-format `CommittedSegment` may carry. */
+export const COMMITTED_SEGMENT_FIELDS = [
+  "parts",
+  "segment",
+  "sequenceNumber",
+] as const;
 
 export function assertMonotonicSegments(
   segments: readonly unknown[],
@@ -81,11 +103,7 @@ function assertCommittedSegment(
 ): asserts value is CommittedSegment {
   const name = `${trackName}.segments[]`;
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
-  assertOnlyKnownFields(value, COMMITTED_SEGMENT_FIELDS, name);
+  assertKnownFieldsObject(value, COMMITTED_SEGMENT_FIELDS, name);
   assertNonNegativeIntegerField(value, "sequenceNumber", name);
   assertCommittedSegmentPayload(value, name);
 }
@@ -192,11 +210,7 @@ export function assertCommittedObject(
   name: string,
   allowed: readonly string[] = COMMITTED_OBJECT_FIELDS
 ): asserts value is CommittedObject {
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
-  assertOnlyKnownFields(value, allowed, name);
+  assertKnownFieldsObject(value, allowed, name);
   assertUrlSafeField(value, "commitId", name);
   assertUrlSafeField(value, "slotId", name);
   assertSafeObjectKey(value.objectKey, `${name}.objectKey`);

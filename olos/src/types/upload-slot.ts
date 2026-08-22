@@ -1,8 +1,11 @@
 import type { Byterange } from "./byterange";
 import type { Epoch, OlosId, PartNumber, SequenceNumber } from "./ids";
 import type { ProfileData } from "./profile";
-import type { PUBLICATION_MODES } from "./publication";
 import type { ObjectKind } from "./storage-object";
+
+// Re-exported for the many callers across src/runtime, src/state, and
+// src/protocol that still import it from here; the canonical definition
+// lives next to PUBLICATION_MODES in ./publication.
 
 /**
  * Upload slot lifecycle states, from `issued` through `upload_observed` to
@@ -30,8 +33,6 @@ export const UPLOAD_SLOT_TRANSITIONS = {
   upload_observed: ["committed", "rejected", "revoked"],
 } as const;
 
-/** How committed objects become publicly readable for a provider. */
-export type PublicationMode = (typeof PUBLICATION_MODES)[number];
 /** Upload slot lifecycle state; see `UPLOAD_SLOT_STATES` (olos/types). */
 export type UploadSlotState = (typeof UPLOAD_SLOT_STATES)[number];
 

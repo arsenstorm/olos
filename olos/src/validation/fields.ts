@@ -49,6 +49,36 @@ export function assertOnlyKnownFields(
 }
 
 /**
+ * Asserts `value` is an object and rejects unknown fields, combining
+ * `isRecord` and `assertOnlyKnownFields` for the many validators whose
+ * closed-shape check is exactly that pair.
+ */
+export function assertKnownFieldsObject(
+  value: unknown,
+  fields: readonly string[],
+  name: string
+): asserts value is Record<string, unknown> {
+  if (!isRecord(value)) {
+    throw new Error(`${name} must be an object`);
+  }
+
+  assertOnlyKnownFields(value, fields, name);
+}
+
+/** Returns whether `assert` throws for `value` — the shared body of every `isX` guard. */
+export function passes(
+  assert: (value: unknown) => void,
+  value: unknown
+): boolean {
+  try {
+    assert(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Declares how a nested field of a `KnownFieldsShape` recurses: a single
  * `object`, an `array` of objects, or a `map` whose every value is an
  * object — each pruned against the given `shape`.
@@ -130,6 +160,23 @@ function pruneRecordValues(
   return pruned;
 }
 
+/**
+ * Shared body of every tolerant read-path `parse*` function (spec §11.2):
+ * prune unknown fields per `shape`, validate the result with `assert`, and
+ * return it.
+ */
+export function parseWithShape<T>(
+  value: unknown,
+  shape: KnownFieldsShape,
+  assert: (value: unknown) => asserts value is T
+): T {
+  const pruned = pruneUnknownFields(value, shape);
+
+  assert(pruned);
+
+  return pruned;
+}
+
 export function assertUrlSafeField(
   value: Record<string, unknown>,
   field: string,
@@ -160,6 +207,19 @@ export function assertPositiveNumberField(
   name: string
 ): void {
   assertFieldValue(value, field, name, positiveNumber);
+}
+
+/** Asserts each of `fields` with `assertField` when present, skipping absent ones. */
+export function assertOptionalFields(
+  value: Record<string, unknown>,
+  fields: readonly string[],
+  assertField: (value: unknown, fieldName: string) => void
+): void {
+  for (const field of fields) {
+    if (value[field] !== undefined) {
+      assertField(value, field);
+    }
+  }
 }
 
 export function stringValue(value: unknown, name: string): string {
@@ -256,6 +316,10 @@ export function timestampMs(value: string, name: string): number {
   return timestamp;
 }
 
+export function hasQueryOrFragment(value: string): boolean {
+  return value.includes("?") || value.includes("#");
+}
+
 export function hasControlCharacter(value: string): boolean {
   for (const character of value) {
     const code = character.charCodeAt(0);
@@ -294,12 +358,12 @@ export function assertIsoDateField(
   assertFieldValue(value, field, name, timestampString);
 }
 
-export function assertOneOfField<const T extends readonly string[]>(
+export function assertOneOfField(
   value: Record<string, unknown>,
   field: string,
-  allowed: T,
+  allowed: readonly string[],
   name: string
-): T[number] {
+): void {
   const fieldValue = value[field];
 
   if (!isAllowedString(fieldValue, allowed)) {
@@ -307,8 +371,6 @@ export function assertOneOfField<const T extends readonly string[]>(
       `${fieldName(name, field)} must be one of: ${allowed.join(", ")}`
     );
   }
-
-  return fieldValue;
 }
 
 function fieldName(name: string, field: string): string {
@@ -322,67 +384,6 @@ function assertFieldValue(
   assertValue: (value: unknown, name: string) => unknown
 ): void {
   assertValue(value[field], fieldName(name, field));
-}
-
-interface AbsoluteHttpUrlOptions {
-  allowQueryOrFragment?: boolean;
-}
-
-export function assertAbsoluteHttpUrl(
-  value: unknown,
-  name: string,
-  options: AbsoluteHttpUrlOptions = {}
-): void {
-  parseAbsoluteHttpUrl(value, name, options);
-}
-
-export function parseAbsoluteHttpUrl(
-  value: unknown,
-  name: string,
-  options: AbsoluteHttpUrlOptions = {}
-): URL {
-  const url = parseUrl(absoluteHttpUrlString(value, name), name);
-
-  assertHttpUrlProtocol(url, name);
-  assertUrlQueryAndFragmentPolicy(url, name, options);
-
-  return url;
-}
-
-function absoluteHttpUrlString(value: unknown, name: string): string {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${name} must be an absolute HTTP(S) URL`);
-  }
-
-  return value;
-}
-
-function parseUrl(value: string, name: string): URL {
-  try {
-    return new URL(value);
-  } catch {
-    throw new Error(`${name} must be an absolute HTTP(S) URL`);
-  }
-}
-
-function assertHttpUrlProtocol(url: URL, name: string): void {
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error(`${name} must be an absolute HTTP(S) URL`);
-  }
-}
-
-function assertUrlQueryAndFragmentPolicy(
-  url: URL,
-  name: string,
-  options: AbsoluteHttpUrlOptions
-): void {
-  if (!options.allowQueryOrFragment && hasUrlQueryOrFragment(url)) {
-    throw new Error(`${name} must not contain query strings or fragments`);
-  }
-}
-
-function hasUrlQueryOrFragment(url: URL): boolean {
-  return url.search.length > 0 || url.hash.length > 0;
 }
 
 export function isAllowedString<const T extends readonly string[]>(

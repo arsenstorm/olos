@@ -1,22 +1,18 @@
 import type { OlosError } from "../types/errors";
 import { OLOS_ERROR_CODES } from "../types/errors";
 import {
+  assertKnownFieldsObject,
   assertNonEmptyStringField,
   assertOneOfField,
-  assertOnlyKnownFields,
   isRecord,
+  passes,
 } from "./fields";
 
 const OLOS_ERROR_ENVELOPE_FIELDS = ["code", "details", "message"] as const;
 
 /** Returns whether `value` is a valid error envelope (see the assert). */
 export function isOlosErrorEnvelope(value: unknown): value is OlosError {
-  try {
-    assertOlosErrorEnvelope(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertOlosErrorEnvelope, value);
 }
 
 /**
@@ -28,17 +24,8 @@ export function isOlosErrorEnvelope(value: unknown): value is OlosError {
 export function assertOlosErrorEnvelope(
   value: unknown
 ): asserts value is OlosError {
-  if (!isRecord(value)) {
-    throw new Error("olosError must be an object");
-  }
-
-  assertOnlyKnownFields(value, ["error"], "olosError");
-
-  if (!isRecord(value.error)) {
-    throw new Error("olosError.error must be an object");
-  }
-
-  assertOnlyKnownFields(
+  assertKnownFieldsObject(value, ["error"], "olosError");
+  assertKnownFieldsObject(
     value.error,
     OLOS_ERROR_ENVELOPE_FIELDS,
     "olosError.error"

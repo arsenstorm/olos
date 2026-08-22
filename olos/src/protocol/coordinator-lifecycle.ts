@@ -3,8 +3,8 @@ import {
   selectRetiredCommittedObjects,
 } from "../state/retention";
 import type { Cursor } from "../types/cursor";
+import type { PublicationMode } from "../types/publication";
 import type { Session } from "../types/session";
-import type { PublicationMode } from "../types/upload-slot";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
 import { assertSession } from "../validation/session";
 import type {

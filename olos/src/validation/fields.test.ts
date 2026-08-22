@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  assertAbsoluteHttpUrl,
   assertBooleanField,
   assertIsoDateField,
   assertNonEmptyStringField,
@@ -17,7 +16,6 @@ import {
   type KnownFieldsShape,
   nonEmptyArray,
   nonNegativeNumber,
-  parseAbsoluteHttpUrl,
   positiveNumber,
   pruneUnknownFields,
   recordValue,
@@ -25,6 +23,7 @@ import {
   timestampMs,
   timestampString,
 } from "./fields";
+import { assertAbsoluteHttpUrl, parseAbsoluteHttpUrl } from "./http-url";
 
 describe("validation field helpers", () => {
   test("isRecord rejects arrays and null values", () => {
@@ -63,9 +62,9 @@ describe("validation field helpers", () => {
     expect(() =>
       assertIsoDateField(value, "updatedAt", "session")
     ).not.toThrow();
-    expect(
+    expect(() =>
       assertOneOfField(value, "mode", ["live", "ended"] as const, "session")
-    ).toBe("live");
+    ).not.toThrow();
   });
 
   test("field assertions reject invalid values with named messages", () => {

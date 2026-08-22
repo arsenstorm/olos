@@ -6,14 +6,18 @@ import { BYTERANGE_FIELDS } from "./byterange";
 import {
   assertCommittedObject,
   assertMonotonicSegments,
+  COMMITTED_OBJECT_FIELDS,
+  COMMITTED_PART_FIELDS,
+  COMMITTED_SEGMENT_FIELDS,
 } from "./committed-window-parts";
 import {
+  assertKnownFieldsObject,
   assertNonNegativeIntegerField,
-  assertOnlyKnownFields,
   assertUrlSafeField,
   isRecord,
   type KnownFieldsShape,
   nonEmptyArray,
+  passes,
 } from "./fields";
 import { assertOptionalProfileField } from "./profile";
 
@@ -25,28 +29,6 @@ const COMMITTED_WINDOW_FIELDS = [
 ] as const;
 
 const TRACK_WINDOW_FIELDS = ["init", "profile", "segments", "trackId"] as const;
-
-export const COMMITTED_SEGMENT_FIELDS = [
-  "parts",
-  "segment",
-  "sequenceNumber",
-] as const;
-
-export const COMMITTED_OBJECT_FIELDS = [
-  "commitId",
-  "contentType",
-  "deliveryUrl",
-  "etag",
-  "objectKey",
-  "profile",
-  "slotId",
-] as const;
-
-export const COMMITTED_PART_FIELDS = [
-  ...COMMITTED_OBJECT_FIELDS,
-  "byterange",
-  "partNumber",
-] as const;
 
 const COMMITTED_OBJECT_SHAPE: KnownFieldsShape = {
   fields: COMMITTED_OBJECT_FIELDS,
@@ -134,12 +116,7 @@ export function lastVisiblePartNumber(
  * `assertCommittedWindow`).
  */
 export function isCommittedWindow(value: unknown): value is CommittedWindow {
-  try {
-    assertCommittedWindow(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertCommittedWindow, value);
 }
 
 /**
@@ -153,11 +130,7 @@ export function isCommittedWindow(value: unknown): value is CommittedWindow {
 export function assertCommittedWindow(
   value: unknown
 ): asserts value is CommittedWindow {
-  if (!isRecord(value)) {
-    throw new Error("committedWindow must be an object");
-  }
-
-  assertOnlyKnownFields(value, COMMITTED_WINDOW_FIELDS, "committedWindow");
+  assertKnownFieldsObject(value, COMMITTED_WINDOW_FIELDS, "committedWindow");
   assertNonNegativeIntegerField(value, "epoch", "committedWindow");
   assertNonNegativeIntegerField(
     value,
@@ -165,7 +138,7 @@ export function assertCommittedWindow(
     "committedWindow"
   );
   assertNonNegativeIntegerField(value, "lastSequenceNumber", "committedWindow");
-  assertCommittedWindowSequence(value);
+  assertCommittedWindowSequence(value, "committedWindow");
 
   if (!isRecord(value.tracks) || Object.keys(value.tracks).length === 0) {
     throw new Error("committedWindow.tracks must be a non-empty object");
@@ -176,10 +149,13 @@ export function assertCommittedWindow(
   }
 }
 
-function assertCommittedWindowSequence(value: Record<string, unknown>): void {
+export function assertCommittedWindowSequence(
+  value: Record<string, unknown>,
+  name: string
+): void {
   if (Number(value.firstSequenceNumber) > Number(value.lastSequenceNumber)) {
     throw new Error(
-      "committedWindow.firstSequenceNumber must be less than or equal to lastSequenceNumber"
+      `${name}.firstSequenceNumber must be less than or equal to lastSequenceNumber`
     );
   }
 }
@@ -187,11 +163,7 @@ function assertCommittedWindowSequence(value: Record<string, unknown>): void {
 function assertTrackWindow(value: unknown, key: string): void {
   const name = `committedWindow.tracks.${key}`;
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
-  assertOnlyKnownFields(value, TRACK_WINDOW_FIELDS, name);
+  assertKnownFieldsObject(value, TRACK_WINDOW_FIELDS, name);
   assertUrlSafeField(value, "trackId", name);
 
   if (value.trackId !== key) {

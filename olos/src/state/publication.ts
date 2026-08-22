@@ -1,7 +1,6 @@
 import type { Commit } from "../types/commit";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
-import type { ObjectPublication } from "../types/publication";
-import type { PublicationMode } from "../types/upload-slot";
+import type { ObjectPublication, PublicationMode } from "../types/publication";
 import { assertCommit } from "../validation/commit";
 import { assertSafeObjectKey } from "../validation/object-key";
 import { assertProviderCapabilityDocument } from "../validation/provider-capability";

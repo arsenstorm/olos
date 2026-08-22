@@ -1,6 +1,6 @@
 import type { CursorWindow } from "../types/cursor";
 import type { ProfileData } from "../types/profile";
-import type { PublicationMode } from "../types/upload-slot";
+import type { PublicationMode } from "../types/publication";
 import { assertCursorWindow } from "../validation/cursor";
 import { assertNonNegativeInteger } from "../validation/ids";
 import {

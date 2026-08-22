@@ -1,22 +1,24 @@
-import { OLOS_WIRE_VERSION } from "../index";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor, CursorWindow } from "../types/cursor";
-import { SESSION_STATES } from "../types/session";
+import { OLOS_WIRE_VERSION, SESSION_STATES } from "../types/session";
 import {
   assertCommittedWindow,
+  assertCommittedWindowSequence,
   COMMITTED_WINDOW_SHAPE,
   lastVisiblePartNumber,
 } from "./committed-window";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
   assertIsoDateField,
+  assertKnownFieldsObject,
   assertNonNegativeIntegerField,
   assertOneOfField,
   assertOnlyKnownFields,
   assertUrlSafeField,
   isRecord,
   type KnownFieldsShape,
-  pruneUnknownFields,
+  parseWithShape,
+  passes,
 } from "./fields";
 import { assertStreamProfile } from "./profile";
 
@@ -48,12 +50,7 @@ const CURSOR_SHAPE: KnownFieldsShape = {
 
 /** Returns whether `value` is a valid `Cursor` (see `assertCursor`). */
 export function isCursor(value: unknown): value is Cursor {
-  try {
-    assertCursor(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertCursor, value);
 }
 
 /**
@@ -90,11 +87,7 @@ export function assertCursor(value: unknown): asserts value is Cursor {
  * rejected when invalid. Profile data is passed through untouched.
  */
 export function parseCursor(value: unknown): Cursor {
-  const pruned = pruneUnknownFields(value, CURSOR_SHAPE);
-
-  assertCursor(pruned);
-
-  return pruned;
+  return parseWithShape(value, CURSOR_SHAPE, assertCursor);
 }
 
 function assertCursorFields(value: Record<string, unknown>): void {
@@ -150,27 +143,12 @@ export function assertCursorWindow(
   value: unknown,
   name = "cursor.window"
 ): asserts value is CursorWindow {
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
-  assertOnlyKnownFields(value, CURSOR_WINDOW_FIELDS, name);
+  assertKnownFieldsObject(value, CURSOR_WINDOW_FIELDS, name);
   assertNonNegativeIntegerField(value, "firstSequenceNumber", name);
   assertNonNegativeIntegerField(value, "lastSequenceNumber", name);
-  assertCursorWindowSequence(value, name);
+  assertCommittedWindowSequence(value, name);
 
   if (value.lastPartNumber !== undefined) {
     assertNonNegativeIntegerField(value, "lastPartNumber", name);
-  }
-}
-
-function assertCursorWindowSequence(
-  value: Record<string, unknown>,
-  name: string
-): void {
-  if (Number(value.firstSequenceNumber) > Number(value.lastSequenceNumber)) {
-    throw new Error(
-      `${name}.firstSequenceNumber must be less than or equal to lastSequenceNumber`
-    );
   }
 }

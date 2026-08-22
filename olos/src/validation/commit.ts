@@ -3,14 +3,14 @@ import { assertByterange, BYTERANGE_FIELDS } from "./byterange";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
   assertIsoDateField,
+  assertKnownFieldsObject,
   assertNonEmptyStringField,
   assertNonNegativeIntegerField,
-  assertOnlyKnownFields,
   assertPositiveIntegerField,
   assertUrlSafeField,
-  isRecord,
   type KnownFieldsShape,
-  pruneUnknownFields,
+  parseWithShape,
+  passes,
 } from "./fields";
 import { assertSafeObjectKey } from "./object-key";
 import { assertOptionalProfileField } from "./profile";
@@ -41,12 +41,7 @@ const COMMIT_SHAPE: KnownFieldsShape = {
 
 /** Returns whether `value` is a valid `Commit` (see `assertCommit`). */
 export function isCommit(value: unknown): value is Commit {
-  try {
-    assertCommit(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertCommit, value);
 }
 
 /**
@@ -56,11 +51,7 @@ export function isCommit(value: unknown): value is Commit {
  * commit (`partNumber` present). `profile` is only checked to be an object.
  */
 export function assertCommit(value: unknown): asserts value is Commit {
-  if (!isRecord(value)) {
-    throw new Error("commit must be an object");
-  }
-
-  assertOnlyKnownFields(value, COMMIT_FIELDS, "commit");
+  assertKnownFieldsObject(value, COMMIT_FIELDS, "commit");
   assertCommitIdentifiers(value);
   assertCommitSequenceFields(value);
   assertCommitObjectFields(value);
@@ -75,11 +66,7 @@ export function assertCommit(value: unknown): asserts value is Commit {
  * passed through untouched.
  */
 export function parseCommit(value: unknown): Commit {
-  const pruned = pruneUnknownFields(value, COMMIT_SHAPE);
-
-  assertCommit(pruned);
-
-  return pruned;
+  return parseWithShape(value, COMMIT_SHAPE, assertCommit);
 }
 
 function assertCommitIdentifiers(value: Record<string, unknown>): void {

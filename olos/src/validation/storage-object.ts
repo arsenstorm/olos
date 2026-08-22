@@ -2,11 +2,11 @@ import type { StorageObject } from "../types/storage-object";
 import { assertContentType } from "./content-type";
 import {
   assertIsoDateField,
+  assertKnownFieldsObject,
   assertNonEmptyStringField,
-  assertOnlyKnownFields,
   assertPositiveIntegerField,
   assertUrlSafeField,
-  isRecord,
+  passes,
 } from "./fields";
 import { assertSafeObjectKey } from "./object-key";
 
@@ -25,12 +25,7 @@ export const MEDIA_OBJECT_FIELDS = [
  * `assertStorageObject`).
  */
 export function isStorageObject(value: unknown): value is StorageObject {
-  try {
-    assertStorageObject(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertStorageObject, value);
 }
 
 /**
@@ -45,11 +40,7 @@ export function assertStorageObject(
   value: unknown,
   allowed: readonly string[] = MEDIA_OBJECT_FIELDS
 ): asserts value is StorageObject {
-  if (!isRecord(value)) {
-    throw new Error("mediaObject must be an object");
-  }
-
-  assertOnlyKnownFields(value, allowed, "mediaObject");
+  assertKnownFieldsObject(value, allowed, "mediaObject");
   assertStorageObjectIdentity(value);
   assertStorageObjectObservation(value);
   assertOptionalMediaObjectFields(value);

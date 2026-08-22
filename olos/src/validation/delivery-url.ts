@@ -1,4 +1,4 @@
-import { hasControlCharacter } from "./fields";
+import { hasControlCharacter, hasQueryOrFragment } from "./fields";
 
 const ABSOLUTE_URL_SCHEME_AND_AUTHORITY_PATTERN = /^[a-zA-Z]+:\/\/[^/?#]*/;
 
@@ -48,10 +48,6 @@ function assertDeliveryUrlHasNoQueryOrFragment(
   if (hasQueryOrFragment(value)) {
     throw new Error(`${name} must not contain query strings or fragments`);
   }
-}
-
-function hasQueryOrFragment(value: string): boolean {
-  return value.includes("?") || value.includes("#");
 }
 
 function isAllowedDeliveryReference(value: string): boolean {

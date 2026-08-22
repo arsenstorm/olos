@@ -1,15 +1,16 @@
-import { OLOS_WIRE_VERSION } from "../index";
 import type { Session, Track } from "../types/session";
-import { SESSION_STATES } from "../types/session";
+import { OLOS_WIRE_VERSION, SESSION_STATES } from "../types/session";
 import { assertContentType } from "./content-type";
 import {
   assertIsoDateField,
+  assertKnownFieldsObject,
   assertNonNegativeIntegerField,
   assertOneOfField,
   assertOnlyKnownFields,
   assertUrlSafeField,
   isRecord,
   nonEmptyArray,
+  passes,
 } from "./fields";
 import { assertOptionalProfileField, assertStreamProfile } from "./profile";
 
@@ -27,12 +28,7 @@ const TRACK_FIELDS = ["contentType", "profile", "trackId"] as const;
 
 /** Returns whether `value` is a valid `Session` (see `assertSession`). */
 export function isSession(value: unknown): value is Session {
-  try {
-    assertSession(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertSession, value);
 }
 
 /**
@@ -76,11 +72,7 @@ function assertTracks(value: unknown): void {
 }
 
 function assertTrack(value: unknown): asserts value is Track {
-  if (!isRecord(value)) {
-    throw new Error("session.tracks[] must be an object");
-  }
-
-  assertOnlyKnownFields(value, TRACK_FIELDS, "session.tracks[]");
+  assertKnownFieldsObject(value, TRACK_FIELDS, "session.tracks[]");
   assertUrlSafeField(value, "trackId", "session.tracks[]");
 
   if (value.contentType !== undefined) {

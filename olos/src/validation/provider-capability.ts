@@ -1,20 +1,23 @@
-import { OLOS_WIRE_VERSION } from "../index";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
 import {
   PROVIDER_CONSISTENCY_LEVELS,
   PROVIDER_EVENT_DELIVERY_MODES,
   PROVIDER_KINDS,
 } from "../types/provider-capability";
+import { OLOS_WIRE_VERSION } from "../types/session";
 import {
-  assertAbsoluteHttpUrl,
   assertBooleanField,
+  assertKnownFieldsObject,
   assertNonEmptyStringField,
   assertOneOfField,
   assertOnlyKnownFields,
+  assertOptionalFields,
   assertPositiveIntegerField,
   assertUrlSafeField,
   isRecord,
+  passes,
 } from "./fields";
+import { assertAbsoluteHttpUrl } from "./http-url";
 
 const PROVIDER_CAPABILITY_FIELDS = [
   "api",
@@ -136,12 +139,7 @@ const DIRECT_PUBLICATION_PRECONDITIONS = [
 export function isProviderCapabilityDocument(
   value: unknown
 ): value is ProviderCapabilityDocument {
-  try {
-    assertProviderCapabilityDocument(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertProviderCapabilityDocument, value);
 }
 
 /**
@@ -195,11 +193,7 @@ export function assertProviderCapabilityDocument(
 function assertApi(value: unknown): void {
   const name = "providerCapability.api";
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
-  assertOnlyKnownFields(value, PROVIDER_API_FIELDS, name);
+  assertKnownFieldsObject(value, PROVIDER_API_FIELDS, name);
   assertNonEmptyStringField(value, "family", name);
 }
 
@@ -208,11 +202,7 @@ function assertConsistency(
 ): asserts value is Record<string, unknown> {
   const name = "providerCapability.consistency";
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
-  assertOnlyKnownFields(value, PROVIDER_CONSISTENCY_FIELDS, name);
+  assertKnownFieldsObject(value, PROVIDER_CONSISTENCY_FIELDS, name);
   assertOneOfField(value, "readAfterCreate", PROVIDER_CONSISTENCY_LEVELS, name);
   assertOneOfField(
     value,
@@ -233,11 +223,7 @@ function assertPublication(
 ): asserts value is Record<string, unknown> {
   const name = "providerCapability.publication";
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
-  assertOnlyKnownFields(value, PROVIDER_PUBLICATION_FIELDS, name);
+  assertKnownFieldsObject(value, PROVIDER_PUBLICATION_FIELDS, name);
   assertBooleanField(value, "directObjectPublication", name);
   assertBooleanField(value, "createIfAbsent", name);
   assertOptionalBooleanFields(value, OPTIONAL_PUBLICATION_BOOLEAN_FIELDS, name);
@@ -246,11 +232,7 @@ function assertPublication(
 function assertUploadGrants(value: unknown): void {
   const name = "providerCapability.uploadGrants";
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
-  assertOnlyKnownFields(value, PROVIDER_UPLOAD_GRANT_FIELDS, name);
+  assertKnownFieldsObject(value, PROVIDER_UPLOAD_GRANT_FIELDS, name);
   assertUploadGrantBooleanFields(value, name);
   assertUploadGrantTtl(value, name);
   assertUploadGrantMechanism(value, name);
@@ -296,11 +278,7 @@ function assertDelivery(
 ): asserts value is Record<string, unknown> {
   const name = "providerCapability.delivery";
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
-  assertOnlyKnownFields(value, PROVIDER_DELIVERY_FIELDS, name);
+  assertKnownFieldsObject(value, PROVIDER_DELIVERY_FIELDS, name);
   assertAbsoluteHttpUrl(value.publicBaseUrl, `${name}.publicBaseUrl`);
   assertBooleanField(value, "negativeCachingPolicyDeclared", name);
   assertOptionalBooleanFields(value, OPTIONAL_DELIVERY_BOOLEAN_FIELDS, name);
@@ -311,21 +289,15 @@ function assertOptionalBooleanFields(
   fields: readonly string[],
   name: string
 ): void {
-  for (const field of fields) {
-    if (value[field] !== undefined) {
-      assertBooleanField(value, field, name);
-    }
-  }
+  assertOptionalFields(value, fields, (_value, field) =>
+    assertBooleanField(value, field, name)
+  );
 }
 
 function assertEvents(value: unknown): void {
   const name = "providerCapability.events";
 
-  if (!isRecord(value)) {
-    throw new Error(`${name} must be an object`);
-  }
-
-  assertOnlyKnownFields(value, PROVIDER_EVENTS_FIELDS, name);
+  assertKnownFieldsObject(value, PROVIDER_EVENTS_FIELDS, name);
 
   if (value.objectCreated !== undefined) {
     assertBooleanField(value, "objectCreated", name);

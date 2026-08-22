@@ -33,12 +33,14 @@ export type {
   ProviderPublicationCapabilities,
   ProviderUploadGrantCapabilities,
 } from "./types/provider-capability";
-export type { ObjectPublication } from "./types/publication";
+export type {
+  ObjectPublication,
+  PublicationMode,
+} from "./types/publication";
 export type { Session, SessionState, Track } from "./types/session";
 export type { ObjectKind, StorageObject } from "./types/storage-object";
 export type { UploadGrant } from "./types/upload-grant";
 export type {
-  PublicationMode,
   UploadSlot,
   UploadSlotState,
 } from "./types/upload-slot";

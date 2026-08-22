@@ -7,8 +7,9 @@ import type { Cursor } from "../types/cursor";
 import type { OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
 import type { ProfileData } from "../types/profile";
+import type { PublicationMode } from "../types/publication";
 import type { Session } from "../types/session";
-import type { PublicationMode, UploadSlot } from "../types/upload-slot";
+import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
 
 /**

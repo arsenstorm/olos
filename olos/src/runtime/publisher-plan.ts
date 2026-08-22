@@ -1,8 +1,8 @@
 import { createPublisherObjectKey } from "../state/object-key-derivation";
 import type { ProfileData } from "../types/profile";
+import type { PublicationMode } from "../types/publication";
 import { PUBLICATION_MODES } from "../types/publication";
 import type { ObjectKind } from "../types/storage-object";
-import type { PublicationMode } from "../types/upload-slot";
 import { positiveNumber } from "../validation/fields";
 import {
   assertUrlSafeIdentifier,

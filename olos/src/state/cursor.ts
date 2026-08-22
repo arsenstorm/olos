@@ -1,4 +1,3 @@
-import { OLOS_WIRE_VERSION } from "../index";
 import type { Byterange } from "../types/byterange";
 import type {
   CommittedObject,
@@ -12,6 +11,7 @@ import type { OlosError } from "../types/errors";
 import type { PartNumber } from "../types/ids";
 import type { StreamProfile } from "../types/profile";
 import type { SessionState } from "../types/session";
+import { OLOS_WIRE_VERSION } from "../types/session";
 import { assertCursor } from "../validation/cursor";
 import { sameProfileData } from "./profile-data";
 

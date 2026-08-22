@@ -92,7 +92,7 @@ export function stringEnum<const Values extends readonly string[]>(
 export const byterangeSchema = {
   additionalProperties: false,
   properties: {
-    length: { exclusiveMinimum: 0, type: "integer" },
+    length: positiveInteger,
     offset: { minimum: 0, type: "integer" },
     segmentDeliveryUrl: deliveryUrl,
     segmentObjectKey: objectKey,
@@ -165,7 +165,7 @@ export const providerUploadGrantSchema = {
   properties: {
     contentTypeBound: { type: "boolean" },
     exactKey: { type: "boolean" },
-    maxRecommendedTtlSeconds: { exclusiveMinimum: 0, type: "integer" },
+    maxRecommendedTtlSeconds: positiveInteger,
     methodBound: { type: "boolean" },
     objectSizeCanBeObserved: { type: "boolean" },
     presignedPut: { type: "boolean" },

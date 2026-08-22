@@ -1,6 +1,6 @@
 import type { StorageObject } from "../types/storage-object";
 import type { UploadSlot } from "../types/upload-slot";
-import { nonNegativeNumber } from "./fields";
+import { nonNegativeNumber, passes } from "./fields";
 import { isOptionalHttpHeaderStringMap } from "./http-header";
 import { assertStorageObject, MEDIA_OBJECT_FIELDS } from "./storage-object";
 import { assertUploadSlot } from "./upload-slot";
@@ -36,12 +36,7 @@ type ObservableUploadSlot = UploadSlot & {
  * `assertObservedUpload`).
  */
 export function isObservedUpload(value: unknown): value is ObservedUpload {
-  try {
-    assertObservedUpload(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertObservedUpload, value);
 }
 
 /**
@@ -51,12 +46,11 @@ export function isObservedUpload(value: unknown): value is ObservedUpload {
 export function observedUploadMatchesSlot(
   options: ObservedUploadMatchOptions
 ): boolean {
-  try {
-    assertObservedUploadMatchesSlot(options);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(
+    (value) =>
+      assertObservedUploadMatchesSlot(value as ObservedUploadMatchOptions),
+    options
+  );
 }
 
 /**

@@ -13,15 +13,13 @@ export {
   createRuntimeObjectLowLatencyProfile,
   createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
+  DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE,
   type RuntimeObjectLowLatencyManifestOptions,
+  type RuntimeObjectLowLatencyProfile,
   type RuntimeObjectLowLatencyPublisherInitOptions,
   type RuntimeObjectLowLatencyPublisherObjectOptions,
   type RuntimeObjectLowLatencyPublisherOptions,
 } from "./media/latency-profile";
-export {
-  DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE,
-  type RuntimeObjectLowLatencyProfile,
-} from "./media/latency-profile-defaults";
 export {
   assertSafeMediaObjectKey,
   assertSupportedMediaExtension,

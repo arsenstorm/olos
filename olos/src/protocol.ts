@@ -4,7 +4,6 @@ export {
   OLOS_PROTOCOL_NAME,
   OLOS_PROTOCOL_SHORT_NAME,
   OLOS_SPEC_STATUS,
-  OLOS_WIRE_VERSION,
 } from "./index";
 export { commitCoordinatorUpload } from "./protocol/coordinator-commit";
 export {
@@ -74,3 +73,4 @@ export {
   type SqliteSerializedCoordinatorStoreRunResult,
   type SqliteSerializedCoordinatorStoreStatement,
 } from "./protocol/sqlite-store";
+export { OLOS_WIRE_VERSION } from "./types/session";

@@ -7,8 +7,8 @@ import {
   createRuntimeObjectLowLatencyProfile,
   createRuntimeObjectLowLatencyPublisherDefaults,
   createRuntimeObjectLowLatencyPublisherOptions,
+  DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE,
 } from "./latency-profile";
-import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "./latency-profile-defaults";
 
 const mediaOrigin = "https://media.example.com";
 

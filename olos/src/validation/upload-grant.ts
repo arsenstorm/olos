@@ -1,14 +1,14 @@
 import type { UploadGrant } from "../types/upload-grant";
 import {
-  assertAbsoluteHttpUrl,
   assertIsoDateField,
-  assertOnlyKnownFields,
+  assertKnownFieldsObject,
   assertUrlSafeField,
-  isRecord,
   type KnownFieldsShape,
-  pruneUnknownFields,
+  parseWithShape,
+  passes,
 } from "./fields";
 import { assertHttpHeaderStringMap } from "./http-header";
+import { assertAbsoluteHttpUrl } from "./http-url";
 
 const UPLOAD_GRANT_FIELDS = [
   "expiresAt",
@@ -29,12 +29,7 @@ const UPLOAD_GRANT_SHAPE: KnownFieldsShape = {
  * `assertUploadGrant`).
  */
 export function isUploadGrant(value: unknown): value is UploadGrant {
-  try {
-    assertUploadGrant(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertUploadGrant, value);
 }
 
 /**
@@ -46,11 +41,7 @@ export function isUploadGrant(value: unknown): value is UploadGrant {
 export function assertUploadGrant(
   value: unknown
 ): asserts value is UploadGrant {
-  if (!isRecord(value)) {
-    throw new Error("uploadGrant must be an object");
-  }
-
-  assertOnlyKnownFields(value, UPLOAD_GRANT_FIELDS, "uploadGrant");
+  assertKnownFieldsObject(value, UPLOAD_GRANT_FIELDS, "uploadGrant");
   assertUrlSafeField(value, "slotId", "uploadGrant");
   assertUploadGrantMethod(value.method);
 
@@ -73,11 +64,7 @@ export function assertUploadGrant(
  * rejected when invalid.
  */
 export function parseUploadGrant(value: unknown): UploadGrant {
-  const pruned = pruneUnknownFields(value, UPLOAD_GRANT_SHAPE);
-
-  assertUploadGrant(pruned);
-
-  return pruned;
+  return parseWithShape(value, UPLOAD_GRANT_SHAPE, assertUploadGrant);
 }
 
 function assertUploadGrantMethod(method: unknown): void {

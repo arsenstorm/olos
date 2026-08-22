@@ -13,6 +13,9 @@ export const PUBLICATION_MODES = [
   "private-upload-public-promotion",
 ] as const;
 
+/** How committed objects become publicly readable for a provider. */
+export type PublicationMode = (typeof PUBLICATION_MODES)[number];
+
 /**
  * The public delivery address of a committed media object — what a
  * publication step (promotion, read-gate registration) works from.

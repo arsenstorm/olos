@@ -1,5 +1,5 @@
 import type { ObjectKind } from "../types/storage-object";
-import { parseAbsoluteHttpUrl } from "../validation/fields";
+import { parseAbsoluteHttpUrl } from "../validation/http-url";
 import { trimSlashes, trimTrailingSlash } from "../validation/path";
 
 const LEADING_DOTS_PATTERN = /^\.+/;
@@ -102,15 +102,22 @@ function extensionSuffix(extension: string | undefined): string {
   return trimmed.length === 0 ? "" : `.${trimmed}`;
 }
 
+function objectFileName(
+  stem: string,
+  nonce: string | undefined,
+  extension: string
+): string {
+  return nonce === undefined
+    ? `${stem}${extension}`
+    : `${stem}-${nonce}${extension}`;
+}
+
 function createInitObjectKey(
   options: CreatePublisherObjectKeyOptions,
   prefix: string,
   extension: string
 ): string {
-  const fileName =
-    options.objectKeyNonce === undefined
-      ? `init${extension}`
-      : `init-${options.objectKeyNonce}${extension}`;
+  const fileName = objectFileName("init", options.objectKeyNonce, extension);
 
   return `${prefix}/${options.trackId}/${fileName}`;
 }
@@ -120,10 +127,11 @@ function createSegmentObjectKey(
   prefix: string,
   extension: string
 ): string {
-  const fileName =
-    options.objectKeyNonce === undefined
-      ? `s${options.sequenceNumber}${extension}`
-      : `s${options.sequenceNumber}-${options.objectKeyNonce}${extension}`;
+  const fileName = objectFileName(
+    `s${options.sequenceNumber}`,
+    options.objectKeyNonce,
+    extension
+  );
 
   return `${prefix}/${options.trackId}/${fileName}`;
 }
@@ -137,10 +145,11 @@ function createPartObjectKey(
     throw new Error('partNumber is required when kind is "part"');
   }
 
-  const fileName =
-    options.objectKeyNonce === undefined
-      ? `p${options.partNumber}${extension}`
-      : `p${options.partNumber}-${options.objectKeyNonce}${extension}`;
+  const fileName = objectFileName(
+    `p${options.partNumber}`,
+    options.objectKeyNonce,
+    extension
+  );
 
   return `${prefix}/${options.trackId}/s${options.sequenceNumber}/${fileName}`;
 }

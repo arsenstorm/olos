@@ -10,14 +10,14 @@ import { assertContentType } from "./content-type";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
   assertIsoDateField,
+  assertKnownFieldsObject,
   assertNonNegativeIntegerField,
   assertOneOfField,
-  assertOnlyKnownFields,
   assertPositiveIntegerField,
   assertUrlSafeField,
-  isRecord,
   type KnownFieldsShape,
-  pruneUnknownFields,
+  parseWithShape,
+  passes,
 } from "./fields";
 import { assertSafeObjectKey } from "./object-key";
 import { assertOptionalProfileField } from "./profile";
@@ -52,12 +52,7 @@ const UPLOAD_SLOT_SHAPE: KnownFieldsShape = {
  * Returns whether `value` is a valid `UploadSlot` (see `assertUploadSlot`).
  */
 export function isUploadSlot(value: unknown): value is UploadSlot {
-  try {
-    assertUploadSlot(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertUploadSlot, value);
 }
 
 /**
@@ -67,11 +62,7 @@ export function isUploadSlot(value: unknown): value is UploadSlot {
  * anything but a part slot. `profile` is only checked to be an object.
  */
 export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
-  if (!isRecord(value)) {
-    throw new Error("uploadSlot must be an object");
-  }
-
-  assertOnlyKnownFields(value, UPLOAD_SLOT_FIELDS, "uploadSlot");
+  assertKnownFieldsObject(value, UPLOAD_SLOT_FIELDS, "uploadSlot");
   assertUploadSlotIdentifiers(value);
   assertUploadSlotSequenceFields(value);
   assertUploadSlotByteFields(value);
@@ -90,11 +81,7 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
  * passed through untouched.
  */
 export function parseUploadSlot(value: unknown): UploadSlot {
-  const pruned = pruneUnknownFields(value, UPLOAD_SLOT_SHAPE);
-
-  assertUploadSlot(pruned);
-
-  return pruned;
+  return parseWithShape(value, UPLOAD_SLOT_SHAPE, assertUploadSlot);
 }
 
 function assertUploadSlotByterange(value: Record<string, unknown>): void {

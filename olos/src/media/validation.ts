@@ -9,9 +9,11 @@ import {
   assertNonNegativeIntegerField,
   assertOneOfField,
   assertOnlyKnownFields,
+  assertOptionalFields,
   assertPositiveIntegerField,
   assertPositiveNumberField,
   assertUrlSafeField,
+  passes,
 } from "../validation/fields";
 import { assertProfileData } from "../validation/profile";
 import { assertSession } from "../validation/session";
@@ -71,12 +73,7 @@ const PLAYLIST_QUOTED_STRING_FORBIDDEN = /["\r\n]/;
 
 /** Returns whether `value` is a valid `MediaSession`. */
 export function isMediaSession(value: unknown): value is MediaSession {
-  try {
-    assertMediaSession(value);
-    return true;
-  } catch {
-    return false;
-  }
+  return passes(assertMediaSession, value);
 }
 
 /**
@@ -361,11 +358,9 @@ function assertOptionalPositiveIntegerFields(
   fields: readonly string[],
   name: string
 ): void {
-  for (const field of fields) {
-    if (value[field] !== undefined) {
-      assertPositiveIntegerField(value, field, name);
-    }
-  }
+  assertOptionalFields(value, fields, (_value, field) =>
+    assertPositiveIntegerField(value, field, name)
+  );
 }
 
 function assertTrackDimensions(
