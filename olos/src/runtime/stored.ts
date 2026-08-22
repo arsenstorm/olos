@@ -217,9 +217,12 @@ export async function serveStoredBlockingCoordinatorManifest(
   });
 }
 
-// Manifest rendering only consumes cursor + session, so the store's
-// narrower hot-path read is enough when it exists.
-async function loadCursorView(
+/**
+ * Load the session's cursor view — the store's hot-path `loadCursor` when
+ * implemented, else projected from the full snapshot. Undefined when the
+ * session does not exist.
+ */
+export async function loadCursorView(
   store: CoordinatorPipelineStore,
   sessionId: OlosId
 ): Promise<{ cursor?: Cursor; session: Session } | undefined> {

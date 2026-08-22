@@ -628,4 +628,93 @@ describe("createByterangeSegmentResponse", () => {
       expect(body[i]).toBe(i % 256);
     }
   });
+
+  test("a slow consumer does not make the drain fetch every part up front", async () => {
+    const parts = [
+      makePart(0, 0, 1),
+      makePart(1, 1, 1),
+      makePart(2, 2, 1),
+      makePart(3, 3, 1),
+      makePart(4, 4, 1),
+    ];
+    const store = await seedStore(parts);
+    const client = createFakeS3(parts);
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      contentType: "video/mp4",
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    const body = response.body;
+    if (body === null) {
+      throw new Error("expected a response body");
+    }
+
+    // Give the drain time to run without ever reading: with the default
+    // queue (highWaterMark 1) it can enqueue one part and open the next,
+    // then it must park on backpressure rather than racing ahead to fetch
+    // every part before the consumer has read anything.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(client.inputs.length).toBeLessThan(parts.length);
+
+    const reader = body.getReader();
+    const first = await reader.read();
+    expect(first.done).toBe(false);
+
+    const chunks = [first.value];
+    for (;;) {
+      const next = await reader.read();
+      if (next.done) {
+        break;
+      }
+      chunks.push(next.value);
+    }
+
+    const drained = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+    let offset = 0;
+    for (const chunk of chunks) {
+      drained.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    expect(drained.length).toBe(5);
+    for (let i = 0; i < drained.length; i += 1) {
+      expect(drained[i]).toBe(i % 256);
+    }
+    expect(client.inputs.length).toBe(parts.length);
+  });
+
+  test("cancelling while the drain is parked on backpressure resolves promptly", async () => {
+    const parts = [makePart(0, 0, 1), makePart(1, 1, 1), makePart(2, 2, 1)];
+    const store = await seedStore(parts);
+    const client = createFakeS3(parts);
+
+    const response = await createByterangeSegmentResponse({
+      bucket: "media",
+      client,
+      contentType: "video/mp4",
+      segmentObjectKey: SEGMENT_OBJECT_KEY,
+      sessionId: SESSION_ID,
+      store,
+    });
+
+    const body = response.body;
+    if (body === null) {
+      throw new Error("expected a response body");
+    }
+    // Never read: with a highWaterMark of 1, the drain fills the queue with
+    // the first part and then parks on `demand.wait()` for the second,
+    // since nothing ever dequeues to wake it.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Part 0's fetch completed and part 1's is open but unread: confirms the
+    // drain is actually parked on backpressure, not merely slow to start.
+    expect(client.inputs.length).toBe(2);
+
+    const reader = body.getReader();
+    expect(await withTimeout(reader.cancel())).not.toBe(TIMED_OUT);
+  });
 });

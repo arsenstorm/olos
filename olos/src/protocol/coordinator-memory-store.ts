@@ -95,21 +95,18 @@ function resolveSaveConflict(
       );
 }
 
-// Clone only the projected fields (session and cursor, at the same depth
-// `cloneCoordinatorPipelineState` uses) so the returned view never aliases
-// the stored snapshot without deep-cloning slots and commits it discards.
+// Clone only the projected fields (session and cursor) so the returned view
+// never aliases the stored snapshot, without deep-cloning slots and commits
+// it discards.
 function cloneCursorView(
   snapshot: CoordinatorPipelineSnapshot
 ): CoordinatorCursorView {
   const { cursor, session } = snapshot.state;
 
   return {
-    ...(cursor === undefined ? {} : { cursor: { ...cursor } }),
+    ...structuredClone(cursor === undefined ? {} : { cursor }),
     etag: snapshot.etag,
-    session: {
-      ...session,
-      tracks: session.tracks.map((track) => ({ ...track })),
-    },
+    session: structuredClone(session),
   };
 }
 

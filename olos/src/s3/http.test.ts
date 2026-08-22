@@ -505,10 +505,8 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
         {
           committedAt: "2026-01-01T00:00:02.000Z",
-          etag: '"publisher-hint"',
           profile: { independent: true },
           objectKey: "objects/v1080/s3810",
-          size: 1,
         }
       )
     );
@@ -577,10 +575,8 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
         {
-          etag: '"publisher-hint"',
           profile: { independent: true },
           objectKey: "objects/v1080/s3810",
-          size: 1,
         }
       )
     );
@@ -649,10 +645,8 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
         {
-          etag: '"publisher-hint"',
           profile: { independent: true },
           objectKey: "objects/v1080/s3810",
-          size: 1,
         }
       )
     );
@@ -722,10 +716,8 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
         {
-          etag: '"publisher-hint"',
           profile: { independent: true },
           objectKey: "objects/v1080/s3810",
-          size: 1,
         }
       )
     );
@@ -812,6 +804,7 @@ describe("stored S3 coordinator runtime handler", () => {
   test("reports completion hints whose object is not yet visible instead of throwing", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
+    const onErrorCalls: unknown[] = [];
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
@@ -824,6 +817,9 @@ describe("stored S3 coordinator runtime handler", () => {
       objectClient: createTestHeadObjectClient({}, headObjectInputs, {
         missingObjectError: () => "NotFound: object is not visible yet",
       }),
+      onError: (error, context) => {
+        onErrorCalls.push({ context, error });
+      },
       providerId: "s3_primary",
       store,
     });
@@ -865,7 +861,8 @@ describe("stored S3 coordinator runtime handler", () => {
       body: {
         error: {
           code: "olos.invalid_state",
-          message: "NotFound: object is not visible yet",
+          details: { slotId: "slot_3810" },
+          message: "completion hint object is not yet observable",
         },
       },
       status: 409,
@@ -880,6 +877,15 @@ describe("stored S3 coordinator runtime handler", () => {
     // proof from a later hint, provider event, or reconciliation sweep.
     const after = await store.load(session.sessionId);
     expect(after?.state.commits).toEqual([]);
+
+    // onError receives the underlying SDK error, never surfaced in the body.
+    expect(onErrorCalls).toHaveLength(1);
+    expect(onErrorCalls[0]).toMatchObject({
+      context: { route: "completion_hint", sessionId: "session_1" },
+    });
+    expect((onErrorCalls[0] as { error: Error }).error.message).toBe(
+      "NotFound: object is not visible yet"
+    );
   });
 
   test("answers unexpected store failures on S3 commits with an opaque 500 envelope", async () => {
@@ -1002,8 +1008,6 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
         {
           deliveryUrl: "https://attacker.example.com/live/3810.m3u8",
-          etag: '"publisher-hint"',
-          size: 98_304,
         }
       )
     );
@@ -2946,6 +2950,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const headObjectInputs: unknown[] = [];
     const notifiedCursors: Cursor[] = [];
     const store = createMemoryCoordinatorStore();
+    const onErrorCalls: unknown[] = [];
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
@@ -2963,6 +2968,9 @@ describe("stored S3 coordinator runtime handler", () => {
         notify: (cursor) => notifiedCursors.push(cursor),
         waitForCursor: () =>
           Promise.reject(new Error("waiter should not be called")),
+      },
+      onError: (error, context) => {
+        onErrorCalls.push({ context, error });
       },
       providerId: "s3_primary",
       store,
@@ -3023,7 +3031,7 @@ describe("stored S3 coordinator runtime handler", () => {
       {
         error: {
           code: "olos.invalid_state",
-          message: "unexpected object key: objects/v1080/s3810",
+          message: "S3 reconciliation failed",
         },
         slotId: "slot_3810",
         status: "failed",
@@ -3039,6 +3047,15 @@ describe("stored S3 coordinator runtime handler", () => {
     });
     expect(stored?.state.cursor).toBeUndefined();
     expect(notifiedCursors).toEqual([]);
+    // onError receives the underlying thrown error, never surfaced in the
+    // body (the body carries only the fixed "S3 reconciliation failed").
+    expect(onErrorCalls).toHaveLength(1);
+    expect(onErrorCalls[0]).toMatchObject({
+      context: { route: "reconciliation", sessionId: "session_1" },
+    });
+    expect((onErrorCalls[0] as { error: Error }).error.message).toBe(
+      "unexpected object key: objects/v1080/s3810"
+    );
     expect(headObjectInputs).toEqual([
       {
         Bucket: S3_BUCKET,

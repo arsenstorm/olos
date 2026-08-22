@@ -254,8 +254,8 @@ async function commitObservedObject(
   const object = await observeS3Object({
     bucket: options.bucket,
     client: options.client,
+    now: options.committedAt,
     objectKey: slot.objectKey,
-    observedAt: options.committedAt,
     providerId: options.providerId,
     versionId: options.versionId,
   });

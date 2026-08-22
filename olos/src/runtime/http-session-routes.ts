@@ -102,6 +102,10 @@ async function handleSessionRoute(
     ).response;
   }
 
+  if (parts.length === 0) {
+    return jsonMethodNotAllowedResponse(["POST"]);
+  }
+
   const [sessionId, action] = parts;
 
   if (sessionId === undefined || action === undefined || parts.length !== 2) {

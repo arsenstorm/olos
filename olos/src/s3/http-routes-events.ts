@@ -283,6 +283,8 @@ export async function handleS3Reconciliation(
     client: options.objectClient ?? options.client,
     commitPolicy: options.commitPolicy,
     maxAttempts: options.maxAttempts,
+    onError: (error) =>
+      options.onError?.(error, { route: "reconciliation", sessionId }),
     publicationControl: options.publicationControl,
     sessionId,
     store: options.store,

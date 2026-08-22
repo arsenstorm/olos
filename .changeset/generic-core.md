@@ -29,3 +29,26 @@ responses take profile-supplied `allowedObjectExtensions` /
 `mediaCommitPolicy` (the runtime default) requires `profile.duration`
 on segment and part commits; runtime defaults no longer import media
 pacing.
+
+`@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner` move from
+`dependencies` to optional `peerDependencies`: only `@arsenstorm/olos/s3`
+imports them, so consumers of the other subpaths no longer install the AWS
+SDK, and consumers of `/s3` now bring their own SDK copy instead of getting
+one the package's `dependencies` pinned (install both to use `/s3`; see the
+README). Also fixed: `cloneCoordinatorPipelineState` and the memory store's
+`cloneCursorView` shallow-copied nested fields (a slot's `byterange`/
+`profile`, a cursor's `committedWindow`) despite documenting a deep clone,
+so a caller mutating a loaded snapshot could corrupt the store's copy; both
+now use `structuredClone`.
+
+Also: completed segments keep their `EXT-X-PART` lines until three target
+durations from the playlist end (RFC 8216bis §6.2.2); `CAN-BLOCK-RELOAD`
+is advertised only when blocking reload is configured
+(`canBlockReload` render option); the late-upload deadline is judged on
+S3 `LastModified`, with the request's `committedAt` as fallback only;
+byterange responses apply backpressure instead of buffering the whole
+range; completion-hint and reconciliation failures return fixed messages
+(raw errors go to the new `onError` handler option); completion hints
+reject `etag`/`size`; the runtime client honours a `baseUrl` path prefix
+and takes `sessionPath`; `GET /sessions` answers 405; live playlist
+requests load the cursor view once.

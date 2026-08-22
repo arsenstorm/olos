@@ -328,10 +328,21 @@ describe("stored coordinator runtime handler", () => {
     const liveNotFound = await handle(
       new Request("https://edge.example.com/v1/live/session_1/v1080/extra.m3u8")
     );
+    const sessionRootGet = await handle(
+      new Request("https://edge.example.com/sessions")
+    );
+    const sessionRootDelete = await handle(
+      new Request("https://edge.example.com/sessions", { method: "DELETE" })
+    );
 
     expect(routeNotFound).toHaveProperty("status", 404);
     expect(methodNotAllowed).toHaveProperty("status", 405);
     expect(methodNotAllowed.headers.get("allow")).toBe("POST");
+    expect(sessionRootGet).toHaveProperty("status", 405);
+    expect(sessionRootGet.headers.get("allow")).toBe("POST");
+    expect(sessionRootDelete).toHaveProperty("status", 405);
+    expect(sessionRootDelete.headers.get("allow")).toBe("POST");
+    await expectOlosErrorEnvelope(sessionRootGet);
     expect(postOnGetAction).toHaveProperty("status", 405);
     expect(postOnGetAction.headers.get("allow")).toBe("GET");
     // Unknown actions are missing routes, not method mismatches — a 405

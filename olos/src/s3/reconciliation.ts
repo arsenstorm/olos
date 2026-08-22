@@ -62,6 +62,8 @@ export interface ReconcileStoredS3CoordinatorUploadsOptions {
   manifest?: StoredS3CoordinatorManifestOptions;
   maxAttempts?: number;
   maxSegments?: number;
+  /** Receives a slot's thrown error before it is reported as `failed`. */
+  onError?: (error: unknown) => void;
   /** Profile-defined facts recorded on each commit, fixed or per slot. */
   profile?: SlotValue<ProfileData | undefined>;
   providerId: OlosId;

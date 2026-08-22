@@ -79,6 +79,9 @@ path segment. The following rules apply to every route:
   An unknown action name for the request's method counts as an
   unsupported method. S3-binding routes accept only `POST`. Any other
   method on a matched S3 path MUST produce `405`.
+- The session root (`/sessions`) accepts only `POST`. Any other method
+  on it MUST produce `405` with code `olos.method_not_allowed` and an
+  `Allow: POST` response header, not `404`.
 - Request bodies are JSON. If a body is not a JSON object, or if its
   fields fail validation, the coordinator MUST reject it with `400`
   and code `olos.invalid_request`. The `message` SHOULD identify the
@@ -126,7 +129,7 @@ Thirteen domain codes describe protocol-level rejections:
 | `olos.invalid_session` | The referenced coordinator session does not exist (all stored routes, HTTP 404). |
 | `olos.invalid_state` | A state-machine precondition fails: illegal session transition, heartbeat against an `ended`/`aborted` session, commit against an aborted session, commit of an unverified object, commit behind the live cursor, object slot-metadata mismatch, revocation of a cursor-visible slot, or a malformed provider event record. |
 | `olos.unknown_slot` | A commit, completion hint, event, or revocation references a `slotId` or object key with no matching slot (HTTP 404). |
-| `olos.slot_expired` | Reserved: rejection of an upload against an expired slot. The reference implementation currently retires expired slots through retention (Section 9) and does not emit this code. |
+| `olos.slot_expired` | The upload was observed after the slot's `expiresAt` plus the configured late tolerance (Section 4.5.3). Slots that expire without an upload are retired by retention (Section 9) and later commits answer `olos.unknown_slot`. |
 | `olos.key_mismatch` | The observed object key differs from the slot's derived key, or completion-hint and observed evidence disagree on the key. |
 | `olos.content_type_mismatch` | The observed object's content type differs from the slot's bound content type. |
 | `olos.object_too_large` | Observed size exceeds `uploadSlot.maxBytes`. S3-binding rejections also attach an `auditEvent` (Section 6.6.3). |
@@ -373,9 +376,9 @@ The body is as Section 6.6.2 with these differences:
   `slotId`.
 - `commitId` defaults to `complete_<slotId>` when omitted.
 - `committedAt` defaults to the coordinator's current time.
-- `etag` and `size` MAY be present. The coordinator validates them for
-  shape only. Authoritative values come from the coordinator's own
-  observation.
+- `etag` and `size` MUST NOT be present. `HeadObject` (Section 7.3) is
+  the only source of truth for observed object metadata; requests that
+  carry either are `400`.
 - `deliveryUrl` MUST NOT be present. Requests that carry it are `400`.
 
 Success and errors: as Section 6.6.2. When the coordinator rejects an

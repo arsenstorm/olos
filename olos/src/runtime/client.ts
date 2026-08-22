@@ -13,6 +13,7 @@ import type {
   RuntimeCommitUploadResponse,
   RuntimeCreateSessionOptions,
   RuntimeCreateSessionResponse,
+  RuntimeHttpClientOptions,
   RuntimeIssueSlotOptions,
   RuntimeIssueSlotResponse,
   RuntimeMasterPlaylistOptions,
@@ -32,6 +33,7 @@ import { normalizedSafeRelativePath } from "./path";
 import { nonNegativeInteger } from "./request-fields";
 import {
   DEFAULT_LIVE_PATH,
+  DEFAULT_SESSION_PATH,
   liveMasterPath,
   liveMediaPath,
   sessionRootPathFromOptions,
@@ -47,7 +49,7 @@ export async function sendRuntimePublisherHeartbeat(
   options: RuntimePublisherHeartbeatOptions
 ): Promise<RuntimePublisherHeartbeatResponse> {
   const response = await fetchFor(options)(
-    sessionUrl(options.baseUrl, options.sessionId, "heartbeat"),
+    sessionUrl(options, options.sessionId, "heartbeat"),
     jsonPost({
       publisherInstanceId: options.publisherInstanceId,
     })
@@ -70,7 +72,7 @@ export async function createRuntimeSession(
   options: RuntimeCreateSessionOptions
 ): Promise<RuntimeCreateSessionResponse> {
   const response = await fetchFor(options)(
-    sessionsUrl(options.baseUrl),
+    sessionsUrl(options),
     jsonPost({
       deliveryBaseUrl: options.deliveryBaseUrl,
       session: options.session,
@@ -94,7 +96,7 @@ export async function transitionRuntimeSession(
   options: RuntimeTransitionSessionOptions
 ): Promise<RuntimeTransitionSessionResponse> {
   const response = await fetchFor(options)(
-    sessionUrl(options.baseUrl, options.sessionId, "transition"),
+    sessionUrl(options, options.sessionId, "transition"),
     jsonPost({ state: options.state })
   );
 
@@ -117,7 +119,7 @@ export async function issueRuntimeSlot(
   options: RuntimeIssueSlotOptions
 ): Promise<RuntimeIssueSlotResponse> {
   const response = await fetchFor(options)(
-    sessionUrl(options.baseUrl, options.sessionId, "slots"),
+    sessionUrl(options, options.sessionId, "slots"),
     jsonPost(options.payload)
   );
 
@@ -139,7 +141,7 @@ export async function commitRuntimeUpload(
   options: RuntimeCommitUploadOptions
 ): Promise<RuntimeCommitUploadResponse> {
   const response = await fetchFor(options)(
-    sessionUrl(options.baseUrl, options.sessionId, "commits"),
+    sessionUrl(options, options.sessionId, "commits"),
     jsonPost(options.payload)
   );
 
@@ -159,7 +161,7 @@ export async function commitRuntimeUpload(
 export async function getRuntimeSessionHealth(
   options: RuntimeSessionHealthOptions
 ): Promise<RuntimeSessionHealthResponse> {
-  const url = sessionUrl(options.baseUrl, options.sessionId, "health");
+  const url = sessionUrl(options, options.sessionId, "health");
 
   if (options.publisherInstanceId !== undefined) {
     url.searchParams.set("publisherInstanceId", options.publisherInstanceId);
@@ -184,7 +186,7 @@ export async function getRuntimeSessionHealth(
 export async function getRuntimeSessionRetentionPlan(
   options: RuntimeSessionRetentionOptions
 ): Promise<RuntimeSessionRetentionResponse> {
-  const url = sessionUrl(options.baseUrl, options.sessionId, "retention");
+  const url = sessionUrl(options, options.sessionId, "retention");
 
   if (options.now !== undefined) {
     url.searchParams.set("now", options.now);
@@ -248,14 +250,36 @@ export async function getRuntimeMediaPlaylist(
   };
 }
 
-function sessionsUrl(baseUrl: string): URL {
-  return new URL(sessionRootPathFromOptions(), normalizedBaseUrl(baseUrl));
+function sessionsUrl(options: RuntimeHttpClientOptions): URL {
+  const relativePath = sessionRootPathFromOptions({
+    sessionPath: normalizedSessionPath(options),
+  });
+
+  return new URL(
+    stripLeadingSlash(relativePath),
+    normalizedBaseUrl(options.baseUrl)
+  );
 }
 
-function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
+function sessionUrl(
+  options: RuntimeHttpClientOptions,
+  sessionId: string,
+  action: string
+): URL {
+  const relativePath = sessionRoutePathFromOptions(sessionId, action, {
+    sessionPath: normalizedSessionPath(options),
+  });
+
   return new URL(
-    sessionRoutePathFromOptions(sessionId, action, {}),
-    normalizedBaseUrl(baseUrl)
+    stripLeadingSlash(relativePath),
+    normalizedBaseUrl(options.baseUrl)
+  );
+}
+
+function normalizedSessionPath(options: RuntimeHttpClientOptions): string {
+  return normalizedSafeRelativePath(
+    options.sessionPath ?? DEFAULT_SESSION_PATH.slice(1),
+    "sessionPath"
   );
 }
 
@@ -269,8 +293,13 @@ function liveUrl(options: RuntimeMasterPlaylistOptions, trackId?: string): URL {
     trackId === undefined
       ? liveMasterPath(livePath, options.sessionId)
       : liveMediaPath(livePath, options.sessionId, trackId);
-  const requestPath =
-    relativePath[0] === "/" ? relativePath.slice(1) : relativePath;
 
-  return new URL(requestPath, normalizedBaseUrl(options.baseUrl));
+  return new URL(
+    stripLeadingSlash(relativePath),
+    normalizedBaseUrl(options.baseUrl)
+  );
+}
+
+function stripLeadingSlash(path: string): string {
+  return path[0] === "/" ? path.slice(1) : path;
 }

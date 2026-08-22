@@ -34,27 +34,18 @@ export function cloneCoordinatorPipelineSnapshot(
 
 /**
  * Deep-clone a pipeline state: commits, slots, leases, cursor, and session
- * tracks are all copied. A missing `publisherLeases` array is normalized
- * to an empty one, so clones of pre-lease snapshots are always well formed.
+ * tracks are all copied, so the clone shares no mutable objects (including
+ * nested ones such as a slot's `byterange`/`profile` or the cursor's
+ * `committedWindow`) with the original. A missing `publisherLeases` array is
+ * normalized to an empty one, so clones of pre-lease snapshots are always
+ * well formed.
  */
 export function cloneCoordinatorPipelineState(
   state: CoordinatorPipelineState
 ): CoordinatorPipelineState {
   return {
-    ...state,
-    commits: state.commits.map((commit) => ({ ...commit })),
-    initCommits: state.initCommits.map((commit) => ({ ...commit })),
-    publisherLeases: (state.publisherLeases ?? []).map((lease) => ({
-      ...lease,
-    })),
-    slots: state.slots.map((slot) => ({ ...slot })),
-    ...(state.cursor === undefined ? {} : { cursor: { ...state.cursor } }),
-    session: {
-      ...state.session,
-      tracks: state.session.tracks.map((track) => ({
-        ...track,
-      })),
-    },
+    ...structuredClone(state),
+    publisherLeases: structuredClone(state.publisherLeases ?? []),
   };
 }
 

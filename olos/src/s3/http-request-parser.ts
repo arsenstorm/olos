@@ -3,11 +3,7 @@ import {
   parseCommitTimestampOrNow,
   parseOptionalUrlSafeIdentifierArrayField,
 } from "../runtime/commit-payload-parser";
-import {
-  optionalNonNegativeNumberField,
-  optionalStringField,
-  timestampField,
-} from "../runtime/request-fields";
+import { timestampField } from "../runtime/request-fields";
 import {
   boundedJsonRequestBody,
   isRuntimeJsonBodyTooLarge,
@@ -161,8 +157,7 @@ function parseCompletionHintPayload(
     }
   );
   assertNoCompletionHintDeliveryUrl(value);
-  optionalStringField(value, "etag");
-  optionalNonNegativeNumberField(value, "size");
+  assertNoCompletionHintObservedFields(value);
 
   return base;
 }
@@ -253,6 +248,18 @@ function assertNoCompletionHintDeliveryUrl(
 ): void {
   if (value.deliveryUrl !== undefined) {
     throw new Error("completion hint must not include deliveryUrl");
+  }
+}
+
+// HeadObject is the only source of truth for observed object metadata; a
+// hint cannot override what it reports.
+function assertNoCompletionHintObservedFields(
+  value: Record<string, unknown>
+): void {
+  for (const field of ["etag", "size"] as const) {
+    if (value[field] !== undefined) {
+      throw new Error(`completion hint must not include ${field}`);
+    }
   }
 }
 

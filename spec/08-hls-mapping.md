@@ -194,8 +194,11 @@ appear as absent entries, never as GAP tags. Rendition reports
 #EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=<p>,HOLD-BACK=<h>
 ```
 
-- The playlist always advertises `CAN-BLOCK-RELOAD=YES`. The server
-  MUST implement Section 8.6.
+- `CAN-BLOCK-RELOAD=YES` MUST only be advertised when the server
+  implements blocking playlist reload (Section 8.6). A deployment
+  that does not hold `_HLS_msn`/`_HLS_part` requests open MUST omit
+  the attribute; RFC 8216bis Section 4.4.3.8 treats its absence as
+  `NO`, so no `CAN-BLOCK-RELOAD=NO` form is ever rendered.
 - `HOLD-BACK` is `max(3 × EXT-X-TARGETDURATION, targetLatency)`, where
   `targetLatency` is the deployment's target latency in seconds
   (default 3). RFC 8216bis Section 4.4.3.8 floors the tag at three
@@ -248,12 +251,20 @@ one exists, else from the profile of part `0`. For each segment:
    profile carries `programDateTime`, or, when it does not, when
    part 0's profile does. Segments without one emit no PDT tag.
 3. Then either:
-   - **Full segment** (a committed segment object exists):
-     `#EXTINF:<duration>,` (three-decimal seconds, trailing comma)
-     followed by the segment's delivery URI on the next line. The
-     duration is the segment object's `profile.duration`, or, when
-     the segment object carries none, the sum of its visible parts'
-     `profile.duration`. A segment with neither is a rendering error.
+   - **Full segment** (a committed segment object exists): when the
+     segment also carries committed parts (Section 8.5) and the
+     segment is still less than three target durations from the end
+     of the playlist, one `#EXT-X-PART` line per part first (RFC
+     8216bis Section 6.2.2: a server MUST keep a completed segment's
+     parts in the playlist until it is at least three target
+     durations from the end), with no `#EXT-X-PRELOAD-HINT` — that
+     hint only ever accompanies the in-progress parts-only segment.
+     Then `#EXTINF:<duration>,` (three-decimal seconds, trailing
+     comma) followed by the segment's delivery URI on the next line.
+     The duration is the segment object's `profile.duration`, or,
+     when the segment object carries none, the sum of its visible
+     parts' `profile.duration`. A segment with neither is a rendering
+     error.
    - **Partial segment** (in-progress, parts only): one `#EXT-X-PART`
      line per committed part (Section 8.5), followed by at most one
      `#EXT-X-PRELOAD-HINT` (Section 8.5.1).
@@ -261,6 +272,11 @@ one exists, else from the profile of part `0`. For each segment:
 ## 8.5 Parts and byterange addressing
 
 <!-- olos-conformance: 8.5 HLS-BYTERANGE-001 HLS-BYTERANGE-002 HLS-BYTERANGE-003 -->
+
+A part renders identically whether its segment is still in progress
+or has completed: a completed segment's parts remain in the playlist
+until the segment is at least three target durations from the end
+(Section 8.4.3).
 
 Each committed part renders as:
 

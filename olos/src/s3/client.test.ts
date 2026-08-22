@@ -88,10 +88,8 @@ describe("S3 runtime HTTP client", () => {
       fetch: clientFetch,
       payload: {
         committedAt: "2026-01-01T00:00:03.000Z",
-        etag: '"objects/v1080/s3810"',
         profile: { independent: true },
         objectKey: "objects/v1080/s3810",
-        size: 98_304,
       },
       sessionId: session.sessionId,
       slotId: segment.slot.slotId,

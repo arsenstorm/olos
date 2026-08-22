@@ -6,7 +6,6 @@ import {
 } from "../runtime/response";
 import { parseSlotIssueRequest } from "../runtime/slot-issue-request-parser";
 import { createOlosError } from "../types/errors";
-import { errorMessage } from "../validation/fields";
 import { completeStoredS3CoordinatorUpload } from "./coordinator-event";
 import { issueStoredS3CoordinatorUploadGrant } from "./coordinator-grant";
 import { invalid, type StoredS3CoordinatorRuntimeHandlerContext } from "./http";
@@ -149,7 +148,9 @@ export async function handleS3CompletionHint(
     publicationControl: options.publicationControl,
     sessionId,
     store: options.store,
-  }).catch(completionHintNotObservedOrRethrow);
+  }).catch((error: unknown) =>
+    completionHintNotObservedOrRethrow(error, { options, sessionId, slotId })
+  );
 
   if (result instanceof Response) {
     return result;
@@ -159,23 +160,35 @@ export async function handleS3CompletionHint(
   return s3CommitResponse(result, options);
 }
 
-function completionHintNotObservedOrRethrow(error: unknown): Response {
-  if (error instanceof S3CompletionHintObservationError) {
-    return completionHintNotObservedResponse(error);
+function completionHintNotObservedOrRethrow(
+  error: unknown,
+  context: {
+    options: CreateStoredS3CoordinatorRuntimeHandlerOptions;
+    sessionId: string;
+    slotId: string;
+  }
+): Response {
+  if (!(error instanceof S3CompletionHintObservationError)) {
+    throw error;
   }
 
-  throw error;
+  context.options.onError?.(error.cause, {
+    route: "completion_hint",
+    sessionId: context.sessionId,
+  });
+  return completionHintNotObservedResponse(context.slotId);
 }
 
 /**
  * Marks `HeadObject` failures raised while verifying a completion hint.
  * Only these map to the hint's "not yet observed" error envelope; any other
  * throw (store I/O, a corrupt snapshot) still reaches the handler's opaque
- * 500 guard.
+ * 500 guard. The SDK error is kept as `cause` for `onError`; the HTTP
+ * response never surfaces its message.
  */
 class S3CompletionHintObservationError extends Error {
   constructor(cause: unknown) {
-    super(errorMessage(cause, "completion hint object was not observed"));
+    super("completion hint object was not observed", { cause });
     this.name = "S3CompletionHintObservationError";
   }
 }
@@ -199,12 +212,15 @@ function tagCompletionHintObservationFailures(
 
 // The slot stays uncommitted awaiting proof; `olos.invalid_state` matches
 // the reconciliation routes' failed-record style so the publisher can
-// retry the hint or leave it to events/reconciliation.
-function completionHintNotObservedResponse(
-  error: S3CompletionHintObservationError
-): Response {
+// retry the hint or leave it to events/reconciliation. The message is fixed
+// rather than the SDK's — it never reaches the response body.
+function completionHintNotObservedResponse(slotId: string): Response {
   return jsonResponse(
-    createOlosError("olos.invalid_state", error.message),
+    createOlosError(
+      "olos.invalid_state",
+      "completion hint object is not yet observable",
+      { slotId }
+    ),
     rejectionStatusCode("olos.invalid_state")
   );
 }

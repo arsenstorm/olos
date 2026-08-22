@@ -108,20 +108,19 @@ export interface S3RuntimeRetentionPayload {
 
 /**
  * Optional JSON body for the completion-hint route. Every field overrides a
- * value the runtime would otherwise derive itself (commit id, timestamps,
- * observed object metadata).
+ * value the runtime would otherwise derive itself (commit id, timestamps).
+ * `etag` and `size` are not accepted here: `HeadObject` is the only source
+ * of truth for observed object metadata.
  */
 export interface S3RuntimeCompletionHintPayload {
   commitId?: string;
   committedAt?: string;
-  etag?: string;
   lateToleranceMs?: number;
   maxSegments?: number;
   objectKey?: string;
   /** Profile-defined facts about the object, merged over the slot profile. */
   profile?: ProfileData;
   providerId?: string;
-  size?: number;
   versionId?: string;
 }
 

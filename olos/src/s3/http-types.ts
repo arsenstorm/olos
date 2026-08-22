@@ -45,6 +45,15 @@ export interface CreateStoredS3CoordinatorRuntimeHandlerOptions
   lateToleranceMs?: number;
   /** Narrow HeadObject client for commit verification (default: `client`). */
   objectClient?: S3HeadObjectClient;
+  /**
+   * Receives the underlying error for failures the handler reports
+   * opaquely — completion-hint observation failures and reconciliation
+   * throws — so deployments can log them.
+   */
+  onError?: (
+    error: unknown,
+    context: { route: string; sessionId: string }
+  ) => void;
   /** Provider id for S3 event routes; without it `s3/events` returns 400. */
   providerId?: string;
   /** Narrow DeleteObject client for retention sweeps (default: `client`). */

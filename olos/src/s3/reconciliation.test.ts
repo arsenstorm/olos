@@ -298,7 +298,7 @@ describe("stored S3 upload reconciliation", () => {
       "failed",
     ]);
     expect(result.results[1]).toMatchObject({
-      error: "missing object: objects/v1080/s3810",
+      error: "S3 reconciliation failed",
       status: "failed",
     });
     expect(summarizeStoredS3CoordinatorUploadReconciliation(result)).toEqual({

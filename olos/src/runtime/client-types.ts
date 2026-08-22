@@ -32,6 +32,8 @@ export interface RuntimeHttpClientOptions {
   baseUrl: string;
   /** Transport override; defaults to the global `fetch`. */
   fetch?: RuntimeFetch;
+  /** Session route prefix relative to `baseUrl`; defaults to `sessions`. */
+  sessionPath?: string;
 }
 
 /**

@@ -437,6 +437,94 @@ describe("s3 coordinator uploads", () => {
     ]);
   });
 
+  test("rejects a commit as slot_expired when S3's LastModified is late even though committedAt is not", async () => {
+    let state = createEmptyCoordinatorState();
+    state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      profile: { duration: 2 },
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      sequenceNumber: 3810,
+      trackId: "v1080",
+      slotId: "slot_3810",
+      state,
+    }).state;
+
+    const client: S3HeadObjectClient = {
+      send(): Promise<HeadObjectCommandOutput> {
+        return Promise.resolve({
+          $metadata: {},
+          ContentLength: 98_304,
+          ContentType: "video/mp4",
+          ETag: '"objects/v1080/s3810"',
+          LastModified: new Date("2026-01-01T00:00:10.000Z"),
+        });
+      },
+    };
+
+    const result = await commitS3CoordinatorUpload({
+      bucket: "media",
+      client,
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      lateToleranceMs: 1000,
+      providerId: "s3_primary",
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected commit");
+    }
+
+    expect(result.error.error.code).toBe("olos.slot_expired");
+  });
+
+  test("falls back to committedAt as the observation time when S3 reports no LastModified", async () => {
+    let state = createEmptyCoordinatorState();
+    state = issueCoordinatorSlot({
+      contentType: "video/mp4",
+      profile: { duration: 2 },
+      expiresAt: "2026-01-01T00:00:05.000Z",
+      kind: "segment",
+      maxBytes: 100_000,
+      sequenceNumber: 3810,
+      trackId: "v1080",
+      slotId: "slot_3810",
+      state,
+    }).state;
+
+    const client: S3HeadObjectClient = {
+      send(): Promise<HeadObjectCommandOutput> {
+        return Promise.resolve({
+          $metadata: {},
+          ContentLength: 98_304,
+          ContentType: "video/mp4",
+          ETag: '"objects/v1080/s3810"',
+        });
+      },
+    };
+
+    const result = await commitS3CoordinatorUpload({
+      bucket: "media",
+      client,
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      providerId: "s3_primary",
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(result.status).toBe("committed");
+    if (result.status !== "committed") {
+      throw new Error("expected committed upload");
+    }
+
+    expect(result.commit.objectKey).toBe("objects/v1080/s3810");
+  });
+
   test("retries stored S3 commits after save conflicts with current state", async () => {
     const headObjectInputs: unknown[] = [];
     const store = await createCommitConflictingStore();

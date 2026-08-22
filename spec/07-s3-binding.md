@@ -81,10 +81,13 @@ Before any commit, the coordinator MUST observe the uploaded object
 through the provider. In the S3 profile, the observation is a
 `HeadObject` on the slot's object key (optionally version-pinned with
 `versionId`). The observation yields the authoritative `size`,
-`contentType`, `etag`, `observedAt` (from `Last-Modified` when the
-caller supplies no timestamp), and metadata. The coordinator MUST
-reject commits built from unverified claims (`olos.invalid_state`,
-Section 6.3.1).
+`contentType`, `etag`, `observedAt`, and metadata. `observedAt` is the
+provider's `Last-Modified` when the provider reports one; the
+request's `committedAt` is only a fallback, used when the provider
+reports no `Last-Modified`. This keeps the slot deadline (Section
+4.5.3) judged against provider-observed time, not a client-supplied
+one. The coordinator MUST reject commits built from unverified claims
+(`olos.invalid_state`, Section 6.3.1).
 
 Metadata echo binds the object to its slot. The coordinator reads the
 slot id from observed metadata under the key `x-olos-slot-id`. It

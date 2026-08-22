@@ -1,4 +1,5 @@
 import { assertMediaSession } from "../media/validation";
+import type { Cursor } from "../types/cursor";
 import type { Session, Track } from "../types/session";
 import { errorMessage } from "../validation/fields";
 import { notFound, routeSessionIdError, sessionNotFound } from "./http-parse";
@@ -8,14 +9,15 @@ import {
   type RuntimeLiveManifestRoute,
 } from "./http-types";
 import {
+  serveBlockingCoordinatorManifest,
+  serveCoordinatorManifest,
+} from "./manifest";
+import {
   jsonBadRequestResponse,
   jsonMethodNotAllowedResponse,
 } from "./response";
 import { DEFAULT_LIVE_PATH, liveMasterPath, liveMediaPath } from "./route";
-import {
-  serveStoredBlockingCoordinatorManifest,
-  serveStoredCoordinatorManifest,
-} from "./stored";
+import { loadCursorView } from "./stored";
 export async function handleLiveRoute(
   request: Request,
   parts: readonly string[],
@@ -37,13 +39,13 @@ export async function handleLiveRoute(
     return jsonBadRequestResponse(sessionIdError);
   }
 
-  const snapshot = await options.store.load(route.sessionId);
+  const view = await loadCursorView(options.store, route.sessionId);
 
-  if (snapshot === undefined) {
+  if (view === undefined) {
     return sessionNotFound();
   }
 
-  const rejected = nonMediaSessionResponse(snapshot.state.session);
+  const rejected = nonMediaSessionResponse(view.session);
 
   if (rejected !== undefined) {
     return rejected;
@@ -52,7 +54,8 @@ export async function handleLiveRoute(
   return await serveLiveManifest(
     liveManifestOptions(request, route.sessionId, options),
     route,
-    options
+    options,
+    view
   );
 }
 
@@ -75,20 +78,24 @@ function nonMediaSessionResponse(session: Session): Response | undefined {
 }
 
 /** Media playlists block when the deployment configured a reload waiter. */
-function serveLiveManifest(
+async function serveLiveManifest(
   manifest: ReturnType<typeof liveManifestOptions>,
   route: RuntimeLiveManifestRoute,
-  options: CreateStoredCoordinatorRuntimeHandlerOptions
+  options: CreateStoredCoordinatorRuntimeHandlerOptions,
+  view: { cursor?: Cursor; session: Session }
 ): Promise<Response> {
+  const state = { cursor: view.cursor, session: view.session };
+
   if (route.kind === "media" && options.blockingReload !== undefined) {
-    return serveStoredBlockingCoordinatorManifest({
+    return await serveBlockingCoordinatorManifest({
       ...manifest,
+      state,
       timeoutMs: options.blockingReload.timeoutMs,
       waitForCursor: options.blockingReload.waitForCursor,
     });
   }
 
-  return serveStoredCoordinatorManifest(manifest);
+  return serveCoordinatorManifest({ ...manifest, state });
 }
 
 function liveManifestRoute(
@@ -120,13 +127,12 @@ function liveManifestOptions(
 
   return {
     allowedDeliveryOrigins: options.allowedDeliveryOrigins,
+    canBlockReload: options.blockingReload !== undefined,
     masterPath: liveMasterPath(livePath, sessionId),
     mediaPlaylistPath: (session: Session, track: Track) =>
       liveMediaPath(livePath, session.sessionId, track.trackId),
     request,
     response: options.response,
-    sessionId,
-    store: options.store,
     targetLatency: options.targetLatency ?? DEFAULT_TARGET_LATENCY,
   };
 }

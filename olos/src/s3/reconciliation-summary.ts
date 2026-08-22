@@ -1,7 +1,7 @@
 import { optionalField } from "../runtime/request-fields";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
-import { errorMessage, isAllowedString } from "../validation/fields";
+import { isAllowedString } from "../validation/fields";
 import { commitStoredS3CoordinatorUpload } from "./coordinator-grant";
 import type {
   CommitStoredS3CoordinatorUploadOptions,
@@ -181,7 +181,8 @@ async function reconcileSlot(
 
     return failedStoredS3CoordinatorUploadReconciliationResult(slot, result);
   } catch (error) {
-    return failedStoredS3CoordinatorUploadReconciliationError(slot, error);
+    options.onError?.(error);
+    return failedStoredS3CoordinatorUploadReconciliationError(slot);
   }
 }
 
@@ -242,11 +243,10 @@ function failedStoredS3CoordinatorUploadReconciliationResult(
 }
 
 function failedStoredS3CoordinatorUploadReconciliationError(
-  slot: UploadSlot,
-  error: unknown
+  slot: UploadSlot
 ): FailedStoredS3CoordinatorUploadReconciliationResult {
   return {
-    error: errorMessage(error, "S3 reconciliation failed"),
+    error: "S3 reconciliation failed",
     slot,
     status: "failed",
   };

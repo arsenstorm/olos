@@ -322,6 +322,33 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812-slot_s3
     ).toThrow("options.targetLatency must be a positive number");
   });
 
+  test("advertises CAN-BLOCK-RELOAD=YES by default", () => {
+    expect(renderMediaPlaylist(committedWindow, options)).toContain(
+      "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK="
+    );
+  });
+
+  test("omits CAN-BLOCK-RELOAD when the server does not block reloads", () => {
+    const playlist = renderMediaPlaylist(committedWindow, {
+      ...options,
+      canBlockReload: false,
+    });
+
+    expect(playlist).toContain(
+      "#EXT-X-SERVER-CONTROL:PART-HOLD-BACK=3.000,HOLD-BACK=6.000"
+    );
+    expect(playlist).not.toContain("CAN-BLOCK-RELOAD");
+  });
+
+  test("rejects a non-boolean canBlockReload", () => {
+    expect(() =>
+      renderMediaPlaylist(committedWindow, {
+        ...options,
+        canBlockReload: "yes" as unknown as boolean,
+      })
+    ).toThrow("options.canBlockReload must be a boolean");
+  });
+
   test("omits preload hints by default", () => {
     expect(renderMediaPlaylist(committedWindow, options)).not.toContain(
       "#EXT-X-PRELOAD-HINT"
@@ -449,6 +476,82 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812-slot_s3
     expect(playlist).toContain(
       '#EXT-X-PART:DURATION=0.500,URI="https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p1-slot_3812_1.m4s"'
     );
+  });
+
+  test("retains parts on completed segments within three target durations of the end", () => {
+    // Four 1080p segments: three full 2s segments each carrying two 1s
+    // parts, then a trailing in-progress (parts-only) segment with two 1s
+    // parts (2s total). Walking back from the end (RFC 8216bis §6.2.2, floor
+    // = 3 * segmentTarget = 6s):
+    //   trailing (parts-only, always shown)   distance 0s -> +2s
+    //   3812 (newest full segment)             distance 2s < 6s -> retained
+    //   3811 (middle full segment)             distance 4s < 6s -> retained
+    //   3810 (oldest full segment)             distance 6s, NOT < 6s -> dropped
+    const fullPart = (partNumber: 0 | 1, sequenceNumber: number) => ({
+      commitId: `commit_${sequenceNumber}_${partNumber}`,
+      deliveryUrl: `${MEDIA_ORIGIN}/media/${sequenceNumber}/p${partNumber}.m4s`,
+      objectKey: `media/${sequenceNumber}/p${partNumber}.m4s`,
+      partNumber,
+      profile: { duration: 1 },
+      slotId: `slot_${sequenceNumber}_${partNumber}`,
+    });
+
+    const fullSegment = (sequenceNumber: number): CommittedSegment => ({
+      parts: [fullPart(0, sequenceNumber), fullPart(1, sequenceNumber)],
+      segment: {
+        commitId: `commit_${sequenceNumber}`,
+        deliveryUrl: `${MEDIA_ORIGIN}/media/${sequenceNumber}.m4s`,
+        objectKey: `media/${sequenceNumber}.m4s`,
+        profile: { duration: 2 },
+        slotId: `slot_${sequenceNumber}`,
+      },
+      sequenceNumber,
+    });
+
+    const trailingSegment: CommittedSegment = {
+      parts: [fullPart(0, 3813), fullPart(1, 3813)],
+      sequenceNumber: 3813,
+    };
+
+    const playlist = renderMediaPlaylist(
+      {
+        ...committedWindow,
+        lastSequenceNumber: 3813,
+        tracks: {
+          v1080: {
+            ...validTrack(),
+            segments: [
+              fullSegment(3810),
+              fullSegment(3811),
+              fullSegment(3812),
+              trailingSegment,
+            ],
+          },
+        },
+      },
+      { ...options, partTarget: 1 }
+    );
+
+    expect(playlist).toContain(
+      `#EXT-X-PART:DURATION=1.000,URI="${MEDIA_ORIGIN}/media/3812/p0.m4s"`
+    );
+    expect(playlist).toContain(
+      `#EXT-X-PART:DURATION=1.000,URI="${MEDIA_ORIGIN}/media/3812/p1.m4s"`
+    );
+    expect(playlist).toContain(
+      `#EXT-X-PART:DURATION=1.000,URI="${MEDIA_ORIGIN}/media/3811/p0.m4s"`
+    );
+    expect(playlist).toContain(
+      `#EXT-X-PART:DURATION=1.000,URI="${MEDIA_ORIGIN}/media/3811/p1.m4s"`
+    );
+    expect(playlist).not.toContain("media/3810/p0.m4s");
+    expect(playlist).not.toContain("media/3810/p1.m4s");
+    // Retained parts render before the segment's own EXTINF line.
+    expect(playlist).toContain(
+      `#EXT-X-PART:DURATION=1.000,URI="${MEDIA_ORIGIN}/media/3812/p1.m4s"\n#EXTINF:2.000,\n${MEDIA_ORIGIN}/media/3812.m4s`
+    );
+    // No preload hint on a completed segment's retained parts.
+    expect(playlist).not.toContain("#EXT-X-PRELOAD-HINT");
   });
 
   test("throws for parts without a media duration", () => {

@@ -24,10 +24,52 @@ interface ByterangeStreamState {
  */
 interface ByterangeStreamContext {
   controller: ReadableStreamDefaultController<Uint8Array>;
+  demand: DemandSignal;
   options: CreateByterangeSegmentResponseOptions;
   range: ByterangeRangeRequest;
   signal: AbortSignal;
   timeoutMs: number;
+}
+
+interface DemandSignal {
+  wait(): Promise<void>;
+  wake(): void;
+}
+
+/**
+ * Backpressure bridge: the drain parks in `wait()` whenever the queue is
+ * full and the stream's `pull` calls `wake()` as the consumer reads. A wake
+ * that arrives before the drain parks is remembered so it cannot be lost;
+ * an abort wakes a parked drain so cancellation never hangs.
+ */
+function createDemandSignal(signal: AbortSignal): DemandSignal {
+  let pending = false;
+  let wake: (() => void) | undefined;
+
+  const notify = () => {
+    const current = wake;
+    wake = undefined;
+    if (current === undefined) {
+      pending = true;
+      return;
+    }
+    current();
+  };
+
+  signal.addEventListener("abort", notify, { once: true });
+
+  return {
+    wait() {
+      if (pending) {
+        pending = false;
+        return Promise.resolve();
+      }
+      return new Promise<void>((resolve) => {
+        wake = resolve;
+      });
+    },
+    wake: notify,
+  };
 }
 
 /**
@@ -59,12 +101,16 @@ export function createByterangeStream(
   // One signal covers both termination paths: the viewer disconnecting
   // (`options.signal`) and the consumer cancelling the response body.
   const abort = linkAbort(options.signal);
+  const demand = createDemandSignal(abort.signal);
 
   return new ReadableStream<Uint8Array>({
-    pull: (controller) =>
+    start(controller) {
+      // Not awaited: the drain runs for the life of the stream and parks on
+      // `demand` while the queue is full; `pull` is its wake-up call.
       pullByterange(
         {
           controller,
+          demand,
           options,
           range,
           signal: abort.signal,
@@ -72,7 +118,11 @@ export function createByterangeStream(
         },
         state,
         abort
-      ),
+      );
+    },
+    pull() {
+      demand.wake();
+    },
     cancel() {
       // Consumer cancelled the body. Abort so in-flight S3 part reads and
       // cursor waits release instead of holding their sockets open.
@@ -226,7 +276,10 @@ async function advanceCursor(
     return false;
   }
 
-  state.cursor = resolved.cursor;
+  // Use the cursor the notifier resolved with, not `resolved.cursor`: a
+  // store that lags the notifier would otherwise hand back the older
+  // cursor, and the next wait would resolve immediately in a tight loop.
+  state.cursor = advanced;
   state.parts = resolved.parts;
   return true;
 }
@@ -318,6 +371,16 @@ async function enqueueClampedBytes(
 ): Promise<number> {
   let written = 0;
   while (written < lengthInPart) {
+    while (
+      (context.controller.desiredSize ?? 1) <= 0 &&
+      !context.signal.aborted
+    ) {
+      await context.demand.wait();
+    }
+    if (context.signal.aborted) {
+      break;
+    }
+
     const { done, value } = await reader.read();
     if (done) {
       break;

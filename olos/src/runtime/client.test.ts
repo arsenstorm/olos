@@ -279,6 +279,68 @@ describe("runtime HTTP client", () => {
     );
   });
 
+  test("resolves session routes underneath a baseUrl path prefix", async () => {
+    const requestedUrls: string[] = [];
+    const clientFetch: RuntimeFetch = (request) => {
+      requestedUrls.push(String(request));
+      return Promise.resolve(jsonErrorTestResponse("stub", 404));
+    };
+
+    await createRuntimeSession({
+      baseUrl: "https://host/api/",
+      fetch: clientFetch,
+      deliveryBaseUrl,
+      session,
+    }).catch(() => undefined);
+    await issueRuntimeSlot({
+      baseUrl: "https://host/api/",
+      fetch: clientFetch,
+      payload: {
+        contentType: "video/mp4",
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "init",
+        maxBytes: 2048,
+        sequenceNumber: 0,
+        trackId: "v1080",
+        slotId: "slot_init",
+      },
+      sessionId: session.sessionId,
+    }).catch(() => undefined);
+
+    expect(requestedUrls[0]).toBe("https://host/api/sessions");
+    expect(requestedUrls[1]).toBe(
+      `https://host/api/sessions/${session.sessionId}/slots`
+    );
+  });
+
+  test("resolves session routes under a custom sessionPath", async () => {
+    const requestedUrls: string[] = [];
+    const clientFetch: RuntimeFetch = (request) => {
+      requestedUrls.push(String(request));
+      return Promise.resolve(jsonErrorTestResponse("stub", 404));
+    };
+
+    await issueRuntimeSlot({
+      baseUrl: "https://host/api/",
+      fetch: clientFetch,
+      payload: {
+        contentType: "video/mp4",
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        kind: "init",
+        maxBytes: 2048,
+        sequenceNumber: 0,
+        trackId: "v1080",
+        slotId: "slot_init",
+      },
+      sessionId: session.sessionId,
+      sessionPath: "coord",
+    }).catch(() => undefined);
+
+    expect(requestedUrls[0]).toBe(
+      `https://host/api/coord/${session.sessionId}/slots`
+    );
+  });
+
   test("rejects invalid blocking reload query parameters before fetch", async () => {
     let requests = 0;
     const clientFetch: RuntimeFetch = () => {

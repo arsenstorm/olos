@@ -13,12 +13,21 @@ import type {
   TrackWindow,
 } from "../types/committed-window";
 import { assertCommittedWindow } from "../validation/committed-window";
-import { nonNegativeNumber, positiveNumber } from "../validation/fields";
+import {
+  booleanValue,
+  nonNegativeNumber,
+  positiveNumber,
+} from "../validation/fields";
 import { formatSeconds, quotedPlaylistValue } from "./format";
 import { assertSafeMediaUri, type MediaUriPolicy } from "./uri";
 
 /** Options for `renderMediaPlaylist`. */
 export interface RenderMediaPlaylistOptions extends MediaUriPolicy {
+  /**
+   * Advertise `CAN-BLOCK-RELOAD=YES`. Set `false` when the server does not
+   * hold `_HLS_msn` / `_HLS_part` requests open; defaults to `true`.
+   */
+  canBlockReload?: boolean;
   /**
    * Baseline `EXT-X-DISCONTINUITY-SEQUENCE` (the media session profile's
    * `discontinuitySequence`). A track window whose profile carries its own
@@ -60,8 +69,11 @@ type FullCommittedSegment = CommittedSegment & {
 
 /**
  * Renders one track's LL-HLS media playlist from the committed window:
- * server-control headers advertising `CAN-BLOCK-RELOAD=YES`, the init-segment
- * `#EXT-X-MAP`, full segments as `#EXTINF` entries, in-progress segments as
+ * server-control headers advertising `CAN-BLOCK-RELOAD=YES` (unless
+ * `options.canBlockReload` is `false`), the init-segment `#EXT-X-MAP`, full
+ * segments as `#EXTINF` entries (with their `#EXT-X-PART` lines retained
+ * until the segment is at least three target durations from the end of the
+ * playlist, RFC 8216bis Section 6.2.2), in-progress segments as
  * `#EXT-X-PART` entries with a `#EXT-X-PRELOAD-HINT` when the last committed
  * part uses byterange addressing, and a closing `#EXT-X-ENDLIST` when
  * `options.endOfStream` is set (terminal sessions). Durations, independence,
@@ -84,11 +96,21 @@ export function renderMediaPlaylist(
     throw new Error(`track not found: ${options.trackId}`);
   }
 
+  const targetDuration = Math.ceil(options.segmentTarget);
+  const retainWithinSeconds = 3 * targetDuration;
   const lines = renderMediaPlaylistHeaders(committedWindow, options, track);
+  const rendered: string[][] = [];
+  let distanceFromEnd = 0;
 
-  for (const segment of track.segments) {
-    lines.push(...renderSegment(segment, options));
+  for (let index = track.segments.length - 1; index >= 0; index -= 1) {
+    const segment = track.segments[index] as CommittedSegment;
+    rendered.unshift(
+      renderSegment(segment, options, distanceFromEnd < retainWithinSeconds)
+    );
+    distanceFromEnd += mediaSegmentDuration(segment);
   }
+
+  lines.push(...rendered.flat());
 
   if (options.endOfStream) {
     // Terminal sessions close the playlist with EXT-X-ENDLIST so players
@@ -113,7 +135,7 @@ function renderMediaPlaylistHeaders(
     "#EXT-X-VERSION:10",
     `#EXT-X-TARGETDURATION:${Math.ceil(options.segmentTarget)}`,
     `#EXT-X-PART-INF:PART-TARGET=${formatSeconds(options.partTarget)}`,
-    `#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=${formatSeconds(partHoldBack)},HOLD-BACK=${formatSeconds(holdBack)}`,
+    renderServerControl(options, partHoldBack, holdBack),
     // The declared media sequence must match this track's first #EXTINF
     // entry — tracks can diverge from the window-global minimum when
     // per-track trimming or empty-media segments drop leading segments.
@@ -125,6 +147,31 @@ function renderMediaPlaylistHeaders(
     `#EXT-X-MAP:URI="${renderMediaUri(requiredInit(track).deliveryUrl, options, "track.init.deliveryUrl")}"`,
     "",
   ];
+}
+
+// RFC 8216bis Section 4.4.3.8: CAN-BLOCK-RELOAD=YES MUST only be advertised
+// when the server implements blocking reload (Section 8.6 of the spec);
+// absent means NO, so it is simply omitted rather than emitted as NO.
+function renderServerControl(
+  options: RenderMediaPlaylistOptions,
+  partHoldBack: number,
+  holdBack: number
+): string {
+  const attributes = [
+    resolveCanBlockReload(options) ? "CAN-BLOCK-RELOAD=YES" : undefined,
+    `PART-HOLD-BACK=${formatSeconds(partHoldBack)}`,
+    `HOLD-BACK=${formatSeconds(holdBack)}`,
+  ].filter((attribute) => attribute !== undefined);
+
+  return `#EXT-X-SERVER-CONTROL:${attributes.join(",")}`;
+}
+
+function resolveCanBlockReload(options: RenderMediaPlaylistOptions): boolean {
+  if (options.canBlockReload === undefined) {
+    return true;
+  }
+
+  return booleanValue(options.canBlockReload, "options.canBlockReload");
 }
 
 // EXT-X-MAP is mandatory for CMAF playback: Core allows tracks without an
@@ -150,12 +197,13 @@ function resolveDiscontinuitySequence(
 
 function renderSegment(
   segment: CommittedSegment,
-  policy: MediaUriPolicy
+  policy: MediaUriPolicy,
+  retainParts: boolean
 ): string[] {
   const lines = renderSegmentHeaders(segment);
 
   if (hasFullCommittedSegment(segment)) {
-    return [...lines, ...renderFullSegment(segment, policy)];
+    return [...lines, ...renderFullSegment(segment, policy, retainParts)];
   }
 
   return [...lines, ...renderPartialSegment(segment, policy)];
@@ -177,11 +225,23 @@ function renderSegmentHeaders(segment: CommittedSegment): string[] {
   return lines;
 }
 
+// RFC 8216bis Section 6.2.2: a completed segment's parts stay in the
+// playlist until the segment is at least three target durations from the
+// end. Retained parts render before the EXTINF entry, with no preload
+// hint — that only applies to the in-progress parts-only segment.
 function renderFullSegment(
   segment: FullCommittedSegment,
-  policy: MediaUriPolicy
+  policy: MediaUriPolicy,
+  retainParts: boolean
 ): string[] {
+  const parts = segment.parts ?? [];
+  const partLines =
+    retainParts && parts.length > 0
+      ? parts.map((part) => renderPart(part, policy))
+      : [];
+
   return [
+    ...partLines,
     `#EXTINF:${formatSeconds(mediaSegmentDuration(segment))},`,
     renderMediaUri(segment.segment.deliveryUrl, policy, "segment.deliveryUrl"),
   ];

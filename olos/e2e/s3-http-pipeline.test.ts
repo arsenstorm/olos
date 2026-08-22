@@ -132,10 +132,8 @@ describe("S3 HTTP pipeline", () => {
       payload: {
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
-        etag: '"publisher-hint"',
         profile: { independent: true },
         objectKey: segmentGrant.slot.objectKey,
-        size: 1,
       },
       sessionId: session.sessionId,
       slotId: segmentGrant.slot.slotId,
