@@ -76,7 +76,8 @@ olos-vX.Y.Z
 
 Changesets drives versioning. When the "Version Packages" PR merges, it
 bumps `olos/package.json` and prepends the changelog section. After that
-merge, a maintainer pushes the matching `olos-v<version>` tag manually.
+merge, the `Release PR` workflow pushes the matching `olos-v<version>` tag
+with the release App token.
 
 The publish workflow makes sure that the tag commit is reachable from
 `main`, that the tag matches `olos/package.json`, and that the changelog
