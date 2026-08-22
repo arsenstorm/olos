@@ -120,7 +120,7 @@ describe("stored coordinator runtime handler", () => {
           kind: "init",
           maxBytes: 2048,
           sequenceNumber: 0,
-          objectKey: "objects/v1080/init",
+          objectKey: "objects/v1080/init.mp4",
           slotId: "slot_init",
         })
       )
@@ -134,7 +134,7 @@ describe("stored coordinator runtime handler", () => {
           kind: "segment",
           maxBytes: 100_000,
           sequenceNumber: 3810,
-          objectKey: "objects/v1080/s3810",
+          objectKey: "objects/v1080/s3810.m4s",
           slotId: "slot_3810",
         })
       )
@@ -148,7 +148,7 @@ describe("stored coordinator runtime handler", () => {
           kind: "segment",
           maxBytes: 100_000,
           sequenceNumber: 3811,
-          objectKey: "objects/v1080/s3811",
+          objectKey: "objects/v1080/s3811.m4s",
           slotId: "slot_3811",
         })
       )
@@ -163,7 +163,7 @@ describe("stored coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/commits",
         commitPayload({
           commitId: "commit_init",
-          objectKey: "objects/v1080/init",
+          objectKey: "objects/v1080/init.mp4",
           size: 1024,
           slotId: "slot_init",
         })
@@ -173,7 +173,7 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload({
           commitId: "commit_3810",
-          objectKey: "objects/v1080/s3810",
+          objectKey: "objects/v1080/s3810.m4s",
           size: 98_304,
           slotId: "slot_3810",
         }),
@@ -246,7 +246,7 @@ describe("stored coordinator runtime handler", () => {
           kind: "init",
           maxBytes: 2048,
           sequenceNumber: 0,
-          objectKey: "objects/v1080/init",
+          objectKey: "objects/v1080/init.mp4",
           slotId: "slot_init",
         })
       )
@@ -255,7 +255,7 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload({
           commitId: "commit_init",
-          objectKey: "objects/v1080/init",
+          objectKey: "objects/v1080/init.mp4",
           size: 1024,
           slotId: "slot_init",
         }),
@@ -270,7 +270,7 @@ describe("stored coordinator runtime handler", () => {
           kind: "segment",
           maxBytes: 100_000,
           sequenceNumber: 3810,
-          objectKey: "objects/v1080/s3810",
+          objectKey: "objects/v1080/s3810.m4s",
           slotId: "slot_3810",
         })
       )
@@ -278,7 +278,7 @@ describe("stored coordinator runtime handler", () => {
 
     const payload = commitPayload({
       commitId: "commit_3810",
-      objectKey: "objects/v1080/s3810",
+      objectKey: "objects/v1080/s3810.m4s",
       size: 98_304,
       slotId: "slot_3810",
     });
@@ -474,7 +474,7 @@ describe("stored coordinator runtime handler", () => {
           kind: "segment",
           maxBytes: 100_000,
           sequenceNumber: 3810,
-          objectKey: "objects/v1080/s3810",
+          objectKey: "objects/v1080/s3810.m4s",
           slotId: "slot_3810",
         }),
         padding: "x".repeat(256),
@@ -488,7 +488,7 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload({
           commitId: "commit_3810",
-          objectKey: "objects/v1080/s3810",
+          objectKey: "objects/v1080/s3810.m4s",
           size: 98_304,
           slotId: "slot_3810",
         }),
@@ -526,7 +526,7 @@ describe("stored coordinator runtime handler", () => {
           kind: "segment",
           maxBytes: 100_000,
           sequenceNumber: 3810,
-          objectKey: "objects/v1080/s3810",
+          objectKey: "objects/v1080/s3810.m4s",
           slotId: "slot_3810",
         }),
         padding: "x".repeat(256),
@@ -539,7 +539,7 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload({
           commitId: "commit_3810",
-          objectKey: "objects/v1080/s3810",
+          objectKey: "objects/v1080/s3810.m4s",
           size: 98_304,
           slotId: "slot_3810",
         }),
@@ -731,7 +731,7 @@ describe("stored coordinator runtime handler", () => {
           kind: "segment",
           maxBytes: 100_000,
           sequenceNumber: 3810,
-          objectKey: "objects/v1080/s3810",
+          objectKey: "objects/v1080/s3810.m4s",
           slotId: "slot_3810",
         })
       )
@@ -1061,7 +1061,7 @@ describe("stored coordinator runtime handler", () => {
           kind: "segment",
           maxBytes: 100_000,
           sequenceNumber: 3811,
-          objectKey: "objects/v1080/s3811",
+          objectKey: "objects/v1080/s3811.m4s",
           slotId: "slot_3811",
         })
       )
@@ -1079,7 +1079,7 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload({
           commitId: "commit_3811",
-          objectKey: "objects/v1080/s3811",
+          objectKey: "objects/v1080/s3811.m4s",
           size: 98_304,
           slotId: "slot_3811",
         }),
@@ -1170,7 +1170,7 @@ describe("stored coordinator runtime handler", () => {
           kind: "segment",
           maxBytes: 100_000,
           sequenceNumber: 3811,
-          objectKey: "objects/v1080/s3811",
+          objectKey: "objects/v1080/s3811.m4s",
           slotId: "slot_3811",
         })
       )
@@ -1179,7 +1179,7 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload({
           commitId: "commit_3811",
-          objectKey: "objects/v1080/s3811",
+          objectKey: "objects/v1080/s3811.m4s",
           size: 98_304,
           slotId: "slot_3811",
         }),
@@ -1247,7 +1247,7 @@ describe("stored coordinator runtime handler", () => {
           kind: "segment",
           maxBytes: 100_000,
           sequenceNumber: 3811,
-          objectKey: "objects/v1080/s3811",
+          objectKey: "objects/v1080/s3811.m4s",
           slotId: "slot_3811",
         })
       )
@@ -1257,7 +1257,7 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload({
           commitId: "commit_3811",
-          objectKey: "objects/v1080/s3811",
+          objectKey: "objects/v1080/s3811.m4s",
           size: 98_304,
           slotId: "slot_3811",
         }),
@@ -1303,6 +1303,7 @@ function slotPayload(options: SlotPayloadOptions) {
     contentType: "video/mp4",
     profile: { duration: options.duration },
     expiresAt: "2026-01-01T00:00:05.000Z",
+    extension: options.kind === "init" ? "mp4" : "m4s",
     kind: options.kind,
     maxBytes: options.maxBytes,
     sequenceNumber: options.sequenceNumber,
@@ -1361,7 +1362,7 @@ async function seedRuntimeStore(
       kind: "init",
       maxBytes: 2048,
       sequenceNumber: 0,
-      objectKey: "objects/v1080/init",
+      objectKey: "objects/v1080/init.mp4",
       slotId: "slot_init",
     },
     {
@@ -1370,7 +1371,7 @@ async function seedRuntimeStore(
       kind: "segment",
       maxBytes: 100_000,
       sequenceNumber: 3810,
-      objectKey: "objects/v1080/s3810",
+      objectKey: "objects/v1080/s3810.m4s",
       slotId: "slot_3810",
     },
     {
@@ -1379,7 +1380,7 @@ async function seedRuntimeStore(
       kind: "segment",
       maxBytes: 100_000,
       sequenceNumber: 3811,
-      objectKey: "objects/v1080/s3811",
+      objectKey: "objects/v1080/s3811.m4s",
       slotId: "slot_3811",
     },
   ];
@@ -1387,21 +1388,21 @@ async function seedRuntimeStore(
     {
       commitId: "commit_init",
       independent: false,
-      objectKey: "objects/v1080/init",
+      objectKey: "objects/v1080/init.mp4",
       size: 1024,
       slotId: "slot_init",
     },
     {
       commitId: "commit_3810",
       independent: true,
-      objectKey: "objects/v1080/s3810",
+      objectKey: "objects/v1080/s3810.m4s",
       size: 98_304,
       slotId: "slot_3810",
     },
     {
       commitId: "commit_3811",
       independent: false,
-      objectKey: "objects/v1080/s3811",
+      objectKey: "objects/v1080/s3811.m4s",
       size: 98_304,
       slotId: "slot_3811",
     },

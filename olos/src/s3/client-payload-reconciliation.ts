@@ -4,8 +4,6 @@ import {
   requiredRecordField,
   requiredStringField,
 } from "../runtime/http-client";
-import type { OlosErrorCode } from "../types/errors";
-import { OLOS_ERROR_CODES } from "../types/errors";
 import { parseCommit } from "../validation/commit";
 import { isAllowedString, isRecord } from "../validation/fields";
 import {
@@ -17,20 +15,19 @@ import {
 } from "./client-payload-shared";
 import type {
   S3RuntimeFailedReconciliationResultStatus,
+  S3RuntimeReconciliationErrorPayload,
   S3RuntimeReconciliationPayloadFields,
+  S3RuntimeReconciliationResponsePayload,
   S3RuntimeReconciliationResultPayload,
   S3RuntimeReconciliationResultStatus,
   S3RuntimeReconciliationResultsPayload,
   S3RuntimeReconciliationSummaryArrays,
   S3RuntimeReconciliationSummaryCounts,
   S3RuntimeReconciliationSummaryOk,
+  S3RuntimeReconciliationSummaryPayload,
   S3RuntimeReconciliationSummaryStatus,
   S3RuntimeSuccessfulReconciliationResultStatus,
 } from "./client-payload-types";
-import type {
-  StoredS3CoordinatorReconciliationResponse,
-  StoredS3CoordinatorRouteError,
-} from "./http-types";
 
 const S3_RUNTIME_RECONCILIATION_RESULT_STATUSES = [
   "committed",
@@ -45,7 +42,7 @@ const S3_RECONCILIATION_RESULTS_CONTEXT = "S3 reconciliation response results";
 
 export function reconciliationPayload(
   value: unknown
-): StoredS3CoordinatorReconciliationResponse {
+): S3RuntimeReconciliationResponsePayload {
   const record = requiredRecord(
     value,
     S3_RECONCILIATION_RESPONSE_RESULTS_MESSAGE
@@ -181,10 +178,12 @@ function failedReconciliationResultPayload(
 
 // The server attaches per-slot failure details (`error`, `resultStatus`)
 // when it can; surface them to the client instead of dropping them.
+// Spec §11.3: consumers MUST tolerate unknown `error.code` values, so any
+// non-empty string the server sends is accepted rather than rejected.
 function failedReconciliationErrorPayload(
   value: Record<string, unknown>,
   context: string
-): Partial<{ error: StoredS3CoordinatorRouteError }> {
+): Partial<{ error: S3RuntimeReconciliationErrorPayload }> {
   if (value.error === undefined) {
     return {};
   }
@@ -198,10 +197,6 @@ function failedReconciliationErrorPayload(
     "code",
     `${context}.error must include code`
   );
-
-  if (!isOlosErrorCode(code)) {
-    throw new Error(`${context}.error.code must be an OLOS error code`);
-  }
 
   return {
     error: {
@@ -272,7 +267,7 @@ const S3_RECONCILIATION_SUMMARY_OK_MESSAGE =
 
 function reconciliationSummaryPayload(
   value: Record<string, unknown>
-): StoredS3CoordinatorReconciliationResponse["summary"] {
+): S3RuntimeReconciliationSummaryPayload {
   const counts = reconciliationSummaryCounts(value);
   const status = reconciliationSummaryStatus(value);
   const arrays = reconciliationSummaryArrays(value);
@@ -319,38 +314,16 @@ function reconciliationSummaryStatus(
   return status;
 }
 
-function reconciliationSummaryErrorCodes(
-  value: Record<string, unknown>
-): readonly OlosErrorCode[] {
-  const codes = requiredStringArrayField(
-    value,
-    "failedErrorCodes",
-    S3_RECONCILIATION_SUMMARY_FAILED_ERROR_CODES_MESSAGE
-  );
-  const parsed: OlosErrorCode[] = [];
-
-  for (const [index, code] of codes.entries()) {
-    if (!isOlosErrorCode(code)) {
-      throw new Error(
-        `${indexedFieldContext(S3_RECONCILIATION_SUMMARY_FAILED_ERROR_CODES_MESSAGE, index)} must be an OLOS error code`
-      );
-    }
-
-    parsed.push(code);
-  }
-
-  return parsed;
-}
-
-function isOlosErrorCode(value: string): value is OlosErrorCode {
-  return isAllowedString(value, OLOS_ERROR_CODES);
-}
-
 function reconciliationSummaryArrays(
   value: Record<string, unknown>
 ): S3RuntimeReconciliationSummaryArrays {
   return {
-    failedErrorCodes: reconciliationSummaryErrorCodes(value),
+    // Spec §11.3: consumers MUST tolerate unknown `error.code` values.
+    failedErrorCodes: requiredStringArrayField(
+      value,
+      "failedErrorCodes",
+      S3_RECONCILIATION_SUMMARY_FAILED_ERROR_CODES_MESSAGE
+    ),
     failedSlotIds: requiredStringArrayField(
       value,
       "failedSlotIds",

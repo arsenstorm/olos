@@ -171,6 +171,21 @@ describe("upload slot validation", () => {
       assertUploadSlot({ ...validUploadSlot, state: "unknown" })
     ).toThrow("uploadSlot.state must be one of:");
   });
+
+  test("requires partNumber on part slots", () => {
+    const { partNumber: _partNumber, ...slotWithoutPartNumber } =
+      validUploadSlot;
+
+    expect(() => assertUploadSlot(slotWithoutPartNumber)).toThrow(
+      "uploadSlot.partNumber is required for part slots"
+    );
+  });
+
+  test("rejects partNumber on non-part slots", () => {
+    expect(() =>
+      assertUploadSlot({ ...validUploadSlot, kind: "segment" })
+    ).toThrow("uploadSlot.partNumber is only valid on part slots");
+  });
 });
 
 describe("tolerant upload slot parsing", () => {

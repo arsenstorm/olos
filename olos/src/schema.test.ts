@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import Ajv from "ajv";
+import addFormats from "ajv-formats";
 import {
   OLOS_COMMIT_SCHEMA,
   OLOS_ERROR_SCHEMA,
@@ -52,15 +54,23 @@ describe("OLOS JSON schemas", () => {
     });
     expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.deliveryUrl).toMatchObject({
       pattern:
-        "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+        "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
     });
     expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.contentType).toMatchObject({
       pattern: CONTENT_TYPE_SCHEMA_PATTERN,
     });
     expect(OLOS_COMMIT_SCHEMA.properties.deliveryUrl).toMatchObject({
       pattern:
-        "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+        "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
     });
+  });
+
+  test("accepts a one-character object key", () => {
+    const pattern = new RegExp(
+      OLOS_UPLOAD_SLOT_SCHEMA.properties.objectKey.pattern
+    );
+
+    expect(pattern.test("a")).toBe(true);
   });
 
   test("closes fixed-shape core objects", () => {
@@ -110,6 +120,30 @@ describe("OLOS JSON schemas", () => {
       OLOS_ERROR_CODES
     );
     expect(OLOS_UPLOAD_SLOT_SCHEMA.properties.kind.enum).toEqual(OBJECT_KINDS);
+  });
+
+  test("accepts optional string-valued metadata on storage objects", () => {
+    const ajv = new Ajv({ strictSchema: false, strictTypes: false });
+    addFormats(ajv);
+    const validate = ajv.compile({
+      ...OLOS_STORAGE_OBJECT_SCHEMA,
+      $schema: undefined,
+    });
+    const validStorageObject = {
+      contentType: "video/mp4",
+      objectKey: "media/tenant/sess/e1/v1080/s3810.m4s",
+      observedAt: "2026-06-08T12:00:01.820Z",
+      providerId: "r2_primary",
+      size: 98_304,
+    };
+
+    expect(
+      validate({
+        ...validStorageObject,
+        metadata: { "x-olos-slot-id": "s1" },
+      })
+    ).toBe(true);
+    expect(validate({ ...validStorageObject, metadata: { a: 1 } })).toBe(false);
   });
 
   test("describes provider capability preconditions", () => {

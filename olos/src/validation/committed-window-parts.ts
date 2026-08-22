@@ -11,6 +11,7 @@ import {
   type CommittedPartPositionTracker,
   type CommittedSegmentPositionTracker,
 } from "./committed-window";
+import { assertContentType } from "./content-type";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
   assertNonEmptyStringField,
@@ -202,7 +203,7 @@ export function assertCommittedObject(
   assertSafeDeliveryUrl(value.deliveryUrl, `${name}.deliveryUrl`);
 
   if (value.contentType !== undefined) {
-    assertNonEmptyStringField(value, "contentType", name);
+    assertContentType(value.contentType, `${name}.contentType`);
   }
 
   if (value.etag !== undefined) {

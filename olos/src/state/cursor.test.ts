@@ -383,6 +383,71 @@ describe("cursor update resolution", () => {
     });
   });
 
+  test("accepts same-position candidates with changed part byterange", () => {
+    const partWithByterange = {
+      commitId: "commit_3811_0",
+      deliveryUrl: "/media/3811.0.m4s",
+      profile: { duration: 0.333 },
+      objectKey: "tenant/session/v1080/3811.0.m4s",
+      partNumber: 0,
+      slotId: "slot_3811_0",
+      byterange: {
+        length: 100,
+        offset: 0,
+        segmentDeliveryUrl: "/media/3811.m4s",
+        segmentObjectKey: "tenant/session/v1080/3811.m4s",
+      },
+    };
+    const baseCursor = createCursor({
+      ...options,
+      committedWindow: {
+        ...committedWindow,
+        tracks: {
+          v1080: {
+            ...v1080,
+            segments: [
+              firstSegment,
+              { ...secondSegment, parts: [partWithByterange] },
+            ],
+          },
+        },
+      },
+    });
+    const candidateCursor = createCursor({
+      ...options,
+      committedWindow: {
+        ...committedWindow,
+        tracks: {
+          v1080: {
+            ...v1080,
+            segments: [
+              firstSegment,
+              {
+                ...secondSegment,
+                parts: [
+                  {
+                    ...partWithByterange,
+                    byterange: { ...partWithByterange.byterange, length: 200 },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(
+      resolveCursorUpdate({
+        candidateCursor,
+        currentCursor: baseCursor,
+      })
+    ).toEqual({
+      cursor: candidateCursor,
+      status: "advanced",
+    });
+  });
+
   test("rejects candidates behind the current media sequence", () => {
     const candidateCursor = createCursor({
       ...options,

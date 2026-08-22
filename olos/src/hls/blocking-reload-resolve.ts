@@ -144,11 +144,17 @@ export function parseOptionalInteger(
   );
 }
 
+// Spec §8.7: the raw value must itself be a non-negative integer literal —
+// `Number()` alone also accepts "0x10", "1e3", " 5", and "+5".
+const NON_NEGATIVE_INTEGER_STRING_PATTERN = /^(?:0|[1-9]\d*)$/;
+
 function parseBlockingReloadInteger(
   value: string,
   name: typeof HLS_MSN | typeof HLS_PART
 ): number {
-  const number = Number(value);
+  const number = NON_NEGATIVE_INTEGER_STRING_PATTERN.test(value)
+    ? Number(value)
+    : Number.NaN;
 
   assertNonNegativeInteger(number, name);
 

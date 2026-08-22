@@ -152,7 +152,7 @@ describe("commit builder", () => {
       commitId: "commit_1",
       committedAt: "2026-01-01T00:00:02.000Z",
       mediaObject,
-      slot: { ...slot, partNumber: 3 },
+      slot: { ...slot, kind: "part", partNumber: 3 },
     });
 
     expect(commit.partNumber).toBe(3);

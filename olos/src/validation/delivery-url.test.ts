@@ -10,6 +10,10 @@ const acceptedDeliveryUrlCases = [
     label: "safe relative path",
     value: "/media/v1080/s3810.m4s",
   },
+  {
+    label: "absolute HTTP URL with no path",
+    value: "https://media.example.com",
+  },
 ] as const;
 
 const rejectedDeliveryUrlCases = [
@@ -57,6 +61,21 @@ const rejectedDeliveryUrlCases = [
     error: "url must be an absolute HTTP(S) URL or safe relative path",
     label: "non-HTTP schemes",
     value: "s3://bucket/key",
+  },
+  {
+    error: "url must be an absolute HTTP(S) URL or safe relative path",
+    label: "parent directory segments in an absolute URL",
+    value: "https://e.com/a/../b.m4s",
+  },
+  {
+    error: "url must be an absolute HTTP(S) URL or safe relative path",
+    label: "current directory segments in an absolute URL",
+    value: "https://e.com/a/./b.m4s",
+  },
+  {
+    error: "url must be an absolute HTTP(S) URL or safe relative path",
+    label: "repeated slashes in an absolute URL",
+    value: "https://e.com/a//b.m4s",
   },
 ] as const;
 

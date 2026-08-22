@@ -36,8 +36,8 @@ describe("S3 runtime HTTP client", () => {
     const { clientFetch } = await createS3RuntimeClientHarness({
       headObjectInputs,
       objectSizes: {
-        "objects/v1080/s3810": 98_304,
-        "objects/v1080/init": 1024,
+        "objects/v1080/s3810.m4s": 98_304,
+        "objects/v1080/init.mp4": 1024,
       },
       providerId: "s3_primary",
     });
@@ -50,6 +50,7 @@ describe("S3 runtime HTTP client", () => {
         profile: { duration: 1 },
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "init",
+        extension: "mp4",
         maxBytes: 2048,
         sequenceNumber: 0,
         trackId: "v1080",
@@ -65,6 +66,7 @@ describe("S3 runtime HTTP client", () => {
         profile: { duration: 2 },
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
+        extension: "m4s",
         maxBytes: 100_000,
         sequenceNumber: 3810,
         trackId: "v1080",
@@ -78,7 +80,7 @@ describe("S3 runtime HTTP client", () => {
       payload: {
         commitId: "commit_init",
         committedAt: "2026-01-01T00:00:02.000Z",
-        objectKey: "objects/v1080/init",
+        objectKey: "objects/v1080/init.mp4",
         slotId: issued.slot.slotId,
       },
       sessionId: session.sessionId,
@@ -89,7 +91,7 @@ describe("S3 runtime HTTP client", () => {
       payload: {
         committedAt: "2026-01-01T00:00:03.000Z",
         profile: { independent: true },
-        objectKey: "objects/v1080/s3810",
+        objectKey: "objects/v1080/s3810.m4s",
       },
       sessionId: session.sessionId,
       slotId: segment.slot.slotId,
@@ -97,27 +99,27 @@ describe("S3 runtime HTTP client", () => {
 
     expect(issued.response.status).toBe(201);
     expect(issued.grant.slotId).toBe("slot_init");
-    expect(issued.slot.objectKey).toBe("objects/v1080/init");
+    expect(issued.slot.objectKey).toBe("objects/v1080/init.mp4");
     expect(committed.response.status).toBe(201);
     expect(committed.commit).toMatchObject({
       commitId: "commit_init",
-      objectKey: "objects/v1080/init",
+      objectKey: "objects/v1080/init.mp4",
       slotId: "slot_init",
     });
     expect(completed.response.status).toBe(201);
     expect(completed.commit).toMatchObject({
       commitId: "complete_slot_3810",
-      objectKey: "objects/v1080/s3810",
+      objectKey: "objects/v1080/s3810.m4s",
       slotId: "slot_3810",
     });
     expect(headObjectInputs).toEqual([
       {
         Bucket: S3_BUCKET,
-        Key: "objects/v1080/init",
+        Key: "objects/v1080/init.mp4",
       },
       {
         Bucket: S3_BUCKET,
-        Key: "objects/v1080/s3810",
+        Key: "objects/v1080/s3810.m4s",
       },
     ]);
   });
@@ -140,7 +142,7 @@ describe("S3 runtime HTTP client", () => {
       kind: "init",
       maxBytes: 2048,
       sequenceNumber: 0,
-      objectKey: "objects/v1080/init",
+      objectKey: "objects/v1080/init.mp4",
       trackId: "v1080",
       sessionId: session.sessionId,
       slotId: "slot_init",
@@ -153,7 +155,7 @@ describe("S3 runtime HTTP client", () => {
       profile: { duration: 1 },
       epoch: 1,
       sequenceNumber: 0,
-      objectKey: "objects/v1080/init",
+      objectKey: "objects/v1080/init.mp4",
       trackId: "v1080",
       sessionId: session.sessionId,
       size: 1024,
@@ -404,8 +406,8 @@ describe("S3 runtime HTTP client", () => {
     const { clientFetch } = await createS3RuntimeClientHarness({
       headObjectInputs,
       objectSizes: {
-        "objects/v1080/s3810": 98_304,
-        "objects/v1080/init": 1024,
+        "objects/v1080/s3810.m4s": 98_304,
+        "objects/v1080/init.mp4": 1024,
       },
       providerId: "s3_primary",
     });
@@ -418,6 +420,7 @@ describe("S3 runtime HTTP client", () => {
         profile: { duration: 1 },
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "init",
+        extension: "mp4",
         maxBytes: 2048,
         sequenceNumber: 0,
         trackId: "v1080",
@@ -433,6 +436,7 @@ describe("S3 runtime HTTP client", () => {
         profile: { duration: 2 },
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
+        extension: "m4s",
         maxBytes: 100_000,
         sequenceNumber: 3810,
         trackId: "v1080",
@@ -484,11 +488,11 @@ describe("S3 runtime HTTP client", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: S3_BUCKET,
-        Key: "objects/v1080/init",
+        Key: "objects/v1080/init.mp4",
       },
       {
         Bucket: S3_BUCKET,
-        Key: "objects/v1080/s3810",
+        Key: "objects/v1080/s3810.m4s",
       },
     ]);
   });
@@ -498,9 +502,9 @@ describe("S3 runtime HTTP client", () => {
     const { clientFetch } = await createS3RuntimeClientHarness({
       deleteInputs,
       objectSizes: {
-        "objects/v1080/s3810": 98_304,
-        "objects/v1080/s3811": 98_304,
-        "objects/v1080/init": 1024,
+        "objects/v1080/s3810.m4s": 98_304,
+        "objects/v1080/s3811.m4s": 98_304,
+        "objects/v1080/init.mp4": 1024,
       },
     });
 
@@ -511,7 +515,7 @@ describe("S3 runtime HTTP client", () => {
         kind: "init" as const,
         maxBytes: 2048,
         sequenceNumber: 0,
-        objectKey: "objects/v1080/init",
+        objectKey: "objects/v1080/init.mp4",
         slotId: "slot_init",
       },
       {
@@ -520,7 +524,7 @@ describe("S3 runtime HTTP client", () => {
         kind: "segment" as const,
         maxBytes: 100_000,
         sequenceNumber: 3810,
-        objectKey: "objects/v1080/s3810",
+        objectKey: "objects/v1080/s3810.m4s",
         slotId: "slot_3810",
       },
       {
@@ -529,7 +533,7 @@ describe("S3 runtime HTTP client", () => {
         kind: "segment" as const,
         maxBytes: 100_000,
         sequenceNumber: 3811,
-        objectKey: "objects/v1080/s3811",
+        objectKey: "objects/v1080/s3811.m4s",
         slotId: "slot_3811",
       },
     ]) {
@@ -541,6 +545,7 @@ describe("S3 runtime HTTP client", () => {
           profile: object.profile,
           expiresAt: "2026-01-01T00:00:05.000Z",
           kind: object.kind,
+          extension: object.kind === "init" ? "mp4" : "m4s",
           maxBytes: object.maxBytes,
           sequenceNumber: object.sequenceNumber,
           trackId: "v1080",
@@ -588,7 +593,7 @@ describe("S3 runtime HTTP client", () => {
     expect(deleteInputs).toEqual([
       {
         Bucket: S3_BUCKET,
-        Key: "objects/v1080/s3810",
+        Key: "objects/v1080/s3810.m4s",
       },
     ]);
   });
@@ -677,7 +682,7 @@ describe("S3 runtime HTTP client", () => {
               {
                 error: {
                   code: "olos.invalid_state",
-                  details: { objectKey: "objects/v1080/s3810" },
+                  details: { objectKey: "objects/v1080/s3810.m4s" },
                   message: "object does not match slot",
                 },
                 resultStatus: "rejected",
@@ -718,7 +723,7 @@ describe("S3 runtime HTTP client", () => {
       {
         error: {
           code: "olos.invalid_state",
-          details: { objectKey: "objects/v1080/s3810" },
+          details: { objectKey: "objects/v1080/s3810.m4s" },
           message: "object does not match slot",
         },
         resultStatus: "rejected",
@@ -732,14 +737,16 @@ describe("S3 runtime HTTP client", () => {
     ]);
   });
 
-  test("rejects malformed reconciliation failure details", async () => {
+  // Spec §11.3: consumers MUST tolerate unknown `error.code` values, so a
+  // code the client doesn't recognize still parses rather than rejecting.
+  test("tolerates unknown OLOS error codes in reconciliation failure details", async () => {
     const clientFetch: RuntimeFetch = () =>
       Promise.resolve(
         new Response(
           JSON.stringify({
             results: [
               {
-                error: { code: "not_an_olos_code", message: "boom" },
+                error: { code: "olos.future_code", message: "boom" },
                 slotId: "slot_3810",
                 status: "failed",
               },
@@ -760,21 +767,26 @@ describe("S3 runtime HTTP client", () => {
         )
       );
 
-    await expect(
-      reconcileS3RuntimeUploads({
-        baseUrl: RUNTIME_BASE_URL,
-        fetch: clientFetch,
-        payload: {
-          committedAt: "2026-01-01T00:00:02.000Z",
-        },
-        sessionId: session.sessionId,
-      })
-    ).rejects.toThrow(
-      "S3 reconciliation response results[0].error.code must be an OLOS error code"
-    );
+    const reconciled = await reconcileS3RuntimeUploads({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      payload: {
+        committedAt: "2026-01-01T00:00:02.000Z",
+      },
+      sessionId: session.sessionId,
+    });
+
+    expect(reconciled.results).toEqual([
+      {
+        error: { code: "olos.future_code", message: "boom" },
+        slotId: "slot_3810",
+        status: "failed",
+      },
+    ]);
   });
 
-  test("rejects reconciliation summaries with unknown OLOS error codes", async () => {
+  // Spec §11.3: the same tolerance applies to the summary's error-code list.
+  test("tolerates unknown OLOS error codes in reconciliation summary failedErrorCodes", async () => {
     const clientFetch: RuntimeFetch = () =>
       Promise.resolve(
         new Response(
@@ -783,7 +795,7 @@ describe("S3 runtime HTTP client", () => {
             summary: {
               committed: 0,
               failed: 1,
-              failedErrorCodes: ["unknown_status"],
+              failedErrorCodes: ["olos.future_code"],
               failedSlotIds: ["slot_init"],
               idempotent: 0,
               ok: false,
@@ -796,18 +808,16 @@ describe("S3 runtime HTTP client", () => {
         )
       );
 
-    await expect(
-      reconcileS3RuntimeUploads({
-        baseUrl: RUNTIME_BASE_URL,
-        fetch: clientFetch,
-        payload: {
-          committedAt: "2026-01-01T00:00:02.000Z",
-        },
-        sessionId: session.sessionId,
-      })
-    ).rejects.toThrow(
-      "S3 reconciliation response summary must include failedErrorCodes[0] must be an OLOS error code"
-    );
+    const reconciled = await reconcileS3RuntimeUploads({
+      baseUrl: RUNTIME_BASE_URL,
+      fetch: clientFetch,
+      payload: {
+        committedAt: "2026-01-01T00:00:02.000Z",
+      },
+      sessionId: session.sessionId,
+    });
+
+    expect(reconciled.summary.failedErrorCodes).toEqual(["olos.future_code"]);
   });
 
   test("validates malformed reconciliation plan response payloads", async () => {
@@ -925,7 +935,7 @@ describe("S3 runtime HTTP client", () => {
                   error: 123,
                   object: {
                     commitId: "commit_3810",
-                    objectKey: "objects/v1080/s3810",
+                    objectKey: "objects/v1080/s3810.m4s",
                     slotId: "slot_3810",
                   },
                 },
@@ -934,7 +944,7 @@ describe("S3 runtime HTTP client", () => {
             summary: {
               deleted: 0,
               failed: 1,
-              failedObjectKeys: ["objects/v1080/s3810"],
+              failedObjectKeys: ["objects/v1080/s3810.m4s"],
               failedSlotIds: ["slot_3810"],
               ok: false,
               planned: 1,

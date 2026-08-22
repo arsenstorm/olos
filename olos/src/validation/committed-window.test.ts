@@ -318,7 +318,7 @@ describe("committed window validation", () => {
         },
       })
     ).toThrow(
-      "committedWindow.tracks.v1080.segments[].segment.contentType must be a non-empty string"
+      "committedWindow.tracks.v1080.segments[].segment.contentType must be a valid content type"
     );
 
     expect(() =>
@@ -341,6 +341,32 @@ describe("committed window validation", () => {
       })
     ).toThrow(
       "committedWindow.tracks.v1080.segments[].segment.etag must be a non-empty string"
+    );
+  });
+
+  test("rejects committed object content types that are not a valid MIME type", () => {
+    const firstSegment = validSegment(0);
+
+    expect(() =>
+      assertCommittedWindow({
+        ...validWindow,
+        tracks: {
+          v1080: {
+            ...validTrack(),
+            segments: [
+              {
+                ...firstSegment,
+                segment: {
+                  ...firstSegment.segment,
+                  contentType: "not a mime type",
+                },
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow(
+      "committedWindow.tracks.v1080.segments[].segment.contentType must be a valid content type"
     );
   });
 

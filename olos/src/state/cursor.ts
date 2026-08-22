@@ -1,4 +1,5 @@
 import { OLOS_WIRE_VERSION } from "../index";
+import type { Byterange } from "../types/byterange";
 import type {
   CommittedObject,
   CommittedPart,
@@ -289,7 +290,25 @@ function sameOrderedItems<TItem>(
 
 function samePart(first: CommittedPart, second: CommittedPart): boolean {
   return (
-    first.partNumber === second.partNumber && sameCommittedObject(first, second)
+    first.partNumber === second.partNumber &&
+    sameCommittedObject(first, second) &&
+    sameByterange(first.byterange, second.byterange)
+  );
+}
+
+function sameByterange(
+  first: Byterange | undefined,
+  second: Byterange | undefined
+): boolean {
+  if (first === undefined || second === undefined) {
+    return first === second;
+  }
+
+  return (
+    first.offset === second.offset &&
+    first.length === second.length &&
+    first.segmentObjectKey === second.segmentObjectKey &&
+    first.segmentDeliveryUrl === second.segmentDeliveryUrl
   );
 }
 

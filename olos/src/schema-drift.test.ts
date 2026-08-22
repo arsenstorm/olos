@@ -369,8 +369,35 @@ const suites: readonly DriftSuite[] = [
         },
       },
       {
+        label: "parent directory segments in an absolute delivery URL",
+        payload: {
+          ...validCommit,
+          deliveryUrl: "https://media.example.com/a/../b.m4s",
+        },
+      },
+      {
+        label: "current directory segments in an absolute delivery URL",
+        payload: {
+          ...validCommit,
+          deliveryUrl: "https://media.example.com/a/./b.m4s",
+        },
+      },
+      {
+        label: "repeated slashes in an absolute delivery URL",
+        payload: {
+          ...validCommit,
+          deliveryUrl: "https://media.example.com/a//b.m4s",
+        },
+      },
+      {
         label: "hour-24 committedAt timestamp",
         payload: { ...validCommit, committedAt: "2026-06-08T24:00:00.000Z" },
+      },
+    ],
+    alsoValid: [
+      {
+        label: "absolute delivery URL with no path",
+        payload: { ...validCommit, deliveryUrl: "https://media.example.com" },
       },
     ],
     validatorOnlyInvalid: [

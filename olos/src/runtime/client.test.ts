@@ -47,6 +47,7 @@ describe("runtime HTTP client", () => {
       payload: {
         contentType: "video/mp4",
         expiresAt: "2026-01-01T00:00:05.000Z",
+        extension: "mp4",
         kind: "init",
         maxBytes: 2048,
         sequenceNumber: 0,
@@ -113,6 +114,7 @@ describe("runtime HTTP client", () => {
       payload: {
         contentType: "video/mp4",
         expiresAt: "2026-01-01T00:00:05.000Z",
+        extension: "mp4",
         kind: "init",
         maxBytes: 2048,
         sequenceNumber: 0,
@@ -145,6 +147,7 @@ describe("runtime HTTP client", () => {
       payload: {
         contentType: "video/mp4",
         expiresAt: "2026-01-01T00:00:05.000Z",
+        extension: "m4s",
         kind: "segment",
         maxBytes: 200_000,
         profile: { duration: 2 },

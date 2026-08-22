@@ -5,10 +5,8 @@ import type { Cursor } from "../types/cursor";
 import type { ProfileData } from "../types/profile";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
-import type {
-  StoredS3CoordinatorReconciliationResponse,
-  StoredS3CoordinatorRetentionResponse,
-} from "./http-types";
+import type { S3RuntimeReconciliationResponsePayload } from "./client-payload-types";
+import type { StoredS3CoordinatorRetentionResponse } from "./http-types";
 import type { StoredS3CoordinatorReconciliationPlan } from "./reconciliation";
 
 /**
@@ -150,7 +148,7 @@ export type S3RuntimeReconciliationPlanResponse =
 
 /** Parsed result of `reconcileS3RuntimeUploads`, plus the raw `Response`. */
 export type S3RuntimeReconcileUploadsResponse =
-  StoredS3CoordinatorReconciliationResponse & {
+  S3RuntimeReconciliationResponsePayload & {
     response: Response;
   };
 

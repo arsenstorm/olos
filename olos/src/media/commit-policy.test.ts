@@ -56,7 +56,12 @@ describe("mediaCommitPolicy", () => {
         commitId: "commit_1",
         committedAt: "2026-01-01T00:00:02.000Z",
         object,
-        slot: { ...baseSlot, kind: "init" },
+        slot: {
+          ...baseSlot,
+          deliveryUrl: "https://media.example.com/objects/v1080/init.mp4",
+          kind: "init",
+          objectKey: "objects/v1080/init.mp4",
+        },
         state: mediaState,
       })
     ).toEqual({ status: "allowed" });
@@ -106,6 +111,23 @@ describe("mediaCommitPolicy", () => {
         state: mediaState,
       })
     ).toEqual({ status: "allowed" });
+  });
+
+  test("rejects a segment commit whose object key uses an unsupported extension", () => {
+    const result = mediaCommitPolicy({
+      commitId: "commit_1",
+      committedAt: "2026-01-01T00:00:02.000Z",
+      object,
+      profile: { duration: 0.5 },
+      slot: { ...baseSlot, objectKey: "objects/v1080/s0.txt" },
+      state: mediaState,
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected policy decision");
+    }
+    expect(result.error.error.code).toBe("olos.invalid_request");
   });
 
   test("allows a duration inherited from the slot's own profile", () => {

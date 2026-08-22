@@ -17,7 +17,7 @@ export const JSON_SCHEMA_DRAFT = "https://json-schema.org/draft/2020-12/schema";
 const JSON_SCHEMA_THEN = "then";
 const ID_PATTERN = "^[A-Za-z0-9._-]+$";
 const SAFE_OBJECT_KEY_PATTERN =
-  "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$";
+  "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$";
 
 export const id = {
   minLength: 1,
@@ -57,7 +57,7 @@ const pathwayBaseUrl = {
 export const deliveryUrl = {
   minLength: 1,
   pattern:
-    "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+    "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
   type: "string",
 } as const;
 export const headerMap = {

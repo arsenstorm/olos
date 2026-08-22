@@ -7,7 +7,10 @@ import {
 import { parseSlotIssueRequest } from "../runtime/slot-issue-request-parser";
 import { createOlosError } from "../types/errors";
 import { completeStoredS3CoordinatorUpload } from "./coordinator-event";
-import { issueStoredS3CoordinatorUploadGrant } from "./coordinator-grant";
+import {
+  issueStoredS3CoordinatorUploadGrant,
+  S3SlotIssueError,
+} from "./coordinator-grant";
 import { invalid, type StoredS3CoordinatorRuntimeHandlerContext } from "./http";
 import {
   parseS3CommitRequest,
@@ -55,20 +58,27 @@ export async function handleS3SlotGrant(
     return invalidS3RequestResponse(parsed);
   }
 
-  const result = await issueStoredS3CoordinatorUploadGrant({
-    ...parsed.value,
-    additionalHeaders: options.additionalHeaders,
-    bucket: options.bucket,
-    client: options.client,
-    expiresInSeconds: options.expiresInSeconds,
-    maxAttempts: options.maxAttempts,
-    now: options.grantNow?.(),
-    publicationControl: options.publicationControl,
-    sessionId,
-    store: options.store,
-  });
+  try {
+    const result = await issueStoredS3CoordinatorUploadGrant({
+      ...parsed.value,
+      additionalHeaders: options.additionalHeaders,
+      bucket: options.bucket,
+      client: options.client,
+      expiresInSeconds: options.expiresInSeconds,
+      maxAttempts: options.maxAttempts,
+      now: options.grantNow?.(),
+      publicationControl: options.publicationControl,
+      sessionId,
+      store: options.store,
+    });
 
-  return slotGrantResponse(result);
+    return slotGrantResponse(result);
+  } catch (error) {
+    if (!(error instanceof S3SlotIssueError)) {
+      throw error;
+    }
+    return jsonBadRequestResponse(error.message);
+  }
 }
 
 function slotGrantResponse(

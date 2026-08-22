@@ -10,7 +10,11 @@ import type {
   CoordinatorPipelineStore,
 } from "../protocol/coordinator-types";
 import { createStoredCoordinatorRuntimeHandler } from "./http";
-import { jsonPostRequest } from "./test-http.test-helper";
+import { expectOlosErrorEnvelope } from "./test-error-envelope.test-helper";
+import {
+  jsonPostRequest,
+  jsonResponseStatusAndBody,
+} from "./test-http.test-helper";
 
 const MEDIA_ORIGIN = "https://media.example.com";
 
@@ -31,7 +35,7 @@ async function seedCommittedSession(
         duration: 1,
         kind: "init",
         maxBytes: 2048,
-        objectKey: "objects/v1080/init",
+        objectKey: "objects/v1080/init.mp4",
         sequenceNumber: 0,
         slotId: "slot_init",
       })
@@ -44,7 +48,7 @@ async function seedCommittedSession(
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        objectKey: "objects/v1080/s3810",
+        objectKey: "objects/v1080/s3810.m4s",
         sequenceNumber: 3810,
         slotId: "slot_3810",
       })
@@ -55,7 +59,7 @@ async function seedCommittedSession(
     jsonPostRequest("https://edge.example.com/sessions/session_1/commits", {
       ...commitPayload({
         commitId: "commit_init",
-        objectKey: "objects/v1080/init",
+        objectKey: "objects/v1080/init.mp4",
         size: 1024,
         slotId: "slot_init",
       }),
@@ -65,7 +69,7 @@ async function seedCommittedSession(
     jsonPostRequest("https://edge.example.com/sessions/session_1/commits", {
       ...commitPayload({
         commitId: "commit_3810",
-        objectKey: "objects/v1080/s3810",
+        objectKey: "objects/v1080/s3810.m4s",
         size: 98_304,
         slotId: "slot_3810",
       }),
@@ -200,6 +204,55 @@ describe("live route cursor loading", () => {
   });
 });
 
+describe("live route request validation", () => {
+  test("rejects _HLS_msn/_HLS_part on the master playlist path", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      store,
+    });
+
+    await seedCommittedSession(handle);
+
+    const response = await handle(
+      new Request(
+        "https://edge.example.com/v1/live/session_1/master.m3u8?_HLS_msn=1"
+      )
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain(
+      "_HLS_msn/_HLS_part apply to media playlist requests"
+    );
+  });
+
+  test("rejects a media route trackId that is not URL-safe after percent-decoding", async () => {
+    const store = createMemoryCoordinatorStore();
+    const handle = createStoredCoordinatorRuntimeHandler({
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
+      publicationMode: "read-gated",
+      store,
+    });
+
+    await seedCommittedSession(handle);
+
+    const response = await handle(
+      new Request(
+        "https://edge.example.com/v1/live/session_1/bad%20track/media.m3u8"
+      )
+    );
+
+    await expectOlosErrorEnvelope(response);
+    const { body, status } = await jsonResponseStatusAndBody<{
+      error: { code: string };
+    }>(response);
+
+    expect(status).toBe(400);
+    expect(body.error.code).toBe("olos.invalid_request");
+  });
+});
+
 interface SlotPayloadOptions {
   duration: number;
   kind: "init" | "segment";
@@ -213,6 +266,7 @@ function slotPayload(options: SlotPayloadOptions) {
   return {
     contentType: "video/mp4",
     expiresAt: "2026-01-01T00:00:05.000Z",
+    extension: options.kind === "init" ? "mp4" : "m4s",
     kind: options.kind,
     maxBytes: options.maxBytes,
     profile: { duration: options.duration },

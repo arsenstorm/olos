@@ -114,6 +114,20 @@ function settleBeforeNewCommit(
     });
   }
 
+  // §4.5.1 orders duplicate resolution before the deadline check, so this
+  // only rejects a genuinely new commit; retries returned above already.
+  if (slot !== undefined) {
+    const lateCommit = rejectLateCommittedAt({
+      committedAt: options.committedAt,
+      lateToleranceMs: options.lateToleranceMs,
+      slot,
+      state: options.state,
+    });
+    if (lateCommit !== undefined) {
+      return lateCommit;
+    }
+  }
+
   return rejectCoordinatorCommitPolicy({ options, slot });
 }
 
@@ -346,6 +360,32 @@ function rejectLateObservation(options: {
         {
           expiresAt: slot.expiresAt,
           observedAt: object.observedAt,
+          slotId: slot.slotId,
+        }
+      )
+    );
+  }
+}
+
+function rejectLateCommittedAt(options: {
+  committedAt: string;
+  lateToleranceMs?: number;
+  slot: UploadSlot;
+  state: CoordinatorPipelineState;
+}): Extract<CoordinatorUploadCommit, { status: "rejected" }> | undefined {
+  const { committedAt, slot } = options;
+  const expiresAtMs = timestampMs(slot.expiresAt, "uploadSlot.expiresAt");
+  const committedAtMs = timestampMs(committedAt, "commit.committedAt");
+
+  if (committedAtMs > expiresAtMs + (options.lateToleranceMs ?? 0)) {
+    return rejectCommit(
+      options.state,
+      createOlosError(
+        "olos.slot_expired",
+        "commit was recorded after the slot expired",
+        {
+          committedAt,
+          expiresAt: slot.expiresAt,
           slotId: slot.slotId,
         }
       )

@@ -19,6 +19,7 @@ import {
 } from "../state/publication-control";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
+import { errorMessage } from "../validation/fields";
 import {
   missingStoredS3CoordinatorUploadCommit,
   missingStoredS3CoordinatorUploadGrantIssue,
@@ -117,8 +118,13 @@ function runSlotIssueMutation(
     }),
     mapSaved: (saved, attempt) => presignSavedSlot(presign, saved, attempt),
     maxAttempts,
-    mutate: (state) =>
-      issueCoordinatorSlot({ ...slotIssueOptions(rest), state }),
+    mutate: (state) => {
+      try {
+        return issueCoordinatorSlot({ ...slotIssueOptions(rest), state });
+      } catch (error) {
+        throw new S3SlotIssueError(error);
+      }
+    },
     onConflictOrExhausted: (snapshot) => conflict(snapshot),
     onMissing: () => missingStoredS3CoordinatorUploadGrantIssue(),
     sessionId,
@@ -375,4 +381,16 @@ function isBlockedPublicationControl(
   result: PublicationControlResolution
 ): result is BlockedPublicationControl {
   return result.status === "blocked";
+}
+
+/**
+ * Marks a slot-issuance rejection (duplicate slotId, unknown track, session
+ * not live) so the route can answer 400 like the Core route does, while
+ * store I/O failures keep reaching the opaque 500 guard.
+ */
+export class S3SlotIssueError extends Error {
+  constructor(cause: unknown) {
+    super(errorMessage(cause, "invalid S3 slot grant request"), { cause });
+    this.name = "S3SlotIssueError";
+  }
 }

@@ -190,6 +190,33 @@ function resolveHlsManifestRequestTarget(
   return track === undefined ? undefined : { kind: "media", track };
 }
 
+const MASTER_BLOCKING_RELOAD_MESSAGE =
+  "_HLS_msn/_HLS_part apply to media playlist requests";
+const HLS_MSN_PARAM = "_HLS_msn";
+const HLS_PART_PARAM = "_HLS_part";
+
+/**
+ * RFC 8216bis §6.2.5.1: `_HLS_msn` / `_HLS_part` apply only to media
+ * playlist requests — their presence on a master playlist request is
+ * malformed. Callers that serve master playlists outside the blocking
+ * reload pipeline (which parses and rejects them via
+ * `resolveMasterManifestResponse` below) can use this to reject the same
+ * way before rendering. Returns the 400 text/plain response, or `undefined`
+ * when `searchParams` carries neither parameter.
+ */
+export function masterManifestBlockingReloadErrorResponse(
+  searchParams: URLSearchParams
+): Response | undefined {
+  if (!(searchParams.has(HLS_MSN_PARAM) || searchParams.has(HLS_PART_PARAM))) {
+    return;
+  }
+
+  return createHlsManifestErrorWebResponse({
+    message: MASTER_BLOCKING_RELOAD_MESSAGE,
+    status: "invalid",
+  });
+}
+
 function resolveMasterManifestResponse(
   options: ResolveBlockingHlsManifestArtifactResponseOptions,
   session: MediaSession,
@@ -203,7 +230,7 @@ function resolveMasterManifestResponse(
     request.partNumber !== undefined
   ) {
     return {
-      message: "_HLS_msn/_HLS_part apply to media playlist requests",
+      message: MASTER_BLOCKING_RELOAD_MESSAGE,
       status: "invalid",
     };
   }

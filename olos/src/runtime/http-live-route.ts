@@ -1,3 +1,4 @@
+import { masterManifestBlockingReloadErrorResponse } from "../hls/manifest-response";
 import { assertMediaSession } from "../media/validation";
 import type { Cursor } from "../types/cursor";
 import type { Session, Track } from "../types/session";
@@ -16,7 +17,12 @@ import {
   jsonBadRequestResponse,
   jsonMethodNotAllowedResponse,
 } from "./response";
-import { DEFAULT_LIVE_PATH, liveMasterPath, liveMediaPath } from "./route";
+import {
+  DEFAULT_LIVE_PATH,
+  liveMasterPath,
+  liveMediaPath,
+  routeIdentifierError,
+} from "./route";
 import { loadCursorView } from "./stored";
 export async function handleLiveRoute(
   request: Request,
@@ -39,6 +45,12 @@ export async function handleLiveRoute(
     return jsonBadRequestResponse(sessionIdError);
   }
 
+  const routeError = routeTrackOrBlockingReloadError(request, parts, route);
+
+  if (routeError !== undefined) {
+    return routeError;
+  }
+
   const view = await loadCursorView(options.store, route.sessionId);
 
   if (view === undefined) {
@@ -56,6 +68,34 @@ export async function handleLiveRoute(
     route,
     options,
     view
+  );
+}
+
+/**
+ * Route-shape checks that don't need the session loaded: a media route's
+ * `:trackId` segment must be URL-safe after percent-decoding (Spec §6.2),
+ * and a master route must not carry `_HLS_msn` / `_HLS_part` (RFC 8216bis
+ * §6.2.5.1).
+ */
+function routeTrackOrBlockingReloadError(
+  request: Request,
+  parts: readonly string[],
+  route: RuntimeLiveManifestRoute
+): Response | undefined {
+  if (route.kind === "media") {
+    const trackIdError = routeIdentifierError(
+      parts[1],
+      "trackId",
+      "invalid route trackId"
+    );
+
+    return trackIdError === undefined
+      ? undefined
+      : jsonBadRequestResponse(trackIdError);
+  }
+
+  return masterManifestBlockingReloadErrorResponse(
+    new URL(request.url).searchParams
   );
 }
 

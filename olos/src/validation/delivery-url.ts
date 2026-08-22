@@ -1,5 +1,7 @@
 import { hasControlCharacter } from "./fields";
 
+const ABSOLUTE_URL_SCHEME_AND_AUTHORITY_PATTERN = /^[a-zA-Z]+:\/\/[^/?#]*/;
+
 /**
  * Enforces the delivery URL policy for externally visible manifest and
  * media references: only absolute HTTP(S) URLs or safe relative paths
@@ -64,7 +66,12 @@ function isAllowedRelativeDeliveryReference(value: string): boolean {
 }
 
 function isAllowedAbsoluteDeliveryReference(value: string): boolean {
-  return parseAbsoluteUrl(value) !== undefined;
+  if (parseAbsoluteUrl(value) === undefined) {
+    return false;
+  }
+
+  const rawPath = value.replace(ABSOLUTE_URL_SCHEME_AND_AUTHORITY_PATTERN, "");
+  return rawPath === "" || isSafeRelativePath(rawPath);
 }
 
 function isSafeRelativePath(value: string): boolean {

@@ -321,6 +321,40 @@ describe("provider upload grant policy", () => {
     );
   });
 
+  test("rejects direct-public slots without blockable document navigation", () => {
+    expect(() =>
+      assertProviderCanIssueUploadGrant({
+        capability: {
+          ...capability,
+          delivery: {
+            ...capability.delivery,
+            documentNavigationCanBeBlocked: false,
+          },
+        },
+        slot,
+      })
+    ).toThrow(
+      "providerCapability.delivery.documentNavigationCanBeBlocked must be true for direct-public slots"
+    );
+  });
+
+  test("rejects direct-public slots without immutable caching", () => {
+    expect(() =>
+      assertProviderCanIssueUploadGrant({
+        capability: {
+          ...capability,
+          delivery: {
+            ...capability.delivery,
+            immutableCaching: false,
+          },
+        },
+        slot,
+      })
+    ).toThrow(
+      "providerCapability.delivery.immutableCaching must be true for direct-public slots"
+    );
+  });
+
   test("rejects read-gated slots without read-gate support", () => {
     expect(() =>
       assertProviderCanIssueUploadGrant({

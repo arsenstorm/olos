@@ -171,6 +171,7 @@ export const OLOS_STORAGE_OBJECT_SCHEMA = {
   properties: {
     contentType,
     etag: nonEmptyString,
+    metadata: headerMap,
     objectKey,
     observedAt: timestamp,
     providerId: id,

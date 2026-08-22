@@ -33,12 +33,12 @@ schema; the profile schemas in A.2 constrain its contents.
         },
         "segmentDeliveryUrl": {
           "minLength": 1,
-          "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+          "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
           "type": "string"
         },
         "segmentObjectKey": {
           "minLength": 1,
-          "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+          "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$",
           "type": "string"
         }
       },
@@ -62,7 +62,7 @@ schema; the profile schemas in A.2 constrain its contents.
     },
     "deliveryUrl": {
       "minLength": 1,
-      "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+      "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
       "type": "string"
     },
     "epoch": {
@@ -75,7 +75,7 @@ schema; the profile schemas in A.2 constrain its contents.
     },
     "objectKey": {
       "minLength": 1,
-      "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+      "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$",
       "type": "string"
     },
     "partNumber": {
@@ -163,7 +163,7 @@ schema; the profile schemas in A.2 constrain its contents.
               },
               "deliveryUrl": {
                 "minLength": 1,
-                "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+                "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
                 "type": "string"
               },
               "etag": {
@@ -172,7 +172,7 @@ schema; the profile schemas in A.2 constrain its contents.
               },
               "objectKey": {
                 "minLength": 1,
-                "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+                "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$",
                 "type": "string"
               },
               "profile": {
@@ -214,7 +214,7 @@ schema; the profile schemas in A.2 constrain its contents.
                       },
                       "deliveryUrl": {
                         "minLength": 1,
-                        "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+                        "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
                         "type": "string"
                       },
                       "etag": {
@@ -223,7 +223,7 @@ schema; the profile schemas in A.2 constrain its contents.
                       },
                       "objectKey": {
                         "minLength": 1,
-                        "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+                        "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$",
                         "type": "string"
                       },
                       "profile": {
@@ -247,12 +247,12 @@ schema; the profile schemas in A.2 constrain its contents.
                           },
                           "segmentDeliveryUrl": {
                             "minLength": 1,
-                            "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+                            "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
                             "type": "string"
                           },
                           "segmentObjectKey": {
                             "minLength": 1,
-                            "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+                            "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$",
                             "type": "string"
                           }
                         },
@@ -294,7 +294,7 @@ schema; the profile schemas in A.2 constrain its contents.
                     },
                     "deliveryUrl": {
                       "minLength": 1,
-                      "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+                      "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
                       "type": "string"
                     },
                     "etag": {
@@ -303,7 +303,7 @@ schema; the profile schemas in A.2 constrain its contents.
                     },
                     "objectKey": {
                       "minLength": 1,
-                      "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+                      "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$",
                       "type": "string"
                     },
                     "profile": {
@@ -402,7 +402,7 @@ schema; the profile schemas in A.2 constrain its contents.
                   },
                   "deliveryUrl": {
                     "minLength": 1,
-                    "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+                    "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
                     "type": "string"
                   },
                   "etag": {
@@ -411,7 +411,7 @@ schema; the profile schemas in A.2 constrain its contents.
                   },
                   "objectKey": {
                     "minLength": 1,
-                    "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+                    "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$",
                     "type": "string"
                   },
                   "profile": {
@@ -453,7 +453,7 @@ schema; the profile schemas in A.2 constrain its contents.
                           },
                           "deliveryUrl": {
                             "minLength": 1,
-                            "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+                            "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
                             "type": "string"
                           },
                           "etag": {
@@ -462,7 +462,7 @@ schema; the profile schemas in A.2 constrain its contents.
                           },
                           "objectKey": {
                             "minLength": 1,
-                            "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+                            "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$",
                             "type": "string"
                           },
                           "profile": {
@@ -486,12 +486,12 @@ schema; the profile schemas in A.2 constrain its contents.
                               },
                               "segmentDeliveryUrl": {
                                 "minLength": 1,
-                                "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+                                "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
                                 "type": "string"
                               },
                               "segmentObjectKey": {
                                 "minLength": 1,
-                                "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+                                "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$",
                                 "type": "string"
                               }
                             },
@@ -533,7 +533,7 @@ schema; the profile schemas in A.2 constrain its contents.
                         },
                         "deliveryUrl": {
                           "minLength": 1,
-                          "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+                          "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
                           "type": "string"
                         },
                         "etag": {
@@ -542,7 +542,7 @@ schema; the profile schemas in A.2 constrain its contents.
                         },
                         "objectKey": {
                           "minLength": 1,
-                          "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+                          "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$",
                           "type": "string"
                         },
                         "profile": {
@@ -600,7 +600,7 @@ schema; the profile schemas in A.2 constrain its contents.
     },
     "deliveryBaseUrl": {
       "minLength": 1,
-      "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+      "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
       "type": "string"
     },
     "epoch": {
@@ -1110,9 +1110,18 @@ schema; the profile schemas in A.2 constrain its contents.
       "minLength": 1,
       "type": "string"
     },
+    "metadata": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "propertyNames": {
+        "pattern": "^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+$"
+      },
+      "type": "object"
+    },
     "objectKey": {
       "minLength": 1,
-      "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+      "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$",
       "type": "string"
     },
     "observedAt": {
@@ -1208,12 +1217,12 @@ schema; the profile schemas in A.2 constrain its contents.
         },
         "segmentDeliveryUrl": {
           "minLength": 1,
-          "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+          "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
           "type": "string"
         },
         "segmentObjectKey": {
           "minLength": 1,
-          "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+          "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$",
           "type": "string"
         }
       },
@@ -1231,7 +1240,7 @@ schema; the profile schemas in A.2 constrain its contents.
     },
     "deliveryUrl": {
       "minLength": 1,
-      "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^?#]+)$",
+      "pattern": "^(?:(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)/[^?#]+|https?://[^/?#]+(?:/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^?#]*)?)$",
       "type": "string"
     },
     "epoch": {
@@ -1261,7 +1270,7 @@ schema; the profile schemas in A.2 constrain its contents.
     },
     "objectKey": {
       "minLength": 1,
-      "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$",
+      "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).*[^/]$",
       "type": "string"
     },
     "partNumber": {

@@ -436,6 +436,16 @@ describe("HLS blocking reload", () => {
     ).toThrow("_HLS_part must be a non-negative integer");
   });
 
+  test("rejects non-canonical integer literals for _HLS_msn", () => {
+    for (const value of ["", "0x10", "1e3", " 5", "+5"]) {
+      expect(() =>
+        parseHlsBlockingReloadRequest(
+          `/v1/live/session_1/v1080/media.m3u8?_HLS_msn=${encodeURIComponent(value)}`
+        )
+      ).toThrow("_HLS_msn must be a non-negative integer");
+    }
+  });
+
   test("waits for a cursor that satisfies a blocking request", async () => {
     const result = await waitForHlsBlockingReload({
       cursor,

@@ -77,6 +77,7 @@ export function assertUploadSlot(value: unknown): asserts value is UploadSlot {
   assertUploadSlotByteFields(value);
   assertUploadSlotObjectFields(value);
   assertUploadSlotByterange(value);
+  assertUploadSlotPartNumberPresence(value);
   assertOptionalProfileField(value, "uploadSlot");
   assertOneOfField(value, "state", UPLOAD_SLOT_STATES, "uploadSlot");
 }
@@ -103,6 +104,20 @@ function assertUploadSlotByterange(value: Record<string, unknown>): void {
 
   assertByterange(value.byterange, "uploadSlot.byterange");
   assertByterangeKind(value.kind as string, "uploadSlot");
+}
+
+function assertUploadSlotPartNumberPresence(
+  value: Record<string, unknown>
+): void {
+  const isPart = value.kind === "part";
+
+  if (isPart && value.partNumber === undefined) {
+    throw new Error("uploadSlot.partNumber is required for part slots");
+  }
+
+  if (!isPart && value.partNumber !== undefined) {
+    throw new Error("uploadSlot.partNumber is only valid on part slots");
+  }
 }
 
 function assertUploadSlotIdentifiers(value: Record<string, unknown>): void {

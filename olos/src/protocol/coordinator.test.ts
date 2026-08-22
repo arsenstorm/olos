@@ -1617,6 +1617,39 @@ describe("coordinator pipeline", () => {
     expect(result.status).toBe("committed");
   });
 
+  test("rejects commits recorded after the slot expired past tolerance", () => {
+    const state = createCoordinatorStateWithIssuedSegment();
+
+    const result = commitCoordinatorUpload({
+      commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:06.001Z",
+      lateToleranceMs: 1000,
+      object: createObservedUpload({
+        contentType: "video/mp4",
+        objectKey: "objects/v1080/s3810",
+        observedAt: "2026-01-01T00:00:02.000Z",
+        providerId: "s3_primary",
+        size: 98_304,
+      }),
+      slotId: "slot_3810",
+      state,
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
+      throw new Error("expected rejected commit");
+    }
+    expect(result.error.error).toEqual({
+      code: "olos.slot_expired",
+      details: {
+        committedAt: "2026-01-01T00:00:06.001Z",
+        expiresAt: "2026-01-01T00:00:05.000Z",
+        slotId: "slot_3810",
+      },
+      message: "commit was recorded after the slot expired",
+    });
+  });
+
   test("rejects commits for a revoked slot", () => {
     let state = createCoordinatorStateWithIssuedSegment();
     const revoked = revokeCoordinatorUpload({
