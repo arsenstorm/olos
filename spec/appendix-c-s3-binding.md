@@ -147,7 +147,7 @@ A conforming S3 deployment declares a capability document (Section 7.7,
 | `uploadGrants.requiredHeadersCanBeSigned` | `true` | the metadata headers are signed |
 | `uploadGrants.objectSizeCanBeObserved` | `true` | `HeadObject` reports `ContentLength` |
 | `publication.createIfAbsent` | `true` | `If-None-Match: *` is honored |
-| `consistency.headAfterCreate` | `"strong"` | `HeadObject` reads back immediately |
+| `consistency.observeAfterCreate` | `"strong"` | `HeadObject` reads back immediately |
 | `consistency.readAfterCreate` | `"strong"` | required by the schema |
 
 `uploadGrants.maxRecommendedTtlSeconds`, when declared, bounds the

@@ -31,7 +31,7 @@ const PROVIDER_CAPABILITY_FIELDS = [
 const PROVIDER_API_FIELDS = ["family"] as const;
 
 const PROVIDER_CONSISTENCY_FIELDS = [
-  "headAfterCreate",
+  "observeAfterCreate",
   "listAfterCreate",
   "readAfterCreate",
 ] as const;
@@ -111,9 +111,10 @@ const DIRECT_PUBLICATION_PRECONDITIONS = [
       "providerCapability.publication.manifestGatedPublication must be true for direct object publication",
   },
   {
-    isSatisfied: ({ consistency }) => consistency.headAfterCreate === "strong",
+    isSatisfied: ({ consistency }) =>
+      consistency.observeAfterCreate === "strong",
     message:
-      "providerCapability.consistency.headAfterCreate must be strong for direct object publication",
+      "providerCapability.consistency.observeAfterCreate must be strong for direct object publication",
   },
   {
     isSatisfied: ({ publication }) => publication.overwritesAllowed !== true,
@@ -148,7 +149,7 @@ export function isProviderCapabilityDocument(
  * an `Error` naming the first offending field. Rejects unknown fields at
  * the top level and inside every sub-object, checks the `olos` wire
  * version and, when the provider declares `directObjectPublication`,
- * enforces its preconditions: strong `headAfterCreate` consistency,
+ * enforces its preconditions: strong `observeAfterCreate` consistency,
  * manifest-gated publication, no overwrites, and a declared
  * negative-caching policy.
  */
@@ -207,7 +208,12 @@ function assertConsistency(value: unknown): void {
 
   assertOnlyKnownFields(value, PROVIDER_CONSISTENCY_FIELDS, name);
   assertOneOfField(value, "readAfterCreate", PROVIDER_CONSISTENCY_LEVELS, name);
-  assertOneOfField(value, "headAfterCreate", PROVIDER_CONSISTENCY_LEVELS, name);
+  assertOneOfField(
+    value,
+    "observeAfterCreate",
+    PROVIDER_CONSISTENCY_LEVELS,
+    name
+  );
   assertOptionalOneOfField(
     value,
     "listAfterCreate",

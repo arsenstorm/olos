@@ -157,9 +157,9 @@ describe("OLOS JSON schemas", () => {
       properties: {
         consistency: {
           properties: {
-            headAfterCreate: { const: "strong" },
+            observeAfterCreate: { const: "strong" },
           },
-          required: ["headAfterCreate"],
+          required: ["observeAfterCreate"],
         },
         delivery: {
           properties: {

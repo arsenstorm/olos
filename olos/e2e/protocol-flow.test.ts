@@ -54,7 +54,7 @@ const mediaObject: StorageObject = createObservedUpload({
 
 const directPublicCapability: ProviderCapabilityDocument = {
   consistency: {
-    headAfterCreate: "strong",
+    observeAfterCreate: "strong",
     readAfterCreate: "strong",
   },
   delivery: {

@@ -46,8 +46,8 @@ export interface ProviderApiCapabilities {
 
 /** Consistency the provider guarantees for operations after object create. */
 export interface ProviderConsistencyCapabilities {
-  headAfterCreate: ProviderConsistencyLevel;
   listAfterCreate?: ProviderConsistencyLevel;
+  observeAfterCreate: ProviderConsistencyLevel;
   readAfterCreate: ProviderConsistencyLevel;
 }
 
@@ -112,7 +112,7 @@ export interface ProviderEventCapabilities {
  * Self-description of an object-store provider: which OLOS publication
  * modes, grant constraints, and delivery guarantees it supports. Validated
  * by `assertProviderCapabilityDocument` (olos/validation); declaring
- * `directObjectPublication` requires strong `headAfterCreate` consistency,
+ * `directObjectPublication` requires strong `observeAfterCreate` consistency,
  * manifest-gated publication, and a declared negative-caching policy.
  */
 export interface ProviderCapabilityDocument {

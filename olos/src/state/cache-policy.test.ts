@@ -4,7 +4,7 @@ import { createDeliveryCachePolicy } from "./cache-policy";
 
 const capability: ProviderCapabilityDocument = {
   consistency: {
-    headAfterCreate: "strong",
+    observeAfterCreate: "strong",
     readAfterCreate: "strong",
   },
   delivery: {

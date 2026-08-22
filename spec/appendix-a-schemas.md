@@ -762,12 +762,12 @@ schema; the profile schemas in A.2 constrain its contents.
         "properties": {
           "consistency": {
             "properties": {
-              "headAfterCreate": {
+              "observeAfterCreate": {
                 "const": "strong"
               }
             },
             "required": [
-              "headAfterCreate"
+              "observeAfterCreate"
             ]
           },
           "delivery": {
@@ -816,7 +816,7 @@ schema; the profile schemas in A.2 constrain its contents.
     "consistency": {
       "additionalProperties": false,
       "properties": {
-        "headAfterCreate": {
+        "observeAfterCreate": {
           "enum": [
             "strong",
             "eventual",
@@ -842,7 +842,7 @@ schema; the profile schemas in A.2 constrain its contents.
         }
       },
       "required": [
-        "headAfterCreate",
+        "observeAfterCreate",
         "readAfterCreate"
       ],
       "type": "object"

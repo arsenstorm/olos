@@ -9,7 +9,7 @@ import {
 
 const capability: ProviderCapabilityDocument = {
   consistency: {
-    headAfterCreate: "strong",
+    observeAfterCreate: "strong",
     readAfterCreate: "strong",
   },
   delivery: {

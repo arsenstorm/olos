@@ -208,7 +208,7 @@ protocol preconditions the provider satisfies.
 | `olos`        | yes | MUST be `"1.0"`.                                 |
 | `providerId`  | yes | URL-safe identifier.                             |
 | `kind`        | yes | Currently only `object-store`.                   |
-| `consistency` | yes | `headAfterCreate` and `readAfterCreate` REQUIRED |
+| `consistency` | yes | `observeAfterCreate` and `readAfterCreate` REQUIRED |
 |               |     | (`strong`, `eventual`, or `unknown`).            |
 |               |     | `listAfterCreate` OPTIONAL.                      |
 | `publication` | yes | `createIfAbsent` and `directObjectPublication`   |

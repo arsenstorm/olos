@@ -10,7 +10,7 @@ const capability: ProviderCapabilityDocument = {
     family: "s3-compatible",
   },
   consistency: {
-    headAfterCreate: "strong",
+    observeAfterCreate: "strong",
     listAfterCreate: "strong",
     readAfterCreate: "strong",
   },
@@ -51,13 +51,13 @@ const capability: ProviderCapabilityDocument = {
 const directPublicationRejectionCases = [
   {
     error:
-      "providerCapability.consistency.headAfterCreate must be strong for direct object publication",
+      "providerCapability.consistency.observeAfterCreate must be strong for direct object publication",
     label: "without strong head-after-create",
     value: {
       ...capability,
       consistency: {
         ...capability.consistency,
-        headAfterCreate: "eventual",
+        observeAfterCreate: "eventual",
       },
     },
   },
@@ -154,7 +154,7 @@ describe("provider capability validation", () => {
         ...capability,
         consistency: {
           ...capability.consistency,
-          headAfterCreate: "eventual",
+          observeAfterCreate: "eventual",
         },
         delivery: {
           ...capability.delivery,
@@ -313,7 +313,7 @@ describe("provider capability validation", () => {
         ...capability,
         consistency: {
           ...capability.consistency,
-          headAfterCreate: "eventual",
+          observeAfterCreate: "eventual",
         },
         publication: {
           ...capability.publication,

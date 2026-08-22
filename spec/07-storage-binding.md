@@ -40,14 +40,14 @@ A conforming binding MUST satisfy:
   report an entity tag and a store-recorded creation or modification
   time. The report MUST be available immediately after the upload
   succeeds, without waiting for propagation.
-  `consistency.headAfterCreate: "strong"` and
+  `consistency.observeAfterCreate: "strong"` and
   `uploadGrants.objectSizeCanBeObserved` declare this behavior.
 - **Metadata echo.** The metadata record attached to the object at
   upload time (Section 7.2) MUST come back unchanged from observation,
   apart from the name mapping the binding declares. The coordinator
   uses that record to bind the object back to its slot (Section 7.3).
   The capability document has no separate field for this guarantee. It
-  is part of `consistency.headAfterCreate` reporting "the metadata
+  is part of `consistency.observeAfterCreate` reporting "the metadata
   attached at upload time". A store that cannot echo metadata cannot
   satisfy this contract.
 - **Object-created events (OPTIONAL).** A binding MAY deliver
@@ -269,7 +269,7 @@ Publication-mode gates:
   `delivery.negativeCachingPolicyDeclared`,
   `delivery.documentNavigationCanBeBlocked`, and
   `delivery.immutableCaching` all `true`, and
-  `consistency.headAfterCreate: "strong"`. It MUST NOT declare
+  `consistency.observeAfterCreate: "strong"`. It MUST NOT declare
   `publication.overwritesAllowed: true`.
 - `read-gated` REQUIRES `publication.readGateAvailable: true`.
 - `private-upload-public-promotion` REQUIRES

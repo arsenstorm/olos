@@ -11,7 +11,7 @@ const capability: ProviderCapabilityDocument = {
     family: "s3-compatible",
   },
   consistency: {
-    headAfterCreate: "strong",
+    observeAfterCreate: "strong",
     readAfterCreate: "strong",
   },
   delivery: {

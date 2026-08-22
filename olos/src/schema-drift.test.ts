@@ -236,7 +236,7 @@ const validProviderCapability = {
     family: "s3-compatible",
   },
   consistency: {
-    headAfterCreate: "strong",
+    observeAfterCreate: "strong",
     listAfterCreate: "strong",
     readAfterCreate: "strong",
   },
@@ -595,7 +595,7 @@ const suites: readonly DriftSuite[] = [
           ...validProviderCapability,
           consistency: {
             ...validProviderCapability.consistency,
-            headAfterCreate: "eventual",
+            observeAfterCreate: "eventual",
           },
         },
       },

@@ -11,7 +11,7 @@ const mediaOrigin = "https://media.example.com";
 
 const capability: ProviderCapabilityDocument = {
   consistency: {
-    headAfterCreate: "strong",
+    observeAfterCreate: "strong",
     readAfterCreate: "strong",
   },
   delivery: {
