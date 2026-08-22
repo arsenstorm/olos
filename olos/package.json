@@ -107,8 +107,8 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
-    "@aws-sdk/client-s3": "^3.1066.0",
-    "@aws-sdk/s3-request-presigner": "^3.1066.0",
+    "@aws-sdk/client-s3": "^3.1111.0",
+    "@aws-sdk/s3-request-presigner": "^3.1111.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "publint": "^0.3.22",
@@ -116,8 +116,8 @@
     "vitest": "^4.1.8"
   },
   "peerDependencies": {
-    "@aws-sdk/client-s3": "^3.1066.0",
-    "@aws-sdk/s3-request-presigner": "^3.1066.0"
+    "@aws-sdk/client-s3": "^3.1111.0",
+    "@aws-sdk/s3-request-presigner": "^3.1111.0"
   },
   "peerDependenciesMeta": {
     "@aws-sdk/client-s3": {

@@ -5,7 +5,7 @@
   "private": true,
   "dependencies": {
     "@arsenstorm/olos": "workspace:*",
-    "@aws-sdk/client-s3": "^3.1066.0",
+    "@aws-sdk/client-s3": "^3.1111.0",
     "asciichart": "^1.5.25",
     "cli-progress": "^3.12.0"
   },
