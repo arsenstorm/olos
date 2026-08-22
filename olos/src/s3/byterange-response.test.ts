@@ -465,7 +465,12 @@ describe("createByterangeSegmentResponse", () => {
   });
 
   test("404s when the virtual segment has no committed parts", async () => {
-    const store = await seedStore([]);
+    const otherSegmentPart = makePart(0, 0, 100);
+    otherSegmentPart.byterange = {
+      ...otherSegmentPart.byterange,
+      segmentObjectKey: "live/session/v1080/segment-9.m4s",
+    } as CommittedPart["byterange"];
+    const store = await seedStore([otherSegmentPart]);
     const client = createFakeS3([]);
 
     const response = await createByterangeSegmentResponse({
