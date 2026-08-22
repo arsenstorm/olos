@@ -6,7 +6,6 @@ import {
   createObservedUploadFromHeadObject,
   createObservedUploadFromObjectCreatedEvent,
   createUploadCompletionHint,
-  resolveObjectCreatedEventObservation,
   resolveUploadEvidence,
 } from "./observed-upload";
 import {
@@ -89,13 +88,6 @@ export interface UploadCompletionHint {
   slotId: string;
 }
 
-/** Options for {@link resolveObjectCreatedEventObservation}. */
-export interface ResolveObjectCreatedEventObservationOptions {
-  event: ObservedUploadObjectCreatedEvent;
-  /** Event IDs already processed, used to detect duplicate deliveries. */
-  observedEventIds: ReadonlySet<string> | readonly string[];
-}
-
 /** Options for {@link resolveObjectCreatedEventSlot}. */
 export interface ResolveObjectCreatedEventSlotOptions {
   event: ObservedUploadObjectCreatedEvent;
@@ -121,20 +113,6 @@ export type ObjectCreatedUploadEventPayload =
   CreateObservedUploadFromObjectCreatedEventOptions;
 
 export type UploadCompletionHintPayload = CreateUploadCompletionHintOptions;
-
-/**
- * Outcome of {@link resolveObjectCreatedEventObservation}: `observed` for
- * a first delivery, `duplicate` for an event ID seen before.
- */
-export type ObjectCreatedEventObservationResolution =
-  | {
-      event: ObservedUploadObjectCreatedEvent;
-      status: "observed";
-    }
-  | {
-      eventId: string;
-      status: "duplicate";
-    };
 
 /**
  * Outcome of {@link resolveObjectCreatedEventSlot}: `matched` with the

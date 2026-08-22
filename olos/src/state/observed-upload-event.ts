@@ -252,14 +252,3 @@ export function headObjectTimestamp(value: string | Date): string {
 
   return new Date(timestampMs(value, "lastModified")).toISOString();
 }
-
-export function hasObservedEvent(
-  observedEventIds: ReadonlySet<string> | readonly string[],
-  eventId: string
-): boolean {
-  if ("has" in observedEventIds) {
-    return observedEventIds.has(eventId);
-  }
-
-  return observedEventIds.includes(eventId);
-}

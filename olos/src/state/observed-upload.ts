@@ -6,7 +6,6 @@ import {
 import {
   assertObjectCreatedEvent,
   assertUploadCompletionHint,
-  hasObservedEvent,
   headObjectTimestamp,
 } from "./observed-upload-event";
 import type {
@@ -14,9 +13,7 @@ import type {
   CreateObservedUploadFromObjectCreatedEventOptions,
   CreateObservedUploadOptions,
   CreateUploadCompletionHintOptions,
-  ObjectCreatedEventObservationResolution,
   ObservedUploadObjectCreatedEvent,
-  ResolveObjectCreatedEventObservationOptions,
   ResolveUploadEvidenceOptions,
   UploadCompletionHint,
   UploadEvidenceResolution,
@@ -106,27 +103,6 @@ export function createUploadCompletionHint(
     eventType: options.eventType,
     objectKey: options.objectKey,
     slotId: options.slotId,
-  };
-}
-
-/**
- * Deduplicate an object-created event by its event ID: returns `observed`
- * for a first delivery and `duplicate` when the ID is already in
- * `observedEventIds`. Pure; the caller records observed IDs itself.
- */
-export function resolveObjectCreatedEventObservation(
-  options: ResolveObjectCreatedEventObservationOptions
-): ObjectCreatedEventObservationResolution {
-  if (hasObservedEvent(options.observedEventIds, options.event.eventId)) {
-    return {
-      eventId: options.event.eventId,
-      status: "duplicate",
-    };
-  }
-
-  return {
-    event: options.event,
-    status: "observed",
   };
 }
 

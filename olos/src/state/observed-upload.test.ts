@@ -6,7 +6,6 @@ import {
   createObservedUploadFromHeadObject,
   createObservedUploadFromObjectCreatedEvent,
   createUploadCompletionHint,
-  resolveObjectCreatedEventObservation,
   resolveUploadEvidence,
 } from "./observed-upload";
 import {
@@ -532,30 +531,6 @@ describe("object created event normalization", () => {
 
   test("idles without upload evidence", () => {
     expect(resolveUploadEvidence({})).toEqual({ status: "idle" });
-  });
-
-  test("observes object-created events once", () => {
-    expect(
-      resolveObjectCreatedEventObservation({
-        event: objectCreatedEvent,
-        observedEventIds: [],
-      })
-    ).toEqual({
-      event: objectCreatedEvent,
-      status: "observed",
-    });
-  });
-
-  test("treats duplicate object-created events idempotently", () => {
-    expect(
-      resolveObjectCreatedEventObservation({
-        event: objectCreatedEvent,
-        observedEventIds: new Set(["evt_1"]),
-      })
-    ).toEqual({
-      eventId: "evt_1",
-      status: "duplicate",
-    });
   });
 
   test("rejects invalid event ids", () => {
