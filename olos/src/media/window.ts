@@ -2,11 +2,13 @@ import type { TrackWindowProfileInput } from "../state/committed-window";
 import type { StreamProfile } from "../types/profile";
 import {
   CMAF_LLHLS_PROFILE_ID,
-  type MediaCommittedSegment,
   type MediaSessionProfile,
   type MediaTrackWindowProfile,
 } from "./types";
-import { assertMediaSessionProfile } from "./validation";
+import {
+  assertMediaSessionProfile,
+  mediaSegmentDiscontinuityBefore,
+} from "./validation";
 
 export type { TrackWindowProfileInput } from "../state/committed-window";
 
@@ -27,9 +29,7 @@ export function createMediaTrackWindowProfile(
     input: TrackWindowProfileInput
   ): MediaTrackWindowProfile | undefined => {
     const trimmedDiscontinuities = input.trimmedSegments.filter(
-      (segment) =>
-        (segment as MediaCommittedSegment).segment?.profile
-          ?.discontinuityBefore === true
+      mediaSegmentDiscontinuityBefore
     ).length;
 
     if (trimmedDiscontinuities === 0) {
