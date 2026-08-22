@@ -1,4 +1,5 @@
 import type { CursorWindow } from "../types/cursor";
+import type { ProfileData } from "../types/profile";
 import type { PublicationMode } from "../types/upload-slot";
 import { assertCursorWindow } from "../validation/cursor";
 import { assertNonNegativeInteger } from "../validation/ids";
@@ -17,7 +18,7 @@ import { optionalField, positiveInteger } from "./request-fields";
 
 /**
  * Publishing cadence: `segment` emits whole segments, `part` emits partial
- * segments (`partsPerSegment` per media sequence number) for low latency.
+ * segments (`partsPerSegment` per sequence number) for low latency.
  */
 export type RuntimePublisherCadenceMode = "part" | "segment";
 
@@ -25,7 +26,7 @@ export type RuntimePublisherCadenceMode = "part" | "segment";
 export interface ResolveRuntimePublisherNextObjectPositionOptions {
   /**
    * Committed window from the session cursor; the next position follows it.
-   * Omit before the first commit to start at `startMediaSequenceNumber`.
+   * Omit before the first commit to start at `startSequenceNumber`.
    */
   cursorWindow?: CursorWindow;
   /** Pass `false` to plan the init object first; defaults to `true`. */
@@ -34,16 +35,16 @@ export interface ResolveRuntimePublisherNextObjectPositionOptions {
   mode?: RuntimePublisherCadenceMode;
   /** Parts per segment; required (positive integer) in `part` mode. */
   partsPerSegment?: number;
-  /** First media sequence number when there is no cursor window yet (default 0). */
-  startMediaSequenceNumber?: number;
+  /** First sequence number when there is no cursor window yet (default 0). */
+  startSequenceNumber?: number;
 }
 
 /** Timeline position of a planned object. */
 export interface RuntimePublisherObjectPosition {
   kind: RuntimePublisherPlannedObjectKind;
-  mediaSequenceNumber: number;
   /** Zero-based part index within the segment; only set for parts. */
   partNumber?: number;
+  sequenceNumber: number;
 }
 
 /**
@@ -51,26 +52,31 @@ export interface RuntimePublisherObjectPosition {
  * object of that kind.
  */
 export interface RuntimePublisherObjectKindDefaults {
+  /**
+   * Expected seconds one object of this kind covers; sizes the slot TTL
+   * (see `resolveRuntimePublisherObjectExpiry`).
+   */
+  cadenceSeconds: number;
   contentType: string;
-  /** Object duration, in seconds. */
-  duration: number;
-  /** File extension used when deriving the object key. */
-  extension: string;
+  /** File extension used when deriving the object key; omitted for none. */
+  extension?: string;
   maxBytes: number;
   /** Lower byte bound; must not exceed `maxBytes`. */
   minBytes?: number;
+  /** Profile data stamped on every slot of this kind (opaque to Core). */
+  profile?: ProfileData;
 }
 
 interface RuntimePublisherObjectPositionContext {
   cursorWindow?: CursorWindow;
   partsPerSegment?: number;
-  startMediaSequenceNumber: number;
+  startSequenceNumber: number;
 }
 
 interface RuntimePublisherPartPositionContext {
   cursorWindow?: CursorWindow;
   partsPerSegment: number;
-  startMediaSequenceNumber: number;
+  startSequenceNumber: number;
 }
 
 /**
@@ -94,27 +100,29 @@ export interface CreateRuntimePublisherObjectPlanInputOptions {
   objectKeyPrefix?: string;
   position: RuntimePublisherObjectPosition;
   publicationMode?: PublicationMode;
-  renditionId: string;
+  trackId: string;
 }
 
 /**
  * Options for `createRuntimePublisherNextObjectPlan`: position resolution,
- * per-kind defaults, and expiry inputs combined. The plan's `duration`
- * comes from the resolved kind's defaults, so it is omitted here.
+ * per-kind defaults, and expiry inputs combined. The expiry's
+ * `cadenceSeconds` comes from the resolved kind's defaults, so it is
+ * omitted here.
  */
 export interface CreateRuntimePublisherNextObjectPlanOptions
   extends Omit<CreateRuntimePublisherObjectPlanInputOptions, "position">,
-    Omit<ResolveRuntimePublisherObjectExpiryOptions, "duration">,
+    Omit<ResolveRuntimePublisherObjectExpiryOptions, "cadenceSeconds">,
     ResolveRuntimePublisherNextObjectPositionOptions {}
 
 /**
  * A fully resolved object plan input, still missing only the `expiresAt`
- * that expiry resolution supplies.
+ * that expiry resolution supplies. Carries the kind's `cadenceSeconds` for
+ * that resolution.
  */
 export type RuntimePublisherObjectPlanInput = Omit<
   CreateRuntimePublisherObjectPlanOptions,
   "expiresAt"
->;
+> & { cadenceSeconds: number };
 
 /**
  * Result of `createRuntimePublisherNextObjectPlan`: the slot plan, the
@@ -131,7 +139,7 @@ export interface RuntimePublisherNextObjectPlan {
  * object when `initPublished` is `false`; otherwise advances past
  * `cursorWindow` in the chosen cadence — the next segment, or the next part
  * (rolling into part 0 of the next segment after `partsPerSegment` parts).
- * Without a cursor window it starts at `startMediaSequenceNumber`
+ * Without a cursor window it starts at `startSequenceNumber`
  * (default 0).
  */
 export function resolveRuntimePublisherNextObjectPosition(
@@ -142,7 +150,7 @@ export function resolveRuntimePublisherNextObjectPosition(
   if (options.initPublished === false) {
     return {
       kind: "init",
-      mediaSequenceNumber: 0,
+      sequenceNumber: 0,
     };
   }
 
@@ -152,11 +160,8 @@ export function resolveRuntimePublisherNextObjectPosition(
 function runtimePublisherObjectPositionContext(
   options: ResolveRuntimePublisherNextObjectPositionOptions
 ): RuntimePublisherObjectPositionContext {
-  const startMediaSequenceNumber = options.startMediaSequenceNumber ?? 0;
-  assertNonNegativeInteger(
-    startMediaSequenceNumber,
-    "startMediaSequenceNumber"
-  );
+  const startSequenceNumber = options.startSequenceNumber ?? 0;
+  assertNonNegativeInteger(startSequenceNumber, "startSequenceNumber");
 
   if (options.cursorWindow !== undefined) {
     assertCursorWindow(options.cursorWindow, "cursorWindow");
@@ -165,7 +170,7 @@ function runtimePublisherObjectPositionContext(
   return {
     cursorWindow: options.cursorWindow,
     partsPerSegment: options.partsPerSegment,
-    startMediaSequenceNumber,
+    startSequenceNumber,
   };
 }
 
@@ -189,13 +194,13 @@ function runtimePublisherPartPositionContext(
       context.partsPerSegment,
       "partsPerSegment"
     ),
-    startMediaSequenceNumber: context.startMediaSequenceNumber,
+    startSequenceNumber: context.startSequenceNumber,
   };
 }
 
 /**
  * Merge a timeline position with its kind's defaults into a plan input,
- * carrying through the rendition, publication mode, and object key hints.
+ * carrying through the track, publication mode, and object key hints.
  */
 export function createRuntimePublisherObjectPlanInput(
   options: CreateRuntimePublisherObjectPlanInputOptions
@@ -203,31 +208,32 @@ export function createRuntimePublisherObjectPlanInput(
   const defaults = options.defaults[options.position.kind];
 
   return {
+    cadenceSeconds: defaults.cadenceSeconds,
     contentType: defaults.contentType,
-    duration: defaults.duration,
-    extension: defaults.extension,
     kind: options.position.kind,
     maxBytes: defaults.maxBytes,
-    mediaSequenceNumber: options.position.mediaSequenceNumber,
+    sequenceNumber: options.position.sequenceNumber,
     publicationMode: options.publicationMode,
-    renditionId: options.renditionId,
+    trackId: options.trackId,
+    ...optionalField("extension", defaults.extension),
     ...optionalField("minBytes", defaults.minBytes),
     ...optionalField("objectKeyNonce", options.objectKeyNonce),
     ...optionalField("objectKeyPrefix", options.objectKeyPrefix),
     ...optionalField("partNumber", options.position.partNumber),
+    ...optionalField("profile", defaults.profile),
   };
 }
 
 function nextSegmentPosition(options: {
   cursorWindow?: CursorWindow;
-  startMediaSequenceNumber: number;
+  startSequenceNumber: number;
 }): RuntimePublisherObjectPosition {
   return {
     kind: "segment",
-    mediaSequenceNumber:
+    sequenceNumber:
       options.cursorWindow === undefined
-        ? options.startMediaSequenceNumber
-        : options.cursorWindow.lastMediaSequenceNumber + 1,
+        ? options.startSequenceNumber
+        : options.cursorWindow.lastSequenceNumber + 1,
   };
 }
 
@@ -241,7 +247,7 @@ export function createRuntimePublisherNextObjectPlan(
 ): RuntimePublisherNextObjectPlan {
   const input = createRuntimePublisherNextObjectPlanInput(options);
   const expiry = resolveRuntimePublisherObjectExpiry({
-    duration: input.duration,
+    cadenceSeconds: input.cadenceSeconds,
     minTtlSeconds: options.minTtlSeconds,
     now: options.now,
     targetLatency: options.targetLatency,
@@ -274,8 +280,10 @@ function runtimePublisherObjectPlan(
   input: RuntimePublisherObjectPlanInput,
   expiry: RuntimePublisherObjectExpiry
 ): RuntimePublisherObjectPlan {
+  const { cadenceSeconds, ...plan } = input;
+
   return createRuntimePublisherObjectPlan({
-    ...input,
+    ...plan,
     expiresAt: expiry.expiresAt,
   });
 }
@@ -286,7 +294,7 @@ function nextPartPosition(
   const { cursorWindow } = options;
 
   if (cursorWindow === undefined) {
-    return firstPartPosition(options.startMediaSequenceNumber);
+    return firstPartPosition(options.startSequenceNumber);
   }
 
   const nextPart = nextPartInCurrentSegment(
@@ -298,7 +306,7 @@ function nextPartPosition(
     return nextPart;
   }
 
-  return firstPartPosition(cursorWindow.lastMediaSequenceNumber + 1);
+  return firstPartPosition(cursorWindow.lastSequenceNumber + 1);
 }
 
 function nextPartInCurrentSegment(
@@ -317,17 +325,17 @@ function nextPartInCurrentSegment(
 
   return {
     kind: "part",
-    mediaSequenceNumber: cursorWindow.lastMediaSequenceNumber,
+    sequenceNumber: cursorWindow.lastSequenceNumber,
     partNumber: nextPartNumber,
   };
 }
 
 function firstPartPosition(
-  mediaSequenceNumber: number
+  sequenceNumber: number
 ): RuntimePublisherObjectPosition {
   return {
     kind: "part",
-    mediaSequenceNumber,
+    sequenceNumber,
     partNumber: 0,
   };
 }

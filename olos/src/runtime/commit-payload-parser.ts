@@ -1,13 +1,13 @@
+import type { ProfileData } from "../types/profile";
 import { isRecord } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertSafeObjectKey } from "../validation/object-key";
 import {
-  optionalBooleanField,
   optionalField,
   optionalNonNegativeNumberField,
   optionalPositiveIntegerField,
+  optionalProfileField,
   optionalStringField,
-  optionalTimestampField,
   optionalTimestampValueField,
   positiveNumberField,
   stringField,
@@ -24,20 +24,21 @@ export type ParseTimestampField = (
   field: string
 ) => string;
 
-export interface CommitPayloadTiming {
-  independent?: boolean;
+/** Optional commit fields shared by every commit payload shape. */
+export interface CommitPayloadOptions {
   lateToleranceMs?: number;
   maxSegments?: number;
-  programDateTime?: string;
+  /** Profile data recorded on the commit (opaque to Core). */
+  profile?: ProfileData;
 }
 
-export interface ParsedCommitPayload extends CommitPayloadTiming {
+export interface ParsedCommitPayload extends CommitPayloadOptions {
   commitId: string;
   committedAt: string;
   slotId: string;
 }
 
-export interface ProviderResolvedCommitPayload extends CommitPayloadTiming {
+export interface ProviderResolvedCommitPayload extends CommitPayloadOptions {
   committedAt: string;
   providerId: string;
 }
@@ -66,8 +67,8 @@ export interface ParsedObservedUploadPayload {
 }
 
 /**
- * Wire payload for committing an upload: the commit identity and timing
- * fields plus the observed object being committed.
+ * Wire payload for committing an upload: the commit identity, optional
+ * commit fields, and the observed object being committed.
  */
 export interface RuntimeCommitPayload extends ParsedCommitPayload {
   object: ParsedObservedUploadPayload;
@@ -208,14 +209,13 @@ export function parseSafeObjectKeyField(
   return objectKey;
 }
 
-export function parseCommitPayloadTiming(
+export function parseCommitPayloadOptions(
   value: Record<string, unknown>
-): CommitPayloadTiming {
+): CommitPayloadOptions {
   return {
-    ...optionalBooleanField(value, "independent"),
     ...optionalNonNegativeNumberField(value, "lateToleranceMs"),
     ...optionalPositiveIntegerField(value, "maxSegments"),
-    ...optionalTimestampField(value, "programDateTime"),
+    ...optionalProfileField(value),
   };
 }
 
@@ -227,7 +227,7 @@ export function parseCommitRequestPayload(
     commitId: urlSafeIdentifierField(value, "commitId"),
     committedAt: parseCommittedAt(value, "committedAt"),
     slotId: urlSafeIdentifierField(value, "slotId"),
-    ...parseCommitPayloadTiming(value),
+    ...parseCommitPayloadOptions(value),
   };
 }
 
@@ -253,7 +253,7 @@ export function parseProviderResolvedCommitPayload(
       field,
       providerIdField.missingError ?? `${field} must be configured or provided`
     ),
-    ...parseCommitPayloadTiming(value),
+    ...parseCommitPayloadOptions(value),
   };
 }
 

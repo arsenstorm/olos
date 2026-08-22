@@ -15,48 +15,37 @@ import {
   type KnownFieldsShape,
   nonEmptyArray,
 } from "./fields";
+import { assertOptionalProfileField } from "./profile";
 
 const COMMITTED_WINDOW_FIELDS = [
-  "discontinuitySequence",
   "epoch",
-  "firstMediaSequenceNumber",
-  "lastMediaSequenceNumber",
-  "renditions",
+  "firstSequenceNumber",
+  "lastSequenceNumber",
+  "tracks",
 ] as const;
 
-const RENDITION_WINDOW_FIELDS = [
-  "discontinuitySequence",
-  "init",
-  "renditionId",
-  "segments",
-] as const;
+const TRACK_WINDOW_FIELDS = ["init", "profile", "segments", "trackId"] as const;
 
 export const COMMITTED_SEGMENT_FIELDS = [
-  "discontinuityBefore",
-  "duration",
-  "independent",
-  "mediaSequenceNumber",
   "parts",
-  "programDateTime",
   "segment",
+  "sequenceNumber",
 ] as const;
 
 export const COMMITTED_OBJECT_FIELDS = [
   "commitId",
   "contentType",
   "deliveryUrl",
-  "duration",
   "etag",
   "objectKey",
+  "profile",
   "slotId",
 ] as const;
 
 export const COMMITTED_PART_FIELDS = [
   ...COMMITTED_OBJECT_FIELDS,
   "byterange",
-  "independent",
   "partNumber",
-  "programDateTime",
 ] as const;
 
 const COMMITTED_OBJECT_SHAPE: KnownFieldsShape = {
@@ -78,8 +67,8 @@ const COMMITTED_SEGMENT_SHAPE: KnownFieldsShape = {
   },
 };
 
-const RENDITION_WINDOW_SHAPE: KnownFieldsShape = {
-  fields: RENDITION_WINDOW_FIELDS,
+const TRACK_WINDOW_SHAPE: KnownFieldsShape = {
+  fields: TRACK_WINDOW_FIELDS,
   nested: {
     init: { kind: "object", shape: COMMITTED_OBJECT_SHAPE },
     segments: { kind: "array", shape: COMMITTED_SEGMENT_SHAPE },
@@ -88,13 +77,14 @@ const RENDITION_WINDOW_SHAPE: KnownFieldsShape = {
 
 /**
  * `KnownFieldsShape` of a wire-format `CommittedWindow`, for tolerant
- * read-path pruning with `pruneUnknownFields` — renditions is a map of
- * rendition windows, each with committed objects, segments, and parts.
+ * read-path pruning with `pruneUnknownFields` — tracks is a map of track
+ * windows, each with committed objects, segments, and parts. Profile data
+ * at every level is passed through untouched.
  */
 export const COMMITTED_WINDOW_SHAPE: KnownFieldsShape = {
   fields: COMMITTED_WINDOW_FIELDS,
   nested: {
-    renditions: { kind: "map", shape: RENDITION_WINDOW_SHAPE },
+    tracks: { kind: "map", shape: TRACK_WINDOW_SHAPE },
   },
 };
 
@@ -110,18 +100,18 @@ export interface CommittedSegmentPositionTracker {
 
 /**
  * Returns the highest part number on the visible window's last segment
- * across all renditions, or undefined when the last segment is a full
- * segment (no parts) or no segments exist.
+ * across all tracks, or undefined when the last segment is a full segment
+ * (no parts) or no segments exist.
  */
 export function lastVisiblePartNumber(
   window: CommittedWindow
 ): number | undefined {
   let max: number | undefined;
 
-  for (const rendition of Object.values(window.renditions)) {
-    const lastSegment = rendition.segments.at(-1);
+  for (const track of Object.values(window.tracks)) {
+    const lastSegment = track.segments.at(-1);
 
-    if (lastSegment?.mediaSequenceNumber !== window.lastMediaSequenceNumber) {
+    if (lastSegment?.sequenceNumber !== window.lastSequenceNumber) {
       continue;
     }
 
@@ -155,10 +145,10 @@ export function isCommittedWindow(value: unknown): value is CommittedWindow {
 /**
  * Validates an untrusted value as a `CommittedWindow`, throwing an `Error`
  * naming the first offending field. Rejects unknown fields at every level.
- * Beyond field shapes, it enforces the structural invariants manifests rely
- * on: non-empty renditions whose keys match their `renditionId`, monotonic
- * and duplicate-free media sequence numbers and part numbers, and a segment
- * or parts on every position.
+ * Beyond field shapes, it enforces the structural invariants consumers rely
+ * on: non-empty tracks whose keys match their `trackId`, monotonic and
+ * duplicate-free sequence numbers and part numbers, and a segment or parts
+ * on every position. Profile data is only checked to be an object.
  */
 export function assertCommittedWindow(
   value: unknown
@@ -171,63 +161,48 @@ export function assertCommittedWindow(
   assertNonNegativeIntegerField(value, "epoch", "committedWindow");
   assertNonNegativeIntegerField(
     value,
-    "discontinuitySequence",
+    "firstSequenceNumber",
     "committedWindow"
   );
-  assertNonNegativeIntegerField(
-    value,
-    "firstMediaSequenceNumber",
-    "committedWindow"
-  );
-  assertNonNegativeIntegerField(
-    value,
-    "lastMediaSequenceNumber",
-    "committedWindow"
-  );
+  assertNonNegativeIntegerField(value, "lastSequenceNumber", "committedWindow");
   assertCommittedWindowSequence(value);
 
-  if (
-    !isRecord(value.renditions) ||
-    Object.keys(value.renditions).length === 0
-  ) {
-    throw new Error("committedWindow.renditions must be a non-empty object");
+  if (!isRecord(value.tracks) || Object.keys(value.tracks).length === 0) {
+    throw new Error("committedWindow.tracks must be a non-empty object");
   }
 
-  for (const [renditionId, rendition] of Object.entries(value.renditions)) {
-    assertRenditionWindow(rendition, renditionId);
+  for (const [trackId, track] of Object.entries(value.tracks)) {
+    assertTrackWindow(track, trackId);
   }
 }
 
 function assertCommittedWindowSequence(value: Record<string, unknown>): void {
-  if (
-    Number(value.firstMediaSequenceNumber) >
-    Number(value.lastMediaSequenceNumber)
-  ) {
+  if (Number(value.firstSequenceNumber) > Number(value.lastSequenceNumber)) {
     throw new Error(
-      "committedWindow.firstMediaSequenceNumber must be less than or equal to lastMediaSequenceNumber"
+      "committedWindow.firstSequenceNumber must be less than or equal to lastSequenceNumber"
     );
   }
 }
 
-function assertRenditionWindow(value: unknown, key: string): void {
-  const name = `committedWindow.renditions.${key}`;
+function assertTrackWindow(value: unknown, key: string): void {
+  const name = `committedWindow.tracks.${key}`;
 
   if (!isRecord(value)) {
     throw new Error(`${name} must be an object`);
   }
 
-  assertOnlyKnownFields(value, RENDITION_WINDOW_FIELDS, name);
-  assertUrlSafeField(value, "renditionId", name);
+  assertOnlyKnownFields(value, TRACK_WINDOW_FIELDS, name);
+  assertUrlSafeField(value, "trackId", name);
 
-  if (value.renditionId !== key) {
-    throw new Error(`${name}.renditionId must match its renditions key`);
+  if (value.trackId !== key) {
+    throw new Error(`${name}.trackId must match its tracks key`);
   }
 
-  if (value.discontinuitySequence !== undefined) {
-    assertNonNegativeIntegerField(value, "discontinuitySequence", name);
+  if (value.init !== undefined) {
+    assertCommittedObject(value.init, `${name}.init`);
   }
 
-  assertCommittedObject(value.init, `${name}.init`);
+  assertOptionalProfileField(value, name);
 
   assertMonotonicSegments(
     nonEmptyArray<CommittedSegment>(value.segments, `${name}.segments`),

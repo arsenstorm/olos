@@ -21,6 +21,7 @@ import type {
 } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
+import type { ProfileData } from "../types/profile";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
 import type { S3HeadObjectClient } from "./object-observation";
@@ -38,10 +39,10 @@ export interface CommitS3CoordinatorUploadOptions {
   commitId: OlosId;
   commitPolicy?: CoordinatorCommitPolicy;
   committedAt: string;
-  independent?: boolean;
   lateToleranceMs?: number;
   maxSegments?: number;
-  programDateTime?: string;
+  /** Profile-defined facts about the object, merged over the slot profile. */
+  profile?: ProfileData;
   providerId: string;
   publicationControl?: PublicationControlPolicy;
   slotId: OlosId;
@@ -86,12 +87,12 @@ export interface RouteStoredS3CoordinatorUploadEventOptions {
   client: S3HeadObjectClient;
   commitPolicy?: CoordinatorCommitPolicy;
   event: UploadEventNormalization;
-  independent?: boolean;
   lateToleranceMs?: number;
   manifest?: StoredS3CoordinatorManifestOptions;
   maxAttempts?: number;
   maxSegments?: number;
-  programDateTime?: string;
+  /** Profile-defined facts about the object, merged over the slot profile. */
+  profile?: ProfileData;
   providerId: string;
   publicationControl?: PublicationControlPolicy;
   sessionId: OlosId;

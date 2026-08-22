@@ -7,9 +7,9 @@ import {
   OLOS_CURSOR_SCHEMA,
   OLOS_ERROR_SCHEMA,
   OLOS_JSON_SCHEMAS,
-  OLOS_MEDIA_OBJECT_SCHEMA,
   OLOS_PROVIDER_CAPABILITY_SCHEMA,
   OLOS_SESSION_SCHEMA,
+  OLOS_STORAGE_OBJECT_SCHEMA,
   OLOS_UPLOAD_GRANT_SCHEMA,
   OLOS_UPLOAD_SLOT_SCHEMA,
 } from "./schema";
@@ -18,9 +18,9 @@ import { assertCommit } from "./validation/commit";
 import { assertCommittedWindow } from "./validation/committed-window";
 import { assertCursor } from "./validation/cursor";
 import { assertOlosErrorEnvelope } from "./validation/error-envelope";
-import { assertMediaObject } from "./validation/media-object";
 import { assertProviderCapabilityDocument } from "./validation/provider-capability";
 import { assertSession } from "./validation/session";
+import { assertStorageObject } from "./validation/storage-object";
 import { assertUploadGrant } from "./validation/upload-grant";
 import { assertUploadSlot } from "./validation/upload-slot";
 
@@ -44,6 +44,8 @@ interface InvalidPayload {
 }
 
 interface DriftSuite {
+  /** Further payloads both the schema and the validator must accept. */
+  alsoValid?: readonly InvalidPayload[];
   assertValid: (value: unknown) => void;
   invalid: readonly InvalidPayload[];
   label: string;
@@ -58,36 +60,38 @@ interface DriftSuite {
   validatorOnlyInvalid?: readonly InvalidPayload[];
 }
 
-const validVideoRendition = {
-  bitrate: 4_500_000,
-  codec: "avc1.640028",
-  frameRate: 30,
-  height: 1080,
-  kind: "video",
-  renditionId: "v1080",
-  width: 1920,
+const validVideoTrack = {
+  profile: {
+    bitrate: 4_500_000,
+    codec: "avc1.640028",
+    frameRate: 30,
+    height: 1080,
+    kind: "video",
+    width: 1920,
+  },
+  trackId: "v1080",
 } as const;
 
-const validGroupedAudioRendition = {
-  bitrate: 128_000,
-  channels: 2,
-  codec: "mp4a.40.2",
-  defaultRendition: true,
-  groupId: "aac",
-  kind: "audio",
-  name: "English",
-  renditionId: "a128",
-  sampleRate: 48_000,
+const validGroupedAudioTrack = {
+  profile: {
+    bitrate: 128_000,
+    channels: 2,
+    codec: "mp4a.40.2",
+    defaultTrack: true,
+    groupId: "aac",
+    kind: "audio",
+    name: "English",
+    sampleRate: 48_000,
+  },
+  trackId: "a128",
 } as const;
 
 const validSession = {
   createdAt: "2026-06-08T12:00:00.000Z",
   epoch: 0,
-  latencyProfile: "object-ll",
   olos: "1.0",
-  partTarget: 0.333,
-  renditions: [validVideoRendition, validGroupedAudioRendition],
-  segmentTarget: 1,
+  profile: { id: "cmaf-llhls", partTarget: 0.333, segmentTarget: 1 },
+  tracks: [validVideoTrack, validGroupedAudioTrack],
   sessionId: "session_1",
   state: "live",
 } as const;
@@ -97,15 +101,17 @@ const validCommit = {
   committedAt: "2026-06-08T12:00:01.820Z",
   deliveryUrl:
     "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p3.m4s",
-  duration: 0.5,
+  profile: {
+    duration: 0.5,
+    independent: false,
+    programDateTime: "2026-06-08T12:00:05.500Z",
+  },
   epoch: 1,
   etag: '"9b2cf535f27731c974343645a3985328"',
-  independent: false,
-  mediaSequenceNumber: 3812,
+  sequenceNumber: 3812,
   objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
   partNumber: 3,
-  programDateTime: "2026-06-08T12:00:05.500Z",
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "sess_01JZLIVE",
   size: 312_500,
   slotId: "slot_01JZ",
@@ -115,27 +121,26 @@ const validUploadSlot = {
   contentType: "video/mp4",
   deliveryUrl:
     "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p3.m4s",
-  duration: 0.5,
+  profile: { duration: 0.5 },
   epoch: 1,
   expiresAt: "2026-06-08T12:00:05Z",
   kind: "part",
   maxBytes: 524_288,
-  mediaSequenceNumber: 3812,
+  sequenceNumber: 3812,
   minBytes: 1024,
   objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
   partNumber: 3,
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "sess_01JZLIVE",
   slotId: "slot_01JZ",
   state: "issued",
 } as const;
 
 const validCommittedWindow = {
-  discontinuitySequence: 0,
   epoch: 1,
-  firstMediaSequenceNumber: 3810,
-  lastMediaSequenceNumber: 3812,
-  renditions: {
+  firstSequenceNumber: 3810,
+  lastSequenceNumber: 3812,
+  tracks: {
     v1080: {
       init: {
         commitId: "commit_init",
@@ -144,40 +149,38 @@ const validCommittedWindow = {
         objectKey: "media/tenant/sess/e1/v1080/init.mp4",
         slotId: "slot_init",
       },
-      renditionId: "v1080",
+      trackId: "v1080",
       segments: [
         {
-          duration: 2,
-          mediaSequenceNumber: 3810,
+          sequenceNumber: 3810,
           segment: {
             commitId: "commit_3810",
             deliveryUrl:
               "https://media.example.com/media/tenant/sess/e1/v1080/s3810.m4s",
             objectKey: "media/tenant/sess/e1/v1080/s3810.m4s",
             slotId: "slot_3810",
+            profile: { duration: 2 },
           },
         },
         {
-          duration: 2,
-          mediaSequenceNumber: 3811,
+          sequenceNumber: 3811,
           segment: {
             commitId: "commit_3811",
             deliveryUrl:
               "https://media.example.com/media/tenant/sess/e1/v1080/s3811.m4s",
             objectKey: "media/tenant/sess/e1/v1080/s3811.m4s",
             slotId: "slot_3811",
+            profile: { duration: 2 },
           },
         },
         {
-          duration: 2,
-          mediaSequenceNumber: 3812,
+          sequenceNumber: 3812,
           parts: [
             {
               commitId: "commit_3812_0",
               deliveryUrl:
                 "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p0.m4s",
-              duration: 0.5,
-              independent: true,
+              profile: { duration: 0.5, independent: true },
               objectKey: "media/tenant/sess/e1/v1080/s3812/p0.m4s",
               partNumber: 0,
               slotId: "slot_3812_0",
@@ -186,7 +189,7 @@ const validCommittedWindow = {
               commitId: "commit_3812_1",
               deliveryUrl:
                 "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p1.m4s",
-              duration: 0.5,
+              profile: { duration: 0.5 },
               objectKey: "media/tenant/sess/e1/v1080/s3812/p1.m4s",
               partNumber: 1,
               slotId: "slot_3812_1",
@@ -201,17 +204,15 @@ const validCommittedWindow = {
 const validCursor = {
   committedWindow: validCommittedWindow,
   epoch: 1,
-  latencyProfile: "object-ll",
   olos: "1.0",
-  mediaBaseUrl: "https://media.example.com",
-  partTarget: 0.333,
-  segmentTarget: 1,
+  deliveryBaseUrl: "https://media.example.com",
+  profile: { id: "cmaf-llhls", partTarget: 0.333, segmentTarget: 1 },
   sessionId: "session_1",
   state: "live",
   updatedAt: "2026-06-08T12:00:01.820Z",
   window: {
-    firstMediaSequenceNumber: 3810,
-    lastMediaSequenceNumber: 3812,
+    firstSequenceNumber: 3810,
+    lastSequenceNumber: 3812,
   },
 } as const;
 
@@ -292,8 +293,8 @@ const suites: readonly DriftSuite[] = [
     assertValid: assertSession,
     invalid: [
       {
-        label: "invalid rendition list",
-        payload: { ...validSession, renditions: [] },
+        label: "invalid track list",
+        payload: { ...validSession, tracks: [] },
       },
       {
         label: "unsupported session state",
@@ -312,54 +313,32 @@ const suites: readonly DriftSuite[] = [
         payload: { ...validSession, createdAt: "2026-02-30T12:00:00.000Z" },
       },
       {
-        label: "audio group ID on a video rendition",
+        label: "non-object track profile",
         payload: {
           ...validSession,
-          renditions: [{ ...validVideoRendition, groupId: "aac" }],
+          tracks: [{ ...validVideoTrack, profile: "video" }],
         },
+      },
+      {
+        label: "session profile without an id",
+        payload: { ...validSession, profile: { segmentTarget: 1 } },
       },
     ],
-    validatorOnlyInvalid: [
+    alsoValid: [
       {
-        label: "multiple distinct audio groups",
+        label: "dotted identifiers",
         payload: {
           ...validSession,
-          renditions: [
-            validVideoRendition,
-            validGroupedAudioRendition,
-            {
-              ...validGroupedAudioRendition,
-              defaultRendition: false,
-              groupId: "aac-alt",
-              renditionId: "a64",
-            },
-          ],
+          sessionId: "cam.front",
+          tracks: [{ ...validVideoTrack, trackId: "cam.front.v1080" }],
         },
       },
       {
-        label: "multiple default audio renditions",
+        label: "tracks without profiles",
         payload: {
           ...validSession,
-          renditions: [
-            validVideoRendition,
-            validGroupedAudioRendition,
-            { ...validGroupedAudioRendition, renditionId: "a64" },
-          ],
-        },
-      },
-      {
-        label: "mixed grouped and ungrouped audio renditions",
-        payload: {
-          ...validSession,
-          renditions: [
-            validVideoRendition,
-            validGroupedAudioRendition,
-            {
-              codec: "mp4a.40.2",
-              kind: "audio",
-              renditionId: "a64",
-            },
-          ],
+          profile: { id: "telemetry" },
+          tracks: [{ contentType: "application/json", trackId: "events" }],
         },
       },
     ],
@@ -380,7 +359,7 @@ const suites: readonly DriftSuite[] = [
       },
       {
         label: "invalid media sequence",
-        payload: { ...validCommit, mediaSequenceNumber: -1 },
+        payload: { ...validCommit, sequenceNumber: -1 },
       },
       {
         label: "invalid delivery URL",
@@ -408,8 +387,8 @@ const suites: readonly DriftSuite[] = [
     assertValid: assertUploadSlot,
     invalid: [
       {
-        label: "invalid duration",
-        payload: { ...validUploadSlot, duration: 0 },
+        label: "non-object profile",
+        payload: { ...validUploadSlot, profile: 0.5 },
       },
       {
         label: "unsafe object key",
@@ -446,22 +425,22 @@ const suites: readonly DriftSuite[] = [
         payload: { ...validCommittedWindow, epoch: -1 },
       },
       {
-        label: "missing renditions",
+        label: "missing tracks",
         payload: {
           discontinuitySequence: 0,
-          firstMediaSequenceNumber: 3810,
-          lastMediaSequenceNumber: 3812,
+          firstSequenceNumber: 3810,
+          lastSequenceNumber: 3812,
         } as const,
       },
       {
         label: "invalid object key",
         payload: {
           ...validCommittedWindow,
-          renditions: {
+          tracks: {
             v1080: {
-              ...validCommittedWindow.renditions.v1080,
+              ...validCommittedWindow.tracks.v1080,
               init: {
-                ...validCommittedWindow.renditions.v1080.init,
+                ...validCommittedWindow.tracks.v1080.init,
                 objectKey: "media/../secret.m4s",
               },
             },
@@ -476,21 +455,20 @@ const suites: readonly DriftSuite[] = [
         label: "unknown extra field on a committed part",
         payload: {
           ...validCommittedWindow,
-          renditions: {
+          tracks: {
             v1080: {
-              ...validCommittedWindow.renditions.v1080,
+              ...validCommittedWindow.tracks.v1080,
               segments: [
-                ...validCommittedWindow.renditions.v1080.segments.slice(0, 2),
+                ...validCommittedWindow.tracks.v1080.segments.slice(0, 2),
                 {
-                  ...validCommittedWindow.renditions.v1080.segments[2],
+                  ...validCommittedWindow.tracks.v1080.segments[2],
                   parts: [
                     {
-                      ...validCommittedWindow.renditions.v1080.segments[2]
+                      ...validCommittedWindow.tracks.v1080.segments[2]
                         ?.parts?.[0],
                       extra: 1,
                     },
-                    validCommittedWindow.renditions.v1080.segments[2]
-                      ?.parts?.[1],
+                    validCommittedWindow.tracks.v1080.segments[2]?.parts?.[1],
                   ],
                 },
               ],
@@ -561,10 +539,10 @@ const suites: readonly DriftSuite[] = [
     ],
   },
   {
-    label: "media object",
-    schema: OLOS_MEDIA_OBJECT_SCHEMA,
+    label: "storage object",
+    schema: OLOS_STORAGE_OBJECT_SCHEMA,
     valid: validMediaObject,
-    assertValid: assertMediaObject,
+    assertValid: assertStorageObject,
     invalid: [
       {
         label: "fractional size",
@@ -682,6 +660,13 @@ for (const suite of suites) {
       expect(validateSchema(suite.valid)).toBe(true);
       expect(() => suite.assertValid(suite.valid)).not.toThrow();
     });
+
+    for (const valid of suite.alsoValid ?? []) {
+      test(`accepts valid payload: ${valid.label}`, () => {
+        expect(validateSchema(valid.payload)).toBe(true);
+        expect(() => suite.assertValid(valid.payload)).not.toThrow();
+      });
+    }
 
     for (const invalid of suite.invalid) {
       test(`rejects canonical invalid payload: ${invalid.label}`, () => {

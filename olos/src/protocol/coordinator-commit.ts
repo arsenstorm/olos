@@ -130,11 +130,10 @@ function resolveNewCommit(
     commitId: options.commitId,
     committedAt: options.committedAt,
     cursor: options.state.cursor,
-    independent: options.independent,
     lateToleranceMs: options.lateToleranceMs,
     mediaObject: options.object,
     objectVerified: true,
-    programDateTime: options.programDateTime,
+    profile: options.profile,
     session: options.state.session,
     slot: observedSlot,
     slotId: options.slotId,
@@ -152,6 +151,7 @@ function applyNewCommit(
     maxSegments: options.maxSegments,
     slot,
     state: options.state,
+    trackWindowProfile: options.trackWindowProfile,
   });
 
   const blocked = rejectBlockedCursorAdvance(options, state.cursor);
@@ -214,10 +214,9 @@ function resolveDuplicateCoordinatorUploadCommit({
   const candidateCommit = createCommit({
     commitId: options.commitId,
     committedAt: existingCommit.committedAt,
-    independent: options.independent,
     lateToleranceMs: options.lateToleranceMs,
     mediaObject: options.object,
-    programDateTime: options.programDateTime,
+    profile: options.profile,
     slot: { ...slot, state: "upload_observed" },
   });
   const duplicate = resolveDuplicateCommit({

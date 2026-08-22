@@ -82,21 +82,36 @@ describe("commit payload parser", () => {
       parseCommitRequestPayload({
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
-        independent: true,
         lateToleranceMs: 123,
         maxSegments: 7,
-        programDateTime: "2026-01-01T00:00:03.000Z",
+        profile: {
+          independent: true,
+          programDateTime: "2026-01-01T00:00:03.000Z",
+        },
         slotId: "slot_3810",
       })
     ).toEqual({
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
-      independent: true,
       lateToleranceMs: 123,
       maxSegments: 7,
-      programDateTime: "2026-01-01T00:00:03.000Z",
+      profile: {
+        independent: true,
+        programDateTime: "2026-01-01T00:00:03.000Z",
+      },
       slotId: "slot_3810",
     });
+  });
+
+  test("rejects a commit profile that is not an object", () => {
+    expect(() =>
+      parseCommitRequestPayload({
+        commitId: "commit_3810",
+        committedAt: "2026-01-01T00:00:02.000Z",
+        profile: "independent",
+        slotId: "slot_3810",
+      })
+    ).toThrow("profile must be an object");
   });
 
   test("applies a custom committedAt parser when needed", () => {

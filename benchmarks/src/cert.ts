@@ -4,8 +4,8 @@
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 
-export function assertLoopback(mediaBaseUrl: string): void {
-  const host = new URL(mediaBaseUrl).hostname;
+export function assertLoopback(deliveryBaseUrl: string): void {
+  const host = new URL(deliveryBaseUrl).hostname;
   if (host !== "127.0.0.1" && host !== "localhost") {
     throw new Error(
       `benchmark is local-only; media origin must be loopback, got ${host}`

@@ -60,7 +60,7 @@ export async function createStoredCoordinatorSession(
   }
 
   const state = createCoordinatorPipeline({
-    mediaBaseUrl: options.mediaBaseUrl,
+    deliveryBaseUrl: options.deliveryBaseUrl,
     publicationMode: options.publicationMode,
     session: options.session,
   });

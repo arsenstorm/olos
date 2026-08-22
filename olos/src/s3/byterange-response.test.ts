@@ -38,8 +38,7 @@ function makePart(
     },
     commitId: `commit_${index}`,
     deliveryUrl: `https://media.example.com/live/session/v1080/part-${index}.m4s`,
-    duration: 0.5,
-    independent: true,
+    profile: { duration: 0.5, independent: true },
     objectKey: `live/session/v1080/part-${index}.m4s`,
     partNumber: index,
     slotId: `slot_${index}`,
@@ -48,17 +47,15 @@ function makePart(
 
 function makeCursor(parts: readonly CommittedPart[]): Cursor {
   const segment: CommittedSegment = {
-    duration: 2,
-    mediaSequenceNumber: 0,
+    sequenceNumber: 0,
     parts: [...parts],
   };
   return {
     committedWindow: {
-      discontinuitySequence: 0,
       epoch: 1,
-      firstMediaSequenceNumber: 0,
-      lastMediaSequenceNumber: 0,
-      renditions: {
+      firstSequenceNumber: 0,
+      lastSequenceNumber: 0,
+      tracks: {
         v1080: {
           init: {
             commitId: "commit_init",
@@ -66,23 +63,21 @@ function makeCursor(parts: readonly CommittedPart[]): Cursor {
             objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
-          renditionId: "v1080",
+          trackId: "v1080",
           segments: [segment],
         },
       },
     },
+    deliveryBaseUrl: "https://media.example.com",
     epoch: 1,
-    latencyProfile: "object-ll",
     olos: "1.0",
-    mediaBaseUrl: "https://media.example.com",
-    partTarget: 0.5,
-    segmentTarget: 2,
+    profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
     sessionId: SESSION_ID,
     state: "live",
     updatedAt: "2026-06-26T00:00:00.000Z",
     window: {
-      firstMediaSequenceNumber: 0,
-      lastMediaSequenceNumber: 0,
+      firstSequenceNumber: 0,
+      lastSequenceNumber: 0,
       lastPartNumber: parts.at(-1)?.partNumber,
     },
   };
@@ -221,26 +216,26 @@ async function seedStore(
       commits: [],
       cursor: makeCursor(parts),
       initCommits: [],
-      mediaBaseUrl: "https://media.example.com",
+      deliveryBaseUrl: "https://media.example.com",
       publisherLeases: [],
       session: {
         createdAt: "2026-06-26T00:00:00.000Z",
         epoch: 1,
-        latencyProfile: "object-ll",
         olos: "1.0",
-        partTarget: 0.5,
-        renditions: [
+        profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
+        tracks: [
           {
-            bitrate: 5_000_000,
-            codec: "avc1.640028",
-            frameRate: 30,
-            height: 1080,
-            kind: "video",
-            renditionId: "v1080",
-            width: 1920,
+            profile: {
+              bitrate: 5_000_000,
+              codec: "avc1.640028",
+              frameRate: 30,
+              height: 1080,
+              kind: "video",
+              width: 1920,
+            },
+            trackId: "v1080",
           },
         ],
-        segmentTarget: 2,
         sessionId: SESSION_ID,
         state: "live",
       },

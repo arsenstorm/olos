@@ -7,6 +7,7 @@ import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosErrorCode } from "../types/errors";
 import type { OlosId } from "../types/ids";
+import type { ProfileData } from "../types/profile";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { assertS3BucketName } from "./bucket";
@@ -57,12 +58,12 @@ export interface ReconcileStoredS3CoordinatorUploadsOptions {
   commitPolicy?: CoordinatorCommitPolicy;
   /** Commit timestamp, fixed or derived per slot. */
   committedAt: SlotValue<string>;
-  independent?: SlotValue<boolean | undefined>;
   lateToleranceMs?: SlotValue<number | undefined>;
   manifest?: StoredS3CoordinatorManifestOptions;
   maxAttempts?: number;
   maxSegments?: number;
-  programDateTime?: SlotValue<string | undefined>;
+  /** Profile-defined facts recorded on each commit, fixed or per slot. */
+  profile?: SlotValue<ProfileData | undefined>;
   providerId: OlosId;
   publicationControl?: PublicationControlPolicy;
   sessionId: OlosId;

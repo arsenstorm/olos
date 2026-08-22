@@ -1,7 +1,7 @@
 import {
   createPublisherDeliveryUrl,
   createPublisherObjectKey,
-  type DerivableMediaObjectKind,
+  type DerivableObjectKind,
 } from "../state/object-key-derivation";
 import { createRuntimePublisherObjectKeyNonce } from "../state/object-key-nonce";
 import { assertPublicationAllowed } from "../state/publication-control";
@@ -10,13 +10,10 @@ import {
   canTransitionUploadSlot,
   revokeUpload,
 } from "../state/upload-slot-observe";
-import type {
-  CommittedSegment,
-  RenditionWindow,
-} from "../types/committed-window";
+import type { CommittedSegment, TrackWindow } from "../types/committed-window";
 import { createOlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
-import type { MediaObjectKind } from "../types/media-object";
+import type { ObjectKind } from "../types/storage-object";
 import type { UploadSlot } from "../types/upload-slot";
 import type {
   CoordinatorPipelineState,
@@ -39,11 +36,11 @@ type RevocableCoordinatorUpload =
  * persisting the result is the caller's job.
  *
  * The slot's `objectKey` and `deliveryUrl` are derived from the state's
- * `mediaBaseUrl` plus the slot coordinates (rendition, media sequence, part
+ * `deliveryBaseUrl` plus the slot coordinates (track, sequence number, part
  * number); in `"direct-public"` publication mode a random nonce is mixed in
  * when `objectKeyNonce` is not supplied, making keys unguessable. Throws on
- * a duplicate `slotId`, a media object kind whose key cannot be derived, or
- * a publication control policy that blocks slot issuance.
+ * a duplicate `slotId`, an object kind whose key cannot be derived, or a
+ * publication control policy that blocks slot issuance.
  */
 export function issueCoordinatorSlot(
   options: IssueCoordinatorSlotOptions
@@ -78,32 +75,28 @@ function resolveSlotObjectAddress(options: IssueCoordinatorSlotOptions): {
   objectKey: string;
   deliveryUrl: string;
 } {
-  if (!isDerivableMediaObjectKind(options.kind)) {
-    throw new Error(
-      `cannot derive objectKey for media object kind ${options.kind}`
-    );
+  if (!isDerivableObjectKind(options.kind)) {
+    throw new Error(`cannot derive objectKey for object kind ${options.kind}`);
   }
 
   const objectKey = createPublisherObjectKey({
     extension: options.extension,
     kind: options.kind,
-    mediaSequenceNumber: options.mediaSequenceNumber,
+    sequenceNumber: options.sequenceNumber,
     objectKeyNonce: resolveSlotObjectKeyNonce(options),
     objectKeyPrefix: options.objectKeyPrefix,
     partNumber: options.partNumber,
-    renditionId: options.renditionId,
+    trackId: options.trackId,
   });
   const deliveryUrl = createPublisherDeliveryUrl(
-    options.state.mediaBaseUrl,
+    options.state.deliveryBaseUrl,
     objectKey
   );
 
   return { deliveryUrl, objectKey };
 }
 
-function isDerivableMediaObjectKind(
-  kind: MediaObjectKind
-): kind is DerivableMediaObjectKind {
+function isDerivableObjectKind(kind: ObjectKind): kind is DerivableObjectKind {
   return kind === "init" || kind === "part" || kind === "segment";
 }
 
@@ -227,20 +220,18 @@ function isSlotInCursor(
     return false;
   }
 
-  return Object.values(cursor.committedWindow.renditions).some((rendition) =>
-    cursorRenditionContainsSlot(rendition, slot)
+  return Object.values(cursor.committedWindow.tracks).some((track) =>
+    cursorTrackContainsSlot(track, slot)
   );
 }
 
-function cursorRenditionContainsSlot(
-  rendition: RenditionWindow,
+function cursorTrackContainsSlot(
+  track: TrackWindow,
   slot: UploadSlot
 ): boolean {
   return (
-    rendition.init.slotId === slot.slotId ||
-    rendition.segments.some((segment) =>
-      cursorSegmentContainsSlot(segment, slot)
-    )
+    track.init?.slotId === slot.slotId ||
+    track.segments.some((segment) => cursorSegmentContainsSlot(segment, slot))
   );
 }
 

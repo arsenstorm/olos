@@ -56,7 +56,7 @@ export interface PlanStoredCoordinatorRetentionOptions {
   store: CoordinatorPipelineStore;
 }
 
-/** A retired object slated for deletion from media storage. */
+/** A retired object slated for deletion from object storage. */
 export interface RetiredCoordinatorObjectDeletion {
   commitId: string;
   objectKey: string;

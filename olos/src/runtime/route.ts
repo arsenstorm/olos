@@ -76,11 +76,11 @@ export function liveMasterPath(livePath: string, sessionId: string): string {
 export function liveMediaPath(
   livePath: string,
   sessionId: string,
-  renditionId: string
+  trackId: string
 ): string {
   return `${sessionRootPath(livePath)}/${encodeURIComponent(
     sessionId
-  )}/${encodeURIComponent(renditionId)}/${LIVE_MEDIA_PLAYLIST_PATH}`;
+  )}/${encodeURIComponent(trackId)}/${LIVE_MEDIA_PLAYLIST_PATH}`;
 }
 
 export function routeParts(

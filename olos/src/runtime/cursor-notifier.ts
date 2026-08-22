@@ -29,15 +29,15 @@ interface CursorWaiter {
 
 interface CursorProgress {
   epoch: number;
-  lastMediaSequenceNumber: number;
   lastPartNumber: number;
+  lastSequenceNumber: number;
 }
 
 /**
  * Create an in-process `RuntimeCursorNotifier` that tracks the latest cursor
  * per session in memory. `waitForCursor` resolves immediately when the
  * latest known cursor is already ahead of the caller's — ordered by epoch,
- * then media sequence number, then part number — or sits at the same
+ * then sequence number, then part number — or sits at the same
  * position with different content. Suitable for a single-process
  * coordinator only — notifications do not cross processes.
  */
@@ -162,8 +162,8 @@ function waitersForSession(
 // A cursor counts as an update when its global position is strictly ahead,
 // or when the position is unchanged but the cursor differs at all — the
 // spec (§4.5.3) accepts same-position updates (a full-segment commit at
-// the live-edge msn, a lagging rendition catching up, a session-state
-// change) that per-rendition waiters may be blocked on. Spurious wakes are
+// the live-edge msn, a lagging track catching up, a session-state
+// change) that per-track waiters may be blocked on. Spurious wakes are
 // safe (the blocking-reload loop re-evaluates its own bounds and
 // re-parks), but an equivalent cursor must never wake.
 function isCursorUpdateAfter(cursor: Cursor, after: Cursor): boolean {
@@ -221,10 +221,7 @@ function compareCursorProgress(
 ): number {
   return (
     compareNumber(cursor.epoch, after.epoch) ||
-    compareNumber(
-      cursor.lastMediaSequenceNumber,
-      after.lastMediaSequenceNumber
-    ) ||
+    compareNumber(cursor.lastSequenceNumber, after.lastSequenceNumber) ||
     compareNumber(cursor.lastPartNumber, after.lastPartNumber)
   );
 }
@@ -232,7 +229,7 @@ function compareCursorProgress(
 function cursorProgress(cursor: Cursor): CursorProgress {
   return {
     epoch: cursor.epoch,
-    lastMediaSequenceNumber: cursor.window.lastMediaSequenceNumber,
+    lastSequenceNumber: cursor.window.lastSequenceNumber,
     lastPartNumber:
       cursor.window.lastPartNumber ?? SEGMENT_ONLY_CURSOR_PART_ORDER,
   };

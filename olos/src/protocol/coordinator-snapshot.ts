@@ -34,7 +34,7 @@ export function cloneCoordinatorPipelineSnapshot(
 
 /**
  * Deep-clone a pipeline state: commits, slots, leases, cursor, and session
- * renditions are all copied. A missing `publisherLeases` array is normalized
+ * tracks are all copied. A missing `publisherLeases` array is normalized
  * to an empty one, so clones of pre-lease snapshots are always well formed.
  */
 export function cloneCoordinatorPipelineState(
@@ -51,8 +51,8 @@ export function cloneCoordinatorPipelineState(
     ...(state.cursor === undefined ? {} : { cursor: { ...state.cursor } }),
     session: {
       ...state.session,
-      renditions: state.session.renditions.map((rendition) => ({
-        ...rendition,
+      tracks: state.session.tracks.map((track) => ({
+        ...track,
       })),
     },
   };
@@ -141,8 +141,8 @@ function assertCoordinatorPipelineState(
 
   assertSession(value.session);
   assertSafeDeliveryUrl(
-    value.mediaBaseUrl,
-    "coordinator pipeline state mediaBaseUrl"
+    value.deliveryBaseUrl,
+    "coordinator pipeline state deliveryBaseUrl"
   );
   assertUploadSlots(value.slots);
   assertCommits(value.initCommits, "coordinator pipeline state initCommits");

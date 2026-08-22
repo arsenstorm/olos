@@ -212,12 +212,11 @@ function reconciliationCommitOptions(
     sessionId: options.sessionId,
     slotId: slot.slotId,
     store: options.store,
-    ...optionalSlotValue("independent", options.independent, slot),
     ...optionalSlotValue("lateToleranceMs", options.lateToleranceMs, slot),
     ...optionalField("manifest", options.manifest),
     ...optionalField("maxAttempts", options.maxAttempts),
     ...optionalField("maxSegments", options.maxSegments),
-    ...optionalSlotValue("programDateTime", options.programDateTime, slot),
+    ...optionalSlotValue("profile", options.profile, slot),
     ...optionalField("publicationControl", options.publicationControl),
     ...optionalField("versionId", options.versionId),
   };

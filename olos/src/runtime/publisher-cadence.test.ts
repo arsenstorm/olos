@@ -13,7 +13,7 @@ describe("runtime publisher cadence", () => {
       })
     ).toEqual({
       kind: "init",
-      mediaSequenceNumber: 0,
+      sequenceNumber: 0,
     });
   });
 
@@ -21,24 +21,24 @@ describe("runtime publisher cadence", () => {
     expect(
       resolveRuntimePublisherNextObjectPosition({
         cursorWindow: {
-          firstMediaSequenceNumber: 3810,
-          lastMediaSequenceNumber: 3811,
+          firstSequenceNumber: 3810,
+          lastSequenceNumber: 3811,
         },
       })
     ).toEqual({
       kind: "segment",
-      mediaSequenceNumber: 3812,
+      sequenceNumber: 3812,
     });
   });
 
   test("starts segment cadence at the configured media sequence", () => {
     expect(
       resolveRuntimePublisherNextObjectPosition({
-        startMediaSequenceNumber: 3810,
+        startSequenceNumber: 3810,
       })
     ).toEqual({
       kind: "segment",
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
     });
   });
 
@@ -50,7 +50,7 @@ describe("runtime publisher cadence", () => {
       })
     ).toEqual({
       kind: "segment",
-      mediaSequenceNumber: 0,
+      sequenceNumber: 0,
     });
   });
 
@@ -58,8 +58,8 @@ describe("runtime publisher cadence", () => {
     expect(
       resolveRuntimePublisherNextObjectPosition({
         cursorWindow: {
-          firstMediaSequenceNumber: 3810,
-          lastMediaSequenceNumber: 3811,
+          firstSequenceNumber: 3810,
+          lastSequenceNumber: 3811,
           lastPartNumber: 1,
         },
         mode: "part",
@@ -67,7 +67,7 @@ describe("runtime publisher cadence", () => {
       })
     ).toEqual({
       kind: "part",
-      mediaSequenceNumber: 3811,
+      sequenceNumber: 3811,
       partNumber: 2,
     });
   });
@@ -77,11 +77,11 @@ describe("runtime publisher cadence", () => {
       resolveRuntimePublisherNextObjectPosition({
         mode: "part",
         partsPerSegment: 4,
-        startMediaSequenceNumber: 3810,
+        startSequenceNumber: 3810,
       })
     ).toEqual({
       kind: "part",
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       partNumber: 0,
     });
   });
@@ -90,8 +90,8 @@ describe("runtime publisher cadence", () => {
     expect(
       resolveRuntimePublisherNextObjectPosition({
         cursorWindow: {
-          firstMediaSequenceNumber: 3810,
-          lastMediaSequenceNumber: 3811,
+          firstSequenceNumber: 3810,
+          lastSequenceNumber: 3811,
           lastPartNumber: 3,
         },
         mode: "part",
@@ -99,7 +99,7 @@ describe("runtime publisher cadence", () => {
       })
     ).toEqual({
       kind: "part",
-      mediaSequenceNumber: 3812,
+      sequenceNumber: 3812,
       partNumber: 0,
     });
   });
@@ -113,26 +113,26 @@ describe("runtime publisher cadence", () => {
 
     expect(() =>
       resolveRuntimePublisherNextObjectPosition({
-        startMediaSequenceNumber: -1,
+        startSequenceNumber: -1,
       })
-    ).toThrow("startMediaSequenceNumber must be a non-negative integer");
+    ).toThrow("startSequenceNumber must be a non-negative integer");
 
     expect(() =>
       resolveRuntimePublisherNextObjectPosition({
         cursorWindow: {
-          firstMediaSequenceNumber: 3812,
-          lastMediaSequenceNumber: 3811,
+          firstSequenceNumber: 3812,
+          lastSequenceNumber: 3811,
         },
       })
     ).toThrow(
-      "cursorWindow.firstMediaSequenceNumber must be less than or equal to lastMediaSequenceNumber"
+      "cursorWindow.firstSequenceNumber must be less than or equal to lastSequenceNumber"
     );
 
     expect(() =>
       resolveRuntimePublisherNextObjectPosition({
         cursorWindow: {
-          firstMediaSequenceNumber: 3810,
-          lastMediaSequenceNumber: 3811,
+          firstSequenceNumber: 3810,
+          lastSequenceNumber: 3811,
           lastPartNumber: -1,
         },
         mode: "part",
@@ -148,21 +148,22 @@ describe("runtime publisher cadence", () => {
         objectKeyPrefix: "media/session_1",
         position: {
           kind: "segment",
-          mediaSequenceNumber: 3810,
+          sequenceNumber: 3810,
         },
         publicationMode: "direct-public",
-        renditionId: "v1080",
+        trackId: "v1080",
       })
     ).toEqual({
+      cadenceSeconds: 2,
       contentType: "video/mp4",
-      duration: 2,
       extension: "m4s",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
+      profile: { duration: 2 },
+      sequenceNumber: 3810,
       objectKeyPrefix: "media/session_1",
       publicationMode: "direct-public",
-      renditionId: "v1080",
+      trackId: "v1080",
     });
   });
 
@@ -173,18 +174,19 @@ describe("runtime publisher cadence", () => {
         objectKeyPrefix: "media/session_1",
         position: {
           kind: "part",
-          mediaSequenceNumber: 3811,
+          sequenceNumber: 3811,
           partNumber: 1,
         },
         publicationMode: "direct-public",
-        renditionId: "v1080",
+        trackId: "v1080",
       })
     ).toMatchObject({
-      duration: 0.5,
+      cadenceSeconds: 0.5,
       extension: "m4s",
       kind: "part",
+      profile: { duration: 0.5 },
       maxBytes: 25_000,
-      mediaSequenceNumber: 3811,
+      sequenceNumber: 3811,
       minBytes: 1,
       partNumber: 1,
     });
@@ -194,15 +196,15 @@ describe("runtime publisher cadence", () => {
     expect(
       createRuntimePublisherNextObjectPlan({
         cursorWindow: {
-          firstMediaSequenceNumber: 3810,
-          lastMediaSequenceNumber: 3811,
+          firstSequenceNumber: 3810,
+          lastSequenceNumber: 3811,
         },
         defaults: objectDefaults,
         now: "2026-01-01T00:00:00.000Z",
         objectKeyNonce: "slot_01JZ",
         objectKeyPrefix: "media/session_1",
         publicationMode: "direct-public",
-        renditionId: "v1080",
+        trackId: "v1080",
         targetLatency: 3,
       }).plan.objectKey
     ).toBe("media/session_1/v1080/s3812-slot_01JZ.m4s");
@@ -217,7 +219,7 @@ describe("runtime publisher cadence", () => {
         objectKeyNonce: "slot_01TTL",
         objectKeyPrefix: "media/session_1",
         publicationMode: "direct-public",
-        renditionId: "v1080",
+        trackId: "v1080",
         targetLatency: 3,
       }).expiry
     ).toEqual({
@@ -230,15 +232,15 @@ describe("runtime publisher cadence", () => {
     expect(
       createRuntimePublisherNextObjectPlan({
         cursorWindow: {
-          firstMediaSequenceNumber: 3810,
-          lastMediaSequenceNumber: 3811,
+          firstSequenceNumber: 3810,
+          lastSequenceNumber: 3811,
         },
         defaults: objectDefaults,
         now: "2026-01-01T00:00:00.000Z",
         objectKeyNonce: "slot_01JZ",
         objectKeyPrefix: "media/session_1",
         publicationMode: "direct-public",
-        renditionId: "v1080",
+        trackId: "v1080",
         targetLatency: 3,
       })
     ).toEqual({
@@ -251,21 +253,21 @@ describe("runtime publisher cadence", () => {
         objectKey: "media/session_1/v1080/s3812-slot_01JZ.m4s",
         slot: {
           contentType: "video/mp4",
-          duration: 2,
           expiresAt: "2026-01-01T00:00:05.000Z",
           extension: "m4s",
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3812,
+          sequenceNumber: 3812,
           objectKeyNonce: "slot_01JZ",
           objectKeyPrefix: "media/session_1",
-          renditionId: "v1080",
+          profile: { duration: 2 },
+          trackId: "v1080",
           slotId: "slot_v1080_s3812",
         },
       },
       position: {
         kind: "segment",
-        mediaSequenceNumber: 3812,
+        sequenceNumber: 3812,
       },
     });
   });
@@ -274,8 +276,8 @@ describe("runtime publisher cadence", () => {
     expect(
       createRuntimePublisherNextObjectPlan({
         cursorWindow: {
-          firstMediaSequenceNumber: 3810,
-          lastMediaSequenceNumber: 3811,
+          firstSequenceNumber: 3810,
+          lastSequenceNumber: 3811,
           lastPartNumber: 0,
         },
         defaults: objectDefaults,
@@ -285,7 +287,7 @@ describe("runtime publisher cadence", () => {
         objectKeyPrefix: "media/session_1",
         partsPerSegment: 4,
         publicationMode: "direct-public",
-        renditionId: "v1080",
+        trackId: "v1080",
         targetLatency: 3,
       })
     ).toMatchObject({
@@ -303,7 +305,7 @@ describe("runtime publisher cadence", () => {
       },
       position: {
         kind: "part",
-        mediaSequenceNumber: 3811,
+        sequenceNumber: 3811,
         partNumber: 1,
       },
     });
@@ -312,22 +314,25 @@ describe("runtime publisher cadence", () => {
 
 const objectDefaults = {
   init: {
+    cadenceSeconds: 1,
     contentType: "video/mp4",
-    duration: 1,
     extension: "mp4",
     maxBytes: 2048,
+    profile: { duration: 1 },
   },
   part: {
+    cadenceSeconds: 0.5,
     contentType: "video/mp4",
-    duration: 0.5,
     extension: "m4s",
     maxBytes: 25_000,
     minBytes: 1,
+    profile: { duration: 0.5 },
   },
   segment: {
+    cadenceSeconds: 2,
     contentType: "video/mp4",
-    duration: 2,
     extension: "m4s",
     maxBytes: 100_000,
+    profile: { duration: 2 },
   },
 } as const;

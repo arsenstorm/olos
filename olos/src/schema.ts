@@ -11,7 +11,7 @@ import {
   type OlosJsonSchema,
   objectKey,
   positiveInteger,
-  positiveNumber,
+  profileData,
   providerApiSchema,
   providerConsistencySchema,
   providerDeliverySchema,
@@ -19,27 +19,24 @@ import {
   providerEventsSchema,
   providerPublicationSchema,
   providerUploadGrantSchema,
-  renditionAudioGroupFieldsPrecondition,
-  renditionWindowSchema,
+  streamProfile,
   stringEnum,
   timestamp,
+  trackSchema,
+  trackWindowSchema,
 } from "./schema-fragments";
 import { OLOS_ERROR_CODES } from "./types/errors";
-import { MEDIA_OBJECT_KINDS } from "./types/media-object";
 import { PROVIDER_KINDS } from "./types/provider-capability";
-import {
-  LATENCY_PROFILES,
-  RENDITION_KINDS,
-  SESSION_STATES,
-} from "./types/session";
+import { SESSION_STATES } from "./types/session";
+import { OBJECT_KINDS } from "./types/storage-object";
 import { UPLOAD_SLOT_STATES } from "./types/upload-slot";
 
 export type { OlosJsonSchema } from "./schema-fragments";
 /**
- * JSON Schema (2020-12) for the wire-format `Session` document. Note the
- * audio-group constraints that span sibling renditions (single group, at
- * most one default) are only enforced by `assertSession`
- * (olos/validation), not by this schema.
+ * JSON Schema (2020-12) for the wire-format `Session` document. The
+ * session `profile` and each track `profile` are opaque objects here;
+ * profile modules publish their own schemas for the contents (for example
+ * olos/media).
  */
 export const OLOS_SESSION_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
@@ -47,51 +44,24 @@ export const OLOS_SESSION_SCHEMA = {
   properties: {
     createdAt: timestamp,
     epoch: nonNegativeInteger,
-    latencyProfile: stringEnum(LATENCY_PROFILES),
     olos: { const: "1.0" },
-    partTarget: positiveNumber,
-    renditions: {
-      items: {
-        additionalProperties: false,
-        allOf: [renditionAudioGroupFieldsPrecondition],
-        dependentRequired: {
-          height: ["width"],
-          width: ["height"],
-        },
-        properties: {
-          bitrate: { exclusiveMinimum: 0, type: "integer" },
-          channels: { exclusiveMinimum: 0, type: "integer" },
-          codec: nonEmptyString,
-          defaultRendition: { type: "boolean" },
-          frameRate: positiveNumber,
-          groupId: id,
-          height: { exclusiveMinimum: 0, type: "integer" },
-          kind: stringEnum(RENDITION_KINDS),
-          name: nonEmptyString,
-          renditionId: id,
-          sampleRate: { exclusiveMinimum: 0, type: "integer" },
-          width: { exclusiveMinimum: 0, type: "integer" },
-        },
-        required: ["codec", "kind", "renditionId"],
-        type: "object",
-      },
+    profile: streamProfile,
+    sessionId: id,
+    state: stringEnum(SESSION_STATES),
+    tracks: {
+      items: trackSchema,
       minItems: 1,
       type: "array",
     },
-    segmentTarget: positiveNumber,
-    sessionId: id,
-    state: stringEnum(SESSION_STATES),
   },
   required: [
     "createdAt",
     "epoch",
-    "latencyProfile",
     "olos",
-    "partTarget",
-    "renditions",
-    "segmentTarget",
+    "profile",
     "sessionId",
     "state",
+    "tracks",
   ],
   title: "OLOS Session",
   type: "object",
@@ -110,34 +80,33 @@ export const OLOS_UPLOAD_SLOT_SCHEMA = {
     byterange: byterangeSchema,
     contentType,
     deliveryUrl,
-    duration: positiveNumber,
     epoch: nonNegativeInteger,
     expiresAt: timestamp,
-    kind: stringEnum(MEDIA_OBJECT_KINDS),
+    kind: stringEnum(OBJECT_KINDS),
     maxBytes: positiveInteger,
-    mediaSequenceNumber: nonNegativeInteger,
     minBytes: nonNegativeInteger,
     objectKey,
     partNumber: nonNegativeInteger,
-    renditionId: id,
+    profile: profileData,
+    sequenceNumber: nonNegativeInteger,
     sessionId: id,
     slotId: id,
     state: stringEnum(UPLOAD_SLOT_STATES),
+    trackId: id,
   },
   required: [
     "contentType",
     "deliveryUrl",
-    "duration",
     "epoch",
     "expiresAt",
     "kind",
     "maxBytes",
-    "mediaSequenceNumber",
     "objectKey",
-    "renditionId",
+    "sequenceNumber",
     "sessionId",
     "slotId",
     "state",
+    "trackId",
   ],
   title: "OLOS UploadSlot",
   type: "object",
@@ -152,31 +121,28 @@ export const OLOS_COMMIT_SCHEMA = {
     commitId: id,
     committedAt: timestamp,
     deliveryUrl,
-    duration: positiveNumber,
     epoch: nonNegativeInteger,
     etag: nonEmptyString,
-    independent: { type: "boolean" },
-    mediaSequenceNumber: nonNegativeInteger,
     objectKey,
     partNumber: nonNegativeInteger,
-    programDateTime: timestamp,
-    renditionId: id,
+    profile: profileData,
+    sequenceNumber: nonNegativeInteger,
     sessionId: id,
     size: positiveInteger,
     slotId: id,
+    trackId: id,
   },
   required: [
     "commitId",
     "committedAt",
     "deliveryUrl",
-    "duration",
     "epoch",
-    "mediaSequenceNumber",
     "objectKey",
-    "renditionId",
+    "sequenceNumber",
     "sessionId",
     "size",
     "slotId",
+    "trackId",
   ],
   title: "OLOS Commit",
   type: "object",
@@ -198,8 +164,8 @@ export const OLOS_UPLOAD_GRANT_SCHEMA = {
   type: "object",
 } as const satisfies OlosJsonSchema;
 
-/** JSON Schema (2020-12) for the wire-format `MediaObject` observation. */
-export const OLOS_MEDIA_OBJECT_SCHEMA = {
+/** JSON Schema (2020-12) for the wire-format `StorageObject` observation. */
+export const OLOS_STORAGE_OBJECT_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
   properties: {
@@ -211,7 +177,7 @@ export const OLOS_MEDIA_OBJECT_SCHEMA = {
     size: positiveInteger,
   },
   required: ["contentType", "objectKey", "observedAt", "providerId", "size"],
-  title: "OLOS MediaObject",
+  title: "OLOS StorageObject",
   type: "object",
 } as const satisfies OlosJsonSchema;
 
@@ -281,22 +247,15 @@ export const OLOS_COMMITTED_WINDOW_SCHEMA = {
   $schema: JSON_SCHEMA_DRAFT,
   additionalProperties: false,
   properties: {
-    discontinuitySequence: nonNegativeInteger,
     epoch: nonNegativeInteger,
-    firstMediaSequenceNumber: nonNegativeInteger,
-    lastMediaSequenceNumber: nonNegativeInteger,
-    renditions: {
-      additionalProperties: renditionWindowSchema,
+    firstSequenceNumber: nonNegativeInteger,
+    lastSequenceNumber: nonNegativeInteger,
+    tracks: {
+      additionalProperties: trackWindowSchema,
       type: "object",
     },
   },
-  required: [
-    "discontinuitySequence",
-    "epoch",
-    "firstMediaSequenceNumber",
-    "lastMediaSequenceNumber",
-    "renditions",
-  ],
+  required: ["epoch", "firstSequenceNumber", "lastSequenceNumber", "tracks"],
   title: "OLOS CommittedWindow",
   type: "object",
 } as const satisfies OlosJsonSchema;
@@ -310,34 +269,30 @@ export const OLOS_CURSOR_SCHEMA = {
   additionalProperties: false,
   properties: {
     committedWindow: OLOS_COMMITTED_WINDOW_SCHEMA,
+    deliveryBaseUrl: deliveryUrl,
     epoch: nonNegativeInteger,
-    latencyProfile: stringEnum(LATENCY_PROFILES),
-    mediaBaseUrl: deliveryUrl,
     olos: { const: "1.0" },
-    partTarget: positiveNumber,
-    segmentTarget: positiveNumber,
+    profile: streamProfile,
     sessionId: id,
     state: stringEnum(SESSION_STATES),
     updatedAt: timestamp,
     window: {
       additionalProperties: false,
       properties: {
-        firstMediaSequenceNumber: nonNegativeInteger,
-        lastMediaSequenceNumber: nonNegativeInteger,
+        firstSequenceNumber: nonNegativeInteger,
         lastPartNumber: nonNegativeInteger,
+        lastSequenceNumber: nonNegativeInteger,
       },
-      required: ["firstMediaSequenceNumber", "lastMediaSequenceNumber"],
+      required: ["firstSequenceNumber", "lastSequenceNumber"],
       type: "object",
     },
   },
   required: [
     "committedWindow",
+    "deliveryBaseUrl",
     "epoch",
-    "latencyProfile",
-    "mediaBaseUrl",
     "olos",
-    "partTarget",
-    "segmentTarget",
+    "profile",
     "sessionId",
     "state",
     "updatedAt",
@@ -356,9 +311,9 @@ export const OLOS_JSON_SCHEMAS = {
   committedWindow: OLOS_COMMITTED_WINDOW_SCHEMA,
   cursor: OLOS_CURSOR_SCHEMA,
   error: OLOS_ERROR_SCHEMA,
-  mediaObject: OLOS_MEDIA_OBJECT_SCHEMA,
   providerCapability: OLOS_PROVIDER_CAPABILITY_SCHEMA,
   session: OLOS_SESSION_SCHEMA,
+  storageObject: OLOS_STORAGE_OBJECT_SCHEMA,
   uploadGrant: OLOS_UPLOAD_GRANT_SCHEMA,
   uploadSlot: OLOS_UPLOAD_SLOT_SCHEMA,
 } as const;

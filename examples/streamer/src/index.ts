@@ -25,7 +25,7 @@ const BASE_URL = process.env.BASE_URL ?? "http://localhost:8787";
 const INGEST_KEY = process.env.INGEST_KEY ?? "dev-key";
 const MEDIA_ORIGIN = process.env.MEDIA_ORIGIN ?? "https://localhost:8787";
 const SESSION_ID = process.env.SESSION_ID ?? `obs_${Date.now()}`;
-const RENDITION_ID = "v1080";
+const TRACK_ID = "v1080";
 // Declared BANDWIDTH. Must be >= the encoder's peak output or the player
 // reports "Segment exceeds specified bandwidth for variant". Match this to
 // the OBS video bitrate (plus audio headroom).
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
     baseUrl: BASE_URL,
     ingestKey: INGEST_KEY,
     mediaOrigin: MEDIA_ORIGIN,
-    renditionId: RENDITION_ID,
+    trackId: TRACK_ID,
     sessionId: SESSION_ID,
   });
 
@@ -82,7 +82,7 @@ interface RunningFfmpeg {
 }
 
 // The session is created from the init segment, not before it: the
-// rendition's CODECS must describe the bitstream OBS actually sent.
+// track's CODECS must describe the bitstream OBS actually sent.
 // Safari's native HLS player builds its decoders from CODECS and drops
 // any track whose declaration does not match, so a guessed profile plays
 // as audio-only (or not at all) even though hls.js probes past it.
@@ -177,7 +177,7 @@ async function createSessionAndPublishInit(
   await olos.publishInit({
     bytes,
     duration: 1,
-    mediaSequenceNumber: 0,
+    sequenceNumber: 0,
   });
   console.log(`published init (${bytes.length}B)`);
   return true;
@@ -293,7 +293,7 @@ function logPublishedParts(
 ): void {
   for (const { bytes, offset, partNumber } of publishes) {
     console.log(
-      `part msn=${batch.mediaSequenceNumber} part=${partNumber} (${bytes.length}B, offset=${offset})`
+      `part msn=${batch.sequenceNumber} part=${partNumber} (${bytes.length}B, offset=${offset})`
     );
   }
 }
@@ -302,7 +302,7 @@ function partGrant(
   batch: SegmentBatch,
   { bytes, offset, partNumber }: PartPublish
 ): Parameters<OlosClient["issueGrant"]>[0] {
-  const segmentPath = `${SESSION_ID}/${RENDITION_ID}/${batch.mediaSequenceNumber}.m4s`;
+  const segmentPath = `${SESSION_ID}/${TRACK_ID}/${batch.sequenceNumber}.m4s`;
   return {
     byterange: {
       length: bytes.length,
@@ -314,7 +314,7 @@ function partGrant(
     duration: PART_SECONDS,
     // OBS keyframe interval = 0.5s → every micro-segment is keyframe-aligned.
     independent: true,
-    mediaSequenceNumber: batch.mediaSequenceNumber,
+    sequenceNumber: batch.sequenceNumber,
     partNumber,
   };
 }
@@ -331,15 +331,13 @@ async function finalizeSegmentIfComplete(
     return;
   }
 
-  const segmentBytes = await assembleSegment(outDir, batch.mediaSequenceNumber);
+  const segmentBytes = await assembleSegment(outDir, batch.sequenceNumber);
   await olos.publishSegment({
     bytes: segmentBytes,
     duration: SEGMENT_SECONDS,
-    mediaSequenceNumber: batch.mediaSequenceNumber,
+    sequenceNumber: batch.sequenceNumber,
   });
-  console.log(
-    `segment msn=${batch.mediaSequenceNumber} (${segmentBytes.length}B)`
-  );
-  await deleteSegmentParts(outDir, batch.mediaSequenceNumber);
+  console.log(`segment msn=${batch.sequenceNumber} (${segmentBytes.length}B)`);
+  await deleteSegmentParts(outDir, batch.sequenceNumber);
   state.segmentBytesPublished = 0;
 }

@@ -1,4 +1,11 @@
 import {
+  createRuntimeObjectLowLatencyManifestOptions,
+  createRuntimeObjectLowLatencyProfile,
+  createRuntimeObjectLowLatencyPublisherDefaults,
+  createRuntimeObjectLowLatencyPublisherOptions,
+  type MediaSession,
+} from "@arsenstorm/olos/media";
+import {
   type CoordinatorPipelineStore,
   createMemoryCoordinatorStore,
   createSerializedCoordinatorStore,
@@ -8,10 +15,6 @@ import {
 } from "@arsenstorm/olos/protocol";
 import {
   commitStoredCoordinatorUploadFromRequest,
-  createRuntimeObjectLowLatencyManifestOptions,
-  createRuntimeObjectLowLatencyProfile,
-  createRuntimeObjectLowLatencyPublisherDefaults,
-  createRuntimeObjectLowLatencyPublisherOptions,
   createRuntimePublisherNextObjectPlan,
   createRuntimePublisherObjectPlan,
   createStoredCoordinatorSession,
@@ -22,7 +25,6 @@ import {
   transitionStoredCoordinatorSession,
 } from "@arsenstorm/olos/runtime";
 import { createRuntimePublisherObjectKeyNonce } from "@arsenstorm/olos/state";
-import type { Session } from "@arsenstorm/olos/types";
 import { assertCursor } from "@arsenstorm/olos/validation";
 import { describe, expect, test } from "vitest";
 
@@ -33,26 +35,30 @@ const publisherOptions = createRuntimeObjectLowLatencyPublisherOptions(latency);
 const session = {
   createdAt: "2026-01-01T00:00:00.000Z",
   epoch: 1,
-  latencyProfile: latency.latencyProfile,
   olos: "1.0",
-  partTarget: latency.partTarget,
-  renditions: [
+  profile: {
+    id: "cmaf-llhls",
+    partTarget: latency.partTarget,
+    segmentTarget: latency.segmentTarget,
+  },
+  tracks: [
     {
-      bitrate: 5_000_000,
-      codec: "avc1.640028",
-      frameRate: 30,
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
+      profile: {
+        bitrate: 5_000_000,
+        codec: "avc1.640028",
+        frameRate: 30,
+        height: 1080,
+        kind: "video",
+        width: 1920,
+      },
+      trackId: "v1080",
     },
   ],
-  segmentTarget: latency.segmentTarget,
   sessionId: "session_1",
   state: "live",
-} satisfies Session;
+} satisfies MediaSession;
 
-const mediaBaseUrl = "https://media.example.com";
+const deliveryBaseUrl = "https://media.example.com";
 
 const publishNow = "2026-01-01T00:00:00.000Z";
 
@@ -104,7 +110,7 @@ describe("runtime pipeline", () => {
       now: publishNow,
       objectKeyNonce: initNonce,
       objectKeyPrefix: "media",
-      renditionId: "v1080",
+      trackId: "v1080",
       targetLatency: publisherOptions.expiry.targetLatency,
     });
     const next = createRuntimePublisherNextObjectPlan({
@@ -114,13 +120,13 @@ describe("runtime pipeline", () => {
       now: publishNow,
       objectKeyNonce: segmentNonce,
       objectKeyPrefix: "media",
-      renditionId: "v1080",
-      startMediaSequenceNumber: 3810,
+      trackId: "v1080",
+      startSequenceNumber: 3810,
       targetLatency: publisherOptions.expiry.targetLatency,
     });
 
     await createStoredCoordinatorSession({
-      mediaBaseUrl,
+      deliveryBaseUrl,
       session,
       store,
     });
@@ -153,13 +159,13 @@ describe("runtime pipeline", () => {
           size: 98_304,
           slotId: next.plan.slot.slotId,
         }),
-        independent: true,
+        profile: { independent: true },
       },
       sessionId: session.sessionId,
       store,
     });
     const media = await serveStoredCoordinatorManifest({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedDeliveryOrigins: ["https://media.example.com"],
       ...manifestOptions.manifest,
       request: "https://edge.example.com/v1/live/session_1/v1080/media.m3u8",
       response: manifestOptions.response,
@@ -170,14 +176,14 @@ describe("runtime pipeline", () => {
 
     expect(init.position).toEqual({
       kind: "init",
-      mediaSequenceNumber: 0,
+      sequenceNumber: 0,
     });
     expect(init.plan.objectKey).toBe(
       "media/v1080/init-slot_01010101010101010101010101010101.mp4"
     );
     expect(next.position).toEqual({
       kind: "segment",
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
     });
     expect(next.plan.objectKey).toBe(
       "media/v1080/s3810-slot_02020202020202020202020202020202.m4s"
@@ -187,10 +193,10 @@ describe("runtime pipeline", () => {
       ttlSeconds: 5,
     });
     expect(next.plan.slot).toMatchObject({
-      duration: 2,
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
-      mediaSequenceNumber: 3810,
+      profile: { duration: 2 },
+      sequenceNumber: 3810,
     });
     expect(initIssue.status).toBe("issued");
     expect(issued.status).toBe("issued");
@@ -199,8 +205,8 @@ describe("runtime pipeline", () => {
     expect(
       committed.status === "committed" ? committed.state.cursor?.window : {}
     ).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
     expect(media.status).toBe(200);
     expect(media.headers.get("cache-control")).toBe(
@@ -216,7 +222,7 @@ async function expectStoredCoordinatorLifecycle(
   store: CoordinatorPipelineStore
 ) {
   const created = await createStoredCoordinatorSession({
-    mediaBaseUrl,
+    deliveryBaseUrl,
     session,
     store,
   });
@@ -225,39 +231,39 @@ async function expectStoredCoordinatorLifecycle(
 
   const initPlan = createRuntimePublisherObjectPlan({
     contentType: "video/mp4",
-    duration: 1,
     expiresAt: plannedExpiry(1).expiresAt,
     extension: "mp4",
     kind: "init",
     maxBytes: 2048,
-    mediaSequenceNumber: 0,
+    sequenceNumber: 0,
     objectKeyNonce: "slot_init",
     objectKeyPrefix: "media",
-    renditionId: "v1080",
+    profile: { duration: 1 },
+    trackId: "v1080",
   });
   const segmentPlan = createRuntimePublisherObjectPlan({
     contentType: "video/mp4",
-    duration: 2,
     expiresAt: plannedExpiry(2).expiresAt,
     extension: "m4s",
     kind: "segment",
     maxBytes: 100_000,
-    mediaSequenceNumber: 3810,
+    sequenceNumber: 3810,
     objectKeyNonce: "slot_s3810",
     objectKeyPrefix: "media",
-    renditionId: "v1080",
+    profile: { duration: 2 },
+    trackId: "v1080",
   });
   const nextPlan = createRuntimePublisherObjectPlan({
     contentType: "video/mp4",
-    duration: 2,
     expiresAt: plannedExpiry(2).expiresAt,
     extension: "m4s",
     kind: "segment",
     maxBytes: 100_000,
-    mediaSequenceNumber: 3811,
+    sequenceNumber: 3811,
     objectKeyNonce: "slot_s3811",
     objectKeyPrefix: "media",
-    renditionId: "v1080",
+    profile: { duration: 2 },
+    trackId: "v1080",
   });
 
   const initIssue = await issueStoredCoordinatorSlotFromRequest({
@@ -298,7 +304,7 @@ async function expectStoredCoordinatorLifecycle(
         size: 98_304,
         slotId: segmentPlan.slot.slotId,
       }),
-      independent: true,
+      profile: { independent: true },
     },
     sessionId: session.sessionId,
     store,
@@ -317,14 +323,14 @@ async function expectStoredCoordinatorLifecycle(
   assertCursor(cursor);
 
   const master = await serveStoredCoordinatorManifest({
-    allowedMediaOrigins: ["https://media.example.com"],
+    allowedDeliveryOrigins: ["https://media.example.com"],
     ...manifestOptions.manifest,
     request: "https://edge.example.com/v1/live/session_1/master.m3u8",
     sessionId: session.sessionId,
     store,
   });
   const media = await serveStoredCoordinatorManifest({
-    allowedMediaOrigins: ["https://media.example.com"],
+    allowedDeliveryOrigins: ["https://media.example.com"],
     ...manifestOptions.manifest,
     request: "https://edge.example.com/v1/live/session_1/v1080/media.m3u8",
     sessionId: session.sessionId,
@@ -334,8 +340,8 @@ async function expectStoredCoordinatorLifecycle(
   ensureEqual(
     cursor.window,
     {
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     },
     "cursor should advance to committed segment"
   );
@@ -348,7 +354,7 @@ async function expectStoredCoordinatorLifecycle(
   ensureEqual(media.status, 200, "media manifest should be served");
   ensureIncludes(
     await media.text(),
-    `${mediaBaseUrl}/${segmentPlan.objectKey}`,
+    `${deliveryBaseUrl}/${segmentPlan.objectKey}`,
     "media manifest should include segment"
   );
 
@@ -399,9 +405,9 @@ async function expectStoredCoordinatorLifecycle(
   );
 }
 
-function plannedExpiry(duration: number) {
+function plannedExpiry(cadenceSeconds: number) {
   return resolveRuntimePublisherObjectExpiry({
-    duration,
+    cadenceSeconds,
     minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
     now: publishNow,
     targetLatency: publisherOptions.expiry.targetLatency,

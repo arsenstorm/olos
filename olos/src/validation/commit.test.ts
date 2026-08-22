@@ -8,15 +8,17 @@ const validCommit: Commit = {
   committedAt: "2026-06-08T12:00:01.820Z",
   deliveryUrl:
     "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p3.m4s",
-  duration: 0.5,
+  profile: {
+    duration: 0.5,
+    independent: false,
+    programDateTime: "2026-06-08T12:00:05.500Z",
+  },
   epoch: 1,
   etag: '"9b2cf535f27731c974343645a3985328"',
-  independent: false,
-  mediaSequenceNumber: 3812,
+  sequenceNumber: 3812,
   objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
   partNumber: 3,
-  programDateTime: "2026-06-08T12:00:05.500Z",
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "sess_01JZLIVE",
   size: 312_500,
   slotId: "slot_01JZ",
@@ -29,13 +31,11 @@ describe("commit validation", () => {
   });
 
   test("accepts commits without optional fields", () => {
-    const { etag, independent, partNumber, programDateTime, ...commit } =
-      validCommit;
+    const { etag, profile, partNumber, ...commit } = validCommit;
 
     expect(etag).toBeDefined();
-    expect(independent).toBe(false);
+    expect(profile).toBeDefined();
     expect(partNumber).toBe(3);
-    expect(programDateTime).toBeDefined();
     expect(() => assertCommit(commit)).not.toThrow();
   });
 
@@ -51,9 +51,9 @@ describe("commit validation", () => {
   });
 
   test("rejects invalid sequence numbers", () => {
-    expect(() =>
-      assertCommit({ ...validCommit, mediaSequenceNumber: -1 })
-    ).toThrow("commit.mediaSequenceNumber must be a non-negative integer");
+    expect(() => assertCommit({ ...validCommit, sequenceNumber: -1 })).toThrow(
+      "commit.sequenceNumber must be a non-negative integer"
+    );
     expect(() => assertCommit({ ...validCommit, partNumber: -1 })).toThrow(
       "commit.partNumber must be a non-negative integer"
     );
@@ -106,15 +106,12 @@ describe("commit validation", () => {
     );
   });
 
-  test("rejects invalid size and duration", () => {
+  test("rejects invalid sizes", () => {
     expect(() => assertCommit({ ...validCommit, size: 0 })).toThrow(
       "commit.size must be a positive integer"
     );
     expect(() => assertCommit({ ...validCommit, size: 312.5 })).toThrow(
       "commit.size must be a positive integer"
-    );
-    expect(() => assertCommit({ ...validCommit, duration: 0 })).toThrow(
-      "commit.duration must be a positive number"
     );
   });
 
@@ -122,15 +119,15 @@ describe("commit validation", () => {
     expect(() => assertCommit({ ...validCommit, committedAt: "soon" })).toThrow(
       "commit.committedAt must be a valid timestamp"
     );
-    expect(() =>
-      assertCommit({ ...validCommit, programDateTime: "soon" })
-    ).toThrow("commit.programDateTime must be a valid timestamp");
   });
 
   test("rejects invalid optional fields", () => {
+    expect(() => assertCommit({ ...validCommit, profile: "part" })).toThrow(
+      "commit.profile must be an object"
+    );
     expect(() =>
-      assertCommit({ ...validCommit, independent: "false" })
-    ).toThrow("commit.independent must be a boolean");
+      assertCommit({ ...validCommit, profile: { duration: 0, anything: [] } })
+    ).not.toThrow();
     expect(() => assertCommit({ ...validCommit, etag: 123 })).toThrow(
       "commit.etag must be a non-empty string"
     );

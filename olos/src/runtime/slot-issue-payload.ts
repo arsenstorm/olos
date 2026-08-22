@@ -1,15 +1,15 @@
 import type { IssueCoordinatorSlotOptions } from "../protocol/coordinator-types";
 import type { Byterange } from "../types/byterange";
-import type { MediaObjectKind } from "../types/media-object";
-import { MEDIA_OBJECT_KINDS } from "../types/media-object";
+import type { ObjectKind } from "../types/storage-object";
+import { OBJECT_KINDS } from "../types/storage-object";
 import { assertByterange, assertByterangeKind } from "../validation/byterange";
 import { assertUrlSafeIdentifier } from "../validation/ids";
-import { assertSupportedMediaExtension } from "../validation/object-key";
 import { assertSafePath, assertSafePathSegment } from "./path";
 import {
   nonNegativeIntegerField,
   oneOfStringField,
   optionalNonNegativeIntegerField,
+  optionalProfileField,
   optionalStringField,
   positiveNumberField,
   stringField,
@@ -19,8 +19,8 @@ import {
 /**
  * Wire payload for requesting an upload slot: the planned object's
  * identity, timeline position, byte bounds, and expiry, plus optional
- * object key derivation hints. It must not carry `objectKey` or
- * `deliveryUrl` — the coordinator derives those at issuance.
+ * opaque `profile` data and object key derivation hints. It must not carry
+ * `objectKey` or `deliveryUrl` — the coordinator derives those at issuance.
  */
 export interface RuntimeSlotIssuePayload
   extends Omit<IssueCoordinatorSlotOptions, "state"> {}
@@ -29,22 +29,22 @@ export function parseRuntimeSlotIssuePayload(
   value: Record<string, unknown>
 ): RuntimeSlotIssuePayload {
   assertNoLegacyAddressFields(value);
-  const kind = oneOfStringField(value, "kind", MEDIA_OBJECT_KINDS);
+  const kind = oneOfStringField(value, "kind", OBJECT_KINDS);
   const partNumber = optionalNonNegativeIntegerField(value, "partNumber");
   assertPartNumberKindMatch(kind, partNumber.partNumber);
 
   return {
     contentType: stringField(value, "contentType"),
-    duration: positiveNumberField(value, "duration"),
     expiresAt: stringField(value, "expiresAt"),
     kind,
     maxBytes: positiveNumberField(value, "maxBytes"),
-    mediaSequenceNumber: nonNegativeIntegerField(value, "mediaSequenceNumber"),
-    renditionId: urlSafeIdentifierField(value, "renditionId"),
+    sequenceNumber: nonNegativeIntegerField(value, "sequenceNumber"),
+    trackId: urlSafeIdentifierField(value, "trackId"),
     slotId: urlSafeIdentifierField(value, "slotId"),
     ...optionalNonNegativeIntegerField(value, "minBytes"),
     ...partNumber,
-    ...optionalDerivationHints(value, kind),
+    ...optionalProfileField(value),
+    ...optionalDerivationHints(value),
     ...optionalSlotByterange(value, kind),
   };
 }
@@ -60,7 +60,7 @@ function assertNoLegacyAddressFields(value: Record<string, unknown>): void {
 }
 
 function assertPartNumberKindMatch(
-  kind: MediaObjectKind,
+  kind: ObjectKind,
   partNumber: number | undefined
 ): void {
   if (kind === "part" && partNumber === undefined) {
@@ -72,15 +72,13 @@ function assertPartNumberKindMatch(
   }
 }
 
-function optionalDerivationHints(
-  value: Record<string, unknown>,
-  kind: MediaObjectKind
-): { extension?: string; objectKeyNonce?: string; objectKeyPrefix?: string } {
+function optionalDerivationHints(value: Record<string, unknown>): {
+  extension?: string;
+  objectKeyNonce?: string;
+  objectKeyPrefix?: string;
+} {
   return {
-    ...checkedOptionalString(value, "extension", (v, name) => {
-      assertSafePathSegment(v, name);
-      assertSupportedMediaExtension(v, kind, name);
-    }),
+    ...checkedOptionalString(value, "extension", assertSafePathSegment),
     ...checkedOptionalString(value, "objectKeyNonce", assertUrlSafeIdentifier),
     ...checkedOptionalString(value, "objectKeyPrefix", assertSafePath),
   };

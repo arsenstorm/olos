@@ -1,8 +1,8 @@
-import type { MediaObject } from "../types/media-object";
+import type { StorageObject } from "../types/storage-object";
 import type { UploadSlot } from "../types/upload-slot";
 import { nonNegativeNumber } from "./fields";
 import { isOptionalHttpHeaderStringMap } from "./http-header";
-import { assertMediaObject, MEDIA_OBJECT_FIELDS } from "./media-object";
+import { assertStorageObject, MEDIA_OBJECT_FIELDS } from "./storage-object";
 import { assertUploadSlot } from "./upload-slot";
 
 const OBSERVED_UPLOAD_FIELDS = [...MEDIA_OBJECT_FIELDS, "metadata"] as const;
@@ -12,7 +12,7 @@ const OBSERVED_UPLOAD_FIELDS = [...MEDIA_OBJECT_FIELDS, "metadata"] as const;
  * upload's metadata headers (e.g. `x-olos-slot-id`) for slot
  * cross-checking.
  */
-export interface ObservedUpload extends MediaObject {
+export interface ObservedUpload extends StorageObject {
   metadata?: Record<string, string | undefined>;
 }
 
@@ -78,17 +78,17 @@ export function assertObservedUploadMatchesSlot(
 
 /**
  * Validates an untrusted value as an `ObservedUpload`: a valid
- * `MediaObject` whose optional `metadata` is a string map. Throws an
+ * `StorageObject` whose optional `metadata` is a string map. Throws an
  * `Error` naming the first offending field.
  */
 export function assertObservedUpload(
   value: unknown
 ): asserts value is ObservedUpload {
-  assertMediaObject(value, OBSERVED_UPLOAD_FIELDS);
+  assertStorageObject(value, OBSERVED_UPLOAD_FIELDS);
   assertOptionalObservedUploadMetadata(value);
 }
 
-function assertOptionalObservedUploadMetadata(value: MediaObject): void {
+function assertOptionalObservedUploadMetadata(value: StorageObject): void {
   if (
     "metadata" in value &&
     value.metadata !== undefined &&

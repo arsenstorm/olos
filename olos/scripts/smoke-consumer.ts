@@ -18,6 +18,7 @@ const KNOWN_SYMBOLS = new Map([
   ["./config", "OLOS_ERROR_CODES"],
   ["./conformance", "OLOS_CONFORMANCE_ASSERTION_IDS"],
   ["./hls", "renderMediaPlaylist"],
+  ["./media", "assertMediaSession"],
   ["./protocol", "OLOS_PROTOCOL_NAME"],
   ["./runtime", "commitRuntimeUpload"],
   ["./schema", "OLOS_JSON_SCHEMAS"],

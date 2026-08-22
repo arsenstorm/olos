@@ -13,13 +13,13 @@ describe("HLS formatting helpers", () => {
 
   test("rejects values a quoted-string cannot represent", () => {
     expect(() =>
-      quotedPlaylistValue('English "director cut"', "rendition name")
-    ).toThrow("rendition name must not contain double quotes or line breaks");
-    expect(() => quotedPlaylistValue("line\rreturn", "rendition name")).toThrow(
-      "rendition name must not contain double quotes or line breaks"
+      quotedPlaylistValue('English "director cut"', "track name")
+    ).toThrow("track name must not contain double quotes or line breaks");
+    expect(() => quotedPlaylistValue("line\rreturn", "track name")).toThrow(
+      "track name must not contain double quotes or line breaks"
     );
-    expect(() => quotedPlaylistValue("line\nfeed", "rendition name")).toThrow(
-      "rendition name must not contain double quotes or line breaks"
+    expect(() => quotedPlaylistValue("line\nfeed", "track name")).toThrow(
+      "track name must not contain double quotes or line breaks"
     );
   });
 

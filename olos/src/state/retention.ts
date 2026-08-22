@@ -85,11 +85,11 @@ function isIssuedUploadSlot(slot: UploadSlot): slot is IssuedUploadSlot {
 
 /**
  * Select the commits whose backing objects may be deleted. A commit is
- * retired only when its own rendition is present in the retained window,
- * its media sequence number is strictly below that rendition's first
+ * retired only when its own track is present in the retained window,
+ * its media sequence number is strictly below that track's first
  * visible segment, and its slot does not back any object still in the
- * window; commits at or ahead of their rendition's window — or whose
- * rendition is absent from the window entirely — are kept because they may
+ * window; commits at or ahead of their track's window — or whose
+ * track is absent from the window entirely — are kept because they may
  * still become visible (out-of-order parts, future sequence numbers racing
  * the cursor). Pure.
  */
@@ -110,22 +110,21 @@ function isRetiredCommit(
   retainedWindow: CommittedWindow,
   retainedSlotIds: ReadonlySet<string>
 ): boolean {
-  // Window trimming is per rendition (maxSegments), so retirement must be
-  // too: compare against the commit's OWN rendition's first visible media
+  // Window trimming is per track (maxSegments), so retirement must be
+  // too: compare against the commit's OWN track's first visible media
   // sequence, not the window-global minimum — otherwise one lagging
-  // rendition pins every other rendition's trimmed commits forever. A
-  // rendition absent from the window (only out-of-order commits so far)
+  // track pins every other track's trimmed commits forever. A
+  // track absent from the window (only out-of-order commits so far)
   // keeps all of its commits: they may still become visible, and retiring
   // them would delete backing objects the next contiguous commit needs.
   // The slot-id check guards init commits if a caller passes them in
   // alongside media commits (in practice they live in state.initCommits).
-  const firstVisibleMediaSequenceNumber =
-    retainedWindow.renditions[commit.renditionId]?.segments[0]
-      ?.mediaSequenceNumber;
+  const firstVisibleSequenceNumber =
+    retainedWindow.tracks[commit.trackId]?.segments[0]?.sequenceNumber;
 
   return (
-    firstVisibleMediaSequenceNumber !== undefined &&
-    commit.mediaSequenceNumber < firstVisibleMediaSequenceNumber &&
+    firstVisibleSequenceNumber !== undefined &&
+    commit.sequenceNumber < firstVisibleSequenceNumber &&
     !retainedSlotIds.has(commit.slotId)
   );
 }
@@ -133,8 +132,8 @@ function isRetiredCommit(
 function retainedWindowSlotIds(window: CommittedWindow): Set<string> {
   const slotIds = new Set<string>();
 
-  for (const rendition of Object.values(window.renditions)) {
-    addRenditionSlotIds(slotIds, rendition);
+  for (const track of Object.values(window.tracks)) {
+    addTrackSlotIds(slotIds, track);
   }
 
   return slotIds;
@@ -148,13 +147,15 @@ function retiredCommittedObject(commit: Commit): RetiredCommittedObject {
   };
 }
 
-function addRenditionSlotIds(
+function addTrackSlotIds(
   slotIds: Set<string>,
-  rendition: CommittedWindow["renditions"][string]
+  track: CommittedWindow["tracks"][string]
 ): void {
-  slotIds.add(rendition.init.slotId);
+  if (track.init !== undefined) {
+    slotIds.add(track.init.slotId);
+  }
 
-  for (const segment of rendition.segments) {
+  for (const segment of track.segments) {
     addSegmentSlotIds(slotIds, segment);
   }
 }

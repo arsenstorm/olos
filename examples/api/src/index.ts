@@ -47,7 +47,7 @@ export default {
       );
     }
 
-    if (request.method === "GET" && url.pathname.startsWith("/media/")) {
+    if (request.method === "GET" && url.pathname.startsWith("/objects/")) {
       return withCors(await proxyMediaObject(request, env, readClient));
     }
 
@@ -67,7 +67,7 @@ function createHandler(
   store: ReturnType<typeof createSerializedCoordinatorStore>
 ): ReturnType<typeof createStoredS3CoordinatorRuntimeHandler> {
   return createStoredS3CoordinatorRuntimeHandler({
-    allowedMediaOrigins: [env.MEDIA_ORIGIN],
+    allowedDeliveryOrigins: [env.MEDIA_ORIGIN],
     blockingReload: {
       timeoutMs: BLOCKING_RELOAD_TIMEOUT_MS,
       waitForCursor: createCursorWaiter(
@@ -87,7 +87,7 @@ function createHandler(
 function isPublicRoute(pathname: string): boolean {
   return (
     pathname.startsWith("/v1/live/") ||
-    pathname.startsWith("/media/") ||
+    pathname.startsWith("/objects/") ||
     pathname.startsWith("/v/")
   );
 }

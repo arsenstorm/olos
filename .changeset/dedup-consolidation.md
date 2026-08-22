@@ -15,7 +15,7 @@ Dedup and consolidation pass:
   option, which duplicated `now`. Pass `now: () => number` instead.
 - BREAKING: the object-key layout for nonce-bearing segments changed.
   Segment filenames are now always position-keyed and flat under the
-  rendition directory:
+  track directory:
   - segment without nonce: `<prefix>/<rid>/s<msn>.<ext>` (unchanged)
   - segment with nonce: `<prefix>/<rid>/s<msn>-<nonce>.<ext>`
     (before: `<prefix>/<rid>/s<msn>/segment-<nonce>.<ext>`)

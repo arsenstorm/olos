@@ -15,7 +15,7 @@ R2 bucket in production — the Worker code does not change.
   playback request that asks for a segment one beyond the live edge returns as
   soon as the next commit lands.
 - LL-HLS `#EXT-X-PART` byterange parts: the
-  `GET /v/:session/:rendition/:msn.m4s` virtual-segment route
+  `GET /v/:session/:track/:msn.m4s` virtual-segment route
   (`src/virtual-segment-proxy.ts`) aggregates per-part S3 objects on the fly
   to satisfy full and Range requests against the logical segment URL.
 - The S3 client (`@aws-sdk/client-s3`) pointed at a configurable endpoint:
@@ -23,12 +23,12 @@ R2 bucket in production — the Worker code does not change.
 
 ## What it intentionally does not show
 
-- Multiple renditions.
+- Multiple tracks.
 - Recovery and retention jobs (`/s3/reconcile-plan`, `/s3/reconcile`,
   `/s3/retention`). The routes are mounted by the OLOS handler; cron wiring is
   left to the application.
 - Publisher heartbeat/lease, tenant or viewer auth (single ingest bearer only).
-- CDN-fronted direct-public media bucket. The Worker proxies `GET /media/:key`
+- CDN-fronted direct-public media bucket. The Worker proxies `GET /objects/:key`
   for demo simplicity; production should put the bucket behind a custom domain
   and remove this route.
 - TLS for local dev. `MEDIA_ORIGIN` must be `https://...` to satisfy OLOS, but
@@ -73,7 +73,7 @@ segments, each built from four byterange parts. It then opens an LL-HLS
 blocking reload request (`_HLS_msn=N+1`) and publishes the next segment's
 parts at the same time. The reload must return within the timeout once
 those parts land. Finally, the demo fetches the first virtual segment
-(`/v/:session/:rendition/:msn.m4s`) with a full GET and an interior `Range`
+(`/v/:session/:track/:msn.m4s`) with a full GET and an interior `Range`
 GET. The aggregated bytes must match the published bytes. It is the only
 programmatic check that the in-DO cursor
 waiter wired through `createCursorWaiter` actually wakes the blocking
@@ -120,7 +120,7 @@ Worker code is unchanged. Two prerequisites:
    ```
 
    `MEDIA_ORIGIN` is the viewer-facing origin baked into manifest URLs;
-   `USE_R2_BINDING=true` flips the Worker's GetObject path (`/media/*` and
+   `USE_R2_BINDING=true` flips the Worker's GetObject path (`/objects/*` and
    `/v/*`) to `env.MEDIA.get(...)` directly — no AWS SigV4 signing CPU,
    slightly cheaper class B operations. The streamer's presigned PUT flow
    still uses the S3 endpoint regardless. In local dev both values come from
@@ -134,7 +134,7 @@ bun run deploy                 # vite build && wrangler deploy
 ```
 
 For a real production posture, also: front R2 with a custom domain, drop the
-`GET /media/*` proxy route, gate ingest by per-publisher auth (replace the
+`GET /objects/*` proxy route, gate ingest by per-publisher auth (replace the
 demo bearer with mTLS or signed JWTs), and run reconciliation + retention on a
 cron trigger using the OLOS handler's `/s3/reconcile` and `/s3/retention`
 routes.
@@ -151,8 +151,8 @@ routes.
 - `src/coordinator-store.ts` — adapter routing OLOS store calls to the DO.
 - `src/cursor-notifier.ts` — adapter forwarding `waitForCursor` to the DO.
 - `src/s3-client.ts` — `@aws-sdk/client-s3` factory.
-- `src/media-proxy.ts` — `GET /media/:key` proxy (demo-only).
-- `src/virtual-segment-proxy.ts` — `GET /v/:session/:rendition/:msn.m4s`;
+- `src/media-proxy.ts` — `GET /objects/:key` proxy (demo-only).
+- `src/virtual-segment-proxy.ts` — `GET /v/:session/:track/:msn.m4s`;
   aggregates committed byterange parts into the logical segment, honoring
   Range requests and holding responses for not-yet-committed ranges.
 - `scripts/publish-demo.ts` — smoke test: publishes fixture bytes and asserts

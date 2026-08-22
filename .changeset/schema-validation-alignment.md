@@ -21,9 +21,9 @@ Schema and runtime validation are now aligned:
   next read; there is no compatibility shim. Internally generated
   timestamps were always RFC 3339 and are unaffected.
 - Every wire-document validator is now closed, matching the schemas'
-  `additionalProperties: false`: `assertMediaObject`, `assertUploadGrant`,
+  `additionalProperties: false`: `assertStorageObject`, `assertUploadGrant`,
   `assertProviderCapabilityDocument` (top level and every sub-object),
-  `assertCommittedWindow` (window, rendition windows, segments, committed
+  `assertCommittedWindow` (window, track windows, segments, committed
   objects, and parts), and the nested `byterange` object all reject unknown
   properties. This breaks producers that attached extra fields to these
   documents; `assertCommit`, `assertUploadSlot`, `assertCursor`, and

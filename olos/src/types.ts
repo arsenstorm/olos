@@ -9,18 +9,18 @@ export type {
   CommittedPart,
   CommittedSegment,
   CommittedWindow,
-  RenditionWindow,
+  TrackWindow,
 } from "./types/committed-window";
 export type { Cursor, CursorWindow } from "./types/cursor";
 export type { DirectPublicSecurityPolicy } from "./types/direct-public-security-policy";
 export type { OlosError, OlosErrorCode } from "./types/errors";
 export type {
   Epoch,
-  MediaSequenceNumber,
   OlosId,
   PartNumber,
+  SequenceNumber,
 } from "./types/ids";
-export type { MediaObject, MediaObjectKind } from "./types/media-object";
+export type { ProfileData, StreamProfile } from "./types/profile";
 export type {
   ProviderApiCapabilities,
   ProviderCapabilityDocument,
@@ -34,13 +34,8 @@ export type {
   ProviderUploadGrantCapabilities,
 } from "./types/provider-capability";
 export type { ObjectPublication } from "./types/publication";
-export type {
-  LatencyProfile,
-  Rendition,
-  RenditionKind,
-  Session,
-  SessionState,
-} from "./types/session";
+export type { Session, SessionState, Track } from "./types/session";
+export type { ObjectKind, StorageObject } from "./types/storage-object";
 export type { UploadGrant } from "./types/upload-grant";
 export type {
   PublicationMode,

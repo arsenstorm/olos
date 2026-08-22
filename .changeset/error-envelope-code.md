@@ -23,7 +23,7 @@ that is not an expected 4xx becomes an opaque 500 `olos.internal`
 envelope with a fixed message, so store or infrastructure error text
 never reaches clients. Three request inputs that previously escaped as
 unhandled rejections now resolve to envelopes: a malformed
-`?now=` on the retention route and an unsafe `mediaBaseUrl` on session
+`?now=` on the retention route and an unsafe `deliveryBaseUrl` on session
 create are 400 `olos.invalid_request`, and a publisher `committedAt`
 ahead of the server clock reads as a fresh cursor in `/health` instead
 of failing the request.

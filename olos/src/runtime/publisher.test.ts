@@ -81,20 +81,18 @@ describe("runtime publisher upload step", () => {
         }),
       committedAt: "2026-01-01T00:00:02.000Z",
       commitId: "commit_3810",
-      independent: true,
       issueSlot: (request) =>
         issueStoredCoordinatorSlotFromRequest({
           request,
           sessionId: session.sessionId,
           store,
         }),
+      profile: { independent: true },
       slot: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/s3810.m4s",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
       }),
       upload: (slot) =>
@@ -110,8 +108,8 @@ describe("runtime publisher upload step", () => {
 
     expect(step.status).toBe("committed");
     expect(snapshot?.state.cursor?.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
   });
 
@@ -136,12 +134,10 @@ describe("runtime publisher upload step", () => {
           store,
         }),
       slot: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/s3810.m4s",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
       }),
       upload: (slot) =>
@@ -175,12 +171,10 @@ describe("runtime publisher upload step", () => {
         return Promise.resolve({ status: "issued" });
       },
       slot: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/s3810.m4s",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
       }),
       upload: () => Promise.reject(new Error("should not upload")),
@@ -207,12 +201,10 @@ describe("runtime publisher upload step", () => {
         return Promise.resolve({ status: "issued" });
       },
       slot: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/s3810.m4s",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
       }),
       upload: () => Promise.reject(new Error("should not upload")),
@@ -240,12 +232,10 @@ describe("runtime publisher upload step", () => {
           store,
         }),
       slot: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/s3810.m4s",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
       }),
       upload: () => Promise.reject(new Error("upload failed")),
@@ -273,12 +263,10 @@ describe("runtime publisher upload step", () => {
           store,
         }),
       slot: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/s3810.m4s",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
       }),
       upload: () => Promise.reject(new Error("upload unavailable")),
@@ -298,12 +286,10 @@ describe("runtime publisher upload step", () => {
       commitId: "commit_3810",
       issueSlot: () => Promise.reject(new Error("slot unavailable")),
       slot: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/s3810.m4s",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
       }),
       upload: () => Promise.reject(new Error("should not upload")),
@@ -322,12 +308,10 @@ describe("runtime publisher upload step", () => {
       commitId: "commit_3810",
       issueSlot: () => Promise.resolve({ status: "rejected" }),
       slot: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/s3810.m4s",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
       }),
       upload: () => Promise.reject(new Error("should not upload")),
@@ -354,12 +338,10 @@ describe("runtime publisher upload step", () => {
           store,
         }),
       slot: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/s3810.m4s",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
       }),
       upload: (slot) =>
@@ -394,12 +376,10 @@ describe("runtime publisher upload step", () => {
           store,
         }),
       slot: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/s3810.m4s",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
       }),
       upload: (slot) =>
@@ -434,12 +414,10 @@ describe("runtime publisher upload step", () => {
           store,
         }),
       slot: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/s3810.m4s",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
       }),
       upload: (slot) =>
@@ -473,12 +451,10 @@ describe("runtime publisher upload step", () => {
           store,
         }),
       slot: slotPayload({
-        deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        objectKey: "media/v1080/s3810.m4s",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
       }),
       upload: (slot) =>
@@ -514,12 +490,10 @@ async function seedInitUpload(
 ): Promise<void> {
   await issueStoredCoordinatorSlotFromRequest({
     request: slotPayload({
-      deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
       duration: 1,
       kind: "init",
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
-      objectKey: "media/v1080/init.mp4",
+      sequenceNumber: 0,
       slotId: "slot_init",
     }),
     sessionId: session.sessionId,
@@ -532,7 +506,7 @@ async function seedInitUpload(
       committedAt: "2026-01-01T00:00:01.000Z",
       object: {
         contentType: "video/mp4",
-        objectKey: "media/v1080/init.mp4",
+        objectKey: "objects/v1080/init",
         observedAt: "2026-01-01T00:00:01.000Z",
         providerId: "s3_primary",
         size: 1024,
@@ -549,26 +523,22 @@ async function seedInitUpload(
 }
 
 interface SlotPayloadOptions {
-  deliveryUrl: string;
   duration: number;
   kind: "init" | "segment";
   maxBytes: number;
-  mediaSequenceNumber: number;
-  objectKey: string;
+  sequenceNumber: number;
   slotId: string;
 }
 
 function slotPayload(options: SlotPayloadOptions) {
   return {
     contentType: "video/mp4",
-    deliveryUrl: options.deliveryUrl,
-    duration: options.duration,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: options.kind,
     maxBytes: options.maxBytes,
-    mediaSequenceNumber: options.mediaSequenceNumber,
-    objectKey: options.objectKey,
-    renditionId: "v1080",
+    sequenceNumber: options.sequenceNumber,
+    profile: { duration: options.duration },
+    trackId: "v1080",
     slotId: options.slotId,
   };
 }

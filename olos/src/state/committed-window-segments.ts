@@ -3,58 +3,59 @@ import type {
   CommittedObject,
   CommittedPart,
   CommittedSegment,
-  RenditionWindow,
+  TrackWindow,
 } from "../types/committed-window";
 import { assertPositiveInteger } from "../validation/ids";
-import { SEGMENT_COMMIT_PART_ORDER } from "./committed-window";
-export function createRenditionWindow({
+import {
+  type CreateCommittedWindowOptions,
+  SEGMENT_COMMIT_PART_ORDER,
+} from "./committed-window";
+
+export function createTrackWindow({
   commits,
-  discontinuitySequence,
   init,
   maxSegments,
-  renditionId,
+  trackId,
+  trackWindowProfile,
 }: {
   commits: readonly Commit[];
-  discontinuitySequence: number;
-  init: Commit;
+  init?: Commit;
   maxSegments?: number;
-  renditionId: string;
-}): RenditionWindow {
+  trackId: string;
+  trackWindowProfile?: CreateCommittedWindowOptions["trackWindowProfile"];
+}): TrackWindow {
   const segments = finalizeCommittedSegments(createSegmentsBySequence(commits));
   const visibleSegments = limitCommittedSegments(segments, maxSegments);
-  // Trimmed leading segments take their discontinuity markers with them;
-  // count them into this rendition's discontinuity sequence (RFC 8216
-  // §6.2.2). The field stays absent while it matches the window-global
-  // value so unchanged windows keep their serialized shape.
-  const trimmedCount = segments.length - visibleSegments.length;
-  const renditionDiscontinuitySequence =
-    discontinuitySequence +
-    segments
-      .slice(0, trimmedCount)
-      .filter((segment) => segment.discontinuityBefore === true).length;
+  const trimmedSegments = segments.slice(
+    0,
+    segments.length - visibleSegments.length
+  );
+  const profile = trackWindowProfile?.({
+    segments: visibleSegments,
+    trackId,
+    trimmedSegments,
+  });
 
   return {
-    ...(renditionDiscontinuitySequence === discontinuitySequence
-      ? {}
-      : { discontinuitySequence: renditionDiscontinuitySequence }),
-    init: committedObject(init),
-    renditionId,
+    ...(init === undefined ? {} : { init: committedObject(init) }),
+    ...(profile === undefined ? {} : { profile }),
     segments: visibleSegments,
+    trackId,
   };
 }
 
-export function groupByRendition(
+export function groupByTrack(
   commits: readonly Commit[]
 ): Map<string, Commit[]> {
   const groups = new Map<string, Commit[]>();
 
   for (const commit of commits) {
-    const group = groups.get(commit.renditionId);
+    const group = groups.get(commit.trackId);
 
     if (group) {
       group.push(commit);
     } else {
-      groups.set(commit.renditionId, [commit]);
+      groups.set(commit.trackId, [commit]);
     }
   }
 
@@ -80,10 +81,8 @@ function finalizeCommittedSegments(
 ): CommittedSegment[] {
   return [...segmentsBySequence.values()]
     .map(commitContiguousParts)
-    .filter(hasCommittedMedia)
-    .sort(
-      (left, right) => left.mediaSequenceNumber - right.mediaSequenceNumber
-    );
+    .filter(hasCommittedObjects)
+    .sort((left, right) => left.sequenceNumber - right.sequenceNumber);
 }
 
 function limitCommittedSegments(
@@ -99,19 +98,6 @@ function limitCommittedSegments(
 }
 
 function addCommitToSegment(segment: CommittedSegment, commit: Commit): void {
-  // Lift the commit's program date time onto the segment. The renderer emits
-  // EXT-X-PROGRAM-DATE-TIME from the segment, and commits arrive in position
-  // order, so the first carrier — part 0 for a parted segment, otherwise the
-  // segment commit — anchors the segment's wall-clock start. Without this the
-  // wire field and the CommittedSegment field were never connected and the
-  // tag could not be emitted at all.
-  if (
-    commit.programDateTime !== undefined &&
-    segment.programDateTime === undefined
-  ) {
-    segment.programDateTime = commit.programDateTime;
-  }
-
   if (commit.partNumber === undefined) {
     if (segment.segment !== undefined) {
       throw new Error("commits must not contain duplicate segment positions");
@@ -139,19 +125,7 @@ function commitContiguousParts(segment: CommittedSegment): CommittedSegment {
     return { ...segment, parts: undefined };
   }
 
-  if (segment.segment !== undefined) {
-    return { ...segment, parts };
-  }
-
-  // A parts-only segment's duration was seeded from whichever commit sorted
-  // first (usually part 0), undercounting the in-progress segment. Report
-  // the sum of the visible contiguous parts instead; full-segment commits
-  // keep their authoritative duration above.
-  return { ...segment, duration: totalPartsDuration(parts), parts };
-}
-
-function totalPartsDuration(parts: readonly CommittedPart[]): number {
-  return parts.reduce((total, part) => total + part.duration, 0);
+  return { ...segment, parts };
 }
 
 function contiguousPartsPrefix(
@@ -170,7 +144,7 @@ function contiguousPartsPrefix(
   return contiguousParts;
 }
 
-function hasCommittedMedia(segment: CommittedSegment): boolean {
+function hasCommittedObjects(segment: CommittedSegment): boolean {
   return segment.segment !== undefined || segment.parts !== undefined;
 }
 
@@ -190,18 +164,15 @@ function segmentForCommit(
   segmentsBySequence: Map<number, CommittedSegment>,
   commit: Commit
 ): CommittedSegment {
-  const existing = segmentsBySequence.get(commit.mediaSequenceNumber);
+  const existing = segmentsBySequence.get(commit.sequenceNumber);
 
   if (existing) {
     return existing;
   }
 
-  const segment: CommittedSegment = {
-    duration: commit.duration,
-    mediaSequenceNumber: commit.mediaSequenceNumber,
-  };
+  const segment: CommittedSegment = { sequenceNumber: commit.sequenceNumber };
 
-  segmentsBySequence.set(commit.mediaSequenceNumber, segment);
+  segmentsBySequence.set(commit.sequenceNumber, segment);
   return segment;
 }
 
@@ -209,9 +180,9 @@ function committedObject(commit: Commit): CommittedObject {
   return {
     commitId: commit.commitId,
     deliveryUrl: commit.deliveryUrl,
-    duration: commit.duration,
     ...(commit.etag === undefined ? {} : { etag: commit.etag }),
     objectKey: commit.objectKey,
+    ...(commit.profile === undefined ? {} : { profile: commit.profile }),
     slotId: commit.slotId,
   };
 }
@@ -224,20 +195,13 @@ function committedPart(commit: Commit): CommittedPart {
   return {
     ...committedObject(commit),
     ...(commit.byterange === undefined ? {} : { byterange: commit.byterange }),
-    duration: commit.duration,
-    ...(commit.independent === undefined
-      ? {}
-      : { independent: commit.independent }),
     partNumber: commit.partNumber,
-    ...(commit.programDateTime === undefined
-      ? {}
-      : { programDateTime: commit.programDateTime }),
   };
 }
 
 function compareCommitPosition(left: Commit, right: Commit): number {
-  if (left.mediaSequenceNumber !== right.mediaSequenceNumber) {
-    return left.mediaSequenceNumber - right.mediaSequenceNumber;
+  if (left.sequenceNumber !== right.sequenceNumber) {
+    return left.sequenceNumber - right.sequenceNumber;
   }
 
   return (

@@ -3,7 +3,7 @@ import {
   renderMasterPlaylist,
   renderMediaPlaylist,
 } from "@arsenstorm/olos/hls";
-import { createRuntimeObjectLowLatencyManifestOptions } from "@arsenstorm/olos/runtime";
+import { createRuntimeObjectLowLatencyManifestOptions } from "@arsenstorm/olos/media";
 import { assertCommittedWindow } from "@arsenstorm/olos/validation";
 import { describe, expect, test } from "vitest";
 
@@ -46,11 +46,11 @@ describe("conformance", () => {
       renderMediaPlaylist(
         {
           ...conformanceCommittedWindow,
-          renditions: {
+          tracks: {
             v1080: {
-              ...conformanceCommittedWindow.renditions.v1080,
+              ...conformanceCommittedWindow.tracks.v1080,
               init: {
-                ...conformanceCommittedWindow.renditions.v1080.init,
+                ...conformanceCommittedWindow.tracks.v1080.init,
                 deliveryUrl: "https://publisher.example.net/injected.mp4",
               },
             },
@@ -58,15 +58,15 @@ describe("conformance", () => {
         },
         mediaPlaylistOptions()
       )
-    ).toThrow("rendition.init.deliveryUrl origin is not allowed");
+    ).toThrow("track.init.deliveryUrl origin is not allowed");
   });
 });
 
 function mediaPlaylistOptions() {
   return {
-    allowedMediaOrigins: ["https://media.example.com"],
+    allowedDeliveryOrigins: ["https://media.example.com"],
     ...manifestOptions.manifest,
-    renditionId: "v1080",
+    trackId: "v1080",
   };
 }
 

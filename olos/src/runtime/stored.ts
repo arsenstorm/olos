@@ -1,3 +1,4 @@
+import { mediaTrackWindowProfileFor } from "../media/window";
 import type {
   CoordinatorCommitPolicy,
   CoordinatorPipelineSnapshot,
@@ -7,9 +8,11 @@ import {
   runStoredCoordinatorMutationWithAdaptersAndResponse,
   type StoredMutationDecision,
 } from "../protocol/mutate-coordinator-store";
+import type { CreateCommittedWindowOptions } from "../state/committed-window";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { Cursor } from "../types/cursor";
 import type { OlosId } from "../types/ids";
+import type { StreamProfile } from "../types/profile";
 import type { Session } from "../types/session";
 import { isAllowedString } from "../validation/fields";
 import {
@@ -54,6 +57,12 @@ export interface CommitStoredCoordinatorUploadFromRequestOptions {
   request: RuntimeCommitRequest;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
+  /**
+   * Profile hook for track window `profile` data. Defaults to
+   * `mediaTrackWindowProfileFor(session.profile)` (olos/media): the
+   * CMAF/LL-HLS hook for media sessions, none for other profiles.
+   */
+  trackWindowProfile?: CreateCommittedWindowOptions["trackWindowProfile"];
 }
 
 /**
@@ -287,6 +296,9 @@ export function commitStoredCoordinatorUploadFromRequest(
           publicationControl: options.publicationControl,
           request: requestForAttempt(options.request),
           state,
+          trackWindowProfile:
+            options.trackWindowProfile ??
+            defaultTrackWindowProfile(state.session.profile),
         }),
       sessionId: options.sessionId,
       store: options.store,
@@ -356,6 +368,14 @@ function requestForAttempt(
   request: RuntimeCommitRequest | RuntimeSlotIssueRequest
 ): RuntimeCommitRequest | RuntimeSlotIssueRequest {
   return request instanceof Request ? new Request(request) : request;
+}
+
+// `mediaTrackWindowProfileFor` returns the media hook typed on its own
+// interface; widen it to Core's opaque `ProfileData` hook shape.
+function defaultTrackWindowProfile(
+  profile: StreamProfile
+): CreateCommittedWindowOptions["trackWindowProfile"] {
+  return mediaTrackWindowProfileFor(profile);
 }
 
 function notFound(): StoredRuntimeMutation {

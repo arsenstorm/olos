@@ -71,7 +71,7 @@ export interface RuntimePublisherHeartbeatOptions
 /** Options for `createRuntimeSession`. */
 export interface RuntimeCreateSessionOptions extends RuntimeHttpClientOptions {
   /** Public base URL that delivery URLs for the session's media resolve to. */
-  mediaBaseUrl: string;
+  deliveryBaseUrl: string;
   session: Session;
 }
 
@@ -130,7 +130,7 @@ export interface RuntimeMediaPlaylistOptions
   hlsMsn?: number;
   /** `_HLS_part` blocking-reload parameter (part number). */
   hlsPart?: number;
-  renditionId: string;
+  trackId: string;
 }
 
 /** Result of `sendRuntimePublisherHeartbeat`: the refreshed lease. */

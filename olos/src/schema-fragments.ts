@@ -15,7 +15,7 @@ export interface OlosJsonSchema {
 
 export const JSON_SCHEMA_DRAFT = "https://json-schema.org/draft/2020-12/schema";
 const JSON_SCHEMA_THEN = "then";
-const ID_PATTERN = "^[A-Za-z0-9_-]+$";
+const ID_PATTERN = "^[A-Za-z0-9._-]+$";
 const SAFE_OBJECT_KEY_PATTERN =
   "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[?#]).+[^/]$";
 
@@ -71,6 +71,18 @@ export const objectKey = {
   pattern: SAFE_OBJECT_KEY_PATTERN,
   type: "string",
 } as const;
+/**
+ * Opaque profile data: any JSON object. Profile modules publish their own
+ * schemas for the contents (for example `OLOS_MEDIA_*_PROFILE_SCHEMA` from
+ * olos/media).
+ */
+export const profileData = { type: "object" } as const;
+/** A session profile: any JSON object with a non-empty string `id`. */
+export const streamProfile = {
+  properties: { id: nonEmptyString },
+  required: ["id"],
+  type: "object",
+} as const;
 
 export function stringEnum<const Values extends readonly string[]>(
   values: Values
@@ -87,6 +99,17 @@ export const byterangeSchema = {
     segmentObjectKey: objectKey,
   },
   required: ["length", "offset", "segmentDeliveryUrl", "segmentObjectKey"],
+  type: "object",
+} as const;
+
+export const trackSchema = {
+  additionalProperties: false,
+  properties: {
+    contentType,
+    profile: profileData,
+    trackId: id,
+  },
+  required: ["trackId"],
   type: "object",
 } as const;
 
@@ -222,82 +245,51 @@ export const providerDirectObjectPublicationPrecondition = {
   [JSON_SCHEMA_THEN]: providerDirectObjectPublicationRequirements,
 } as const;
 
-// groupId/name/defaultRendition describe HLS audio group membership, so they
-// are only meaningful on audio renditions. `false` property subschemas reject
-// the fields whenever the rendition kind is not "audio". The single-group and
-// single-default constraints span sibling renditions, which JSON Schema
-// 2020-12 cannot express; only the runtime validator (assertSession) enforces
-// them. The drift harness covers the gap via validator-only invalid payloads.
-export const renditionAudioGroupFieldsPrecondition = {
-  if: {
-    not: {
-      properties: {
-        kind: { const: "audio" },
-      },
-      required: ["kind"],
-    },
-  },
-  [JSON_SCHEMA_THEN]: {
-    properties: {
-      defaultRendition: false,
-      groupId: false,
-      name: false,
-    },
-  },
-} as const;
-
-const committedObjectSchema = {
+export const committedObjectSchema = {
   additionalProperties: false,
   properties: {
     commitId: id,
     contentType,
     deliveryUrl,
-    duration: positiveNumber,
     etag: nonEmptyString,
     objectKey,
+    profile: profileData,
     slotId: id,
   },
   required: ["commitId", "deliveryUrl", "objectKey", "slotId"],
   type: "object",
 } as const;
 
-const committedPartSchema = {
+export const committedPartSchema = {
   additionalProperties: false,
   properties: {
     ...committedObjectSchema.properties,
     byterange: byterangeSchema,
-    duration: positiveNumber,
-    independent: { type: "boolean" },
     partNumber: nonNegativeInteger,
-    programDateTime: timestamp,
   },
-  required: [...committedObjectSchema.required, "duration", "partNumber"],
+  required: [...committedObjectSchema.required, "partNumber"],
   type: "object",
 } as const;
 
-const committedSegmentSchema = {
+export const committedSegmentSchema = {
   additionalProperties: false,
   properties: {
-    discontinuityBefore: { type: "boolean" },
-    duration: positiveNumber,
-    independent: { type: "boolean" },
-    mediaSequenceNumber: nonNegativeInteger,
     parts: { items: committedPartSchema, type: "array" },
-    programDateTime: timestamp,
     segment: committedObjectSchema,
+    sequenceNumber: nonNegativeInteger,
   },
-  required: ["duration", "mediaSequenceNumber"],
+  required: ["sequenceNumber"],
   type: "object",
 } as const;
 
-export const renditionWindowSchema = {
+export const trackWindowSchema = {
   additionalProperties: false,
   properties: {
-    discontinuitySequence: nonNegativeInteger,
     init: committedObjectSchema,
-    renditionId: id,
+    profile: profileData,
     segments: { items: committedSegmentSchema, type: "array" },
+    trackId: id,
   },
-  required: ["init", "renditionId", "segments"],
+  required: ["segments", "trackId"],
   type: "object",
 } as const;

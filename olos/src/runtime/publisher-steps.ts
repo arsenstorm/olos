@@ -113,10 +113,9 @@ export function publisherCommitPayload(
     committedAt: options.committedAt,
     object,
     slotId: slot.slotId,
-    ...optionalField("independent", options.independent),
     ...optionalField("lateToleranceMs", options.lateToleranceMs),
     ...optionalField("maxSegments", options.maxSegments),
-    ...optionalField("programDateTime", options.programDateTime),
+    ...optionalField("profile", options.profile),
   };
 }
 

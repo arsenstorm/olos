@@ -11,8 +11,8 @@ import type { Session, SessionState } from "../types/session";
 import type { PublicationMode } from "../types/upload-slot";
 /** Options for `createStoredCoordinatorSession`. */
 export interface CreateStoredCoordinatorSessionOptions {
-  /** Public base URL that delivery URLs for the session's media resolve to. */
-  mediaBaseUrl: string;
+  /** Public base URL that the session's object delivery URLs resolve to. */
+  deliveryBaseUrl: string;
   /** Defaults to `direct-public`. */
   publicationMode?: PublicationMode;
   session: Session;

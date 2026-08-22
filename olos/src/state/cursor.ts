@@ -4,28 +4,27 @@ import type {
   CommittedPart,
   CommittedSegment,
   CommittedWindow,
-  RenditionWindow,
+  TrackWindow,
 } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
 import type { OlosError } from "../types/errors";
 import type { PartNumber } from "../types/ids";
-import type { LatencyProfile, SessionState } from "../types/session";
+import type { StreamProfile } from "../types/profile";
+import type { SessionState } from "../types/session";
 import { assertCursor } from "../validation/cursor";
+import { sameProfileData } from "./profile-data";
 
 const SEGMENT_ONLY_CURSOR_PART_ORDER = -1;
 
 /** Options for {@link createCursor}. */
 export interface CreateCursorOptions {
   committedWindow: CommittedWindow;
+  /** Base URL that relative delivery URLs in the window resolve against. */
+  deliveryBaseUrl: string;
   /** Highest committed part number within the window's last segment. */
   lastPartNumber?: PartNumber;
-  latencyProfile: LatencyProfile;
-  /** Base URL that relative delivery URLs in the window resolve against. */
-  mediaBaseUrl: string;
-  /** Target part duration in seconds (`EXT-X-PART-INF` `PART-TARGET`). */
-  partTarget: number;
-  /** Target segment duration in seconds (`EXT-X-TARGETDURATION` source). */
-  segmentTarget: number;
+  /** The session's profile, copied unchanged onto the cursor. */
+  profile: StreamProfile;
   sessionId: string;
   state: SessionState;
   /** ISO timestamp of the commit that produced this cursor. */
@@ -63,19 +62,16 @@ export type CursorUpdateResolution =
 export function createCursor(options: CreateCursorOptions): Cursor {
   const cursor: Cursor = {
     committedWindow: options.committedWindow,
+    deliveryBaseUrl: options.deliveryBaseUrl,
     epoch: options.committedWindow.epoch,
-    latencyProfile: options.latencyProfile,
-    mediaBaseUrl: options.mediaBaseUrl,
     olos: OLOS_WIRE_VERSION,
-    partTarget: options.partTarget,
-    segmentTarget: options.segmentTarget,
+    profile: options.profile,
     sessionId: options.sessionId,
     state: options.state,
     updatedAt: options.updatedAt,
     window: {
-      firstMediaSequenceNumber:
-        options.committedWindow.firstMediaSequenceNumber,
-      lastMediaSequenceNumber: options.committedWindow.lastMediaSequenceNumber,
+      firstSequenceNumber: options.committedWindow.firstSequenceNumber,
+      lastSequenceNumber: options.committedWindow.lastSequenceNumber,
       ...(options.lastPartNumber === undefined
         ? {}
         : { lastPartNumber: options.lastPartNumber }),
@@ -144,10 +140,10 @@ function cursorRegression(
       error: {
         code: "olos.cursor_regression",
         details: {
-          candidateLastMediaSequenceNumber:
-            options.candidateCursor.window.lastMediaSequenceNumber,
-          currentLastMediaSequenceNumber:
-            options.currentCursor.window.lastMediaSequenceNumber,
+          candidateLastSequenceNumber:
+            options.candidateCursor.window.lastSequenceNumber,
+          currentLastSequenceNumber:
+            options.currentCursor.window.lastSequenceNumber,
           sessionId: options.currentCursor.sessionId,
         },
         message: "candidate cursor is behind the current cursor",
@@ -161,8 +157,8 @@ function compareCursorPosition(first: Cursor, second: Cursor): number {
   return (
     compareNumber(first.epoch, second.epoch) ||
     compareNumber(
-      first.window.lastMediaSequenceNumber,
-      second.window.lastMediaSequenceNumber
+      first.window.lastSequenceNumber,
+      second.window.lastSequenceNumber
     ) ||
     compareNumber(
       first.window.lastPartNumber ?? SEGMENT_ONLY_CURSOR_PART_ORDER,
@@ -181,7 +177,7 @@ function sameCommittedWindow(first: Cursor, second: Cursor): boolean {
 
   return (
     sameCommittedWindowBounds(firstWindow, secondWindow) &&
-    sameRenditionWindows(firstWindow.renditions, secondWindow.renditions)
+    sameTrackWindows(firstWindow.tracks, secondWindow.tracks)
   );
 }
 
@@ -190,64 +186,58 @@ function sameCommittedWindowBounds(
   second: CommittedWindow
 ): boolean {
   return (
-    first.discontinuitySequence === second.discontinuitySequence &&
     first.epoch === second.epoch &&
-    first.firstMediaSequenceNumber === second.firstMediaSequenceNumber &&
-    first.lastMediaSequenceNumber === second.lastMediaSequenceNumber
+    first.firstSequenceNumber === second.firstSequenceNumber &&
+    first.lastSequenceNumber === second.lastSequenceNumber
   );
 }
 
-function sameRenditionWindows(
-  first: Record<string, RenditionWindow>,
-  second: Record<string, RenditionWindow>
+function sameTrackWindows(
+  first: Record<string, TrackWindow>,
+  second: Record<string, TrackWindow>
 ): boolean {
-  if (!sameRenditionIds(first, second)) {
+  if (!sameTrackIds(first, second)) {
     return false;
   }
 
-  return Object.keys(first).every((renditionId) =>
-    sameRenditionWindowForId(first, second, renditionId)
+  return Object.keys(first).every((trackId) =>
+    sameTrackWindowForId(first, second, trackId)
   );
 }
 
-function sameRenditionIds(
-  first: Record<string, RenditionWindow>,
-  second: Record<string, RenditionWindow>
+function sameTrackIds(
+  first: Record<string, TrackWindow>,
+  second: Record<string, TrackWindow>
 ): boolean {
-  const firstRenditionIds = Object.keys(first);
+  const firstTrackIds = Object.keys(first);
 
-  if (firstRenditionIds.length !== Object.keys(second).length) {
+  if (firstTrackIds.length !== Object.keys(second).length) {
     return false;
   }
 
-  return firstRenditionIds.every(
-    (renditionId) => second[renditionId] !== undefined
+  return firstTrackIds.every((trackId) => second[trackId] !== undefined);
+}
+
+function sameTrackWindowForId(
+  first: Record<string, TrackWindow>,
+  second: Record<string, TrackWindow>,
+  trackId: string
+): boolean {
+  const firstTrack = first[trackId];
+  const secondTrack = second[trackId];
+
+  return (
+    firstTrack !== undefined &&
+    secondTrack !== undefined &&
+    sameTrack(firstTrack, secondTrack)
   );
 }
 
-function sameRenditionWindowForId(
-  first: Record<string, RenditionWindow>,
-  second: Record<string, RenditionWindow>,
-  renditionId: string
-): boolean {
-  const firstRendition = first[renditionId];
-  const secondRendition = second[renditionId];
-
+function sameTrack(first: TrackWindow, second: TrackWindow): boolean {
   return (
-    firstRendition !== undefined &&
-    secondRendition !== undefined &&
-    sameRendition(firstRendition, secondRendition)
-  );
-}
-
-function sameRendition(
-  first: RenditionWindow,
-  second: RenditionWindow
-): boolean {
-  return (
-    first.discontinuitySequence === second.discontinuitySequence &&
-    first.renditionId === second.renditionId &&
-    sameCommittedObject(first.init, second.init) &&
+    first.trackId === second.trackId &&
+    sameProfileData(first.profile, second.profile) &&
+    sameOptionalCommittedObject(first.init, second.init) &&
     sameSegments(first.segments, second.segments)
   );
 }
@@ -264,11 +254,7 @@ function sameSegment(
   second: CommittedSegment
 ): boolean {
   return (
-    first.discontinuityBefore === second.discontinuityBefore &&
-    first.duration === second.duration &&
-    first.independent === second.independent &&
-    first.mediaSequenceNumber === second.mediaSequenceNumber &&
-    first.programDateTime === second.programDateTime &&
+    first.sequenceNumber === second.sequenceNumber &&
     sameOptionalCommittedObject(first.segment, second.segment) &&
     sameParts(first.parts, second.parts)
   );
@@ -303,11 +289,7 @@ function sameOrderedItems<TItem>(
 
 function samePart(first: CommittedPart, second: CommittedPart): boolean {
   return (
-    first.duration === second.duration &&
-    first.independent === second.independent &&
-    first.partNumber === second.partNumber &&
-    first.programDateTime === second.programDateTime &&
-    sameCommittedObject(first, second)
+    first.partNumber === second.partNumber && sameCommittedObject(first, second)
   );
 }
 
@@ -330,9 +312,9 @@ function sameCommittedObject(
     first.commitId === second.commitId &&
     first.contentType === second.contentType &&
     first.deliveryUrl === second.deliveryUrl &&
-    first.duration === second.duration &&
     first.etag === second.etag &&
     first.objectKey === second.objectKey &&
+    sameProfileData(first.profile, second.profile) &&
     first.slotId === second.slotId
   );
 }

@@ -35,7 +35,7 @@ import type {
 } from "./publisher-types";
 /**
  * Run one publisher upload step for a caller-supplied object plan. Resolves
- * the grant expiry from the object duration, target latency, and TTL floor,
+ * the grant expiry from the object cadence, target latency, and TTL floor,
  * finalizes the plan with it, then drives the heartbeat, grant issue,
  * upload, and commit phases against the stored session. Phase failures are
  * returned as step statuses, not thrown.
@@ -44,7 +44,7 @@ export async function runPlannedStoredS3PublisherUploadStep(
   options: RunPlannedStoredS3PublisherUploadStepOptions
 ): Promise<PlannedStoredS3PublisherUploadStep> {
   const expiry = resolveRuntimePublisherObjectExpiry({
-    duration: options.plan.duration,
+    cadenceSeconds: options.cadenceSeconds,
     minTtlSeconds: options.minTtlSeconds,
     now: options.now,
     targetLatency: options.targetLatency,
@@ -221,12 +221,11 @@ function storedS3PublisherCommitUploadOptions(
     commitId: options.plan.commitId,
     committedAt: options.committedAt,
     commitPolicy: options.commitPolicy,
-    independent: options.independent,
     lateToleranceMs: options.lateToleranceMs,
     manifest: options.manifest,
     maxAttempts: options.maxAttempts,
     maxSegments: options.maxSegments,
-    programDateTime: options.programDateTime,
+    profile: options.profile,
     providerId: options.providerId,
     publicationControl: options.publicationControl,
     sessionId: options.sessionId,

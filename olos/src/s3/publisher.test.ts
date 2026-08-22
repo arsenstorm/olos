@@ -39,6 +39,7 @@ describe("stored S3 publisher upload step", () => {
 
     const step = await runPlannedStoredS3PublisherUploadStep({
       bucket: "media",
+      cadenceSeconds: 2,
       client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
       headObjectClient: createTestHeadObjectClientForSingle(
@@ -46,18 +47,18 @@ describe("stored S3 publisher upload step", () => {
         98_304,
         headObjectInputs
       ),
-      independent: true,
+      profile: { independent: true },
       now: "2026-01-01T00:00:00.000Z",
       plan: {
         contentType: "video/mp4",
-        duration: 2,
+        profile: { duration: 2 },
         extension: "m4s",
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKeyNonce: "slot_01JZ",
         objectKeyPrefix: "media",
-        renditionId: "v1080",
+        trackId: "v1080",
       },
       providerId: "s3_primary",
       sessionId: session.sessionId,
@@ -108,6 +109,7 @@ describe("stored S3 publisher upload step", () => {
 
     const step = await runPlannedStoredS3PublisherUploadStep({
       bucket: "media",
+      cadenceSeconds: 2,
       client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
       headObjectClient: createTestHeadObjectClientForSingle(
@@ -115,19 +117,19 @@ describe("stored S3 publisher upload step", () => {
         98_304,
         headObjectInputs
       ),
-      independent: true,
+      profile: { independent: true },
       minTtlSeconds: 30,
       now: "2026-01-01T00:00:00.000Z",
       plan: {
         contentType: "video/mp4",
-        duration: 2,
+        profile: { duration: 2 },
         extension: "m4s",
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKeyNonce: "slot_01M0",
         objectKeyPrefix: "media",
-        renditionId: "v1080",
+        trackId: "v1080",
       },
       providerId: "s3_primary",
       sessionId: session.sessionId,
@@ -173,14 +175,14 @@ describe("stored S3 publisher upload step", () => {
         98_304,
         headObjectInputs
       ),
-      independent: true,
+      profile: { independent: true },
       now: "2026-01-01T00:00:00.000Z",
       objectKeyNonce: "slot_01K0",
       objectKeyPrefix: "media",
       providerId: "s3_primary",
-      renditionId: "v1080",
+      trackId: "v1080",
       sessionId: session.sessionId,
-      startMediaSequenceNumber: 3810,
+      startSequenceNumber: 3810,
       store,
       targetLatency: 3,
       upload: (grant, plan) => {
@@ -194,7 +196,7 @@ describe("stored S3 publisher upload step", () => {
     expect(step.status).toBe("committed");
     expect(step.position).toEqual({
       kind: "segment",
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
     });
     expect(step.expiry).toEqual({
       expiresAt: "2026-01-01T00:00:05.000Z",
@@ -310,7 +312,7 @@ describe("stored S3 publisher upload step", () => {
     ).toBe("active");
     expect(step.position).toEqual({
       kind: "segment",
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
     });
   });
 
@@ -387,6 +389,7 @@ describe("stored S3 publisher upload step", () => {
 
     const step = await runPlannedStoredS3PublisherUploadStep({
       bucket: "media",
+      cadenceSeconds: 2,
       client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
       commitPolicy: () => ({
@@ -406,14 +409,14 @@ describe("stored S3 publisher upload step", () => {
       now: "2026-01-01T00:00:00.000Z",
       plan: {
         contentType: "video/mp4",
-        duration: 2,
+        profile: { duration: 2 },
         extension: "m4s",
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKeyNonce: "slot_01K1",
         objectKeyPrefix: "media",
-        renditionId: "v1080",
+        trackId: "v1080",
       },
       providerId: "s3_primary",
       sessionId: session.sessionId,
@@ -490,20 +493,21 @@ describe("stored S3 publisher upload step", () => {
 
     const step = await runPlannedStoredS3PublisherUploadStep({
       bucket: "media",
+      cadenceSeconds: 0.5,
       client: createTestS3Client(),
       committedAt: "2026-01-01T00:00:02.000Z",
       now: "2026-01-01T00:00:00.000Z",
       plan: {
         contentType: "video/mp4",
-        duration: 0.5,
+        profile: { duration: 0.5 },
         extension: "m4s",
         kind: "part",
         maxBytes: 25_000,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKeyNonce: "slot_01K2",
         objectKeyPrefix: "media",
         partNumber: 1,
-        renditionId: "v1080",
+        trackId: "v1080",
       },
       providerId: "s3_primary",
       sessionId: session.sessionId,
@@ -551,7 +555,7 @@ describe("stored S3 publisher upload step", () => {
           ),
           commitId: "commit_3810",
           committedAt: "2026-01-01T00:00:02.000Z",
-          independent: true,
+          profile: { independent: true },
           providerId: "s3_primary",
           sessionId: session.sessionId,
           slotId: slot.slotId,
@@ -562,14 +566,14 @@ describe("stored S3 publisher upload step", () => {
           bucket: "media",
           client: createTestS3Client(),
           contentType: "video/mp4",
-          duration: 2,
+          profile: { duration: 2 },
           expiresAt: "2026-01-01T00:00:05.000Z",
           expiresInSeconds: manualGrantTtlSeconds,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
+          sequenceNumber: 3810,
           now: "2026-01-01T00:00:00.000Z",
-          renditionId: "v1080",
+          trackId: "v1080",
           sessionId: session.sessionId,
           slotId: "slot_3810",
           store,
@@ -586,7 +590,7 @@ describe("stored S3 publisher upload step", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
     ]);
   });
@@ -671,14 +675,14 @@ describe("stored S3 publisher upload step", () => {
           bucket: "media",
           client: createTestS3Client(),
           contentType: "video/mp4",
-          duration: 2,
+          profile: { duration: 2 },
           expiresAt: "2026-01-01T00:00:05.000Z",
           expiresInSeconds: manualGrantTtlSeconds,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
+          sequenceNumber: 3810,
           now: "2026-01-01T00:00:00.000Z",
-          renditionId: "v1080",
+          trackId: "v1080",
           sessionId: session.sessionId,
           slotId: "slot_3810",
           store,
@@ -695,22 +699,25 @@ describe("stored S3 publisher upload step", () => {
 
 const objectDefaults = {
   init: {
+    cadenceSeconds: 1,
     contentType: "video/mp4",
-    duration: 1,
     extension: "mp4",
     maxBytes: 2048,
+    profile: { duration: 1 },
   },
   part: {
+    cadenceSeconds: 0.5,
     contentType: "video/mp4",
-    duration: 0.5,
     extension: "m4s",
     maxBytes: 25_000,
+    profile: { duration: 0.5 },
   },
   segment: {
+    cadenceSeconds: 2,
     contentType: "video/mp4",
-    duration: 2,
     extension: "m4s",
     maxBytes: 100_000,
+    profile: { duration: 2 },
   },
 } as const;
 
@@ -740,14 +747,14 @@ function nextStepOptions(options: {
       98_304,
       options.headObjectInputs
     ),
-    independent: true,
+    profile: { independent: true },
     now: "2026-01-01T00:00:00.000Z",
     objectKeyNonce: "slot_01L0",
     objectKeyPrefix: "media",
     providerId: "s3_primary",
-    renditionId: "v1080",
+    trackId: "v1080",
     sessionId: session.sessionId,
-    startMediaSequenceNumber: 3810,
+    startSequenceNumber: 3810,
     store: options.store,
     targetLatency: 3,
   };

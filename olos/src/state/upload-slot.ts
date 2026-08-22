@@ -1,7 +1,8 @@
 import type { Byterange } from "../types/byterange";
 import type { Cursor } from "../types/cursor";
-import type { MediaObjectKind } from "../types/media-object";
+import type { ProfileData } from "../types/profile";
 import type { Session } from "../types/session";
+import type { ObjectKind } from "../types/storage-object";
 import type { UploadSlot, UploadSlotState } from "../types/upload-slot";
 import { UPLOAD_SLOT_TRANSITIONS } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
@@ -27,22 +28,22 @@ export interface CreateIssuedUploadSlotOptions {
   byterange?: Byterange;
   contentType: string;
   deliveryUrl: string;
-  /** Media duration of the expected object in seconds. */
-  duration: number;
   /** ISO timestamp after which an unobserved slot may be expired. */
   expiresAt: string;
-  kind: MediaObjectKind;
+  kind: ObjectKind;
   /** Maximum accepted object size in bytes. */
   maxBytes: number;
-  mediaSequenceNumber: number;
   /** Minimum accepted object size in bytes. */
   minBytes?: number;
   objectKey: string;
   partNumber?: number;
-  renditionId: string;
-  /** Owning session; must be `live` and contain `renditionId`. */
+  /** Profile-defined expectations for the object (opaque to Core). */
+  profile?: ProfileData;
+  sequenceNumber: number;
+  /** Owning session; must be `live` and contain `trackId`. */
   session: Session;
   slotId: string;
+  trackId: string;
 }
 
 /** Options for {@link resolveUploadObservation} and {@link observeUpload}. */
@@ -137,8 +138,8 @@ export interface TerminalUploadTransitionResult<
 /**
  * Create a new upload slot in the `issued` state for a live session. The
  * slot's epoch and session ID are copied from the session. Pure; throws
- * when the session is not `live`, `renditionId` does not belong to the
- * session's renditions, or the resulting slot fails validation.
+ * when the session is not `live`, `trackId` does not belong to the
+ * session's tracks, or the resulting slot fails validation.
  */
 export function createIssuedUploadSlot(
   options: CreateIssuedUploadSlotOptions
@@ -148,14 +149,13 @@ export function createIssuedUploadSlot(
   const slot: UploadSlot = {
     contentType: options.contentType,
     deliveryUrl: options.deliveryUrl,
-    duration: options.duration,
     epoch: options.session.epoch,
     expiresAt: options.expiresAt,
     kind: options.kind,
     maxBytes: options.maxBytes,
-    mediaSequenceNumber: options.mediaSequenceNumber,
+    sequenceNumber: options.sequenceNumber,
     objectKey: options.objectKey,
-    renditionId: options.renditionId,
+    trackId: options.trackId,
     sessionId: options.session.sessionId,
     slotId: options.slotId,
     state: "issued",
@@ -176,24 +176,26 @@ function assertIssuedUploadSlotSession(
     throw new Error("session.state must be live");
   }
 
-  if (!sessionHasRendition(options.session, options.renditionId)) {
-    throw new Error("uploadSlot.renditionId must belong to session.renditions");
+  if (!sessionHasTrack(options.session, options.trackId)) {
+    throw new Error("uploadSlot.trackId must belong to session.tracks");
   }
 }
 
-function sessionHasRendition(session: Session, renditionId: string): boolean {
-  return session.renditions.some(
-    (rendition) => rendition.renditionId === renditionId
-  );
+function sessionHasTrack(session: Session, trackId: string): boolean {
+  return session.tracks.some((track) => track.trackId === trackId);
 }
 
 function optionalIssuedUploadSlotFields(
   options: CreateIssuedUploadSlotOptions
-): Pick<UploadSlot, "byterange" | "minBytes" | "partNumber"> {
+): Pick<UploadSlot, "byterange" | "minBytes" | "partNumber" | "profile"> {
   const optionalFields: Pick<
     UploadSlot,
-    "byterange" | "minBytes" | "partNumber"
+    "byterange" | "minBytes" | "partNumber" | "profile"
   > = {};
+
+  if (options.profile !== undefined) {
+    optionalFields.profile = options.profile;
+  }
 
   if (options.minBytes !== undefined) {
     optionalFields.minBytes = options.minBytes;

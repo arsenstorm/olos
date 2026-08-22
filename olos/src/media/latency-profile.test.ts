@@ -13,11 +13,10 @@ import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "./latency-profile-de
 const mediaOrigin = "https://media.example.com";
 
 const committedWindow: CommittedWindow = {
-  discontinuitySequence: 0,
   epoch: 1,
-  firstMediaSequenceNumber: 3810,
-  lastMediaSequenceNumber: 3810,
-  renditions: {
+  firstSequenceNumber: 3810,
+  lastSequenceNumber: 3810,
+  tracks: {
     v1080: {
       init: {
         commitId: "commit_init",
@@ -25,15 +24,15 @@ const committedWindow: CommittedWindow = {
         objectKey: "media/v1080/init.mp4",
         slotId: "slot_init",
       },
-      renditionId: "v1080",
+      trackId: "v1080",
       segments: [
         {
-          duration: 2,
-          mediaSequenceNumber: 3810,
+          sequenceNumber: 3810,
           segment: {
             commitId: "commit_3810",
             deliveryUrl: "https://media.example.com/media/3810.m4s",
             objectKey: "media/3810.m4s",
+            profile: { duration: 2 },
             slotId: "slot_3810",
           },
         },
@@ -42,7 +41,7 @@ const committedWindow: CommittedWindow = {
   },
 };
 
-describe("runtime latency profile", () => {
+describe("media latency profile", () => {
   test("creates object low-latency runtime defaults", () => {
     expect(DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE).toEqual({
       blockingReloadTimeoutMs: 3000,
@@ -115,7 +114,7 @@ describe("runtime latency profile", () => {
   test("renders manifests with object low-latency hold-backs", () => {
     const options = createRuntimeObjectLowLatencyManifestOptions();
     const artifacts = createHlsManifestArtifacts(session, committedWindow, {
-      allowedMediaOrigins: [mediaOrigin],
+      allowedDeliveryOrigins: [mediaOrigin],
       ...options.manifest,
     });
     const media = artifacts.find((artifact) =>
@@ -153,25 +152,47 @@ describe("runtime latency profile", () => {
       })
     ).toEqual({
       init: {
+        cadenceSeconds: 1,
         contentType: "video/mp4",
-        duration: 1,
         extension: "mp4",
         maxBytes: 2048,
+        profile: { duration: 1 },
       },
       part: {
+        cadenceSeconds: 0.5,
         contentType: "video/mp4",
-        duration: 0.5,
         extension: "m4s",
         maxBytes: 25_000,
         minBytes: 1,
+        profile: { duration: 0.5 },
       },
       segment: {
+        cadenceSeconds: 2,
         contentType: "video/mp4",
-        duration: 2,
         extension: "m4s",
         maxBytes: 100_000,
+        profile: { duration: 2 },
       },
     });
+  });
+
+  test("rejects unsupported media extensions in publisher object defaults", () => {
+    expect(() =>
+      createRuntimeObjectLowLatencyPublisherDefaults({
+        contentType: "video/mp4",
+        init: {
+          duration: 1,
+          maxBytes: 2048,
+        },
+        part: {
+          extension: "html",
+          maxBytes: 25_000,
+        },
+        segment: {
+          maxBytes: 100_000,
+        },
+      })
+    ).toThrow("extension must use a supported media extension");
   });
 
   test("allows zero minimum bytes in publisher object defaults", () => {

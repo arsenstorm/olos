@@ -10,8 +10,8 @@ export interface AvailablePart {
 }
 
 export interface SegmentBatch {
-  mediaSequenceNumber: number;
   parts: readonly AvailablePart[];
+  sequenceNumber: number;
 }
 
 // Pull the longest contiguous run of available parts that all belong to the
@@ -40,14 +40,14 @@ export function collectNextSegmentBatch(
   if (parts.length === 0) {
     return;
   }
-  return { mediaSequenceNumber: targetMsn, parts };
+  return { sequenceNumber: targetMsn, parts };
 }
 
 export async function assembleSegment(
   outDir: string,
-  mediaSequenceNumber: number
+  sequenceNumber: number
 ): Promise<Uint8Array> {
-  const firstIndex = mediaSequenceNumber * PARTS_PER_SEGMENT;
+  const firstIndex = sequenceNumber * PARTS_PER_SEGMENT;
   const chunks: Uint8Array[] = await Promise.all(
     Array.from({ length: PARTS_PER_SEGMENT }, (_, part) =>
       readFile(
@@ -84,9 +84,9 @@ export function collectAvailableParts(
 
 export async function deleteSegmentParts(
   outDir: string,
-  mediaSequenceNumber: number
+  sequenceNumber: number
 ): Promise<void> {
-  const firstIndex = mediaSequenceNumber * PARTS_PER_SEGMENT;
+  const firstIndex = sequenceNumber * PARTS_PER_SEGMENT;
   for (let part = 0; part < PARTS_PER_SEGMENT; part += 1) {
     const file = `part-${String(firstIndex + part).padStart(5, "0")}.m4s`;
     await unlinkIfPresent(join(outDir, file));

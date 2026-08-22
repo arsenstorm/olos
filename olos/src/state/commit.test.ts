@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Cursor } from "../types/cursor";
-import type { MediaObject } from "../types/media-object";
 import type { Session } from "../types/session";
+import type { StorageObject } from "../types/storage-object";
 import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
 import {
@@ -18,21 +18,21 @@ import {
 const slot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl: "/objects/tenant/session/v1080/3810.m4s",
-  duration: 2,
+  profile: { duration: 2 },
   epoch: 0,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  mediaSequenceNumber: 3810,
+  sequenceNumber: 3810,
   minBytes: 1,
   objectKey: "tenant/session/v1080/3810.m4s",
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "session_1",
   slotId: "slot_1",
   state: "upload_observed",
 };
 
-const mediaObject: MediaObject = {
+const mediaObject: StorageObject = {
   contentType: "video/mp4",
   etag: '"abc123"',
   objectKey: "tenant/session/v1080/3810.m4s",
@@ -51,30 +51,29 @@ const observedUpload: ObservedUpload = {
 const session: Session = {
   createdAt: "2026-01-01T00:00:00.000Z",
   epoch: 0,
-  latencyProfile: "object-ll",
   olos: "1.0",
-  partTarget: 0.5,
-  renditions: [
+  profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
+  tracks: [
     {
-      codec: "avc1.640028",
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
+      profile: {
+        codec: "avc1.640028",
+        height: 1080,
+        kind: "video",
+        width: 1920,
+      },
+      trackId: "v1080",
     },
   ],
-  segmentTarget: 2,
   sessionId: "session_1",
   state: "live",
 };
 
 const cursor: Cursor = {
   committedWindow: {
-    discontinuitySequence: 0,
     epoch: 0,
-    firstMediaSequenceNumber: 3810,
-    lastMediaSequenceNumber: 3811,
-    renditions: {
+    firstSequenceNumber: 3810,
+    lastSequenceNumber: 3811,
+    tracks: {
       v1080: {
         init: {
           commitId: "commit_init",
@@ -82,16 +81,15 @@ const cursor: Cursor = {
           objectKey: "tenant/session/v1080/init.mp4",
           slotId: "slot_init",
         },
-        renditionId: "v1080",
+        trackId: "v1080",
         segments: [
           {
-            duration: 2,
-            mediaSequenceNumber: 3811,
+            sequenceNumber: 3811,
             parts: [
               {
                 commitId: "commit_3811_0",
                 deliveryUrl: "/objects/tenant/session/v1080/3811.0.m4s",
-                duration: 0.5,
+                profile: { duration: 0.5 },
                 objectKey: "tenant/session/v1080/3811.0.m4s",
                 partNumber: 0,
                 slotId: "slot_3811_0",
@@ -103,17 +101,15 @@ const cursor: Cursor = {
     },
   },
   epoch: 0,
-  latencyProfile: "object-ll",
   olos: "1.0",
-  mediaBaseUrl: "https://media.example.com",
-  partTarget: 0.5,
-  segmentTarget: 2,
+  deliveryBaseUrl: "https://media.example.com",
+  profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
   sessionId: "session_1",
   state: "live",
   updatedAt: "2026-01-01T00:00:03.000Z",
   window: {
-    firstMediaSequenceNumber: 3810,
-    lastMediaSequenceNumber: 3811,
+    firstSequenceNumber: 3810,
+    lastSequenceNumber: 3811,
     lastPartNumber: 0,
   },
 };
@@ -124,23 +120,27 @@ describe("commit builder", () => {
       createCommit({
         commitId: "commit_1",
         committedAt: "2026-01-01T00:00:02.000Z",
-        independent: true,
+        profile: {
+          independent: true,
+          programDateTime: "2026-01-01T00:00:00.000Z",
+        },
         mediaObject,
-        programDateTime: "2026-01-01T00:00:00.000Z",
         slot,
       })
     ).toEqual({
       commitId: "commit_1",
       committedAt: "2026-01-01T00:00:02.000Z",
       deliveryUrl: "/objects/tenant/session/v1080/3810.m4s",
-      duration: 2,
+      profile: {
+        duration: 2,
+        independent: true,
+        programDateTime: "2026-01-01T00:00:00.000Z",
+      },
       epoch: 0,
       etag: '"abc123"',
-      independent: true,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       objectKey: "tenant/session/v1080/3810.m4s",
-      programDateTime: "2026-01-01T00:00:00.000Z",
-      renditionId: "v1080",
+      trackId: "v1080",
       sessionId: "session_1",
       size: 98_304,
       slotId: "slot_1",
@@ -277,12 +277,12 @@ describe("upload commit resolution", () => {
         commitId: "commit_1",
         committedAt: "2026-01-01T00:00:02.000Z",
         deliveryUrl: "/objects/tenant/session/v1080/3810.m4s",
-        duration: 2,
+        profile: { duration: 2 },
         epoch: 0,
         etag: '"abc123"',
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKey: "tenant/session/v1080/3810.m4s",
-        renditionId: "v1080",
+        trackId: "v1080",
         sessionId: "session_1",
         size: 98_304,
         slotId: "slot_1",
@@ -548,9 +548,9 @@ describe("commit attempt resolution", () => {
         error: {
           code: "olos.invalid_state",
           details: {
-            cursorLastMediaSequenceNumber: 3811,
+            cursorLastSequenceNumber: 3811,
             cursorLastPartNumber: 0,
-            mediaSequenceNumber: 3810,
+            sequenceNumber: 3810,
             partNumber: undefined,
             slotId: "slot_1",
           },
@@ -579,7 +579,7 @@ describe("commit attempt resolution", () => {
     const currentSegmentSlot = {
       ...slot,
       deliveryUrl: "/objects/tenant/session/v1080/3811.m4s",
-      mediaSequenceNumber: 3811,
+      sequenceNumber: 3811,
       objectKey: "tenant/session/v1080/3811.m4s",
       slotId: "slot_3811",
     };
@@ -604,8 +604,8 @@ describe("commit attempt resolution", () => {
     const partSlot = {
       ...slot,
       deliveryUrl: "/objects/tenant/session/v1080/3811.0.m4s",
-      duration: 0.5,
-      mediaSequenceNumber: 3811,
+      profile: { duration: 0.5 },
+      sequenceNumber: 3811,
       objectKey: "tenant/session/v1080/3811.0.m4s",
       partNumber: 0,
       slotId: "slot_3811_0",
@@ -634,9 +634,11 @@ describe("observed upload commit builder", () => {
       commitObservedUpload({
         commitId: "commit_1",
         committedAt: "2026-01-01T00:00:02.000Z",
-        independent: true,
+        profile: {
+          independent: true,
+          programDateTime: "2026-01-01T00:00:00.000Z",
+        },
         object: observedUpload,
-        programDateTime: "2026-01-01T00:00:00.000Z",
         slot: { ...slot, state: "issued" },
       })
     ).toEqual({
@@ -644,14 +646,16 @@ describe("observed upload commit builder", () => {
         commitId: "commit_1",
         committedAt: "2026-01-01T00:00:02.000Z",
         deliveryUrl: "/objects/tenant/session/v1080/3810.m4s",
-        duration: 2,
+        profile: {
+          duration: 2,
+          independent: true,
+          programDateTime: "2026-01-01T00:00:00.000Z",
+        },
         epoch: 0,
         etag: '"abc123"',
-        independent: true,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKey: "tenant/session/v1080/3810.m4s",
-        programDateTime: "2026-01-01T00:00:00.000Z",
-        renditionId: "v1080",
+        trackId: "v1080",
         sessionId: "session_1",
         size: 98_304,
         slotId: "slot_1",

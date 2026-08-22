@@ -94,7 +94,7 @@ async function handleSessionRoute(
 
     return (
       await createStoredCoordinatorSession({
-        mediaBaseUrl: parsed.mediaBaseUrl,
+        deliveryBaseUrl: parsed.deliveryBaseUrl,
         publicationMode: options.publicationMode ?? "direct-public",
         session: parsed.session,
         store: options.store,
@@ -204,6 +204,7 @@ async function handlePostCommitRoute(
     request,
     sessionId,
     store: options.store,
+    trackWindowProfile: options.trackWindowProfile,
   });
 
   if (isSuccessfulRuntimeCommitResult(result)) {

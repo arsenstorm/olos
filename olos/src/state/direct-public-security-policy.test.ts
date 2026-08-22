@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { ProviderCapabilityDocument } from "../types/provider-capability";
 import {
-  createDirectPublicMediaResponseHeaders,
   createDirectPublicNegativeObjectResponseHeaders,
+  createDirectPublicObjectResponseHeaders,
   createDirectPublicSecurityPolicy,
-  resolveDirectPublicMediaRequestPolicy,
+  resolveDirectPublicObjectRequestPolicy,
 } from "./direct-public-security-policy";
 
 const mediaOrigin = "https://media.example.com";
@@ -48,7 +48,7 @@ describe("direct-public security policy", () => {
         targetLatencySeconds: 3,
       })
     ).toEqual({
-      allowedMediaOrigins: [mediaOrigin],
+      allowedDeliveryOrigins: [mediaOrigin],
       allowedMediaExtensions: [".m4s", ".mp4"],
       forbiddenResponseHeaders: ["set-cookie"],
       manifestCachePolicy: {
@@ -168,7 +168,7 @@ describe("direct-public security policy", () => {
 
   test("allows supported media object requests", () => {
     expect(
-      resolveDirectPublicMediaRequestPolicy({
+      resolveDirectPublicObjectRequestPolicy({
         accept: "video/*,*/*",
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
       })
@@ -179,7 +179,7 @@ describe("direct-public security policy", () => {
     const policy = createDirectPublicSecurityPolicy({ capability });
 
     expect(
-      createDirectPublicMediaResponseHeaders({
+      createDirectPublicObjectResponseHeaders({
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
         policy,
       })
@@ -196,7 +196,7 @@ describe("direct-public security policy", () => {
     const policy = createDirectPublicSecurityPolicy({ capability });
 
     expect(() =>
-      createDirectPublicMediaResponseHeaders({
+      createDirectPublicObjectResponseHeaders({
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.html",
         policy,
       })
@@ -236,7 +236,7 @@ describe("direct-public security policy", () => {
 
   test("blocks unknown media object extensions", () => {
     expect(
-      resolveDirectPublicMediaRequestPolicy({
+      resolveDirectPublicObjectRequestPolicy({
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.html",
       })
     ).toEqual({
@@ -248,7 +248,7 @@ describe("direct-public security policy", () => {
 
   test("checks object-key safety before request navigation headers", () => {
     expect(
-      resolveDirectPublicMediaRequestPolicy({
+      resolveDirectPublicObjectRequestPolicy({
         accept: "text/html",
         fetchMode: "navigate",
         objectKey: "../media/tenant/session/e1/v1080/s1/p0-slot_1.html",
@@ -265,7 +265,7 @@ describe("direct-public security policy", () => {
       "../media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
       "media/tenant/session/e1/v1080/s1/\u0000p0-slot_1.m4s",
     ]) {
-      expect(resolveDirectPublicMediaRequestPolicy({ objectKey })).toEqual({
+      expect(resolveDirectPublicObjectRequestPolicy({ objectKey })).toEqual({
         allowed: false,
         reason: "unsafe-object-key",
         status: 404,
@@ -275,7 +275,7 @@ describe("direct-public security policy", () => {
 
   test("blocks document navigation to media objects", () => {
     expect(
-      resolveDirectPublicMediaRequestPolicy({
+      resolveDirectPublicObjectRequestPolicy({
         fetchDestination: "document",
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
       })
@@ -288,7 +288,7 @@ describe("direct-public security policy", () => {
 
   test("blocks navigate-mode requests to media objects", () => {
     expect(
-      resolveDirectPublicMediaRequestPolicy({
+      resolveDirectPublicObjectRequestPolicy({
         fetchMode: "navigate",
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.m4s",
       })
@@ -301,7 +301,7 @@ describe("direct-public security policy", () => {
 
   test("blocks HTML accept requests for media objects", () => {
     expect(
-      resolveDirectPublicMediaRequestPolicy({
+      resolveDirectPublicObjectRequestPolicy({
         accept: "text/html,application/xhtml+xml",
         objectKey: "media/tenant/session/e1/v1080/s1/p0-slot_1.mp4",
       })

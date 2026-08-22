@@ -1,7 +1,7 @@
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import { createOlosError } from "../types/errors";
-import type { MediaObject } from "../types/media-object";
+import type { StorageObject } from "../types/storage-object";
 import type { UploadSlot } from "../types/upload-slot";
 import { assertCommit } from "../validation/commit";
 import { nonNegativeNumber, timestampMs } from "../validation/fields";
@@ -13,6 +13,7 @@ import type {
   ResolveDuplicateCommitOptions,
   ResolveObjectSlotMismatchOptions,
 } from "./commit-types";
+import { sameProfileData } from "./profile-data";
 
 export function resolveObjectSlotMismatch(
   options: ResolveObjectSlotMismatchOptions
@@ -115,9 +116,9 @@ function objectTooSmall(
  * Decide whether a repeated commit for the same slot is a benign retry or
  * a conflict. The duplicate is `idempotent` — the existing commit is
  * returned unchanged — only when every content field matches: delivery
- * URL, duration, epoch, etag, independent, media sequence number, object
- * key, part number, program date time, rendition ID, session ID, size,
- * and slot ID (`commitId` and `committedAt` may differ). Any other
+ * URL, epoch, etag, sequence number, object key, part number, track ID,
+ * session ID, size, slot ID, and structurally equal `profile` data
+ * (`commitId` and `committedAt` may differ). Any other
  * difference is a `conflict` with an `olos.duplicate_commit_conflict`
  * error. Pure.
  */
@@ -166,7 +167,7 @@ function assertObservedUploadSlot(
 }
 
 function assertMatchingCommitObject(
-  mediaObject: MediaObject,
+  mediaObject: StorageObject,
   slot: UploadSlot
 ): void {
   if (mediaObject.objectKey !== slot.objectKey) {
@@ -181,7 +182,7 @@ function assertMatchingCommitObject(
 }
 
 function assertCommitObjectSize(
-  mediaObject: MediaObject,
+  mediaObject: StorageObject,
   slot: UploadSlot
 ): void {
   if (mediaObject.size > slot.maxBytes) {
@@ -225,14 +226,14 @@ function isBeforeCursorMediaSequence(
   slot: UploadSlot,
   cursor: Cursor
 ): boolean {
-  return slot.mediaSequenceNumber < cursor.window.lastMediaSequenceNumber;
+  return slot.sequenceNumber < cursor.window.lastSequenceNumber;
 }
 
 function isLateCursorPartPosition(slot: UploadSlot, cursor: Cursor): boolean {
   const lastPartNumber = cursor.window.lastPartNumber;
 
   if (
-    slot.mediaSequenceNumber !== cursor.window.lastMediaSequenceNumber ||
+    slot.sequenceNumber !== cursor.window.lastSequenceNumber ||
     slot.partNumber === undefined ||
     lastPartNumber === undefined
   ) {
@@ -243,22 +244,21 @@ function isLateCursorPartPosition(slot: UploadSlot, cursor: Cursor): boolean {
 }
 
 function commitsAreIdempotent(first: Commit, second: Commit): boolean {
-  return COMMIT_IDEMPOTENCY_FIELDS.every(
-    (field) => first[field] === second[field]
+  return (
+    COMMIT_IDEMPOTENCY_FIELDS.every(
+      (field) => first[field] === second[field]
+    ) && sameProfileData(first.profile, second.profile)
   );
 }
 
 const COMMIT_IDEMPOTENCY_FIELDS = [
   "deliveryUrl",
-  "duration",
   "epoch",
   "etag",
-  "independent",
-  "mediaSequenceNumber",
+  "sequenceNumber",
   "objectKey",
   "partNumber",
-  "programDateTime",
-  "renditionId",
+  "trackId",
   "sessionId",
   "size",
   "slotId",

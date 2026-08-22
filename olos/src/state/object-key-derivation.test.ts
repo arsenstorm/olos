@@ -10,73 +10,73 @@ describe("createPublisherObjectKey", () => {
     expect(
       createPublisherObjectKey({
         kind: "init",
-        mediaSequenceNumber: 0,
-        renditionId: "v1080",
+        sequenceNumber: 0,
+        trackId: "v1080",
       })
-    ).toBe("media/v1080/init.mp4");
+    ).toBe("objects/v1080/init");
     expect(
       createPublisherObjectKey({
         kind: "segment",
-        mediaSequenceNumber: 3810,
-        renditionId: "v1080",
+        sequenceNumber: 3810,
+        trackId: "v1080",
       })
-    ).toBe("media/v1080/s3810.m4s");
+    ).toBe("objects/v1080/s3810");
     expect(
       createPublisherObjectKey({
         kind: "part",
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         partNumber: 2,
-        renditionId: "v1080",
+        trackId: "v1080",
       })
-    ).toBe("media/v1080/s3810/p2.m4s");
+    ).toBe("objects/v1080/s3810/p2");
   });
 
   test("derives nonce-bearing keys as dash suffixes for every kind", () => {
     expect(
       createPublisherObjectKey({
         kind: "init",
-        mediaSequenceNumber: 0,
+        sequenceNumber: 0,
         objectKeyNonce: "slot_01JZ",
-        renditionId: "v1080",
+        trackId: "v1080",
       })
-    ).toBe("media/v1080/init-slot_01JZ.mp4");
+    ).toBe("objects/v1080/init-slot_01JZ");
     expect(
       createPublisherObjectKey({
         kind: "segment",
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKeyNonce: "slot_01K0",
-        renditionId: "v1080",
+        trackId: "v1080",
       })
-    ).toBe("media/v1080/s3810-slot_01K0.m4s");
+    ).toBe("objects/v1080/s3810-slot_01K0");
     expect(
       createPublisherObjectKey({
         kind: "part",
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKeyNonce: "slot_01K1",
         partNumber: 2,
-        renditionId: "v1080",
+        trackId: "v1080",
       })
-    ).toBe("media/v1080/s3810/p2-slot_01K1.m4s");
+    ).toBe("objects/v1080/s3810/p2-slot_01K1");
   });
 
   test("trims outer slashes from custom object key prefixes", () => {
     expect(
       createPublisherObjectKey({
         kind: "segment",
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKeyPrefix: "/live/session_1/",
-        renditionId: "v1080",
+        trackId: "v1080",
       })
-    ).toBe("live/session_1/v1080/s3810.m4s");
+    ).toBe("live/session_1/v1080/s3810");
     expect(
       createPublisherObjectKey({
         kind: "init",
-        mediaSequenceNumber: 0,
+        sequenceNumber: 0,
         objectKeyNonce: "slot_01JZ",
         objectKeyPrefix: "///media//session_1///",
-        renditionId: "v1080",
+        trackId: "v1080",
       })
-    ).toBe("media//session_1/v1080/init-slot_01JZ.mp4");
+    ).toBe("media//session_1/v1080/init-slot_01JZ");
   });
 
   test("applies custom extensions and strips leading dots", () => {
@@ -84,37 +84,37 @@ describe("createPublisherObjectKey", () => {
       createPublisherObjectKey({
         extension: "cmfv",
         kind: "segment",
-        mediaSequenceNumber: 3810,
-        renditionId: "v1080",
+        sequenceNumber: 3810,
+        trackId: "v1080",
       })
-    ).toBe("media/v1080/s3810.cmfv");
+    ).toBe("objects/v1080/s3810.cmfv");
     expect(
       createPublisherObjectKey({
         extension: ".cmfv",
         kind: "init",
-        mediaSequenceNumber: 0,
+        sequenceNumber: 0,
         objectKeyNonce: "slot_01JZ",
-        renditionId: "v1080",
+        trackId: "v1080",
       })
-    ).toBe("media/v1080/init-slot_01JZ.cmfv");
+    ).toBe("objects/v1080/init-slot_01JZ.cmfv");
     expect(
       createPublisherObjectKey({
         extension: "..cmfv",
         kind: "part",
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKeyNonce: "slot_01K1",
         partNumber: 4,
-        renditionId: "v1080",
+        trackId: "v1080",
       })
-    ).toBe("media/v1080/s3810/p4-slot_01K1.cmfv");
+    ).toBe("objects/v1080/s3810/p4-slot_01K1.cmfv");
   });
 
   test("requires partNumber for part keys", () => {
     expect(() =>
       createPublisherObjectKey({
         kind: "part",
-        mediaSequenceNumber: 3810,
-        renditionId: "v1080",
+        sequenceNumber: 3810,
+        trackId: "v1080",
       })
     ).toThrow('partNumber is required when kind is "part"');
   });
@@ -130,8 +130,8 @@ describe("createPublisherObjectKey", () => {
       for (const objectKeyNonce of [undefined, "slot_01JZ"]) {
         const objectKey = createPublisherObjectKey({
           kind,
-          mediaSequenceNumber: 3810,
-          renditionId: "v1080",
+          sequenceNumber: 3810,
+          trackId: "v1080",
           ...(objectKeyNonce === undefined ? {} : { objectKeyNonce }),
           ...(partNumber === undefined ? {} : { partNumber }),
         });
@@ -144,8 +144,8 @@ describe("createPublisherObjectKey", () => {
   test("derived keys with traversal inputs fail object key safety validation", () => {
     const traversal = createPublisherObjectKey({
       kind: "segment",
-      mediaSequenceNumber: 3810,
-      renditionId: "..",
+      sequenceNumber: 3810,
+      trackId: "..",
     });
 
     expect(() => assertSafeObjectKey(traversal, "objectKey")).toThrow();
@@ -163,18 +163,18 @@ describe("createPublisherDeliveryUrl", () => {
     expect(
       createPublisherDeliveryUrl(
         "https://media.example.com/live/",
-        "media/v1080/s3810-slot_01K0.m4s"
+        "objects/v1080/s3810-slot_01K0"
       )
-    ).toBe("https://media.example.com/live/media/v1080/s3810-slot_01K0.m4s");
+    ).toBe("https://media.example.com/live/objects/v1080/s3810-slot_01K0");
   });
 
   test("drops query strings and fragments from the base URL", () => {
     expect(
       createPublisherDeliveryUrl(
         "https://media.example.com/live?token=abc#frag",
-        "media/v1080/init.mp4"
+        "objects/v1080/init"
       )
-    ).toBe("https://media.example.com/live/media/v1080/init.mp4");
+    ).toBe("https://media.example.com/live/objects/v1080/init");
   });
 
   test("rejects non-HTTP base URLs", () => {

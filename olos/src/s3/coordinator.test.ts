@@ -47,14 +47,14 @@ describe("s3 coordinator uploads", () => {
       bucket: "media",
       client: createTestS3Client(),
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       expiresInSeconds: s3GrantTtlSeconds,
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       now: publishNow,
-      renditionId: "v1080",
+      trackId: "v1080",
       sessionId: session.sessionId,
       slotId: "slot_3810",
       store,
@@ -73,7 +73,7 @@ describe("s3 coordinator uploads", () => {
       "x-amz-meta-olos-slot-id": "slot_3810",
       "x-olos-slot-id": "slot_3810",
     });
-    expect(issue.slot.objectKey).toBe("media/v1080/s3810.m4s");
+    expect(issue.slot.objectKey).toBe("objects/v1080/s3810");
     expect(stored?.etag).toBe("2");
     expect(stored?.state.slots).toEqual([issue.slot]);
   });
@@ -107,14 +107,14 @@ describe("s3 coordinator uploads", () => {
       bucket: "media",
       client: createTestS3Client(),
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       expiresInSeconds: s3GrantTtlSeconds,
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       now: publishNow,
-      renditionId: "v1080",
+      trackId: "v1080",
       sessionId: session.sessionId,
       slotId: "slot_3810",
       maxAttempts: 2,
@@ -134,22 +134,22 @@ describe("s3 coordinator uploads", () => {
     });
 
     const expiry = resolveRuntimePublisherObjectExpiry({
-      duration: 0.5,
+      cadenceSeconds: 0.5,
       now: publishNow,
       targetLatency,
     });
     const plan = createRuntimePublisherObjectPlan({
       contentType: "video/iso.segment",
-      duration: 0.5,
+      profile: { duration: 0.5 },
       expiresAt: expiry.expiresAt,
       extension: "m4s",
       kind: "part",
       maxBytes: 25_000,
-      mediaSequenceNumber: 3811,
+      sequenceNumber: 3811,
       objectKeyNonce: "slot_part",
       objectKeyPrefix: "live/session",
       partNumber: 0,
-      renditionId: "v1080",
+      trackId: "v1080",
     });
     const issue = await issueStoredS3CoordinatorUploadGrant({
       bucket: "media",
@@ -185,14 +185,14 @@ describe("s3 coordinator uploads", () => {
       bucket: "media",
       client: createTestS3Client(),
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       expiresInSeconds: s3GrantTtlSeconds,
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       now: publishNow,
-      renditionId: "v1080",
+      trackId: "v1080",
       sessionId: session.sessionId,
       slotId: "slot_3810",
       store: createMemoryCoordinatorStore(),
@@ -213,15 +213,15 @@ describe("s3 coordinator uploads", () => {
       bucket: "media",
       client: createTestS3Client(),
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       expiresInSeconds: s3GrantTtlSeconds,
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       now: publishNow,
       publicationControl: createPublicationKillSwitch("incident"),
-      renditionId: "v1080",
+      trackId: "v1080",
       sessionId: session.sessionId,
       slotId: "slot_3810",
       store,
@@ -250,21 +250,21 @@ describe("s3 coordinator uploads", () => {
       bucket: "media",
       client: createTestS3Client(),
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       expiresInSeconds: s3GrantTtlSeconds,
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       now: publishNow,
-      renditionId: "v1080",
+      trackId: "v1080",
       slotId: "slot_3810",
       state,
     });
     const url = new URL(issue.grant.url);
 
     expect(issue.slot).toMatchObject({
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "objects/v1080/s3810",
       slotId: "slot_3810",
       state: "issued",
     });
@@ -279,7 +279,7 @@ describe("s3 coordinator uploads", () => {
       },
       slotId: "slot_3810",
     });
-    expect(url.pathname).toBe("/media/media/v1080/s3810.m4s");
+    expect(url.pathname).toBe("/media/objects/v1080/s3810");
   });
 
   test("observes the issued S3 object before committing", async () => {
@@ -287,19 +287,19 @@ describe("s3 coordinator uploads", () => {
     let state = createEmptyCoordinatorState();
     state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 1,
+      profile: { duration: 1 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
-      renditionId: "v1080",
+      sequenceNumber: 0,
+      trackId: "v1080",
       slotId: "slot_init",
       state,
     }).state;
 
     const initCommit = await commitS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor("media/v1080/init.mp4", 1024, headObjectInputs),
+      client: clientFor("objects/v1080/init", 1024, headObjectInputs),
       commitId: "commit_init",
       committedAt: "2026-01-01T00:00:01.000Z",
       providerId: "s3_primary",
@@ -314,22 +314,22 @@ describe("s3 coordinator uploads", () => {
     state = initCommit.state;
     state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
       state,
     }).state;
 
     const segmentCommit = await commitS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
-      independent: true,
+      profile: { independent: true },
       providerId: "s3_primary",
       slotId: "slot_3810",
       state,
@@ -343,17 +343,17 @@ describe("s3 coordinator uploads", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/init.mp4",
+        Key: "objects/v1080/init",
       },
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
     ]);
-    expect(segmentCommit.commit.objectKey).toBe("media/v1080/s3810.m4s");
+    expect(segmentCommit.commit.objectKey).toBe("objects/v1080/s3810");
     expect(segmentCommit.cursor?.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
   });
 
@@ -363,23 +363,23 @@ describe("s3 coordinator uploads", () => {
     let state = createEmptyCoordinatorState();
     state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 1,
+      profile: { duration: 1 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
-      renditionId: "v1080",
+      sequenceNumber: 0,
+      trackId: "v1080",
       slotId: "slot_init",
       state,
     }).state;
     state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
       state,
     }).state;
@@ -390,7 +390,7 @@ describe("s3 coordinator uploads", () => {
 
     const initCommit = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor("media/v1080/init.mp4", 1024, headObjectInputs),
+      client: clientFor("objects/v1080/init", 1024, headObjectInputs),
       commitId: "commit_init",
       committedAt: "2026-01-01T00:00:01.000Z",
       providerId: "s3_primary",
@@ -400,10 +400,10 @@ describe("s3 coordinator uploads", () => {
     });
     const segmentCommit = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
-      independent: true,
+      profile: { independent: true },
       providerId: "s3_primary",
       sessionId: session.sessionId,
       slotId: "slot_3810",
@@ -422,17 +422,17 @@ describe("s3 coordinator uploads", () => {
     expect(stored?.etag).toBe("3");
     expect(stored?.state.commits).toEqual([segmentCommit.commit]);
     expect(stored?.state.cursor?.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/init.mp4",
+        Key: "objects/v1080/init",
       },
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
     ]);
   });
@@ -443,10 +443,10 @@ describe("s3 coordinator uploads", () => {
 
     const result = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
-      independent: true,
+      profile: { independent: true },
       providerId: "s3_primary",
       sessionId: session.sessionId,
       slotId: "slot_3810",
@@ -466,21 +466,21 @@ describe("s3 coordinator uploads", () => {
     expect(result.state.commits).toHaveLength(1);
     expect(result.state.commits[0]).toMatchObject({
       commitId: "commit_3810",
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "objects/v1080/s3810",
       slotId: "slot_3810",
     });
     expect(result.cursor?.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
     ]);
   });
@@ -496,7 +496,7 @@ describe("s3 coordinator uploads", () => {
     await expect(
       commitStoredS3CoordinatorUpload({
         bucket: "media",
-        client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+        client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
         maxAttempts: 0,
@@ -509,7 +509,7 @@ describe("s3 coordinator uploads", () => {
     await expect(
       commitStoredS3CoordinatorUpload({
         bucket: "media",
-        client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+        client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
         maxAttempts: 1.5,
@@ -533,10 +533,10 @@ describe("s3 coordinator uploads", () => {
 
     const committed = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
-      independent: true,
+      profile: { independent: true },
       providerId: "s3_primary",
       sessionId: session.sessionId,
       slotId: "slot_3810",
@@ -544,10 +544,10 @@ describe("s3 coordinator uploads", () => {
     });
     const duplicate = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
       commitId: "commit_3810_retry",
       committedAt: "2026-01-01T00:00:03.000Z",
-      independent: true,
+      profile: { independent: true },
       providerId: "s3_primary",
       sessionId: session.sessionId,
       slotId: "slot_3810",
@@ -569,11 +569,11 @@ describe("s3 coordinator uploads", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
     ]);
   });
@@ -583,12 +583,12 @@ describe("s3 coordinator uploads", () => {
     const store = createMemoryCoordinatorStore();
     const state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
     }).state;
@@ -599,7 +599,7 @@ describe("s3 coordinator uploads", () => {
 
     const result = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 100_001, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 100_001, headObjectInputs),
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
@@ -618,7 +618,7 @@ describe("s3 coordinator uploads", () => {
       code: "olos.object_too_large",
       details: {
         maxBytes: 100_000,
-        objectKey: "media/v1080/s3810.m4s",
+        objectKey: "objects/v1080/s3810",
         size: 100_001,
         slotId: "slot_3810",
       },
@@ -628,7 +628,7 @@ describe("s3 coordinator uploads", () => {
       error: result.error,
       eventType: "upload.rejected",
       maxBytes: 100_000,
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "objects/v1080/s3810",
       observedBytes: 100_001,
       occurredAt: "2026-01-01T00:00:02.000Z",
       reason: "object_too_large",
@@ -641,7 +641,7 @@ describe("s3 coordinator uploads", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
     ]);
   });
@@ -651,12 +651,12 @@ describe("s3 coordinator uploads", () => {
     const store = createMemoryCoordinatorStore();
     const state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
     }).state;
@@ -667,7 +667,7 @@ describe("s3 coordinator uploads", () => {
 
     const result = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs, {
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs, {
         contentType: "application/octet-stream",
       }),
       commitId: "commit_3810",
@@ -688,7 +688,7 @@ describe("s3 coordinator uploads", () => {
       code: "olos.content_type_mismatch",
       details: {
         contentType: "application/octet-stream",
-        objectKey: "media/v1080/s3810.m4s",
+        objectKey: "objects/v1080/s3810",
         slotContentType: "video/mp4",
         slotId: "slot_3810",
       },
@@ -701,7 +701,7 @@ describe("s3 coordinator uploads", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
     ]);
   });
@@ -720,7 +720,7 @@ describe("s3 coordinator uploads", () => {
 
     const result = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs, {
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs, {
         metadata: { "x-amz-meta-olos-slot-id": "slot_other" },
       }),
       commitId: "commit_3810",
@@ -740,7 +740,7 @@ describe("s3 coordinator uploads", () => {
     expect(result.error.error).toEqual({
       code: "olos.invalid_state",
       details: {
-        objectKey: "media/v1080/s3810.m4s",
+        objectKey: "objects/v1080/s3810",
         observedSlotId: "slot_other",
         slotId: "slot_3810",
       },
@@ -753,7 +753,7 @@ describe("s3 coordinator uploads", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
     ]);
   });
@@ -764,23 +764,23 @@ describe("s3 coordinator uploads", () => {
     let state = createEmptyCoordinatorState();
     state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 1,
+      profile: { duration: 1 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
-      renditionId: "v1080",
+      sequenceNumber: 0,
+      trackId: "v1080",
       slotId: "slot_init",
       state,
     }).state;
     state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
       state,
     }).state;
@@ -791,13 +791,11 @@ describe("s3 coordinator uploads", () => {
 
     await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor("media/v1080/init.mp4", 1024, headObjectInputs),
+      client: clientFor("objects/v1080/init", 1024, headObjectInputs),
       commitId: "commit_init",
       committedAt: "2026-01-01T00:00:01.000Z",
       manifest: {
-        allowedMediaOrigins: [mediaOrigin],
-        partTarget: session.partTarget,
-        segmentTarget: session.segmentTarget,
+        allowedDeliveryOrigins: [mediaOrigin],
       },
       providerId: "s3_primary",
       sessionId: session.sessionId,
@@ -807,18 +805,16 @@ describe("s3 coordinator uploads", () => {
 
     const segmentCommit = await commitStoredS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
-      independent: true,
+      profile: { independent: true },
       manifest: {
-        allowedMediaOrigins: [mediaOrigin],
-        partTarget: session.partTarget,
+        allowedDeliveryOrigins: [mediaOrigin],
         response: {
           maxAgeSeconds: 2,
           targetLatencySeconds: 3,
         },
-        segmentTarget: session.segmentTarget,
       },
       providerId: "s3_primary",
       sessionId: session.sessionId,
@@ -838,7 +834,7 @@ describe("s3 coordinator uploads", () => {
       "/v1/live/session_1/v1080/media.m3u8",
     ]);
     expect(segmentCommit.manifest?.artifacts[1]?.body).toContain(
-      "https://media.example.com/media/v1080/s3810.m4s"
+      "https://media.example.com/objects/v1080/s3810"
     );
     expect(segmentCommit.manifest?.artifacts[1]?.response.headers).toEqual({
       "cache-control": "public, max-age=2, must-revalidate",
@@ -852,12 +848,12 @@ describe("s3 coordinator uploads", () => {
     let state = createEmptyCoordinatorState();
     state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
       state,
     }).state;
@@ -868,10 +864,10 @@ describe("s3 coordinator uploads", () => {
 
     const result = await completeStoredS3CoordinatorUpload({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "objects/v1080/s3810",
       providerId: "s3_primary",
       sessionId: session.sessionId,
       slotId: "slot_3810",
@@ -882,7 +878,7 @@ describe("s3 coordinator uploads", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
     ]);
   });
@@ -891,12 +887,12 @@ describe("s3 coordinator uploads", () => {
     const store = createMemoryCoordinatorStore();
     const state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
     }).state;
@@ -941,12 +937,12 @@ describe("s3 coordinator uploads", () => {
     const store = createMemoryCoordinatorStore();
     const state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
     }).state;
@@ -957,10 +953,10 @@ describe("s3 coordinator uploads", () => {
 
     const result = await completeStoredS3CoordinatorUploadByObjectKey({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "objects/v1080/s3810",
       providerId: "s3_primary",
       sessionId: session.sessionId,
       store,
@@ -970,7 +966,7 @@ describe("s3 coordinator uploads", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
     ]);
   });
@@ -1021,7 +1017,7 @@ describe("s3 coordinator uploads", () => {
       },
       commitId: "commit_missing",
       committedAt: "2026-01-01T00:00:02.000Z",
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "objects/v1080/s3810",
       providerId: "s3_primary",
       sessionId: session.sessionId,
       store: createMemoryCoordinatorStore(),
@@ -1035,12 +1031,12 @@ describe("s3 coordinator uploads", () => {
     const store = createMemoryCoordinatorStore();
     const state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
     }).state;
@@ -1051,14 +1047,14 @@ describe("s3 coordinator uploads", () => {
 
     const result = await routeStoredS3CoordinatorUploadEvent({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
       event: normalizeUploadEvent({
         event: {
           contentType: "video/mp4",
           eventId: "evt_3810",
           eventTime: "2026-01-01T00:00:02.000Z",
           eventType: "object.created",
-          objectKey: "media/v1080/s3810.m4s",
+          objectKey: "objects/v1080/s3810",
           providerId: "s3_primary",
           size: 98_304,
         },
@@ -1078,7 +1074,7 @@ describe("s3 coordinator uploads", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
     ]);
   });
@@ -1088,12 +1084,12 @@ describe("s3 coordinator uploads", () => {
     const store = createMemoryCoordinatorStore();
     const state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
     }).state;
@@ -1104,13 +1100,13 @@ describe("s3 coordinator uploads", () => {
 
     const result = await routeStoredS3CoordinatorUploadEvent({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
       commitPolicy: ({ slot }) => ({
         error: {
           error: {
             code: "olos.quota_exceeded",
             details: {
-              renditionId: slot.renditionId,
+              trackId: slot.trackId,
             },
             message: "tenant quota exceeded",
           },
@@ -1123,7 +1119,7 @@ describe("s3 coordinator uploads", () => {
           eventId: "evt_3810",
           eventTime: "2026-01-01T00:00:02.000Z",
           eventType: "object.created",
-          objectKey: "media/v1080/s3810.m4s",
+          objectKey: "objects/v1080/s3810",
           providerId: "s3_primary",
           size: 98_304,
         },
@@ -1142,14 +1138,14 @@ describe("s3 coordinator uploads", () => {
     expect(result.error.error).toEqual({
       code: "olos.quota_exceeded",
       details: {
-        renditionId: "v1080",
+        trackId: "v1080",
       },
       message: "tenant quota exceeded",
     });
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
     ]);
     expect(snapshot?.state.commits).toHaveLength(0);
@@ -1161,12 +1157,12 @@ describe("s3 coordinator uploads", () => {
     const store = createMemoryCoordinatorStore();
     const state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
     }).state;
@@ -1177,13 +1173,13 @@ describe("s3 coordinator uploads", () => {
 
     const result = await routeStoredS3CoordinatorUploadEvent({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
       event: normalizeUploadEvent({
         event: {
           eventId: "hint_3810",
           eventTime: "2026-01-01T00:00:02.000Z",
           eventType: "upload.completed",
-          objectKey: "media/v1080/s3810.m4s",
+          objectKey: "objects/v1080/s3810",
           slotId: "slot_3810",
         },
       }),
@@ -1202,7 +1198,7 @@ describe("s3 coordinator uploads", () => {
     expect(headObjectInputs).toEqual([
       {
         Bucket: "media",
-        Key: "media/v1080/s3810.m4s",
+        Key: "objects/v1080/s3810",
       },
     ]);
   });
@@ -1212,12 +1208,12 @@ describe("s3 coordinator uploads", () => {
     const store = createMemoryCoordinatorStore();
     const state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
     }).state;
@@ -1228,13 +1224,13 @@ describe("s3 coordinator uploads", () => {
 
     const result = await routeStoredS3CoordinatorUploadEvent({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
       event: normalizeUploadEvent({
         event: {
           eventId: "hint_3810",
           eventTime: "2026-01-01T00:00:02.000Z",
           eventType: "upload.completed",
-          objectKey: "media/v1080/s3810.m4s",
+          objectKey: "objects/v1080/s3810",
           slotId: "slot_3810",
         },
       }),
@@ -1264,12 +1260,12 @@ describe("s3 coordinator uploads", () => {
     const store = createMemoryCoordinatorStore();
     const state = issueCoordinatorSlot({
       contentType: "video/mp4",
-      duration: 2,
+      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      renditionId: "v1080",
+      sequenceNumber: 3810,
+      trackId: "v1080",
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
     }).state;
@@ -1280,14 +1276,14 @@ describe("s3 coordinator uploads", () => {
 
     const result = await routeStoredS3CoordinatorUploadEvent({
       bucket: "media",
-      client: clientFor("media/v1080/s3810.m4s", 98_304, headObjectInputs),
+      client: clientFor("objects/v1080/s3810", 98_304, headObjectInputs),
       event: normalizeUploadEvent({
         event: {
           contentType: "video/mp4",
           eventId: "evt_3810",
           eventTime: "2026-01-01T00:00:02.000Z",
           eventType: "object.created",
-          objectKey: "media/v1080/s3810.m4s",
+          objectKey: "objects/v1080/s3810",
           providerId: "s3_primary",
           size: 98_304,
         },
@@ -1409,7 +1405,7 @@ async function createCommitConflictingStore(): Promise<CoordinatorPipelineStore>
 
         const next = issueCoordinatorSlot({
           ...segmentSlot(),
-          mediaSequenceNumber: 3811,
+          sequenceNumber: 3811,
           slotId: "slot_3811",
           state: current.state,
         });
@@ -1440,14 +1436,14 @@ async function createCommitConflictingStore(): Promise<CoordinatorPipelineStore>
 function segmentSlot() {
   return {
     contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-    duration: 2,
+    deliveryUrl: "https://media.example.com/objects/v1080/s3810",
+    profile: { duration: 2 },
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment" as const,
     maxBytes: 100_000,
-    mediaSequenceNumber: 3810,
-    objectKey: "media/v1080/s3810.m4s",
-    renditionId: "v1080",
+    sequenceNumber: 3810,
+    objectKey: "objects/v1080/s3810",
+    trackId: "v1080",
     slotId: "slot_3810",
   };
 }

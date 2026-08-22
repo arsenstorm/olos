@@ -279,11 +279,10 @@ function lease(
 function cursor(updatedAt = "2026-01-01T00:00:00.000Z"): Cursor {
   return {
     committedWindow: {
-      discontinuitySequence: 0,
       epoch: 1,
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
-      renditions: {
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
+      tracks: {
         v1080: {
           init: {
             commitId: "commit_init",
@@ -291,16 +290,15 @@ function cursor(updatedAt = "2026-01-01T00:00:00.000Z"): Cursor {
             objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
-          renditionId: "v1080",
+          trackId: "v1080",
           segments: [
             {
-              duration: 2,
-              independent: true,
-              mediaSequenceNumber: 3810,
+              sequenceNumber: 3810,
               segment: {
                 commitId: "commit_3810",
                 deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
                 objectKey: "media/v1080/s3810.m4s",
+                profile: { duration: 2, independent: true },
                 slotId: "slot_3810",
               },
             },
@@ -309,17 +307,15 @@ function cursor(updatedAt = "2026-01-01T00:00:00.000Z"): Cursor {
       },
     },
     epoch: 1,
-    latencyProfile: "object-ll",
     olos: "1.0",
-    mediaBaseUrl: "https://media.example.com",
-    partTarget: 0.5,
-    segmentTarget: 2,
+    deliveryBaseUrl: "https://media.example.com",
+    profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
     sessionId: "session_1",
     state: "live",
     updatedAt,
     window: {
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     },
   };
 }

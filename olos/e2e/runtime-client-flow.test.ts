@@ -1,8 +1,8 @@
+import { createRuntimeObjectLowLatencyProfile } from "@arsenstorm/olos/media";
 import { createMemoryCoordinatorStore } from "@arsenstorm/olos/protocol";
 import {
   commitRuntimeUpload,
   createMemoryRuntimeCursorNotifier,
-  createRuntimeObjectLowLatencyProfile,
   createRuntimeSession,
   createStoredCoordinatorRuntimeHandler,
   getRuntimeMasterPlaylist,
@@ -20,13 +20,13 @@ import { waitFor } from "./wait-for";
 
 const latency = createRuntimeObjectLowLatencyProfile();
 const session = createTestSession({ state: "live" });
-const mediaBaseUrl = TEST_MEDIA_BASE_URL;
+const deliveryBaseUrl = TEST_MEDIA_BASE_URL;
 
 describe("runtime public client flow", () => {
   test("publishes committed objects and reads generated playlists", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedDeliveryOrigins: ["https://media.example.com"],
       publicationMode: "read-gated",
       now: () => "2026-01-01T00:00:03.000Z",
       store,
@@ -36,7 +36,7 @@ describe("runtime public client flow", () => {
     const created = await createRuntimeSession({
       baseUrl: "https://edge.example.com",
       fetch,
-      mediaBaseUrl,
+      deliveryBaseUrl,
       session,
     });
 
@@ -45,12 +45,14 @@ describe("runtime public client flow", () => {
       fetch,
       payload: {
         contentType: "video/mp4",
-        duration: 1,
         expiresAt: "2026-01-01T00:00:05.000Z",
+        extension: "mp4",
         kind: "init",
+        objectKeyPrefix: "media",
+        profile: { duration: 1 },
         maxBytes: 2048,
-        mediaSequenceNumber: 0,
-        renditionId: "v1080",
+        sequenceNumber: 0,
+        trackId: "v1080",
         slotId: "slot_init",
       },
       sessionId: session.sessionId,
@@ -60,12 +62,14 @@ describe("runtime public client flow", () => {
       fetch,
       payload: {
         contentType: "video/mp4",
-        duration: latency.segmentTarget,
         expiresAt: "2026-01-01T00:00:05.000Z",
+        extension: "m4s",
         kind: "segment",
+        objectKeyPrefix: "media",
+        profile: { duration: latency.segmentTarget },
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
-        renditionId: "v1080",
+        sequenceNumber: 3810,
+        trackId: "v1080",
         slotId: "slot_3810",
       },
       sessionId: session.sessionId,
@@ -94,7 +98,7 @@ describe("runtime public client flow", () => {
       payload: {
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
-        independent: true,
+        profile: { independent: true },
         object: {
           contentType: "video/mp4",
           objectKey: segment.slot.objectKey,
@@ -114,7 +118,7 @@ describe("runtime public client flow", () => {
     const media = await getRuntimeMediaPlaylist({
       baseUrl: "https://edge.example.com",
       fetch,
-      renditionId: "v1080",
+      trackId: "v1080",
       sessionId: session.sessionId,
     });
     const health = await getRuntimeSessionHealth({
@@ -132,8 +136,8 @@ describe("runtime public client flow", () => {
     expect(created.sessionId).toBe(session.sessionId);
     expect(initCommit.commit.slotId).toBe("slot_init");
     expect(segmentCommit.cursor?.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
     expect(master.playlist).toContain("/v1/live/session_1/v1080/media.m3u8");
     expect(media.playlist).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
@@ -151,7 +155,7 @@ describe("runtime public client flow", () => {
     let now = "2026-01-01T00:00:00.000Z";
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedDeliveryOrigins: ["https://media.example.com"],
       publicationMode: "read-gated",
       maxHealthCursorAgeMs: 10_000,
       now: () => now,
@@ -163,7 +167,7 @@ describe("runtime public client flow", () => {
     await createRuntimeSession({
       baseUrl: "https://edge.example.com",
       fetch,
-      mediaBaseUrl,
+      deliveryBaseUrl,
       session,
     });
     await publishObject(fetch, {
@@ -171,7 +175,7 @@ describe("runtime public client flow", () => {
       duration: 1,
       kind: "init",
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
+      sequenceNumber: 0,
       objectKey: "media/v1080/init.mp4",
       size: 1024,
       slotId: "slot_init",
@@ -179,7 +183,7 @@ describe("runtime public client flow", () => {
     await publishObject(fetch, {
       commitId: "commit_3810",
       independent: true,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       objectKey: "media/v1080/s3810.m4s",
       size: 98_304,
       slotId: "slot_3810",
@@ -233,7 +237,7 @@ describe("runtime public client flow", () => {
     const store = createMemoryCoordinatorStore();
     let waits = 0;
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedDeliveryOrigins: ["https://media.example.com"],
       publicationMode: "read-gated",
       blockingReload: {
         timeoutMs: 1000,
@@ -250,7 +254,7 @@ describe("runtime public client flow", () => {
     await createRuntimeSession({
       baseUrl: "https://edge.example.com",
       fetch,
-      mediaBaseUrl,
+      deliveryBaseUrl,
       session,
     });
     await publishObject(fetch, {
@@ -258,7 +262,7 @@ describe("runtime public client flow", () => {
       duration: 1,
       kind: "init",
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
+      sequenceNumber: 0,
       objectKey: "media/v1080/init.mp4",
       size: 1024,
       slotId: "slot_init",
@@ -266,7 +270,7 @@ describe("runtime public client flow", () => {
     await publishObject(fetch, {
       commitId: "commit_3810",
       independent: true,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       objectKey: "media/v1080/s3810.m4s",
       size: 98_304,
       slotId: "slot_3810",
@@ -276,7 +280,7 @@ describe("runtime public client flow", () => {
       baseUrl: "https://edge.example.com",
       fetch,
       hlsMsn: 3811,
-      renditionId: "v1080",
+      trackId: "v1080",
       sessionId: session.sessionId,
     });
 
@@ -284,7 +288,7 @@ describe("runtime public client flow", () => {
 
     await publishObject(fetch, {
       commitId: "commit_3811",
-      mediaSequenceNumber: 3811,
+      sequenceNumber: 3811,
       objectKey: "media/v1080/s3811.m4s",
       size: 98_304,
       slotId: "slot_3811",
@@ -301,7 +305,7 @@ describe("runtime public client flow", () => {
   test("returns structured errors for failed public client requests", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedDeliveryOrigins: ["https://media.example.com"],
       publicationMode: "read-gated",
       store,
     });
@@ -334,8 +338,8 @@ interface PublishObjectOptions {
   independent?: boolean;
   kind?: "init" | "segment";
   maxBytes?: number;
-  mediaSequenceNumber: number;
   objectKey: string;
+  sequenceNumber: number;
   size: number;
   slotId: string;
 }
@@ -351,12 +355,14 @@ async function publishObject(
     fetch,
     payload: {
       contentType: "video/mp4",
-      duration: options.duration ?? latency.segmentTarget,
       expiresAt: "2026-01-01T00:00:05.000Z",
+      extension: kind === "init" ? "mp4" : "m4s",
       kind,
+      objectKeyPrefix: "media",
+      profile: { duration: options.duration ?? latency.segmentTarget },
       maxBytes: options.maxBytes ?? 100_000,
-      mediaSequenceNumber: options.mediaSequenceNumber,
-      renditionId: "v1080",
+      sequenceNumber: options.sequenceNumber,
+      trackId: "v1080",
       slotId: options.slotId,
     },
     sessionId: session.sessionId,
@@ -370,7 +376,7 @@ async function publishObject(
       committedAt: "2026-01-01T00:00:02.000Z",
       ...(options.independent === undefined
         ? {}
-        : { independent: options.independent }),
+        : { profile: { independent: options.independent } }),
       object: {
         contentType: "video/mp4",
         objectKey: slot.slot.objectKey,

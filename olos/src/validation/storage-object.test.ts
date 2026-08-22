@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { MediaObject } from "../types/media-object";
-import { assertMediaObject, isMediaObject } from "./media-object";
+import type { StorageObject } from "../types/storage-object";
+import { assertStorageObject, isStorageObject } from "./storage-object";
 
-const validMediaObject: MediaObject = {
+const validMediaObject: StorageObject = {
   contentType: "video/mp4",
   etag: '"abc123"',
   objectKey: "tenant/session/v1080/3810.m4s",
@@ -82,29 +82,29 @@ const invalidMediaObjectCases = [
   },
 ] as const;
 
-describe("media object validation", () => {
-  test("accepts a valid media object", () => {
-    expect(isMediaObject(validMediaObject)).toBe(true);
-    expect(() => assertMediaObject(validMediaObject)).not.toThrow();
+describe("storage object validation", () => {
+  test("accepts a valid storage object", () => {
+    expect(isStorageObject(validMediaObject)).toBe(true);
+    expect(() => assertStorageObject(validMediaObject)).not.toThrow();
   });
 
-  test("accepts media objects without etags", () => {
+  test("accepts storage objects without etags", () => {
     const { etag, ...mediaObject } = validMediaObject;
 
     expect(etag).toBeDefined();
-    expect(() => assertMediaObject(mediaObject)).not.toThrow();
+    expect(() => assertStorageObject(mediaObject)).not.toThrow();
   });
 
   test("rejects non-object values", () => {
-    expect(isMediaObject(null)).toBe(false);
-    expect(() => assertMediaObject(null)).toThrow(
+    expect(isStorageObject(null)).toBe(false);
+    expect(() => assertStorageObject(null)).toThrow(
       "mediaObject must be an object"
     );
   });
 
   for (const mediaObjectCase of invalidMediaObjectCases) {
     test(`rejects ${mediaObjectCase.label}`, () => {
-      expect(() => assertMediaObject(mediaObjectCase.value)).toThrow(
+      expect(() => assertStorageObject(mediaObjectCase.value)).toThrow(
         mediaObjectCase.error
       );
     });

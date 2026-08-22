@@ -72,7 +72,7 @@ export async function createRuntimeSession(
   const response = await fetchFor(options)(
     sessionsUrl(options.baseUrl),
     jsonPost({
-      mediaBaseUrl: options.mediaBaseUrl,
+      deliveryBaseUrl: options.deliveryBaseUrl,
       session: options.session,
     })
   );
@@ -218,7 +218,7 @@ export async function getRuntimeMasterPlaylist(
 }
 
 /**
- * Fetch a rendition's HLS media playlist over HTTP. Pass `hlsMsn` /
+ * Fetch a track's HLS media playlist over HTTP. Pass `hlsMsn` /
  * `hlsPart` to issue a low-latency blocking reload; the coordinator holds
  * the response until the playlist reaches that position or its blocking
  * timeout elapses. Throws `RuntimeHttpError` on any non-2xx response.
@@ -226,7 +226,7 @@ export async function getRuntimeMasterPlaylist(
 export async function getRuntimeMediaPlaylist(
   options: RuntimeMediaPlaylistOptions
 ): Promise<RuntimePlaylistResponse> {
-  const url = liveUrl(options, options.renditionId);
+  const url = liveUrl(options, options.trackId);
 
   if (options.hlsMsn !== undefined) {
     nonNegativeInteger(options.hlsMsn, "hlsMsn");
@@ -259,19 +259,16 @@ function sessionUrl(baseUrl: string, sessionId: string, action: string): URL {
   );
 }
 
-function liveUrl(
-  options: RuntimeMasterPlaylistOptions,
-  renditionId?: string
-): URL {
+function liveUrl(options: RuntimeMasterPlaylistOptions, trackId?: string): URL {
   const livePath = normalizedSafeRelativePath(
     options.livePath ?? DEFAULT_LIVE_PATH.slice(1),
     "livePath"
   );
 
   const relativePath =
-    renditionId === undefined
+    trackId === undefined
       ? liveMasterPath(livePath, options.sessionId)
-      : liveMediaPath(livePath, options.sessionId, renditionId);
+      : liveMediaPath(livePath, options.sessionId, trackId);
   const requestPath =
     relativePath[0] === "/" ? relativePath.slice(1) : relativePath;
 

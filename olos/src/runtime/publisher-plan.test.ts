@@ -5,15 +5,15 @@ describe("runtime publisher object plan", () => {
   test("creates a segment slot payload and commit id", () => {
     const plan = createRuntimePublisherObjectPlan({
       contentType: "video/iso.segment",
-      duration: 2,
       expiresAt: "2026-01-01T00:00:05.000Z",
       extension: "m4s",
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       objectKeyPrefix: "media/session_1",
+      profile: { duration: 2 },
       publicationMode: "read-gated",
-      renditionId: "v1080",
+      trackId: "v1080",
     });
 
     expect(plan).toEqual({
@@ -21,14 +21,14 @@ describe("runtime publisher object plan", () => {
       objectKey: "media/session_1/v1080/s3810.m4s",
       slot: {
         contentType: "video/iso.segment",
-        duration: 2,
         expiresAt: "2026-01-01T00:00:05.000Z",
         extension: "m4s",
         kind: "segment",
         maxBytes: 100_000,
-        mediaSequenceNumber: 3810,
+        sequenceNumber: 3810,
         objectKeyPrefix: "media/session_1",
-        renditionId: "v1080",
+        profile: { duration: 2 },
+        trackId: "v1080",
         slotId: "slot_v1080_s3810",
       },
     });
@@ -37,16 +37,15 @@ describe("runtime publisher object plan", () => {
   test("creates a part slot payload", () => {
     const plan = createRuntimePublisherObjectPlan({
       contentType: "video/iso.segment",
-      duration: 0.5,
       expiresAt: "2026-01-01T00:00:05.000Z",
       extension: "m4s",
       kind: "part",
       maxBytes: 25_000,
-      mediaSequenceNumber: 3810,
+      sequenceNumber: 3810,
       objectKeyPrefix: "media/session_1",
       partNumber: 2,
       publicationMode: "read-gated",
-      renditionId: "v1080",
+      trackId: "v1080",
       slotIdPrefix: "upload",
     });
 
@@ -64,7 +63,7 @@ describe("runtime publisher object plan", () => {
       ...validSegmentPlan(),
       extension: "mp4",
       kind: "init",
-      mediaSequenceNumber: 0,
+      sequenceNumber: 0,
       objectKeyNonce: "slot_01JZ",
     });
     const segment = createRuntimePublisherObjectPlan({
@@ -105,20 +104,32 @@ describe("runtime publisher object plan", () => {
   test("creates an init slot payload", () => {
     const plan = createRuntimePublisherObjectPlan({
       contentType: "video/mp4",
-      duration: 1,
       expiresAt: "2026-01-01T00:00:05.000Z",
       extension: "mp4",
       kind: "init",
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
+      sequenceNumber: 0,
       objectKeyPrefix: "media/session_1",
       publicationMode: "read-gated",
-      renditionId: "v1080",
+      trackId: "v1080",
     });
 
     expect(plan.commitId).toBe("commit_init_v1080");
     expect(plan.objectKey).toBe("media/session_1/v1080/init.mp4");
     expect(plan.slot.slotId).toBe("slot_init_v1080");
+    expect(plan.slot.profile).toBeUndefined();
+  });
+
+  test("derives extension-less object keys when no extension is given", () => {
+    const plan = createRuntimePublisherObjectPlan({
+      ...validSegmentPlan(),
+      extension: undefined,
+      publicationMode: "read-gated",
+      objectKeyNonce: undefined,
+    });
+
+    expect(plan.objectKey).toBe("media/session_1/v1080/s3810");
+    expect(plan.slot.extension).toBeUndefined();
   });
 
   test("includes minBytes at the maxBytes boundary", () => {
@@ -170,9 +181,16 @@ describe("runtime publisher object plan", () => {
     expect(() =>
       createRuntimePublisherObjectPlan({
         ...validSegmentPlan(),
-        extension: "html",
+        extension: "../m4s",
       })
-    ).toThrow("extension must use a supported media extension");
+    ).toThrow("extension must be a safe path segment without dots");
+
+    expect(() =>
+      createRuntimePublisherObjectPlan({
+        ...validSegmentPlan(),
+        profile: [] as unknown as Record<string, unknown>,
+      })
+    ).toThrow("profile must be an object");
 
     expect(() =>
       createRuntimePublisherObjectPlan({
@@ -195,15 +213,14 @@ describe("runtime publisher object plan", () => {
 function validSegmentPlan() {
   return {
     contentType: "video/iso.segment",
-    duration: 2,
     expiresAt: "2026-01-01T00:00:05.000Z",
     extension: "m4s",
     kind: "segment" as const,
     maxBytes: 100_000,
-    mediaSequenceNumber: 3810,
+    sequenceNumber: 3810,
     objectKeyNonce: "slot_01JZ",
     objectKeyPrefix: "media/session_1",
     publicationMode: "direct-public" as const,
-    renditionId: "v1080",
+    trackId: "v1080",
   };
 }

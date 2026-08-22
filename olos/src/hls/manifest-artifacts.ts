@@ -1,7 +1,11 @@
+import type { MediaSession, MediaTrack } from "../media/types";
+import { assertMediaCursor, assertMediaSession } from "../media/validation";
 import { isEndOfStreamSessionState } from "../state/session";
 import type { CommittedWindow } from "../types/committed-window";
-import type { Rendition, Session } from "../types/session";
+import type { Cursor } from "../types/cursor";
+import type { Session } from "../types/session";
 import {
+  type CoordinatorHlsManifestOptions,
   type CoordinatorManifestArtifacts,
   type CreateCoordinatorManifestArtifactsOptions,
   type CreateHlsManifestArtifactsOptions,
@@ -13,38 +17,43 @@ import {
   defaultMediaPlaylistPath,
 } from "./manifest-request-parse";
 import { renderMasterPlaylist } from "./master-playlist";
-import { renderMediaPlaylist } from "./media-playlist";
+import {
+  type RenderMediaPlaylistOptions,
+  renderMediaPlaylist,
+} from "./media-playlist";
 import { assertSafeRelativePath } from "./uri";
+
 /**
  * Renders the full playlist set for a session: the master playlist plus one
- * media playlist per video rendition and per grouped audio rendition (audio
- * renditions without a `groupId` stay muxed into the video variants and get
- * no standalone playlist). Renditions absent from the committed window (no
+ * media playlist per video track and per grouped audio track (audio
+ * tracks without a `groupId` stay muxed into the video variants and get
+ * no standalone playlist). Tracks absent from the committed window (no
  * media commits yet) are excluded from both the master playlist and the
  * media-playlist set, so every advertised URI resolves; they appear on the
- * next render after their first commit. A window with no video rendition
+ * next render after their first commit. A window with no video track
  * yields no master artifact (master requests 404 until video media
  * commits). When `options.endOfStream` is unset, it defaults
  * to whether `session.state` is terminal (`ended` or `aborted`), which makes
- * the media playlists emit `#EXT-X-ENDLIST`. Throws if the session shape,
- * paths, or rendering options are invalid.
+ * the media playlists emit `#EXT-X-ENDLIST`. Throws if the session is not a
+ * valid CMAF/LL-HLS media session or the paths or rendering options are
+ * invalid.
  */
 export function createHlsManifestArtifacts(
   session: Session,
   committedWindow: CommittedWindow,
   options: CreateHlsManifestArtifactsOptions
 ): HlsManifestArtifact[] {
+  assertMediaSession(session);
+
   const masterPath = options.masterPath ?? defaultMasterPath(session);
   const mediaPlaylistPath =
     options.mediaPlaylistPath ?? defaultMediaPlaylistPath;
-  const availableRenditionIds = new Set(
-    Object.keys(committedWindow.renditions)
-  );
-  const master = hasAvailableVideoRendition(session, availableRenditionIds)
+  const availableTrackIds = new Set(Object.keys(committedWindow.tracks));
+  const master = hasAvailableVideoTrack(session, availableTrackIds)
     ? [
         createMasterPlaylistArtifact(
           session,
-          availableRenditionIds,
+          availableTrackIds,
           mediaPlaylistPath,
           masterPath
         ),
@@ -64,7 +73,7 @@ export function createHlsManifestArtifacts(
         },
         session,
       },
-      availableRenditionIds
+      availableTrackIds
     ),
   ];
 }
@@ -72,8 +81,10 @@ export function createHlsManifestArtifacts(
 /**
  * Renders manifest artifacts from coordinator state. Returns an empty
  * artifact list when the state has no cursor yet (nothing committed).
- * Unlike `createHlsManifestArtifacts`, the `endOfStream` default is derived
- * from the cursor's session state rather than `session.state`, so terminal
+ * `partTarget`, `segmentTarget`, and the discontinuity baseline are read
+ * from the cursor's CMAF/LL-HLS profile, and — unlike
+ * `createHlsManifestArtifacts` — the `endOfStream` default is derived from
+ * the cursor's session state rather than `session.state`, so terminal
  * cursors emit `#EXT-X-ENDLIST` in the media playlists.
  */
 export function createCoordinatorManifestArtifacts(
@@ -85,16 +96,16 @@ export function createCoordinatorManifestArtifacts(
     return { artifacts: [] };
   }
 
-  const { state, ...artifactOptions } = options;
+  const { state, ...manifestOptions } = options;
 
   return {
     artifacts: createHlsManifestArtifacts(
       state.session,
       cursor.committedWindow,
       {
-        ...artifactOptions,
+        ...cursorManifestOptions(cursor, manifestOptions),
         endOfStream:
-          artifactOptions.endOfStream ??
+          manifestOptions.endOfStream ??
           isEndOfStreamSessionState(cursor.state),
       }
     ),
@@ -102,20 +113,53 @@ export function createCoordinatorManifestArtifacts(
   };
 }
 
-export function hasAvailableVideoRendition(
-  session: Session,
-  availableRenditionIds: ReadonlySet<string>
+/**
+ * Completes coordinator manifest options with the timing targets carried by
+ * the cursor's CMAF/LL-HLS session profile. Throws when the cursor does not
+ * run the media profile.
+ */
+export function cursorManifestOptions(
+  cursor: Cursor,
+  options: CoordinatorHlsManifestOptions
+): CreateHlsManifestArtifactsOptions {
+  assertMediaCursor(cursor);
+
+  return {
+    ...options,
+    ...mediaProfileRenderOptions(cursor),
+  };
+}
+
+function mediaProfileRenderOptions(
+  cursor: Cursor & { profile: MediaSession["profile"] }
+): Pick<
+  RenderMediaPlaylistOptions,
+  "discontinuitySequence" | "partTarget" | "segmentTarget"
+> {
+  const { discontinuitySequence, partTarget, segmentTarget } = cursor.profile;
+
+  return {
+    ...(discontinuitySequence === undefined ? {} : { discontinuitySequence }),
+    partTarget,
+    segmentTarget,
+  };
+}
+
+export function hasAvailableVideoTrack(
+  session: MediaSession,
+  availableTrackIds: ReadonlySet<string>
 ): boolean {
-  return session.renditions.some(
-    (rendition) =>
-      rendition.kind === "video" &&
-      availableRenditionIds.has(rendition.renditionId)
+  const tracks: readonly MediaTrack[] = session.tracks;
+
+  return tracks.some(
+    (track) =>
+      track.profile.kind === "video" && availableTrackIds.has(track.trackId)
   );
 }
 
 export function createMasterPlaylistArtifact(
   session: Session,
-  availableRenditionIds: ReadonlySet<string>,
+  availableTrackIds: ReadonlySet<string>,
   mediaPlaylistPath: NonNullable<
     CreateHlsManifestArtifactsOptions["mediaPlaylistPath"]
   >,
@@ -125,7 +169,7 @@ export function createMasterPlaylistArtifact(
 
   return {
     body: renderMasterPlaylist(session, {
-      availableRenditionIds: [...availableRenditionIds],
+      availableTrackIds: [...availableTrackIds],
       mediaPlaylistPath,
     }),
     contentType: HLS_CONTENT_TYPE,
@@ -134,9 +178,9 @@ export function createMasterPlaylistArtifact(
 }
 
 /**
- * Everything a media playlist needs except which rendition it is for. The
+ * Everything a media playlist needs except which track it is for. The
  * four fields are fixed for a whole render, so they travel as one value
- * rather than as four arguments repeated per rendition.
+ * rather than as four arguments repeated per track.
  */
 export interface MediaPlaylistRenderContext {
   committedWindow: CommittedWindow;
@@ -148,29 +192,30 @@ export interface MediaPlaylistRenderContext {
 }
 
 function createMediaPlaylistArtifacts(
-  context: MediaPlaylistRenderContext,
-  availableRenditionIds: ReadonlySet<string>
+  context: MediaPlaylistRenderContext & { session: MediaSession },
+  availableTrackIds: ReadonlySet<string>
 ): HlsManifestArtifact[] {
-  return context.session.renditions
+  const tracks: readonly MediaTrack[] = context.session.tracks;
+
+  return tracks
     .filter(
-      (rendition) =>
-        isMediaPlaylistRendition(rendition) &&
-        availableRenditionIds.has(rendition.renditionId)
+      (track) =>
+        isMediaPlaylistTrack(track) && availableTrackIds.has(track.trackId)
     )
-    .map((rendition) => createMediaPlaylistArtifact(context, rendition));
+    .map((track) => createMediaPlaylistArtifact(context, track));
 }
 
 export function createMediaPlaylistArtifact(
   context: MediaPlaylistRenderContext,
-  rendition: Rendition
+  track: MediaTrack
 ): HlsManifestArtifact {
-  const path = context.mediaPlaylistPath(context.session, rendition);
+  const path = context.mediaPlaylistPath(context.session, track);
   assertSafeRelativePath(path, "media playlist path");
 
   return {
     body: renderMediaPlaylist(context.committedWindow, {
       ...context.options,
-      renditionId: rendition.renditionId,
+      trackId: track.trackId,
     }),
     contentType: HLS_CONTENT_TYPE,
     path,
@@ -181,9 +226,9 @@ export function createMediaPlaylistArtifact(
 // grouped audio get standalone playlists — ungrouped audio keeps the legacy
 // muxed-into-video rendering with no standalone playlist. Callers also
 // require committed-window membership before rendering.
-export function isMediaPlaylistRendition(rendition: Rendition): boolean {
+export function isMediaPlaylistTrack(track: MediaTrack): boolean {
   return (
-    rendition.kind === "video" ||
-    (rendition.kind === "audio" && rendition.groupId !== undefined)
+    track.profile.kind === "video" ||
+    (track.profile.kind === "audio" && track.profile.groupId !== undefined)
   );
 }

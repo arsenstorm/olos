@@ -1,16 +1,31 @@
+import type { MediaTrackWindowProfile } from "../media/types";
+import {
+  mediaObjectProfile,
+  mediaSegmentDiscontinuityBefore,
+  mediaSegmentDuration,
+  mediaSegmentProgramDateTime,
+} from "../media/validation";
 import type {
   CommittedObject,
   CommittedPart,
   CommittedSegment,
   CommittedWindow,
+  TrackWindow,
 } from "../types/committed-window";
 import { assertCommittedWindow } from "../validation/committed-window";
-import { positiveNumber } from "../validation/fields";
+import { nonNegativeNumber, positiveNumber } from "../validation/fields";
 import { formatSeconds, quotedPlaylistValue } from "./format";
 import { assertSafeMediaUri, type MediaUriPolicy } from "./uri";
 
 /** Options for `renderMediaPlaylist`. */
 export interface RenderMediaPlaylistOptions extends MediaUriPolicy {
+  /**
+   * Baseline `EXT-X-DISCONTINUITY-SEQUENCE` (the media session profile's
+   * `discontinuitySequence`). A track window whose profile carries its own
+   * `discontinuitySequence` (trimmed discontinuities) takes precedence.
+   * Defaults to `0`.
+   */
+  discontinuitySequence?: number;
   /**
    * Append `#EXT-X-ENDLIST` so players stop polling. Callers set this when
    * the session is in a terminal state (`ended` or `aborted`); the
@@ -26,8 +41,6 @@ export interface RenderMediaPlaylistOptions extends MediaUriPolicy {
   partHoldBack?: number;
   /** Target part duration in seconds (`PART-TARGET`). */
   partTarget: number;
-  /** The committed-window rendition to render. */
-  renditionId: string;
   /** Target segment duration in seconds (`EXT-X-TARGETDURATION`). */
   segmentTarget: number;
   /**
@@ -37,6 +50,8 @@ export interface RenderMediaPlaylistOptions extends MediaUriPolicy {
    * playlist outright below it.
    */
   targetLatency?: number;
+  /** The committed-window track to render. */
+  trackId: string;
 }
 
 type FullCommittedSegment = CommittedSegment & {
@@ -44,14 +59,16 @@ type FullCommittedSegment = CommittedSegment & {
 };
 
 /**
- * Renders one rendition's LL-HLS media playlist from the committed window:
+ * Renders one track's LL-HLS media playlist from the committed window:
  * server-control headers advertising `CAN-BLOCK-RELOAD=YES`, the init-segment
  * `#EXT-X-MAP`, full segments as `#EXTINF` entries, in-progress segments as
  * `#EXT-X-PART` entries with a `#EXT-X-PRELOAD-HINT` when the last committed
  * part uses byterange addressing, and a closing `#EXT-X-ENDLIST` when
- * `options.endOfStream` is set (terminal sessions). Throws when the window
- * is malformed, `renditionId` is not in the window, or the target/hold-back
- * options are invalid.
+ * `options.endOfStream` is set (terminal sessions). Durations, independence,
+ * program date-times, and discontinuity flags are read from the objects'
+ * CMAF/LL-HLS profile data. Throws when the window is malformed, `trackId`
+ * is not in the window, the track has no init object, or the
+ * target/hold-back options are invalid.
  */
 export function renderMediaPlaylist(
   committedWindow: CommittedWindow,
@@ -61,15 +78,15 @@ export function renderMediaPlaylist(
   positiveNumber(options.partTarget, "options.partTarget");
   positiveNumber(options.segmentTarget, "options.segmentTarget");
 
-  const rendition = committedWindow.renditions[options.renditionId];
+  const track = committedWindow.tracks[options.trackId];
 
-  if (!rendition) {
-    throw new Error(`rendition not found: ${options.renditionId}`);
+  if (!track) {
+    throw new Error(`track not found: ${options.trackId}`);
   }
 
-  const lines = renderMediaPlaylistHeaders(committedWindow, options, rendition);
+  const lines = renderMediaPlaylistHeaders(committedWindow, options, track);
 
-  for (const segment of rendition.segments) {
+  for (const segment of track.segments) {
     lines.push(...renderSegment(segment, options));
   }
 
@@ -87,7 +104,7 @@ export function renderMediaPlaylist(
 function renderMediaPlaylistHeaders(
   committedWindow: CommittedWindow,
   options: RenderMediaPlaylistOptions,
-  rendition: CommittedWindow["renditions"][string]
+  track: TrackWindow
 ): string[] {
   const { holdBack, partHoldBack } = resolveHoldBackOptions(options);
 
@@ -97,17 +114,38 @@ function renderMediaPlaylistHeaders(
     `#EXT-X-TARGETDURATION:${Math.ceil(options.segmentTarget)}`,
     `#EXT-X-PART-INF:PART-TARGET=${formatSeconds(options.partTarget)}`,
     `#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=${formatSeconds(partHoldBack)},HOLD-BACK=${formatSeconds(holdBack)}`,
-    // The declared media sequence must match this rendition's first #EXTINF
-    // entry — renditions can diverge from the window-global minimum when
-    // per-rendition trimming or empty-media segments drop leading segments.
-    `#EXT-X-MEDIA-SEQUENCE:${rendition.segments[0]?.mediaSequenceNumber ?? committedWindow.firstMediaSequenceNumber}`,
-    // Like the media sequence, the discontinuity sequence is per-rendition:
-    // a rendition that trimmed a flagged segment counts it here while other
-    // renditions keep the window-global value.
-    `#EXT-X-DISCONTINUITY-SEQUENCE:${rendition.discontinuitySequence ?? committedWindow.discontinuitySequence}`,
-    `#EXT-X-MAP:URI="${renderMediaUri(rendition.init.deliveryUrl, options, "rendition.init.deliveryUrl")}"`,
+    // The declared media sequence must match this track's first #EXTINF
+    // entry — tracks can diverge from the window-global minimum when
+    // per-track trimming or empty-media segments drop leading segments.
+    `#EXT-X-MEDIA-SEQUENCE:${track.segments[0]?.sequenceNumber ?? committedWindow.firstSequenceNumber}`,
+    // Like the media sequence, the discontinuity sequence is per-track:
+    // a track that trimmed a flagged segment counts it in its window
+    // profile while other tracks keep the session baseline.
+    `#EXT-X-DISCONTINUITY-SEQUENCE:${resolveDiscontinuitySequence(track, options)}`,
+    `#EXT-X-MAP:URI="${renderMediaUri(requiredInit(track).deliveryUrl, options, "track.init.deliveryUrl")}"`,
     "",
   ];
+}
+
+// EXT-X-MAP is mandatory for CMAF playback: Core allows tracks without an
+// init object, but an HLS playlist cannot be rendered for one.
+function requiredInit(track: TrackWindow): CommittedObject {
+  if (track.init === undefined) {
+    throw new Error(`track ${track.trackId} has no init object`);
+  }
+
+  return track.init;
+}
+
+function resolveDiscontinuitySequence(
+  track: TrackWindow,
+  options: RenderMediaPlaylistOptions
+): number {
+  const trackProfile = track.profile as MediaTrackWindowProfile | undefined;
+  const baseline = options.discontinuitySequence ?? 0;
+  nonNegativeNumber(baseline, "options.discontinuitySequence");
+
+  return trackProfile?.discontinuitySequence ?? baseline;
 }
 
 function renderSegment(
@@ -126,12 +164,14 @@ function renderSegment(
 function renderSegmentHeaders(segment: CommittedSegment): string[] {
   const lines: string[] = [];
 
-  if (segment.discontinuityBefore) {
+  if (mediaSegmentDiscontinuityBefore(segment)) {
     lines.push("#EXT-X-DISCONTINUITY");
   }
 
-  if (segment.programDateTime) {
-    lines.push(`#EXT-X-PROGRAM-DATE-TIME:${segment.programDateTime}`);
+  const programDateTime = mediaSegmentProgramDateTime(segment);
+
+  if (programDateTime !== undefined) {
+    lines.push(`#EXT-X-PROGRAM-DATE-TIME:${programDateTime}`);
   }
 
   return lines;
@@ -142,7 +182,7 @@ function renderFullSegment(
   policy: MediaUriPolicy
 ): string[] {
   return [
-    `#EXTINF:${formatSeconds(segment.duration)},`,
+    `#EXTINF:${formatSeconds(mediaSegmentDuration(segment))},`,
     renderMediaUri(segment.segment.deliveryUrl, policy, "segment.deliveryUrl"),
   ];
 }
@@ -174,14 +214,19 @@ function renderPart(part: CommittedPart, policy: MediaUriPolicy): string {
 
 function partAttributes(part: CommittedPart, policy: MediaUriPolicy): string[] {
   const { byterange } = part;
+  const { duration, independent } = mediaObjectProfile(part);
   const uri = byterange?.segmentDeliveryUrl ?? part.deliveryUrl;
   const uriField = byterange
     ? "part.byterange.segmentDeliveryUrl"
     : "part.deliveryUrl";
 
+  if (duration === undefined) {
+    throw new Error(`part ${part.partNumber} has no media duration`);
+  }
+
   return [
-    `DURATION=${formatSeconds(part.duration)}`,
-    part.independent ? "INDEPENDENT=YES" : undefined,
+    `DURATION=${formatSeconds(duration)}`,
+    independent ? "INDEPENDENT=YES" : undefined,
     `URI="${renderMediaUri(uri, policy, uriField)}"`,
     byterange
       ? `BYTERANGE="${byterange.length}@${byterange.offset}"`

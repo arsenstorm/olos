@@ -17,7 +17,6 @@ export {
   isNonNegativeInteger,
   isUrlSafeIdentifier,
 } from "./validation/ids";
-export { assertMediaObject, isMediaObject } from "./validation/media-object";
 export {
   assertObservedUpload,
   assertObservedUploadMatchesSlot,
@@ -27,10 +26,19 @@ export {
   observedUploadMatchesSlot,
 } from "./validation/observed-upload";
 export {
+  assertOptionalProfileField,
+  assertProfileData,
+  assertStreamProfile,
+} from "./validation/profile";
+export {
   assertProviderCapabilityDocument,
   isProviderCapabilityDocument,
 } from "./validation/provider-capability";
 export { assertSession, isSession } from "./validation/session";
+export {
+  assertStorageObject,
+  isStorageObject,
+} from "./validation/storage-object";
 export {
   assertUploadGrant,
   isUploadGrant,

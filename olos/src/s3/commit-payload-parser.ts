@@ -16,6 +16,7 @@ import {
   parseRuntimeJsonRequest,
   type RuntimeJsonRequestParse,
 } from "../runtime/request-json";
+import type { ProfileData } from "../types/profile";
 
 export interface S3CommitPayloadParseOverrides {
   commitId?: string;
@@ -25,11 +26,11 @@ export interface S3CommitPayloadParseOverrides {
 export interface ParsedS3CommitPayload {
   commitId: string;
   committedAt: string;
-  independent?: boolean;
   lateToleranceMs?: number;
   maxSegments?: number;
   objectKey?: string;
-  programDateTime?: string;
+  /** Profile-defined facts about the object, merged over the slot profile. */
+  profile?: ProfileData;
   providerId: string;
   slotId: string;
   versionId?: string;

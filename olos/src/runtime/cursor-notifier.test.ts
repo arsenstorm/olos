@@ -8,14 +8,14 @@ describe("runtime cursor notifier", () => {
     const controller = new AbortController();
     const waiting = notifier.waitForCursor({
       cursor: cursorAt(3810),
-      request: { mediaSequenceNumber: 3811 },
+      request: { sequenceNumber: 3811 },
       signal: controller.signal,
     });
 
     notifier.notify(cursorAt(3811));
 
     await expect(waiting).resolves.toMatchObject({
-      window: { lastMediaSequenceNumber: 3811 },
+      window: { lastSequenceNumber: 3811 },
     });
   });
 
@@ -24,7 +24,7 @@ describe("runtime cursor notifier", () => {
     const controller = new AbortController();
     const waiting = notifier.waitForCursor({
       cursor: cursorAt(3810),
-      request: { mediaSequenceNumber: 3811 },
+      request: { sequenceNumber: 3811 },
       signal: controller.signal,
     });
 
@@ -32,7 +32,7 @@ describe("runtime cursor notifier", () => {
     notifier.notify(cursorAt(3811));
 
     await expect(waiting).resolves.toMatchObject({
-      window: { lastMediaSequenceNumber: 3811 },
+      window: { lastSequenceNumber: 3811 },
     });
   });
 
@@ -41,14 +41,14 @@ describe("runtime cursor notifier", () => {
     const controller = new AbortController();
     const waiting = notifier.waitForCursor({
       cursor: cursorAt(3811),
-      request: { mediaSequenceNumber: 3811, renditionId: "a128" },
+      request: { sequenceNumber: 3811, trackId: "a128" },
       signal: controller.signal,
     });
 
-    // A lagging rendition committing at the live-edge msn changes the
+    // A lagging track committing at the live-edge msn changes the
     // window without moving the global (epoch, msn, part) position
-    // (§4.5.3); per-rendition waiters may be blocked exactly on it.
-    const changed = withAudioRendition(cursorAt(3811));
+    // (§4.5.3); per-track waiters may be blocked exactly on it.
+    const changed = withAudioTrack(cursorAt(3811));
 
     notifier.notify(changed);
 
@@ -57,7 +57,7 @@ describe("runtime cursor notifier", () => {
 
   test("replaces the latest cursor on same-position content changes", async () => {
     const notifier = createMemoryRuntimeCursorNotifier();
-    const changed = withAudioRendition(cursorAt(3811));
+    const changed = withAudioTrack(cursorAt(3811));
 
     notifier.notify(cursorAt(3811));
     notifier.notify(changed);
@@ -67,7 +67,7 @@ describe("runtime cursor notifier", () => {
     await expect(
       notifier.waitForCursor({
         cursor: cursorAt(3811),
-        request: { mediaSequenceNumber: 3811, renditionId: "a128" },
+        request: { sequenceNumber: 3811, trackId: "a128" },
         signal: new AbortController().signal,
       })
     ).resolves.toEqual(changed);
@@ -78,7 +78,7 @@ describe("runtime cursor notifier", () => {
     const controller = new AbortController();
     const waiting = notifier.waitForCursor({
       cursor: cursorAt(3810),
-      request: { mediaSequenceNumber: 3810 },
+      request: { sequenceNumber: 3810 },
       signal: controller.signal,
     });
 
@@ -86,7 +86,7 @@ describe("runtime cursor notifier", () => {
 
     await expect(waiting).resolves.toMatchObject({
       epoch: 2,
-      window: { lastMediaSequenceNumber: 3810 },
+      window: { lastSequenceNumber: 3810 },
     });
   });
 
@@ -95,14 +95,14 @@ describe("runtime cursor notifier", () => {
     const controller = new AbortController();
     const waiting = notifier.waitForCursor({
       cursor: cursorAt(3810, 1, 0),
-      request: { mediaSequenceNumber: 3810, partNumber: 1 },
+      request: { sequenceNumber: 3810, partNumber: 1 },
       signal: controller.signal,
     });
 
     notifier.notify(cursorAt(3810, 1, 1));
 
     await expect(waiting).resolves.toMatchObject({
-      window: { lastMediaSequenceNumber: 3810, lastPartNumber: 1 },
+      window: { lastSequenceNumber: 3810, lastPartNumber: 1 },
     });
   });
 
@@ -114,11 +114,11 @@ describe("runtime cursor notifier", () => {
     await expect(
       notifier.waitForCursor({
         cursor: cursorAt(3810),
-        request: { mediaSequenceNumber: 3811 },
+        request: { sequenceNumber: 3811 },
         signal: new AbortController().signal,
       })
     ).resolves.toMatchObject({
-      window: { lastMediaSequenceNumber: 3811 },
+      window: { lastSequenceNumber: 3811 },
     });
   });
 
@@ -127,7 +127,7 @@ describe("runtime cursor notifier", () => {
     const controller = new AbortController();
     const waiting = notifier.waitForCursor({
       cursor: cursorAt(3810),
-      request: { mediaSequenceNumber: 3811 },
+      request: { sequenceNumber: 3811 },
       signal: controller.signal,
     });
 
@@ -148,7 +148,7 @@ describe("runtime cursor notifier", () => {
     const controller = new AbortController();
     const waiting = notifier.waitForCursor({
       cursor: cursorAt(3810),
-      request: { mediaSequenceNumber: 3811 },
+      request: { sequenceNumber: 3811 },
       signal: controller.signal,
     });
 
@@ -161,7 +161,7 @@ describe("runtime cursor notifier", () => {
     const notifier = createMemoryRuntimeCursorNotifier();
     const waiting = notifier.waitForCursor({
       cursor: cursorAt(3810),
-      request: { mediaSequenceNumber: 3811 },
+      request: { sequenceNumber: 3811 },
       signal: new AbortController().signal,
     });
 
@@ -169,20 +169,20 @@ describe("runtime cursor notifier", () => {
 
     await expect(waiting).resolves.toMatchObject({
       state: "ended",
-      window: { lastMediaSequenceNumber: 3811 },
+      window: { lastSequenceNumber: 3811 },
     });
   });
 });
 
-function withAudioRendition(base: Cursor): Cursor {
-  const mediaSequenceNumber = base.window.lastMediaSequenceNumber;
+function withAudioTrack(base: Cursor): Cursor {
+  const sequenceNumber = base.window.lastSequenceNumber;
 
   return {
     ...base,
     committedWindow: {
       ...base.committedWindow,
-      renditions: {
-        ...base.committedWindow.renditions,
+      tracks: {
+        ...base.committedWindow.tracks,
         a128: {
           init: {
             commitId: "commit_init_a128",
@@ -190,16 +190,16 @@ function withAudioRendition(base: Cursor): Cursor {
             objectKey: "media/a128/init.mp4",
             slotId: "slot_init_a128",
           },
-          renditionId: "a128",
+          trackId: "a128",
           segments: [
             {
-              duration: 2,
-              mediaSequenceNumber,
+              sequenceNumber,
               segment: {
-                commitId: `commit_a128_${mediaSequenceNumber}`,
-                deliveryUrl: `https://media.example.com/a128/${mediaSequenceNumber}.m4s`,
-                objectKey: `media/a128/${mediaSequenceNumber}.m4s`,
-                slotId: `slot_a128_${mediaSequenceNumber}`,
+                commitId: `commit_a128_${sequenceNumber}`,
+                deliveryUrl: `https://media.example.com/a128/${sequenceNumber}.m4s`,
+                objectKey: `media/a128/${sequenceNumber}.m4s`,
+                profile: { duration: 2 },
+                slotId: `slot_a128_${sequenceNumber}`,
               },
             },
           ],
@@ -211,17 +211,16 @@ function withAudioRendition(base: Cursor): Cursor {
 }
 
 function cursorAt(
-  mediaSequenceNumber: number,
+  sequenceNumber: number,
   epoch = 1,
   lastPartNumber?: number
 ): Cursor {
   return {
     committedWindow: {
-      discontinuitySequence: 0,
       epoch,
-      firstMediaSequenceNumber: mediaSequenceNumber,
-      lastMediaSequenceNumber: mediaSequenceNumber,
-      renditions: {
+      firstSequenceNumber: sequenceNumber,
+      lastSequenceNumber: sequenceNumber,
+      tracks: {
         v1080: {
           init: {
             commitId: "commit_init",
@@ -229,33 +228,34 @@ function cursorAt(
             objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
-          renditionId: "v1080",
+          trackId: "v1080",
           segments: [
             lastPartNumber === undefined
               ? {
-                  duration: 2,
-                  mediaSequenceNumber,
+                  sequenceNumber,
                   segment: {
-                    commitId: `commit_${mediaSequenceNumber}`,
-                    deliveryUrl: `https://media.example.com/${mediaSequenceNumber}.m4s`,
-                    objectKey: `media/${mediaSequenceNumber}.m4s`,
-                    slotId: `slot_${mediaSequenceNumber}`,
+                    commitId: `commit_${sequenceNumber}`,
+                    deliveryUrl: `https://media.example.com/${sequenceNumber}.m4s`,
+                    objectKey: `media/${sequenceNumber}.m4s`,
+                    profile: { duration: 2 },
+                    slotId: `slot_${sequenceNumber}`,
                   },
                 }
               : {
-                  duration: (lastPartNumber + 1) * 0.5,
-                  mediaSequenceNumber,
+                  sequenceNumber,
                   // The window must show every claimed part (§3.8).
                   parts: Array.from(
                     { length: lastPartNumber + 1 },
                     (_, partNumber) => ({
-                      commitId: `commit_${mediaSequenceNumber}_${partNumber}`,
-                      deliveryUrl: `https://media.example.com/${mediaSequenceNumber}.${partNumber}.m4s`,
-                      duration: 0.5,
-                      ...(partNumber === 0 ? { independent: true } : {}),
-                      objectKey: `media/${mediaSequenceNumber}.${partNumber}.m4s`,
+                      commitId: `commit_${sequenceNumber}_${partNumber}`,
+                      deliveryUrl: `https://media.example.com/${sequenceNumber}.${partNumber}.m4s`,
+                      objectKey: `media/${sequenceNumber}.${partNumber}.m4s`,
                       partNumber,
-                      slotId: `slot_${mediaSequenceNumber}_${partNumber}`,
+                      profile: {
+                        duration: 0.5,
+                        ...(partNumber === 0 ? { independent: true } : {}),
+                      },
+                      slotId: `slot_${sequenceNumber}_${partNumber}`,
                     })
                   ),
                 },
@@ -264,17 +264,15 @@ function cursorAt(
       },
     },
     epoch,
-    latencyProfile: "object-ll",
     olos: "1.0",
-    mediaBaseUrl: "https://media.example.com",
-    partTarget: 0.5,
-    segmentTarget: 2,
+    deliveryBaseUrl: "https://media.example.com",
+    profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
     sessionId: "session_1",
     state: "live",
     updatedAt: "2026-01-01T00:00:02.000Z",
     window: {
-      firstMediaSequenceNumber: mediaSequenceNumber,
-      lastMediaSequenceNumber: mediaSequenceNumber,
+      firstSequenceNumber: sequenceNumber,
+      lastSequenceNumber: sequenceNumber,
       ...(lastPartNumber === undefined ? {} : { lastPartNumber }),
     },
   };

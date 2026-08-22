@@ -75,8 +75,8 @@ describe("stored runtime mutations", () => {
     expect(result.etag).toBe(snapshot?.etag);
     expect(snapshot?.state.commits).toHaveLength(1);
     expect(snapshot?.state.cursor?.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
   });
 
@@ -100,12 +100,12 @@ describe("stored runtime mutations", () => {
     expect(snapshot?.state.commits).toHaveLength(1);
     expect(snapshot?.state.commits[0]).toMatchObject({
       commitId: "commit_3810",
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "objects/v1080/s3810",
       slotId: "slot_3810",
     });
     expect(snapshot?.state.cursor?.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
   });
 
@@ -116,7 +116,7 @@ describe("stored runtime mutations", () => {
         error: {
           error: {
             code: "olos.security_policy_violation",
-            details: { renditionId: slot.renditionId },
+            details: { trackId: slot.trackId },
             message: "publisher is not authorised",
           },
         },
@@ -137,7 +137,7 @@ describe("stored runtime mutations", () => {
     expect(await result.response.json()).toEqual({
       error: {
         code: "olos.security_policy_violation",
-        details: { renditionId: "v1080" },
+        details: { trackId: "v1080" },
         message: "publisher is not authorised",
       },
     });
@@ -175,7 +175,7 @@ describe("stored runtime mutations", () => {
         code: "olos.object_too_small",
         details: {
           minBytes: 100_000,
-          objectKey: "media/v1080/s3810.m4s",
+          objectKey: "objects/v1080/s3810",
           size: 50,
           slotId: "slot_3810",
         },
@@ -265,7 +265,7 @@ describe("stored runtime mutations", () => {
     expect(result.state.commits).toHaveLength(1);
     expect(result.state.commits[0]).toMatchObject({
       commitId: "commit_3810",
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "objects/v1080/s3810",
       slotId: "slot_3810",
     });
   });
@@ -306,10 +306,8 @@ describe("stored runtime mutations", () => {
     expect(result.status).toBe("committed");
 
     const response = await serveStoredCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: session.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: "https://edge.example.com/v1/live/session_1/v1080/media.m3u8",
-      segmentTarget: session.segmentTarget,
       sessionId: session.sessionId,
       store,
       targetLatency: 3,
@@ -320,16 +318,14 @@ describe("stored runtime mutations", () => {
       "application/vnd.apple.mpegurl"
     );
     expect(await response.text()).toContain(
-      "https://media.example.com/media/v1080/s3810.m4s"
+      "https://media.example.com/objects/v1080/s3810"
     );
   });
 
   test("returns manifest not found responses for missing stored manifests", async () => {
     const response = await serveStoredCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: session.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: "https://edge.example.com/v1/live/missing/v1080/media.m3u8",
-      segmentTarget: session.segmentTarget,
       sessionId: "missing",
       store: createMemoryCoordinatorStore(),
       targetLatency: 3,
@@ -351,11 +347,9 @@ describe("stored runtime mutations", () => {
     });
 
     const response = await serveStoredBlockingCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: session.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request:
         "https://edge.example.com/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810",
-      segmentTarget: session.segmentTarget,
       sessionId: session.sessionId,
       store,
       targetLatency: 3,
@@ -445,7 +439,7 @@ async function createCommitConflictingStore(): Promise<CoordinatorPipelineStore>
 
         const next = issueCoordinatorSlot({
           ...slotPayload(),
-          mediaSequenceNumber: 3811,
+          sequenceNumber: 3811,
           slotId: "slot_3811",
           state: current.state,
         });
@@ -499,12 +493,12 @@ async function createReadyStore(): Promise<CoordinatorPipelineStore> {
   const state = createEmptyCoordinatorState();
   const init = issueCoordinatorSlot({
     contentType: "video/mp4",
-    duration: 1,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "init",
     maxBytes: 2048,
-    mediaSequenceNumber: 0,
-    renditionId: "v1080",
+    profile: { duration: 1 },
+    sequenceNumber: 0,
+    trackId: "v1080",
     slotId: "slot_init",
     state,
   });
@@ -513,7 +507,7 @@ async function createReadyStore(): Promise<CoordinatorPipelineStore> {
     committedAt: "2026-01-01T00:00:02.000Z",
     object: createObservedUpload({
       contentType: "video/mp4",
-      objectKey: "media/v1080/init.mp4",
+      objectKey: "objects/v1080/init",
       observedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
       size: 1024,
@@ -543,14 +537,14 @@ async function createReadyStore(): Promise<CoordinatorPipelineStore> {
 function slotPayload() {
   return {
     contentType: "video/mp4",
-    deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-    duration: 2,
+    deliveryUrl: "https://media.example.com/objects/v1080/s3810",
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment" as const,
     maxBytes: 100_000,
-    mediaSequenceNumber: 3810,
-    objectKey: "media/v1080/s3810.m4s",
-    renditionId: "v1080",
+    profile: { duration: 2 },
+    sequenceNumber: 3810,
+    objectKey: "objects/v1080/s3810",
+    trackId: "v1080",
     slotId: "slot_3810",
   };
 }
@@ -559,14 +553,14 @@ function commitPayload() {
   return {
     commitId: "commit_3810",
     committedAt: "2026-01-01T00:00:02.000Z",
-    independent: true,
     object: {
       contentType: "video/mp4",
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "objects/v1080/s3810",
       observedAt: "2026-01-01T00:00:02.000Z",
       providerId: "s3_primary",
       size: 98_304,
     },
+    profile: { independent: true },
     slotId: "slot_3810",
   };
 }

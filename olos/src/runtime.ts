@@ -60,18 +60,6 @@ export type {
   StoredCoordinatorRuntimeHandler,
 } from "./runtime/http-types";
 export {
-  type CreateRuntimeObjectLowLatencyPublisherDefaultsOptions,
-  createRuntimeObjectLowLatencyManifestOptions,
-  createRuntimeObjectLowLatencyProfile,
-  createRuntimeObjectLowLatencyPublisherDefaults,
-  createRuntimeObjectLowLatencyPublisherOptions,
-  type RuntimeObjectLowLatencyManifestOptions,
-  type RuntimeObjectLowLatencyPublisherInitOptions,
-  type RuntimeObjectLowLatencyPublisherObjectOptions,
-  type RuntimeObjectLowLatencyPublisherOptions,
-} from "./runtime/latency-profile";
-export type { RuntimeObjectLowLatencyProfile } from "./runtime/latency-profile-defaults";
-export {
   type RuntimeManifestRequest,
   type ServeBlockingCoordinatorManifestOptions,
   type ServeCoordinatorManifestOptions,
@@ -105,6 +93,7 @@ export {
   resolveRuntimePublisherNextObjectPosition,
 } from "./runtime/publisher-cadence";
 export {
+  DEFAULT_PUBLISHER_OBJECT_MIN_TTL_SECONDS,
   type ResolveRuntimePublisherObjectExpiryOptions,
   type RuntimePublisherObjectExpiry,
   resolveRuntimePublisherObjectExpiry,

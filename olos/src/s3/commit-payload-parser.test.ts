@@ -17,14 +17,14 @@ describe("S3 commit payload parser", () => {
           slotId: "slot_3810",
           objectKey: "live/session/3810.m4s",
           versionId: "v1",
-          independent: true,
+          profile: { independent: true },
         },
         { providerId: "provider_1" }
       )
     ).toMatchObject({
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
-      independent: true,
+      profile: { independent: true },
       providerId: "provider_1",
       slotId: "slot_3810",
       objectKey: "live/session/3810.m4s",
@@ -81,7 +81,7 @@ describe("S3 commit payload parser", () => {
           committedAt: "2026-01-01T00:00:02.000Z",
           slotIds: ["slot_init", "slot_3810"],
           versionId: "v1",
-          independent: true,
+          profile: { independent: true },
         },
         {
           providerId: "provider_fallback",
@@ -92,7 +92,7 @@ describe("S3 commit payload parser", () => {
       committedAt: "2026-01-01T00:00:02.000Z",
       slotIds: ["slot_init", "slot_3810"],
       versionId: "v1",
-      independent: true,
+      profile: { independent: true },
     });
   });
 

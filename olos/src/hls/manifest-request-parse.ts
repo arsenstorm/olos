@@ -1,4 +1,4 @@
-import type { Rendition, Session } from "../types/session";
+import type { Session, Track } from "../types/session";
 import {
   parseHlsBlockingReloadRequest,
   type waitForHlsBlockingReload,
@@ -49,9 +49,9 @@ export function defaultMasterPath(session: Session): string {
 
 export function defaultMediaPlaylistPath(
   session: Session,
-  rendition: Rendition
+  track: Track
 ): string {
-  return `/v1/live/${session.sessionId}/${rendition.renditionId}/media.m3u8`;
+  return `/v1/live/${session.sessionId}/${track.trackId}/media.m3u8`;
 }
 
 export function parseRequestPath(value: string): string | undefined {

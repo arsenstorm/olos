@@ -48,30 +48,41 @@ export interface CreateHlsManifestArtifactResponseOptions
 
 /**
  * Options for `createHlsManifestArtifacts`: the media playlist rendering
- * options (applied to every rendition) plus the delivery paths for the
+ * options (applied to every track) plus the delivery paths for the
  * generated playlists.
  */
 export interface CreateHlsManifestArtifactsOptions
-  extends Omit<RenderMediaPlaylistOptions, "renditionId"> {
+  extends Omit<RenderMediaPlaylistOptions, "trackId"> {
   /**
    * Path for the master playlist. Defaults to
    * `/v1/live/{sessionId}/master.m3u8`.
    */
   masterPath?: string;
   /**
-   * Maps a rendition to its media playlist path. Defaults to
-   * `/v1/live/{sessionId}/{renditionId}/media.m3u8`. Paths must be safe
+   * Maps a track to its media playlist path. Defaults to
+   * `/v1/live/{sessionId}/{trackId}/media.m3u8`. Paths must be safe
    * root-relative paths.
    */
   mediaPlaylistPath?: RenderMasterPlaylistOptions["mediaPlaylistPath"];
 }
 
 /**
- * Options for `createCoordinatorManifestArtifacts`: the manifest options plus
- * the coordinator state to render from.
+ * Manifest options for rendering from coordinator state (a session and its
+ * cursor). `partTarget`, `segmentTarget`, and the discontinuity baseline are
+ * not accepted here: they are read from the cursor's CMAF/LL-HLS session
+ * profile so the playlists can never disagree with the session.
+ */
+export type CoordinatorHlsManifestOptions = Omit<
+  CreateHlsManifestArtifactsOptions,
+  "discontinuitySequence" | "partTarget" | "segmentTarget"
+>;
+
+/**
+ * Options for `createCoordinatorManifestArtifacts`: the coordinator manifest
+ * options plus the coordinator state to render from.
  */
 export interface CreateCoordinatorManifestArtifactsOptions
-  extends CreateHlsManifestArtifactsOptions {
+  extends CoordinatorHlsManifestOptions {
   state: {
     /** Latest coordinator cursor; omit when no commits have landed yet. */
     cursor?: Cursor;
@@ -94,8 +105,11 @@ export interface CoordinatorManifestArtifacts {
 export interface ResolveBlockingHlsManifestArtifactResponseOptions {
   /** The cursor to start resolving against. */
   cursor: Cursor;
-  /** Rendering options used to build the playlists once the wait resolves. */
-  manifest: CreateHlsManifestArtifactsOptions;
+  /**
+   * Rendering options used to build the playlists once the wait resolves;
+   * timing targets come from the cursor's media profile.
+   */
+  manifest: CoordinatorHlsManifestOptions;
   /**
    * The playlist request URL, including any `_HLS_msn` / `_HLS_part` query
    * parameters. Its pathname selects which artifact to serve.

@@ -1,4 +1,6 @@
+import { assertMediaSession } from "../media/validation";
 import type { Session } from "../types/session";
+import { errorMessage } from "../validation/fields";
 import { notFound, routeSessionIdError, sessionNotFound } from "./http-parse";
 import {
   type CreateStoredCoordinatorRuntimeHandlerOptions,
@@ -40,16 +42,35 @@ export async function handleLiveRoute(
     return sessionNotFound();
   }
 
+  const rejected = nonMediaSessionResponse(snapshot.state.session);
+
+  if (rejected !== undefined) {
+    return rejected;
+  }
+
   return await serveLiveManifest(
-    liveManifestOptions(
-      request,
-      route.sessionId,
-      snapshot.state.session,
-      options
-    ),
+    liveManifestOptions(request, route.sessionId, options),
     route,
     options
   );
+}
+
+/**
+ * HLS playlists only exist for CMAF/LL-HLS sessions; any other profile gets
+ * a clear 400 rather than a rendering failure.
+ */
+function nonMediaSessionResponse(session: Session): Response | undefined {
+  try {
+    assertMediaSession(session);
+    return;
+  } catch (error) {
+    return jsonBadRequestResponse(
+      `HLS playlists are only served for cmaf-llhls sessions: ${errorMessage(
+        error,
+        "session profile is not cmaf-llhls"
+      )}`
+    );
+  }
 }
 
 /** Media playlists block when the deployment configured a reload waiter. */
@@ -92,15 +113,12 @@ function liveManifestRoute(
 function liveManifestOptions(
   request: Request,
   sessionId: string,
-  session: Session,
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ) {
   return {
-    allowedMediaOrigins: options.allowedMediaOrigins,
-    partTarget: session.partTarget,
+    allowedDeliveryOrigins: options.allowedDeliveryOrigins,
     request,
     response: options.response,
-    segmentTarget: session.segmentTarget,
     sessionId,
     store: options.store,
     targetLatency: options.targetLatency ?? DEFAULT_TARGET_LATENCY,

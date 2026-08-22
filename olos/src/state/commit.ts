@@ -20,6 +20,7 @@ import type {
   ResolveUploadCommitOptions,
   UploadCommitResolution,
 } from "./commit-types";
+import { mergeProfileData } from "./profile-data";
 import {
   assertUploadSlotTransition,
   observeUpload,
@@ -35,10 +36,11 @@ import {
 export function createCommit(options: CreateCommitOptions): Commit {
   assertUploadSlot(options.slot);
   // Observed-upload validation: commit evidence may carry the provider
-  // `metadata` map, which the closed wire `MediaObject` validator rejects.
+  // `metadata` map, which the closed wire `StorageObject` validator rejects.
   assertObservedUpload(options.mediaObject);
   assertCommitPreconditions(options);
 
+  const profile = mergeProfileData(options.slot.profile, options.profile);
   const commit: Commit = {
     ...(options.slot.byterange === undefined
       ? {}
@@ -46,23 +48,17 @@ export function createCommit(options: CreateCommitOptions): Commit {
     commitId: options.commitId,
     committedAt: options.committedAt,
     deliveryUrl: options.slot.deliveryUrl,
-    duration: options.slot.duration,
     epoch: options.slot.epoch,
     ...(options.mediaObject.etag === undefined
       ? {}
       : { etag: options.mediaObject.etag }),
-    ...(options.independent === undefined
-      ? {}
-      : { independent: options.independent }),
-    mediaSequenceNumber: options.slot.mediaSequenceNumber,
+    sequenceNumber: options.slot.sequenceNumber,
     objectKey: options.slot.objectKey,
     ...(options.slot.partNumber === undefined
       ? {}
       : { partNumber: options.slot.partNumber }),
-    ...(options.programDateTime === undefined
-      ? {}
-      : { programDateTime: options.programDateTime }),
-    renditionId: options.slot.renditionId,
+    ...(profile === undefined ? {} : { profile }),
+    trackId: options.slot.trackId,
     sessionId: options.slot.sessionId,
     size: options.mediaObject.size,
     slotId: options.slot.slotId,
@@ -91,10 +87,9 @@ export function commitObservedUpload(
   return resolveUploadCommit({
     commitId: options.commitId,
     committedAt: options.committedAt,
-    independent: options.independent,
     lateToleranceMs: options.lateToleranceMs,
     mediaObject: options.object,
-    programDateTime: options.programDateTime,
+    profile: options.profile,
     slot,
   });
 }
@@ -169,10 +164,9 @@ function committedCommitAttempt(
   const result = resolveUploadCommit({
     commitId: options.commitId,
     committedAt: options.committedAt,
-    independent: options.independent,
     lateToleranceMs: options.lateToleranceMs,
     mediaObject: options.mediaObject,
-    programDateTime: options.programDateTime,
+    profile: options.profile,
     slot,
   });
 
@@ -247,10 +241,9 @@ function lateObjectCommitAttempt(
       "olos.invalid_state",
       "object is behind the current cursor",
       {
-        cursorLastMediaSequenceNumber:
-          options.cursor?.window.lastMediaSequenceNumber,
+        cursorLastSequenceNumber: options.cursor?.window.lastSequenceNumber,
         cursorLastPartNumber: options.cursor?.window.lastPartNumber,
-        mediaSequenceNumber: options.slot.mediaSequenceNumber,
+        sequenceNumber: options.slot.sequenceNumber,
         partNumber: options.slot.partNumber,
         slotId: options.slot.slotId,
       }

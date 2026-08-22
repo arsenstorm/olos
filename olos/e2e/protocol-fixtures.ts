@@ -1,4 +1,7 @@
-import { createRuntimeObjectLowLatencyProfile } from "@arsenstorm/olos/runtime";
+import {
+  createRuntimeObjectLowLatencyProfile,
+  type MediaSession,
+} from "@arsenstorm/olos/media";
 import type { Session } from "@arsenstorm/olos/types";
 
 const latency = createRuntimeObjectLowLatencyProfile();
@@ -9,25 +12,31 @@ export interface TestSessionOptions {
   state?: Session["state"];
 }
 
-export function createTestSession(options: TestSessionOptions = {}): Session {
+export function createTestSession(
+  options: TestSessionOptions = {}
+): MediaSession {
   return {
     createdAt: "2026-01-01T00:00:00.000Z",
     epoch: 1,
-    latencyProfile: latency.latencyProfile,
     olos: "1.0",
-    partTarget: latency.partTarget,
-    renditions: [
+    profile: {
+      id: "cmaf-llhls",
+      partTarget: latency.partTarget,
+      segmentTarget: latency.segmentTarget,
+    },
+    tracks: [
       {
-        bitrate: 5_000_000,
-        codec: "avc1.640028",
-        frameRate: 30,
-        height: 1080,
-        kind: "video",
-        renditionId: "v1080",
-        width: 1920,
+        profile: {
+          bitrate: 5_000_000,
+          codec: "avc1.640028",
+          frameRate: 30,
+          height: 1080,
+          kind: "video",
+          width: 1920,
+        },
+        trackId: "v1080",
       },
     ],
-    segmentTarget: latency.segmentTarget,
     sessionId: "session_1",
     state: options.state ?? "live",
   };

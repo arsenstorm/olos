@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { createCoordinatorPipeline } from "../protocol/coordinator-lifecycle";
 import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
 import {
-  TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
+  TEST_COORDINATOR_DELIVERY_BASE_URL as deliveryBaseUrl,
   testCoordinatorSession,
 } from "../protocol/coordinator-state.test-helper";
 import type {
@@ -26,7 +26,7 @@ describe("stored session runtime", () => {
     const store = createMemoryCoordinatorStore();
 
     const result = await createStoredCoordinatorSession({
-      mediaBaseUrl,
+      deliveryBaseUrl,
       session,
       store,
     });
@@ -46,7 +46,7 @@ describe("stored session runtime", () => {
 
     expect(result.etag).toBe(snapshot.etag);
     expect(snapshot.state.session).toEqual(session);
-    expect(snapshot.state.mediaBaseUrl).toBe(mediaBaseUrl);
+    expect(snapshot.state.deliveryBaseUrl).toBe(deliveryBaseUrl);
   });
 
   test("rejects duplicate coordinator session creation", async () => {
@@ -54,7 +54,7 @@ describe("stored session runtime", () => {
     await seedCreatedSession(store);
 
     const result = await createStoredCoordinatorSession({
-      mediaBaseUrl,
+      deliveryBaseUrl,
       session,
       store,
     });
@@ -90,7 +90,7 @@ describe("stored session runtime", () => {
     const store = createMemoryCoordinatorStore();
     await seedStore(store, {
       ...createCoordinatorPipeline({
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session: { ...session, state: "live" },
       }),
       cursor: cursor("live"),
@@ -232,7 +232,7 @@ describe("stored session runtime", () => {
     await seedStore(
       store,
       createCoordinatorPipeline({
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session: { ...session, state: "ended" },
       })
     );
@@ -411,7 +411,10 @@ describe("stored session runtime", () => {
 async function seedCreatedSession(
   store: ReturnType<typeof createMemoryCoordinatorStore>
 ): Promise<void> {
-  await seedStore(store, createCoordinatorPipeline({ mediaBaseUrl, session }));
+  await seedStore(
+    store,
+    createCoordinatorPipeline({ deliveryBaseUrl, session })
+  );
 }
 
 async function seedStore(
@@ -448,11 +451,10 @@ function countingStore(): CoordinatorPipelineStore & {
 function cursor(state: Cursor["state"]): Cursor {
   return {
     committedWindow: {
-      discontinuitySequence: 0,
       epoch: session.epoch,
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
-      renditions: {
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
+      tracks: {
         v1080: {
           init: {
             commitId: "commit_init",
@@ -460,16 +462,15 @@ function cursor(state: Cursor["state"]): Cursor {
             objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
-          renditionId: "v1080",
+          trackId: "v1080",
           segments: [
             {
-              duration: 2,
-              independent: true,
-              mediaSequenceNumber: 3810,
+              sequenceNumber: 3810,
               segment: {
                 commitId: "commit_3810",
                 deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
                 objectKey: "media/v1080/s3810.m4s",
+                profile: { duration: 2, independent: true },
                 slotId: "slot_3810",
               },
             },
@@ -478,17 +479,15 @@ function cursor(state: Cursor["state"]): Cursor {
       },
     },
     epoch: session.epoch,
-    latencyProfile: session.latencyProfile,
     olos: "1.0",
-    mediaBaseUrl: "https://media.example.com",
-    partTarget: session.partTarget,
-    segmentTarget: session.segmentTarget,
+    deliveryBaseUrl: "https://media.example.com",
+    profile: session.profile,
     sessionId: session.sessionId,
     state,
     updatedAt: "2026-01-01T00:00:02.000Z",
     window: {
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     },
   };
 }

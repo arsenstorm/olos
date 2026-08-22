@@ -4,9 +4,9 @@
 
 HLS playlist correctness fixes:
 
-- `#EXT-X-MEDIA-SEQUENCE` now comes from the rendered rendition's own first
+- `#EXT-X-MEDIA-SEQUENCE` now comes from the rendered track's own first
   segment instead of the window-global minimum. Playlists stay correct when
-  renditions diverge through per-rendition trimming or dropped empty-media
+  tracks diverge through per-track trimming or dropped empty-media
   segments.
 - Media playlists for ended or aborted sessions now end with
   `#EXT-X-ENDLIST`, so players stop polling terminal sessions. The new
@@ -22,18 +22,18 @@ HLS playlist correctness fixes:
   the request. The internal `isEndOfStreamSessionState` helper moved from
   the HLS manifest artifact module to `olos/src/state/session.ts` (it was
   never part of a public facade).
-- `#EXT-X-DISCONTINUITY-SEQUENCE` is per-rendition too: `RenditionWindow`
+- `#EXT-X-DISCONTINUITY-SEQUENCE` is per-track too: `TrackWindow`
   gains an optional `discontinuitySequence` that the renderer prefers over
   the window-global value, and window construction counts trimmed leading
   segments marked `discontinuityBefore` into it. Windows built from commits
   keep the field absent (commits carry no discontinuity markers yet).
 - The master playlist and the manifest artifact set now include only
-  renditions present in the committed window. A rendition that has not
+  tracks present in the committed window. A track that has not
   committed media yet (init-only, or not yet publishing) no longer makes
   playlist rendering throw and fail every playlist request for the
   session; its media route is 404 until media commits, and the master
   picks it up on the next request after its first commit. A session with
   committed audio but no committed video serves no master playlist yet
-  (404). `renderMasterPlaylist` gains the optional `availableRenditionIds`
+  (404). `renderMasterPlaylist` gains the optional `availableTrackIds`
   option that implements the filter; omitted, it renders every session
-  rendition as before.
+  track as before.

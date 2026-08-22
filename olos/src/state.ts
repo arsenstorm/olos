@@ -22,8 +22,15 @@ export type {
   ResolveUploadCommitOptions,
   UploadCommitResolution,
 } from "./state/commit-types";
-export type { CreateCommittedWindowOptions } from "./state/committed-window";
-export { createCommittedWindow } from "./state/committed-window";
+export type {
+  CreateCommittedWindowOptions,
+  TrackWindowBounds,
+  TrackWindowProfileInput,
+} from "./state/committed-window";
+export {
+  createCommittedWindow,
+  trackWindowBounds,
+} from "./state/committed-window";
 export {
   type CreateCursorOptions,
   type CursorUpdateResolution,
@@ -32,22 +39,22 @@ export {
   resolveCursorUpdate,
 } from "./state/cursor";
 export {
-  type CreateDirectPublicMediaResponseHeadersOptions,
   type CreateDirectPublicNegativeObjectResponseHeadersOptions,
+  type CreateDirectPublicObjectResponseHeadersOptions,
   type CreateDirectPublicSecurityPolicyOptions,
-  createDirectPublicMediaResponseHeaders,
   createDirectPublicNegativeObjectResponseHeaders,
+  createDirectPublicObjectResponseHeaders,
   createDirectPublicSecurityPolicy,
-  type DirectPublicMediaRequestBlockReason,
-  type DirectPublicMediaRequestPolicy,
-  type ResolveDirectPublicMediaRequestPolicyOptions,
-  resolveDirectPublicMediaRequestPolicy,
+  type DirectPublicObjectRequestBlockReason,
+  type DirectPublicObjectRequestPolicy,
+  type ResolveDirectPublicObjectRequestPolicyOptions,
+  resolveDirectPublicObjectRequestPolicy,
 } from "./state/direct-public-security-policy";
 export {
   type CreatePublisherObjectKeyOptions,
   createPublisherDeliveryUrl,
   createPublisherObjectKey,
-  type DerivableMediaObjectKind,
+  type DerivableObjectKind,
 } from "./state/object-key-derivation";
 export {
   type CreateRuntimePublisherObjectKeyNonceOptions,

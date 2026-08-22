@@ -7,7 +7,7 @@ import type {
   CoordinatorPipelineStore,
   CoordinatorStoreSave,
 } from "../protocol/coordinator-types";
-import { CONFORMANCE_MEDIA_BASE_URL, CONFORMANCE_SESSION } from "./fixture";
+import { CONFORMANCE_DELIVERY_BASE_URL, CONFORMANCE_SESSION } from "./fixture";
 
 /** Options for `assertCoordinatorPipelineStoreConformance`. */
 export interface AssertCoordinatorPipelineStoreConformanceOptions {
@@ -29,7 +29,7 @@ export async function assertCoordinatorPipelineStoreConformance(
 ): Promise<void> {
   const store = await options.createStore();
   const initial = createCoordinatorPipeline({
-    mediaBaseUrl: CONFORMANCE_MEDIA_BASE_URL,
+    deliveryBaseUrl: CONFORMANCE_DELIVERY_BASE_URL,
     session: CONFORMANCE_SESSION,
   });
 
@@ -152,13 +152,12 @@ async function assertUpdateConformance(
   savedEtag: string
 ): Promise<void> {
   const updated = issueCoordinatorSlot({
-    contentType: "video/mp4",
-    duration: 1,
+    contentType: "application/octet-stream",
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "init",
     maxBytes: 2048,
-    mediaSequenceNumber: 0,
-    renditionId: "v1080",
+    sequenceNumber: 0,
+    trackId: "track_1",
     slotId: "slot_init",
     state: loaded.state,
   });

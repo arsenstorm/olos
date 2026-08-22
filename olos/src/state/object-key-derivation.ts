@@ -1,32 +1,26 @@
-import type { MediaObjectKind } from "../types/media-object";
+import type { ObjectKind } from "../types/storage-object";
 import { parseAbsoluteHttpUrl } from "../validation/fields";
 import { trimSlashes, trimTrailingSlash } from "../validation/path";
 
 const LEADING_DOTS_PATTERN = /^\.+/;
 
-const DEFAULT_EXTENSIONS: Record<MediaObjectKind, string> = {
-  init: "mp4",
-  part: "m4s",
-  segment: "m4s",
-};
-
-const DEFAULT_OBJECT_KEY_PREFIX = "media";
+const DEFAULT_OBJECT_KEY_PREFIX = "objects";
 
 /** Media object kinds whose keys {@link createPublisherObjectKey} can derive. */
-export type DerivableMediaObjectKind = Extract<
-  MediaObjectKind,
+export type DerivableObjectKind = Extract<
+  ObjectKind,
   "init" | "part" | "segment"
 >;
 
 /** Options for {@link createPublisherObjectKey}. */
 export interface CreatePublisherObjectKeyOptions {
   /**
-   * File extension without the dot; leading dots are stripped. Defaults
-   * to `mp4` for init objects and `m4s` for segments and parts.
+   * File extension without the dot; leading dots are stripped. Omitted,
+   * the key has no extension. Profiles supply their own defaults (for
+   * example `DEFAULT_MEDIA_OBJECT_EXTENSIONS` from olos/media).
    */
   extension?: string;
-  kind: DerivableMediaObjectKind;
-  mediaSequenceNumber: number;
+  kind: DerivableObjectKind;
   /**
    * Runtime nonce mixed into the file name (see
    * {@link createRuntimePublisherObjectKeyNonce}); makes the derived keys
@@ -35,27 +29,28 @@ export interface CreatePublisherObjectKeyOptions {
    */
   objectKeyNonce?: string;
   /**
-   * Leading key path component (default `media`); surrounding slashes
+   * Leading key path component (default `objects`); surrounding slashes
    * are trimmed.
    */
   objectKeyPrefix?: string;
   /** Required when `kind` is `part`; ignored otherwise. */
   partNumber?: number;
-  renditionId: string;
+  sequenceNumber: number;
+  trackId: string;
 }
 
 /**
- * Derive the canonical object key a publisher uploads a media object to.
- * Layouts, with `<prefix>` defaulting to `media` and `[-nonce]` present
- * only when `objectKeyNonce` is set:
+ * Derive the canonical object key a publisher uploads an object to.
+ * Layouts, with `<prefix>` defaulting to `objects`, `[-nonce]` present
+ * only when `objectKeyNonce` is set, and `[.ext]` only when `extension`
+ * is set:
  *
- * - init:    `<prefix>/<renditionId>/init[-nonce].<ext>`
- * - segment: `<prefix>/<renditionId>/s<msn>[-nonce].<ext>`
- * - part:    `<prefix>/<renditionId>/s<msn>/p<partNumber>[-nonce].<ext>`
+ * - init:    `<prefix>/<trackId>/init[-nonce][.ext]`
+ * - segment: `<prefix>/<trackId>/s<seq>[-nonce][.ext]`
+ * - part:    `<prefix>/<trackId>/s<seq>/p<partNumber>[-nonce][.ext]`
  *
- * `<msn>` is the media sequence number; `<ext>` defaults to `mp4` for
- * init objects and `m4s` for segments and parts. Pure; throws when `kind`
- * is `part` and `partNumber` is missing.
+ * `<seq>` is the sequence number. Pure; throws when `kind` is `part` and
+ * `partNumber` is missing.
  */
 export function createPublisherObjectKey(
   options: CreatePublisherObjectKeyOptions
@@ -63,9 +58,7 @@ export function createPublisherObjectKey(
   const prefix = trimSlashes(
     options.objectKeyPrefix ?? DEFAULT_OBJECT_KEY_PREFIX
   );
-  const extension = (
-    options.extension ?? DEFAULT_EXTENSIONS[options.kind]
-  ).replace(LEADING_DOTS_PATTERN, "");
+  const extension = extensionSuffix(options.extension);
 
   if (options.kind === "init") {
     return createInitObjectKey(options, prefix, extension);
@@ -99,6 +92,16 @@ export function createPublisherDeliveryUrl(
   return url.toString();
 }
 
+function extensionSuffix(extension: string | undefined): string {
+  if (extension === undefined) {
+    return "";
+  }
+
+  const trimmed = extension.replace(LEADING_DOTS_PATTERN, "");
+
+  return trimmed.length === 0 ? "" : `.${trimmed}`;
+}
+
 function createInitObjectKey(
   options: CreatePublisherObjectKeyOptions,
   prefix: string,
@@ -106,10 +109,10 @@ function createInitObjectKey(
 ): string {
   const fileName =
     options.objectKeyNonce === undefined
-      ? `init.${extension}`
-      : `init-${options.objectKeyNonce}.${extension}`;
+      ? `init${extension}`
+      : `init-${options.objectKeyNonce}${extension}`;
 
-  return `${prefix}/${options.renditionId}/${fileName}`;
+  return `${prefix}/${options.trackId}/${fileName}`;
 }
 
 function createSegmentObjectKey(
@@ -119,10 +122,10 @@ function createSegmentObjectKey(
 ): string {
   const fileName =
     options.objectKeyNonce === undefined
-      ? `s${options.mediaSequenceNumber}.${extension}`
-      : `s${options.mediaSequenceNumber}-${options.objectKeyNonce}.${extension}`;
+      ? `s${options.sequenceNumber}${extension}`
+      : `s${options.sequenceNumber}-${options.objectKeyNonce}${extension}`;
 
-  return `${prefix}/${options.renditionId}/${fileName}`;
+  return `${prefix}/${options.trackId}/${fileName}`;
 }
 
 function createPartObjectKey(
@@ -136,8 +139,8 @@ function createPartObjectKey(
 
   const fileName =
     options.objectKeyNonce === undefined
-      ? `p${options.partNumber}.${extension}`
-      : `p${options.partNumber}-${options.objectKeyNonce}.${extension}`;
+      ? `p${options.partNumber}${extension}`
+      : `p${options.partNumber}-${options.objectKeyNonce}${extension}`;
 
-  return `${prefix}/${options.renditionId}/s${options.mediaSequenceNumber}/${fileName}`;
+  return `${prefix}/${options.trackId}/s${options.sequenceNumber}/${fileName}`;
 }

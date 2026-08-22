@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
 import {
-  TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
+  TEST_COORDINATOR_DELIVERY_BASE_URL as deliveryBaseUrl,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import {
@@ -30,7 +30,7 @@ describe("runtime HTTP client", () => {
   test("creates sessions, issues slots, commits uploads, and transitions state", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       store,
     });
     const clientFetch = runtimeFetchFor(handle);
@@ -38,7 +38,7 @@ describe("runtime HTTP client", () => {
     const created = await createRuntimeSession({
       baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
-      mediaBaseUrl,
+      deliveryBaseUrl,
       session: { ...session, state: "live" },
     });
     const issued = await issueRuntimeSlot({
@@ -46,13 +46,12 @@ describe("runtime HTTP client", () => {
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
-        duration: 1,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "init",
         maxBytes: 2048,
-        mediaSequenceNumber: 0,
+        sequenceNumber: 0,
         objectKeyNonce: "slot_1",
-        renditionId: "v1080",
+        trackId: "v1080",
         slotId: "slot_init",
       },
       sessionId: session.sessionId,
@@ -86,7 +85,7 @@ describe("runtime HTTP client", () => {
   test("ignores unknown fields in slot, commit, and cursor responses", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       store,
     });
     const handlerFetch = runtimeFetchFor(handle);
@@ -105,7 +104,7 @@ describe("runtime HTTP client", () => {
     await createRuntimeSession({
       baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
-      mediaBaseUrl,
+      deliveryBaseUrl,
       session: { ...session, state: "live" },
     });
     const issuedInit = await issueRuntimeSlot({
@@ -113,13 +112,12 @@ describe("runtime HTTP client", () => {
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
-        duration: 1,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "init",
         maxBytes: 2048,
-        mediaSequenceNumber: 0,
+        sequenceNumber: 0,
         objectKeyNonce: "slot_1",
-        renditionId: "v1080",
+        trackId: "v1080",
         slotId: "slot_init",
       },
       sessionId: session.sessionId,
@@ -146,13 +144,12 @@ describe("runtime HTTP client", () => {
       fetch: clientFetch,
       payload: {
         contentType: "video/mp4",
-        duration: 1,
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
         maxBytes: 200_000,
-        mediaSequenceNumber: 0,
+        sequenceNumber: 0,
         objectKeyNonce: "slot_2",
-        renditionId: "v1080",
+        trackId: "v1080",
         slotId: "slot_seg",
       },
       sessionId: session.sessionId,
@@ -190,7 +187,7 @@ describe("runtime HTTP client", () => {
   test("sends publisher heartbeats and reads stored health", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       now: () => "2026-01-01T00:00:02.000Z",
       store,
     });
@@ -198,7 +195,7 @@ describe("runtime HTTP client", () => {
 
     await handle(
       jsonPostRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -271,7 +268,7 @@ describe("runtime HTTP client", () => {
       hlsMsn: 3810,
       hlsPart: 3,
       livePath: "/live",
-      renditionId: "v1080",
+      trackId: "v1080",
       sessionId: session.sessionId,
     });
 
@@ -290,7 +287,7 @@ describe("runtime HTTP client", () => {
     const options = {
       baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
-      renditionId: "v1080",
+      trackId: "v1080",
       sessionId: session.sessionId,
     };
 
@@ -322,7 +319,7 @@ describe("runtime HTTP client", () => {
       getRuntimeMediaPlaylist({
         ...options,
         livePath: "../live",
-        renditionId: "v1080",
+        trackId: "v1080",
       })
     ).rejects.toThrow("livePath must be a safe relative path");
     expect(requests).toBe(0);
@@ -354,7 +351,7 @@ describe("runtime HTTP client", () => {
       createRuntimeSession({
         baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     ).rejects.toThrow("session create failed with status 404");
@@ -374,12 +371,11 @@ describe("runtime HTTP client", () => {
         fetch: clientFetch,
         payload: {
           contentType: "video/mp4",
-          duration: 1,
           expiresAt: "2026-01-01T00:00:05.000Z",
           kind: "init",
           maxBytes: 2048,
-          mediaSequenceNumber: 0,
-          renditionId: "v1080",
+          sequenceNumber: 0,
+          trackId: "v1080",
           slotId: "slot_init",
         },
         sessionId: session.sessionId,
@@ -434,7 +430,7 @@ describe("runtime HTTP client", () => {
       getRuntimeMediaPlaylist({
         baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
-        renditionId: "v1080",
+        trackId: "v1080",
         sessionId: session.sessionId,
       })
     ).rejects.toThrow("media playlist failed with status 404");
@@ -481,12 +477,11 @@ describe("runtime HTTP client", () => {
         fetch: clientFetch,
         payload: {
           contentType: "video/mp4",
-          duration: 1,
           expiresAt: "2026-01-01T00:00:05.000Z",
           kind: "init",
           maxBytes: 2048,
-          mediaSequenceNumber: 0,
-          renditionId: "v1080",
+          sequenceNumber: 0,
+          trackId: "v1080",
           slotId: "slot_init",
         },
         sessionId: session.sessionId,

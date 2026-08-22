@@ -1,16 +1,19 @@
 import { describe, expect, test } from "bun:test";
 
-import type { CommittedWindow } from "../types/committed-window";
+import type {
+  CommittedObject,
+  CommittedSegment,
+  CommittedWindow,
+} from "../types/committed-window";
 import { renderMediaPlaylist } from "./media-playlist";
 
 const MEDIA_ORIGIN = "https://media.example.com";
 
 const committedWindow: CommittedWindow = {
-  discontinuitySequence: 0,
   epoch: 1,
-  firstMediaSequenceNumber: 3810,
-  lastMediaSequenceNumber: 3812,
-  renditions: {
+  firstSequenceNumber: 3810,
+  lastSequenceNumber: 3812,
+  tracks: {
     v1080: {
       init: {
         commitId: "commit_init",
@@ -20,58 +23,63 @@ const committedWindow: CommittedWindow = {
           "media/tenant_acme/sess_01JZLIVE/e1/v1080/init-slot_init_v1080.mp4",
         slotId: "slot_init_v1080",
       },
-      renditionId: "v1080",
+      trackId: "v1080",
       segments: [
         {
-          duration: 2,
-          mediaSequenceNumber: 3810,
-          programDateTime: "2026-06-08T12:00:00.000Z",
+          sequenceNumber: 3810,
           segment: {
             commitId: "commit_3810",
             deliveryUrl:
               "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810-slot_s3810.m4s",
             objectKey:
               "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3810-slot_s3810.m4s",
+            profile: {
+              duration: 2,
+              programDateTime: "2026-06-08T12:00:00.000Z",
+            },
             slotId: "slot_s3810",
           },
         },
         {
-          duration: 2,
-          mediaSequenceNumber: 3811,
-          programDateTime: "2026-06-08T12:00:02.000Z",
+          sequenceNumber: 3811,
           segment: {
             commitId: "commit_3811",
             deliveryUrl:
               "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3811.m4s",
             objectKey:
               "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3811.m4s",
+            profile: {
+              duration: 2,
+              programDateTime: "2026-06-08T12:00:02.000Z",
+            },
             slotId: "slot_s3811",
           },
         },
         {
-          duration: 2,
-          mediaSequenceNumber: 3812,
-          programDateTime: "2026-06-08T12:00:04.000Z",
+          sequenceNumber: 3812,
           parts: [
             {
               commitId: "commit_3812_0",
               deliveryUrl:
                 "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p0-slot_3812_0.m4s",
-              duration: 0.5,
-              independent: true,
               objectKey:
                 "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p0-slot_3812_0.m4s",
               partNumber: 0,
+              profile: {
+                duration: 0.5,
+                independent: true,
+                programDateTime: "2026-06-08T12:00:04.000Z",
+              },
               slotId: "slot_3812_0",
             },
             {
               commitId: "commit_3812_1",
               deliveryUrl:
                 "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p1-slot_3812_1.m4s",
-              duration: 0.5,
               objectKey:
                 "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p1-slot_3812_1.m4s",
               partNumber: 1,
+              profile: { duration: 0.5 },
               slotId: "slot_3812_1",
             },
           ],
@@ -81,30 +89,74 @@ const committedWindow: CommittedWindow = {
   },
 };
 
-function validRendition() {
-  const rendition = committedWindow.renditions.v1080;
+const options = {
+  allowedDeliveryOrigins: [MEDIA_ORIGIN],
+  partTarget: 0.5,
+  segmentTarget: 2,
+  trackId: "v1080",
+};
 
-  if (!rendition) {
+function validTrack() {
+  const track = committedWindow.tracks.v1080;
+
+  if (!track) {
     throw new Error("missing v1080 test fixture");
   }
 
-  return rendition;
+  return track;
+}
+
+function validInit(): CommittedObject {
+  const init = validTrack().init;
+
+  if (!init) {
+    throw new Error("missing v1080 init fixture");
+  }
+
+  return init;
 }
 
 function missingSegment(): never {
   throw new Error("missing segment fixture");
 }
 
+function withInitDeliveryUrl(deliveryUrl: string): CommittedWindow {
+  return {
+    ...committedWindow,
+    tracks: {
+      v1080: {
+        ...validTrack(),
+        init: { ...validInit(), deliveryUrl },
+      },
+    },
+  };
+}
+
+function withoutProgramDateTime(segment: CommittedSegment): CommittedSegment {
+  return {
+    ...segment,
+    ...(segment.segment === undefined
+      ? {}
+      : {
+          segment: {
+            ...segment.segment,
+            profile: { ...segment.segment.profile, programDateTime: undefined },
+          },
+        }),
+    ...(segment.parts === undefined
+      ? {}
+      : {
+          parts: segment.parts.map((part) => ({
+            ...part,
+            profile: { ...part.profile, programDateTime: undefined },
+          })),
+        }),
+  };
+}
+
 describe("media playlist rendering", () => {
   test("renders deterministic LL-HLS from a committed window", () => {
-    expect(
-      renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-      })
-    ).toBe(`#EXTM3U
+    expect(renderMediaPlaylist(committedWindow, options)).toBe(`#EXTM3U
 #EXT-X-VERSION:10
 #EXT-X-TARGETDURATION:2
 #EXT-X-PART-INF:PART-TARGET=0.500
@@ -125,42 +177,65 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
 `);
   });
 
-  test("declares the rendered rendition's own first media sequence", () => {
+  test("declares the rendered track's own first media sequence", () => {
     const trimmedWindow: CommittedWindow = {
       ...committedWindow,
-      renditions: {
-        v1080: validRendition(),
+      tracks: {
+        v1080: validTrack(),
         v720: {
-          ...validRendition(),
-          renditionId: "v720",
-          segments: validRendition().segments.filter(
-            (segment) => segment.mediaSequenceNumber >= 3811
+          ...validTrack(),
+          trackId: "v720",
+          segments: validTrack().segments.filter(
+            (segment) => segment.sequenceNumber >= 3811
           ),
         },
       },
     };
 
-    const options = {
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: 0.5,
-      segmentTarget: 2,
-    };
-
     expect(
-      renderMediaPlaylist(trimmedWindow, { ...options, renditionId: "v1080" })
+      renderMediaPlaylist(trimmedWindow, { ...options, trackId: "v1080" })
     ).toContain("#EXT-X-MEDIA-SEQUENCE:3810");
     expect(
-      renderMediaPlaylist(trimmedWindow, { ...options, renditionId: "v720" })
+      renderMediaPlaylist(trimmedWindow, { ...options, trackId: "v720" })
     ).toContain("#EXT-X-MEDIA-SEQUENCE:3811");
+  });
+
+  test("sums part durations for a full segment without a declared duration", () => {
+    const playlist = renderMediaPlaylist(
+      {
+        ...committedWindow,
+        tracks: {
+          v1080: {
+            ...validTrack(),
+            segments: validTrack().segments.map((segment) =>
+              segment.sequenceNumber === 3812
+                ? {
+                    ...segment,
+                    segment: {
+                      commitId: "commit_3812",
+                      deliveryUrl:
+                        "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812-slot_s3812.m4s",
+                      objectKey:
+                        "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812-slot_s3812.m4s",
+                      slotId: "slot_s3812",
+                    },
+                  }
+                : segment
+            ),
+          },
+        },
+      },
+      options
+    );
+
+    expect(playlist).toContain(`#EXTINF:1.000,
+https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812-slot_s3812.m4s`);
   });
 
   test("ends the playlist with EXT-X-ENDLIST when the stream has ended", () => {
     const playlist = renderMediaPlaylist(committedWindow, {
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      ...options,
       endOfStream: true,
-      partTarget: 0.5,
-      renditionId: "v1080",
-      segmentTarget: 2,
     });
 
     expect(playlist.endsWith("\n#EXT-X-ENDLIST\n")).toBe(true);
@@ -168,13 +243,6 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
   });
 
   test("omits EXT-X-ENDLIST for live playlists", () => {
-    const options = {
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: 0.5,
-      renditionId: "v1080",
-      segmentTarget: 2,
-    };
-
     expect(renderMediaPlaylist(committedWindow, options)).not.toContain(
       "#EXT-X-ENDLIST"
     );
@@ -183,25 +251,28 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
     ).not.toContain("#EXT-X-ENDLIST");
   });
 
-  test("throws for unknown renditions", () => {
+  test("throws for unknown tracks", () => {
     expect(() =>
-      renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "missing",
-        segmentTarget: 2,
-      })
-    ).toThrow("rendition not found: missing");
+      renderMediaPlaylist(committedWindow, { ...options, trackId: "missing" })
+    ).toThrow("track not found: missing");
+  });
+
+  test("throws for tracks without an init object", () => {
+    const { init: _init, ...trackWithoutInit } = validTrack();
+
+    expect(() =>
+      renderMediaPlaylist(
+        { ...committedWindow, tracks: { v1080: trackWithoutInit } },
+        options
+      )
+    ).toThrow("track v1080 has no init object");
   });
 
   test("supports explicit hold-back values", () => {
     expect(
       renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
+        ...options,
         partHoldBack: 2,
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
         // Above the three-target-duration floor, so it renders verbatim.
         targetLatency: 8,
       })
@@ -213,22 +284,14 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
     // rejects the whole playlist below it, so a lower targetLatency is
     // raised rather than emitted.
     expect(
-      renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-        targetLatency: 1.5,
-      })
+      renderMediaPlaylist(committedWindow, { ...options, targetLatency: 1.5 })
     ).toContain("HOLD-BACK=6.000");
   });
 
   test("floors HOLD-BACK on the rounded-up target duration", () => {
     expect(
       renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
+        ...options,
         segmentTarget: 1.2,
         targetLatency: 1.5,
       })
@@ -237,24 +300,13 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
 
   test("rounds target duration up in media playlist headers", () => {
     expect(
-      renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2.1,
-      })
+      renderMediaPlaylist(committedWindow, { ...options, segmentTarget: 2.1 })
     ).toContain("#EXT-X-TARGETDURATION:3");
   });
 
   test("rejects unrealistic part hold-back values", () => {
     expect(() =>
-      renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partHoldBack: 1,
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-      })
+      renderMediaPlaylist(committedWindow, { ...options, partHoldBack: 1 })
     ).toThrow(
       "options.partHoldBack must be at least three times options.partTarget"
     );
@@ -262,79 +314,44 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
 
   test("rejects invalid explicit hold-back values", () => {
     expect(() =>
-      renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partHoldBack: 0,
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-      })
+      renderMediaPlaylist(committedWindow, { ...options, partHoldBack: 0 })
     ).toThrow("options.partHoldBack must be a positive number");
 
     expect(() =>
-      renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-        targetLatency: 0,
-      })
+      renderMediaPlaylist(committedWindow, { ...options, targetLatency: 0 })
     ).toThrow("options.targetLatency must be a positive number");
   });
 
   test("omits preload hints by default", () => {
-    expect(
-      renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-      })
-    ).not.toContain("#EXT-X-PRELOAD-HINT");
+    expect(renderMediaPlaylist(committedWindow, options)).not.toContain(
+      "#EXT-X-PRELOAD-HINT"
+    );
   });
 
   test("does not emit content steering", () => {
-    expect(
-      renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-      })
-    ).not.toContain("#EXT-X-CONTENT-STEERING");
+    expect(renderMediaPlaylist(committedWindow, options)).not.toContain(
+      "#EXT-X-CONTENT-STEERING"
+    );
   });
 
-  test("does not emit rendition reports", () => {
-    expect(
-      renderMediaPlaylist(committedWindow, {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-      })
-    ).not.toContain("#EXT-X-RENDITION-REPORT");
+  test("does not emit track reports", () => {
+    expect(renderMediaPlaylist(committedWindow, options)).not.toContain(
+      "#EXT-X-TRACK-REPORT"
+    );
   });
 
   test("omits program date-time tags for segments without program dates", () => {
     const playlist = renderMediaPlaylist(
       {
         ...committedWindow,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
-            segments: validRendition().segments.map((segment) => ({
-              ...segment,
-              programDateTime: undefined,
-            })),
+            ...validTrack(),
+            segments: validTrack().segments.map(withoutProgramDateTime),
           },
         },
       },
-      {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-      }
+      options
     );
 
     expect(playlist).not.toContain("#EXT-X-PROGRAM-DATE-TIME");
@@ -350,14 +367,13 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
     const playlist = renderMediaPlaylist(
       {
         ...committedWindow,
-        firstMediaSequenceNumber: 3812,
-        renditions: {
+        firstSequenceNumber: 3812,
+        tracks: {
           v1080: {
-            ...validRendition(),
+            ...validTrack(),
             segments: [
               {
-                duration: 2,
-                mediaSequenceNumber: 3812,
+                sequenceNumber: 3812,
                 parts: [
                   {
                     byterange: {
@@ -369,11 +385,10 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
                     commitId: "commit_3812_0",
                     deliveryUrl:
                       "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p0.m4s",
-                    duration: 0.5,
-                    independent: true,
                     objectKey:
                       "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p0.m4s",
                     partNumber: 0,
+                    profile: { duration: 0.5, independent: true },
                     slotId: "slot_3812_0",
                   },
                   {
@@ -386,10 +401,10 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
                     commitId: "commit_3812_1",
                     deliveryUrl:
                       "https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p1.m4s",
-                    duration: 0.5,
                     objectKey:
                       "media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812/p1.m4s",
                     partNumber: 1,
+                    profile: { duration: 0.5 },
                     slotId: "slot_3812_1",
                   },
                 ],
@@ -398,12 +413,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
           },
         },
       },
-      {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-      }
+      options
     );
 
     expect(playlist).toContain(
@@ -421,20 +431,15 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
     const playlist = renderMediaPlaylist(
       {
         ...committedWindow,
-        firstMediaSequenceNumber: 3812,
-        renditions: {
+        firstSequenceNumber: 3812,
+        tracks: {
           v1080: {
-            ...validRendition(),
-            segments: [validRendition().segments[2] ?? missingSegment()],
+            ...validTrack(),
+            segments: [validTrack().segments[2] ?? missingSegment()],
           },
         },
       },
-      {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-      }
+      options
     );
 
     expect(playlist).not.toContain("#EXTINF:");
@@ -446,27 +451,50 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
     );
   });
 
+  test("throws for parts without a media duration", () => {
+    const inProgress = validTrack().segments[2] ?? missingSegment();
+
+    expect(() =>
+      renderMediaPlaylist(
+        {
+          ...committedWindow,
+          firstSequenceNumber: 3812,
+          tracks: {
+            v1080: {
+              ...validTrack(),
+              segments: [
+                {
+                  ...inProgress,
+                  parts: (inProgress.parts ?? []).map((part) => ({
+                    ...part,
+                    profile: { independent: part.profile?.independent },
+                  })),
+                },
+              ],
+            },
+          },
+        },
+        options
+      )
+    ).toThrow("part 0 has no media duration");
+  });
+
   test("refuses non-monotonic committed windows", () => {
     expect(() =>
       renderMediaPlaylist(
         {
           ...committedWindow,
-          renditions: {
+          tracks: {
             v1080: {
-              ...validRendition(),
-              segments: [...validRendition().segments].reverse(),
+              ...validTrack(),
+              segments: [...validTrack().segments].reverse(),
             },
           },
         },
-        {
-          allowedMediaOrigins: [MEDIA_ORIGIN],
-          partTarget: 0.5,
-          renditionId: "v1080",
-          segmentTarget: 2,
-        }
+        options
       )
     ).toThrow(
-      "committedWindow.renditions.v1080.segments must have monotonic media sequences"
+      "committedWindow.tracks.v1080.segments must have monotonic sequence numbers"
     );
   });
 
@@ -474,24 +502,27 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
     const playlist = renderMediaPlaylist(
       {
         ...committedWindow,
-        discontinuitySequence: 1,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
-            segments: validRendition().segments.map((segment) =>
-              segment.mediaSequenceNumber === 3811
-                ? { ...segment, discontinuityBefore: true }
+            ...validTrack(),
+            segments: validTrack().segments.map((segment) =>
+              segment.sequenceNumber === 3811 && segment.segment
+                ? {
+                    ...segment,
+                    segment: {
+                      ...segment.segment,
+                      profile: {
+                        ...segment.segment.profile,
+                        discontinuityBefore: true,
+                      },
+                    },
+                  }
                 : segment
             ),
           },
         },
       },
-      {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-      }
+      { ...options, discontinuitySequence: 1 }
     );
 
     expect(playlist).toContain(`#EXT-X-DISCONTINUITY-SEQUENCE:1
@@ -502,157 +533,125 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
 https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3811.m4s`);
   });
 
-  test("renders the rendition's own discontinuity sequence when set", () => {
+  test("renders discontinuities flagged on the first part of an in-progress segment", () => {
     const playlist = renderMediaPlaylist(
       {
         ...committedWindow,
-        discontinuitySequence: 1,
-        renditions: {
+        tracks: {
           v1080: {
-            ...validRendition(),
-            discontinuitySequence: 3,
+            ...validTrack(),
+            segments: validTrack().segments.map((segment) =>
+              segment.sequenceNumber === 3812
+                ? {
+                    ...segment,
+                    parts: (segment.parts ?? []).map((part) =>
+                      part.partNumber === 0
+                        ? {
+                            ...part,
+                            profile: {
+                              ...part.profile,
+                              discontinuityBefore: true,
+                            },
+                          }
+                        : part
+                    ),
+                  }
+                : segment
+            ),
           },
         },
       },
+      options
+    );
+
+    expect(playlist).toContain(`#EXT-X-DISCONTINUITY
+#EXT-X-PROGRAM-DATE-TIME:2026-06-08T12:00:04.000Z
+#EXT-X-PART:DURATION=0.500,INDEPENDENT=YES`);
+  });
+
+  test("renders the track window's own discontinuity sequence when set", () => {
+    const playlist = renderMediaPlaylist(
       {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-      }
+        ...committedWindow,
+        tracks: {
+          v1080: {
+            ...validTrack(),
+            profile: { discontinuitySequence: 3 },
+          },
+        },
+      },
+      { ...options, discontinuitySequence: 1 }
     );
 
     expect(playlist).toContain("#EXT-X-DISCONTINUITY-SEQUENCE:3");
     expect(playlist).not.toContain("#EXT-X-DISCONTINUITY-SEQUENCE:1");
   });
 
-  test("falls back to the window discontinuity sequence when the rendition sets none", () => {
-    const playlist = renderMediaPlaylist(
-      { ...committedWindow, discontinuitySequence: 2 },
-      {
-        allowedMediaOrigins: [MEDIA_ORIGIN],
-        partTarget: 0.5,
-        renditionId: "v1080",
-        segmentTarget: 2,
-      }
-    );
-
-    expect(playlist).toContain("#EXT-X-DISCONTINUITY-SEQUENCE:2");
+  test("falls back to the baseline discontinuity sequence when the track sets none", () => {
+    expect(
+      renderMediaPlaylist(committedWindow, {
+        ...options,
+        discontinuitySequence: 2,
+      })
+    ).toContain("#EXT-X-DISCONTINUITY-SEQUENCE:2");
   });
 
   test("rejects absolute media URLs without an allowed origin", () => {
     expect(() =>
       renderMediaPlaylist(committedWindow, {
         partTarget: 0.5,
-        renditionId: "v1080",
+        trackId: "v1080",
         segmentTarget: 2,
       })
-    ).toThrow("rendition.init.deliveryUrl origin is not allowed");
+    ).toThrow("track.init.deliveryUrl origin is not allowed");
   });
 
   test("rejects unsafe media URL schemes", () => {
     expect(() =>
-      renderMediaPlaylist(
-        {
-          ...committedWindow,
-          renditions: {
-            v1080: {
-              ...validRendition(),
-              init: {
-                ...validRendition().init,
-                deliveryUrl: "javascript:alert(1)",
-              },
-            },
-          },
-        },
-        {
-          allowedMediaOrigins: [MEDIA_ORIGIN],
-          partTarget: 0.5,
-          renditionId: "v1080",
-          segmentTarget: 2,
-        }
-      )
+      renderMediaPlaylist(withInitDeliveryUrl("javascript:alert(1)"), options)
     ).toThrow(
-      "committedWindow.renditions.v1080.init.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
+      "committedWindow.tracks.v1080.init.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
     );
   });
 
   test("rejects protocol-relative media URLs", () => {
     expect(() =>
       renderMediaPlaylist(
-        {
-          ...committedWindow,
-          renditions: {
-            v1080: {
-              ...validRendition(),
-              init: {
-                ...validRendition().init,
-                deliveryUrl: "//media.example.com/init.mp4",
-              },
-            },
-          },
-        },
-        {
-          allowedMediaOrigins: [MEDIA_ORIGIN],
-          partTarget: 0.5,
-          renditionId: "v1080",
-          segmentTarget: 2,
-        }
+        withInitDeliveryUrl("//media.example.com/init.mp4"),
+        options
       )
     ).toThrow(
-      "committedWindow.renditions.v1080.init.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
+      "committedWindow.tracks.v1080.init.deliveryUrl must be an absolute HTTP(S) URL or safe relative path"
     );
   });
 
   test("rejects relative media URLs with query strings or fragments", () => {
     expect(() =>
       renderMediaPlaylist(
-        {
-          ...committedWindow,
-          renditions: {
-            v1080: {
-              ...validRendition(),
-              init: {
-                ...validRendition().init,
-                deliveryUrl: "/media/v1080/init.mp4?token=abc",
-              },
-            },
-          },
-        },
+        withInitDeliveryUrl("/media/v1080/init.mp4?token=abc"),
         {
           partTarget: 0.5,
-          renditionId: "v1080",
+          trackId: "v1080",
           segmentTarget: 2,
         }
       )
     ).toThrow(
-      "committedWindow.renditions.v1080.init.deliveryUrl must not contain query strings or fragments"
+      "committedWindow.tracks.v1080.init.deliveryUrl must not contain query strings or fragments"
     );
   });
 
   test("rejects media URLs with control characters", () => {
     expect(() =>
       renderMediaPlaylist(
-        {
-          ...committedWindow,
-          renditions: {
-            v1080: {
-              ...validRendition(),
-              init: {
-                ...validRendition().init,
-                deliveryUrl: "/media/v1080/init.mp4\n#EXT-X-ENDLIST",
-              },
-            },
-          },
-        },
+        withInitDeliveryUrl("/media/v1080/init.mp4\n#EXT-X-ENDLIST"),
         {
           partTarget: 0.5,
-          renditionId: "v1080",
+          trackId: "v1080",
           segmentTarget: 2,
         }
       )
     ).toThrow(
-      "committedWindow.renditions.v1080.init.deliveryUrl must not contain control characters"
+      "committedWindow.tracks.v1080.init.deliveryUrl must not contain control characters"
     );
   });
 });

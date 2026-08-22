@@ -264,12 +264,11 @@ async function commitObservedObject(
     commitId: options.commitId,
     committedAt: options.committedAt,
     commitPolicy: options.commitPolicy,
-    independent: options.independent,
     lateToleranceMs: options.lateToleranceMs,
     maxSegments: options.maxSegments,
     object,
     publicationControl: options.publicationControl,
-    programDateTime: options.programDateTime,
+    profile: options.profile,
     slotId: options.slotId,
     state: options.state,
   });

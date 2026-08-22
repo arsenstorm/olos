@@ -1,4 +1,5 @@
 import {
+  type CreateCommittedWindowOptions,
   lastVisiblePartNumber,
   tryCreateCommittedWindow,
 } from "../state/committed-window";
@@ -22,6 +23,7 @@ export interface CommitIntoStateOptions {
   maxSegments?: number;
   slot: UploadSlot;
   state: CoordinatorPipelineState;
+  trackWindowProfile?: CreateCommittedWindowOptions["trackWindowProfile"];
 }
 
 /**
@@ -35,9 +37,9 @@ export function commitIntoState(
 ): CommitIntoStateResult {
   const nextState = recordCommit(options);
 
-  // A window needs an init commit and at least one media commit before any
-  // of it can become visible.
-  if (nextState.initCommits.length === 0 || nextState.commits.length === 0) {
+  // Init commits alone make nothing visible; the window needs at least one
+  // segment or part commit.
+  if (nextState.commits.length === 0) {
     return { retiredObjects: [], state: nextState };
   }
 
@@ -47,9 +49,10 @@ export function commitIntoState(
     initCommits: nextState.initCommits,
     maxSegments: options.maxSegments,
     sessionId: options.state.session.sessionId,
+    trackWindowProfile: options.trackWindowProfile,
   });
 
-  // Out-of-order commit at the same media sequence — the contiguous-prefix
+  // Out-of-order commit at the same sequence number — the contiguous-prefix
   // rule means no parts qualify for the manifest yet. The commit is still
   // recorded in state.commits; the cursor stays at whatever it was, and
   // the next contiguous commit will advance it.
@@ -93,10 +96,8 @@ function advanceAndRetain(
   const partNumber = lastVisiblePartNumber(committedWindow);
   const candidateCursor = createCursor({
     committedWindow,
-    latencyProfile: options.state.session.latencyProfile,
-    mediaBaseUrl: options.state.mediaBaseUrl,
-    partTarget: options.state.session.partTarget,
-    segmentTarget: options.state.session.segmentTarget,
+    deliveryBaseUrl: options.state.deliveryBaseUrl,
+    profile: options.state.session.profile,
     sessionId: options.state.session.sessionId,
     state: options.state.session.state,
     updatedAt: options.commit.committedAt,

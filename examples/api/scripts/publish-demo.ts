@@ -1,4 +1,8 @@
 import {
+  CMAF_LLHLS_PROFILE_ID,
+  type MediaSession,
+} from "@arsenstorm/olos/media";
+import {
   commitS3RuntimeUpload,
   issueS3RuntimeUploadGrant,
 } from "@arsenstorm/olos/s3";
@@ -6,13 +10,13 @@ import {
   createPublisherDeliveryUrl,
   createPublisherObjectKey,
 } from "@arsenstorm/olos/state";
-import type { Byterange, Session } from "@arsenstorm/olos/types";
+import type { Byterange } from "@arsenstorm/olos/types";
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:8787";
 const INGEST_KEY = process.env.INGEST_KEY ?? "dev-key";
 const MEDIA_ORIGIN = process.env.MEDIA_ORIGIN ?? "https://localhost:8787";
 const SESSION_ID = `demo_${Date.now()}`;
-const RENDITION_ID = "v1080";
+const TRACK_ID = "v1080";
 const FIRST_SEGMENT_MSN = 1000;
 const PARTS_PER_SEGMENT = 4;
 const PART_SECONDS = 0.5;
@@ -20,6 +24,11 @@ const SEGMENT_SECONDS = PART_SECONDS * PARTS_PER_SEGMENT;
 const PART_BYTES_LENGTH = 4096;
 const INIT_BYTES = new Uint8Array(1024);
 const LIVE_WINDOW_SEGMENTS = 6;
+
+// Object keys carry the conventional CMAF extensions (`init.mp4`, `.m4s`).
+// The segment slot and its part slots must agree on the extension (and the
+// nonce) so the coordinator derives the same address as `segmentObjectKey`.
+const OBJECT_EXTENSIONS = { init: "mp4", part: "m4s", segment: "m4s" } as const;
 
 const ingestHeaders = {
   authorization: `Bearer ${INGEST_KEY}`,
@@ -35,9 +44,9 @@ interface ObjectFixture {
   independent: boolean;
   kind: "init" | "part" | "segment";
   maxBytes: number;
-  mediaSequenceNumber: number;
   objectKeyNonce?: string;
   partNumber?: number;
+  sequenceNumber: number;
   slotId: string;
 }
 
@@ -47,10 +56,11 @@ function segmentNonce(msn: number): string {
 
 function segmentObjectKey(msn: number): string {
   return createPublisherObjectKey({
+    extension: OBJECT_EXTENSIONS.segment,
     kind: "segment",
-    mediaSequenceNumber: msn,
+    sequenceNumber: msn,
     objectKeyNonce: segmentNonce(msn),
-    renditionId: RENDITION_ID,
+    trackId: TRACK_ID,
   });
 }
 
@@ -96,30 +106,34 @@ async function main(): Promise<void> {
 }
 
 async function createSession(): Promise<void> {
-  const session: Session = {
+  const session: MediaSession = {
     createdAt: new Date().toISOString(),
     epoch: 1,
-    latencyProfile: "object-ll",
     olos: "1.0",
-    partTarget: PART_SECONDS,
-    renditions: [
+    profile: {
+      id: CMAF_LLHLS_PROFILE_ID,
+      partTarget: PART_SECONDS,
+      segmentTarget: SEGMENT_SECONDS,
+    },
+    tracks: [
       {
-        bitrate: 5_000_000,
-        codec: "avc1.640028",
-        frameRate: 30,
-        height: 1080,
-        kind: "video",
-        renditionId: RENDITION_ID,
-        width: 1920,
+        profile: {
+          bitrate: 5_000_000,
+          codec: "avc1.640028",
+          frameRate: 30,
+          height: 1080,
+          kind: "video",
+          width: 1920,
+        },
+        trackId: TRACK_ID,
       },
     ],
-    segmentTarget: SEGMENT_SECONDS,
     sessionId: SESSION_ID,
     state: "live",
   };
 
   const response = await fetch(`${BASE_URL}/sessions`, {
-    body: JSON.stringify({ mediaBaseUrl: MEDIA_ORIGIN, session }),
+    body: JSON.stringify({ deliveryBaseUrl: MEDIA_ORIGIN, session }),
     headers: ingestHeaders,
     method: "POST",
   });
@@ -163,18 +177,19 @@ async function issueGrant(object: ObjectFixture): Promise<{
         ? {}
         : { byterange: object.byterange }),
       contentType: object.contentType,
-      duration: object.duration,
       expiresAt,
+      extension: OBJECT_EXTENSIONS[object.kind],
       kind: object.kind,
       maxBytes: object.maxBytes,
-      mediaSequenceNumber: object.mediaSequenceNumber,
+      sequenceNumber: object.sequenceNumber,
       ...(object.objectKeyNonce === undefined
         ? {}
         : { objectKeyNonce: object.objectKeyNonce }),
       ...(object.partNumber === undefined
         ? {}
         : { partNumber: object.partNumber }),
-      renditionId: RENDITION_ID,
+      profile: { duration: object.duration },
+      trackId: TRACK_ID,
       slotId: object.slotId,
     },
     sessionId: SESSION_ID,
@@ -197,9 +212,9 @@ async function commitObject(
     payload: {
       commitId: object.commitId,
       committedAt: new Date().toISOString(),
-      independent: object.independent,
       maxSegments: LIVE_WINDOW_SEGMENTS,
       objectKey,
+      profile: { independent: object.independent },
       slotId: object.slotId,
     },
     sessionId: SESSION_ID,
@@ -208,7 +223,7 @@ async function commitObject(
 
 async function fetchManifest(): Promise<string> {
   const response = await fetch(
-    `${BASE_URL}/v1/live/${SESSION_ID}/${RENDITION_ID}/media.m3u8`
+    `${BASE_URL}/v1/live/${SESSION_ID}/${TRACK_ID}/media.m3u8`
   );
 
   if (!response.ok) {
@@ -226,7 +241,7 @@ async function runBlockingReload(): Promise<void> {
   // request should unblock once those parts land.
   const nextMsn = FIRST_SEGMENT_MSN + 2;
   const blockingUrl =
-    `${BASE_URL}/v1/live/${SESSION_ID}/${RENDITION_ID}/media.m3u8` +
+    `${BASE_URL}/v1/live/${SESSION_ID}/${TRACK_ID}/media.m3u8` +
     `?_HLS_msn=${nextMsn}`;
 
   const startedAtMs = Date.now();
@@ -256,7 +271,7 @@ async function verifyVirtualSegment(): Promise<void> {
   // Sanity-check the byterange Worker route by asking for the full virtual
   // segment + a small interior Range.
   const msn = FIRST_SEGMENT_MSN;
-  const url = `${BASE_URL}/v/${SESSION_ID}/${RENDITION_ID}/${msn}.m4s`;
+  const url = `${BASE_URL}/v/${SESSION_ID}/${TRACK_ID}/${msn}.m4s`;
 
   const full = await fetch(url);
   if (!full.ok) {
@@ -297,7 +312,7 @@ function initObject(): ObjectFixture {
     independent: false,
     kind: "init",
     maxBytes: 2048,
-    mediaSequenceNumber: 0,
+    sequenceNumber: 0,
     slotId: `${SESSION_ID}_slot_init`,
   };
 }
@@ -325,7 +340,7 @@ function partObject(
     independent: true,
     kind: "part",
     maxBytes: PART_BYTES_LENGTH,
-    mediaSequenceNumber: msn,
+    sequenceNumber: msn,
     objectKeyNonce: segmentNonce(msn),
     partNumber,
     slotId: `${SESSION_ID}_slot_${msn}_part_${partNumber}`,
@@ -345,7 +360,7 @@ function makeSegmentObject(msn: number, totalBytes: number): ObjectFixture {
     independent: true,
     kind: "segment",
     maxBytes: totalBytes,
-    mediaSequenceNumber: msn,
+    sequenceNumber: msn,
     objectKeyNonce: segmentNonce(msn),
     slotId: `${SESSION_ID}_slot_${msn}`,
   };

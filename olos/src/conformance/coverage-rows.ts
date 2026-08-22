@@ -61,7 +61,7 @@ export const OLOS_CONFORMANCE_COVERAGE_ROWS = [
   ["CORE-RUNTIME-009", "runtime", "src/runtime/publisher-plan.test.ts"],
   ["CORE-RUNTIME-010", "runtime", "src/runtime/publisher-expiry.test.ts"],
   ["CORE-RUNTIME-011", "runtime", "src/runtime/health.test.ts"],
-  ["CORE-RUNTIME-012", "runtime", "src/runtime/latency-profile.test.ts"],
+  ["CORE-RUNTIME-012", "runtime", "src/media/latency-profile.test.ts"],
   ["CORE-RUNTIME-013", "runtime", "src/runtime/publisher-cadence.test.ts"],
   ["CORE-RUNTIME-014", "runtime", "src/runtime/publisher-cadence.test.ts"],
   ["CORE-RUNTIME-015", "runtime", "src/runtime/publisher.test.ts"],

@@ -2,10 +2,10 @@ import type { S3GetObjectClient } from "@arsenstorm/olos/s3";
 import type { GetObjectCommandOutput } from "@aws-sdk/client-s3";
 import { GetObjectCommand, NoSuchKey } from "@aws-sdk/client-s3";
 
-// URL path == S3 key. The 0.4.0 coordinator's derived objectKey includes
-// the `media/` prefix, and the manifest's deliveryUrl is
-// `${mediaBaseUrl}/${objectKey}` — so `/media/v1080/s3810.m4s` in the URL
-// is `media/v1080/s3810.m4s` in S3, verbatim.
+// URL path == S3 key. The coordinator's derived objectKey includes the
+// `objects/` prefix, and the manifest's deliveryUrl is
+// `${deliveryBaseUrl}/${objectKey}` — so `/objects/v1080/s3810.m4s` in the
+// URL is `objects/v1080/s3810.m4s` in S3, verbatim.
 export async function proxyMediaObject(
   request: Request,
   env: Env,

@@ -1,6 +1,6 @@
 import { isEndOfStreamSessionState } from "../state/session";
 import type { Cursor } from "../types/cursor";
-import type { MediaSequenceNumber, PartNumber } from "../types/ids";
+import type { PartNumber, SequenceNumber } from "../types/ids";
 import { assertCursor } from "../validation/cursor";
 import { nonNegativeNumber } from "../validation/fields";
 import {
@@ -22,20 +22,20 @@ export const SEGMENT_ONLY_LIVE_EDGE_PART = Number.MAX_SAFE_INTEGER;
  * Blocking playlist reload directives parsed from an LL-HLS media playlist
  * request's `_HLS_msn` and `_HLS_part` query parameters. An empty object means
  * the request carried no blocking directives and can be served immediately.
- * A `partNumber` without a `mediaSequenceNumber` is rejected as invalid by
+ * A `partNumber` without a `sequenceNumber` is rejected as invalid by
  * `resolveHlsBlockingReload`.
  */
 export interface HlsBlockingReloadRequest {
-  mediaSequenceNumber?: MediaSequenceNumber;
   partNumber?: PartNumber;
+  sequenceNumber?: SequenceNumber;
   /**
-   * When set, comparisons use this rendition's own committed-window bounds
+   * When set, comparisons use this track's own committed-window bounds
    * (its last visible segment and part) instead of the window-global
-   * `cursor.window` bounds — a lagging rendition then blocks until its own
+   * `cursor.window` bounds — a lagging track then blocks until its own
    * playlist changes. `parseHlsBlockingReloadRequest` never sets this;
-   * callers attach it after matching the request path to a rendition.
+   * callers attach it after matching the request path to a track.
    */
-  renditionId?: string;
+  trackId?: string;
 }
 
 /**
@@ -252,14 +252,14 @@ function remainingHlsBlockingReloadMs(
 
 /**
  * Synchronously decides whether a blocking reload request is servable against
- * the given cursor. Requests without `mediaSequenceNumber` are `ready`
+ * the given cursor. Requests without `sequenceNumber` are `ready`
  * immediately (`_HLS_part` alone is `invalid`). A request is `block` when its
  * media sequence number is past the live edge's last committed one, or when
  * it targets the last committed segment and asks for a part beyond that
  * segment's live edge; part requests never block on segment-only edges (no
  * committed parts). The live edge is `cursor.window`, or — when the request
- * carries a `renditionId` — that rendition's own committed-window bounds
- * (a rendition absent from the window blocks any `_HLS_msn` request).
+ * carries a `trackId` — that track's own committed-window bounds
+ * (a track absent from the window blocks any `_HLS_msn` request).
  * Throws if `cursor` is malformed.
  */
 export function resolveHlsBlockingReload(

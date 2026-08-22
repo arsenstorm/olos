@@ -52,7 +52,7 @@ export function createDeliveryCachePolicy(
 ): DeliveryCachePolicy {
   assertOptionalProviderCapability(options.capability);
 
-  if (isMediaObjectCacheTarget(options.target)) {
+  if (isStorageObjectCacheTarget(options.target)) {
     return createMediaObjectCachePolicy(options);
   }
 
@@ -107,7 +107,7 @@ function createFreshnessBoundCachePolicy(
   };
 }
 
-function isMediaObjectCacheTarget(target: DeliveryCacheTarget): boolean {
+function isStorageObjectCacheTarget(target: DeliveryCacheTarget): boolean {
   return target === "media-object";
 }
 

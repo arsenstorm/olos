@@ -1,141 +1,143 @@
-import type { Rendition, Session } from "../types/session";
+import type {
+  MediaSession,
+  MediaTrack,
+  MediaTrackProfile,
+} from "../media/types";
+import { assertMediaSession } from "../media/validation";
+import type { Session, Track } from "../types/session";
 import {
-  assertDistinctAudioRenditionNames,
-  assertSessionShape,
   defaultMediaPlaylistPath,
   distinct,
-  isAudioRendition,
-  isGroupedAudioRendition,
-  isVideoRendition,
+  isAudioTrack,
+  isGroupedAudioTrack,
+  isVideoTrack,
   renderAudioGroupEntries,
   renderVariantEntry,
-} from "./master-playlist-renditions";
+} from "./master-playlist-tracks";
 
 /** Options for `renderMasterPlaylist`. */
 export interface RenderMasterPlaylistOptions {
   /**
-   * When set, only video and grouped-audio renditions whose id is in this
+   * When set, only video and grouped-audio tracks whose id is in this
    * set render as variants or `#EXT-X-MEDIA` entries — typically the
-   * rendition ids present in the committed window, so the master only
-   * advertises playlists that resolve. Ungrouped (muxed) audio renditions
+   * track ids present in the committed window, so the master only
+   * advertises playlists that resolve. Ungrouped (muxed) audio tracks
    * are codec metadata and are never filtered. Omitted, every session
-   * rendition renders.
+   * track renders.
    */
-  availableRenditionIds?: readonly string[];
+  availableTrackIds?: readonly string[];
   /**
-   * Maps a rendition to the media playlist path written into the playlist.
-   * Defaults to `/v1/live/{sessionId}/{renditionId}/media.m3u8`. Paths must
+   * Maps a track to the media playlist path written into the playlist.
+   * Defaults to `/v1/live/{sessionId}/{trackId}/media.m3u8`. Paths must
    * be safe root-relative paths.
    */
-  mediaPlaylistPath?: (session: Session, rendition: Rendition) => string;
+  mediaPlaylistPath?: (session: Session, track: Track) => string;
 }
 
-export type AudioRendition = Rendition & { kind: "audio" };
-export type GroupedAudioRendition = AudioRendition & { groupId: string };
-export type VideoRendition = Rendition & { kind: "video" };
+export type AudioTrack = MediaTrack & {
+  profile: MediaTrackProfile & { kind: "audio" };
+};
+export type GroupedAudioTrack = AudioTrack & {
+  profile: AudioTrack["profile"] & { groupId: string };
+};
+export type VideoTrack = MediaTrack & {
+  profile: MediaTrackProfile & { kind: "video" };
+};
 
 export interface AudioGroup {
-  defaultRenditionId: string;
+  defaultTrackId: string;
   groupId: string;
-  renditions: readonly GroupedAudioRendition[];
+  tracks: readonly GroupedAudioTrack[];
 }
 
-export interface MasterPlaylistRenditions {
+export interface MasterPlaylistTracks {
   audioGroup?: AudioGroup;
   variantAudioCodecs: readonly string[];
-  videoRenditions: readonly VideoRendition[];
+  videoTracks: readonly VideoTrack[];
 }
 
 /**
  * Renders the session's master (multivariant) playlist with one
- * `#EXT-X-STREAM-INF` entry per video rendition. Audio renditions that
+ * `#EXT-X-STREAM-INF` entry per video track. Audio tracks that
  * declare a `groupId` render as selectable `#EXT-X-MEDIA` entries and the
  * variants reference the group through their `AUDIO` attribute; without
  * group IDs, every audio codec is folded into every variant's `CODECS`
  * attribute (legacy muxed audio) and no `#EXT-X-MEDIA` lines are emitted.
- * `availableRenditionIds` narrows the rendered set (session shape and
- * grouping rules are still validated against the full session first).
- * Throws when the session shape is invalid, there is no video rendition, a
- * video rendition lacks `bitrate` or defines only one of `width`/`height`,
- * grouped and ungrouped audio renditions are mixed, more than one audio
- * group is declared, or the filter removes every video rendition.
+ * `availableTrackIds` narrows the rendered set (the session is validated
+ * as a CMAF/LL-HLS media session in full first, including the audio-group
+ * rules). Throws when the session is not a valid media session, there is
+ * no video track, a video track lacks `bitrate`, or the filter removes
+ * every video track.
  */
 export function renderMasterPlaylist(
   session: Session,
   options: RenderMasterPlaylistOptions = {}
 ): string {
-  assertSessionShape(session);
+  assertMediaSession(session);
 
-  const renditions = masterPlaylistRenditions(
-    session,
-    options.availableRenditionIds
-  );
+  const tracks = masterPlaylistTracks(session, options.availableTrackIds);
   const mediaPlaylistPath =
     options.mediaPlaylistPath ?? defaultMediaPlaylistPath;
   const lines = ["#EXTM3U", "#EXT-X-VERSION:10", "#EXT-X-INDEPENDENT-SEGMENTS"];
 
-  lines.push(
-    ...renderAudioGroupEntries(session, renditions, mediaPlaylistPath)
-  );
+  lines.push(...renderAudioGroupEntries(session, tracks, mediaPlaylistPath));
 
-  for (const rendition of renditions.videoRenditions) {
+  for (const track of tracks.videoTracks) {
     lines.push(
-      ...renderVariantEntry(session, rendition, renditions, mediaPlaylistPath)
+      ...renderVariantEntry(session, track, tracks, mediaPlaylistPath)
     );
   }
 
   return `${lines.join("\n")}\n`;
 }
 
-function masterPlaylistRenditions(
-  session: Session,
-  availableRenditionIds?: readonly string[]
-): MasterPlaylistRenditions {
-  const audioRenditions = session.renditions.filter(isAudioRendition);
-  const videoRenditions = session.renditions.filter(isVideoRendition);
+function masterPlaylistTracks(
+  session: MediaSession,
+  availableTrackIds?: readonly string[]
+): MasterPlaylistTracks {
+  const audioTracks = session.tracks.filter(isAudioTrack);
+  const videoTracks = session.tracks.filter(isVideoTrack);
 
-  if (videoRenditions.length === 0) {
-    throw new Error(
-      "session.renditions must include at least one video rendition"
-    );
+  if (videoTracks.length === 0) {
+    throw new Error("session.tracks must include at least one video track");
   }
 
-  // Grouping rules are validated against the full session; the availability
+  // The audio group is resolved from the full session; the availability
   // filter below only narrows what renders.
-  const audioGroup = resolveAudioGroup(audioRenditions);
+  const audioGroup = resolveAudioGroup(audioTracks);
 
-  if (availableRenditionIds === undefined) {
+  if (availableTrackIds === undefined) {
     return {
       audioGroup,
       variantAudioCodecs: audioGroup
-        ? distinct(audioGroup.renditions.map((rendition) => rendition.codec))
-        : audioRenditions.map((rendition) => rendition.codec),
-      videoRenditions,
+        ? distinct(audioGroup.tracks.map((track) => track.profile.codec))
+        : audioTracks.map((track) => track.profile.codec),
+      videoTracks,
     };
   }
 
-  return availablePlaylistRenditions(new Set(availableRenditionIds), {
+  return availablePlaylistTracks(new Set(availableTrackIds), {
     audioGroup,
-    audioRenditions,
-    videoRenditions,
+    audioTracks,
+    videoTracks,
   });
 }
 
-/** Narrow the validated rendition set to what the window actually carries. */
-function availablePlaylistRenditions(
+/** Narrow the validated track set to what the window actually carries. */
+function availablePlaylistTracks(
   available: ReadonlySet<string>,
   all: {
-    audioGroup: MasterPlaylistRenditions["audioGroup"];
-    audioRenditions: readonly AudioRendition[];
-    videoRenditions: readonly VideoRendition[];
+    audioGroup: MasterPlaylistTracks["audioGroup"];
+    audioTracks: readonly AudioTrack[];
+    videoTracks: readonly VideoTrack[];
   }
-): MasterPlaylistRenditions {
-  const availableVideoRenditions = all.videoRenditions.filter((rendition) =>
-    available.has(rendition.renditionId)
+): MasterPlaylistTracks {
+  const availableVideoTracks = all.videoTracks.filter((track) =>
+    available.has(track.trackId)
   );
 
-  if (availableVideoRenditions.length === 0) {
-    throw new Error("no video rendition is available to render");
+  if (availableVideoTracks.length === 0) {
+    throw new Error("no video track is available to render");
   }
 
   const availableAudioGroup = filterAudioGroup(all.audioGroup, available);
@@ -145,19 +147,19 @@ function availablePlaylistRenditions(
     variantAudioCodecs: resolveVariantAudioCodecs(
       all.audioGroup,
       availableAudioGroup,
-      all.audioRenditions
+      all.audioTracks
     ),
-    videoRenditions: availableVideoRenditions,
+    videoTracks: availableVideoTracks,
   };
 }
 
-// Grouped audio renditions absent from the availability set are dropped
+// Grouped audio tracks absent from the availability set are dropped
 // from rendering, but the session-elected default keeps its seat: while the
 // elected default has no committed media, every rendered member carries
 // DEFAULT=NO,AUTOSELECT=NO (spec-legal and deterministic) instead of
 // re-electing a temporary default that would flip back once the elected
 // default commits. A group with no available member is not advertised at
-// all. Ungrouped (muxed) audio renditions describe codecs inside the video
+// all. Ungrouped (muxed) audio tracks describe codecs inside the video
 // segments, so they are never filtered.
 function filterAudioGroup(
   group: AudioGroup | undefined,
@@ -167,73 +169,55 @@ function filterAudioGroup(
     return;
   }
 
-  const renditions = group.renditions.filter((rendition) =>
-    available.has(rendition.renditionId)
-  );
+  const tracks = group.tracks.filter((track) => available.has(track.trackId));
 
-  if (renditions.length === 0) {
+  if (tracks.length === 0) {
     return;
   }
 
   return {
-    defaultRenditionId: group.defaultRenditionId,
+    defaultTrackId: group.defaultTrackId,
     groupId: group.groupId,
-    renditions,
+    tracks,
   };
 }
 
 function resolveVariantAudioCodecs(
   audioGroup: AudioGroup | undefined,
   availableAudioGroup: AudioGroup | undefined,
-  audioRenditions: readonly AudioRendition[]
+  audioTracks: readonly AudioTrack[]
 ): readonly string[] {
   if (audioGroup === undefined) {
-    return audioRenditions.map((rendition) => rendition.codec);
+    return audioTracks.map((track) => track.profile.codec);
   }
 
   return availableAudioGroup === undefined
     ? []
-    : distinct(availableAudioGroup.renditions.map((r) => r.codec));
+    : distinct(availableAudioGroup.tracks.map((r) => r.profile.codec));
 }
 
 // Sessions without audio group IDs keep the legacy rendering: every audio
 // codec muxed into every variant's CODECS attribute and no EXT-X-MEDIA lines.
-// Once any audio rendition declares a groupId, all of them must (mixed
-// sessions are rejected) and the group renders as selectable EXT-X-MEDIA
-// entries referenced by the variants' AUDIO attribute.
+// Once any audio track declares a groupId the group renders as selectable
+// EXT-X-MEDIA entries referenced by the variants' AUDIO attribute. The
+// grouping invariants (no mixing, one group, one default, distinct names)
+// are enforced by `assertMediaSession` before this runs.
 function resolveAudioGroup(
-  audioRenditions: readonly AudioRendition[]
+  audioTracks: readonly AudioTrack[]
 ): AudioGroup | undefined {
-  const grouped = audioRenditions.filter(isGroupedAudioRendition);
+  const grouped = audioTracks.filter(isGroupedAudioTrack);
   const [first] = grouped;
 
   if (first === undefined) {
     return;
   }
 
-  if (grouped.length !== audioRenditions.length) {
-    throw new Error(
-      "session.renditions must not mix grouped and ungrouped audio renditions"
-    );
-  }
-
-  if (distinct(grouped.map((rendition) => rendition.groupId)).length > 1) {
-    throw new Error("multiple audio groups are not supported");
-  }
-
-  assertDistinctAudioRenditionNames(grouped);
-
-  const defaultRendition =
-    grouped.find((rendition) => rendition.defaultRendition === true) ?? first;
+  const defaultTrack =
+    grouped.find((track) => track.profile.defaultTrack === true) ?? first;
 
   return {
-    defaultRenditionId: defaultRendition.renditionId,
-    groupId: first.groupId,
-    renditions: grouped,
+    defaultTrackId: defaultTrack.trackId,
+    groupId: first.profile.groupId,
+    tracks: grouped,
   };
 }
-
-// Render-time defense for sessions that skipped assertSession: duplicate
-// effective NAMEs (name ?? renditionId) within a group are ambiguous to
-// players (RFC 8216 §4.3.4.1.1). The full group is checked, so any
-// availability-filtered subset of distinct names stays distinct.

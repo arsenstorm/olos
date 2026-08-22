@@ -7,16 +7,16 @@ const validUploadSlot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl:
     "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p3.m4s",
-  duration: 0.5,
+  profile: { duration: 0.5 },
   epoch: 1,
   expiresAt: "2026-06-08T12:00:05Z",
   kind: "part",
   maxBytes: 524_288,
-  mediaSequenceNumber: 3812,
+  sequenceNumber: 3812,
   minBytes: 1024,
   objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
   partNumber: 3,
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "sess_01JZLIVE",
   slotId: "slot_01JZ",
   state: "issued",
@@ -85,8 +85,8 @@ describe("upload slot validation", () => {
 
   test("rejects invalid sequence numbers", () => {
     expect(() =>
-      assertUploadSlot({ ...validUploadSlot, mediaSequenceNumber: -1 })
-    ).toThrow("uploadSlot.mediaSequenceNumber must be a non-negative integer");
+      assertUploadSlot({ ...validUploadSlot, sequenceNumber: -1 })
+    ).toThrow("uploadSlot.sequenceNumber must be a non-negative integer");
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, partNumber: -1 })
     ).toThrow("uploadSlot.partNumber must be a non-negative integer");
@@ -118,20 +118,19 @@ describe("upload slot validation", () => {
     }
   });
 
-  test("rejects unsupported media object extensions", () => {
+  test("accepts object keys with any extension", () => {
     expect(() =>
-      assertUploadSlot({ ...validUploadSlot, objectKey: "media/key.html" })
-    ).toThrow("uploadSlot.objectKey must use a supported media extension");
+      assertUploadSlot({ ...validUploadSlot, objectKey: "media/key.json" })
+    ).not.toThrow();
     expect(() =>
-      assertUploadSlot({ ...validUploadSlot, objectKey: "media/playlist.m3u8" })
-    ).toThrow("uploadSlot.objectKey must use a supported media extension");
+      assertUploadSlot({ ...validUploadSlot, objectKey: "media/key" })
+    ).not.toThrow();
+  });
+
+  test("rejects non-object profiles", () => {
     expect(() =>
-      assertUploadSlot({
-        ...validUploadSlot,
-        kind: "init",
-        objectKey: "media/init.m4s",
-      })
-    ).toThrow("uploadSlot.objectKey must use a supported media extension");
+      assertUploadSlot({ ...validUploadSlot, profile: 0.5 })
+    ).toThrow("uploadSlot.profile must be an object");
   });
 
   test("rejects invalid content types", () => {

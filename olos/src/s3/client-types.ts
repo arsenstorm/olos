@@ -2,6 +2,7 @@ import type { RuntimeHttpClientOptions } from "../runtime/client-types";
 import type { RuntimeSlotIssuePayload } from "../runtime/slot-issue-payload";
 import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
+import type { ProfileData } from "../types/profile";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
 import type {
@@ -67,12 +68,12 @@ export interface S3RuntimeCommitPayload {
   commitId: string;
   /** ISO 8601 timestamp recorded as the commit time. */
   committedAt: string;
-  independent?: boolean;
   lateToleranceMs?: number;
   maxSegments?: number;
   /** Expected object key; the commit is rejected if it mismatches the slot. */
   objectKey?: string;
-  programDateTime?: string;
+  /** Profile-defined facts about the object, merged over the slot profile. */
+  profile?: ProfileData;
   providerId?: string;
   slotId: string;
   /** S3 object version to observe instead of the latest. */
@@ -83,10 +84,10 @@ export interface S3RuntimeCommitPayload {
 export interface S3RuntimeReconciliationPayload {
   /** ISO 8601 timestamp recorded on every commit the sweep produces. */
   committedAt: string;
-  independent?: boolean;
   lateToleranceMs?: number;
   maxSegments?: number;
-  programDateTime?: string;
+  /** Profile-defined facts about the object, merged over the slot profile. */
+  profile?: ProfileData;
   providerId?: string;
   /** Restricts the sweep to these slots; omitted, every eligible slot. */
   slotIds?: readonly string[];
@@ -114,11 +115,11 @@ export interface S3RuntimeCompletionHintPayload {
   commitId?: string;
   committedAt?: string;
   etag?: string;
-  independent?: boolean;
   lateToleranceMs?: number;
   maxSegments?: number;
   objectKey?: string;
-  programDateTime?: string;
+  /** Profile-defined facts about the object, merged over the slot profile. */
+  profile?: ProfileData;
   providerId?: string;
   size?: number;
   versionId?: string;

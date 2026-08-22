@@ -4,6 +4,7 @@ import type {
   CoordinatorPipelineState,
   CoordinatorUploadCommit,
 } from "../protocol/coordinator-types";
+import type { CreateCommittedWindowOptions } from "../state/committed-window";
 import { createObservedUpload } from "../state/observed-upload";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosError } from "../types/errors";
@@ -41,6 +42,8 @@ export interface CommitCoordinatorUploadFromRequestOptions {
   request: RuntimeCommitRequest;
   /** Coordinator state the commit is applied to (not mutated in place). */
   state: CoordinatorPipelineState;
+  /** Profile hook for track window `profile` data; see `createCommittedWindow`. */
+  trackWindowProfile?: CreateCommittedWindowOptions["trackWindowProfile"];
 }
 
 /**
@@ -106,6 +109,7 @@ export async function commitCoordinatorUploadFromRequest(
       object: createObservedUpload(payload.value.object),
       publicationControl: options.publicationControl,
       state: options.state,
+      trackWindowProfile: options.trackWindowProfile,
     });
 
     if (isRejectedCoordinatorUploadCommit(committed)) {

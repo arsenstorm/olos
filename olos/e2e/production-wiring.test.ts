@@ -1,11 +1,11 @@
-import { createMemoryCoordinatorStore } from "@arsenstorm/olos/protocol";
 import {
-  createMemoryRuntimeCursorNotifier,
   createRuntimeObjectLowLatencyManifestOptions,
   createRuntimeObjectLowLatencyProfile,
-} from "@arsenstorm/olos/runtime";
+  type MediaSession,
+} from "@arsenstorm/olos/media";
+import { createMemoryCoordinatorStore } from "@arsenstorm/olos/protocol";
+import { createMemoryRuntimeCursorNotifier } from "@arsenstorm/olos/runtime";
 import { createStoredS3CoordinatorRuntimeHandler } from "@arsenstorm/olos/s3";
-import type { Session } from "@arsenstorm/olos/types";
 import { describe, expect, test } from "vitest";
 import {
   createTestDeleteObjectClient,
@@ -24,7 +24,7 @@ describe("production object pipeline wiring", () => {
     const notifier = createMemoryRuntimeCursorNotifier();
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
-      allowedMediaOrigins: ["https://media.example.com"],
+      allowedDeliveryOrigins: ["https://media.example.com"],
       publicationMode: "read-gated",
       blockingReload: {
         timeoutMs: latency.blockingReloadTimeoutMs,
@@ -55,7 +55,7 @@ describe("production object pipeline wiring", () => {
       await status(
         handle(
           jsonRequest("https://edge.example.com/sessions", {
-            mediaBaseUrl,
+            deliveryBaseUrl,
             session,
           })
         )
@@ -163,26 +163,30 @@ describe("production object pipeline wiring", () => {
 const session = {
   createdAt: "2026-01-01T00:00:00.000Z",
   epoch: 1,
-  latencyProfile: latency.latencyProfile,
   olos: "1.0",
-  partTarget: latency.partTarget,
-  renditions: [
+  profile: {
+    id: "cmaf-llhls",
+    partTarget: latency.partTarget,
+    segmentTarget: latency.segmentTarget,
+  },
+  tracks: [
     {
-      bitrate: 5_000_000,
-      codec: "avc1.640028",
-      frameRate: 30,
-      height: 1080,
-      kind: "video",
-      renditionId: "v1080",
-      width: 1920,
+      profile: {
+        bitrate: 5_000_000,
+        codec: "avc1.640028",
+        frameRate: 30,
+        height: 1080,
+        kind: "video",
+        width: 1920,
+      },
+      trackId: "v1080",
     },
   ],
-  segmentTarget: latency.segmentTarget,
   sessionId: "session_1",
   state: "live",
-} satisfies Session;
+} satisfies MediaSession;
 
-const mediaBaseUrl = "https://media.example.com";
+const deliveryBaseUrl = "https://media.example.com";
 
 interface ObjectFixture {
   commitId: string;
@@ -191,8 +195,8 @@ interface ObjectFixture {
   kind: "init" | "segment";
   maxBytes: number;
   maxSegments?: number;
-  mediaSequenceNumber: number;
   objectKey: string;
+  sequenceNumber: number;
   slotId: string;
 }
 
@@ -202,7 +206,7 @@ const initObject: ObjectFixture = {
   duration: 1,
   kind: "init",
   maxBytes: 2048,
-  mediaSequenceNumber: 0,
+  sequenceNumber: 0,
   objectKey: "media/v1080/init.mp4",
   slotId: "slot_init",
 };
@@ -214,7 +218,7 @@ const firstSegment: ObjectFixture = {
   kind: "segment",
   maxBytes: 100_000,
   maxSegments: 1,
-  mediaSequenceNumber: 3810,
+  sequenceNumber: 3810,
   objectKey: "media/v1080/s3810.m4s",
   slotId: "slot_3810",
 };
@@ -226,7 +230,7 @@ const secondSegment: ObjectFixture = {
   kind: "segment",
   maxBytes: 100_000,
   maxSegments: 1,
-  mediaSequenceNumber: 3811,
+  sequenceNumber: 3811,
   objectKey: "media/v1080/s3811.m4s",
   slotId: "slot_3811",
 };
@@ -238,12 +242,14 @@ async function issueObject(
   const response = await handle(
     jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", {
       contentType: "video/mp4",
-      duration: object.duration,
       expiresAt: "2026-01-01T00:00:05.000Z",
+      extension: object.kind === "init" ? "mp4" : "m4s",
       kind: object.kind,
+      objectKeyPrefix: "media",
+      profile: { duration: object.duration },
       maxBytes: object.maxBytes,
-      mediaSequenceNumber: object.mediaSequenceNumber,
-      renditionId: "v1080",
+      sequenceNumber: object.sequenceNumber,
+      trackId: "v1080",
       slotId: object.slotId,
     })
   );
@@ -265,7 +271,7 @@ async function publishObject(
     jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
       commitId: object.commitId,
       committedAt: "2026-01-01T00:00:02.000Z",
-      independent: object.kind === "segment",
+      profile: { independent: object.kind === "segment" },
       maxSegments: object.maxSegments,
       slotId: object.slotId,
     })

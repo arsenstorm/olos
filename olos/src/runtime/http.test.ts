@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { createMemoryCoordinatorStore } from "../protocol/coordinator-memory-store";
 import {
-  TEST_COORDINATOR_MEDIA_BASE_URL as mediaBaseUrl,
+  TEST_COORDINATOR_DELIVERY_BASE_URL as deliveryBaseUrl,
   testCoordinatorSession as session,
 } from "../protocol/coordinator-state.test-helper";
 import { createPublicationKillSwitch } from "../state/publication-control";
@@ -20,7 +20,7 @@ const MEDIA_ORIGIN = "https://media.example.com";
 describe("stored coordinator runtime handler", () => {
   test("rejects invalid runtime handler options", () => {
     const options = {
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated" as const,
       store: createMemoryCoordinatorStore(),
     };
@@ -28,17 +28,17 @@ describe("stored coordinator runtime handler", () => {
     expect(() =>
       createStoredCoordinatorRuntimeHandler({
         ...options,
-        allowedMediaOrigins: ["http://media.example.com"],
+        allowedDeliveryOrigins: ["http://media.example.com"],
         publicationMode: "read-gated",
       })
-    ).toThrow("allowedMediaOrigins must contain HTTPS origins");
+    ).toThrow("allowedDeliveryOrigins must contain HTTPS origins");
     expect(() =>
       createStoredCoordinatorRuntimeHandler({
         ...options,
-        allowedMediaOrigins: ["https://media.example.com/path"],
+        allowedDeliveryOrigins: ["https://media.example.com/path"],
         publicationMode: "read-gated",
       })
-    ).toThrow("allowedMediaOrigins must contain HTTPS origins");
+    ).toThrow("allowedDeliveryOrigins must contain HTTPS origins");
     expect(() =>
       createStoredCoordinatorRuntimeHandler({ ...options, livePath: "live" })
     ).toThrow("livePath must be a safe route path");
@@ -95,7 +95,7 @@ describe("stored coordinator runtime handler", () => {
   test("runs stored coordinator routes through Request and Response", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       now: () => "2026-01-01T00:00:06.000Z",
       store,
@@ -103,7 +103,7 @@ describe("stored coordinator runtime handler", () => {
 
     const created = await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -115,12 +115,12 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+          deliveryUrl: "https://media.example.com/objects/v1080/init",
           duration: 1,
           kind: "init",
           maxBytes: 2048,
-          mediaSequenceNumber: 0,
-          objectKey: "media/v1080/init.mp4",
+          sequenceNumber: 0,
+          objectKey: "objects/v1080/init",
           slotId: "slot_init",
         })
       )
@@ -129,12 +129,12 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
+          deliveryUrl: "https://media.example.com/objects/v1080/s3810",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
-          objectKey: "media/v1080/s3810.m4s",
+          sequenceNumber: 3810,
+          objectKey: "objects/v1080/s3810",
           slotId: "slot_3810",
         })
       )
@@ -143,12 +143,12 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/s3811.m4s",
+          deliveryUrl: "https://media.example.com/objects/v1080/s3811",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3811,
-          objectKey: "media/v1080/s3811.m4s",
+          sequenceNumber: 3811,
+          objectKey: "objects/v1080/s3811",
           slotId: "slot_3811",
         })
       )
@@ -163,7 +163,7 @@ describe("stored coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/commits",
         commitPayload({
           commitId: "commit_init",
-          objectKey: "media/v1080/init.mp4",
+          objectKey: "objects/v1080/init",
           size: 1024,
           slotId: "slot_init",
         })
@@ -173,7 +173,7 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload({
           commitId: "commit_3810",
-          objectKey: "media/v1080/s3810.m4s",
+          objectKey: "objects/v1080/s3810",
           size: 98_304,
           slotId: "slot_3810",
         }),
@@ -197,7 +197,7 @@ describe("stored coordinator runtime handler", () => {
     );
     expect(media.status).toBe(200);
     expect(await media.text()).toContain(
-      "https://media.example.com/media/v1080/s3810.m4s"
+      "https://media.example.com/objects/v1080/s3810"
     );
 
     const transitioned = await handle(
@@ -226,14 +226,14 @@ describe("stored coordinator runtime handler", () => {
   test("commits late uploads within configured route tolerance", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store,
     });
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -241,12 +241,12 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+          deliveryUrl: "https://media.example.com/objects/v1080/init",
           duration: 1,
           kind: "init",
           maxBytes: 2048,
-          mediaSequenceNumber: 0,
-          objectKey: "media/v1080/init.mp4",
+          sequenceNumber: 0,
+          objectKey: "objects/v1080/init",
           slotId: "slot_init",
         })
       )
@@ -255,7 +255,7 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload({
           commitId: "commit_init",
-          objectKey: "media/v1080/init.mp4",
+          objectKey: "objects/v1080/init",
           size: 1024,
           slotId: "slot_init",
         }),
@@ -265,12 +265,12 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
+          deliveryUrl: "https://media.example.com/objects/v1080/s3810",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
-          objectKey: "media/v1080/s3810.m4s",
+          sequenceNumber: 3810,
+          objectKey: "objects/v1080/s3810",
           slotId: "slot_3810",
         })
       )
@@ -278,7 +278,7 @@ describe("stored coordinator runtime handler", () => {
 
     const payload = commitPayload({
       commitId: "commit_3810",
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "objects/v1080/s3810",
       size: 98_304,
       slotId: "slot_3810",
     });
@@ -298,14 +298,14 @@ describe("stored coordinator runtime handler", () => {
 
     expect(response.status).toBe(201);
     expect(stored?.state.cursor?.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
   });
 
   test("returns route errors for unsupported requests", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
@@ -352,7 +352,7 @@ describe("stored coordinator runtime handler", () => {
 
   test("rejects malformed retention now query parameters", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
@@ -377,14 +377,14 @@ describe("stored coordinator runtime handler", () => {
 
   test("rejects unsafe session create media base URLs", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
     const response = await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl: "javascript:alert(1)",
+        deliveryBaseUrl: "javascript:alert(1)",
         session,
       })
     );
@@ -404,7 +404,7 @@ describe("stored coordinator runtime handler", () => {
       load: () => Promise.reject(new Error("D1_ERROR: connection refused")),
     };
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store: failingStore,
     });
@@ -424,7 +424,7 @@ describe("stored coordinator runtime handler", () => {
 
   test("rejects request bodies above the configured byte cap with 413", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       maxBodyBytes: 64,
       publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
@@ -432,7 +432,7 @@ describe("stored coordinator runtime handler", () => {
 
     const response = await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         padding: "x".repeat(256),
         session,
       })
@@ -449,7 +449,7 @@ describe("stored coordinator runtime handler", () => {
 
   test("returns specific errors for missing runtime sessions", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
@@ -487,7 +487,7 @@ describe("stored coordinator runtime handler", () => {
 
   test("rejects unsafe route session identifiers", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
@@ -521,7 +521,7 @@ describe("stored coordinator runtime handler", () => {
 
   test("rejects malformed route percent encoding", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
@@ -544,14 +544,14 @@ describe("stored coordinator runtime handler", () => {
 
   test("returns invalid responses for invalid session creation payloads", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
     const sessionResponse = await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session: { ...session, state: "paused" },
       })
     );
@@ -569,14 +569,14 @@ describe("stored coordinator runtime handler", () => {
 
   test("returns invalid responses for invalid session transition states", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -601,12 +601,12 @@ describe("stored coordinator runtime handler", () => {
   test("applies publication control to slot issuance", async () => {
     const store = createMemoryCoordinatorStore();
     const setup = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store,
     });
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       publicationControl: createPublicationKillSwitch("incident"),
       store,
@@ -614,7 +614,7 @@ describe("stored coordinator runtime handler", () => {
 
     await setup(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -623,12 +623,12 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
+          deliveryUrl: "https://media.example.com/objects/v1080/s3810",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3810,
-          objectKey: "media/v1080/s3810.m4s",
+          sequenceNumber: 3810,
+          objectKey: "objects/v1080/s3810",
           slotId: "slot_3810",
         })
       )
@@ -654,7 +654,7 @@ describe("stored coordinator runtime handler", () => {
   test("stores publisher heartbeats through the session route", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       now: () => "2026-01-01T00:00:02.000Z",
       publisherLeaseTtlMs: 3000,
@@ -663,7 +663,7 @@ describe("stored coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -702,7 +702,7 @@ describe("stored coordinator runtime handler", () => {
   test("uses injected clock when now callback is omitted", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       clock: () => "2026-01-01T00:00:03.000Z",
       publisherLeaseTtlMs: 3000,
@@ -711,7 +711,7 @@ describe("stored coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -738,7 +738,7 @@ describe("stored coordinator runtime handler", () => {
     await seedRuntimeStore(store, 3810);
 
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       now: () => "2026-01-01T00:00:06.500Z",
       store,
@@ -761,7 +761,7 @@ describe("stored coordinator runtime handler", () => {
   test("filters health by publisher instance query", async () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       now: () => "2026-01-01T00:00:02.000Z",
       publisherLeaseTtlMs: 3000,
@@ -770,7 +770,7 @@ describe("stored coordinator runtime handler", () => {
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -802,14 +802,14 @@ describe("stored coordinator runtime handler", () => {
 
   test("rejects invalid heartbeat publisher identifiers", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -834,14 +834,14 @@ describe("stored coordinator runtime handler", () => {
 
   test("rejects invalid heartbeat payload shapes", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -866,14 +866,14 @@ describe("stored coordinator runtime handler", () => {
 
   test("rejects invalid health publisher query identifiers", async () => {
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
     await handle(
       jsonRequest("https://edge.example.com/sessions", {
-        mediaBaseUrl,
+        deliveryBaseUrl,
         session,
       })
     );
@@ -905,7 +905,7 @@ describe("stored coordinator runtime handler", () => {
     let waits = 0;
 
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       blockingReload: {
         timeoutMs: 100,
@@ -926,7 +926,7 @@ describe("stored coordinator runtime handler", () => {
     expect(response.status).toBe(200);
     expect(waits).toBe(1);
     expect(await response.text()).toContain(
-      "https://media.example.com/media/v1080/s3811.m4s"
+      "https://media.example.com/objects/v1080/s3811"
     );
   });
 
@@ -935,7 +935,7 @@ describe("stored coordinator runtime handler", () => {
     const notifier = createMemoryRuntimeCursorNotifier();
     let waits = 0;
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       blockingReload: {
         timeoutMs: 1000,
@@ -953,12 +953,12 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/s3811.m4s",
+          deliveryUrl: "https://media.example.com/objects/v1080/s3811",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3811,
-          objectKey: "media/v1080/s3811.m4s",
+          sequenceNumber: 3811,
+          objectKey: "objects/v1080/s3811",
           slotId: "slot_3811",
         })
       )
@@ -976,7 +976,7 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload({
           commitId: "commit_3811",
-          objectKey: "media/v1080/s3811.m4s",
+          objectKey: "objects/v1080/s3811",
           size: 98_304,
           slotId: "slot_3811",
         }),
@@ -988,7 +988,7 @@ describe("stored coordinator runtime handler", () => {
     expect(committed.status).toBe(201);
     expect(response.status).toBe(200);
     expect(await response.text()).toContain(
-      "https://media.example.com/media/v1080/s3811.m4s"
+      "https://media.example.com/objects/v1080/s3811"
     );
   });
 
@@ -997,7 +997,7 @@ describe("stored coordinator runtime handler", () => {
     const notifier = createMemoryRuntimeCursorNotifier();
     let waits = 0;
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       blockingReload: {
         // Far beyond the test timeout: a waiter that misses the session-end
@@ -1051,7 +1051,7 @@ describe("stored coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const notifier = createMemoryRuntimeCursorNotifier();
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       cursorNotifier: notifier,
       store,
@@ -1063,12 +1063,12 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/s3811.m4s",
+          deliveryUrl: "https://media.example.com/objects/v1080/s3811",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3811,
-          objectKey: "media/v1080/s3811.m4s",
+          sequenceNumber: 3811,
+          objectKey: "objects/v1080/s3811",
           slotId: "slot_3811",
         })
       )
@@ -1077,7 +1077,7 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload({
           commitId: "commit_3811",
-          objectKey: "media/v1080/s3811.m4s",
+          objectKey: "objects/v1080/s3811",
           size: 98_304,
           slotId: "slot_3811",
         }),
@@ -1101,7 +1101,7 @@ describe("stored coordinator runtime handler", () => {
     const controller = new AbortController();
     const waiting = notifier.waitForCursor({
       cursor: seededCursor,
-      request: { mediaSequenceNumber: 3811 },
+      request: { sequenceNumber: 3811 },
       signal: controller.signal,
     });
 
@@ -1117,7 +1117,7 @@ describe("stored coordinator runtime handler", () => {
     await seedRuntimeStore(store, 3810);
 
     const handle = createStoredCoordinatorRuntimeHandler({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       publicationMode: "read-gated",
       commitPolicy: () => ({
         error: {
@@ -1140,12 +1140,12 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/slots",
         slotPayload({
-          deliveryUrl: "https://media.example.com/media/v1080/s3811.m4s",
+          deliveryUrl: "https://media.example.com/objects/v1080/s3811",
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          mediaSequenceNumber: 3811,
-          objectKey: "media/v1080/s3811.m4s",
+          sequenceNumber: 3811,
+          objectKey: "objects/v1080/s3811",
           slotId: "slot_3811",
         })
       )
@@ -1155,7 +1155,7 @@ describe("stored coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload({
           commitId: "commit_3811",
-          objectKey: "media/v1080/s3811.m4s",
+          objectKey: "objects/v1080/s3811",
           size: 98_304,
           slotId: "slot_3811",
         }),
@@ -1174,8 +1174,8 @@ describe("stored coordinator runtime handler", () => {
       status: 409,
     });
     expect(stored?.state.cursor?.window).toEqual({
-      firstMediaSequenceNumber: 3810,
-      lastMediaSequenceNumber: 3810,
+      firstSequenceNumber: 3810,
+      lastSequenceNumber: 3810,
     });
     expect(notifiedCursors).toEqual([]);
   });
@@ -1190,21 +1190,21 @@ interface SlotPayloadOptions {
   duration: number;
   kind: "init" | "segment";
   maxBytes: number;
-  mediaSequenceNumber: number;
   /** Legacy; see `deliveryUrl`. */
   objectKey?: string;
+  sequenceNumber: number;
   slotId: string;
 }
 
 function slotPayload(options: SlotPayloadOptions) {
   return {
     contentType: "video/mp4",
-    duration: options.duration,
+    profile: { duration: options.duration },
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: options.kind,
     maxBytes: options.maxBytes,
-    mediaSequenceNumber: options.mediaSequenceNumber,
-    renditionId: "v1080",
+    sequenceNumber: options.sequenceNumber,
+    trackId: "v1080",
     slotId: options.slotId,
   };
 }
@@ -1240,44 +1240,44 @@ async function seedRuntimeStore(
   through: 3810 | 3811
 ): Promise<Cursor> {
   const handle = createStoredCoordinatorRuntimeHandler({
-    allowedMediaOrigins: [MEDIA_ORIGIN],
+    allowedDeliveryOrigins: [MEDIA_ORIGIN],
     publicationMode: "read-gated",
     store,
   });
 
   await handle(
     jsonRequest("https://edge.example.com/sessions", {
-      mediaBaseUrl,
+      deliveryBaseUrl,
       session,
     })
   );
 
   const slots: SlotPayloadOptions[] = [
     {
-      deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
+      deliveryUrl: "https://media.example.com/objects/v1080/init",
       duration: 1,
       kind: "init",
       maxBytes: 2048,
-      mediaSequenceNumber: 0,
-      objectKey: "media/v1080/init.mp4",
+      sequenceNumber: 0,
+      objectKey: "objects/v1080/init",
       slotId: "slot_init",
     },
     {
-      deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
+      deliveryUrl: "https://media.example.com/objects/v1080/s3810",
       duration: 2,
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3810,
-      objectKey: "media/v1080/s3810.m4s",
+      sequenceNumber: 3810,
+      objectKey: "objects/v1080/s3810",
       slotId: "slot_3810",
     },
     {
-      deliveryUrl: "https://media.example.com/media/v1080/s3811.m4s",
+      deliveryUrl: "https://media.example.com/objects/v1080/s3811",
       duration: 2,
       kind: "segment",
       maxBytes: 100_000,
-      mediaSequenceNumber: 3811,
-      objectKey: "media/v1080/s3811.m4s",
+      sequenceNumber: 3811,
+      objectKey: "objects/v1080/s3811",
       slotId: "slot_3811",
     },
   ];
@@ -1285,21 +1285,21 @@ async function seedRuntimeStore(
     {
       commitId: "commit_init",
       independent: false,
-      objectKey: "media/v1080/init.mp4",
+      objectKey: "objects/v1080/init",
       size: 1024,
       slotId: "slot_init",
     },
     {
       commitId: "commit_3810",
       independent: true,
-      objectKey: "media/v1080/s3810.m4s",
+      objectKey: "objects/v1080/s3810",
       size: 98_304,
       slotId: "slot_3810",
     },
     {
       commitId: "commit_3811",
       independent: false,
-      objectKey: "media/v1080/s3811.m4s",
+      objectKey: "objects/v1080/s3811",
       size: 98_304,
       slotId: "slot_3811",
     },
@@ -1319,7 +1319,7 @@ async function seedRuntimeStore(
     await handle(
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload(commit),
-        independent: commit.independent,
+        profile: { independent: commit.independent },
       })
     );
   }

@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
   createCoordinatorStateWithCommittedSegment,
   createEmptyCoordinatorState,
-  testCoordinatorSession,
 } from "../protocol/coordinator-state.test-helper";
 import type { CoordinatorPipelineState } from "../protocol/coordinator-types";
 import {
@@ -29,10 +28,8 @@ function createEndedCoordinatorState(): CoordinatorPipelineState {
 describe("runtime manifest adapter", () => {
   test("serves a coordinator media playlist as a web response", async () => {
     const response = serveCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: testCoordinatorSession.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: "/v1/live/session_1/v1080/media.m3u8",
-      segmentTarget: testCoordinatorSession.segmentTarget,
       state: createCoordinatorStateWithCommittedSegment(),
     });
 
@@ -41,16 +38,14 @@ describe("runtime manifest adapter", () => {
       "application/vnd.apple.mpegurl"
     );
     expect(await response.text()).toContain(
-      "https://media.example.com/media/v1080/s3810.m4s"
+      "https://media.example.com/objects/v1080/s3810"
     );
   });
 
   test("ends served media playlists once the session has ended", async () => {
     const response = serveCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: testCoordinatorSession.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: "/v1/live/session_1/v1080/media.m3u8",
-      segmentTarget: testCoordinatorSession.segmentTarget,
       state: createEndedCoordinatorState(),
     });
 
@@ -61,10 +56,8 @@ describe("runtime manifest adapter", () => {
 
   test("keeps served media playlists open while the session is live", async () => {
     const response = serveCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: testCoordinatorSession.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: "/v1/live/session_1/v1080/media.m3u8",
-      segmentTarget: testCoordinatorSession.segmentTarget,
       state: createCoordinatorStateWithCommittedSegment(),
     });
 
@@ -74,12 +67,10 @@ describe("runtime manifest adapter", () => {
 
   test("serves coordinator manifests from Request objects", async () => {
     const response = serveCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: testCoordinatorSession.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: new Request(
         "https://edge.example.com/v1/live/session_1/master.m3u8"
       ),
-      segmentTarget: testCoordinatorSession.segmentTarget,
       state: createCoordinatorStateWithCommittedSegment(),
     });
 
@@ -91,10 +82,8 @@ describe("runtime manifest adapter", () => {
 
   test("returns not found before the coordinator has a cursor", async () => {
     const response = serveCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: testCoordinatorSession.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: "/v1/live/session_1/v1080/media.m3u8",
-      segmentTarget: testCoordinatorSession.segmentTarget,
       state: createEmptyCoordinatorState(),
     });
 
@@ -104,12 +93,10 @@ describe("runtime manifest adapter", () => {
 
   test("serves blocking reloads through the current coordinator cursor", async () => {
     const response = await serveBlockingCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: testCoordinatorSession.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: new Request(
         "https://edge.example.com/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810"
       ),
-      segmentTarget: testCoordinatorSession.segmentTarget,
       state: createCoordinatorStateWithCommittedSegment(),
       timeoutMs: 100,
       waitForCursor: () =>
@@ -122,14 +109,12 @@ describe("runtime manifest adapter", () => {
 
   test("applies response cache options to blocking manifests", async () => {
     const response = await serveBlockingCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: testCoordinatorSession.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810",
       response: {
         maxAgeSeconds: 0,
         targetLatencySeconds: 3,
       },
-      segmentTarget: testCoordinatorSession.segmentTarget,
       state: createCoordinatorStateWithCommittedSegment(),
       timeoutMs: 100,
       waitForCursor: () =>
@@ -144,10 +129,8 @@ describe("runtime manifest adapter", () => {
 
   test("returns not found for blocking reloads before the coordinator has a cursor", async () => {
     const response = await serveBlockingCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: testCoordinatorSession.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3810&_HLS_part=0",
-      segmentTarget: testCoordinatorSession.segmentTarget,
       state: createEmptyCoordinatorState(),
       timeoutMs: 100,
       waitForCursor: () =>
@@ -160,10 +143,8 @@ describe("runtime manifest adapter", () => {
 
   test("returns not found for unknown blocking manifest paths", async () => {
     const response = await serveBlockingCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: testCoordinatorSession.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: "/v1/live/session_1/missing.m3u8?_HLS_msn=3810",
-      segmentTarget: testCoordinatorSession.segmentTarget,
       state: createCoordinatorStateWithCommittedSegment(),
       timeoutMs: 100,
       waitForCursor: () =>
@@ -182,10 +163,8 @@ describe("runtime manifest adapter", () => {
     };
 
     const invalid = await serveBlockingCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: testCoordinatorSession.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: "/v1/live/session_1/master.m3u8?_HLS_msn=3810",
-      segmentTarget: testCoordinatorSession.segmentTarget,
       state: createCoordinatorStateWithCommittedSegment(),
       timeoutMs: 3_600_000,
       waitForCursor,
@@ -197,10 +176,8 @@ describe("runtime manifest adapter", () => {
     );
 
     const notFound = await serveBlockingCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: testCoordinatorSession.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: "/v1/live/session_1/bogus.m3u8?_HLS_msn=9999",
-      segmentTarget: testCoordinatorSession.segmentTarget,
       state: createCoordinatorStateWithCommittedSegment(),
       timeoutMs: 3_600_000,
       waitForCursor,
@@ -213,10 +190,8 @@ describe("runtime manifest adapter", () => {
 
   test("returns invalid responses for malformed blocking reload requests", async () => {
     const response = await serveBlockingCoordinatorManifest({
-      allowedMediaOrigins: [MEDIA_ORIGIN],
-      partTarget: testCoordinatorSession.partTarget,
+      allowedDeliveryOrigins: [MEDIA_ORIGIN],
       request: "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=bad",
-      segmentTarget: testCoordinatorSession.segmentTarget,
       state: createCoordinatorStateWithCommittedSegment(),
       timeoutMs: 100,
       waitForCursor: () =>

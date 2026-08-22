@@ -1,23 +1,21 @@
 import type { CommittedWindow } from "./committed-window";
-import type { Epoch, MediaSequenceNumber, OlosId, PartNumber } from "./ids";
-import type { LatencyProfile, SessionState } from "./session";
+import type { Epoch, OlosId, PartNumber, SequenceNumber } from "./ids";
+import type { StreamProfile } from "./profile";
+import type { SessionState } from "./session";
 
 /**
- * The session's published playback state: everything a delivery edge needs
- * to render playlists without consulting the coordinator. A new cursor is
- * produced on every commit; consumers treat it as immutable.
+ * The session's published state: everything a delivery edge needs to render
+ * the stream without consulting the coordinator. A new cursor is produced on
+ * every commit; consumers treat it as immutable.
  */
 export interface Cursor {
   committedWindow: CommittedWindow;
-  epoch: Epoch;
-  latencyProfile: LatencyProfile;
   /** Base URL that relative delivery URLs in the window resolve against. */
-  mediaBaseUrl: string;
+  deliveryBaseUrl: string;
+  epoch: Epoch;
   olos: "1.0";
-  /** Target part duration in seconds (EXT-X-PART-INF PART-TARGET). */
-  partTarget: number;
-  /** Target segment duration in seconds (EXT-X-TARGETDURATION source). */
-  segmentTarget: number;
+  /** The session's profile, copied unchanged from the session. */
+  profile: StreamProfile;
   sessionId: OlosId;
   state: SessionState;
   /** ISO 8601 timestamp of the commit that produced this cursor. */
@@ -26,12 +24,12 @@ export interface Cursor {
 }
 
 /**
- * Compact sequence bounds of the committed window, used for blocking
- * playlist reload (`_HLS_msn` / `_HLS_part`) comparisons.
+ * Compact sequence bounds of the committed window, used for cheap
+ * "has anything new landed" comparisons (for example HLS blocking reload).
  */
 export interface CursorWindow {
-  firstMediaSequenceNumber: MediaSequenceNumber;
-  lastMediaSequenceNumber: MediaSequenceNumber;
-  /** Highest committed part number within the last media sequence. */
+  firstSequenceNumber: SequenceNumber;
+  /** Highest committed part number within the last sequence position. */
   lastPartNumber?: PartNumber;
+  lastSequenceNumber: SequenceNumber;
 }

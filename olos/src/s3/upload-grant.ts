@@ -261,8 +261,8 @@ function createBaseS3SlotMetadataHeaders(
   return {
     "x-amz-meta-olos-epoch": String(slot.epoch),
     "x-amz-meta-olos-kind": slot.kind,
-    "x-amz-meta-olos-media-sequence-number": String(slot.mediaSequenceNumber),
-    "x-amz-meta-olos-rendition-id": slot.renditionId,
+    "x-amz-meta-olos-sequence-number": String(slot.sequenceNumber),
+    "x-amz-meta-olos-track-id": slot.trackId,
     "x-amz-meta-olos-session-id": slot.sessionId,
     "x-amz-meta-olos-slot-id": slot.slotId,
   };

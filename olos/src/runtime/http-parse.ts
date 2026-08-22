@@ -26,7 +26,7 @@ export async function parseSessionCreateRequest(
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): Promise<
   RuntimeHttpRequestParse<{
-    mediaBaseUrl: string;
+    deliveryBaseUrl: string;
     session: Session;
   }>
 > {
@@ -39,16 +39,16 @@ export async function parseSessionCreateRequest(
 
     assertSession(payload.session);
 
-    if (typeof payload.mediaBaseUrl !== "string") {
-      throw new Error("mediaBaseUrl must be a string");
+    if (typeof payload.deliveryBaseUrl !== "string") {
+      throw new Error("deliveryBaseUrl must be a string");
     }
 
     // Validated at parse time so a hostile URL is a 400, not a throw from
     // the pipeline constructor.
-    assertSafeDeliveryUrl(payload.mediaBaseUrl, "mediaBaseUrl");
+    assertSafeDeliveryUrl(payload.deliveryBaseUrl, "deliveryBaseUrl");
 
     return {
-      mediaBaseUrl: payload.mediaBaseUrl,
+      deliveryBaseUrl: payload.deliveryBaseUrl,
       session: payload.session,
       status: "valid",
     };

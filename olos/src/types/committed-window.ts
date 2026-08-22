@@ -1,74 +1,65 @@
 import type { Byterange } from "./byterange";
-import type { MediaSequenceNumber, OlosId, PartNumber } from "./ids";
+import type { OlosId, PartNumber, SequenceNumber } from "./ids";
+import type { ProfileData } from "./profile";
 
 /**
- * A committed media object as it appears inside a `CommittedWindow`: the
- * addressing and playback metadata manifests need, without the full commit
- * envelope.
+ * A committed object as it appears inside a `CommittedWindow`: the
+ * addressing a consumer needs, plus the commit's profile data, without the
+ * full commit envelope.
  */
 export interface CommittedObject {
   commitId: OlosId;
   contentType?: string;
   deliveryUrl: string;
-  duration?: number;
   etag?: string;
   objectKey: string;
+  /** Profile data copied from the commit (opaque to Core). */
+  profile?: ProfileData;
   slotId: OlosId;
 }
 
 /**
- * A committed LL-HLS partial segment. `byterange` is set when the part is a
- * byte range of a virtual segment rather than a standalone object.
+ * A committed part. `byterange` is set when the part is a byte range of a
+ * virtual segment rather than a standalone object.
  */
 export type CommittedPart = CommittedObject & {
   byterange?: Byterange;
-  duration: number;
-  independent?: boolean;
   partNumber: PartNumber;
-  programDateTime?: string;
 };
 
 /**
- * One media sequence position in a rendition window. Carries the full
- * segment object, its parts, or both — a position that only has parts so
- * far (the segment is still being produced) is valid.
+ * One sequence position in a track window. Carries the full segment
+ * object, its parts, or both — a position that only has parts so far (the
+ * segment is still being produced) is valid.
  */
 export interface CommittedSegment {
-  /** Emit `EXT-X-DISCONTINUITY` before this segment. */
-  discontinuityBefore?: boolean;
-  duration: number;
-  independent?: boolean;
-  mediaSequenceNumber: MediaSequenceNumber;
   parts?: CommittedPart[];
-  programDateTime?: string;
   segment?: CommittedObject;
+  sequenceNumber: SequenceNumber;
 }
 
 /**
- * The sliding window of committed media across all renditions — the
- * authoritative input for rendering media playlists. Sequence numbers are
- * monotonic within each rendition, and the first/last bounds apply to every
- * rendition window.
+ * The sliding window of committed objects across all tracks — the
+ * authoritative input for anything that renders the stream. Sequence
+ * numbers are monotonic within each track, and the first/last bounds span
+ * every track window.
  */
 export interface CommittedWindow {
-  /** Value for `EXT-X-DISCONTINUITY-SEQUENCE`. */
-  discontinuitySequence: number;
   epoch: number;
-  firstMediaSequenceNumber: MediaSequenceNumber;
-  lastMediaSequenceNumber: MediaSequenceNumber;
-  renditions: Record<string, RenditionWindow>;
+  firstSequenceNumber: SequenceNumber;
+  lastSequenceNumber: SequenceNumber;
+  tracks: Record<string, TrackWindow>;
 }
 
-/** One rendition's slice of the committed window. */
-export interface RenditionWindow {
+/** One track's slice of the committed window. */
+export interface TrackWindow {
+  /** The track's initialization object, when one has been committed. */
+  init?: CommittedObject;
   /**
-   * Number of discontinuities that have dropped off the front of this
-   * rendition's window. Rendered as the rendition's
-   * `EXT-X-DISCONTINUITY-SEQUENCE`; when absent, the window-global
-   * `discontinuitySequence` applies.
+   * Profile-defined summary of this track window (opaque to Core), as
+   * produced by the `trackWindowProfile` hook of `createCommittedWindow`.
    */
-  discontinuitySequence?: number;
-  init: CommittedObject;
-  renditionId: OlosId;
+  profile?: ProfileData;
   segments: CommittedSegment[];
+  trackId: OlosId;
 }

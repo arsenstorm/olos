@@ -13,6 +13,7 @@ import type {
 } from "../protocol/coordinator-types";
 import { savedStoreResult } from "../protocol/test-store.test-helper";
 import { createObservedUpload } from "../state/observed-upload";
+import type { ProfileData } from "../types/profile";
 import {
   applyStoredCoordinatorRetention,
   deleteRetiredCoordinatorObjects,
@@ -535,9 +536,9 @@ function retentionState(): CoordinatorPipelineState {
   state = commitSlot(state, {
     commitId: "commit_init",
     deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
-    duration: 1,
     maxBytes: 2048,
-    mediaSequenceNumber: 0,
+    profile: { duration: 1 },
+    sequenceNumber: 0,
     objectKey: "media/v1080/init.mp4",
     slotId: "slot_init",
     size: 1024,
@@ -545,10 +546,9 @@ function retentionState(): CoordinatorPipelineState {
   state = commitSlot(state, {
     commitId: "commit_3810",
     deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-    duration: 2,
-    independent: true,
     maxBytes: 100_000,
-    mediaSequenceNumber: 3810,
+    profile: { duration: 2, independent: true },
+    sequenceNumber: 3810,
     objectKey: "media/v1080/s3810.m4s",
     slotId: "slot_3810",
     size: 98_304,
@@ -556,10 +556,9 @@ function retentionState(): CoordinatorPipelineState {
   state = commitSlot(state, {
     commitId: "commit_3811",
     deliveryUrl: "https://media.example.com/s3811.m4s",
-    duration: 2,
-    independent: true,
     maxBytes: 100_000,
-    mediaSequenceNumber: 3811,
+    profile: { duration: 2, independent: true },
+    sequenceNumber: 3811,
     objectKey: "media/s3811.m4s",
     slotId: "slot_3811",
     size: 98_304,
@@ -567,11 +566,10 @@ function retentionState(): CoordinatorPipelineState {
   state = commitSlot(state, {
     commitId: "commit_3812",
     deliveryUrl: "https://media.example.com/s3812.m4s",
-    duration: 2,
-    independent: true,
     maxBytes: 100_000,
     maxSegments: 2,
-    mediaSequenceNumber: 3812,
+    profile: { duration: 2, independent: true },
+    sequenceNumber: 3812,
     objectKey: "media/s3812.m4s",
     slotId: "slot_3812",
     size: 98_304,
@@ -579,12 +577,12 @@ function retentionState(): CoordinatorPipelineState {
 
   return issueCoordinatorSlot({
     contentType: "video/mp4",
-    duration: 2,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment",
     maxBytes: 100_000,
-    mediaSequenceNumber: 3813,
-    renditionId: "v1080",
+    profile: { duration: 2 },
+    sequenceNumber: 3813,
+    trackId: "v1080",
     slotId: "slot_3813",
     state,
   }).state;
@@ -593,12 +591,11 @@ function retentionState(): CoordinatorPipelineState {
 interface CommitSlotOptions {
   commitId: string;
   deliveryUrl: string;
-  duration: number;
-  independent?: boolean;
   maxBytes: number;
   maxSegments?: number;
-  mediaSequenceNumber: number;
   objectKey: string;
+  profile: ProfileData;
+  sequenceNumber: number;
   size: number;
   slotId: string;
 }
@@ -609,19 +606,18 @@ function commitSlot(
 ): CoordinatorPipelineState {
   const issued = issueCoordinatorSlot({
     contentType: "video/mp4",
-    duration: options.duration,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: options.slotId === "slot_init" ? "init" : "segment",
     maxBytes: options.maxBytes,
-    mediaSequenceNumber: options.mediaSequenceNumber,
-    renditionId: "v1080",
+    profile: options.profile,
+    sequenceNumber: options.sequenceNumber,
+    trackId: "v1080",
     slotId: options.slotId,
     state,
   });
   const committed = commitCoordinatorUpload({
     commitId: options.commitId,
     committedAt: "2026-01-01T00:00:02.000Z",
-    independent: options.independent,
     maxSegments: options.maxSegments,
     object: createObservedUpload({
       contentType: "video/mp4",

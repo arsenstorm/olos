@@ -17,30 +17,30 @@ export interface CreateDirectPublicSecurityPolicyOptions {
 }
 
 /** Reason a direct-public media request must be blocked. */
-export type DirectPublicMediaRequestBlockReason =
+export type DirectPublicObjectRequestBlockReason =
   | "document-navigation"
   | "html-accept"
   | "unsafe-object-key"
   | "unsupported-extension";
 
 /**
- * Verdict from {@link resolveDirectPublicMediaRequestPolicy}: either the
+ * Verdict from {@link resolveDirectPublicObjectRequestPolicy}: either the
  * request may be served, or it must be answered with the given HTTP
  * status (404 for unsafe or unsupported object keys, 403 for document
  * navigations and HTML requests).
  */
-export type DirectPublicMediaRequestPolicy =
+export type DirectPublicObjectRequestPolicy =
   | {
       allowed: true;
     }
   | {
       allowed: false;
-      reason: DirectPublicMediaRequestBlockReason;
+      reason: DirectPublicObjectRequestBlockReason;
       status: 403 | 404;
     };
 
-/** Options for {@link resolveDirectPublicMediaRequestPolicy}. */
-export interface ResolveDirectPublicMediaRequestPolicyOptions {
+/** Options for {@link resolveDirectPublicObjectRequestPolicy}. */
+export interface ResolveDirectPublicObjectRequestPolicyOptions {
   /** `Accept` request header; requests accepting `text/html` are blocked. */
   accept?: string | null;
   /** `Sec-Fetch-Dest` request header; `document` requests are blocked. */
@@ -50,8 +50,8 @@ export interface ResolveDirectPublicMediaRequestPolicyOptions {
   objectKey: string;
 }
 
-/** Options for {@link createDirectPublicMediaResponseHeaders}. */
-export interface CreateDirectPublicMediaResponseHeadersOptions {
+/** Options for {@link createDirectPublicObjectResponseHeaders}. */
+export interface CreateDirectPublicObjectResponseHeadersOptions {
   objectKey: string;
   policy: DirectPublicSecurityPolicy;
 }
@@ -67,9 +67,11 @@ interface DirectPublicCapabilityRequirement {
   message: string;
 }
 
-interface DirectPublicMediaRequestBlockRule {
-  isBlocked: (options: ResolveDirectPublicMediaRequestPolicyOptions) => boolean;
-  reason: DirectPublicMediaRequestBlockReason;
+interface DirectPublicObjectRequestBlockRule {
+  isBlocked: (
+    options: ResolveDirectPublicObjectRequestPolicyOptions
+  ) => boolean;
+  reason: DirectPublicObjectRequestBlockReason;
   status: 403 | 404;
 }
 
@@ -116,7 +118,7 @@ const DIRECT_PUBLIC_MEDIA_REQUEST_BLOCK_RULES = [
     reason: "html-accept",
     status: 403,
   },
-] satisfies readonly DirectPublicMediaRequestBlockRule[];
+] satisfies readonly DirectPublicObjectRequestBlockRule[];
 
 /**
  * Derive the security policy for serving media objects directly from the
@@ -138,7 +140,7 @@ export function createDirectPublicSecurityPolicy(
   const targetLatencySeconds = options.targetLatencySeconds ?? 3;
 
   return {
-    allowedMediaOrigins: [origin],
+    allowedDeliveryOrigins: [origin],
     allowedMediaExtensions: DIRECT_PUBLIC_MEDIA_EXTENSIONS,
     forbiddenResponseHeaders: ["set-cookie"],
     manifestCachePolicy: createDeliveryCachePolicy({
@@ -166,9 +168,9 @@ export function createDirectPublicSecurityPolicy(
  * document navigation (`Sec-Fetch-Dest: document` or
  * `Sec-Fetch-Mode: navigate`) or accepts `text/html`. Pure.
  */
-export function resolveDirectPublicMediaRequestPolicy(
-  options: ResolveDirectPublicMediaRequestPolicyOptions
-): DirectPublicMediaRequestPolicy {
+export function resolveDirectPublicObjectRequestPolicy(
+  options: ResolveDirectPublicObjectRequestPolicyOptions
+): DirectPublicObjectRequestPolicy {
   for (const rule of DIRECT_PUBLIC_MEDIA_REQUEST_BLOCK_RULES) {
     if (rule.isBlocked(options)) {
       return directPublicMediaRequestBlocked(rule);
@@ -179,8 +181,8 @@ export function resolveDirectPublicMediaRequestPolicy(
 }
 
 function directPublicMediaRequestBlocked(
-  rule: DirectPublicMediaRequestBlockRule
-): DirectPublicMediaRequestPolicy {
+  rule: DirectPublicObjectRequestBlockRule
+): DirectPublicObjectRequestPolicy {
   return {
     allowed: false,
     reason: rule.reason,
@@ -197,7 +199,7 @@ function hasSupportedDirectPublicMediaExtension(objectKey: string): boolean {
 }
 
 function isDocumentNavigation(
-  options: ResolveDirectPublicMediaRequestPolicyOptions
+  options: ResolveDirectPublicObjectRequestPolicyOptions
 ): boolean {
   return (
     options.fetchDestination === "document" || options.fetchMode === "navigate"
@@ -213,10 +215,10 @@ function acceptsHtml(accept: string | null | undefined): boolean {
  * the policy's fixed media headers plus `cache-control` from the
  * media-object cache policy and a `content-type` of `video/mp4`. Throws
  * when the object key would be blocked by
- * {@link resolveDirectPublicMediaRequestPolicy}.
+ * {@link resolveDirectPublicObjectRequestPolicy}.
  */
-export function createDirectPublicMediaResponseHeaders(
-  options: CreateDirectPublicMediaResponseHeadersOptions
+export function createDirectPublicObjectResponseHeaders(
+  options: CreateDirectPublicObjectResponseHeadersOptions
 ): Record<string, string> {
   return {
     ...options.policy.mediaResponseHeaders,
@@ -230,7 +232,7 @@ export function createDirectPublicMediaResponseHeaders(
  * response: the policy's fixed media headers plus `cache-control` from
  * the negative-object cache policy. No `content-type` is set. Throws when
  * the object key would be blocked by
- * {@link resolveDirectPublicMediaRequestPolicy}.
+ * {@link resolveDirectPublicObjectRequestPolicy}.
  */
 export function createDirectPublicNegativeObjectResponseHeaders(
   options: CreateDirectPublicNegativeObjectResponseHeadersOptions
@@ -273,7 +275,7 @@ function publicBaseOrigin(publicBaseUrl: string): string {
 }
 
 function assertSupportedDirectPublicMediaObject(objectKey: string): void {
-  const policy = resolveDirectPublicMediaRequestPolicy({ objectKey });
+  const policy = resolveDirectPublicObjectRequestPolicy({ objectKey });
 
   if (!policy.allowed) {
     throw new Error(

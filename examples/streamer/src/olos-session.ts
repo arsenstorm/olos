@@ -1,8 +1,12 @@
 import {
+  CMAF_LLHLS_PROFILE_ID,
+  type MediaSession,
+  type MediaTrack,
+} from "@arsenstorm/olos/media";
+import {
   createRuntimeSession,
   transitionRuntimeSession,
 } from "@arsenstorm/olos/runtime";
-import type { Session } from "@arsenstorm/olos/types";
 
 export type IngestFetch = (
   input: Request | URL | string,
@@ -12,8 +16,8 @@ export type IngestFetch = (
 export interface SessionClientOptions {
   baseUrl: string;
   mediaOrigin: string;
-  renditionId: string;
   sessionId: string;
+  trackId: string;
 }
 
 export interface CreateSessionOptions {
@@ -40,7 +44,7 @@ export async function createSession(
   await createRuntimeSession({
     baseUrl: options.baseUrl,
     fetch: ingestFetch,
-    mediaBaseUrl: options.mediaOrigin,
+    deliveryBaseUrl: options.mediaOrigin,
     session: buildSession(options, sessionOptions),
   });
 }
@@ -60,56 +64,57 @@ export async function endSession(
 function buildSession(
   options: SessionClientOptions,
   sessionOptions: CreateSessionOptions
-): Session {
+): MediaSession {
   return {
     createdAt: new Date().toISOString(),
     epoch: 1,
-    latencyProfile: "object-ll",
     olos: "1.0",
-    partTarget: sessionOptions.partTarget,
-    renditions: [
-      videoRendition(options, sessionOptions),
-      ...audioRenditions(options, sessionOptions.audioCodec),
+    profile: {
+      id: CMAF_LLHLS_PROFILE_ID,
+      partTarget: sessionOptions.partTarget,
+      segmentTarget: sessionOptions.segmentTarget,
+    },
+    tracks: [
+      videoTrack(options, sessionOptions),
+      ...audioTracks(options, sessionOptions.audioCodec),
     ],
-    segmentTarget: sessionOptions.segmentTarget,
     sessionId: options.sessionId,
     state: "live",
   };
 }
 
-type Rendition = Session["renditions"][number];
-
-function videoRendition(
+function videoTrack(
   options: SessionClientOptions,
   { bitrate, height, videoCodec, width }: CreateSessionOptions
-): Rendition {
+): MediaTrack {
   return {
-    bitrate: bitrate ?? 5_000_000,
-    codec: videoCodec ?? "avc1.640028",
-    frameRate: 30,
-    height: height ?? 1080,
-    kind: "video",
-    renditionId: options.renditionId,
-    width: width ?? 1920,
+    profile: {
+      bitrate: bitrate ?? 5_000_000,
+      codec: videoCodec ?? "avc1.640028",
+      frameRate: 30,
+      height: height ?? 1080,
+      kind: "video",
+      width: width ?? 1920,
+    },
+    trackId: options.trackId,
   };
 }
 
-// An ungrouped audio rendition is codec metadata only: it renders no
+// An ungrouped audio track is codec metadata only: it renders no
 // EXT-X-MEDIA line and no standalone media playlist, it just muxes its
 // codec into every variant's CODECS attribute (spec 8.3.1). That is what
 // muxed audio/video segments need in order to declare both tracks.
-function audioRenditions(
+function audioTracks(
   options: SessionClientOptions,
   audioCodec: string | undefined
-): Rendition[] {
+): MediaTrack[] {
   if (audioCodec === undefined) {
     return [];
   }
   return [
     {
-      codec: audioCodec,
-      kind: "audio",
-      renditionId: `${options.renditionId}_audio`,
+      profile: { codec: audioCodec, kind: "audio" },
+      trackId: `${options.trackId}_audio`,
     },
   ];
 }

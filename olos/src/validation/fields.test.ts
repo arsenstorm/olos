@@ -97,10 +97,8 @@ describe("validation field helpers", () => {
 
   test("field assertions preserve nested field names in error messages", () => {
     expect(() =>
-      assertUrlSafeField({ id: "bad id" }, "id", "session.renditions[]")
-    ).toThrow(
-      "session.renditions[].id must be a non-empty URL-safe identifier"
-    );
+      assertUrlSafeField({ id: "bad id" }, "id", "session.tracks[]")
+    ).toThrow("session.tracks[].id must be a non-empty URL-safe identifier");
   });
 
   test("numeric helpers return valid values and reject invalid values", () => {
@@ -227,12 +225,12 @@ describe("validation field helpers", () => {
   });
 
   test("nonEmptyArray returns arrays and rejects empty or non-array values", () => {
-    expect(nonEmptyArray(["v1080"], "renditions")).toEqual(["v1080"]);
-    expect(() => nonEmptyArray([], "renditions")).toThrow(
-      "renditions must be a non-empty array"
+    expect(nonEmptyArray(["v1080"], "tracks")).toEqual(["v1080"]);
+    expect(() => nonEmptyArray([], "tracks")).toThrow(
+      "tracks must be a non-empty array"
     );
-    expect(() => nonEmptyArray("v1080", "renditions")).toThrow(
-      "renditions must be a non-empty array"
+    expect(() => nonEmptyArray("v1080", "tracks")).toThrow(
+      "tracks must be a non-empty array"
     );
   });
 

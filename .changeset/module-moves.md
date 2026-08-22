@@ -6,7 +6,7 @@ Import-path moves and edge portability:
 
 - The object-key helpers (`createPublisherObjectKey`,
   `createPublisherDeliveryUrl`, `CreatePublisherObjectKeyOptions`,
-  `DerivableMediaObjectKind`, `createRuntimePublisherObjectKeyNonce`,
+  `DerivableObjectKind`, `createRuntimePublisherObjectKeyNonce`,
   `RUNTIME_PUBLISHER_OBJECT_KEY_NONCE_MIN_BYTES`, and
   `CreateRuntimePublisherObjectKeyNonceOptions`) moved from
   `@arsenstorm/olos/runtime` to `@arsenstorm/olos/state`. Their

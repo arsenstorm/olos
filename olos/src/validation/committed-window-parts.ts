@@ -13,17 +13,16 @@ import {
 } from "./committed-window";
 import { assertSafeDeliveryUrl } from "./delivery-url";
 import {
-  assertBooleanField,
-  assertIsoDateField,
   assertNonEmptyStringField,
   assertNonNegativeIntegerField,
   assertOnlyKnownFields,
-  assertPositiveNumberField,
   assertUrlSafeField,
   isRecord,
   nonEmptyArray,
 } from "./fields";
 import { assertSafeObjectKey } from "./object-key";
+import { assertOptionalProfileField } from "./profile";
+
 export function assertMonotonicSegments(
   segments: readonly unknown[],
   name: string
@@ -51,8 +50,8 @@ function assertOrderedUniqueSegmentPosition(
   assertUniqueSegmentPosition(segment, positions.seenSegments, name);
   assertMonotonicSegmentSequence(segment, positions.previousSequence, name);
 
-  positions.seenSegments.add(segment.mediaSequenceNumber);
-  positions.previousSequence = segment.mediaSequenceNumber;
+  positions.seenSegments.add(segment.sequenceNumber);
+  positions.previousSequence = segment.sequenceNumber;
 }
 
 function assertUniqueSegmentPosition(
@@ -60,7 +59,7 @@ function assertUniqueSegmentPosition(
   seenSegments: Set<number>,
   name: string
 ): void {
-  if (seenSegments.has(segment.mediaSequenceNumber)) {
+  if (seenSegments.has(segment.sequenceNumber)) {
     throw new Error(`${name}.segments must not contain duplicate positions`);
   }
 }
@@ -70,25 +69,23 @@ function assertMonotonicSegmentSequence(
   previousSequence: number,
   name: string
 ): void {
-  if (segment.mediaSequenceNumber <= previousSequence) {
-    throw new Error(`${name}.segments must have monotonic media sequences`);
+  if (segment.sequenceNumber <= previousSequence) {
+    throw new Error(`${name}.segments must have monotonic sequence numbers`);
   }
 }
 
 function assertCommittedSegment(
   value: unknown,
-  renditionName: string
+  trackName: string
 ): asserts value is CommittedSegment {
-  const name = `${renditionName}.segments[]`;
+  const name = `${trackName}.segments[]`;
 
   if (!isRecord(value)) {
     throw new Error(`${name} must be an object`);
   }
 
   assertOnlyKnownFields(value, COMMITTED_SEGMENT_FIELDS, name);
-  assertNonNegativeIntegerField(value, "mediaSequenceNumber", name);
-  assertPositiveNumberField(value, "duration", name);
-  assertOptionalSegmentFields(value, name);
+  assertNonNegativeIntegerField(value, "sequenceNumber", name);
   assertCommittedSegmentPayload(value, name);
 }
 
@@ -106,23 +103,6 @@ function assertCommittedSegmentPayload(
 
   if (value.segment === undefined && value.parts === undefined) {
     throw new Error(`${name} must contain a segment or parts`);
-  }
-}
-
-function assertOptionalSegmentFields(
-  value: Record<string, unknown>,
-  name: string
-): void {
-  if (value.programDateTime !== undefined) {
-    assertIsoDateField(value, "programDateTime", name);
-  }
-
-  if (value.discontinuityBefore !== undefined) {
-    assertBooleanField(value, "discontinuityBefore", name);
-  }
-
-  if (value.independent !== undefined) {
-    assertBooleanField(value, "independent", name);
   }
 }
 
@@ -196,23 +176,7 @@ function assertCommittedPart(
   }
 
   assertCommittedObject(value, name, COMMITTED_PART_FIELDS);
-
   assertNonNegativeIntegerField(value, "partNumber", name);
-  assertPositiveNumberField(value, "duration", name);
-  assertOptionalPartFields(value, name);
-}
-
-function assertOptionalPartFields(
-  value: Record<string, unknown>,
-  name: string
-): void {
-  if (value.programDateTime !== undefined) {
-    assertIsoDateField(value, "programDateTime", name);
-  }
-
-  if (value.independent !== undefined) {
-    assertBooleanField(value, "independent", name);
-  }
 
   if (value.byterange !== undefined) {
     assertByterange(value.byterange, `${name}.byterange`);
@@ -241,11 +205,9 @@ export function assertCommittedObject(
     assertNonEmptyStringField(value, "contentType", name);
   }
 
-  if (value.duration !== undefined) {
-    assertPositiveNumberField(value, "duration", name);
-  }
-
   if (value.etag !== undefined) {
     assertNonEmptyStringField(value, "etag", name);
   }
+
+  assertOptionalProfileField(value, name);
 }

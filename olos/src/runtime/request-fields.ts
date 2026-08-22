@@ -1,3 +1,4 @@
+import type { ProfileData } from "../types/profile";
 import {
   booleanValue,
   finiteNumber,
@@ -15,6 +16,7 @@ import {
   assertPositiveSafeInteger,
   assertUrlSafeIdentifier,
 } from "../validation/ids";
+import { assertProfileData } from "../validation/profile";
 
 export function optionalField<Key extends string, Value>(
   key: Key,
@@ -27,6 +29,23 @@ export function optionalField<Key extends string, Value>(
   }
 
   return fields;
+}
+
+/**
+ * Reads an optional `profile` field as opaque profile data: when present it
+ * must be a plain JSON object; its contents are the profile module's concern.
+ */
+export function optionalProfileField(
+  value: Record<string, unknown>,
+  name = "profile"
+): { profile?: ProfileData } {
+  if (value.profile === undefined) {
+    return {};
+  }
+
+  assertProfileData(value.profile, name);
+
+  return { profile: value.profile };
 }
 
 export function stringField(

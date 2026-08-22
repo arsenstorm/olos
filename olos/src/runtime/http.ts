@@ -40,7 +40,7 @@ export function createStoredCoordinatorRuntimeHandler(
 function assertRuntimeHandlerOptions(
   options: CreateStoredCoordinatorRuntimeHandlerOptions
 ): void {
-  assertAllowedMediaOrigins(options.allowedMediaOrigins);
+  assertAllowedMediaOrigins(options.allowedDeliveryOrigins);
   assertRoutePath(options.sessionPath ?? DEFAULT_SESSION_PATH, "sessionPath");
   assertRoutePath(options.livePath ?? DEFAULT_LIVE_PATH, "livePath");
 
@@ -77,7 +77,7 @@ function assertRuntimeHandlerOptions(
 function assertAllowedMediaOrigins(origins: readonly string[]): void {
   for (const origin of origins) {
     if (!isHttpsOrigin(origin)) {
-      throw new Error("allowedMediaOrigins must contain HTTPS origins");
+      throw new Error("allowedDeliveryOrigins must contain HTTPS origins");
     }
   }
 }

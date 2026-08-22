@@ -1,3 +1,4 @@
+import type { MediaObjectProfile } from "@arsenstorm/olos/media";
 import {
   commitS3RuntimeUpload,
   issueS3RuntimeUploadGrant,
@@ -28,18 +29,26 @@ type IngestFetch = (
 
 type ObjectKind = "init" | "part" | "segment";
 
+// Object keys carry the conventional CMAF extensions so the media proxy and
+// players can tell init segments (`.mp4`) from media (`.m4s`) by name.
+const OBJECT_EXTENSIONS: Record<ObjectKind, string> = {
+  init: "mp4",
+  part: "m4s",
+  segment: "m4s",
+};
+
 export interface OlosClientOptions {
   baseUrl: string;
   ingestKey: string;
   mediaOrigin: string;
-  renditionId: string;
   sessionId: string;
+  trackId: string;
 }
 
 export interface PublishInitOptions {
   bytes: Uint8Array;
   duration: number;
-  mediaSequenceNumber: number;
+  sequenceNumber: number;
 }
 
 export type PublishSegmentOptions = PublishInitOptions;
@@ -49,15 +58,16 @@ export interface PublishPartOptions {
   bytes: Uint8Array;
   duration: number;
   independent: boolean;
-  mediaSequenceNumber: number;
   partNumber: number;
+  sequenceNumber: number;
 }
 
 export interface PendingPublication {
   commitId: string;
-  independent: boolean;
   objectKey: string;
-  programDateTime?: string;
+  // Commit-time profile facts; merged over the slot's profile (which
+  // already carries `duration`) by the coordinator.
+  profile: MediaObjectProfile;
   slotId: string;
 }
 
@@ -92,15 +102,24 @@ interface PublishSpec {
   duration: number;
   independent: boolean;
   kind: ObjectKind;
-  mediaSequenceNumber: number;
   partNumber?: number;
   programDateTime?: string;
+  sequenceNumber: number;
   slotId: string;
 }
 
+function commitProfile(spec: PublishSpec): MediaObjectProfile {
+  return {
+    independent: spec.independent,
+    ...(spec.programDateTime === undefined
+      ? {}
+      : { programDateTime: spec.programDateTime }),
+  };
+}
+
 interface SegmentStartAnchor {
-  anchor(mediaSequenceNumber: number): string;
-  release(mediaSequenceNumber: number): string;
+  anchor(sequenceNumber: number): string;
+  release(sequenceNumber: number): string;
 }
 
 export function createOlosClient(options: OlosClientOptions): OlosClient {
@@ -141,21 +160,21 @@ function createIngestFetch(ingestKey: string): IngestFetch {
 function createSegmentStartAnchor(): SegmentStartAnchor {
   const segmentStartTimes = new Map<number, string>();
 
-  const anchor = (mediaSequenceNumber: number): string => {
-    const existing = segmentStartTimes.get(mediaSequenceNumber);
+  const anchor = (sequenceNumber: number): string => {
+    const existing = segmentStartTimes.get(sequenceNumber);
     if (existing !== undefined) {
       return existing;
     }
     const startedAt = new Date().toISOString();
-    segmentStartTimes.set(mediaSequenceNumber, startedAt);
+    segmentStartTimes.set(sequenceNumber, startedAt);
     return startedAt;
   };
 
   return {
     anchor,
-    release(mediaSequenceNumber) {
-      const startedAt = anchor(mediaSequenceNumber);
-      segmentStartTimes.delete(mediaSequenceNumber);
+    release(sequenceNumber) {
+      const startedAt = anchor(sequenceNumber);
+      segmentStartTimes.delete(sequenceNumber);
       return startedAt;
     },
   };
@@ -163,7 +182,7 @@ function createSegmentStartAnchor(): SegmentStartAnchor {
 
 function initSpec(
   options: OlosClientOptions,
-  { bytes, duration, mediaSequenceNumber }: PublishInitOptions
+  { bytes, duration, sequenceNumber }: PublishInitOptions
 ): PublishSpec {
   return {
     bytes,
@@ -171,7 +190,7 @@ function initSpec(
     duration,
     independent: false,
     kind: "init",
-    mediaSequenceNumber,
+    sequenceNumber,
     slotId: `${options.sessionId}_slot_init`,
   };
 }
@@ -181,8 +200,8 @@ function partSpec(
   segmentStart: SegmentStartAnchor,
   input: PublishPartOptions
 ): PublishSpec {
-  const { mediaSequenceNumber, partNumber } = input;
-  const id = `${mediaSequenceNumber}_part_${partNumber}`;
+  const { sequenceNumber, partNumber } = input;
+  const id = `${sequenceNumber}_part_${partNumber}`;
 
   return {
     byterange: input.byterange,
@@ -191,10 +210,10 @@ function partSpec(
     duration: input.duration,
     independent: input.independent,
     kind: "part",
-    mediaSequenceNumber,
+    sequenceNumber,
     partNumber,
     ...(partNumber === 0
-      ? { programDateTime: segmentStart.anchor(mediaSequenceNumber) }
+      ? { programDateTime: segmentStart.anchor(sequenceNumber) }
       : {}),
     slotId: `${options.sessionId}_slot_${id}`,
   };
@@ -203,17 +222,17 @@ function partSpec(
 function segmentSpec(
   options: OlosClientOptions,
   segmentStart: SegmentStartAnchor,
-  { bytes, duration, mediaSequenceNumber }: PublishSegmentOptions
+  { bytes, duration, sequenceNumber }: PublishSegmentOptions
 ): PublishSpec {
   return {
     bytes,
-    commitId: `${options.sessionId}_commit_${mediaSequenceNumber}`,
+    commitId: `${options.sessionId}_commit_${sequenceNumber}`,
     duration,
     independent: true,
     kind: "segment",
-    mediaSequenceNumber,
-    programDateTime: segmentStart.release(mediaSequenceNumber),
-    slotId: `${options.sessionId}_slot_${mediaSequenceNumber}`,
+    sequenceNumber,
+    programDateTime: segmentStart.release(sequenceNumber),
+    slotId: `${options.sessionId}_slot_${sequenceNumber}`,
   };
 }
 
@@ -242,13 +261,14 @@ async function issueGrant(
     payload: {
       ...(spec.byterange === undefined ? {} : { byterange: spec.byterange }),
       contentType: "video/mp4",
-      duration: spec.duration,
       expiresAt,
+      extension: OBJECT_EXTENSIONS[spec.kind],
       kind: spec.kind,
       maxBytes: spec.bytes.length,
-      mediaSequenceNumber: spec.mediaSequenceNumber,
+      sequenceNumber: spec.sequenceNumber,
       ...(spec.partNumber === undefined ? {} : { partNumber: spec.partNumber }),
-      renditionId: options.renditionId,
+      profile: { duration: spec.duration },
+      trackId: options.trackId,
       slotId: spec.slotId,
     },
     sessionId: options.sessionId,
@@ -257,9 +277,8 @@ async function issueGrant(
   return {
     bytes: spec.bytes,
     commitId: spec.commitId,
-    independent: spec.independent,
     objectKey: granted.slot.objectKey,
-    programDateTime: spec.programDateTime,
+    profile: commitProfile(spec),
     requiredHeaders: granted.grant.requiredHeaders ?? {},
     slotId: spec.slotId,
     uploadUrl: granted.grant.url,
@@ -281,9 +300,8 @@ async function uploadGranted(grant: IssuedGrant): Promise<PendingPublication> {
 
   return {
     commitId: grant.commitId,
-    independent: grant.independent,
     objectKey: grant.objectKey,
-    programDateTime: grant.programDateTime,
+    profile: grant.profile,
     slotId: grant.slotId,
   };
 }
@@ -299,12 +317,9 @@ async function commitPublication(
     payload: {
       commitId: pending.commitId,
       committedAt: new Date().toISOString(),
-      independent: pending.independent,
       maxSegments: LIVE_WINDOW_SEGMENTS,
       objectKey: pending.objectKey,
-      ...(pending.programDateTime === undefined
-        ? {}
-        : { programDateTime: pending.programDateTime }),
+      profile: pending.profile,
       slotId: pending.slotId,
     },
     sessionId: options.sessionId,

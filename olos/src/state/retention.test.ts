@@ -10,14 +10,14 @@ import {
 const slot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl: "https://media.example.com/media/3810.m4s",
-  duration: 2,
+  profile: { duration: 2 },
   epoch: 1,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  mediaSequenceNumber: 3810,
+  sequenceNumber: 3810,
   objectKey: "media/3810.m4s",
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "session_1",
   slotId: "slot_3810",
   state: "issued",
@@ -27,11 +27,11 @@ const initCommit: Commit = {
   commitId: "commit_init",
   committedAt: "2026-01-01T00:00:00.000Z",
   deliveryUrl: "/media/v1080/init.mp4",
-  duration: 1,
+  profile: { duration: 1 },
   epoch: 1,
-  mediaSequenceNumber: 0,
+  sequenceNumber: 0,
   objectKey: "media/v1080/init.mp4",
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "session_1",
   size: 1024,
   slotId: "slot_init",
@@ -41,11 +41,11 @@ const segmentCommit: Commit = {
   commitId: "commit_3810",
   committedAt: "2026-01-01T00:00:02.000Z",
   deliveryUrl: "/media/3810.m4s",
-  duration: 2,
+  profile: { duration: 2 },
   epoch: 1,
-  mediaSequenceNumber: 3810,
+  sequenceNumber: 3810,
   objectKey: "media/3810.m4s",
-  renditionId: "v1080",
+  trackId: "v1080",
   sessionId: "session_1",
   size: 98_304,
   slotId: "slot_3810",
@@ -117,14 +117,14 @@ describe("retention planning", () => {
       {
         ...segmentCommit,
         commitId: "commit_3811",
-        mediaSequenceNumber: 3811,
+        sequenceNumber: 3811,
         objectKey: "media/3811.m4s",
         slotId: "slot_3811",
       },
       {
         ...segmentCommit,
         commitId: "commit_3812",
-        mediaSequenceNumber: 3812,
+        sequenceNumber: 3812,
         objectKey: "media/3812.m4s",
         slotId: "slot_3812",
       },
@@ -151,13 +151,13 @@ describe("retention planning", () => {
     ]);
   });
 
-  test("retires trimmed commits per rendition despite a lagging rendition", () => {
+  test("retires trimmed commits per track despite a lagging track", () => {
     const audioInitCommit: Commit = {
       ...initCommit,
       commitId: "commit_init_a128",
       deliveryUrl: "/media/a128/init.mp4",
       objectKey: "media/a128/init.mp4",
-      renditionId: "a128",
+      trackId: "a128",
       slotId: "slot_init_a128",
     };
     const audioSegmentCommit: Commit = {
@@ -165,7 +165,7 @@ describe("retention planning", () => {
       commitId: "commit_a128_3810",
       deliveryUrl: "/media/a128/3810.m4s",
       objectKey: "media/a128/3810.m4s",
-      renditionId: "a128",
+      trackId: "a128",
       slotId: "slot_a128_3810",
     };
     const commits = [
@@ -173,14 +173,14 @@ describe("retention planning", () => {
       {
         ...segmentCommit,
         commitId: "commit_3811",
-        mediaSequenceNumber: 3811,
+        sequenceNumber: 3811,
         objectKey: "media/3811.m4s",
         slotId: "slot_3811",
       },
       {
         ...segmentCommit,
         commitId: "commit_3812",
-        mediaSequenceNumber: 3812,
+        sequenceNumber: 3812,
         objectKey: "media/3812.m4s",
         slotId: "slot_3812",
       },
@@ -211,28 +211,28 @@ describe("retention planning", () => {
     ]);
   });
 
-  test("keeps commits of renditions absent from the retained window", () => {
+  test("keeps commits of tracks absent from the retained window", () => {
     const audioInitCommit: Commit = {
       ...initCommit,
       commitId: "commit_init_a128",
       deliveryUrl: "/media/a128/init.mp4",
       objectKey: "media/a128/init.mp4",
-      renditionId: "a128",
+      trackId: "a128",
       slotId: "slot_init_a128",
     };
     // Audio's only commit is an out-of-order part below the window-global
-    // first media sequence; the rendition has no visible segments, so it is
+    // first media sequence; the track has no visible segments, so it is
     // absent from the window and its commit must survive — it may still
     // become visible once the contiguous prefix completes.
     const audioPartCommit: Commit = {
       ...segmentCommit,
       commitId: "commit_a128_3809_1",
       deliveryUrl: "/media/a128/3809.1.m4s",
-      duration: 0.5,
-      mediaSequenceNumber: 3809,
+      profile: { duration: 0.5 },
+      sequenceNumber: 3809,
       objectKey: "media/a128/3809.1.m4s",
       partNumber: 1,
-      renditionId: "a128",
+      trackId: "a128",
       slotId: "slot_a128_3809_1",
     };
     const retainedWindow = createCommittedWindow({
@@ -242,7 +242,7 @@ describe("retention planning", () => {
       sessionId: "session_1",
     });
 
-    expect(retainedWindow.renditions.a128).toBeUndefined();
+    expect(retainedWindow.tracks.a128).toBeUndefined();
     expect(
       selectRetiredCommittedObjects({
         commits: [segmentCommit, audioPartCommit],
@@ -272,7 +272,7 @@ describe("retention planning", () => {
     const partCommit = {
       ...segmentCommit,
       commitId: "commit_3810_0",
-      duration: 0.5,
+      profile: { duration: 0.5 },
       objectKey: "media/3810.0.m4s",
       partNumber: 0,
       slotId: "slot_3810_0",

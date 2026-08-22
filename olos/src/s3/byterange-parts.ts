@@ -28,14 +28,14 @@ export async function resolveCommittedParts(
 /**
  * Every part in the window that belongs to `segmentObjectKey`, in ascending
  * byterange offset order. Parts of one virtual segment can be spread across
- * renditions and segments, so the whole window is scanned.
+ * tracks and segments, so the whole window is scanned.
  */
 function collectByterangeParts(
   cursor: Cursor,
   segmentObjectKey: string
 ): CommittedPart[] {
-  return Object.values(cursor.committedWindow.renditions)
-    .flatMap((rendition) => rendition.segments)
+  return Object.values(cursor.committedWindow.tracks)
+    .flatMap((track) => track.segments)
     .flatMap((segment) => segment.parts ?? [])
     .filter((part) => part.byterange?.segmentObjectKey === segmentObjectKey)
     .sort((a, b) => (a.byterange?.offset ?? 0) - (b.byterange?.offset ?? 0));

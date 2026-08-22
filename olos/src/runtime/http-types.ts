@@ -1,13 +1,14 @@
 import type { HlsCursorWaitContext } from "../hls/blocking-reload";
 import type { CreateHlsManifestArtifactResponseOptions } from "../hls/manifest-artifact-types";
+import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "../media/latency-profile-defaults";
 import type {
   CoordinatorCommitPolicy,
   CoordinatorPipelineStore,
 } from "../protocol/coordinator-types";
+import type { CreateCommittedWindowOptions } from "../state/committed-window";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { PublicationMode } from "../types/upload-slot";
 import type { RuntimeCursorNotifier } from "./cursor-notifier";
-import { DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE } from "./latency-profile-defaults";
 import { SESSION_ROUTE_ACTIONS } from "./route";
 export const DEFAULT_RUNTIME_OBJECT_LOW_LATENCY =
   DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE;
@@ -52,7 +53,7 @@ export type RuntimeLiveManifestRoute =
 /** Options for `createStoredCoordinatorRuntimeHandler`. */
 export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   /** HTTPS origins media delivery URLs may point at. Origins only — no paths. */
-  allowedMediaOrigins: readonly string[];
+  allowedDeliveryOrigins: readonly string[];
   /**
    * Enable low-latency blocking playlist reloads (`_HLS_msn`/`_HLS_part`).
    * `timeoutMs` bounds how long a reload is held open, in milliseconds;
@@ -104,6 +105,12 @@ export interface CreateStoredCoordinatorRuntimeHandlerOptions {
   store: CoordinatorPipelineStore;
   /** HLS target latency written into playlists, in seconds; defaults to 3. */
   targetLatency?: number;
+  /**
+   * Profile hook for track window `profile` data on every commit. Defaults
+   * per session to `mediaTrackWindowProfileFor(session.profile)` from
+   * olos/media, so CMAF/LL-HLS sessions get their playlist bookkeeping.
+   */
+  trackWindowProfile?: CreateCommittedWindowOptions["trackWindowProfile"];
 }
 
 /** Request handler returned by `createStoredCoordinatorRuntimeHandler`. */

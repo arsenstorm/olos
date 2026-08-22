@@ -1,6 +1,6 @@
 import {
-  type RenditionWindowBounds,
-  renditionWindowBounds,
+  type TrackWindowBounds,
+  trackWindowBounds,
 } from "../state/committed-window";
 import type { Cursor } from "../types/cursor";
 import { assertNonNegativeInteger } from "../validation/ids";
@@ -26,13 +26,13 @@ export function resolveHlsBlockingReloadValidated(
     };
   }
 
-  if (request.mediaSequenceNumber === undefined) {
+  if (request.sequenceNumber === undefined) {
     return { request, status: "ready" };
   }
 
   const bounds = blockingReloadBounds(cursor, request);
 
-  // The requested rendition has no committed media yet, so any requested
+  // The requested track has no committed media yet, so any requested
   // position is beyond its live edge.
   if (bounds === undefined) {
     return { request, status: "block" };
@@ -50,45 +50,44 @@ export function resolveHlsBlockingReloadValidated(
   };
 }
 
-// Requests without a rendition context resolve against the window-global
-// live edge; per-rendition requests use the rendition's own last visible
+// Requests without a track context resolve against the window-global
+// live edge; per-track requests use the track's own last visible
 // segment and part.
 function blockingReloadBounds(
   cursor: Cursor,
   request: HlsBlockingReloadRequest
-): RenditionWindowBounds | undefined {
-  if (request.renditionId === undefined) {
+): TrackWindowBounds | undefined {
+  if (request.trackId === undefined) {
     return {
-      lastMediaSequenceNumber: cursor.window.lastMediaSequenceNumber,
+      lastSequenceNumber: cursor.window.lastSequenceNumber,
       ...(cursor.window.lastPartNumber === undefined
         ? {}
         : { lastPartNumber: cursor.window.lastPartNumber }),
     };
   }
 
-  return renditionWindowBounds(cursor.committedWindow, request.renditionId);
+  return trackWindowBounds(cursor.committedWindow, request.trackId);
 }
 
 function isPartOnlyBlockingRequest(request: HlsBlockingReloadRequest): boolean {
   return (
-    request.mediaSequenceNumber === undefined &&
-    request.partNumber !== undefined
+    request.sequenceNumber === undefined && request.partNumber !== undefined
   );
 }
 
 function resolveMediaSequenceReloadStatus(
-  bounds: RenditionWindowBounds,
+  bounds: TrackWindowBounds,
   request: HlsBlockingReloadRequest
 ): "block" | "ready" | undefined {
-  if (request.mediaSequenceNumber === undefined) {
+  if (request.sequenceNumber === undefined) {
     return;
   }
 
-  if (request.mediaSequenceNumber > bounds.lastMediaSequenceNumber) {
+  if (request.sequenceNumber > bounds.lastSequenceNumber) {
     return "block";
   }
 
-  if (request.mediaSequenceNumber < bounds.lastMediaSequenceNumber) {
+  if (request.sequenceNumber < bounds.lastSequenceNumber) {
     return "ready";
   }
 
@@ -107,14 +106,14 @@ export function timeoutHlsBlockingReloadResult(
 }
 
 function resolveLiveEdgePartStatus(
-  bounds: RenditionWindowBounds,
+  bounds: TrackWindowBounds,
   request: HlsBlockingReloadRequest
 ): "block" | "ready" {
   return isRequestedPartBeyondLiveEdge(bounds, request) ? "block" : "ready";
 }
 
 function isRequestedPartBeyondLiveEdge(
-  bounds: RenditionWindowBounds,
+  bounds: TrackWindowBounds,
   request: HlsBlockingReloadRequest
 ): boolean {
   const liveEdgePart = bounds.lastPartNumber ?? SEGMENT_ONLY_LIVE_EDGE_PART;
@@ -163,9 +162,7 @@ function parsedBlockingReloadRequestField(
   name: typeof HLS_MSN | typeof HLS_PART,
   number: number
 ): Partial<HlsBlockingReloadRequest> {
-  return name === HLS_MSN
-    ? { mediaSequenceNumber: number }
-    : { partNumber: number };
+  return name === HLS_MSN ? { sequenceNumber: number } : { partNumber: number };
 }
 
 export async function waitForNextCursor(

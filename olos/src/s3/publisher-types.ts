@@ -16,6 +16,7 @@ import type {
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { OlosErrorCode } from "../types/errors";
 import type { OlosId } from "../types/ids";
+import type { ProfileData } from "../types/profile";
 import type { UploadGrant } from "../types/upload-grant";
 import type { UploadSlot } from "../types/upload-slot";
 import type {
@@ -50,12 +51,16 @@ export interface RunStoredS3PublisherUploadStepOptions {
 export interface RunPlannedStoredS3PublisherUploadStepOptions {
   additionalHeaders?: Record<string, string>;
   bucket: string;
+  /**
+   * Seconds the planned object is expected to cover; feeds the grant expiry
+   * together with `targetLatency`.
+   */
+  cadenceSeconds: number;
   client: S3Client;
   commitPolicy?: CoordinatorCommitPolicy;
   committedAt: string;
   headObjectClient?: S3HeadObjectClient;
   heartbeat?(): Promise<RuntimePublisherHeartbeatResult>;
-  independent?: boolean;
   lateToleranceMs?: number;
   manifest?: StoredS3CoordinatorManifestOptions;
   maxAttempts?: number;
@@ -68,14 +73,18 @@ export interface RunPlannedStoredS3PublisherUploadStepOptions {
   now: Date | string;
   /** Object plan minus `expiresAt`, which the step derives itself. */
   plan: Omit<CreateRuntimePublisherObjectPlanOptions, "expiresAt">;
-  programDateTime?: string;
+  /**
+   * Profile-defined facts recorded on the commit; merged over the slot's
+   * own `profile` (commit values win per key).
+   */
+  profile?: ProfileData;
   providerId: string;
   publicationControl?: PublicationControlPolicy;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
   /**
-   * Target publish latency in seconds; the grant TTL is at least the
-   * object duration plus this value.
+   * Target publish latency in seconds; the grant TTL is at least
+   * `cadenceSeconds` plus this value.
    */
   targetLatency: number;
   /** Uploads the object bytes for the planned object. */
@@ -87,7 +96,7 @@ export interface RunPlannedStoredS3PublisherUploadStepOptions {
 export interface RunNextStoredS3PublisherUploadStepOptions
   extends Omit<
       RunPlannedStoredS3PublisherUploadStepOptions,
-      "minTtlSeconds" | "plan" | "targetLatency"
+      "cadenceSeconds" | "minTtlSeconds" | "plan" | "targetLatency"
     >,
     CreateRuntimePublisherNextObjectPlanOptions {}
 
@@ -168,7 +177,7 @@ export type SavedStoredS3CoordinatorUploadGrantIssue = Extract<
 
 export type StoredS3PublisherObjectPlanStepOptions = Omit<
   RunPlannedStoredS3PublisherUploadStepOptions,
-  "plan"
+  "cadenceSeconds" | "plan"
 > & {
   expiry: RuntimePublisherObjectExpiry;
   plan: RuntimePublisherObjectPlan;

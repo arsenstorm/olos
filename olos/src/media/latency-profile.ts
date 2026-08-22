@@ -2,6 +2,12 @@ import type {
   CreateHlsManifestArtifactResponseOptions,
   CreateHlsManifestArtifactsOptions,
 } from "../hls/manifest-artifact-types";
+import type {
+  RuntimePublisherObjectKindDefaults,
+  RuntimePublisherPlannedObjectDefaults,
+} from "../runtime/publisher-cadence";
+import { optionalField } from "../runtime/request-fields";
+import type { ObjectKind } from "../types/storage-object";
 import { positiveNumber } from "../validation/fields";
 import {
   isNonNegativeSafeInteger,
@@ -11,11 +17,10 @@ import {
   DEFAULT_RUNTIME_OBJECT_LOW_LATENCY_PROFILE,
   type RuntimeObjectLowLatencyProfile,
 } from "./latency-profile-defaults";
-import type {
-  RuntimePublisherObjectKindDefaults,
-  RuntimePublisherPlannedObjectDefaults,
-} from "./publisher-cadence";
-import { optionalField } from "./request-fields";
+import {
+  assertSupportedMediaExtension,
+  DEFAULT_MEDIA_OBJECT_EXTENSIONS,
+} from "./object-key";
 
 /**
  * Manifest-serving settings derived from a low-latency profile, shaped for
@@ -124,11 +129,14 @@ export function createRuntimeObjectLowLatencyPublisherOptions(
 }
 
 /**
- * Build the per-kind planned-object defaults a publisher cadence needs:
- * part and segment durations come from the profile, the init duration from
- * `options.init`, and byte bounds/extensions from the per-kind options.
- * Throws on empty content types, non-positive durations, or byte bounds
- * where `minBytes` exceeds `maxBytes`.
+ * Build the per-kind planned-object defaults a publisher cadence needs for
+ * the CMAF/LL-HLS profile: part and segment durations come from the
+ * profile, the init duration from `options.init`, and byte bounds and
+ * extensions (`mp4` for init, `m4s` otherwise) from the per-kind options.
+ * Each kind's `cadenceSeconds` and slot `profile.duration` are set to that
+ * duration. Throws on empty content types, non-positive durations,
+ * unsupported media extensions, or byte bounds where `minBytes` exceeds
+ * `maxBytes`.
  */
 export function createRuntimeObjectLowLatencyPublisherDefaults(
   options: CreateRuntimeObjectLowLatencyPublisherDefaultsOptions
@@ -139,19 +147,19 @@ export function createRuntimeObjectLowLatencyPublisherDefaults(
     init: publisherObjectDefaults({
       contentType: options.contentType,
       duration: options.init.duration,
-      extension: options.init.extension ?? "mp4",
+      kind: "init",
       object: options.init,
     }),
     part: publisherObjectDefaults({
       contentType: options.contentType,
       duration: profile.partTarget,
-      extension: options.part.extension ?? "m4s",
+      kind: "part",
       object: options.part,
     }),
     segment: publisherObjectDefaults({
       contentType: options.contentType,
       duration: profile.segmentTarget,
-      extension: options.segment.extension ?? "m4s",
+      kind: "segment",
       object: options.segment,
     }),
   };
@@ -160,18 +168,23 @@ export function createRuntimeObjectLowLatencyPublisherDefaults(
 function publisherObjectDefaults(options: {
   contentType: string;
   duration: number;
-  extension: string;
+  kind: ObjectKind;
   object: RuntimeObjectLowLatencyPublisherObjectOptions;
 }): RuntimePublisherObjectKindDefaults {
+  const extension =
+    options.object.extension ?? DEFAULT_MEDIA_OBJECT_EXTENSIONS[options.kind];
+
   assertPublisherObjectContentType(options.contentType);
   assertPublisherObjectDuration(options.duration);
+  assertSupportedMediaExtension(extension, options.kind, "extension");
   assertPublisherObjectByteBounds(options.object);
 
   return {
+    cadenceSeconds: options.duration,
     contentType: options.contentType,
-    duration: options.duration,
-    extension: options.extension,
+    extension,
     maxBytes: options.object.maxBytes,
+    profile: { duration: options.duration },
     ...optionalField("minBytes", options.object.minBytes),
   };
 }

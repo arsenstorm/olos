@@ -1,3 +1,4 @@
+import type { CreateCommittedWindowOptions } from "../state/committed-window";
 import type { PublicationControlPolicy } from "../state/publication-control";
 import type { RetiredCommittedObject } from "../state/retention";
 import type { CreateIssuedUploadSlotOptions } from "../state/upload-slot";
@@ -5,6 +6,7 @@ import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
+import type { ProfileData } from "../types/profile";
 import type { Session } from "../types/session";
 import type { PublicationMode, UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
@@ -30,13 +32,13 @@ export interface CoordinatorPublisherLease {
  * rather than mutating the input.
  */
 export interface CoordinatorPipelineState {
-  /** Media (part/segment) commits; init commits live in `initCommits`. */
+  /** Segment and part commits; init commits live in `initCommits`. */
   commits: readonly Commit[];
-  /** Live playback cursor; absent until the first contiguous commit lands. */
+  /** Live cursor; absent until the first contiguous commit lands. */
   cursor?: Cursor;
-  initCommits: readonly Commit[];
   /** Base delivery URL that slot `deliveryUrl`s are derived from. */
-  mediaBaseUrl: string;
+  deliveryBaseUrl: string;
+  initCommits: readonly Commit[];
   /** Defaults to `"direct-public"` when absent. */
   publicationMode?: PublicationMode;
   publisherLeases: readonly CoordinatorPublisherLease[];
@@ -67,7 +69,7 @@ export interface CoordinatorCursorView {
 /** Options for `createCoordinatorPipeline`. */
 export interface CreateCoordinatorPipelineOptions {
   /** Base delivery URL that slot `deliveryUrl`s are derived from. */
-  mediaBaseUrl: string;
+  deliveryBaseUrl: string;
   /** Defaults to `"direct-public"`. */
   publicationMode?: PublicationMode;
   session: Session;
@@ -160,7 +162,7 @@ export type CoordinatorPipelineMutation =
 /**
  * Options for `issueCoordinatorSlot`. Extends the slot descriptor fields with
  * the pipeline state; `objectKey` and `deliveryUrl` are derived from the
- * state's `mediaBaseUrl` rather than passed in.
+ * state's `deliveryBaseUrl` rather than passed in.
  */
 export interface IssueCoordinatorSlotOptions
   extends Omit<
@@ -195,8 +197,6 @@ export interface CommitCoordinatorUploadOptions {
   commitPolicy?: CoordinatorCommitPolicy;
   /** ISO timestamp of the commit attempt. */
   committedAt: string;
-  /** Marks the committed part as independent (an HLS I-frame boundary). */
-  independent?: boolean;
   /**
    * Grace period in milliseconds for uploads observed after the slot's
    * `expiresAt` before they are rejected as late.
@@ -209,12 +209,20 @@ export interface CommitCoordinatorUploadOptions {
   maxSegments?: number;
   /** The uploaded object as observed in storage. */
   object: ObservedUpload;
-  /** ISO timestamp for `EXT-X-PROGRAM-DATE-TIME` alignment. */
-  programDateTime?: string;
+  /**
+   * Profile data recorded on the commit (opaque to Core). Merged over the
+   * slot's `profile`: slot keys first, commit keys win per key.
+   */
+  profile?: ProfileData;
   /** Policy gate for the commit and any resulting cursor advancement. */
   publicationControl?: PublicationControlPolicy;
   slotId: OlosId;
   state: CoordinatorPipelineState;
+  /**
+   * Profile hook producing each track window's `profile` when the cursor
+   * advances; see `createCommittedWindow` (olos/state). Omit for none.
+   */
+  trackWindowProfile?: CreateCommittedWindowOptions["trackWindowProfile"];
 }
 
 /** Inputs a `CoordinatorCommitPolicy` sees for one commit attempt. */

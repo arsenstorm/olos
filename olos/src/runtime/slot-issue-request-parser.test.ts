@@ -4,12 +4,12 @@ import { parseSlotIssueRequest } from "./slot-issue-request-parser";
 
 const slotPayload = {
   contentType: "video/mp4",
-  duration: 2,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  mediaSequenceNumber: 3810,
-  renditionId: "v1080",
+  profile: { duration: 2 },
+  sequenceNumber: 3810,
+  trackId: "v1080",
   slotId: "slot_3810",
 } as const;
 

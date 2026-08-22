@@ -32,7 +32,7 @@ arrive.
 
 ## What it does
 
-- Fetches `http://localhost:8787/v1/live/:session/:rendition/media.m3u8`
+- Fetches `http://localhost:8787/v1/live/:session/:track/media.m3u8`
   through hls.js with `lowLatencyMode: true`, `liveSyncDuration: 0.5`, and
   `maxLiveSyncPlaybackRate: 1.5`. With `examples/streamer` producing 500 ms
   LL-HLS parts, hls.js's blocking-reload path holds requests open for
@@ -50,7 +50,7 @@ arrive.
 
 ## What it intentionally doesn't show
 
-- Multi-rendition / quality selection.
+- Multi-track / quality selection.
 - Buffer health / stats UI.
 - Custom controls. Uses the default `<video controls>`.
 - Auth. Manifest and media routes are public; this would not be true in
@@ -70,7 +70,7 @@ curated measured baseline is pending; see the
 [benchmarks guide](../../benchmarks/README.md#reference-numbers)). OLOS now
 emits `#EXT-X-PART:BYTERANGE="L@O"` against a virtual segment URL and a
 `#EXT-X-PRELOAD-HINT:TYPE=PART,BYTERANGE-START=N` line after the last
-in-progress part; the Worker's `/v/:session/:rendition/:msn.m4s` route
+in-progress part; the Worker's `/v/:session/:track/:msn.m4s` route
 aggregates part objects from S3 and holds the response open until the
 next commit lands. Sub-second latency would require WebRTC; HLS-compatible
 clients (browsers + Apple ecosystem + every modern player) plug into this
@@ -80,7 +80,7 @@ unchanged.
 
 The Worker (`examples/api/src/index.ts`) adds
 `Access-Control-Allow-Origin: *` to every response under `/v1/live/*` and
-`/media/*`, plus an OPTIONS short-circuit. Without that, the browser
+`/objects/*`, plus an OPTIONS short-circuit. Without that, the browser
 would block the cross-origin fetch from `localhost:8788` to
 `localhost:8787`.
 

@@ -1,3 +1,4 @@
+import type { ProfileData } from "../types/profile";
 import type { UploadSlot } from "../types/upload-slot";
 import type {
   RuntimeCommitPayload,
@@ -55,8 +56,6 @@ export interface RunRuntimePublisherUploadStepOptions {
   committedAt: string;
   /** Optional lease refresh, run first; a failure aborts the step. */
   heartbeat?(): Promise<RuntimePublisherHeartbeatResult>;
-  /** Mark the committed segment as independent (a keyframe boundary). */
-  independent?: boolean;
   /** Issues the upload slot (e.g. via `issueRuntimeSlot`). */
   issueSlot(
     payload: RuntimeSlotIssuePayload
@@ -64,7 +63,8 @@ export interface RunRuntimePublisherUploadStepOptions {
   /** Commit late tolerance forwarded in the payload, in milliseconds. */
   lateToleranceMs?: number;
   maxSegments?: number;
-  programDateTime?: string;
+  /** Profile data sent with the commit (opaque to Core). */
+  profile?: ProfileData;
   /** Slot issue payload describing the object about to be uploaded. */
   slot: RuntimeSlotIssuePayload;
   /** Uploads the object to the issued slot and reports what was stored. */

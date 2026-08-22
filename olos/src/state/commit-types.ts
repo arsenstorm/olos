@@ -2,8 +2,9 @@ import type { Commit } from "../types/commit";
 import type { Cursor } from "../types/cursor";
 import type { OlosError } from "../types/errors";
 import type { OlosId } from "../types/ids";
-import type { MediaObject } from "../types/media-object";
+import type { ProfileData } from "../types/profile";
 import type { Session } from "../types/session";
+import type { StorageObject } from "../types/storage-object";
 import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
 import {
@@ -21,17 +22,18 @@ export interface CreateCommitOptions {
    * `slot.expiresAt + lateToleranceMs`.
    */
   committedAt: string;
-  /** Whether the committed part starts with an independent frame. */
-  independent?: boolean;
   /**
    * Grace period in milliseconds added to `slot.expiresAt` before a
    * commit is considered late (default 0).
    */
   lateToleranceMs?: number;
   /** Object evidence; must match the slot's key, content type, and size bounds. */
-  mediaObject: MediaObject;
-  /** ISO timestamp surfaced as `EXT-X-PROGRAM-DATE-TIME`. */
-  programDateTime?: string;
+  mediaObject: StorageObject;
+  /**
+   * Profile data supplied with the commit (opaque to Core). Merged over
+   * the slot's `profile`; commit keys win.
+   */
+  profile?: ProfileData;
   /** Slot being committed; must be in the `upload_observed` state. */
   slot: UploadSlot;
 }
@@ -107,7 +109,7 @@ export type CommitAttemptOptionsWithSlot = ResolveCommitAttemptOptions & {
 
 export interface ResolveObjectSlotMismatchOptions {
   includeKeyMismatch?: boolean;
-  mediaObject: MediaObject;
+  mediaObject: StorageObject;
   slot: UploadSlot;
 }
 
@@ -124,8 +126,6 @@ export interface CommitObservedUploadOptions {
    * `slot.expiresAt + lateToleranceMs`.
    */
   committedAt: string;
-  /** Whether the committed part starts with an independent frame. */
-  independent?: boolean;
   /**
    * Grace period in milliseconds added to `slot.expiresAt` before the
    * observation or commit is considered late (default 0).
@@ -133,8 +133,11 @@ export interface CommitObservedUploadOptions {
   lateToleranceMs?: number;
   /** Provider-observed upload; must match the slot. */
   object: ObservedUpload;
-  /** ISO timestamp surfaced as `EXT-X-PROGRAM-DATE-TIME`. */
-  programDateTime?: string;
+  /**
+   * Profile data supplied with the commit (opaque to Core). Merged over
+   * the slot's `profile`; commit keys win.
+   */
+  profile?: ProfileData;
   /** Slot to observe and commit; must be `issued` or `upload_observed`. */
   slot: UploadSlot;
 }

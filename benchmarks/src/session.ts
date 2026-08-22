@@ -131,13 +131,13 @@ async function publishFragment(
   const timestamps = usingParts
     ? await olos.publishPart({
         bytes,
-        mediaSequenceNumber: msn,
+        sequenceNumber: msn,
         partNumber,
         partSeconds: FRAGMENT_SECONDS,
       })
     : await olos.publishSegment({
         bytes,
-        mediaSequenceNumber: msn,
+        sequenceNumber: msn,
         segmentSeconds: FRAGMENT_SECONDS,
       });
   progress.publishTimings.set(fragmentKey(msn, partNumber), timestamps);
@@ -186,7 +186,7 @@ async function consumeNextFragment(
   const msn = Math.floor(cursor.nextFragment / PARTS_PER_SEGMENT);
   const partNumber = cursor.nextFragment % PARTS_PER_SEGMENT;
   const partQuery = usingParts ? `&_HLS_part=${partNumber}` : "";
-  const url = `https://edge.example.com/v1/live/${olos.sessionId}/${olos.renditionId}/media.m3u8?_HLS_msn=${msn}${partQuery}`;
+  const url = `https://edge.example.com/v1/live/${olos.sessionId}/${olos.trackId}/media.m3u8?_HLS_msn=${msn}${partQuery}`;
   const response = await olos.handle(new Request(url));
   const playlistVisibleAt = now();
   if (response.status !== 200) {

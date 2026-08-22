@@ -17,21 +17,21 @@ import type {
 /**
  * Create the initial pipeline state for a new streaming session: no slots,
  * no commits, and no cursor. Validates the session and rejects unsafe
- * `mediaBaseUrl` values (throws on either). `publicationMode` defaults to
+ * `deliveryBaseUrl` values (throws on either). `publicationMode` defaults to
  * `"direct-public"`.
  */
 export function createCoordinatorPipeline(options: {
-  mediaBaseUrl: string;
+  deliveryBaseUrl: string;
   publicationMode?: PublicationMode;
   session: Session;
 }): CoordinatorPipelineState {
   assertSession(options.session);
-  assertSafeDeliveryUrl(options.mediaBaseUrl, "mediaBaseUrl");
+  assertSafeDeliveryUrl(options.deliveryBaseUrl, "deliveryBaseUrl");
 
   return {
     commits: [],
     initCommits: [],
-    mediaBaseUrl: options.mediaBaseUrl,
+    deliveryBaseUrl: options.deliveryBaseUrl,
     publicationMode: options.publicationMode ?? "direct-public",
     publisherLeases: [],
     session: options.session,
@@ -43,7 +43,7 @@ export function createCoordinatorPipeline(options: {
  * Compute what retention would remove from a pipeline state without
  * modifying it: issued slots whose grant expired before `now` (plus
  * `lateToleranceMs`, default 0) without an upload, and commits strictly
- * older than their own rendition's retained window (none when there is no
+ * older than their own track's retained window (none when there is no
  * cursor yet). Use `applyCoordinatorRetention` to also prune the state.
  */
 export function planCoordinatorRetention(

@@ -7,7 +7,7 @@ import {
 import { createCursorWaiter } from "./cursor-notifier";
 
 const VIRTUAL_PATH_PATTERN =
-  /^\/v\/(?<sessionId>[^/]+)\/(?<renditionId>[^/]+)\/(?<msn>\d+)\.m4s$/;
+  /^\/v\/(?<sessionId>[^/]+)\/(?<trackId>[^/]+)\/(?<msn>\d+)\.m4s$/;
 
 const RANGE_HEADER_PATTERN = /^bytes=(\d+)-(\d*)$/;
 
@@ -25,9 +25,9 @@ export async function proxyVirtualSegment(
     return new Response("not found", { status: 404 });
   }
 
-  const { sessionId, renditionId, msn } = match.groups as {
+  const { sessionId, trackId, msn } = match.groups as {
     msn: string;
-    renditionId: string;
+    trackId: string;
     sessionId: string;
   };
 
@@ -41,7 +41,7 @@ export async function proxyVirtualSegment(
     client,
     cursorWait: createCursorWaiter(env.STREAMS, BLOCKING_RELOAD_TIMEOUT_MS),
     range,
-    segmentObjectKey: `live/${sessionId}/${renditionId}/${msn}.m4s`,
+    segmentObjectKey: `live/${sessionId}/${trackId}/${msn}.m4s`,
     sessionId,
     signal: request.signal,
     store,

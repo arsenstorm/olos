@@ -108,7 +108,7 @@ function cloneCursorView(
     etag: snapshot.etag,
     session: {
       ...session,
-      renditions: session.renditions.map((rendition) => ({ ...rendition })),
+      tracks: session.tracks.map((track) => ({ ...track })),
     },
   };
 }
