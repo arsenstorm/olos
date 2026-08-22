@@ -1,6 +1,7 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { which } from "bun";
+import { packageRoot } from "./script-paths";
 
 // Subpaths come from the installed export map so a new export needs no edit
 // here; KNOWN_SYMBOLS spot-checks one value per subpath. Export-map shape is
@@ -73,4 +74,17 @@ export function smokeRuntime(): string {
   }
 
   return node;
+}
+
+// `./s3` needs `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`, but
+// they are optional peer dependencies, so npm/bun never install them
+// alongside the tarball on their own — install them explicitly, at the
+// versions the package itself declares, so the smoke run exercises `./s3`.
+export async function optionalPeerDependencySpecs(): Promise<string[]> {
+  const manifest = JSON.parse(
+    await readFile(join(packageRoot, "package.json"), "utf8")
+  ) as { peerDependencies?: Record<string, string> };
+  const peers = manifest.peerDependencies ?? {};
+
+  return Object.entries(peers).map(([name, range]) => `${name}@${range}`);
 }
