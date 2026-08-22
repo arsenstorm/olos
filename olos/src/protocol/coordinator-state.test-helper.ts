@@ -1,4 +1,4 @@
-import { CONFORMANCE_DELIVERY_BASE_URL } from "../conformance/fixture";
+import { CONFORMANCE_DELIVERY_BASE_URL } from "../conformance/pipeline-store";
 import { createObservedUpload } from "../state/observed-upload";
 import type { ProfileData } from "../types/profile";
 import type { Session } from "../types/session";

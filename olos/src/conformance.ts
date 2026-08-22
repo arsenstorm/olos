@@ -1,11 +1,13 @@
 // biome-ignore-all lint/performance/noBarrelFile: public conformance facade for the olos/conformance export
 
 export {
+  OLOS_CONFORMANCE_ASSERTION_IDS,
+  type OlosConformanceAssertionId,
+} from "./conformance/coverage-rows";
+export {
   getOlosConformanceCoverage,
   isOlosConformanceAssertionId,
-  OLOS_CONFORMANCE_ASSERTION_IDS,
   OLOS_CONFORMANCE_COVERAGE,
-  type OlosConformanceAssertionId,
   type OlosConformanceCoverage,
   type OlosConformanceCoverageStatus,
   type OlosConformanceLevel,

@@ -7,7 +7,21 @@ import type {
   CoordinatorPipelineStore,
   CoordinatorStoreSave,
 } from "../protocol/coordinator-types";
-import { CONFORMANCE_DELIVERY_BASE_URL, CONFORMANCE_SESSION } from "./fixture";
+import type { Session } from "../types/session";
+
+/** Delivery base URL used by every conformance harness session. */
+export const CONFORMANCE_DELIVERY_BASE_URL = "https://media.example.com";
+
+/** A minimal live session with one track under a profile-agnostic id. */
+const CONFORMANCE_SESSION: Session = {
+  createdAt: "2026-01-01T00:00:00.000Z",
+  epoch: 1,
+  olos: "1.0",
+  profile: { id: "conformance" },
+  sessionId: "session_1",
+  state: "live",
+  tracks: [{ trackId: "track_1" }],
+};
 
 /** Options for `assertCoordinatorPipelineStoreConformance`. */
 export interface AssertCoordinatorPipelineStoreConformanceOptions {
@@ -51,7 +65,7 @@ export async function assertCoordinatorPipelineStoreConformance(
     sessionId: "missing_session",
     state: initial,
   });
-  assertStoreStatus(
+  expectStoreValue(
     missingUpdate.status,
     "conflict",
     "missing update must conflict"
@@ -119,13 +133,13 @@ async function assertSaveConflictConformance(
     sessionId: CONFORMANCE_SESSION.sessionId,
     state: initial,
   });
-  assertStoreStatus(stale.status, "conflict", "stale save must conflict");
+  expectStoreValue(stale.status, "conflict", "stale save must conflict");
 
   const duplicateInsert = await store.save({
     sessionId: CONFORMANCE_SESSION.sessionId,
     state: initial,
   });
-  assertStoreStatus(
+  expectStoreValue(
     duplicateInsert.status,
     "conflict",
     "duplicate insert must conflict"
@@ -259,17 +273,7 @@ function assertSavedStoreResult(
   result: CoordinatorStoreSave,
   message: string
 ): asserts result is Extract<CoordinatorStoreSave, { status: "saved" }> {
-  assertStoreStatus(result.status, "saved", message);
-}
-
-function assertStoreStatus(
-  actual: string,
-  expected: string,
-  message: string
-): void {
-  if (actual !== expected) {
-    throw new Error(`${message}: expected ${expected}, received ${actual}`);
-  }
+  expectStoreValue(result.status, "saved", message);
 }
 
 function expectStoreValue<T>(actual: T, expected: T, message: string): void {

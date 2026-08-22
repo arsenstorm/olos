@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { OLOS_CONFORMANCE_ASSERTION_IDS } from "./assertion-ids";
+import { OLOS_CONFORMANCE_ASSERTION_IDS } from "./coverage-rows";
 import { OLOS_CONFORMANCE_SPEC_REFS } from "./spec-refs";
 
 const SECTION_NUMBER_PATTERN = /^\d{1,2}(\.\d+)*$/;
 const EXPECTED_MAPPED_COUNT = 101;
 
 describe("conformance spec refs", () => {
-  test("covers every assertion id exactly once", () => {
-    expect(Object.keys(OLOS_CONFORMANCE_SPEC_REFS).sort()).toEqual(
-      [...OLOS_CONFORMANCE_ASSERTION_IDS].sort()
-    );
+  test("assertion ids are unique", () => {
+    const ids = [...OLOS_CONFORMANCE_ASSERTION_IDS];
+
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   test("non-null entries look like spec section numbers", () => {

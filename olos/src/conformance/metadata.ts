@@ -1,23 +1,17 @@
 import {
-  OLOS_CONFORMANCE_ASSERTION_IDS as assertionIds,
-  type OlosConformanceAssertionId,
-} from "./assertion-ids";
-import {
+  OLOS_CONFORMANCE_ASSERTION_IDS,
   OLOS_CONFORMANCE_COVERAGE_ROWS,
-  type OlosConformanceCoverageRow,
+  type OlosConformanceAssertionId,
 } from "./coverage-rows";
 import type {
   OlosConformanceCoverageStatus,
   OlosConformanceLevel,
 } from "./coverage-types";
 
-export type { OlosConformanceAssertionId } from "./assertion-ids";
 export type {
   OlosConformanceCoverageStatus,
   OlosConformanceLevel,
 } from "./coverage-types";
-/** Every assertion id defined by the OLOS conformance suite. */
-export const OLOS_CONFORMANCE_ASSERTION_IDS = assertionIds;
 
 /** One row of the conformance coverage table. */
 export interface OlosConformanceCoverage {
@@ -31,45 +25,22 @@ const OLOS_CONFORMANCE_ASSERTION_ID_SET = new Set<string>(
   OLOS_CONFORMANCE_ASSERTION_IDS
 );
 
+type CoverageRow = readonly [
+  id: OlosConformanceAssertionId,
+  level: OlosConformanceLevel,
+  testFile: string,
+  section: string | null,
+  status?: OlosConformanceCoverageStatus,
+];
+
 function coverage([
   id,
   level,
   testFile,
+  ,
   status = "covered",
-]: OlosConformanceCoverageRow): OlosConformanceCoverage {
+]: CoverageRow): OlosConformanceCoverage {
   return { id, level, status, testFile };
-}
-
-function defineConformanceCoverage<
-  const T extends readonly OlosConformanceCoverage[],
->(items: T): T {
-  const mapped = new Set<string>();
-
-  for (const entry of items) {
-    if (!OLOS_CONFORMANCE_ASSERTION_ID_SET.has(entry.id)) {
-      throw new Error(`unknown conformance assertion coverage id: ${entry.id}`);
-    }
-
-    if (mapped.has(entry.id)) {
-      throw new Error(
-        `duplicate conformance assertion coverage id: ${entry.id}`
-      );
-    }
-
-    mapped.add(entry.id);
-  }
-
-  const missing = OLOS_CONFORMANCE_ASSERTION_IDS.filter(
-    (id) => !mapped.has(id)
-  );
-
-  if (missing.length > 0) {
-    throw new Error(
-      `missing conformance assertion coverage ids: ${missing.join(", ")}`
-    );
-  }
-
-  return items;
 }
 
 /**
@@ -77,9 +48,8 @@ function defineConformanceCoverage<
  * the test file that covers it and whether coverage is complete or
  * partial.
  */
-export const OLOS_CONFORMANCE_COVERAGE = defineConformanceCoverage(
-  OLOS_CONFORMANCE_COVERAGE_ROWS.map(coverage)
-);
+export const OLOS_CONFORMANCE_COVERAGE =
+  OLOS_CONFORMANCE_COVERAGE_ROWS.map(coverage);
 
 const OLOS_CONFORMANCE_COVERAGE_BY_ID = new Map<
   OlosConformanceAssertionId,
