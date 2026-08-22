@@ -31,31 +31,29 @@ The `Release PR` workflow (`.github/workflows/release.yml`) maintains a
 changesets into `olos/CHANGELOG.md`. It also regenerates `bun.lock` so that
 the PR passes the frozen lockfile install.
 
-**The Version Packages PR starts with no check runs.** The workflow pushes
-its branch with `GITHUB_TOKEN`, and GitHub does not trigger workflows for
-events created with that token. When branch protection requires status
-checks, satisfy them by manually dispatching the `Validate` and `Zizmor`
-workflows on the `changeset-release/main` branch (Actions tab → workflow →
-"Run workflow"). The check runs attach to the branch head commit and count
-toward the required checks.
+The workflow pushes and opens the PR with a GitHub App token
+(`RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY` secrets). Events from the
+App trigger the normal checks, so the PR arrives with `Validate` and
+`Zizmor` runs. The App must be on the bypass list of the ruleset that
+restricts tag creation.
 
 ## Cutting a release
 
-1. Dispatch `Validate` and `Zizmor` on `changeset-release/main`, then merge
-   the "Version Packages" PR once those runs are green.
-2. Pull `main` and push the matching tag:
-
-   ```bash
-   git pull
-   version=$(jq -r .version olos/package.json)
-   git tag "olos-v${version}"
-   git push origin "olos-v${version}"
-   ```
-
-   The tag push is manual by design. Together with the `npm` environment
-   approval, it forms the human release gate.
-
+1. Merge the "Version Packages" PR once its checks are green.
+2. The `Release PR` workflow runs on that merge, finds no pending
+   changesets, and pushes the `olos-v<version>` tag for
+   `olos/package.json`. The tag push starts the publish workflow.
 3. Approve the `npm` environment when the publish workflow requests it.
+   This approval is the human release gate.
+
+If the tag push fails, push it by hand from `main`:
+
+```bash
+git pull
+version=$(jq -r .version olos/package.json)
+git tag "olos-v${version}"
+git push origin "olos-v${version}"
+```
 
 The publish workflow (`.github/workflows/publish.yml`) then:
 
