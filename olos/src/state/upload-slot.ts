@@ -8,14 +8,6 @@ import { UPLOAD_SLOT_TRANSITIONS } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
 import { assertSession } from "../validation/session";
 import { assertUploadSlot } from "../validation/upload-slot";
-import {
-  observeUpload,
-  resolveUploadExpiry,
-  resolveUploadObservation,
-  resolveUploadRejection,
-  resolveUploadRevocation,
-  revokeUpload,
-} from "./upload-slot-observe";
 
 export const UPLOAD_SLOT_TRANSITION_MAP: Partial<
   Record<UploadSlotState, readonly UploadSlotState[]>

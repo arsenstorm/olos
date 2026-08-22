@@ -7,12 +7,6 @@ import type { Session } from "../types/session";
 import type { StorageObject } from "../types/storage-object";
 import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
-import {
-  commitObservedUpload,
-  createCommit,
-  resolveCommitAttempt,
-  resolveUploadCommit,
-} from "./commit";
 import { resolveDuplicateCommit } from "./commit-mismatch";
 /** Options for {@link createCommit}. */
 export interface CreateCommitOptions {

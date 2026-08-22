@@ -135,7 +135,7 @@ describe("route path builders", () => {
   test("rejects unsafe route path shapes", () => {
     for (const routePath of ["", "sessions", "//sessions", "/sessions\n"]) {
       expect(() => assertRoutePath(routePath, "sessionPath")).toThrow(
-        "sessionPath must be a safe route path"
+        "sessionPath must be a safe relative path"
       );
     }
   });

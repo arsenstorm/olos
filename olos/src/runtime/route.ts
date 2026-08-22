@@ -1,4 +1,5 @@
-import { errorMessage, hasControlCharacter } from "../validation/fields";
+import { assertSafeRelativePath } from "../hls/uri";
+import { errorMessage } from "../validation/fields";
 import { assertUrlSafeIdentifier } from "../validation/ids";
 import { trimSlashes } from "../validation/path";
 
@@ -127,33 +128,8 @@ export function routeIdentifierError(
 }
 
 export function assertRoutePath(value: string, name: string): void {
-  assertRoutePathShape(value, name);
-  assertRoutePathHasNoQueryOrFragment(value, name);
+  assertSafeRelativePath(value, name);
   assertRoutePathSegments(value, name);
-}
-
-function assertRoutePathShape(value: string, name: string): void {
-  if (isUnsafeRoutePathShape(value)) {
-    throw new Error(`${name} must be a safe route path`);
-  }
-}
-
-function isUnsafeRoutePathShape(value: string): boolean {
-  return (
-    value.length === 0 ||
-    !value.startsWith("/") ||
-    value.startsWith("//") ||
-    hasControlCharacter(value)
-  );
-}
-
-function assertRoutePathHasNoQueryOrFragment(
-  value: string,
-  name: string
-): void {
-  if (value.includes("?") || value.includes("#")) {
-    throw new Error(`${name} must not contain query strings or fragments`);
-  }
 }
 
 function assertRoutePathSegments(value: string, name: string): void {

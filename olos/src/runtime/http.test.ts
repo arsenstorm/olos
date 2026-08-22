@@ -41,7 +41,7 @@ describe("stored coordinator runtime handler", () => {
     ).toThrow("allowedDeliveryOrigins must contain HTTPS origins");
     expect(() =>
       createStoredCoordinatorRuntimeHandler({ ...options, livePath: "live" })
-    ).toThrow("livePath must be a safe route path");
+    ).toThrow("livePath must be a safe relative path");
     expect(() =>
       createStoredCoordinatorRuntimeHandler({
         ...options,

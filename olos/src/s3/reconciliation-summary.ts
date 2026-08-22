@@ -2,27 +2,36 @@ import { optionalField } from "../runtime/request-fields";
 import type { OlosId } from "../types/ids";
 import type { UploadSlot } from "../types/upload-slot";
 import { isAllowedString } from "../validation/fields";
+import { assertUrlSafeIdentifier } from "../validation/ids";
+import { assertS3BucketName } from "./bucket";
 import { commitStoredS3CoordinatorUpload } from "./coordinator-grant";
 import type {
   CommitStoredS3CoordinatorUploadOptions,
   StoredS3CoordinatorUploadCommit,
 } from "./coordinator-types";
-import {
-  type FailedStoredS3CoordinatorUploadReconciliationResult,
-  type MutableStoredS3CoordinatorUploadReconciliationSummary,
-  type PlanStoredS3CoordinatorReconciliationOptions,
-  type ReconcileStoredS3CoordinatorUploadsOptions,
-  type ReconciliationUploadSlot,
-  type RejectedS3CoordinatorUploadCommit,
-  reconcileStoredS3CoordinatorUploads,
-  type SlotValue,
-  type StoredS3CoordinatorReconciliationPlan,
-  type StoredS3CoordinatorUploadReconciliationResult,
-  type StoredS3CoordinatorUploadReconciliationSummary,
-  type StoredS3CoordinatorUploadReconciliationSummaryContribution,
-  SUCCESSFUL_S3_RECONCILIATION_STATUSES,
-  type SuccessfulS3ReconciliationStatus,
+import type {
+  FailedStoredS3CoordinatorUploadReconciliationResult,
+  MutableStoredS3CoordinatorUploadReconciliationSummary,
+  PlanStoredS3CoordinatorReconciliationOptions,
+  ReconcileStoredS3CoordinatorUploadsOptions,
+  ReconciliationUploadSlot,
+  RejectedS3CoordinatorUploadCommit,
+  SlotValue,
+  StoredS3CoordinatorReconciliationPlan,
+  StoredS3CoordinatorUploadReconciliation,
+  StoredS3CoordinatorUploadReconciliationResult,
+  StoredS3CoordinatorUploadReconciliationSummary,
+  StoredS3CoordinatorUploadReconciliationSummaryContribution,
 } from "./reconciliation";
+
+export const SUCCESSFUL_S3_RECONCILIATION_STATUSES = [
+  "committed",
+  "idempotent",
+] as const;
+
+export type SuccessfulS3ReconciliationStatus =
+  (typeof SUCCESSFUL_S3_RECONCILIATION_STATUSES)[number];
+
 export function missingStoredS3CoordinatorUploadReconciliationSummary(): StoredS3CoordinatorUploadReconciliationSummary {
   return {
     committed: 0,
@@ -127,6 +136,40 @@ export function completedStoredS3CoordinatorUploadReconciliationSummary(
     planned,
     status: "reconciled",
   };
+}
+
+/**
+ * Sweep a stored session's unresolved slots (state `issued` or
+ * `upload_observed`, optionally narrowed by `slotIds`) and attempt to
+ * commit each one in turn via S3 `HeadObject` observation. Commit ids
+ * default to `reconcile_{slotId}`, so re-running a sweep is idempotent for
+ * slots that already committed. Per-slot failures — including thrown errors
+ * — are captured in the results rather than aborting the sweep. This
+ * applies changes; use {@link planStoredS3CoordinatorReconciliation} for a
+ * dry run.
+ */
+export async function reconcileStoredS3CoordinatorUploads(
+  options: ReconcileStoredS3CoordinatorUploadsOptions
+): Promise<StoredS3CoordinatorUploadReconciliation> {
+  assertReconciliationOptions(options);
+
+  const plan = await planStoredS3CoordinatorReconciliation(options);
+
+  if (plan.status === "not_found") {
+    return { status: "not_found" };
+  }
+
+  return {
+    results: await reconcileStoredS3CoordinatorUploadSlots(plan.slots, options),
+    status: "reconciled",
+  };
+}
+
+function assertReconciliationOptions(
+  options: ReconcileStoredS3CoordinatorUploadsOptions
+): void {
+  assertS3BucketName(options.bucket);
+  assertUrlSafeIdentifier(options.providerId, "providerId");
 }
 
 /**

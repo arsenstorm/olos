@@ -115,11 +115,11 @@ export type {
   StoredS3CoordinatorUploadReconciliationResult,
   StoredS3CoordinatorUploadReconciliationSummary,
 } from "./s3/reconciliation";
+export { summarizeStoredS3CoordinatorUploadReconciliation } from "./s3/reconciliation";
 export {
+  planStoredS3CoordinatorReconciliation,
   reconcileStoredS3CoordinatorUploads,
-  summarizeStoredS3CoordinatorUploadReconciliation,
-} from "./s3/reconciliation";
-export { planStoredS3CoordinatorReconciliation } from "./s3/reconciliation-summary";
+} from "./s3/reconciliation-summary";
 export {
   type DeleteRetiredS3CoordinatorObjectsOptions,
   deleteRetiredS3CoordinatorObjects,

@@ -2,13 +2,6 @@ import type { OlosError } from "../types/errors";
 import type { UploadSlot } from "../types/upload-slot";
 import type { ObservedUpload } from "../validation/observed-upload";
 import {
-  createObservedUpload,
-  createObservedUploadFromHeadObject,
-  createObservedUploadFromObjectCreatedEvent,
-  createUploadCompletionHint,
-  resolveUploadEvidence,
-} from "./observed-upload";
-import {
   normalizeUploadEvent,
   resolveObjectCreatedEventSlot,
 } from "./observed-upload-event";

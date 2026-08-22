@@ -89,15 +89,6 @@ export interface RuntimePublisherStepStatus {
 export type RuntimePublisherUploadStepStatus =
   RuntimePublisherUploadStep["status"];
 
-export const PUBLISHER_STEP_STATUSES = [
-  "committed",
-  "idempotent",
-  "heartbeat_failed",
-  "issue_failed",
-  "upload_failed",
-  "commit_failed",
-] as const satisfies readonly RuntimePublisherUploadStepStatus[];
-
 /**
  * What the publisher loop should do next: `continue` to the next object,
  * `retry` the same object as `nextAttempt`, or `stop` because the attempt
@@ -203,11 +194,6 @@ export type RuntimePublisherCommitPhaseResult =
       commit: RuntimePublisherCommitResult;
       status: "resolved";
     };
-
-export const SUCCESSFUL_PUBLISHER_STEP_STATUSES = [
-  "committed",
-  "idempotent",
-] as const satisfies readonly SuccessfulRuntimePublisherUploadStep["status"][];
 
 /**
  * Run one publisher iteration — optional heartbeat, then slot issue,

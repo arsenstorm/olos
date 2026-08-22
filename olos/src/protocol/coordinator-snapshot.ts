@@ -1,4 +1,5 @@
 import type { Commit } from "../types/commit";
+import type { UploadSlot } from "../types/upload-slot";
 import { assertCommit } from "../validation/commit";
 import { assertCursor } from "../validation/cursor";
 import { assertSafeDeliveryUrl } from "../validation/delivery-url";
@@ -135,9 +136,24 @@ function assertCoordinatorPipelineState(
     value.deliveryBaseUrl,
     "coordinator pipeline state deliveryBaseUrl"
   );
-  assertUploadSlots(value.slots);
-  assertCommits(value.initCommits, "coordinator pipeline state initCommits");
-  assertCommits(value.commits, "coordinator pipeline state commits");
+  assertEach<UploadSlot>(
+    value.slots,
+    "coordinator pipeline state slots",
+    "uploadSlot",
+    assertUploadSlot
+  );
+  assertEach<Commit>(
+    value.initCommits,
+    "coordinator pipeline state initCommits",
+    "commit",
+    assertCommit
+  );
+  assertEach<Commit>(
+    value.commits,
+    "coordinator pipeline state commits",
+    "commit",
+    assertCommit
+  );
   if (value.publisherLeases !== undefined) {
     assertPublisherLeases(value.publisherLeases);
   }
@@ -151,30 +167,19 @@ function assertCoordinatorPipelineState(
   }
 }
 
-function assertCommits(
+function assertEach<T>(
   value: unknown,
-  name: string
-): asserts value is readonly Commit[] {
+  name: string,
+  itemLabel: string,
+  assertItem: (item: unknown) => asserts item is T
+): asserts value is T[] {
   assertArray(value, name);
   value.forEach((entry, index) => {
     try {
-      assertCommit(entry);
+      assertItem(entry);
     } catch (error) {
       throw new Error(
-        `${name} must contain valid commit at index ${index}: ${errorMessage(error, String(error))}`
-      );
-    }
-  });
-}
-
-function assertUploadSlots(value: unknown): void {
-  assertArray(value, "coordinator pipeline state slots");
-  value.forEach((slot, index) => {
-    try {
-      assertUploadSlot(slot);
-    } catch (error) {
-      throw new Error(
-        `coordinator pipeline state slots must contain valid uploadSlot at index ${index}: ${errorMessage(error, String(error))}`
+        `${name} must contain valid ${itemLabel} at index ${index}: ${errorMessage(error, String(error))}`
       );
     }
   });

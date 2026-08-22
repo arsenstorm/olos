@@ -2,6 +2,7 @@ import type { UploadSlot, UploadSlotState } from "../types/upload-slot";
 import { timestampMs } from "../validation/fields";
 import { assertObservedUploadMatchesSlot } from "../validation/observed-upload";
 import { assertUploadSlot } from "../validation/upload-slot";
+import { createTransitionRules } from "./session";
 import {
   type IssuedUploadSlot,
   type ObservedUploadSlot,
@@ -168,6 +169,11 @@ function resolveTerminalUploadTransition<
   };
 }
 
+const uploadSlotTransitionRules = createTransitionRules(
+  UPLOAD_SLOT_TRANSITION_MAP,
+  "upload slot"
+);
+
 /**
  * Whether an upload slot may move from one state to another. Allowed
  * transitions: `issued -> upload_observed | expired | revoked`,
@@ -179,7 +185,7 @@ export function canTransitionUploadSlot(
   from: UploadSlotState,
   to: UploadSlotState
 ): boolean {
-  return allowedUploadSlotTransitions(from).includes(to);
+  return uploadSlotTransitionRules.can(from, to);
 }
 
 /**
@@ -191,15 +197,5 @@ export function assertUploadSlotTransition(
   from: UploadSlotState,
   to: UploadSlotState
 ): void {
-  if (canTransitionUploadSlot(from, to)) {
-    return;
-  }
-
-  throw new Error(`Invalid upload slot transition: ${from} -> ${to}`);
-}
-
-function allowedUploadSlotTransitions(
-  from: UploadSlotState
-): readonly UploadSlotState[] {
-  return UPLOAD_SLOT_TRANSITION_MAP[from] ?? [];
+  uploadSlotTransitionRules.assert(from, to);
 }

@@ -9,11 +9,13 @@ import type { CoordinatorPipelineState } from "../protocol/coordinator-types";
 import { savedStoreResult } from "../protocol/test-store.test-helper";
 import type { S3HeadObjectClient } from "./object-observation";
 import {
-  reconcileStoredS3CoordinatorUploads,
   type StoredS3CoordinatorUploadReconciliationCommit,
   summarizeStoredS3CoordinatorUploadReconciliation,
 } from "./reconciliation";
-import { planStoredS3CoordinatorReconciliation } from "./reconciliation-summary";
+import {
+  planStoredS3CoordinatorReconciliation,
+  reconcileStoredS3CoordinatorUploads,
+} from "./reconciliation-summary";
 import { createTestHeadObjectClientFor } from "./test-client.test-helper";
 
 describe("stored S3 upload reconciliation", () => {

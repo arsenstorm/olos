@@ -8,17 +8,17 @@ import type {
   CoordinatorStoreSave,
   SaveCoordinatorPipelineOptions,
 } from "./coordinator-types";
+import { isSerializedCoordinatorStoreConflict } from "./serialized-store-phases";
 import {
   cloneRecord,
   coordinatorStoreConflictFromSerialized,
   createCursorViewRecord,
   createRecord,
-  isSerializedCoordinatorStoreConflict,
   nextSerializedCoordinatorStoreEtag,
   parseCursorViewRecord,
   parseRecord,
   serializedCoordinatorStoreConflict,
-} from "./serialized-store-conformance";
+} from "./serialized-store-records";
 
 /**
  * One persisted coordinator snapshot as an opaque JSON string plus the etag

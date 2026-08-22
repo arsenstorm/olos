@@ -4,6 +4,7 @@ import type { PartNumber, SequenceNumber } from "../types/ids";
 import { assertCursor } from "../validation/cursor";
 import { nonNegativeNumber } from "../validation/fields";
 import {
+  HLS_MSN,
   isInvalidHlsBlockingReloadResolution,
   isReadyHlsBlockingReloadResolution,
   nowMs,
@@ -14,9 +15,7 @@ import {
 } from "./blocking-reload-resolve";
 import { HLS_RELATIVE_REQUEST_BASE_URL } from "./uri";
 
-export const HLS_MSN = "_HLS_msn";
 export const HLS_PART = "_HLS_part";
-export const SEGMENT_ONLY_LIVE_EDGE_PART = Number.MAX_SAFE_INTEGER;
 
 /**
  * Blocking playlist reload directives parsed from an LL-HLS media playlist
@@ -270,6 +269,3 @@ export function resolveHlsBlockingReload(
 
   return resolveHlsBlockingReloadValidated(cursor, request);
 }
-
-// The assertion-free core of `resolveHlsBlockingReload`, used by
-// `waitForHlsBlockingReload` which validates each cursor exactly once.

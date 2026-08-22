@@ -4,30 +4,44 @@ import type {
   RuntimeCommitPayload,
   RuntimeObservedUploadPayload,
 } from "./commit";
-import {
-  type FailedRuntimePublisherCommitStep,
-  type FailedRuntimePublisherHeartbeatStep,
-  type FailedRuntimePublisherIssueStep,
-  type FailedRuntimePublisherUploadObjectStep,
-  type IssuedRuntimePublisherIssueResult,
-  PUBLISHER_STEP_STATUSES,
-  type ResolveRuntimePublisherLoopDecisionOptions,
-  type RunRuntimePublisherUploadStepOptions,
-  type RuntimePublisherCommitPhaseResult,
-  type RuntimePublisherCommitResult,
-  type RuntimePublisherHeartbeatResult,
-  type RuntimePublisherIssuePhaseResult,
-  type RuntimePublisherIssueResult,
-  type RuntimePublisherLoopDecision,
-  type RuntimePublisherUploadObjectPhaseResult,
-  SUCCESSFUL_PUBLISHER_STEP_STATUSES,
-  type SuccessfulRuntimePublisherUploadStep,
+import type {
+  FailedRuntimePublisherCommitStep,
+  FailedRuntimePublisherHeartbeatStep,
+  FailedRuntimePublisherIssueStep,
+  FailedRuntimePublisherUploadObjectStep,
+  IssuedRuntimePublisherIssueResult,
+  ResolveRuntimePublisherLoopDecisionOptions,
+  RunRuntimePublisherUploadStepOptions,
+  RuntimePublisherCommitPhaseResult,
+  RuntimePublisherCommitResult,
+  RuntimePublisherHeartbeatResult,
+  RuntimePublisherIssuePhaseResult,
+  RuntimePublisherIssueResult,
+  RuntimePublisherLoopDecision,
+  RuntimePublisherUploadObjectPhaseResult,
+  RuntimePublisherUploadStepStatus,
+  SuccessfulRuntimePublisherUploadStep,
 } from "./publisher";
 import {
   nonNegativeSafeInteger,
   optionalField,
   positiveSafeInteger,
 } from "./request-fields";
+
+export const PUBLISHER_STEP_STATUSES = [
+  "committed",
+  "idempotent",
+  "heartbeat_failed",
+  "issue_failed",
+  "upload_failed",
+  "commit_failed",
+] as const satisfies readonly RuntimePublisherUploadStepStatus[];
+
+export const SUCCESSFUL_PUBLISHER_STEP_STATUSES = [
+  "committed",
+  "idempotent",
+] as const satisfies readonly SuccessfulRuntimePublisherUploadStep["status"][];
+
 export function runtimePublisherCommitStep(
   commit: RuntimePublisherCommitResult,
   heartbeat: RuntimePublisherHeartbeatResult | undefined,

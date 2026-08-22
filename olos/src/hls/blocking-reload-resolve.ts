@@ -4,17 +4,19 @@ import {
 } from "../state/committed-window";
 import type { Cursor } from "../types/cursor";
 import { assertNonNegativeInteger } from "../validation/ids";
-import {
-  HLS_MSN,
-  type HLS_PART,
-  type HlsBlockingReloadRequest,
-  type HlsBlockingReloadResolution,
-  type InvalidHlsBlockingReloadResolution,
-  type ReadyHlsBlockingReloadResolution,
-  SEGMENT_ONLY_LIVE_EDGE_PART,
-  type TimeoutHlsBlockingReloadResult,
-  type WaitForHlsBlockingReloadOptions,
+import type {
+  HLS_PART,
+  HlsBlockingReloadRequest,
+  HlsBlockingReloadResolution,
+  InvalidHlsBlockingReloadResolution,
+  ReadyHlsBlockingReloadResolution,
+  TimeoutHlsBlockingReloadResult,
+  WaitForHlsBlockingReloadOptions,
 } from "./blocking-reload";
+
+export const HLS_MSN = "_HLS_msn";
+export const SEGMENT_ONLY_LIVE_EDGE_PART = Number.MAX_SAFE_INTEGER;
+
 export function resolveHlsBlockingReloadValidated(
   cursor: Cursor,
   request: HlsBlockingReloadRequest

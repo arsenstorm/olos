@@ -1,10 +1,17 @@
 import type {
   SerializedCoordinatorStoreBackend,
+  SerializedCoordinatorStoreConflict,
   SerializedCoordinatorStoreRecord,
   SerializedCoordinatorStoreSave,
   SerializedCursorViewRecord,
 } from "./serialized-store";
-import { isSerializedCoordinatorStoreConflict } from "./serialized-store-conformance";
+
+export function isSerializedCoordinatorStoreConflict(
+  result: SerializedCoordinatorStoreSave
+): result is SerializedCoordinatorStoreConflict {
+  return result.status === "conflict";
+}
+
 /** A fresh backend has nothing to load, and a first insert needs no etag. */
 export async function assertSerializedInsertConformance(
   backend: SerializedCoordinatorStoreBackend,

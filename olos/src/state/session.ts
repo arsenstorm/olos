@@ -5,6 +5,11 @@ const SESSION_TRANSITION_MAP: Partial<
   Record<SessionState, readonly SessionState[]>
 > = SESSION_TRANSITIONS;
 
+const sessionTransitionRules = createTransitionRules(
+  SESSION_TRANSITION_MAP,
+  "session"
+);
+
 /**
  * Whether a session may move from one state to another. Allowed
  * transitions: `live -> ending | aborted` and `ending -> ended`; `ended`
@@ -14,7 +19,7 @@ export function canTransitionSession(
   from: SessionState,
   to: SessionState
 ): boolean {
-  return allowedSessionTransitions(from).includes(to);
+  return sessionTransitionRules.can(from, to);
 }
 
 /**
@@ -26,11 +31,7 @@ export function assertSessionTransition(
   from: SessionState,
   to: SessionState
 ): void {
-  if (canTransitionSession(from, to)) {
-    return;
-  }
-
-  throw new Error(invalidSessionTransitionMessage(from, to));
+  sessionTransitionRules.assert(from, to);
 }
 
 /**
@@ -42,15 +43,28 @@ export function isEndOfStreamSessionState(state: SessionState): boolean {
   return state === "ended" || state === "aborted";
 }
 
-function allowedSessionTransitions(
-  from: SessionState
-): readonly SessionState[] {
-  return SESSION_TRANSITION_MAP[from] ?? [];
-}
+/**
+ * Build the `allowed`/`can`/`assert` trio for a state machine's transition
+ * map. `noun` names the entity in the thrown message: `Invalid <noun>
+ * transition: <from> -> <to>`.
+ */
+export function createTransitionRules<State extends string>(
+  map: Partial<Record<State, readonly State[]>>,
+  noun: string
+): {
+  allowed(from: State): readonly State[];
+  can(from: State, to: State): boolean;
+  assert(from: State, to: State): void;
+} {
+  const allowed = (from: State): readonly State[] => map[from] ?? [];
+  const can = (from: State, to: State): boolean => allowed(from).includes(to);
+  const assert = (from: State, to: State): void => {
+    if (can(from, to)) {
+      return;
+    }
 
-function invalidSessionTransitionMessage(
-  from: SessionState,
-  to: SessionState
-): string {
-  return `Invalid session transition: ${from} -> ${to}`;
+    throw new Error(`Invalid ${noun} transition: ${from} -> ${to}`);
+  };
+
+  return { allowed, can, assert };
 }

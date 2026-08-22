@@ -37,11 +37,11 @@ import type {
   StoredS3CoordinatorRetentionResponse,
 } from "./http-types";
 import type { StoredS3CoordinatorUploadReconciliationResult } from "./reconciliation";
+import { summarizeStoredS3CoordinatorUploadReconciliation } from "./reconciliation";
 import {
+  planStoredS3CoordinatorReconciliation,
   reconcileStoredS3CoordinatorUploads,
-  summarizeStoredS3CoordinatorUploadReconciliation,
-} from "./reconciliation";
-import { planStoredS3CoordinatorReconciliation } from "./reconciliation-summary";
+} from "./reconciliation-summary";
 import { deleteRetiredS3CoordinatorObjects } from "./retention";
 
 /** Provider event batches beyond this size are rejected before routing. */
