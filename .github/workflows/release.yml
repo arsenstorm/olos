@@ -30,6 +30,8 @@ jobs:
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
 
       # persist-credentials stays on: changesets/action pushes the version
       # branch with the checked-out git credentials.
