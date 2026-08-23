@@ -171,7 +171,7 @@ function presignPutObjectUrl(
 
   command.middlewareStack.add(
     (next) => (args) => {
-      const request = args.request;
+      const { request } = args;
 
       if (isHeaderRequest(request)) {
         request.headers = { ...request.headers, ...requiredHeaders };
@@ -263,9 +263,9 @@ function createBaseS3SlotMetadataHeaders(
     "x-amz-meta-olos-epoch": String(slot.epoch),
     "x-amz-meta-olos-kind": slot.kind,
     "x-amz-meta-olos-sequence-number": String(slot.sequenceNumber),
-    "x-amz-meta-olos-track-id": slot.trackId,
     "x-amz-meta-olos-session-id": slot.sessionId,
     "x-amz-meta-olos-slot-id": slot.slotId,
+    "x-amz-meta-olos-track-id": slot.trackId,
   };
 }
 

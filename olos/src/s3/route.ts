@@ -1,8 +1,8 @@
 import { sessionRootPathFromOptions, sessionRoutePath } from "../runtime/route";
 
 export const S3_ROUTE_ACTIONS = {
-  completionHint: "upload-slots",
   commits: "commits",
+  completionHint: "upload-slots",
   events: "events",
   reconcile: "reconcile",
   reconcilePlan: "reconcile-plan",

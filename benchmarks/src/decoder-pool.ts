@@ -31,14 +31,14 @@ export interface FinalSample {
 }
 
 export interface DecoderPool {
-  drain(): Promise<void>;
-  enqueue(sample: DecoderInput): void;
-  results(): readonly FinalSample[];
+  drain: () => Promise<void>;
+  enqueue: (sample: DecoderInput) => void;
+  results: () => readonly FinalSample[];
 }
 
 interface DecodeOptions {
-  onIdle(): void;
-  onResult(final: FinalSample): Promise<void> | void;
+  onIdle: () => void;
+  onResult: (final: FinalSample) => Promise<void> | void;
 }
 
 interface PoolState {
@@ -50,7 +50,7 @@ interface PoolState {
 
 export function createDecoderPool(opts: {
   concurrency: number;
-  onResult(final: FinalSample): Promise<void> | void;
+  onResult: (final: FinalSample) => Promise<void> | void;
 }): DecoderPool {
   const state: PoolState = { active: 0, finals: [], queue: [] };
   const decodeOptions: DecodeOptions = {
@@ -98,6 +98,7 @@ async function decodeUntilEmpty(
   opts: DecodeOptions
 ): Promise<void> {
   for (let s = state.queue.shift(); s; s = state.queue.shift()) {
+    // biome-ignore lint/performance/noAwaitInLoops: this worker drains the shared queue one sample at a time on purpose, bounding concurrency to `opts.concurrency` parallel workers.
     await decodeSampleQuietly(s, state.finals, opts);
   }
   opts.onIdle();

@@ -13,18 +13,18 @@ const SEGMENT_ONLY_CURSOR_PART_ORDER = -1;
  */
 export interface RuntimeCursorNotifier {
   /** Publish a new cursor, waking waiters it counts as an update for. */
-  notify(cursor: Cursor): void;
+  notify: (cursor: Cursor) => void;
   /**
    * Resolve with the first cursor that is an update past `context.cursor`
    * — a strict global-position advance or a same-position content change —
    * or with `undefined` once `context.signal` aborts.
    */
-  waitForCursor(context: HlsCursorWaitContext): Promise<Cursor | undefined>;
+  waitForCursor: (context: HlsCursorWaitContext) => Promise<Cursor | undefined>;
 }
 
 interface CursorWaiter {
   after: Cursor;
-  resolve(cursor: Cursor | undefined): void;
+  resolve: (cursor: Cursor | undefined) => void;
 }
 
 interface CursorProgress {
@@ -106,7 +106,7 @@ function waitForAdvancedCursor(
   context: HlsCursorWaitContext
 ): Promise<Cursor | undefined> {
   return new Promise((resolve) => {
-    const sessionId = context.cursor.sessionId;
+    const { sessionId } = context.cursor;
     const sessionWaiters = waitersForSession(waiters, sessionId);
 
     function abort(): void {
@@ -231,9 +231,9 @@ function compareCursorProgress(
 function cursorProgress(cursor: Cursor): CursorProgress {
   return {
     epoch: cursor.epoch,
-    lastSequenceNumber: cursor.window.lastSequenceNumber,
     lastPartNumber:
       cursor.window.lastPartNumber ?? SEGMENT_ONLY_CURSOR_PART_ORDER,
+    lastSequenceNumber: cursor.window.lastSequenceNumber,
   };
 }
 

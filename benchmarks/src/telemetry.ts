@@ -27,9 +27,9 @@ const bar = new cliProgress.SingleBar(
   {
     barCompleteChar: "█",
     barIncompleteChar: "░",
+    forceRedraw: true,
     format:
       "  [{bar}] {value}/{total} ({percentage}%) | olos-slice p50 {p50}ms p95 {p95}ms p99 {p99}ms",
-    forceRedraw: true,
     hideCursor: true,
   },
   cliProgress.Presets.shades_classic
@@ -44,10 +44,10 @@ export function emitProgress(sample: DecoderInput): void {
   if (IS_WORKER) {
     process.stdout.write(
       `${JSON.stringify({
+        olosSliceMs: sample.renderedAt - sample.uploadedAt,
+        seq: sample.seq,
         type: "slice",
         workerId: WORKER_ID,
-        seq: sample.seq,
-        olosSliceMs: sample.renderedAt - sample.uploadedAt,
       })}\n`
     );
     return;

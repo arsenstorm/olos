@@ -157,13 +157,13 @@ export async function runPublisherHeartbeat(
     }
 
     return {
-      step: failedRuntimePublisherHeartbeatResultStep(result),
       status: "failed",
+      step: failedRuntimePublisherHeartbeatResultStep(result),
     };
   } catch (error) {
     return {
-      step: failedRuntimePublisherHeartbeatErrorStep(error),
       status: "failed",
+      step: failedRuntimePublisherHeartbeatErrorStep(error),
     };
   }
 }

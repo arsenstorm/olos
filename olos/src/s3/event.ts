@@ -255,7 +255,7 @@ function objectKey(value: unknown): string | undefined {
 
     return decoded;
   } catch {
-    return;
+    // a key that fails to decode, or decodes to an unsafe path, is not usable
   }
 }
 

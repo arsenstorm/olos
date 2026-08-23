@@ -78,9 +78,9 @@ export interface IssuedGrant extends PendingPublication {
 }
 
 export interface OlosClient {
-  commitPublication(pending: PendingPublication): Promise<void>;
-  createSession(options: CreateSessionOptions): Promise<void>;
-  endSession(): Promise<void>;
+  commitPublication: (pending: PendingPublication) => Promise<void>;
+  createSession: (options: CreateSessionOptions) => Promise<void>;
+  endSession: () => Promise<void>;
   // Three-phase publish for the part hot path.
   //   issueGrant runs the slot grant (a coordinator state mutation —
   //     callers must serialize across concurrent parts to avoid
@@ -88,11 +88,11 @@ export interface OlosClient {
   //   uploadGranted runs the R2 PUT (no state contention — parallel-safe).
   //   commitPublication finalises the commit (same serialization constraint
   //     as issueGrant).
-  issueGrant(options: PublishPartOptions): Promise<IssuedGrant>;
-  publishInit(options: PublishInitOptions): Promise<void>;
-  publishPart(options: PublishPartOptions): Promise<void>;
-  publishSegment(options: PublishSegmentOptions): Promise<void>;
-  uploadGranted(grant: IssuedGrant): Promise<PendingPublication>;
+  issueGrant: (options: PublishPartOptions) => Promise<IssuedGrant>;
+  publishInit: (options: PublishInitOptions) => Promise<void>;
+  publishPart: (options: PublishPartOptions) => Promise<void>;
+  publishSegment: (options: PublishSegmentOptions) => Promise<void>;
+  uploadGranted: (grant: IssuedGrant) => Promise<PendingPublication>;
 }
 
 interface PublishSpec {
@@ -118,8 +118,8 @@ function commitProfile(spec: PublishSpec): MediaObjectProfile {
 }
 
 interface SegmentStartAnchor {
-  anchor(sequenceNumber: number): string;
-  release(sequenceNumber: number): string;
+  anchor: (sequenceNumber: number) => string;
+  release: (sequenceNumber: number) => string;
 }
 
 export function createOlosClient(options: OlosClientOptions): OlosClient {
@@ -210,8 +210,8 @@ function partSpec(
     duration: input.duration,
     independent: input.independent,
     kind: "part",
-    sequenceNumber,
     partNumber,
+    sequenceNumber,
     ...(partNumber === 0
       ? { programDateTime: segmentStart.anchor(sequenceNumber) }
       : {}),
@@ -230,8 +230,8 @@ function segmentSpec(
     duration,
     independent: true,
     kind: "segment",
-    sequenceNumber,
     programDateTime: segmentStart.release(sequenceNumber),
+    sequenceNumber,
     slotId: `${options.sessionId}_slot_${sequenceNumber}`,
   };
 }
@@ -268,8 +268,8 @@ async function issueGrant(
       sequenceNumber: spec.sequenceNumber,
       ...(spec.partNumber === undefined ? {} : { partNumber: spec.partNumber }),
       profile: { duration: spec.duration },
-      trackId: options.trackId,
       slotId: spec.slotId,
+      trackId: options.trackId,
     },
     sessionId: options.sessionId,
   });

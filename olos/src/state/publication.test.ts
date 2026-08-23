@@ -42,14 +42,14 @@ const commit: Commit = {
   commitId: "commit_1",
   committedAt: "2026-01-01T00:00:02.000Z",
   deliveryUrl: "/objects/tenant/session/v1080/3810.m4s",
-  profile: { duration: 2 },
   epoch: 0,
-  sequenceNumber: 3810,
   objectKey: "tenant/session/v1080/3810.m4s",
-  trackId: "v1080",
+  profile: { duration: 2 },
+  sequenceNumber: 3810,
   sessionId: "session_1",
   size: 10_000,
   slotId: "slot_1",
+  trackId: "v1080",
 };
 
 describe("object publication", () => {

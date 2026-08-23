@@ -70,7 +70,7 @@ async function boundedBodyText(
  * result type, so the read loop narrows `value` explicitly.
  */
 interface BodyChunkReader {
-  read(): Promise<{ done?: boolean; value?: Uint8Array }>;
+  read: () => Promise<{ done?: boolean; value?: Uint8Array }>;
 }
 
 /** Drain the body, throwing as soon as it passes `maxBodyBytes`. */
@@ -82,6 +82,7 @@ async function readBoundedChunks(
   let byteLength = 0;
 
   for (;;) {
+    // biome-ignore lint/performance/noAwaitInLoops: each read continues the body stream from where the previous read left off.
     const { done, value } = await reader.read();
 
     if (done === true || value === undefined) {

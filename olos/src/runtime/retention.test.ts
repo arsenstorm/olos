@@ -537,42 +537,42 @@ function retentionState(): CoordinatorPipelineState {
     commitId: "commit_init",
     deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
     maxBytes: 2048,
+    objectKey: "media/v1080/init.mp4",
     profile: { duration: 1 },
     sequenceNumber: 0,
-    objectKey: "media/v1080/init.mp4",
-    slotId: "slot_init",
     size: 1024,
+    slotId: "slot_init",
   });
   state = commitSlot(state, {
     commitId: "commit_3810",
     deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
     maxBytes: 100_000,
+    objectKey: "media/v1080/s3810.m4s",
     profile: { duration: 2, independent: true },
     sequenceNumber: 3810,
-    objectKey: "media/v1080/s3810.m4s",
-    slotId: "slot_3810",
     size: 98_304,
+    slotId: "slot_3810",
   });
   state = commitSlot(state, {
     commitId: "commit_3811",
     deliveryUrl: "https://media.example.com/s3811.m4s",
     maxBytes: 100_000,
+    objectKey: "media/s3811.m4s",
     profile: { duration: 2, independent: true },
     sequenceNumber: 3811,
-    objectKey: "media/s3811.m4s",
-    slotId: "slot_3811",
     size: 98_304,
+    slotId: "slot_3811",
   });
   state = commitSlot(state, {
     commitId: "commit_3812",
     deliveryUrl: "https://media.example.com/s3812.m4s",
     maxBytes: 100_000,
     maxSegments: 2,
+    objectKey: "media/s3812.m4s",
     profile: { duration: 2, independent: true },
     sequenceNumber: 3812,
-    objectKey: "media/s3812.m4s",
-    slotId: "slot_3812",
     size: 98_304,
+    slotId: "slot_3812",
   });
 
   return issueCoordinatorSlot({
@@ -582,9 +582,9 @@ function retentionState(): CoordinatorPipelineState {
     maxBytes: 100_000,
     profile: { duration: 2 },
     sequenceNumber: 3813,
-    trackId: "v1080",
     slotId: "slot_3813",
     state,
+    trackId: "v1080",
   }).state;
 }
 
@@ -611,9 +611,9 @@ function commitSlot(
     maxBytes: options.maxBytes,
     profile: options.profile,
     sequenceNumber: options.sequenceNumber,
-    trackId: "v1080",
     slotId: options.slotId,
     state,
+    trackId: "v1080",
   });
   const committed = commitCoordinatorUpload({
     commitId: options.commitId,

@@ -212,8 +212,8 @@ export function createRuntimePublisherObjectPlanInput(
     contentType: defaults.contentType,
     kind: options.position.kind,
     maxBytes: defaults.maxBytes,
-    sequenceNumber: options.position.sequenceNumber,
     publicationMode: options.publicationMode,
+    sequenceNumber: options.position.sequenceNumber,
     trackId: options.trackId,
     ...optionalField("extension", defaults.extension),
     ...optionalField("minBytes", defaults.minBytes),
@@ -325,8 +325,8 @@ function nextPartInCurrentSegment(
 
   return {
     kind: "part",
-    sequenceNumber: cursorWindow.lastSequenceNumber,
     partNumber: nextPartNumber,
+    sequenceNumber: cursorWindow.lastSequenceNumber,
   };
 }
 
@@ -335,7 +335,7 @@ function firstPartPosition(
 ): RuntimePublisherObjectPosition {
   return {
     kind: "part",
-    sequenceNumber,
     partNumber: 0,
+    sequenceNumber,
   };
 }

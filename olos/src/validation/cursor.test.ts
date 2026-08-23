@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { trackWindow } from "../state/committed-window.test-helper";
 import type { Cursor } from "../types/cursor";
 import { assertCursor, isCursor, parseCursor } from "./cursor";
 
@@ -15,34 +16,34 @@ const validCursor: Cursor = {
           objectKey: "tenant/session/v1080/init.mp4",
           slotId: "slot_init",
         },
-        trackId: "v1080",
         segments: [
           {
-            sequenceNumber: 3810,
             segment: {
               commitId: "commit_3810",
               deliveryUrl: "/media/3810.m4s",
               objectKey: "tenant/session/v1080/3810.m4s",
-              slotId: "slot_3810",
               profile: { duration: 1 },
+              slotId: "slot_3810",
             },
+            sequenceNumber: 3810,
           },
           {
-            sequenceNumber: 3811,
             segment: {
               commitId: "commit_3811",
               deliveryUrl: "/media/3811.m4s",
               objectKey: "tenant/session/v1080/3811.m4s",
-              slotId: "slot_3811",
               profile: { duration: 1 },
+              slotId: "slot_3811",
             },
+            sequenceNumber: 3811,
           },
         ],
+        trackId: "v1080",
       },
     },
   },
-  epoch: 4,
   deliveryBaseUrl: "https://media.example.com",
+  epoch: 4,
   olos: "1.0",
   profile: { id: "cmaf-llhls", partTarget: 0.333, segmentTarget: 1 },
   sessionId: "session_1",
@@ -54,11 +55,7 @@ const validCursor: Cursor = {
   },
 };
 
-const validTrack = validCursor.committedWindow.tracks.v1080;
-
-if (validTrack === undefined) {
-  throw new Error("missing v1080 fixture");
-}
+const validTrack = trackWindow(validCursor.committedWindow, "v1080");
 
 const cursorWithVisibleParts: Cursor = {
   ...validCursor,
@@ -70,25 +67,25 @@ const cursorWithVisibleParts: Cursor = {
         segments: [
           ...validTrack.segments.slice(0, 1),
           {
-            sequenceNumber: 3811,
             parts: [
               {
                 commitId: "commit_3811_p0",
                 deliveryUrl: "/media/3811.0.m4s",
-                profile: { duration: 0.5, independent: true },
                 objectKey: "tenant/session/v1080/3811.0.m4s",
                 partNumber: 0,
+                profile: { duration: 0.5, independent: true },
                 slotId: "slot_3811_p0",
               },
               {
                 commitId: "commit_3811_p1",
                 deliveryUrl: "/media/3811.1.m4s",
-                profile: { duration: 0.5 },
                 objectKey: "tenant/session/v1080/3811.1.m4s",
                 partNumber: 1,
+                profile: { duration: 0.5 },
                 slotId: "slot_3811_p1",
               },
             ],
+            sequenceNumber: 3811,
           },
         ],
       },
@@ -238,13 +235,12 @@ describe("tolerant cursor parsing", () => {
   });
 
   test("strips unknown fields at every nesting level", () => {
-    const track = cursorWithVisibleParts.committedWindow.tracks.v1080;
-    const partsSegment = track?.segments[1];
+    const track = trackWindow(cursorWithVisibleParts.committedWindow, "v1080");
+    const [, partsSegment] = track.segments;
     const firstPart = partsSegment?.parts?.[0];
     const secondPart = partsSegment?.parts?.[1];
 
     if (
-      track === undefined ||
       partsSegment === undefined ||
       firstPart === undefined ||
       secondPart === undefined

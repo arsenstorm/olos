@@ -40,7 +40,7 @@ export function collectNextSegmentBatch(
   if (parts.length === 0) {
     return;
   }
-  return { sequenceNumber: targetMsn, parts };
+  return { parts, sequenceNumber: targetMsn };
 }
 
 export async function assembleSegment(
@@ -87,10 +87,12 @@ export async function deleteSegmentParts(
   sequenceNumber: number
 ): Promise<void> {
   const firstIndex = sequenceNumber * PARTS_PER_SEGMENT;
-  for (let part = 0; part < PARTS_PER_SEGMENT; part += 1) {
-    const file = `part-${String(firstIndex + part).padStart(5, "0")}.m4s`;
-    await unlinkIfPresent(join(outDir, file));
-  }
+  await Promise.all(
+    Array.from({ length: PARTS_PER_SEGMENT }, (_, part) => {
+      const file = `part-${String(firstIndex + part).padStart(5, "0")}.m4s`;
+      return unlinkIfPresent(join(outDir, file));
+    })
+  );
 }
 
 async function unlinkIfPresent(path: string): Promise<void> {

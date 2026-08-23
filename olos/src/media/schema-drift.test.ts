@@ -96,9 +96,6 @@ const validObjectProfile = {
 
 const suites: readonly DriftSuite[] = [
   {
-    label: "media session",
-    schema: OLOS_MEDIA_SESSION_SCHEMA,
-    valid: validSession,
     assertValid: assertMediaSession,
     invalid: [
       {
@@ -125,6 +122,9 @@ const suites: readonly DriftSuite[] = [
         },
       },
     ],
+    label: "media session",
+    schema: OLOS_MEDIA_SESSION_SCHEMA,
+    valid: validSession,
     validatorOnlyInvalid: [
       {
         label: "multiple distinct audio groups",
@@ -169,16 +169,13 @@ const suites: readonly DriftSuite[] = [
     ],
   },
   {
-    label: "media session profile",
-    schema: OLOS_MEDIA_SESSION_PROFILE_SCHEMA,
-    valid: validSessionProfile,
-    assertValid: (value) => assertMediaSessionProfile(value, "profile"),
     alsoValid: [
       {
         label: "discontinuity sequence baseline",
         payload: { ...validSessionProfile, discontinuitySequence: 3 },
       },
     ],
+    assertValid: (value) => assertMediaSessionProfile(value, "profile"),
     invalid: [
       {
         label: "zero segment target",
@@ -197,12 +194,11 @@ const suites: readonly DriftSuite[] = [
         payload: { ...validSessionProfile, extra: 1 },
       },
     ],
+    label: "media session profile",
+    schema: OLOS_MEDIA_SESSION_PROFILE_SCHEMA,
+    valid: validSessionProfile,
   },
   {
-    label: "media track profile",
-    schema: OLOS_MEDIA_TRACK_PROFILE_SCHEMA,
-    valid: validGroupedAudioTrack.profile,
-    assertValid: (value) => assertMediaTrackProfile(value, "track"),
     alsoValid: [
       { label: "video track", payload: validVideoTrack.profile },
       {
@@ -210,6 +206,7 @@ const suites: readonly DriftSuite[] = [
         payload: { codec: "wvtt", kind: "text" },
       },
     ],
+    assertValid: (value) => assertMediaTrackProfile(value, "track"),
     invalid: [
       {
         label: "unknown track kind",
@@ -236,6 +233,9 @@ const suites: readonly DriftSuite[] = [
         payload: { ...validGroupedAudioTrack.profile, groupId: "not a group" },
       },
     ],
+    label: "media track profile",
+    schema: OLOS_MEDIA_TRACK_PROFILE_SCHEMA,
+    valid: validGroupedAudioTrack.profile,
     validatorOnlyInvalid: [
       {
         label: "name with a double quote",
@@ -244,10 +244,6 @@ const suites: readonly DriftSuite[] = [
     ],
   },
   {
-    label: "media object profile",
-    schema: OLOS_MEDIA_OBJECT_PROFILE_SCHEMA,
-    valid: validObjectProfile,
-    assertValid: (value) => assertMediaObjectProfile(value, "profile"),
     alsoValid: [
       { label: "empty profile", payload: {} },
       {
@@ -255,6 +251,7 @@ const suites: readonly DriftSuite[] = [
         payload: { discontinuityBefore: true, duration: 2 },
       },
     ],
+    assertValid: (value) => assertMediaObjectProfile(value, "profile"),
     invalid: [
       {
         label: "zero duration",
@@ -273,6 +270,9 @@ const suites: readonly DriftSuite[] = [
         payload: { ...validObjectProfile, extra: 1 },
       },
     ],
+    label: "media object profile",
+    schema: OLOS_MEDIA_OBJECT_PROFILE_SCHEMA,
+    valid: validObjectProfile,
   },
 ];
 

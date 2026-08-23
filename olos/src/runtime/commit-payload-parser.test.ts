@@ -197,32 +197,32 @@ describe("commit payload parser", () => {
       parseObservedUploadPayload({
         contentType: "video/mp4",
         etag: '"publisher-hint"',
+        metadata: {
+          "x-olos-slot-id": "slot_1",
+        },
         objectKey: "media/session_1.m4s",
         observedAt: "2026-01-01T00:00:00.000Z",
         providerId: "provider",
         size: 1024,
-        metadata: {
-          "x-olos-slot-id": "slot_1",
-        },
       })
     ).toMatchObject({
       contentType: "video/mp4",
       etag: '"publisher-hint"',
+      metadata: { "x-olos-slot-id": "slot_1" },
       objectKey: "media/session_1.m4s",
       observedAt: "2026-01-01T00:00:00.000Z",
       providerId: "provider",
       size: 1024,
-      metadata: { "x-olos-slot-id": "slot_1" },
     });
 
     expect(() =>
       parseObservedUploadPayload({
         contentType: "video/mp4",
+        metadata: { "x-olos-slot-id": 4 },
         objectKey: "media/session_1.m4s",
         observedAt: "2026-01-01T00:00:00.000Z",
         providerId: "provider",
         size: 1024,
-        metadata: { "x-olos-slot-id": 4 },
       } as Record<string, unknown>)
     ).toThrow("object.metadata must be a string map");
   });

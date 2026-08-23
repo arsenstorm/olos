@@ -45,24 +45,24 @@ export interface RunStoredMutationOptions<
   TResult,
 > {
   attempts: number;
-  decide(
+  decide: (
     attempt: TAttempt,
     snapshot: CoordinatorPipelineSnapshot
-  ): StoredMutationDecision<TSaveAttempt, TResult>;
-  mutate(state: CoordinatorPipelineState): TAttempt | Promise<TAttempt>;
-  onConflict(
+  ) => StoredMutationDecision<TSaveAttempt, TResult>;
+  mutate: (state: CoordinatorPipelineState) => TAttempt | Promise<TAttempt>;
+  onConflict: (
     current: CoordinatorPipelineSnapshot | undefined,
     attempt: TAttempt
-  ): Promise<TResult> | TResult;
-  onExhausted(
+  ) => Promise<TResult> | TResult;
+  onExhausted: (
     snapshot: CoordinatorPipelineSnapshot
-  ): Promise<TResult> | TResult;
-  onMissing(): Promise<TResult> | TResult;
-  onSaved(
+  ) => Promise<TResult> | TResult;
+  onMissing: () => Promise<TResult> | TResult;
+  onSaved: (
     saved: SavedCoordinatorPipelineResult,
     attempt: TSaveAttempt,
     snapshot: CoordinatorPipelineSnapshot
-  ): Promise<TResult> | TResult;
+  ) => Promise<TResult> | TResult;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
 }
@@ -73,24 +73,24 @@ export interface RunStoredMutationAdapterOptions<
   TResult,
 > {
   attempts: number;
-  decide(
+  decide: (
     attempt: TAttempt,
     snapshot: CoordinatorPipelineSnapshot
-  ): StoredMutationDecision<TSaveAttempt, TResult>;
-  mapSaved(
+  ) => StoredMutationDecision<TSaveAttempt, TResult>;
+  mapSaved: (
     saved: SavedCoordinatorPipelineResult,
     attempt: TSaveAttempt,
     snapshot: CoordinatorPipelineSnapshot
-  ): Promise<TResult> | TResult;
-  mutate(state: CoordinatorPipelineState): TAttempt | Promise<TAttempt>;
-  onConflict(
+  ) => Promise<TResult> | TResult;
+  mutate: (state: CoordinatorPipelineState) => TAttempt | Promise<TAttempt>;
+  onConflict: (
     current: CoordinatorPipelineSnapshot | undefined,
     attempt: TAttempt
-  ): Promise<TResult> | TResult;
-  onExhausted(
+  ) => Promise<TResult> | TResult;
+  onExhausted: (
     snapshot: CoordinatorPipelineSnapshot
-  ): Promise<TResult> | TResult;
-  onMissing(): Promise<TResult> | TResult;
+  ) => Promise<TResult> | TResult;
+  onMissing: () => Promise<TResult> | TResult;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
 }
@@ -103,10 +103,10 @@ export interface RunStoredMutationAdapterWithConflictResultOptions<
     RunStoredMutationAdapterOptions<TAttempt, TSaveAttempt, TResult>,
     "onConflict" | "onExhausted"
   > {
-  onConflictOrExhausted(
+  onConflictOrExhausted: (
     current: CoordinatorPipelineSnapshot | undefined,
     attempt: TAttempt | undefined
-  ): Promise<TResult> | TResult;
+  ) => Promise<TResult> | TResult;
 }
 
 export interface RunStoredMutationAdapterWithResponseOptions<
@@ -154,6 +154,7 @@ export async function runStoredCoordinatorMutation<
     attemptCount < options.attempts;
     attemptCount += 1
   ) {
+    // biome-ignore lint/performance/noAwaitInLoops: each retry must mutate the snapshot the previous attempt read back after its etag conflict.
     const attemptResult = await options.mutate(currentSnapshot.state);
     const progress = await runStoredCoordinatorMutationAttempt({
       attempt: attemptResult,

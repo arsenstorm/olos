@@ -12,11 +12,11 @@ describe("runtime slot issue payload parser", () => {
       expiresAt: "2026-01-01T00:00:00.000Z",
       kind: "segment",
       maxBytes: 1_000_000,
-      sequenceNumber: 3810,
       minBytes: 1,
       profile: { duration: 2 },
-      trackId: "v1080",
+      sequenceNumber: 3810,
       slotId: "slot_3810",
+      trackId: "v1080",
     });
 
     expect(payload).toEqual({
@@ -24,11 +24,11 @@ describe("runtime slot issue payload parser", () => {
       expiresAt: "2026-01-01T00:00:00.000Z",
       kind: "segment",
       maxBytes: 1_000_000,
-      sequenceNumber: 3810,
       minBytes: 1,
       profile: { duration: 2 },
-      trackId: "v1080",
+      sequenceNumber: 3810,
       slotId: "slot_3810",
+      trackId: "v1080",
     });
   });
 
@@ -39,8 +39,8 @@ describe("runtime slot issue payload parser", () => {
       kind: "segment",
       maxBytes: 1_000_000,
       sequenceNumber: 3810,
-      trackId: "v1080",
       slotId: "slot_3810",
+      trackId: "v1080",
     });
 
     expect(payload.profile).toBeUndefined();
@@ -56,8 +56,8 @@ describe("runtime slot issue payload parser", () => {
           maxBytes: 1_000_000,
           profile,
           sequenceNumber: 3810,
-          trackId: "v1080",
           slotId: "slot_3810",
+          trackId: "v1080",
         })
       ).toThrow("profile must be an object");
     }
@@ -70,8 +70,8 @@ describe("runtime slot issue payload parser", () => {
       kind: "init",
       maxBytes: 2048,
       sequenceNumber: 0,
-      trackId: "v1080",
       slotId: "slot_init",
+      trackId: "v1080",
     });
 
     expect(payload).toMatchObject({
@@ -87,11 +87,11 @@ describe("runtime slot issue payload parser", () => {
       extension: "m4s",
       kind: "segment",
       maxBytes: 1_000_000,
-      sequenceNumber: 3810,
       objectKeyNonce: "slot_01JZ",
       objectKeyPrefix: "live/session",
-      trackId: "v1080",
+      sequenceNumber: 3810,
       slotId: "slot_3810",
+      trackId: "v1080",
     });
 
     expect(payload).toMatchObject({
@@ -108,10 +108,10 @@ describe("runtime slot issue payload parser", () => {
         expiresAt: "2026-01-01T00:00:00.000Z",
         kind: "segment",
         maxBytes: 1_000_000,
-        sequenceNumber: 3810,
         objectKey: "any/key.m4s",
-        trackId: "v1080",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
+        trackId: "v1080",
       })
     ).toThrow(
       "slot issue payload must not include objectKey (the coordinator derives it)"
@@ -127,8 +127,8 @@ describe("runtime slot issue payload parser", () => {
         kind: "segment",
         maxBytes: 1_000_000,
         sequenceNumber: 3810,
-        trackId: "v1080",
         slotId: "slot_3810",
+        trackId: "v1080",
       })
     ).toThrow(
       "slot issue payload must not include deliveryUrl (the coordinator derives it)"
@@ -142,10 +142,10 @@ describe("runtime slot issue payload parser", () => {
         expiresAt: "2026-01-01T00:00:00.000Z",
         kind: "segment",
         maxBytes: 1_000_000,
-        sequenceNumber: 3810,
         partNumber: 0,
-        trackId: "v1080",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
+        trackId: "v1080",
       })
     ).toThrow("partNumber is only valid for parts");
   });
@@ -158,8 +158,8 @@ describe("runtime slot issue payload parser", () => {
         kind: "part",
         maxBytes: 25_000,
         sequenceNumber: 3810,
-        trackId: "v1080",
         slotId: "slot_3810_p0",
+        trackId: "v1080",
       })
     ).toThrow('partNumber is required when kind is "part"');
   });
@@ -171,8 +171,8 @@ describe("runtime slot issue payload parser", () => {
       kind: "segment",
       maxBytes: 1_000_000,
       sequenceNumber: 3810,
-      trackId: "v1080",
       slotId: "slot_3810",
+      trackId: "v1080",
     };
 
     expect(() =>
@@ -197,8 +197,8 @@ describe("runtime slot issue payload parser", () => {
         kind: "segment",
         maxBytes: 1_000_000,
         sequenceNumber: 3810,
-        trackId: "v1080",
         slotId: "slot_3810",
+        trackId: "v1080",
       }).extension
     ).toBe("json");
   });
@@ -211,8 +211,8 @@ const slotPayload = {
   maxBytes: 100_000,
   profile: { duration: 2 },
   sequenceNumber: 3810,
-  trackId: "v1080",
   slotId: "slot_3810",
+  trackId: "v1080",
 } as const;
 
 describe("runtime slot issue request parser", () => {

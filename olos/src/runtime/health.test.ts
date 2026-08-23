@@ -290,10 +290,8 @@ function cursor(updatedAt = "2026-01-01T00:00:00.000Z"): Cursor {
             objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
-          trackId: "v1080",
           segments: [
             {
-              sequenceNumber: 3810,
               segment: {
                 commitId: "commit_3810",
                 deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
@@ -301,14 +299,16 @@ function cursor(updatedAt = "2026-01-01T00:00:00.000Z"): Cursor {
                 profile: { duration: 2, independent: true },
                 slotId: "slot_3810",
               },
+              sequenceNumber: 3810,
             },
           ],
+          trackId: "v1080",
         },
       },
     },
+    deliveryBaseUrl: "https://media.example.com",
     epoch: 1,
     olos: "1.0",
-    deliveryBaseUrl: "https://media.example.com",
     profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
     sessionId: "session_1",
     state: "live",

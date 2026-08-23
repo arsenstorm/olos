@@ -175,6 +175,7 @@ async function routeEachEvent(
   const results: StoredS3CoordinatorEventRouteResponseResult[] = [];
 
   for (const event of events) {
+    // biome-ignore lint/performance/noAwaitInLoops: each routing is a coordinator mutation; concurrent routings race the snapshot etag the previous one saved.
     const result = await routeStoredS3CoordinatorUploadEvent({
       bucket: options.bucket,
       client: options.objectClient ?? options.client,
@@ -232,6 +233,7 @@ async function settleReconciledCommits(
   for (const entry of results) {
     if (isSuccessfulS3MutationResult(entry)) {
       notifyCursor(options.cursorNotifier, entry.commit.cursor);
+      // biome-ignore lint/performance/noAwaitInLoops: retirements must be scheduled in commit order so a later cursor never deletes objects an earlier one still lists.
       await scheduleRetiredObjectDeletes(entry.commit, options, ctx);
     }
   }

@@ -32,7 +32,9 @@ export interface DeleteRetiredCoordinatorObjectsOptions {
   /** Max deletes in flight at once; defaults to 1 (sequential). */
   concurrency?: number;
   /** Deletes one object from storage; a throw marks that object failed. */
-  deleteObject(object: RetiredCoordinatorObjectDeletion): Promise<void> | void;
+  deleteObject: (
+    object: RetiredCoordinatorObjectDeletion
+  ) => Promise<void> | void;
   objects: readonly RetiredCoordinatorObjectDeletion[];
 }
 
@@ -170,6 +172,7 @@ export async function deleteRetiredCoordinatorObjects(
     { length: Math.min(concurrency, queue.length) },
     async () => {
       for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
+        // biome-ignore lint/performance/noAwaitInLoops: each worker drains the shared queue one object at a time, bounding concurrency to `concurrency` parallel workers.
         outcomes[next.index] = await deleteRetiredCoordinatorObject(
           options,
           next.object
@@ -286,6 +289,11 @@ export async function applyStoredCoordinatorRetention(
     CoordinatorRetentionApplication,
     StoredRuntimeRetentionApplication
   >({
+    decide: (applied, snapshot) =>
+      applied.state === snapshot.state
+        ? { result: storedRetentionUnchanged(applied), status: "terminal" }
+        : { attempt: applied, state: applied.state, status: "save" },
+    mapSaved: (saved, applied) => storedRetentionApplied(saved, applied),
     maxAttempts: options.maxAttempts,
     mutate: (state) =>
       applyCoordinatorRetention({
@@ -293,15 +301,10 @@ export async function applyStoredCoordinatorRetention(
         now: options.now,
         state,
       }),
+    onConflictOrExhausted: (current) => storedRetentionConflict(current),
+    onMissing: notFound,
     sessionId: options.sessionId,
     store: options.store,
-    decide: (applied, snapshot) =>
-      applied.state === snapshot.state
-        ? { status: "terminal", result: storedRetentionUnchanged(applied) }
-        : { attempt: applied, status: "save", state: applied.state },
-    onMissing: notFound,
-    mapSaved: (saved, applied) => storedRetentionApplied(saved, applied),
-    onConflictOrExhausted: (current) => storedRetentionConflict(current),
   });
 }
 

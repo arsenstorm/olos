@@ -32,8 +32,8 @@ interface ByterangeStreamContext {
 }
 
 interface DemandSignal {
-  wait(): Promise<void>;
-  wake(): void;
+  wait: () => Promise<void>;
+  wake: () => void;
 }
 
 /**
@@ -78,8 +78,8 @@ function createDemandSignal(signal: AbortSignal): DemandSignal {
  * name. `read()` keeps its discriminated result so `done` narrows `value`.
  */
 interface PartBodyReader {
-  cancel(): Promise<unknown>;
-  read(): Promise<
+  cancel: () => Promise<unknown>;
+  read: () => Promise<
     { done: false; value: Uint8Array } | { done: true; value?: undefined }
   >;
 }
@@ -104,6 +104,14 @@ export function createByterangeStream(
   const demand = createDemandSignal(abort.signal);
 
   return new ReadableStream<Uint8Array>({
+    cancel() {
+      // Consumer cancelled the body. Abort so in-flight S3 part reads and
+      // cursor waits release instead of holding their sockets open.
+      abort.abort();
+    },
+    pull() {
+      demand.wake();
+    },
     start(controller) {
       // Not awaited: the drain runs for the life of the stream and parks on
       // `demand` while the queue is full; `pull` is its wake-up call.
@@ -119,14 +127,6 @@ export function createByterangeStream(
         state,
         abort
       );
-    },
-    pull() {
-      demand.wake();
-    },
-    cancel() {
-      // Consumer cancelled the body. Abort so in-flight S3 part reads and
-      // cursor waits release instead of holding their sockets open.
-      abort.abort();
     },
   });
 }
@@ -209,6 +209,7 @@ async function drainByterange(
 
     const next = nextPartCovering(state.parts, state.position);
     if (next !== undefined) {
+      // biome-ignore lint/performance/noAwaitInLoops: each part is streamed from the position the previous part left off at.
       state.position += await streamPartForward(context, next, state.position);
       continue;
     }
@@ -290,7 +291,7 @@ async function streamPart(
   part: CommittedPart,
   position: number
 ): Promise<number> {
-  const byterange = part.byterange;
+  const { byterange } = part;
   if (byterange === undefined) {
     throw new Error("part committed without byterange");
   }
@@ -375,6 +376,7 @@ async function enqueueClampedBytes(
       (context.controller.desiredSize ?? 1) <= 0 &&
       !context.signal.aborted
     ) {
+      // biome-ignore lint/performance/noAwaitInLoops: backpressure: each wait resumes only once the consumer drained what the previous chunk enqueued.
       await context.demand.wait();
     }
     if (context.signal.aborted) {

@@ -26,7 +26,9 @@ const CONFORMANCE_SESSION: Session = {
 /** Options for `assertCoordinatorPipelineStoreConformance`. */
 export interface AssertCoordinatorPipelineStoreConformanceOptions {
   /** Factory producing a fresh, empty store for the conformance run. */
-  createStore(): CoordinatorPipelineStore | Promise<CoordinatorPipelineStore>;
+  createStore: () =>
+    | CoordinatorPipelineStore
+    | Promise<CoordinatorPipelineStore>;
 }
 
 /**
@@ -171,9 +173,9 @@ async function assertUpdateConformance(
     kind: "init",
     maxBytes: 2048,
     sequenceNumber: 0,
-    trackId: "track_1",
     slotId: "slot_init",
     state: loaded.state,
+    trackId: "track_1",
   });
   const second = await store.save({
     expectedEtag: savedEtag,

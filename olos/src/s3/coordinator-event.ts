@@ -124,7 +124,7 @@ export function withAuditEvent(
   commit: RejectedS3CoordinatorUploadCommit,
   occurredAt: string
 ): StoredS3CoordinatorUploadRejection {
-  const details = commit.error.error.details;
+  const { details } = commit.error.error;
 
   if (
     commit.error.error.code !== "olos.object_too_large" ||
@@ -251,16 +251,16 @@ async function routeStoredS3CoordinatorObjectCreatedEvent(
     bucket: options.bucket,
     client: options.client,
     commitId: event.event.eventId,
-    committedAt: event.event.object.observedAt,
     commitPolicy: options.commitPolicy,
+    committedAt: event.event.object.observedAt,
     lateToleranceMs: options.lateToleranceMs,
     manifest: options.manifest,
     maxAttempts: options.maxAttempts,
     maxSegments: options.maxSegments,
     objectKey: event.event.object.objectKey,
-    publicationControl: options.publicationControl,
     profile: options.profile,
     providerId: event.event.object.providerId,
+    publicationControl: options.publicationControl,
     sessionId: options.sessionId,
     store: options.store,
     versionId: options.versionId,
@@ -275,16 +275,16 @@ async function routeStoredS3CoordinatorUploadCompletedEvent(
     bucket: options.bucket,
     client: options.client,
     commitId: event.hint.eventId,
-    committedAt: event.hint.eventTime,
     commitPolicy: options.commitPolicy,
+    committedAt: event.hint.eventTime,
     lateToleranceMs: options.lateToleranceMs,
     manifest: options.manifest,
     maxAttempts: options.maxAttempts,
     maxSegments: options.maxSegments,
     objectKey: event.hint.objectKey,
-    publicationControl: options.publicationControl,
     profile: options.profile,
     providerId: options.providerId,
+    publicationControl: options.publicationControl,
     sessionId: options.sessionId,
     slotId: event.hint.slotId,
     store: options.store,

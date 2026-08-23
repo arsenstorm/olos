@@ -89,7 +89,7 @@ describe("media session validation", () => {
     ).toThrow("session.profile.segmentTarget must be a positive number");
     expect(() =>
       assertMediaSessionProfile(
-        { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2, extra: 1 },
+        { extra: 1, id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
         "session.profile"
       )
     ).toThrow('session.profile contains unknown property "extra"');

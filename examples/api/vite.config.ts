@@ -25,17 +25,16 @@ const awsSdkRuntimeRedirect = {
       AWS_SDK_IMPORTER_PATTERN.test(importer)
     ) {
       return {
-        id: resolvePath(dirname(importer), "runtimeConfig.browser.js"),
         external: false,
+        id: resolvePath(dirname(importer), "runtimeConfig.browser.js"),
       };
     }
-    return;
   },
 };
 
 const awsSdkBrowserRuntime: Plugin = {
-  name: "aws-sdk-use-browser-runtime",
   enforce: "pre",
+  name: "aws-sdk-use-browser-runtime",
   async resolveId(source, importer, options) {
     if (
       source === "./runtimeConfig" &&
@@ -47,20 +46,10 @@ const awsSdkBrowserRuntime: Plugin = {
         skipSelf: true,
       });
     }
-    return;
   },
 };
 
 export default defineConfig({
-  server: {
-    port: 8787,
-    strictPort: true,
-    // Permit Tailscale Serve to front the dev server (e.g. for on-device
-    // playback testing): MagicDNS names only ever resolve to
-    // Tailscale-assigned addresses, so this keeps DNS-rebinding protection.
-    allowedHosts: [".ts.net"],
-  },
-  plugins: [cloudflare({}), awsSdkBrowserRuntime],
   // The Cloudflare plugin creates a per-worker Vite environment named after
   // the worker (dashes → underscores). Pre-bundling for that environment
   // ignores the legacy `package.json.browser` field map and pulls the AWS
@@ -76,5 +65,14 @@ export default defineConfig({
         },
       },
     },
+  },
+  plugins: [cloudflare({}), awsSdkBrowserRuntime],
+  server: {
+    // Permit Tailscale Serve to front the dev server (e.g. for on-device
+    // playback testing): MagicDNS names only ever resolve to
+    // Tailscale-assigned addresses, so this keeps DNS-rebinding protection.
+    allowedHosts: [".ts.net"],
+    port: 8787,
+    strictPort: true,
   },
 });

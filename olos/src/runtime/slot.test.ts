@@ -64,17 +64,19 @@ describe("runtime slot adapter", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const result = await issueCoordinatorSlotFromRequest({
-        request: slotRequest({
-          ...slotPayload(),
-          [testCase.field]: "../unsafe",
-        }),
-        state: createEmptyCoordinatorState(),
-      });
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const result = await issueCoordinatorSlotFromRequest({
+          request: slotRequest({
+            ...slotPayload(),
+            [testCase.field]: "../unsafe",
+          }),
+          state: createEmptyCoordinatorState(),
+        });
 
-      expect(invalidResultMessage(result)).toBe(testCase.expected);
-    }
+        expect(invalidResultMessage(result)).toBe(testCase.expected);
+      })
+    );
   });
 
   test("returns invalid responses for invalid JSON slot numbers", async () => {
@@ -101,17 +103,19 @@ describe("runtime slot adapter", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const result = await issueCoordinatorSlotFromRequest({
-        request: slotRequest({
-          ...slotPayload(),
-          [testCase.field]: testCase.value,
-        }),
-        state: createEmptyCoordinatorState(),
-      });
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const result = await issueCoordinatorSlotFromRequest({
+          request: slotRequest({
+            ...slotPayload(),
+            [testCase.field]: testCase.value,
+          }),
+          state: createEmptyCoordinatorState(),
+        });
 
-      expect(invalidResultMessage(result)).toBe(testCase.expected);
-    }
+        expect(invalidResultMessage(result)).toBe(testCase.expected);
+      })
+    );
   });
 
   test("returns invalid responses for invalid JSON object kinds", async () => {
@@ -148,11 +152,11 @@ function slotPayload() {
     contentType: "video/mp4",
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment" as const,
-    profile: { duration: 2 },
     maxBytes: 100_000,
+    profile: { duration: 2 },
     sequenceNumber: 3810,
-    trackId: "v1080",
     slotId: "slot_3810",
+    trackId: "v1080",
   };
 }
 

@@ -24,8 +24,8 @@ describe("createPublisherObjectKey", () => {
     expect(
       createPublisherObjectKey({
         kind: "part",
-        sequenceNumber: 3810,
         partNumber: 2,
+        sequenceNumber: 3810,
         trackId: "v1080",
       })
     ).toBe("objects/v1080/s3810/p2");
@@ -35,25 +35,25 @@ describe("createPublisherObjectKey", () => {
     expect(
       createPublisherObjectKey({
         kind: "init",
-        sequenceNumber: 0,
         objectKeyNonce: "slot_01JZ",
+        sequenceNumber: 0,
         trackId: "v1080",
       })
     ).toBe("objects/v1080/init-slot_01JZ");
     expect(
       createPublisherObjectKey({
         kind: "segment",
-        sequenceNumber: 3810,
         objectKeyNonce: "slot_01K0",
+        sequenceNumber: 3810,
         trackId: "v1080",
       })
     ).toBe("objects/v1080/s3810-slot_01K0");
     expect(
       createPublisherObjectKey({
         kind: "part",
-        sequenceNumber: 3810,
         objectKeyNonce: "slot_01K1",
         partNumber: 2,
+        sequenceNumber: 3810,
         trackId: "v1080",
       })
     ).toBe("objects/v1080/s3810/p2-slot_01K1");
@@ -63,17 +63,17 @@ describe("createPublisherObjectKey", () => {
     expect(
       createPublisherObjectKey({
         kind: "segment",
-        sequenceNumber: 3810,
         objectKeyPrefix: "/live/session_1/",
+        sequenceNumber: 3810,
         trackId: "v1080",
       })
     ).toBe("live/session_1/v1080/s3810");
     expect(
       createPublisherObjectKey({
         kind: "init",
-        sequenceNumber: 0,
         objectKeyNonce: "slot_01JZ",
         objectKeyPrefix: "///media//session_1///",
+        sequenceNumber: 0,
         trackId: "v1080",
       })
     ).toBe("media//session_1/v1080/init-slot_01JZ");
@@ -92,8 +92,8 @@ describe("createPublisherObjectKey", () => {
       createPublisherObjectKey({
         extension: ".cmfv",
         kind: "init",
-        sequenceNumber: 0,
         objectKeyNonce: "slot_01JZ",
+        sequenceNumber: 0,
         trackId: "v1080",
       })
     ).toBe("objects/v1080/init-slot_01JZ.cmfv");
@@ -101,9 +101,9 @@ describe("createPublisherObjectKey", () => {
       createPublisherObjectKey({
         extension: "..cmfv",
         kind: "part",
-        sequenceNumber: 3810,
         objectKeyNonce: "slot_01K1",
         partNumber: 4,
+        sequenceNumber: 3810,
         trackId: "v1080",
       })
     ).toBe("objects/v1080/s3810/p4-slot_01K1.cmfv");

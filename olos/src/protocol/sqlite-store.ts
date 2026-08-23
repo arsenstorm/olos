@@ -17,14 +17,14 @@ const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
  * their database handle (or a thin wrapper) instead of a specific driver.
  */
 export interface SqliteSerializedCoordinatorStoreDatabase {
-  prepare(sql: string): SqliteSerializedCoordinatorStoreStatement;
+  prepare: (sql: string) => SqliteSerializedCoordinatorStoreStatement;
 }
 
 /** Prepared statement that binds positional (`?`) parameters. */
 export interface SqliteSerializedCoordinatorStoreStatement {
-  bind(
+  bind: (
     ...values: readonly unknown[]
-  ): SqliteSerializedCoordinatorStoreBoundStatement;
+  ) => SqliteSerializedCoordinatorStoreBoundStatement;
 }
 
 /** Bound statement ready to fetch one row or execute a write. */
@@ -34,8 +34,8 @@ export interface SqliteSerializedCoordinatorStoreBoundStatement {
    * for missing rows while other SQLite clients resolve `undefined` — both
    * are accepted.
    */
-  first<T>(): Promise<T | null | undefined>;
-  run(): Promise<SqliteSerializedCoordinatorStoreRunResult>;
+  first: <T>() => Promise<T | null | undefined>;
+  run: () => Promise<SqliteSerializedCoordinatorStoreRunResult>;
 }
 
 /**

@@ -52,8 +52,8 @@ export async function writeSidecar(
   const path = join(RUNS_DIR, `${RUN_ID.replace(/[:]/g, "-")}.json`);
   const sidecar = {
     config: {
-      concurrency: Number(process.env.OLOS_BENCH_CONCURRENCY ?? 1),
       cmd: process.argv.join(" "),
+      concurrency: Number(process.env.OLOS_BENCH_CONCURRENCY ?? 1),
       fps: FPS,
       partMs: PART_MS,
       samplesTarget: TARGET_SAMPLES,
@@ -94,11 +94,11 @@ function emitWorkerDone(message: WorkerDoneMessage): void {
   }
   process.stdout.write(
     `${JSON.stringify({
-      type: "done",
-      workerId: WORKER_ID,
+      interrupted: message.interrupted,
       samples: message.sampleCount,
       sidecarPath: message.sidecarPath,
-      interrupted: message.interrupted,
+      type: "done",
+      workerId: WORKER_ID,
     })}\n`
   );
 }

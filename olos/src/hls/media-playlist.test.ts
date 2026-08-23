@@ -23,10 +23,8 @@ const committedWindow: CommittedWindow = {
           "media/tenant_acme/sess_01JZLIVE/e1/v1080/init-slot_init_v1080.mp4",
         slotId: "slot_init_v1080",
       },
-      trackId: "v1080",
       segments: [
         {
-          sequenceNumber: 3810,
           segment: {
             commitId: "commit_3810",
             deliveryUrl:
@@ -39,9 +37,9 @@ const committedWindow: CommittedWindow = {
             },
             slotId: "slot_s3810",
           },
+          sequenceNumber: 3810,
         },
         {
-          sequenceNumber: 3811,
           segment: {
             commitId: "commit_3811",
             deliveryUrl:
@@ -54,9 +52,9 @@ const committedWindow: CommittedWindow = {
             },
             slotId: "slot_s3811",
           },
+          sequenceNumber: 3811,
         },
         {
-          sequenceNumber: 3812,
           parts: [
             {
               commitId: "commit_3812_0",
@@ -83,8 +81,10 @@ const committedWindow: CommittedWindow = {
               slotId: "slot_3812_1",
             },
           ],
+          sequenceNumber: 3812,
         },
       ],
+      trackId: "v1080",
     },
   },
 };
@@ -107,7 +107,7 @@ function validTrack() {
 }
 
 function validInit(): CommittedObject {
-  const init = validTrack().init;
+  const { init } = validTrack();
 
   if (!init) {
     throw new Error("missing v1080 init fixture");
@@ -181,14 +181,14 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
     const trimmedWindow: CommittedWindow = {
       ...committedWindow,
       tracks: {
-        v1080: validTrack(),
         v720: {
           ...validTrack(),
-          trackId: "v720",
           segments: validTrack().segments.filter(
             (segment) => segment.sequenceNumber >= 3811
           ),
+          trackId: "v720",
         },
+        v1080: validTrack(),
       },
     };
 
@@ -400,7 +400,6 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812-slot_s3
             ...validTrack(),
             segments: [
               {
-                sequenceNumber: 3812,
                 parts: [
                   {
                     byterange: {
@@ -435,6 +434,7 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3812-slot_s3
                     slotId: "slot_3812_1",
                   },
                 ],
+                sequenceNumber: 3812,
               },
             ],
           },
@@ -703,8 +703,8 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
     expect(() =>
       renderMediaPlaylist(committedWindow, {
         partTarget: 0.5,
-        trackId: "v1080",
         segmentTarget: 2,
+        trackId: "v1080",
       })
     ).toThrow("track.init.deliveryUrl origin is not allowed");
   });
@@ -734,8 +734,8 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
         withInitDeliveryUrl("/media/v1080/init.mp4?token=abc"),
         {
           partTarget: 0.5,
-          trackId: "v1080",
           segmentTarget: 2,
+          trackId: "v1080",
         }
       )
     ).toThrow(
@@ -749,8 +749,8 @@ https://media.example.com/media/tenant_acme/sess_01JZLIVE/e1/v1080/s3811-slot_s3
         withInitDeliveryUrl("/media/v1080/init.mp4\n#EXT-X-ENDLIST"),
         {
           partTarget: 0.5,
-          trackId: "v1080",
           segmentTarget: 2,
+          trackId: "v1080",
         }
       )
     ).toThrow(

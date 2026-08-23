@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { MediaSessionProfile } from "../media/types";
+import { trackWindow } from "../state/committed-window.test-helper";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
 import type { Session } from "../types/session";
@@ -76,10 +77,8 @@ const committedWindow: CommittedWindow = {
         objectKey: "media/v1080/init.mp4",
         slotId: "slot_init",
       },
-      trackId: "v1080",
       segments: [
         {
-          sequenceNumber: 3810,
           segment: {
             commitId: "commit_3810",
             deliveryUrl: "https://media.example.com/media/3810.m4s",
@@ -87,8 +86,10 @@ const committedWindow: CommittedWindow = {
             profile: { duration: 2 },
             slotId: "slot_3810",
           },
+          sequenceNumber: 3810,
         },
       ],
+      trackId: "v1080",
     },
   },
 };
@@ -113,12 +114,10 @@ const advancedCommittedWindow: CommittedWindow = {
   lastSequenceNumber: 3811,
   tracks: {
     v1080: {
-      init: committedWindow.tracks.v1080?.init ?? missingInit(),
-      trackId: "v1080",
+      init: trackWindow(committedWindow, "v1080").init,
       segments: [
-        ...(committedWindow.tracks.v1080?.segments ?? []),
+        ...trackWindow(committedWindow, "v1080").segments,
         {
-          sequenceNumber: 3811,
           segment: {
             commitId: "commit_3811",
             deliveryUrl: "https://media.example.com/media/3811.m4s",
@@ -126,8 +125,10 @@ const advancedCommittedWindow: CommittedWindow = {
             profile: { duration: 2 },
             slotId: "slot_3811",
           },
+          sequenceNumber: 3811,
         },
       ],
+      trackId: "v1080",
     },
   },
 };
@@ -170,10 +171,8 @@ const groupedCommittedWindow: CommittedWindow = {
         objectKey: "media/a128/init.mp4",
         slotId: "slot_init_a128",
       },
-      trackId: "a128",
       segments: [
         {
-          sequenceNumber: 3810,
           segment: {
             commitId: "commit_a128_3810",
             deliveryUrl: "https://media.example.com/media/a128/3810.m4s",
@@ -181,8 +180,10 @@ const groupedCommittedWindow: CommittedWindow = {
             profile: { duration: 2 },
             slotId: "slot_a128_3810",
           },
+          sequenceNumber: 3810,
         },
       ],
+      trackId: "a128",
     },
   },
 };
@@ -208,7 +209,6 @@ function groupedAudioTrackWindow() {
 }
 
 const audioSegment3811 = {
-  sequenceNumber: 3811,
   segment: {
     commitId: "commit_a128_3811",
     deliveryUrl: "https://media.example.com/media/a128/3811.m4s",
@@ -216,6 +216,7 @@ const audioSegment3811 = {
     profile: { duration: 2 },
     slotId: "slot_a128_3811",
   },
+  sequenceNumber: 3811,
 };
 
 // v1080 has reached 3811 while the grouped audio track still ends at
@@ -383,7 +384,7 @@ describe("HLS manifest artifacts", () => {
     const audioOnlyWindow: CommittedWindow = {
       ...groupedCommittedWindow,
       tracks: {
-        a128: groupedCommittedWindow.tracks.a128 ?? missingTrack(),
+        a128: trackWindow(groupedCommittedWindow, "a128"),
       },
     };
 
@@ -1093,12 +1094,4 @@ function requiredManifestArtifact(
   }
 
   return artifact;
-}
-
-function missingInit(): never {
-  throw new Error("missing v1080 init fixture");
-}
-
-function missingTrack(): never {
-  throw new Error("missing a128 track fixture");
 }

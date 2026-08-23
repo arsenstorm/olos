@@ -42,7 +42,7 @@ export type {
  * outside the request's CPU budget — essential on Workers Free's ~10 ms cap.
  */
 export interface StoredS3CoordinatorRuntimeHandlerContext {
-  waitUntil(promise: Promise<unknown>): void;
+  waitUntil: (promise: Promise<unknown>) => void;
 }
 
 /**

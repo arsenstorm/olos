@@ -299,8 +299,6 @@ function refuseMediaManifestRequest(
       status: "invalid",
     };
   }
-
-  return;
 }
 
 async function resolveBlockingMediaManifestResponse(

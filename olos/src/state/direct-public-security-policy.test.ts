@@ -66,16 +66,16 @@ describe("direct-public security policy", () => {
         maxAgeSeconds: 31_536_000,
         target: "media-object",
       },
+      negativeObjectCachePolicy: {
+        cacheControl: "public, max-age=1, must-revalidate",
+        maxAgeSeconds: 1,
+        target: "negative-object",
+      },
       objectContentType: "video/mp4",
       objectResponseHeaders: {
         "access-control-allow-credentials": "false",
         "cross-origin-resource-policy": "same-site",
         "x-content-type-options": "nosniff",
-      },
-      negativeObjectCachePolicy: {
-        cacheControl: "public, max-age=1, must-revalidate",
-        maxAgeSeconds: 1,
-        target: "negative-object",
       },
     });
   });

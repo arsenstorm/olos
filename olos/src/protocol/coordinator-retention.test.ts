@@ -12,17 +12,17 @@ const RETENTION_NOW = "2026-01-01T00:00:06.000Z";
 
 describe("coordinator retention application", () => {
   test("prunes expired issued upload slots outside the commit path", () => {
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
-      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
+      profile: { duration: 2 },
       sequenceNumber: 3813,
-      trackId: "v1080",
       slotId: "slot_3813",
       state: committedWindowState().state,
-    }).state;
+      trackId: "v1080",
+    });
 
     const applied = applyCoordinatorRetention({ now: RETENTION_NOW, state });
 
@@ -38,17 +38,17 @@ describe("coordinator retention application", () => {
   });
 
   test("keeps unexpired issued slots when applying retention", () => {
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
-      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
+      profile: { duration: 2 },
       sequenceNumber: 3813,
-      trackId: "v1080",
       slotId: "slot_3813",
       state: committedWindowState().state,
-    }).state;
+      trackId: "v1080",
+    });
 
     const applied = applyCoordinatorRetention({
       now: "2026-01-01T00:00:04.000Z",
@@ -60,17 +60,17 @@ describe("coordinator retention application", () => {
   });
 
   test("keeps issued slots within the late tolerance and prunes past it", () => {
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
-      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
+      profile: { duration: 2 },
       sequenceNumber: 3813,
-      trackId: "v1080",
       slotId: "slot_3813",
       state: committedWindowState().state,
-    }).state;
+      trackId: "v1080",
+    });
 
     const tolerated = applyCoordinatorRetention({
       lateToleranceMs: 5000,
@@ -97,14 +97,14 @@ describe("coordinator retention application", () => {
     // tolerance must not prune it, so a late upload at expiry+4s commits.
     const issued = issueCoordinatorSlot({
       contentType: "video/mp4",
-      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
+      profile: { duration: 2 },
       sequenceNumber: 3813,
-      trackId: "v1080",
       slotId: "slot_3813",
       state: committedWindowState().state,
+      trackId: "v1080",
     });
 
     const swept = applyCoordinatorRetention({
@@ -172,17 +172,17 @@ describe("coordinator retention application", () => {
   });
 
   test("prunes expired slots without a cursor and keeps retiredObjects empty", () => {
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
-      profile: { duration: 2 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
       maxBytes: 100_000,
+      profile: { duration: 2 },
       sequenceNumber: 3810,
-      trackId: "v1080",
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
-    }).state;
+      trackId: "v1080",
+    });
 
     const applied = applyCoordinatorRetention({ now: RETENTION_NOW, state });
 
@@ -230,25 +230,25 @@ function committedWindowState(): CommittedWindowStateFixture {
 
   state = commitSlot(state, {
     commitId: "commit_init",
-    profile: { duration: 1 },
     kind: "init",
     maxBytes: 2048,
+    profile: { duration: 1 },
     sequenceNumber: 0,
     size: 1024,
     slotId: "slot_init",
   });
   state = commitSlot(state, {
     commitId: "commit_3810",
-    profile: { duration: 2 },
     maxBytes: 100_000,
+    profile: { duration: 2 },
     sequenceNumber: 3810,
     size: 98_304,
     slotId: "slot_3810",
   });
   state = commitSlot(state, {
     commitId: "commit_3811",
-    profile: { duration: 2 },
     maxBytes: 100_000,
+    profile: { duration: 2 },
     sequenceNumber: 3811,
     size: 98_304,
     slotId: "slot_3811",
@@ -266,9 +266,9 @@ function committedWindowState(): CommittedWindowStateFixture {
 
   state = commitSlot(state, {
     commitId: "commit_3812",
-    profile: { duration: 2 },
     maxBytes: 100_000,
     maxSegments: 2,
+    profile: { duration: 2 },
     sequenceNumber: 3812,
     size: 98_304,
     slotId: "slot_3812",
@@ -299,15 +299,14 @@ function commitSlot(
     maxBytes: options.maxBytes,
     profile: options.profile,
     sequenceNumber: options.sequenceNumber,
-    trackId: "v1080",
     slotId: options.slotId,
     state,
+    trackId: "v1080",
   });
   const committed = commitCoordinatorUpload({
     commitId: options.commitId,
     committedAt: "2026-01-01T00:00:02.000Z",
     maxSegments: options.maxSegments,
-    profile: options.kind === "init" ? undefined : { independent: true },
     object: createObservedUpload({
       contentType: "video/mp4",
       objectKey: issued.slot.objectKey,
@@ -315,6 +314,7 @@ function commitSlot(
       providerId: "s3_primary",
       size: options.size,
     }),
+    profile: options.kind === "init" ? undefined : { independent: true },
     slotId: options.slotId,
     state: issued.state,
   });

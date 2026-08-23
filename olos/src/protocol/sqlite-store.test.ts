@@ -293,7 +293,7 @@ interface StoredRow {
 type ChangeResultShape = "changes" | "meta" | "missing";
 
 interface SchemaAwareDatabase extends SqliteSerializedCoordinatorStoreDatabase {
-  execute(sql: string): void;
+  execute: (sql: string) => void;
 }
 
 function createSchemaAwareDatabase(): SchemaAwareDatabase {

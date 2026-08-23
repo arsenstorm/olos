@@ -37,6 +37,7 @@ async function installWithRetries(
   peerSpecs: readonly string[]
 ): Promise<void> {
   for (let attempt = 1; attempt <= RETRIES; attempt += 1) {
+    // biome-ignore lint/performance/noAwaitInLoops: retry with backoff; each attempt runs only after the previous one failed.
     const result = await installOnce(specifier, peerSpecs);
 
     if (result === 0) {

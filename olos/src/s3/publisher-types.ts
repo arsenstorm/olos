@@ -35,16 +35,16 @@ import type { S3HeadObjectClient } from "./object-observation";
  */
 export interface RunStoredS3PublisherUploadStepOptions {
   /** Commits the uploaded object for the issued slot. */
-  commit(slot: UploadSlot): Promise<StoredS3CoordinatorUploadCommit>;
+  commit: (slot: UploadSlot) => Promise<StoredS3CoordinatorUploadCommit>;
   /**
    * Optional lease check run first; any result other than `refreshed`
    * aborts the step as `heartbeat_failed`.
    */
-  heartbeat?(): Promise<RuntimePublisherHeartbeatResult>;
+  heartbeat?: () => Promise<RuntimePublisherHeartbeatResult>;
   /** Issues the upload slot and its presigned grant. */
-  issueGrant(): Promise<StoredS3CoordinatorUploadGrantIssue>;
+  issueGrant: () => Promise<StoredS3CoordinatorUploadGrantIssue>;
   /** Uploads the object bytes using the issued grant. */
-  upload(grant: UploadGrant): Promise<void>;
+  upload: (grant: UploadGrant) => Promise<void>;
 }
 
 /** Options for {@link runPlannedStoredS3PublisherUploadStep}. */
@@ -60,7 +60,7 @@ export interface RunPlannedStoredS3PublisherUploadStepOptions {
   commitPolicy?: CoordinatorCommitPolicy;
   committedAt: string;
   headObjectClient?: S3HeadObjectClient;
-  heartbeat?(): Promise<RuntimePublisherHeartbeatResult>;
+  heartbeat?: () => Promise<RuntimePublisherHeartbeatResult>;
   lateToleranceMs?: number;
   manifest?: StoredS3CoordinatorManifestOptions;
   maxAttempts?: number;
@@ -88,7 +88,10 @@ export interface RunPlannedStoredS3PublisherUploadStepOptions {
    */
   targetLatency: number;
   /** Uploads the object bytes for the planned object. */
-  upload(grant: UploadGrant, plan: RuntimePublisherObjectPlan): Promise<void>;
+  upload: (
+    grant: UploadGrant,
+    plan: RuntimePublisherObjectPlan
+  ) => Promise<void>;
   versionId?: string;
 }
 

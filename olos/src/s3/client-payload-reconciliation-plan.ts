@@ -50,9 +50,9 @@ function plannedReconciliationPlanPayload(
   value: Record<string, unknown>
 ): StoredS3CoordinatorReconciliationPlan {
   return {
-    status: "planned",
     slotIds: reconciliationPlanSlotIds(value),
     slots: reconciliationPlanSlots(value),
+    status: "planned",
   };
 }
 
@@ -112,7 +112,8 @@ function reconciliationPlanSlots(
       return parseUploadSlot(slot);
     } catch (error) {
       throw new Error(
-        `${indexedFieldContext(S3_RECONCILIATION_PLAN_SLOTS_CONTEXT, index)} must be valid: ${errorMessage(error, String(error))}`
+        `${indexedFieldContext(S3_RECONCILIATION_PLAN_SLOTS_CONTEXT, index)} must be valid: ${errorMessage(error, String(error))}`,
+        { cause: error }
       );
     }
   });

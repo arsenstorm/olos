@@ -97,8 +97,6 @@ function findBox(bytes: Uint8Array, type: string): number | undefined {
       return index + 4;
     }
   }
-
-  return;
 }
 
 function matchesTagAt(

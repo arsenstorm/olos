@@ -50,16 +50,18 @@ export interface RuntimePublisherHeartbeatResult {
  */
 export interface RunRuntimePublisherUploadStepOptions {
   /** Commits the uploaded object (e.g. via `commitRuntimeUpload`). */
-  commit(payload: RuntimeCommitPayload): Promise<RuntimePublisherCommitResult>;
+  commit: (
+    payload: RuntimeCommitPayload
+  ) => Promise<RuntimePublisherCommitResult>;
   commitId: string;
   /** Commit timestamp sent in the payload, as an ISO 8601 string. */
   committedAt: string;
   /** Optional lease refresh, run first; a failure aborts the step. */
-  heartbeat?(): Promise<RuntimePublisherHeartbeatResult>;
+  heartbeat?: () => Promise<RuntimePublisherHeartbeatResult>;
   /** Issues the upload slot (e.g. via `issueRuntimeSlot`). */
-  issueSlot(
+  issueSlot: (
     payload: RuntimeSlotIssuePayload
-  ): Promise<RuntimePublisherIssueResult>;
+  ) => Promise<RuntimePublisherIssueResult>;
   /** Commit late tolerance forwarded in the payload, in milliseconds. */
   lateToleranceMs?: number;
   maxSegments?: number;
@@ -68,7 +70,7 @@ export interface RunRuntimePublisherUploadStepOptions {
   /** Slot issue payload describing the object about to be uploaded. */
   slot: RuntimeSlotIssuePayload;
   /** Uploads the object to the issued slot and reports what was stored. */
-  upload(slot: UploadSlot): Promise<RuntimeObservedUploadPayload>;
+  upload: (slot: UploadSlot) => Promise<RuntimeObservedUploadPayload>;
 }
 
 /** Options for `resolveRuntimePublisherLoopDecision`. */

@@ -21,6 +21,8 @@ const session: Session = {
   epoch: 0,
   olos: "1.0",
   profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
+  sessionId: "session_1",
+  state: "live",
   tracks: [
     {
       profile: {
@@ -34,25 +36,23 @@ const session: Session = {
       trackId: "v1080",
     },
   ],
-  sessionId: "session_1",
-  state: "live",
 };
 
 const slot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-  profile: { duration: 2 },
   epoch: 0,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  sequenceNumber: 3810,
   minBytes: 1000,
   objectKey: "media/v1080/s3810.m4s",
-  trackId: "v1080",
+  profile: { duration: 2 },
+  sequenceNumber: 3810,
   sessionId: "session_1",
   slotId: "slot_1",
   state: "issued",
+  trackId: "v1080",
 };
 
 const object: ObservedUpload = {
@@ -80,24 +80,24 @@ const cursor: Cursor = {
           objectKey: "media/v1080/init.mp4",
           slotId: "slot_init",
         },
-        trackId: "v1080",
         segments: [
           {
-            sequenceNumber: 3810,
             segment: {
               commitId: "commit_3810",
               deliveryUrl: "/media/3810.m4s",
               objectKey: "media/3810.m4s",
-              slotId: "slot_3810",
               profile: { duration: 2 },
+              slotId: "slot_3810",
             },
+            sequenceNumber: 3810,
           },
         ],
+        trackId: "v1080",
       },
     },
   },
-  epoch: 0,
   deliveryBaseUrl: "https://media.example.com",
+  epoch: 0,
   olos: "1.0",
   profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
   sessionId: "session_1",
@@ -115,16 +115,16 @@ describe("upload slot issuance", () => {
       createIssuedUploadSlot({
         contentType: "video/mp4",
         deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-        profile: { duration: 2 },
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
         maxBytes: 100_000,
-        sequenceNumber: 3810,
         minBytes: 1000,
         objectKey: "media/v1080/s3810.m4s",
-        trackId: "v1080",
+        profile: { duration: 2 },
+        sequenceNumber: 3810,
         session,
         slotId: "slot_1",
+        trackId: "v1080",
       })
     ).toEqual(slot);
   });
@@ -134,16 +134,16 @@ describe("upload slot issuance", () => {
       createIssuedUploadSlot({
         contentType: "video/mp4",
         deliveryUrl: "https://media.example.com/live/session/v1080/3810/0.m4s",
-        profile: { duration: 0.5 },
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "part",
         maxBytes: 100_000,
-        sequenceNumber: 3810,
         objectKey: "live/session/v1080/3810/0.m4s",
         partNumber: 0,
-        trackId: "v1080",
+        profile: { duration: 0.5 },
+        sequenceNumber: 3810,
         session,
         slotId: "slot_3810_0",
+        trackId: "v1080",
       }).partNumber
     ).toBe(0);
   });
@@ -153,15 +153,15 @@ describe("upload slot issuance", () => {
       createIssuedUploadSlot({
         contentType: "video/mp4",
         deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-        profile: { duration: 2 },
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
         maxBytes: 100_000,
-        sequenceNumber: 3810,
         objectKey: "media/v1080/s3810.m4s",
-        trackId: "v1080",
+        profile: { duration: 2 },
+        sequenceNumber: 3810,
         session: { ...session, state: "ended" },
         slotId: "slot_1",
+        trackId: "v1080",
       })
     ).toThrow("session.state must be live");
   });
@@ -171,15 +171,15 @@ describe("upload slot issuance", () => {
       createIssuedUploadSlot({
         contentType: "video/mp4",
         deliveryUrl: "https://media.example.com/live/session/v720/3810.m4s",
-        profile: { duration: 2 },
         expiresAt: "2026-01-01T00:00:05.000Z",
         kind: "segment",
         maxBytes: 100_000,
-        sequenceNumber: 3810,
         objectKey: "live/session/v720/3810.m4s",
-        trackId: "v720",
+        profile: { duration: 2 },
+        sequenceNumber: 3810,
         session,
         slotId: "slot_1",
+        trackId: "v720",
       })
     ).toThrow("uploadSlot.trackId must belong to session.tracks");
   });

@@ -52,9 +52,9 @@ export function createTransitionRules<State extends string>(
   map: Partial<Record<State, readonly State[]>>,
   noun: string
 ): {
-  allowed(from: State): readonly State[];
-  can(from: State, to: State): boolean;
-  assert(from: State, to: State): void;
+  allowed: (from: State) => readonly State[];
+  can: (from: State, to: State) => boolean;
+  assert: (from: State, to: State) => void;
 } {
   const allowed = (from: State): readonly State[] => map[from] ?? [];
   const can = (from: State, to: State): boolean => allowed(from).includes(to);
@@ -66,5 +66,5 @@ export function createTransitionRules<State extends string>(
     throw new Error(`Invalid ${noun} transition: ${from} -> ${to}`);
   };
 
-  return { allowed, can, assert };
+  return { allowed, assert, can };
 }

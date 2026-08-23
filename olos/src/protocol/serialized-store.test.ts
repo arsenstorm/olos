@@ -100,14 +100,14 @@ describe("serialized coordinator store", () => {
 
     const next = issueCoordinatorSlot({
       contentType: "video/mp4",
-      profile: { duration: 1 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
+      profile: { duration: 1 },
       sequenceNumber: 0,
-      trackId: "v1080",
       slotId: "slot_init",
       state,
+      trackId: "v1080",
     });
     const second = await store.save({
       expectedEtag: firstSave.etag,
@@ -117,11 +117,11 @@ describe("serialized coordinator store", () => {
 
     const secondSave = savedStoreResult(second, "expected second save");
 
-    const record = await backend.load(session.sessionId);
+    const loadedRecord = await backend.load(session.sessionId);
 
     expect(secondSave.etag).toBe("2");
-    expect(record?.etag).toBe("2");
-    expect(record?.snapshot).toContain('"slotId":"slot_init"');
+    expect(loadedRecord?.etag).toBe("2");
+    expect(loadedRecord?.snapshot).toContain('"slotId":"slot_init"');
   });
 
   test("returns the current snapshot when an insert races an existing row", async () => {
@@ -164,14 +164,14 @@ describe("serialized coordinator store", () => {
 
     const issued = issueCoordinatorSlot({
       contentType: "video/mp4",
-      profile: { duration: 1 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
+      profile: { duration: 1 },
       sequenceNumber: 0,
-      trackId: "v1080",
       slotId: "slot_init",
       state,
+      trackId: "v1080",
     });
     const second = await store.save({
       expectedEtag: firstSave.etag,

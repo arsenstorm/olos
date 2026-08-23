@@ -17,7 +17,7 @@ export async function resolveCommittedParts(
   if (snapshot === undefined) {
     return;
   }
-  const cursor = snapshot.state.cursor;
+  const { cursor } = snapshot.state;
   if (cursor === undefined) {
     return;
   }
@@ -50,7 +50,7 @@ export function nextPartCovering(
 }
 
 function coversPosition(part: CommittedPart, position: number): boolean {
-  const byterange = part.byterange;
+  const { byterange } = part;
   if (byterange === undefined) {
     return false;
   }

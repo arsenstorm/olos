@@ -34,8 +34,10 @@ function absoluteHttpUrlString(value: unknown, name: string): string {
 function parseUrl(value: string, name: string): URL {
   try {
     return new URL(value);
-  } catch {
-    throw new Error(`${name} must be an absolute HTTP(S) URL`);
+  } catch (error) {
+    throw new Error(`${name} must be an absolute HTTP(S) URL`, {
+      cause: error,
+    });
   }
 }
 

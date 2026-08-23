@@ -87,34 +87,31 @@ describe("live S3 config", () => {
     );
   });
 
-  test.each([
-    "media/live",
-    "media\u0001bad",
-  ])("rejects unsafe bucket %s", (bucket) => {
-    expect(() =>
-      readLiveS3ConfigFromEnv({
-        ...requiredEnv,
-        OLOS_LIVE_S3_BUCKET: bucket,
-      })
-    ).toThrow(
-      "OLOS_LIVE_S3_BUCKET must not contain path separators or control characters"
-    );
-  });
+  test.each(["media/live", "media\u0001bad"])(
+    "rejects unsafe bucket %s",
+    (bucket) => {
+      expect(() =>
+        readLiveS3ConfigFromEnv({
+          ...requiredEnv,
+          OLOS_LIVE_S3_BUCKET: bucket,
+        })
+      ).toThrow(
+        "OLOS_LIVE_S3_BUCKET must not contain path separators or control characters"
+      );
+    }
+  );
 
-  test.each([
-    "/",
-    "media//bad",
-    "media/../bad",
-    "media?x=1",
-    "media#x",
-  ])("rejects unsafe prefix %s", (prefix) => {
-    expect(() =>
-      readLiveS3ConfigFromEnv({
-        ...requiredEnv,
-        OLOS_LIVE_S3_PREFIX: prefix,
-      })
-    ).toThrow("OLOS_LIVE_S3_PREFIX must be a safe relative object prefix");
-  });
+  test.each(["/", "media//bad", "media/../bad", "media?x=1", "media#x"])(
+    "rejects unsafe prefix %s",
+    (prefix) => {
+      expect(() =>
+        readLiveS3ConfigFromEnv({
+          ...requiredEnv,
+          OLOS_LIVE_S3_PREFIX: prefix,
+        })
+      ).toThrow("OLOS_LIVE_S3_PREFIX must be a safe relative object prefix");
+    }
+  );
 
   test("rejects control characters in prefixes", () => {
     expect(() =>

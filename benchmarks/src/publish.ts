@@ -57,7 +57,7 @@ export async function publishObject(
     ),
     `commit ${spec.slotId}`
   );
-  return { uploadedAt, committedAt: now() };
+  return { committedAt: now(), uploadedAt };
 }
 
 function slotPayload(spec: PublishSpec): Record<string, unknown> {
@@ -70,8 +70,8 @@ function slotPayload(spec: PublishSpec): Record<string, unknown> {
     sequenceNumber: spec.sequenceNumber,
     ...(spec.partNumber === undefined ? {} : { partNumber: spec.partNumber }),
     profile: { duration: spec.duration },
-    trackId: TRACK_ID,
     slotId: spec.slotId,
+    trackId: TRACK_ID,
   };
 }
 

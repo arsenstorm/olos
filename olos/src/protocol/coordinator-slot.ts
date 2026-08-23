@@ -112,10 +112,10 @@ function resolveSlotObjectAddress(options: IssueCoordinatorSlotOptions): {
   const objectKey = createPublisherObjectKey({
     extension: options.extension,
     kind: options.kind,
-    sequenceNumber: options.sequenceNumber,
     objectKeyNonce: resolveSlotObjectKeyNonce(options),
     objectKeyPrefix: options.objectKeyPrefix,
     partNumber: options.partNumber,
+    sequenceNumber: options.sequenceNumber,
     trackId: options.trackId,
   });
   const deliveryUrl = createPublisherDeliveryUrl(
@@ -229,8 +229,6 @@ function revocationRefusal(
   ) {
     return "upload slot cannot be revoked from its current state";
   }
-
-  return;
 }
 
 export function findSlot(
@@ -244,7 +242,7 @@ function isSlotInCursor(
   state: CoordinatorPipelineState,
   slot: UploadSlot
 ): boolean {
-  const cursor = state.cursor;
+  const { cursor } = state;
 
   if (cursor === undefined) {
     return false;

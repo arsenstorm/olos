@@ -1,3 +1,5 @@
+// biome-ignore-all lint/suspicious/noMisplacedAssertion: the assertions sit inside test.skipIf(...)(...), which biome does not recognise as a test call.
+
 import { randomUUID } from "node:crypto";
 import {
   createPresignedS3UploadGrant,
@@ -137,16 +139,16 @@ function createSlot(objectKey: string): UploadSlot {
   return {
     contentType,
     deliveryUrl: `https://media.example.com/${objectKey}`,
-    profile: { duration: 1 },
     epoch: 1,
     expiresAt: new Date(Date.now() + 120_000).toISOString(),
     kind: "segment",
     maxBytes: payload.byteLength,
-    sequenceNumber: 1,
     objectKey,
-    trackId: "live",
+    profile: { duration: 1 },
+    sequenceNumber: 1,
     sessionId: "live_session",
     slotId: `slot_${randomUUID()}`,
     state: "issued",
+    trackId: "live",
   };
 }

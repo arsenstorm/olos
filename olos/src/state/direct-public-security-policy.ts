@@ -154,13 +154,13 @@ export function createDirectPublicSecurityPolicy(
       capability: options.capability,
       target: "media-object",
     }),
-    objectContentType: options.objectContentType,
-    objectResponseHeaders: DIRECT_PUBLIC_OBJECT_RESPONSE_HEADERS,
     negativeObjectCachePolicy: createDeliveryCachePolicy({
       capability: options.capability,
       target: "negative-object",
       targetLatencySeconds,
     }),
+    objectContentType: options.objectContentType,
+    objectResponseHeaders: DIRECT_PUBLIC_OBJECT_RESPONSE_HEADERS,
   };
 }
 

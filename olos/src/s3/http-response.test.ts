@@ -150,16 +150,16 @@ function testSlot(): UploadSlot {
   return {
     contentType: "video/mp4",
     deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-    profile: { duration: 2 },
     epoch: 1,
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment",
     maxBytes: 100_000,
-    sequenceNumber: 3810,
     objectKey: "objects/v1080/s3810",
-    trackId: "v1080",
+    profile: { duration: 2 },
+    sequenceNumber: 3810,
     sessionId: "session_1",
     slotId: "slot_3810",
     state: "issued",
+    trackId: "v1080",
   };
 }

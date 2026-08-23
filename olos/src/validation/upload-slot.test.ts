@@ -7,19 +7,19 @@ const validUploadSlot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl:
     "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p3.m4s",
-  profile: { duration: 0.5 },
   epoch: 1,
   expiresAt: "2026-06-08T12:00:05Z",
   kind: "part",
   maxBytes: 524_288,
-  sequenceNumber: 3812,
   minBytes: 1024,
   objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
   partNumber: 3,
-  trackId: "v1080",
+  profile: { duration: 0.5 },
+  sequenceNumber: 3812,
   sessionId: "sess_01JZLIVE",
   slotId: "slot_01JZ",
   state: "issued",
+  trackId: "v1080",
 };
 
 const unsafeDeliveryUrlCases = [
@@ -144,7 +144,7 @@ describe("upload slot validation", () => {
 
   test("rejects invalid byte limits", () => {
     expect(() =>
-      assertUploadSlot({ ...validUploadSlot, minBytes: 20, maxBytes: 10 })
+      assertUploadSlot({ ...validUploadSlot, maxBytes: 10, minBytes: 20 })
     ).toThrow("uploadSlot.minBytes must be less than or equal to maxBytes");
     expect(() =>
       assertUploadSlot({ ...validUploadSlot, maxBytes: 1024.5 })

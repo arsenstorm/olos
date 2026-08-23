@@ -214,7 +214,7 @@ export function mediaSegmentDuration(segment: CommittedSegment): number {
   }
 
   return parts.reduce((total, part) => {
-    const duration = mediaObjectProfile(part).duration;
+    const { duration } = mediaObjectProfile(part);
 
     if (duration === undefined) {
       throw new Error("committed part has no media duration");

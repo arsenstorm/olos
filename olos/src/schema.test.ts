@@ -174,8 +174,8 @@ describe("OLOS JSON schemas", () => {
       "objectSizeCanBeObserved",
       "requiredHeadersCanBeSigned",
     ]);
-    const directPublicationPrecondition =
-      OLOS_PROVIDER_CAPABILITY_SCHEMA.allOf[0];
+    const [directPublicationPrecondition] =
+      OLOS_PROVIDER_CAPABILITY_SCHEMA.allOf;
 
     expect(directPublicationPrecondition.if).toEqual({
       properties: {

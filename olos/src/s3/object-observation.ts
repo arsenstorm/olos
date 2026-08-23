@@ -21,7 +21,7 @@ type S3HeadObjectCommandInput = ConstructorParameters<
  * `@aws-sdk/client-s3` `S3Client`.
  */
 export interface S3HeadObjectClient {
-  send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput>;
+  send: (command: HeadObjectCommand) => Promise<HeadObjectCommandOutput>;
 }
 
 /** Options for {@link observeS3Object}. */
@@ -135,9 +135,9 @@ function observedUploadFromS3HeadObjectOptions(
 ): CreateObservedUploadFromS3HeadObjectOptions {
   return {
     clock: options.clock,
+    now: options.now,
     objectKey: options.objectKey,
     observedAt: options.observedAt,
-    now: options.now,
     output,
     providerId: options.providerId,
   };
@@ -151,10 +151,12 @@ function normalizeS3Metadata(
   }
 
   const slotId =
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: S3 metadata keys are optional; tsc types them as string | undefined under noUncheckedIndexedAccess, which biome does not model.
     metadata["x-olos-slot-id"] ??
     metadata["olos-slot-id"] ??
     metadata["x-amz-meta-olos-slot-id"];
 
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: same noUncheckedIndexedAccess gap; the header may be absent.
   if (slotId === undefined || metadata["x-olos-slot-id"] !== undefined) {
     return metadata;
   }

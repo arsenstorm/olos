@@ -46,8 +46,8 @@ async function main(): Promise<void> {
     baseUrl: BASE_URL,
     ingestKey: INGEST_KEY,
     mediaOrigin: MEDIA_ORIGIN,
-    trackId: TRACK_ID,
     sessionId: SESSION_ID,
+    trackId: TRACK_ID,
   });
 
   const outDir = await mkdtemp(join(tmpdir(), "olos-streamer-"));
@@ -64,6 +64,7 @@ async function main(): Promise<void> {
   };
 
   while (!ffmpeg.exited()) {
+    // biome-ignore lint/performance/noAwaitInLoops: each poll must drain fully before the next wait, or parts would be read out of order.
     await drain(olos, outDir, state);
     await wait(POLL_INTERVAL_MS);
   }
@@ -73,12 +74,12 @@ async function main(): Promise<void> {
   try {
     await olos.endSession();
   } finally {
-    await rm(outDir, { recursive: true, force: true });
+    await rm(outDir, { force: true, recursive: true });
   }
 }
 
 interface RunningFfmpeg {
-  exited(): boolean;
+  exited: () => boolean;
 }
 
 // The session is created from the init segment, not before it: the
@@ -195,12 +196,13 @@ async function publishPendingParts(
   // the four part publishes can race safely. At ~400 ms per publish on
   // Workers Free, serial would lose ~250 ms per 2 s segment cycle —
   // parallel collapses the four parts into one ~600 ms wall window.
-  while (true) {
+  for (;;) {
     const batch = collectNextSegmentBatch(availableParts, state.nextPartIndex);
     if (batch === undefined) {
       return;
     }
 
+    // biome-ignore lint/performance/noAwaitInLoops: each batch advances state.nextPartIndex, which the next collectNextSegmentBatch call depends on.
     const published = await publishSegmentBatch(olos, outDir, batch, state);
     if (!published) {
       return;
@@ -257,6 +259,7 @@ async function publishParts(
   // mutation retry budget on Workers Free.
   const grants: Awaited<ReturnType<typeof olos.issueGrant>>[] = [];
   for (const publish of publishes) {
+    // biome-ignore lint/performance/noAwaitInLoops: parallel /s3/slots calls race the coordinator's etag and exhaust the mutation retry budget.
     grants.push(await olos.issueGrant(partGrant(batch, publish)));
   }
 
@@ -267,6 +270,7 @@ async function publishParts(
 
   // Phase 3: serial commits. Same state-mutation reason as the grants.
   for (const item of pending) {
+    // biome-ignore lint/performance/noAwaitInLoops: parallel commits race the coordinator's etag, same reason as the grants above.
     await olos.commitPublication(item);
   }
 }
@@ -314,8 +318,8 @@ function partGrant(
     duration: PART_SECONDS,
     // OBS keyframe interval = 0.5s → every micro-segment is keyframe-aligned.
     independent: true,
-    sequenceNumber: batch.sequenceNumber,
     partNumber,
+    sequenceNumber: batch.sequenceNumber,
   };
 }
 

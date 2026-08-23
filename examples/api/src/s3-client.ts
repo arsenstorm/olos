@@ -8,7 +8,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 // call that doesn't exist on a Blob. This replacement handles either a
 // Blob (`.arrayBuffer`) or a ReadableStream (`.getReader`) explicitly.
 async function streamCollector(stream: unknown): Promise<Uint8Array> {
-  if (stream == null) {
+  if (stream === null || stream === undefined) {
     return new Uint8Array();
   }
   if (typeof (stream as Blob | undefined)?.arrayBuffer === "function") {
@@ -31,7 +31,8 @@ async function collectReadableStream(
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
   let length = 0;
-  while (true) {
+  for (;;) {
+    // biome-ignore lint/performance/noAwaitInLoops: each read() depends on the reader's position left by the previous read().
     const { done, value } = await reader.read();
     if (done) {
       break;

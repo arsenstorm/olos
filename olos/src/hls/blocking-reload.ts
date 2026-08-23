@@ -174,8 +174,6 @@ function settleBlockingReload(
   if (isEndOfStreamSessionState(cursor.state)) {
     return timeoutHlsBlockingReloadResult(cursor, options.request);
   }
-
-  return;
 }
 
 /**
@@ -197,7 +195,7 @@ export async function waitForHlsBlockingReload(
   nonNegativeNumber(options.timeoutMs, "options.timeoutMs");
 
   const deadline = createHlsBlockingReloadDeadline(options);
-  let cursor = options.cursor;
+  let { cursor } = options;
 
   for (;;) {
     const settled = settleBlockingReload(cursor, options);
@@ -212,6 +210,7 @@ export async function waitForHlsBlockingReload(
       return timeoutHlsBlockingReloadResult(cursor, options.request);
     }
 
+    // biome-ignore lint/performance/noAwaitInLoops: each wait starts from the cursor the previous iteration advanced to.
     const nextCursor = await waitForNextCursor(options, cursor, remainingMs);
 
     if (!nextCursor) {

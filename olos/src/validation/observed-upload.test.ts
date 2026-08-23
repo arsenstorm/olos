@@ -10,18 +10,18 @@ import { invalidStringMapFixture } from "./test-string-map.test-helper";
 const slot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
-  profile: { duration: 2 },
   epoch: 0,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  sequenceNumber: 3810,
   minBytes: 1000,
   objectKey: "media/v1080/s3810.m4s",
-  trackId: "v1080",
+  profile: { duration: 2 },
+  sequenceNumber: 3810,
   sessionId: "session_1",
   slotId: "slot_1",
   state: "issued",
+  trackId: "v1080",
 };
 
 const object: ObservedUpload = {

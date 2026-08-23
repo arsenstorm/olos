@@ -156,10 +156,13 @@ async function refreshPublisherLease(
   const result = await mutateCoordinatorPipeline({
     maxAttempts: options.maxAttempts,
     mutate: (state) => {
-      const next = heartbeatState(state, options);
-      lease = next.lease;
+      const { lease: nextLease, state: nextState } = heartbeatState(
+        state,
+        options
+      );
+      lease = nextLease;
 
-      return next.state;
+      return nextState;
     },
     sessionId: options.sessionId,
     store: options.store,
@@ -183,12 +186,12 @@ async function refreshPublisherLease(
 }
 
 interface StoredSessionMutationSteps<Result> {
-  apply(): Promise<Result>;
+  apply: () => Promise<Result>;
   /** Validates the request shape; any throw becomes a 400 `olos.invalid_request`. */
-  assert(): void;
+  assert: () => void;
   invalidMessage: string;
   /** Maps a `StoredSessionRejectionError` to the 409 `olos.invalid_state` result. */
-  rejected(error: StoredSessionRejectionError): Result;
+  rejected: (error: StoredSessionRejectionError) => Result;
 }
 
 /**
@@ -223,10 +226,10 @@ interface StoredSessionInvalidRequest {
 
 function rejectedOrRethrow<Result>(
   error: unknown,
-  rejected: (error: StoredSessionRejectionError) => Result
+  onRejected: (error: StoredSessionRejectionError) => Result
 ): Result {
   if (error instanceof StoredSessionRejectionError) {
-    return rejected(error);
+    return onRejected(error);
   }
 
   throw error;

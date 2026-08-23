@@ -115,6 +115,7 @@ function hasDocumentedDefinition(
 ): boolean | undefined {
   const match = definitionPattern(name).exec(content);
 
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp.exec returns null on no match; biome infers a non-nullable RegExpExecArray here.
   if (match === null) {
     return;
   }

@@ -435,12 +435,12 @@ function countingStore(): CoordinatorPipelineStore & {
   let loads = 0;
 
   return {
-    get loads() {
-      return loads;
-    },
     load: () => {
       loads += 1;
       return Promise.resolve(undefined);
+    },
+    get loads() {
+      return loads;
     },
     save: () => {
       throw new Error("store save should not be called");
@@ -462,10 +462,8 @@ function cursor(state: Cursor["state"]): Cursor {
             objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
-          trackId: "v1080",
           segments: [
             {
-              sequenceNumber: 3810,
               segment: {
                 commitId: "commit_3810",
                 deliveryUrl: "https://media.example.com/media/v1080/s3810.m4s",
@@ -473,14 +471,16 @@ function cursor(state: Cursor["state"]): Cursor {
                 profile: { duration: 2, independent: true },
                 slotId: "slot_3810",
               },
+              sequenceNumber: 3810,
             },
           ],
+          trackId: "v1080",
         },
       },
     },
+    deliveryBaseUrl: "https://media.example.com",
     epoch: session.epoch,
     olos: "1.0",
-    deliveryBaseUrl: "https://media.example.com",
     profile: session.profile,
     sessionId: session.sessionId,
     state,

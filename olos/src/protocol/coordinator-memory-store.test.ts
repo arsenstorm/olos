@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { trackWindow } from "../state/committed-window.test-helper";
 import { createMemoryCoordinatorStore } from "./coordinator-memory-store";
 import {
   createCoordinatorStateWithCommittedSegment,
@@ -33,7 +34,7 @@ describe("memory coordinator store", () => {
 
     const expectedProfile = structuredClone(originalProfile);
 
-    const cursor = loaded.state.cursor;
+    const { cursor } = loaded.state;
     const slot = loaded.state.slots.find(
       (candidate) => candidate.slotId === "slot_3810"
     );
@@ -46,11 +47,7 @@ describe("memory coordinator store", () => {
       throw new Error("expected cursor and committed slot with a profile");
     }
 
-    const track = cursor.committedWindow.tracks.v1080;
-
-    if (track === undefined) {
-      throw new Error("expected v1080 track window");
-    }
+    const track = trackWindow(cursor.committedWindow, "v1080");
 
     track.segments.length = 0;
     slot.profile.duration = -1;

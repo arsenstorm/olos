@@ -61,14 +61,16 @@ export interface PublishSegmentOptions {
 }
 
 export interface LocalOlos {
-  createSession(): Promise<void>;
+  createSession: () => Promise<void>;
   deliveryBaseUrl: string;
-  handle(request: Request): Promise<Response>;
-  publishInit(bytes: Uint8Array): Promise<PublishTimestamps>;
-  publishPart(options: PublishPartOptions): Promise<PublishTimestamps>;
-  publishSegment(options: PublishSegmentOptions): Promise<PublishTimestamps>;
+  handle: (request: Request) => Promise<Response>;
+  publishInit: (bytes: Uint8Array) => Promise<PublishTimestamps>;
+  publishPart: (options: PublishPartOptions) => Promise<PublishTimestamps>;
+  publishSegment: (
+    options: PublishSegmentOptions
+  ) => Promise<PublishTimestamps>;
   sessionId: string;
-  stop(): Promise<void>;
+  stop: () => Promise<void>;
   trackId: string;
 }
 
@@ -148,6 +150,8 @@ function benchSession(fps: number): MediaSession {
       partTarget: profile.partTarget,
       segmentTarget: profile.segmentTarget,
     },
+    sessionId: SESSION_ID,
+    state: "live",
     tracks: [
       {
         profile: {
@@ -161,8 +165,6 @@ function benchSession(fps: number): MediaSession {
         trackId: TRACK_ID,
       },
     ],
-    sessionId: SESSION_ID,
-    state: "live",
   };
 }
 
@@ -170,12 +172,10 @@ function benchSession(fps: number): MediaSession {
 async function serveByteStore(
   port: number,
   byteStore: Map<string, Uint8Array>
-): Promise<{ stop(): Promise<void> }> {
+): Promise<{ stop: () => Promise<void> }> {
   const certDir = await mkdtemp(join(tmpdir(), "olos-bench-cert-"));
   const { certPath, keyPath } = generateSelfSignedCert(certDir);
   const server = serve({
-    port,
-    tls: { cert: file(certPath), key: file(keyPath) },
     fetch(request) {
       const key = new URL(request.url).pathname.replace(LEADING_SLASHES, "");
       const bytes = byteStore.get(key);
@@ -183,6 +183,8 @@ async function serveByteStore(
         ? new Response("not found", { status: 404 })
         : new Response(bytes, { headers: { "content-type": "video/mp4" } });
     },
+    port,
+    tls: { cert: file(certPath), key: file(keyPath) },
   });
 
   return {
@@ -205,10 +207,6 @@ export async function createLocalOlos(
   const server = await serveByteStore(options.port, byteStore);
 
   return {
-    handle,
-    deliveryBaseUrl,
-    trackId: TRACK_ID,
-    sessionId: SESSION_ID,
     async createSession() {
       await callHandlerExpectOk(
         handle,
@@ -216,6 +214,10 @@ export async function createLocalOlos(
         "create session"
       );
     },
+    deliveryBaseUrl,
+    handle,
+    sessionId: SESSION_ID,
+    trackId: TRACK_ID,
     ...publishMethods(handle, byteStore),
     stop: () => server.stop(),
   };
@@ -228,36 +230,36 @@ function publishMethods(
   return {
     publishInit: (bytes) =>
       publishObject(handle, byteStore, {
+        bytes,
         commitId: "commit_init",
         duration: INIT_DURATION_SECONDS,
         independent: false,
         kind: "init",
         sequenceNumber: 0,
         slotId: "slot_init",
-        bytes,
       }),
     publishPart: ({ bytes, sequenceNumber, partNumber, partSeconds }) => {
       const id = `${sequenceNumber}_p${partNumber}`;
       return publishObject(handle, byteStore, {
+        bytes,
         commitId: `commit_${id}`,
         duration: partSeconds,
         independent: true,
         kind: "part",
-        sequenceNumber,
         partNumber,
+        sequenceNumber,
         slotId: `slot_${id}`,
-        bytes,
       });
     },
     publishSegment: ({ bytes, sequenceNumber, segmentSeconds }) =>
       publishObject(handle, byteStore, {
+        bytes,
         commitId: `commit_${sequenceNumber}`,
         duration: segmentSeconds,
         independent: true,
         kind: "segment",
         sequenceNumber,
         slotId: `slot_${sequenceNumber}`,
-        bytes,
       }),
   };
 }

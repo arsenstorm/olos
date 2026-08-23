@@ -57,8 +57,8 @@ function parseR2GetOptions(
   if (match === null) {
     return;
   }
-  const offset = Number(match[1]);
-  const endRaw = match[2];
+  const [, offsetRaw, endRaw] = match;
+  const offset = Number(offsetRaw);
   if (endRaw === "") {
     return { range: { offset } };
   }

@@ -467,28 +467,28 @@ async function saveReconciliationState(
 function stateWithSlots(): CoordinatorPipelineState {
   let state = createEmptyCoordinatorState();
 
-  state = issueCoordinatorSlot({
+  ({ state } = issueCoordinatorSlot({
     contentType: "video/mp4",
-    profile: { duration: 1 },
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "init",
     maxBytes: 2048,
+    profile: { duration: 1 },
     sequenceNumber: 0,
-    trackId: "v1080",
     slotId: "slot_init",
     state,
-  }).state;
+    trackId: "v1080",
+  }));
 
   return issueCoordinatorSlot({
     contentType: "video/mp4",
-    profile: { duration: 2 },
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment",
     maxBytes: 100_000,
+    profile: { duration: 2 },
     sequenceNumber: 3810,
-    trackId: "v1080",
     slotId: "slot_3810",
     state,
+    trackId: "v1080",
   }).state;
 }
 

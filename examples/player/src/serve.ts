@@ -5,7 +5,6 @@ const PORT = Number(process.env.PORT ?? 8788);
 const INDEX_PATH = join(import.meta.dir, "..", "index.html");
 
 serve({
-  port: PORT,
   fetch(request) {
     const url = new URL(request.url);
     if (url.pathname === "/" || url.pathname === "/index.html") {
@@ -15,6 +14,7 @@ serve({
     }
     return new Response("not found", { status: 404 });
   },
+  port: PORT,
 });
 
 console.log(`player at http://localhost:${PORT}/`);

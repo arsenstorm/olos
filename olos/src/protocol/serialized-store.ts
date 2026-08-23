@@ -57,9 +57,9 @@ export interface SerializedCursorViewRecord {
  * `assertSerializedCoordinatorStoreBackendConformance`.
  */
 export interface SerializedCoordinatorStoreBackend {
-  load(
+  load: (
     sessionId: OlosId
-  ): Promise<SerializedCoordinatorStoreRecord | undefined>;
+  ) => Promise<SerializedCoordinatorStoreRecord | undefined>;
   /**
    * Optional fast path backing `CoordinatorPipelineStore.loadCursor`.
    * Return `undefined` only when the session does not exist. When the
@@ -67,17 +67,17 @@ export interface SerializedCoordinatorStoreBackend {
    * the store then falls back to the full-snapshot path. A string view is
    * served as-is without consulting `load`.
    */
-  loadCursorView?(
+  loadCursorView?: (
     sessionId: OlosId
-  ): Promise<SerializedCursorViewRecord | undefined>;
+  ) => Promise<SerializedCursorViewRecord | undefined>;
   /**
    * Persist `record` (and `cursorView` when given) under the etag rules of
    * `SaveSerializedCoordinatorStoreOptions.expectedEtag`. The etag check and
    * write must be atomic.
    */
-  save(
+  save: (
     options: SaveSerializedCoordinatorStoreOptions
-  ): Promise<SerializedCoordinatorStoreSave>;
+  ) => Promise<SerializedCoordinatorStoreSave>;
 }
 
 /** Options for `SerializedCoordinatorStoreBackend.save`. */
@@ -119,7 +119,7 @@ export type CoordinatorStoreSaveConflict = Extract<
 /** Options for `assertSerializedCoordinatorStoreBackendConformance`. */
 export interface AssertSerializedCoordinatorStoreBackendConformanceOptions {
   /** Factory for a fresh, empty backend the conformance run writes into. */
-  createBackend():
+  createBackend: () =>
     | SerializedCoordinatorStoreBackend
     | Promise<SerializedCoordinatorStoreBackend>;
 }

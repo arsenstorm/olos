@@ -68,8 +68,8 @@ export async function writeAggregateSidecar(
   const path = join(RUNS_DIR, `${RUN_ID.replace(/[:]/g, "-")}-aggregate.json`);
   const sidecar = {
     config: {
-      concurrency: CONCURRENCY,
       cmd: process.argv.join(" "),
+      concurrency: CONCURRENCY,
       fps: FPS,
       partMs: PART_MS,
       samplesTarget: TARGET_SAMPLES,

@@ -57,7 +57,6 @@ function createS3HttpTestHarness(options: S3HttpTestHarnessOptions = {}) {
   const store = createMemoryCoordinatorStore();
   const handle = createStoredS3CoordinatorRuntimeHandler({
     allowedDeliveryOrigins: [MEDIA_ORIGIN],
-    publicationMode: "read-gated",
     bucket: S3_BUCKET,
     client: createTestS3Client(),
     expiresInSeconds: S3_GRANT_TTL_SECONDS,
@@ -66,6 +65,7 @@ function createS3HttpTestHarness(options: S3HttpTestHarnessOptions = {}) {
       options.objectSizes ?? RETENTION_OBJECT_SIZES,
       headObjectInputs
     ),
+    publicationMode: "read-gated",
     retentionClient: createTestS3DeleteObjectClient(
       deleteInputs,
       options.failingDeleteKey
@@ -111,10 +111,10 @@ describe("stored S3 coordinator runtime handler", () => {
   test("rejects invalid S3 handler options", () => {
     const options = {
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated" as const,
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      publicationMode: "read-gated" as const,
       store: createMemoryCoordinatorStore(),
     };
 
@@ -163,10 +163,10 @@ describe("stored S3 coordinator runtime handler", () => {
   test("rejects non-object S3 slot payloads", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -195,11 +195,11 @@ describe("stored S3 coordinator runtime handler", () => {
   test("answers a slot-issuance rejection at the S3 slot grant route with 400, not 500", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -214,11 +214,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -229,11 +229,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3811",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3811,
           objectKey: "objects/v1080/s3811.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3811,
           slotId: "slot_3810",
         })
       )
@@ -253,11 +253,11 @@ describe("stored S3 coordinator runtime handler", () => {
   test("rejects non-object S3 commit payloads", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -282,23 +282,23 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: S3_GRANT_TTL_SECONDS,
-      grantNow: () => S3_GRANT_NOW,
-      objectClient: createTestHeadObjectClient(
-        {
-          "objects/v1080/s3810.m4s": 98_304,
-          "objects/v1080/init.mp4": 1024,
-        },
-        headObjectInputs
-      ),
       cursorNotifier: {
         notify: (cursor) => notifiedCursors.push(cursor),
         waitForCursor: () =>
           Promise.reject(new Error("waiter should not be called")),
       },
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
+      objectClient: createTestHeadObjectClient(
+        {
+          "objects/v1080/init.mp4": 1024,
+          "objects/v1080/s3810.m4s": 98_304,
+        },
+        headObjectInputs
+      ),
+      publicationMode: "read-gated",
       store,
     });
 
@@ -313,11 +313,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/init",
-          profile: { duration: 1 },
           kind: "init",
           maxBytes: 2048,
-          sequenceNumber: 0,
           objectKey: "objects/v1080/init.mp4",
+          profile: { duration: 1 },
+          sequenceNumber: 0,
           slotId: "slot_init",
         })
       )
@@ -327,11 +327,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -376,8 +376,8 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
-        profile: { independent: true },
         objectKey: "objects/v1080/s3810.m4s",
+        profile: { independent: true },
         providerId: "s3_primary",
         slotId: "slot_3810",
       })
@@ -435,15 +435,14 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
       objectClient: createTestHeadObjectClient(
         {
-          "objects/v1080/s3810.m4s": 98_304,
           "objects/v1080/init.mp4": 1024,
+          "objects/v1080/s3810.m4s": 98_304,
         },
         [],
         {
@@ -452,6 +451,7 @@ describe("stored S3 coordinator runtime handler", () => {
           },
         }
       ),
+      publicationMode: "read-gated",
       store,
     });
 
@@ -466,11 +466,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/init",
-          profile: { duration: 1 },
           kind: "init",
           maxBytes: 2048,
-          sequenceNumber: 0,
           objectKey: "objects/v1080/init.mp4",
+          profile: { duration: 1 },
+          sequenceNumber: 0,
           slotId: "slot_init",
         })
       )
@@ -489,11 +489,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -503,9 +503,9 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:05.500Z",
-        profile: { independent: true },
         lateToleranceMs: 1000,
         objectKey: "objects/v1080/s3810.m4s",
+        profile: { independent: true },
         providerId: "s3_primary",
         slotId: "slot_3810",
       })
@@ -524,7 +524,6 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
@@ -536,6 +535,7 @@ describe("stored S3 coordinator runtime handler", () => {
         headObjectInputs
       ),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -550,11 +550,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -565,8 +565,8 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
         {
           committedAt: "2026-01-01T00:00:02.000Z",
-          profile: { independent: true },
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { independent: true },
         }
       )
     );
@@ -594,7 +594,6 @@ describe("stored S3 coordinator runtime handler", () => {
     const completionHintNow = "2026-01-01T00:00:01.000Z";
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       completionHintNow: () => completionHintNow,
@@ -607,6 +606,7 @@ describe("stored S3 coordinator runtime handler", () => {
         headObjectInputs
       ),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -621,11 +621,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -635,8 +635,8 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
         {
-          profile: { independent: true },
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { independent: true },
         }
       )
     );
@@ -664,11 +664,10 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
-      completionHintNow: () => completionHintNow,
       completionHintCommitId: (slotId) => `completion_${slotId}`,
+      completionHintNow: () => completionHintNow,
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
       objectClient: createTestHeadObjectClient(
@@ -678,6 +677,7 @@ describe("stored S3 coordinator runtime handler", () => {
         headObjectInputs
       ),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -692,11 +692,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -706,8 +706,8 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
         {
-          profile: { independent: true },
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { independent: true },
         }
       )
     );
@@ -734,13 +734,13 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
       objectClient: createTestHeadObjectClient({}, headObjectInputs),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -755,11 +755,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -797,7 +797,6 @@ describe("stored S3 coordinator runtime handler", () => {
     const onErrorCalls: unknown[] = [];
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
@@ -811,6 +810,7 @@ describe("stored S3 coordinator runtime handler", () => {
         onErrorCalls.push({ context, error });
       },
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -825,11 +825,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -840,8 +840,8 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/upload-slots/slot_3810/complete",
         {
           committedAt: "2026-01-01T00:00:02.000Z",
-          profile: { independent: true },
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { independent: true },
         }
       )
     );
@@ -888,7 +888,6 @@ describe("stored S3 coordinator runtime handler", () => {
     };
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
@@ -896,6 +895,7 @@ describe("stored S3 coordinator runtime handler", () => {
         RETENTION_OBJECT_SIZES,
         headObjectInputs
       ),
+      publicationMode: "read-gated",
       store: failingStore,
     });
 
@@ -903,8 +903,8 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
-        profile: { independent: true },
         objectKey: "objects/v1080/s3810.m4s",
+        profile: { independent: true },
         providerId: "s3_primary",
         slotId: "slot_3810",
       })
@@ -944,10 +944,10 @@ describe("stored S3 coordinator runtime handler", () => {
     };
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      publicationMode: "read-gated",
       store: corruptingStore,
     });
 
@@ -962,8 +962,8 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
-        profile: { independent: true },
         objectKey: "objects/v1080/s3810.m4s",
+        profile: { independent: true },
         providerId: "s3_primary",
         slotId: "slot_3810",
       })
@@ -984,12 +984,12 @@ describe("stored S3 coordinator runtime handler", () => {
     const headObjectInputs: unknown[] = [];
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       objectClient: createTestHeadObjectClient({}, headObjectInputs),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -1018,12 +1018,12 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -1038,11 +1038,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -1071,8 +1071,8 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonRequest(
         "https://edge.example.com/sessions/session_1/upload-slots/bad%20slot/complete",
         {
-          objectKey: "objects/v1080/s3810.m4s",
           committedAt: "2026-01-01T00:00:02.000Z",
+          objectKey: "objects/v1080/s3810.m4s",
         }
       )
     );
@@ -1094,18 +1094,18 @@ describe("stored S3 coordinator runtime handler", () => {
     const headObjectInputs: unknown[] = [];
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
       objectClient: createTestHeadObjectClient(
         {
           "objects/v1080/s3810.m4s": 98_304,
         },
         headObjectInputs
       ),
-      expiresInSeconds: S3_GRANT_TTL_SECONDS,
-      grantNow: () => S3_GRANT_NOW,
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -1121,11 +1121,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -1179,10 +1179,10 @@ describe("stored S3 coordinator runtime handler", () => {
   test("returns S3 route errors without swallowing base routes", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -1194,11 +1194,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/missing/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -1218,10 +1218,10 @@ describe("stored S3 coordinator runtime handler", () => {
   test("rejects unsafe S3 route session identifiers", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -1230,11 +1230,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/bad%20id/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -1254,10 +1254,10 @@ describe("stored S3 coordinator runtime handler", () => {
   test("rejects malformed S3 route percent encoding", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -1266,11 +1266,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/%E0%A4%A/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -1291,10 +1291,10 @@ describe("stored S3 coordinator runtime handler", () => {
   test("rejects unsafe S3 slot payload identifiers", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -1316,38 +1316,40 @@ describe("stored S3 coordinator runtime handler", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const response = await handle(
-        jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", {
-          ...slotPayload({
-            deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-            profile: { duration: 2 },
-            kind: "segment",
-            maxBytes: 100_000,
-            sequenceNumber: 3810,
-            objectKey: "objects/v1080/s3810.m4s",
-            slotId: "slot_3810",
-          }),
-          [testCase.field]: "../unsafe",
-        })
-      );
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const response = await handle(
+          jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", {
+            ...slotPayload({
+              deliveryUrl: "https://media.example.com/objects/v1080/s3810",
+              kind: "segment",
+              maxBytes: 100_000,
+              objectKey: "objects/v1080/s3810.m4s",
+              profile: { duration: 2 },
+              sequenceNumber: 3810,
+              slotId: "slot_3810",
+            }),
+            [testCase.field]: "../unsafe",
+          })
+        );
 
-      await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
-        body: {
-          error: { code: "olos.invalid_request", message: testCase.expected },
-        },
-        status: 400,
-      });
-    }
+        await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+          body: {
+            error: { code: "olos.invalid_request", message: testCase.expected },
+          },
+          status: 400,
+        });
+      })
+    );
   });
 
   test("rejects invalid S3 slot payload numbers", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -1386,39 +1388,41 @@ describe("stored S3 coordinator runtime handler", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const response = await handle(
-        jsonRequest(
-          "https://edge.example.com/sessions/session_1/s3/slots",
-          slotPayload({
-            deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-            profile: { duration: 2 },
-            kind: "segment",
-            maxBytes: 100_000,
-            sequenceNumber: 3810,
-            objectKey: "objects/v1080/s3810.m4s",
-            slotId: "slot_3810",
-            [testCase.field]: testCase.value,
-          })
-        )
-      );
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const response = await handle(
+          jsonRequest(
+            "https://edge.example.com/sessions/session_1/s3/slots",
+            slotPayload({
+              deliveryUrl: "https://media.example.com/objects/v1080/s3810",
+              kind: "segment",
+              maxBytes: 100_000,
+              objectKey: "objects/v1080/s3810.m4s",
+              profile: { duration: 2 },
+              sequenceNumber: 3810,
+              slotId: "slot_3810",
+              [testCase.field]: testCase.value,
+            })
+          )
+        );
 
-      await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
-        body: {
-          error: { code: "olos.invalid_request", message: testCase.expected },
-        },
-        status: 400,
-      });
-    }
+        await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+          body: {
+            error: { code: "olos.invalid_request", message: testCase.expected },
+          },
+          status: 400,
+        });
+      })
+    );
   });
 
   test("rejects invalid S3 slot media object kinds", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -1433,11 +1437,11 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", {
         ...slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         }),
         kind: "playlist",
@@ -1460,7 +1464,6 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
@@ -1471,6 +1474,7 @@ describe("stored S3 coordinator runtime handler", () => {
         },
         headObjectInputs
       ),
+      publicationMode: "read-gated",
       store,
     });
 
@@ -1485,11 +1489,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -1549,7 +1553,6 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
@@ -1565,6 +1568,7 @@ describe("stored S3 coordinator runtime handler", () => {
           },
         }
       ),
+      publicationMode: "read-gated",
       store,
     });
 
@@ -1579,11 +1583,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -1630,7 +1634,6 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
@@ -1642,6 +1645,7 @@ describe("stored S3 coordinator runtime handler", () => {
         headObjectInputs
       ),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -1656,11 +1660,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -1693,7 +1697,6 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
@@ -1704,6 +1707,7 @@ describe("stored S3 coordinator runtime handler", () => {
         },
         headObjectInputs
       ),
+      publicationMode: "read-gated",
       store,
     });
 
@@ -1718,11 +1722,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -1753,11 +1757,11 @@ describe("stored S3 coordinator runtime handler", () => {
   test("rejects unsafe S3 commit and reconciliation identifiers", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -1838,28 +1842,30 @@ describe("stored S3 coordinator runtime handler", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const response = await handle(
-        jsonRequest(testCase.url, testCase.payload)
-      );
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const response = await handle(
+          jsonRequest(testCase.url, testCase.payload)
+        );
 
-      await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
-        body: {
-          error: { code: "olos.invalid_request", message: testCase.expected },
-        },
-        status: 400,
-      });
-    }
+        await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+          body: {
+            error: { code: "olos.invalid_request", message: testCase.expected },
+          },
+          status: 400,
+        });
+      })
+    );
   });
 
   test("rejects invalid S3 commit and reconciliation numbers", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -1941,11 +1947,11 @@ describe("stored S3 coordinator runtime handler", () => {
   test("rejects invalid S3 timestamp inputs", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -1987,29 +1993,31 @@ describe("stored S3 coordinator runtime handler", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const response = await handle(
-        jsonRequest(testCase.url, testCase.payload)
-      );
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const response = await handle(
+          jsonRequest(testCase.url, testCase.payload)
+        );
 
-      await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
-        body: {
-          error: { code: "olos.invalid_request", message: testCase.expected },
-        },
-        status: 400,
-      });
-    }
+        await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+          body: {
+            error: { code: "olos.invalid_request", message: testCase.expected },
+          },
+          status: 400,
+        });
+      })
+    );
   });
 
   test("rejects S3 slot grant and commit request bodies above the configured byte cap with 413", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       maxBodyBytes: 64,
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -2017,11 +2025,11 @@ describe("stored S3 coordinator runtime handler", () => {
       jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", {
         ...slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         }),
         padding: "x".repeat(256),
@@ -2049,12 +2057,12 @@ describe("stored S3 coordinator runtime handler", () => {
   test("rejects S3 completion hint, event, reconciliation, and retention request bodies above the configured byte cap with 413", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       maxBodyBytes: 64,
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -2105,11 +2113,11 @@ describe("stored S3 coordinator runtime handler", () => {
   test("rejects S3 event batches carrying more than 1000 records", async () => {
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store: createMemoryCoordinatorStore(),
     });
 
@@ -2141,11 +2149,11 @@ describe("stored S3 coordinator runtime handler", () => {
 
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       publicationControl: createPublicationKillSwitch("incident"),
+      publicationMode: "read-gated",
       store,
     });
 
@@ -2157,11 +2165,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3811",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3811,
           objectKey: "objects/v1080/s3811.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3811,
           slotId: "slot_3811",
         })
       )
@@ -2201,11 +2209,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -2234,11 +2242,11 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -2271,19 +2279,19 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
       objectClient: createTestHeadObjectClient(
         {
-          "objects/v1080/s3810.m4s": 98_304,
           "objects/v1080/init.mp4": 1024,
+          "objects/v1080/s3810.m4s": 98_304,
         },
         headObjectInputs
       ),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -2298,11 +2306,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/init",
-          profile: { duration: 1 },
           kind: "init",
           maxBytes: 2048,
-          sequenceNumber: 0,
           objectKey: "objects/v1080/init.mp4",
+          profile: { duration: 1 },
+          sequenceNumber: 0,
           slotId: "slot_init",
         })
       )
@@ -2312,11 +2320,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -2373,7 +2381,6 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       commitPolicy: ({ slot }) =>
@@ -2400,12 +2407,13 @@ describe("stored S3 coordinator runtime handler", () => {
       grantNow: () => S3_GRANT_NOW,
       objectClient: createTestHeadObjectClient(
         {
-          "objects/v1080/s3810.m4s": 98_304,
           "objects/v1080/init.mp4": 1024,
+          "objects/v1080/s3810.m4s": 98_304,
         },
         headObjectInputs
       ),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -2420,11 +2428,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/init",
-          profile: { duration: 1 },
           kind: "init",
           maxBytes: 2048,
-          sequenceNumber: 0,
           objectKey: "objects/v1080/init.mp4",
+          profile: { duration: 1 },
+          sequenceNumber: 0,
           slotId: "slot_init",
         })
       )
@@ -2434,11 +2442,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -2501,19 +2509,19 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
       objectClient: createTestHeadObjectClient(
         {
-          "objects/v1080/s3810.m4s": 98_304,
           "objects/v1080/init.mp4": 1024,
+          "objects/v1080/s3810.m4s": 98_304,
         },
         headObjectInputs
       ),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -2528,11 +2536,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/init",
-          profile: { duration: 1 },
           kind: "init",
           maxBytes: 2048,
-          sequenceNumber: 0,
           objectKey: "objects/v1080/init.mp4",
+          profile: { duration: 1 },
+          sequenceNumber: 0,
           slotId: "slot_init",
         })
       )
@@ -2542,11 +2550,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -2628,7 +2636,7 @@ describe("stored S3 coordinator runtime handler", () => {
   test("retries S3 object-created events after store conflicts", async () => {
     const headObjectInputs: unknown[] = [];
     const innerStore = createMemoryCoordinatorStore();
-    let failNextSave = false;
+    let failNextSave = false as boolean;
     let saves = 0;
     const store: CoordinatorPipelineStore = {
       load: (sessionId) => innerStore.load(sessionId),
@@ -2648,7 +2656,6 @@ describe("stored S3 coordinator runtime handler", () => {
     };
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
@@ -2656,12 +2663,13 @@ describe("stored S3 coordinator runtime handler", () => {
       maxAttempts: 2,
       objectClient: createTestHeadObjectClient(
         {
-          "objects/v1080/s3810.m4s": 98_304,
           "objects/v1080/init.mp4": 1024,
+          "objects/v1080/s3810.m4s": 98_304,
         },
         headObjectInputs
       ),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -2676,11 +2684,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/init",
-          profile: { duration: 1 },
           kind: "init",
           maxBytes: 2048,
-          sequenceNumber: 0,
           objectKey: "objects/v1080/init.mp4",
+          profile: { duration: 1 },
+          sequenceNumber: 0,
           slotId: "slot_init",
         })
       )
@@ -2690,11 +2698,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -2747,24 +2755,24 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
-      expiresInSeconds: S3_GRANT_TTL_SECONDS,
-      grantNow: () => S3_GRANT_NOW,
-      objectClient: createTestHeadObjectClient(
-        {
-          "objects/v1080/s3810.m4s": 98_304,
-          "objects/v1080/init.mp4": 1024,
-        },
-        headObjectInputs
-      ),
       cursorNotifier: {
         notify: (cursor) => notifiedCursors.push(cursor),
         waitForCursor: () =>
           Promise.reject(new Error("waiter should not be called")),
       },
+      expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      grantNow: () => S3_GRANT_NOW,
+      objectClient: createTestHeadObjectClient(
+        {
+          "objects/v1080/init.mp4": 1024,
+          "objects/v1080/s3810.m4s": 98_304,
+        },
+        headObjectInputs
+      ),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -2779,11 +2787,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/init",
-          profile: { duration: 1 },
           kind: "init",
           maxBytes: 2048,
-          sequenceNumber: 0,
           objectKey: "objects/v1080/init.mp4",
+          profile: { duration: 1 },
+          sequenceNumber: 0,
           slotId: "slot_init",
         })
       )
@@ -2793,11 +2801,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -2858,9 +2866,13 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
+      cursorNotifier: {
+        notify: (cursor) => notifiedCursors.push(cursor),
+        waitForCursor: () =>
+          Promise.reject(new Error("waiter should not be called")),
+      },
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
       objectClient: createTestHeadObjectClient(
@@ -2869,12 +2881,8 @@ describe("stored S3 coordinator runtime handler", () => {
         },
         headObjectInputs
       ),
-      cursorNotifier: {
-        notify: (cursor) => notifiedCursors.push(cursor),
-        waitForCursor: () =>
-          Promise.reject(new Error("waiter should not be called")),
-      },
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -2943,9 +2951,13 @@ describe("stored S3 coordinator runtime handler", () => {
     const onErrorCalls: unknown[] = [];
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
+      cursorNotifier: {
+        notify: (cursor) => notifiedCursors.push(cursor),
+        waitForCursor: () =>
+          Promise.reject(new Error("waiter should not be called")),
+      },
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
       objectClient: createTestHeadObjectClient(
@@ -2954,15 +2966,11 @@ describe("stored S3 coordinator runtime handler", () => {
         },
         headObjectInputs
       ),
-      cursorNotifier: {
-        notify: (cursor) => notifiedCursors.push(cursor),
-        waitForCursor: () =>
-          Promise.reject(new Error("waiter should not be called")),
-      },
       onError: (error, context) => {
         onErrorCalls.push({ context, error });
       },
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -2977,11 +2985,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/init",
-          profile: { duration: 1 },
           kind: "init",
           maxBytes: 2048,
-          sequenceNumber: 0,
           objectKey: "objects/v1080/init.mp4",
+          profile: { duration: 1 },
+          sequenceNumber: 0,
           slotId: "slot_init",
         })
       )
@@ -2991,11 +2999,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -3063,7 +3071,6 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
@@ -3075,6 +3082,7 @@ describe("stored S3 coordinator runtime handler", () => {
         headObjectInputs
       ),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -3089,11 +3097,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 50_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -3148,7 +3156,6 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       commitPolicy: () => ({
@@ -3174,6 +3181,7 @@ describe("stored S3 coordinator runtime handler", () => {
         headObjectInputs
       ),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -3188,11 +3196,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -3241,12 +3249,12 @@ describe("stored S3 coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
       grantNow: () => S3_GRANT_NOW,
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -3261,11 +3269,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/init",
-          profile: { duration: 1 },
           kind: "init",
           maxBytes: 2048,
-          sequenceNumber: 0,
           objectKey: "objects/v1080/init.mp4",
+          profile: { duration: 1 },
+          sequenceNumber: 0,
           slotId: "slot_init",
         })
       )
@@ -3275,11 +3283,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -3325,6 +3333,7 @@ describe("stored S3 coordinator runtime handler", () => {
     );
 
     for (const object of retentionObjects()) {
+      // biome-ignore lint/performance/noAwaitInLoops: each object's slot and commit must be issued in sequence-number order against the shared session cursor
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/session_1/s3/slots",
@@ -3335,8 +3344,8 @@ describe("stored S3 coordinator runtime handler", () => {
         jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
           commitId: object.commitId,
           committedAt: "2026-01-01T00:00:02.000Z",
-          profile: { independent: object.kind === "segment" },
           objectKey: object.objectKey,
+          profile: { independent: object.kind === "segment" },
           providerId: "s3_primary",
           slotId: object.slotId,
           ...(object.maxSegments === undefined
@@ -3383,7 +3392,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const deleteInputs: unknown[] = [];
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    let conflictSaves = false;
+    let conflictSaves = false as boolean;
     const racingStore: CoordinatorPipelineStore = {
       load: (sessionId) => store.load(sessionId),
       save: (options) =>
@@ -3393,7 +3402,6 @@ describe("stored S3 coordinator runtime handler", () => {
     };
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
@@ -3402,6 +3410,7 @@ describe("stored S3 coordinator runtime handler", () => {
         RETENTION_OBJECT_SIZES,
         headObjectInputs
       ),
+      publicationMode: "read-gated",
       retentionClient: createTestS3DeleteObjectClient(deleteInputs),
       store: racingStore,
     });
@@ -3414,6 +3423,7 @@ describe("stored S3 coordinator runtime handler", () => {
     );
 
     for (const object of retentionObjects()) {
+      // biome-ignore lint/performance/noAwaitInLoops: each object's slot and commit must be issued in sequence-number order against the shared session cursor
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/session_1/s3/slots",
@@ -3424,8 +3434,8 @@ describe("stored S3 coordinator runtime handler", () => {
         jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
           commitId: object.commitId,
           committedAt: "2026-01-01T00:00:02.000Z",
-          profile: { independent: object.kind === "segment" },
           objectKey: object.objectKey,
+          profile: { independent: object.kind === "segment" },
           providerId: "s3_primary",
           slotId: object.slotId,
           ...(object.maxSegments === undefined
@@ -3476,6 +3486,7 @@ describe("stored S3 coordinator runtime handler", () => {
     );
 
     for (const object of retentionObjects()) {
+      // biome-ignore lint/performance/noAwaitInLoops: each object's slot and commit must be issued in sequence-number order against the shared session cursor
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/session_1/s3/slots",
@@ -3486,8 +3497,8 @@ describe("stored S3 coordinator runtime handler", () => {
         jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
           commitId: object.commitId,
           committedAt: "2026-01-01T00:00:02.000Z",
-          profile: { independent: object.kind === "segment" },
           objectKey: object.objectKey,
+          profile: { independent: object.kind === "segment" },
           providerId: "s3_primary",
           slotId: object.slotId,
           ...(object.maxSegments === undefined
@@ -3543,6 +3554,7 @@ describe("stored S3 coordinator runtime handler", () => {
     );
 
     for (const object of retentionObjects()) {
+      // biome-ignore lint/performance/noAwaitInLoops: each object's slot and commit must be issued in sequence-number order against the shared session cursor
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/session_1/s3/slots",
@@ -3553,8 +3565,8 @@ describe("stored S3 coordinator runtime handler", () => {
         jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
           commitId: object.commitId,
           committedAt: "2026-01-01T00:00:02.000Z",
-          profile: { independent: object.kind === "segment" },
           objectKey: object.objectKey,
+          profile: { independent: object.kind === "segment" },
           providerId: "s3_primary",
           slotId: object.slotId,
           ...(object.maxSegments === undefined
@@ -3571,11 +3583,11 @@ describe("stored S3 coordinator runtime handler", () => {
         "https://edge.example.com/sessions/session_1/s3/slots",
         slotPayload({
           deliveryUrl: "https://media.example.com/objects/v1080/s3813",
-          profile: { duration: 2 },
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3813,
           objectKey: "objects/v1080/s3813.m4s",
+          profile: { duration: 2 },
+          sequenceNumber: 3813,
           slotId: "slot_3813",
         })
       )
@@ -3634,6 +3646,7 @@ describe("stored S3 coordinator runtime handler", () => {
     );
 
     for (const object of retentionObjects()) {
+      // biome-ignore lint/performance/noAwaitInLoops: each object's slot and commit must be issued in sequence-number order against the shared session cursor
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/session_1/s3/slots",
@@ -3644,8 +3657,8 @@ describe("stored S3 coordinator runtime handler", () => {
         jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
           commitId: object.commitId,
           committedAt: "2026-01-01T00:00:02.000Z",
-          profile: { independent: object.kind === "segment" },
           objectKey: object.objectKey,
+          profile: { independent: object.kind === "segment" },
           providerId: "s3_primary",
           slotId: object.slotId,
           ...(object.maxSegments === undefined
@@ -3720,18 +3733,18 @@ interface CommittedSlotFixtureOptions extends SlotPayloadOptions {
 function slotPayload(options: SlotPayloadOptions) {
   return {
     contentType: "video/mp4",
-    profile: options.profile,
     expiresAt: "2026-01-01T00:00:05.000Z",
     extension: options.kind === "init" ? "mp4" : "m4s",
     kind: options.kind,
     maxBytes: options.maxBytes,
+    profile: options.profile,
     sequenceNumber: options.sequenceNumber,
     ...(options.minBytes === undefined ? {} : { minBytes: options.minBytes }),
     ...(options.partNumber === undefined
       ? {}
       : { partNumber: options.partNumber }),
-    trackId: "v1080",
     slotId: options.slotId,
+    trackId: "v1080",
   };
 }
 
@@ -3740,12 +3753,12 @@ function committedSegmentState(): CoordinatorPipelineState {
     commitId: "commit_init",
     committedAt: "2026-01-01T00:00:01.000Z",
     deliveryUrl: "https://media.example.com/objects/v1080/init",
-    profile: { duration: 1 },
     expectedMessage: "expected committed init fixture",
     kind: "init",
     maxBytes: 2048,
-    sequenceNumber: 0,
     objectKey: "objects/v1080/init.mp4",
+    profile: { duration: 1 },
+    sequenceNumber: 0,
     size: 1024,
     slotId: "slot_init",
     state: createEmptyCoordinatorState(),
@@ -3755,13 +3768,13 @@ function committedSegmentState(): CoordinatorPipelineState {
     commitId: "commit_3810",
     committedAt: "2026-01-01T00:00:02.000Z",
     deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-    profile: { duration: 2 },
     expectedMessage: "expected committed segment fixture",
     independent: true,
     kind: "segment",
     maxBytes: 100_000,
-    sequenceNumber: 3810,
     objectKey: "objects/v1080/s3810.m4s",
+    profile: { duration: 2 },
+    sequenceNumber: 3810,
     size: 98_304,
     slotId: "slot_3810",
     state: initState,
@@ -3773,12 +3786,12 @@ function inconsistentReconciliationState(): CoordinatorPipelineState {
     commitId: "reconcile_slot_init",
     committedAt: "2026-01-01T00:00:01.000Z",
     deliveryUrl: "https://media.example.com/objects/v1080/init",
-    profile: { duration: 1 },
     expectedMessage: "expected committed init reconciliation fixture",
     kind: "init",
     maxBytes: 2048,
-    sequenceNumber: 0,
     objectKey: "objects/v1080/init.mp4",
+    profile: { duration: 1 },
+    sequenceNumber: 0,
     size: 1024,
     slotId: "slot_init",
     state: createEmptyCoordinatorState(),
@@ -3789,13 +3802,13 @@ function inconsistentReconciliationState(): CoordinatorPipelineState {
     commitId: "reconcile_slot_3810",
     committedAt: "2026-01-01T00:00:02.000Z",
     deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-    profile: { duration: 2 },
     expectedMessage: "expected committed reconciliation fixture",
     independent: true,
     kind: "segment",
     maxBytes: 100_000,
-    sequenceNumber: 3810,
     objectKey: "objects/v1080/s3810.m4s",
+    profile: { duration: 2 },
+    sequenceNumber: 3810,
     size: 98_304,
     slotId: "slot_3810",
     state: initState,
@@ -3849,42 +3862,42 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
     {
       commitId: "commit_init",
       deliveryUrl: "https://media.example.com/objects/v1080/init",
-      profile: { duration: 1 },
       kind: "init",
       maxBytes: 2048,
-      sequenceNumber: 0,
       objectKey: "objects/v1080/init.mp4",
+      profile: { duration: 1 },
+      sequenceNumber: 0,
       slotId: "slot_init",
     },
     {
       commitId: "commit_3810",
       deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-      profile: { duration: 2 },
       kind: "segment",
       maxBytes: 100_000,
-      sequenceNumber: 3810,
       objectKey: "objects/v1080/s3810.m4s",
+      profile: { duration: 2 },
+      sequenceNumber: 3810,
       slotId: "slot_3810",
     },
     {
       commitId: "commit_3811",
       deliveryUrl: "https://media.example.com/objects/v1080/s3811",
-      profile: { duration: 2 },
       kind: "segment",
       maxBytes: 100_000,
-      sequenceNumber: 3811,
       objectKey: "objects/v1080/s3811.m4s",
+      profile: { duration: 2 },
+      sequenceNumber: 3811,
       slotId: "slot_3811",
     },
     {
       commitId: "commit_3812",
       deliveryUrl: "https://media.example.com/objects/v1080/s3812",
-      profile: { duration: 2 },
       kind: "segment",
       maxBytes: 100_000,
       maxSegments: 2,
-      sequenceNumber: 3812,
       objectKey: "objects/v1080/s3812.m4s",
+      profile: { duration: 2 },
+      sequenceNumber: 3812,
       slotId: "slot_3812",
     },
   ];

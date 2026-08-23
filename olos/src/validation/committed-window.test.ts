@@ -21,54 +21,54 @@ const validWindow: CommittedWindow = {
         objectKey: "media/tenant/sess/e1/v1080/init.mp4",
         slotId: "slot_init",
       },
-      trackId: "v1080",
       segments: [
         {
-          sequenceNumber: 3810,
           segment: {
             commitId: "commit_3810",
             deliveryUrl:
               "https://media.example.com/media/tenant/sess/e1/v1080/s3810.m4s",
             objectKey: "media/tenant/sess/e1/v1080/s3810.m4s",
-            slotId: "slot_3810",
             profile: { duration: 2 },
+            slotId: "slot_3810",
           },
+          sequenceNumber: 3810,
         },
         {
-          sequenceNumber: 3811,
           segment: {
             commitId: "commit_3811",
             deliveryUrl:
               "https://media.example.com/media/tenant/sess/e1/v1080/s3811.m4s",
             objectKey: "media/tenant/sess/e1/v1080/s3811.m4s",
-            slotId: "slot_3811",
             profile: { duration: 2 },
+            slotId: "slot_3811",
           },
+          sequenceNumber: 3811,
         },
         {
-          sequenceNumber: 3812,
           parts: [
             {
               commitId: "commit_3812_0",
               deliveryUrl:
                 "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p0.m4s",
-              profile: { duration: 0.5, independent: true },
               objectKey: "media/tenant/sess/e1/v1080/s3812/p0.m4s",
               partNumber: 0,
+              profile: { duration: 0.5, independent: true },
               slotId: "slot_3812_0",
             },
             {
               commitId: "commit_3812_1",
               deliveryUrl:
                 "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p1.m4s",
-              profile: { duration: 0.5 },
               objectKey: "media/tenant/sess/e1/v1080/s3812/p1.m4s",
               partNumber: 1,
+              profile: { duration: 0.5 },
               slotId: "slot_3812_1",
             },
           ],
+          sequenceNumber: 3812,
         },
       ],
+      trackId: "v1080",
     },
   },
 };

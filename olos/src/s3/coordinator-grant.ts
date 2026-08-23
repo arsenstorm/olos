@@ -122,6 +122,7 @@ function runSlotIssueMutation(
       try {
         return issueCoordinatorSlot({ ...slotIssueOptions(rest), state });
       } catch (error) {
+        // biome-ignore lint/style/useErrorCause: S3SlotIssueError passes the argument through as `cause`.
         throw new S3SlotIssueError(error);
       }
     },
@@ -268,13 +269,13 @@ async function commitObservedObject(
 
   return commitCoordinatorUpload({
     commitId: options.commitId,
-    committedAt: options.committedAt,
     commitPolicy: options.commitPolicy,
+    committedAt: options.committedAt,
     lateToleranceMs: options.lateToleranceMs,
     maxSegments: options.maxSegments,
     object,
-    publicationControl: options.publicationControl,
     profile: options.profile,
+    publicationControl: options.publicationControl,
     slotId: options.slotId,
     state: options.state,
   });
@@ -298,17 +299,8 @@ export async function commitStoredS3CoordinatorUpload(
     Exclude<CoordinatorUploadCommit, RejectedS3CoordinatorUploadCommit>,
     StoredS3CoordinatorUploadCommit
   >({
-    maxAttempts,
-    mutate: async (state) =>
-      await commitS3CoordinatorUpload({
-        ...commitOptions,
-        state,
-      }),
-    sessionId,
-    store,
     decide: (commit, snapshot) =>
       decideStoredCommit(commit, snapshot, commitOptions.committedAt, manifest),
-    onMissing: () => missingStoredS3CoordinatorUploadCommit(),
     mapSaved: (saved, commit) =>
       withManifest(
         {
@@ -321,7 +313,16 @@ export async function commitStoredS3CoordinatorUpload(
         },
         manifest
       ),
+    maxAttempts,
+    mutate: async (state) =>
+      await commitS3CoordinatorUpload({
+        ...commitOptions,
+        state,
+      }),
     onConflictOrExhausted: (snapshot) => conflict(snapshot),
+    onMissing: () => missingStoredS3CoordinatorUploadCommit(),
+    sessionId,
+    store,
   });
 }
 

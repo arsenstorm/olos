@@ -7,6 +7,8 @@ const validSession: Session = {
   epoch: 0,
   olos: "1.0",
   profile: { id: "cmaf-llhls", partTarget: 0.333, segmentTarget: 1 },
+  sessionId: "session_1",
+  state: "live",
   tracks: [
     {
       profile: {
@@ -30,8 +32,6 @@ const validSession: Session = {
       trackId: "a128",
     },
   ],
-  sessionId: "session_1",
-  state: "live",
 };
 
 describe("session validation", () => {

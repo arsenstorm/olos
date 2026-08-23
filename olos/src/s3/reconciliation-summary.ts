@@ -227,6 +227,7 @@ export async function reconcileStoredS3CoordinatorUploadSlots(
   const results: StoredS3CoordinatorUploadReconciliationResult[] = [];
 
   for (const slot of slots) {
+    // biome-ignore lint/performance/noAwaitInLoops: each slot reconciliation commits against the coordinator snapshot the previous one saved, so concurrent commits race the etag.
     results.push(await reconcileSlot(slot, options));
   }
 
@@ -241,8 +242,8 @@ function reconciliationCommitOptions(
     bucket: options.bucket,
     client: options.client,
     commitId: resolveSlotValue(options.commitId, slot) ?? commitId(slot),
-    committedAt: resolveSlotValue(options.committedAt, slot),
     commitPolicy: options.commitPolicy,
+    committedAt: resolveSlotValue(options.committedAt, slot),
     providerId: options.providerId,
     sessionId: options.sessionId,
     slotId: slot.slotId,

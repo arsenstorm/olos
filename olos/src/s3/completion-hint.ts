@@ -17,9 +17,9 @@ export function createCompletionHintDefaults(
   options: CompletionHintOptions
 ): CompletionHintDefaults {
   return {
+    commitId: resolveCompletionHintCommitId(options),
     committedAt: () =>
       completionHintTimestamp(resolveCompletionHintNow(options)),
-    commitId: resolveCompletionHintCommitId(options),
   };
 }
 

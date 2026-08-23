@@ -179,7 +179,8 @@ function assertEach<T>(
       assertItem(entry);
     } catch (error) {
       throw new Error(
-        `${name} must contain valid ${itemLabel} at index ${index}: ${errorMessage(error, String(error))}`
+        `${name} must contain valid ${itemLabel} at index ${index}: ${errorMessage(error, String(error))}`,
+        { cause: error }
       );
     }
   });

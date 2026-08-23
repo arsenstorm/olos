@@ -7,9 +7,9 @@ const NONCE_OBJECT_KEY = /^objects\/v1080\/init-slot_[0-9a-f]{32}$/;
 describe("issueCoordinatorSlot derived addresses", () => {
   const baseOptions = {
     contentType: "video/mp4",
-    profile: { duration: 2 },
     expiresAt: "2026-01-01T00:00:05.000Z",
     maxBytes: 100_000,
+    profile: { duration: 2 },
     trackId: "v1080",
   } as const;
 
@@ -59,8 +59,8 @@ describe("issueCoordinatorSlot derived addresses", () => {
     const result = issueCoordinatorSlot({
       ...baseOptions,
       kind: "segment",
-      sequenceNumber: 3810,
       objectKeyNonce: "slot_abcd",
+      sequenceNumber: 3810,
       slotId: "slot_3810",
       state,
     });

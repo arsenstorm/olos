@@ -18,9 +18,11 @@ if (isCliEntry(import.meta.url)) {
 export async function fixDeclarationImports(
   directory = distRoot
 ): Promise<void> {
-  for (const entry of await declarationDirectoryEntries(directory)) {
-    await fixDeclarationEntry(directory, entry);
-  }
+  const entries = await declarationDirectoryEntries(directory);
+
+  await Promise.all(
+    entries.map((entry) => fixDeclarationEntry(directory, entry))
+  );
 }
 
 function declarationDirectoryEntries(directory: string): Promise<Dirent[]> {

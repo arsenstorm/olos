@@ -157,7 +157,8 @@ function retentionPlanExpiredSlot(value: unknown, index: number): UploadSlot {
     return parseUploadSlot(value);
   } catch (error) {
     throw new Error(
-      `runtime session retention plan expiredSlots[${index}] must be valid: ${errorMessage(error, String(error))}`
+      `runtime session retention plan expiredSlots[${index}] must be valid: ${errorMessage(error, String(error))}`,
+      { cause: error }
     );
   }
 }

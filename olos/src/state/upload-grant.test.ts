@@ -6,17 +6,17 @@ import { createUploadGrant } from "./upload-grant";
 const slot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl: "/objects/tenant/session/v1080/3810.m4s",
-  profile: { duration: 2 },
   epoch: 0,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  sequenceNumber: 3810,
   objectKey: "tenant/session/v1080/3810.m4s",
-  trackId: "v1080",
+  profile: { duration: 2 },
+  sequenceNumber: 3810,
   sessionId: "session_1",
   slotId: "slot_1",
   state: "issued",
+  trackId: "v1080",
 };
 
 describe("upload grant builder", () => {

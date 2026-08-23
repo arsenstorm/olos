@@ -53,7 +53,7 @@ export function createTestHeadObjectClientFor(
   const resolveMissingObjectError =
     options.missingObjectError ??
     ((objectKey) => `unexpected object key: ${objectKey}`);
-  const metadata = options.metadata;
+  const { metadata } = options;
 
   return {
     send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {

@@ -196,11 +196,11 @@ async function runStoredS3PublisherObjectPlanStep(
       commitStoredS3CoordinatorUpload(
         storedS3PublisherCommitUploadOptions(options, slot)
       ),
+    heartbeat: options.heartbeat,
     issueGrant: () =>
       issueStoredS3CoordinatorUploadGrant(
         storedS3PublisherGrantIssueOptions(options)
       ),
-    heartbeat: options.heartbeat,
     upload: (grant) => options.upload(grant, options.plan),
   });
 
@@ -219,8 +219,8 @@ function storedS3PublisherCommitUploadOptions(
     bucket: options.bucket,
     client: options.headObjectClient ?? options.client,
     commitId: options.plan.commitId,
-    committedAt: options.committedAt,
     commitPolicy: options.commitPolicy,
+    committedAt: options.committedAt,
     lateToleranceMs: options.lateToleranceMs,
     manifest: options.manifest,
     maxAttempts: options.maxAttempts,

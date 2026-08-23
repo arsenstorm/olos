@@ -24,10 +24,8 @@ const committedWindow: CommittedWindow = {
         objectKey: "media/v1080/init.mp4",
         slotId: "slot_init",
       },
-      trackId: "v1080",
       segments: [
         {
-          sequenceNumber: 3810,
           segment: {
             commitId: "commit_3810",
             deliveryUrl: "https://media.example.com/media/3810.m4s",
@@ -35,8 +33,10 @@ const committedWindow: CommittedWindow = {
             profile: { duration: 2 },
             slotId: "slot_3810",
           },
+          sequenceNumber: 3810,
         },
       ],
+      trackId: "v1080",
     },
   },
 };

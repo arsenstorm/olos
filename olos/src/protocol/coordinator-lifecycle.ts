@@ -29,8 +29,8 @@ export function createCoordinatorPipeline(options: {
 
   return {
     commits: [],
-    initCommits: [],
     deliveryBaseUrl: options.deliveryBaseUrl,
+    initCommits: [],
     publicationMode: options.publicationMode ?? "direct-public",
     publisherLeases: [],
     session: options.session,

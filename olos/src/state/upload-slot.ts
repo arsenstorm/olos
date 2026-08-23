@@ -143,12 +143,12 @@ export function createIssuedUploadSlot(
     expiresAt: options.expiresAt,
     kind: options.kind,
     maxBytes: options.maxBytes,
-    sequenceNumber: options.sequenceNumber,
     objectKey: options.objectKey,
-    trackId: options.trackId,
+    sequenceNumber: options.sequenceNumber,
     sessionId: options.session.sessionId,
     slotId: options.slotId,
     state: "issued",
+    trackId: options.trackId,
     ...optionalIssuedUploadSlotFields(options),
   };
 

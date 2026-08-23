@@ -112,6 +112,6 @@ function parseAbsoluteUrl(value: string): URL | undefined {
       ? url
       : undefined;
   } catch {
-    return;
+    // a value the URL parser rejects is not an absolute URL
   }
 }
