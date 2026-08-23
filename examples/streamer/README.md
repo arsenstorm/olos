@@ -36,9 +36,10 @@ holds the response open via the per-session DO cursor waiter until the
 next commit lands — the `EXT-X-PRELOAD-HINT` mechanism.
 
 Design-target end-to-end glass-to-glass latency on a local stack:
-**~1.5–2.5 s** (a curated measured baseline is pending; see the
-[benchmarks guide](../../benchmarks/README.md#reference-numbers)), with
-the manifest looking exactly like Apple's reference LL-HLS form.
+**~1.5–2.5 s**, with the manifest looking exactly like Apple's reference
+LL-HLS form. Most of that is OBS encode and hls.js buffering. The OLOS
+pipeline itself adds ~28 ms at p50 in the committed baseline (see the
+[benchmarks guide](../../benchmarks/README.md#reference-numbers)).
 
 ### Why not Shaka Packager?
 
