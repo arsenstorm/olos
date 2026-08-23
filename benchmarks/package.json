@@ -13,7 +13,7 @@
     "@types/asciichart": "^1.5.8",
     "@types/bun": "latest",
     "@types/cli-progress": "^3.11.6",
-    "typescript": "^5"
+    "typescript": "^7"
   },
   "scripts": {
     "benchmark": "bun run src/orchestrator.ts",

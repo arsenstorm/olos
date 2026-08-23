@@ -112,7 +112,7 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "publint": "^0.3.22",
-    "typescript": "^5",
+    "typescript": "^7",
     "vitest": "^4.1.8"
   },
   "peerDependencies": {
