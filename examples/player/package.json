@@ -3,10 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "bun src/serve.ts",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "start": "bun src/serve.ts"
   },
   "devDependencies": {
-    "typescript": "^5"
+    "typescript": "^7"
   }
 }

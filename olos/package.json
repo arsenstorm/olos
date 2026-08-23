@@ -2,29 +2,18 @@
   "name": "@arsenstorm/olos",
   "version": "0.6.0",
   "description": "Open Live Object Streaming protocol primitives.",
-  "type": "module",
-  "license": "MIT",
-  "sideEffects": false,
+  "homepage": "https://github.com/arsenstorm/olos#readme",
+  "bugs": {
+    "url": "https://github.com/arsenstorm/olos/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/arsenstorm/olos.git",
     "directory": "olos"
   },
-  "bugs": {
-    "url": "https://github.com/arsenstorm/olos/issues"
-  },
-  "homepage": "https://github.com/arsenstorm/olos#readme",
-  "engines": {
-    "node": ">=22"
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "files": [
-    "dist",
-    "CHANGELOG.md",
-    "LICENSE",
-    "README.md"
-  ],
+  "license": "MIT",
+  "sideEffects": false,
+  "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -88,6 +77,14 @@
     },
     "./package.json": "./package.json"
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "bun scripts/clean-dist.ts && tsc --project tsconfig.build.json && bun scripts/fix-declaration-imports.ts",
     "check-types": "tsc --project tsconfig.json --noEmit",
@@ -112,7 +109,7 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "publint": "^0.3.22",
-    "typescript": "^5",
+    "typescript": "^7",
     "vitest": "^4.1.8"
   },
   "peerDependencies": {
@@ -126,5 +123,8 @@
     "@aws-sdk/s3-request-presigner": {
       "optional": true
     }
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
