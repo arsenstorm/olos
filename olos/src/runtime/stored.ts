@@ -270,6 +270,15 @@ export async function issueStoredCoordinatorSlotFromRequest(
     IssuedRuntimeCoordinatorSlotIssue,
     StoredRuntimeSlotIssue
   >({
+    decide: (issued) =>
+      isIssuedRuntimeCoordinatorSlotIssue(issued)
+        ? { attempt: issued, state: issued.state, status: "save" }
+        : { result: issued, status: "terminal" },
+    mapSaved: (saved, attempt) => ({
+      ...attempt,
+      etag: saved.etag,
+      state: saved.state,
+    }),
     maxAttempts: options.maxAttempts,
     mutate: (state) =>
       issueCoordinatorSlotFromRequest({
@@ -277,19 +286,10 @@ export async function issueStoredCoordinatorSlotFromRequest(
         request: parsed.value,
         state,
       }),
+    onConflictOrExhausted: (snapshot) => conflict(snapshot),
+    onMissing: () => notFound(),
     sessionId: options.sessionId,
     store: options.store,
-    decide: (issued) =>
-      isIssuedRuntimeCoordinatorSlotIssue(issued)
-        ? { attempt: issued, status: "save", state: issued.state }
-        : { status: "terminal", result: issued },
-    onMissing: () => notFound(),
-    mapSaved: (saved, attempt) => ({
-      ...attempt,
-      etag: saved.etag,
-      state: saved.state,
-    }),
-    onConflictOrExhausted: (snapshot) => conflict(snapshot),
   });
 }
 
@@ -320,6 +320,12 @@ export async function commitStoredCoordinatorUploadFromRequest(
     SuccessfulRuntimeCoordinatorUploadCommit,
     StoredRuntimeUploadCommit
   >({
+    decide: decideRuntimeCommit,
+    mapSaved: (saved, attempt) => ({
+      ...attempt,
+      etag: saved.etag,
+      state: saved.state,
+    }),
     maxAttempts: options.maxAttempts,
     mutate: (state) =>
       commitCoordinatorUploadFromRequest({
@@ -332,16 +338,10 @@ export async function commitStoredCoordinatorUploadFromRequest(
           options.trackWindowProfile ??
           defaultTrackWindowProfile(state.session.profile),
       }),
+    onConflictOrExhausted: (snapshot) => conflict(snapshot),
+    onMissing: () => notFound(),
     sessionId: options.sessionId,
     store: options.store,
-    decide: decideRuntimeCommit,
-    onMissing: () => notFound(),
-    mapSaved: (saved, attempt) => ({
-      ...attempt,
-      etag: saved.etag,
-      state: saved.state,
-    }),
-    onConflictOrExhausted: (snapshot) => conflict(snapshot),
   });
 }
 

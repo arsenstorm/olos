@@ -12,22 +12,22 @@ describe("S3 commit payload parser", () => {
     expect(
       parseS3CommitPayload(
         {
-          committedAt: "2026-01-01T00:00:02.000Z",
           commitId: "commit_3810",
-          slotId: "slot_3810",
+          committedAt: "2026-01-01T00:00:02.000Z",
           objectKey: "live/session/3810.m4s",
-          versionId: "v1",
           profile: { independent: true },
+          slotId: "slot_3810",
+          versionId: "v1",
         },
         { providerId: "provider_1" }
       )
     ).toMatchObject({
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
+      objectKey: "live/session/3810.m4s",
       profile: { independent: true },
       providerId: "provider_1",
       slotId: "slot_3810",
-      objectKey: "live/session/3810.m4s",
       versionId: "v1",
     });
   });
@@ -37,16 +37,16 @@ describe("S3 commit payload parser", () => {
       parseS3CommitPayload(
         {
           commitId: "commit_3810",
-          slotId: "slot_3810",
           objectKey: "live/session/3810.m4s",
+          slotId: "slot_3810",
         },
         { providerId: "provider_1" },
         () => "2026-01-01T00:00:02.000Z"
       )
     ).toMatchObject({
+      commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
       providerId: "provider_1",
-      commitId: "commit_3810",
       slotId: "slot_3810",
     });
   });
@@ -79,20 +79,20 @@ describe("S3 commit payload parser", () => {
       parseS3ReconciliationPayload(
         {
           committedAt: "2026-01-01T00:00:02.000Z",
+          profile: { independent: true },
           slotIds: ["slot_init", "slot_3810"],
           versionId: "v1",
-          profile: { independent: true },
         },
         {
           providerId: "provider_fallback",
         }
       )
     ).toMatchObject({
-      providerId: "provider_fallback",
       committedAt: "2026-01-01T00:00:02.000Z",
+      profile: { independent: true },
+      providerId: "provider_fallback",
       slotIds: ["slot_init", "slot_3810"],
       versionId: "v1",
-      profile: { independent: true },
     });
   });
 

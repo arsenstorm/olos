@@ -91,9 +91,9 @@ const validSession = {
   epoch: 0,
   olos: "1.0",
   profile: { id: "cmaf-llhls", partTarget: 0.333, segmentTarget: 1 },
-  tracks: [validVideoTrack, validGroupedAudioTrack],
   sessionId: "session_1",
   state: "live",
+  tracks: [validVideoTrack, validGroupedAudioTrack],
 } as const;
 
 const validCommit = {
@@ -101,39 +101,39 @@ const validCommit = {
   committedAt: "2026-06-08T12:00:01.820Z",
   deliveryUrl:
     "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p3.m4s",
+  epoch: 1,
+  etag: '"9b2cf535f27731c974343645a3985328"',
+  objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
+  partNumber: 3,
   profile: {
     duration: 0.5,
     independent: false,
     programDateTime: "2026-06-08T12:00:05.500Z",
   },
-  epoch: 1,
-  etag: '"9b2cf535f27731c974343645a3985328"',
   sequenceNumber: 3812,
-  objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
-  partNumber: 3,
-  trackId: "v1080",
   sessionId: "sess_01JZLIVE",
   size: 312_500,
   slotId: "slot_01JZ",
+  trackId: "v1080",
 } as const;
 
 const validUploadSlot = {
   contentType: "video/mp4",
   deliveryUrl:
     "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p3.m4s",
-  profile: { duration: 0.5 },
   epoch: 1,
   expiresAt: "2026-06-08T12:00:05Z",
   kind: "part",
   maxBytes: 524_288,
-  sequenceNumber: 3812,
   minBytes: 1024,
   objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
   partNumber: 3,
-  trackId: "v1080",
+  profile: { duration: 0.5 },
+  sequenceNumber: 3812,
   sessionId: "sess_01JZLIVE",
   slotId: "slot_01JZ",
   state: "issued",
+  trackId: "v1080",
 } as const;
 
 const validCommittedWindow = {
@@ -149,63 +149,63 @@ const validCommittedWindow = {
         objectKey: "media/tenant/sess/e1/v1080/init.mp4",
         slotId: "slot_init",
       },
-      trackId: "v1080",
       segments: [
         {
-          sequenceNumber: 3810,
           segment: {
             commitId: "commit_3810",
             deliveryUrl:
               "https://media.example.com/media/tenant/sess/e1/v1080/s3810.m4s",
             objectKey: "media/tenant/sess/e1/v1080/s3810.m4s",
-            slotId: "slot_3810",
             profile: { duration: 2 },
+            slotId: "slot_3810",
           },
+          sequenceNumber: 3810,
         },
         {
-          sequenceNumber: 3811,
           segment: {
             commitId: "commit_3811",
             deliveryUrl:
               "https://media.example.com/media/tenant/sess/e1/v1080/s3811.m4s",
             objectKey: "media/tenant/sess/e1/v1080/s3811.m4s",
-            slotId: "slot_3811",
             profile: { duration: 2 },
+            slotId: "slot_3811",
           },
+          sequenceNumber: 3811,
         },
         {
-          sequenceNumber: 3812,
           parts: [
             {
               commitId: "commit_3812_0",
               deliveryUrl:
                 "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p0.m4s",
-              profile: { duration: 0.5, independent: true },
               objectKey: "media/tenant/sess/e1/v1080/s3812/p0.m4s",
               partNumber: 0,
+              profile: { duration: 0.5, independent: true },
               slotId: "slot_3812_0",
             },
             {
               commitId: "commit_3812_1",
               deliveryUrl:
                 "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p1.m4s",
-              profile: { duration: 0.5 },
               objectKey: "media/tenant/sess/e1/v1080/s3812/p1.m4s",
               partNumber: 1,
+              profile: { duration: 0.5 },
               slotId: "slot_3812_1",
             },
           ],
+          sequenceNumber: 3812,
         },
       ],
+      trackId: "v1080",
     },
   },
 } as const;
 
 const validCursor = {
   committedWindow: validCommittedWindow,
+  deliveryBaseUrl: "https://media.example.com",
   epoch: 1,
   olos: "1.0",
-  deliveryBaseUrl: "https://media.example.com",
   profile: { id: "cmaf-llhls", partTarget: 0.333, segmentTarget: 1 },
   sessionId: "session_1",
   state: "live",
@@ -236,8 +236,8 @@ const validProviderCapability = {
     family: "s3-compatible",
   },
   consistency: {
-    observeAfterCreate: "strong",
     listAfterCreate: "strong",
+    observeAfterCreate: "strong",
     readAfterCreate: "strong",
   },
   delivery: {
@@ -287,9 +287,24 @@ const validUploadGrant = {
 
 const suites: readonly DriftSuite[] = [
   {
-    label: "session",
-    schema: OLOS_SESSION_SCHEMA,
-    valid: validSession,
+    alsoValid: [
+      {
+        label: "dotted identifiers",
+        payload: {
+          ...validSession,
+          sessionId: "cam.front",
+          tracks: [{ ...validVideoTrack, trackId: "cam.front.v1080" }],
+        },
+      },
+      {
+        label: "tracks without profiles",
+        payload: {
+          ...validSession,
+          profile: { id: "telemetry" },
+          tracks: [{ contentType: "application/json", trackId: "events" }],
+        },
+      },
+    ],
     assertValid: assertSession,
     invalid: [
       {
@@ -324,29 +339,17 @@ const suites: readonly DriftSuite[] = [
         payload: { ...validSession, profile: { segmentTarget: 1 } },
       },
     ],
-    alsoValid: [
-      {
-        label: "dotted identifiers",
-        payload: {
-          ...validSession,
-          sessionId: "cam.front",
-          tracks: [{ ...validVideoTrack, trackId: "cam.front.v1080" }],
-        },
-      },
-      {
-        label: "tracks without profiles",
-        payload: {
-          ...validSession,
-          profile: { id: "telemetry" },
-          tracks: [{ contentType: "application/json", trackId: "events" }],
-        },
-      },
-    ],
+    label: "session",
+    schema: OLOS_SESSION_SCHEMA,
+    valid: validSession,
   },
   {
-    label: "commit",
-    schema: OLOS_COMMIT_SCHEMA,
-    valid: validCommit,
+    alsoValid: [
+      {
+        label: "absolute delivery URL with no path",
+        payload: { ...validCommit, deliveryUrl: "https://media.example.com" },
+      },
+    ],
     assertValid: assertCommit,
     invalid: [
       {
@@ -394,12 +397,9 @@ const suites: readonly DriftSuite[] = [
         payload: { ...validCommit, committedAt: "2026-06-08T24:00:00.000Z" },
       },
     ],
-    alsoValid: [
-      {
-        label: "absolute delivery URL with no path",
-        payload: { ...validCommit, deliveryUrl: "https://media.example.com" },
-      },
-    ],
+    label: "commit",
+    schema: OLOS_COMMIT_SCHEMA,
+    valid: validCommit,
     validatorOnlyInvalid: [
       {
         label: "unsafe integer size",
@@ -408,9 +408,6 @@ const suites: readonly DriftSuite[] = [
     ],
   },
   {
-    label: "upload slot",
-    schema: OLOS_UPLOAD_SLOT_SCHEMA,
-    valid: validUploadSlot,
     assertValid: assertUploadSlot,
     invalid: [
       {
@@ -430,6 +427,9 @@ const suites: readonly DriftSuite[] = [
         payload: { ...validUploadSlot, expiresAt: "2026-06-08T12:00:60Z" },
       },
     ],
+    label: "upload slot",
+    schema: OLOS_UPLOAD_SLOT_SCHEMA,
+    valid: validUploadSlot,
     validatorOnlyInvalid: [
       {
         label: "minBytes greater than maxBytes",
@@ -442,9 +442,6 @@ const suites: readonly DriftSuite[] = [
     ],
   },
   {
-    label: "committed window",
-    schema: OLOS_COMMITTED_WINDOW_SCHEMA,
-    valid: validCommittedWindow,
     assertValid: assertCommittedWindow,
     invalid: [
       {
@@ -504,11 +501,11 @@ const suites: readonly DriftSuite[] = [
         },
       },
     ],
+    label: "committed window",
+    schema: OLOS_COMMITTED_WINDOW_SCHEMA,
+    valid: validCommittedWindow,
   },
   {
-    label: "cursor",
-    schema: OLOS_CURSOR_SCHEMA,
-    valid: validCursor,
     assertValid: assertCursor,
     invalid: [
       {
@@ -530,6 +527,9 @@ const suites: readonly DriftSuite[] = [
         },
       },
     ],
+    label: "cursor",
+    schema: OLOS_CURSOR_SCHEMA,
+    valid: validCursor,
     validatorOnlyInvalid: [
       {
         label: "window lastPartNumber not matching the committed window",
@@ -544,9 +544,6 @@ const suites: readonly DriftSuite[] = [
     ],
   },
   {
-    label: "error",
-    schema: OLOS_ERROR_SCHEMA,
-    valid: validOlosError,
     assertValid: assertOlosErrorEnvelope,
     invalid: [
       {
@@ -564,11 +561,11 @@ const suites: readonly DriftSuite[] = [
         payload: createOlosError("olos.not_found", ""),
       },
     ],
+    label: "error",
+    schema: OLOS_ERROR_SCHEMA,
+    valid: validOlosError,
   },
   {
-    label: "storage object",
-    schema: OLOS_STORAGE_OBJECT_SCHEMA,
-    valid: validMediaObject,
     assertValid: assertStorageObject,
     invalid: [
       {
@@ -592,11 +589,11 @@ const suites: readonly DriftSuite[] = [
         payload: { ...validMediaObject, extra: 1 },
       },
     ],
+    label: "storage object",
+    schema: OLOS_STORAGE_OBJECT_SCHEMA,
+    valid: validMediaObject,
   },
   {
-    label: "provider capability",
-    schema: OLOS_PROVIDER_CAPABILITY_SCHEMA,
-    valid: validProviderCapability,
     assertValid: assertProviderCapabilityDocument,
     invalid: [
       {
@@ -638,11 +635,11 @@ const suites: readonly DriftSuite[] = [
         },
       },
     ],
+    label: "provider capability",
+    schema: OLOS_PROVIDER_CAPABILITY_SCHEMA,
+    valid: validProviderCapability,
   },
   {
-    label: "upload grant",
-    schema: OLOS_UPLOAD_GRANT_SCHEMA,
-    valid: validUploadGrant,
     assertValid: assertUploadGrant,
     invalid: [
       {
@@ -666,6 +663,9 @@ const suites: readonly DriftSuite[] = [
         payload: { ...validUploadGrant, extra: 1 },
       },
     ],
+    label: "upload grant",
+    schema: OLOS_UPLOAD_GRANT_SCHEMA,
+    valid: validUploadGrant,
   },
 ];
 

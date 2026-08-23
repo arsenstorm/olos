@@ -586,9 +586,9 @@ async function createReadyStore(): Promise<CoordinatorPipelineStore> {
     maxBytes: 2048,
     profile: { duration: 1 },
     sequenceNumber: 0,
-    trackId: "v1080",
     slotId: "slot_init",
     state,
+    trackId: "v1080",
   });
   const initCommit = commitCoordinatorUpload({
     commitId: "commit_init",
@@ -629,11 +629,11 @@ function slotPayload() {
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "segment" as const,
     maxBytes: 100_000,
+    objectKey: "objects/v1080/s3810",
     profile: { duration: 2 },
     sequenceNumber: 3810,
-    objectKey: "objects/v1080/s3810",
-    trackId: "v1080",
     slotId: "slot_3810",
+    trackId: "v1080",
   };
 }
 

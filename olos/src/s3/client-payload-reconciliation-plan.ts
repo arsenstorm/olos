@@ -50,9 +50,9 @@ function plannedReconciliationPlanPayload(
   value: Record<string, unknown>
 ): StoredS3CoordinatorReconciliationPlan {
   return {
-    status: "planned",
     slotIds: reconciliationPlanSlotIds(value),
     slots: reconciliationPlanSlots(value),
+    status: "planned",
   };
 }
 

@@ -106,7 +106,6 @@ function routeTrackOrBlockingReloadError(
 function nonMediaSessionResponse(session: Session): Response | undefined {
   try {
     assertMediaSession(session);
-    return;
   } catch (error) {
     return jsonBadRequestResponse(
       `HLS playlists are only served for cmaf-llhls sessions: ${errorMessage(
@@ -154,8 +153,6 @@ function liveManifestRoute(
   ) {
     return { kind: "media", sessionId };
   }
-
-  return;
 }
 
 function liveManifestOptions(

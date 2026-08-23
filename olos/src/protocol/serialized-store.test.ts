@@ -100,14 +100,14 @@ describe("serialized coordinator store", () => {
 
     const next = issueCoordinatorSlot({
       contentType: "video/mp4",
-      profile: { duration: 1 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
+      profile: { duration: 1 },
       sequenceNumber: 0,
-      trackId: "v1080",
       slotId: "slot_init",
       state,
+      trackId: "v1080",
     });
     const second = await store.save({
       expectedEtag: firstSave.etag,
@@ -164,14 +164,14 @@ describe("serialized coordinator store", () => {
 
     const issued = issueCoordinatorSlot({
       contentType: "video/mp4",
-      profile: { duration: 1 },
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
       maxBytes: 2048,
+      profile: { duration: 1 },
       sequenceNumber: 0,
-      trackId: "v1080",
       slotId: "slot_init",
       state,
+      trackId: "v1080",
     });
     const second = await store.save({
       expectedEtag: firstSave.etag,

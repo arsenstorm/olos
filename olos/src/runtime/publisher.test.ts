@@ -79,8 +79,8 @@ describe("runtime publisher upload step", () => {
           sessionId: session.sessionId,
           store,
         }),
-      committedAt: "2026-01-01T00:00:02.000Z",
       commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
       issueSlot: (request) =>
         issueStoredCoordinatorSlotFromRequest({
           request,
@@ -120,8 +120,8 @@ describe("runtime publisher upload step", () => {
 
     const step = await runRuntimePublisherUploadStep({
       commit: () => Promise.resolve({ status: "committed" }),
-      committedAt: "2026-01-01T00:00:02.000Z",
       commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
       heartbeat: () => {
         heartbeats += 1;
 
@@ -162,8 +162,8 @@ describe("runtime publisher upload step", () => {
 
     const step = await runRuntimePublisherUploadStep({
       commit: () => Promise.resolve({ status: "should_not_commit" }),
-      committedAt: "2026-01-01T00:00:02.000Z",
       commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
       heartbeat: () => Promise.resolve({ status: "stale" }),
       issueSlot: () => {
         issued = true;
@@ -192,8 +192,8 @@ describe("runtime publisher upload step", () => {
 
     const step = await runRuntimePublisherUploadStep({
       commit: () => Promise.resolve({ status: "should_not_commit" }),
-      committedAt: "2026-01-01T00:00:02.000Z",
       commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
       heartbeat: () => Promise.reject(new Error("heartbeat unavailable")),
       issueSlot: () => {
         issued = true;
@@ -223,8 +223,8 @@ describe("runtime publisher upload step", () => {
 
     const step = await runRuntimePublisherUploadStep({
       commit: () => Promise.resolve({ status: "should_not_commit" }),
-      committedAt: "2026-01-01T00:00:02.000Z",
       commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
       issueSlot: (request) =>
         issueStoredCoordinatorSlotFromRequest({
           request,
@@ -253,8 +253,8 @@ describe("runtime publisher upload step", () => {
 
     const step = await runRuntimePublisherUploadStep({
       commit: () => Promise.resolve({ status: "should_not_commit" }),
-      committedAt: "2026-01-01T00:00:02.000Z",
       commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
       heartbeat: () => Promise.resolve({ status: "refreshed" }),
       issueSlot: (request) =>
         issueStoredCoordinatorSlotFromRequest({
@@ -282,8 +282,8 @@ describe("runtime publisher upload step", () => {
   test("returns issue failure when slot issuance throws", async () => {
     const step = await runRuntimePublisherUploadStep({
       commit: () => Promise.resolve({ status: "should_not_commit" }),
-      committedAt: "2026-01-01T00:00:02.000Z",
       commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
       issueSlot: () => Promise.reject(new Error("slot unavailable")),
       slot: slotPayload({
         duration: 2,
@@ -304,8 +304,8 @@ describe("runtime publisher upload step", () => {
   test("returns issue failure when slot issuance does not issue a slot", async () => {
     const step = await runRuntimePublisherUploadStep({
       commit: () => Promise.resolve({ status: "should_not_commit" }),
-      committedAt: "2026-01-01T00:00:02.000Z",
       commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
       issueSlot: () => Promise.resolve({ status: "rejected" }),
       slot: slotPayload({
         duration: 2,
@@ -329,8 +329,8 @@ describe("runtime publisher upload step", () => {
 
     const step = await runRuntimePublisherUploadStep({
       commit: () => Promise.reject(new Error("commit unavailable")),
-      committedAt: "2026-01-01T00:00:02.000Z",
       commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
       issueSlot: (request) =>
         issueStoredCoordinatorSlotFromRequest({
           request,
@@ -366,8 +366,8 @@ describe("runtime publisher upload step", () => {
 
     const step = await runRuntimePublisherUploadStep({
       commit: () => Promise.reject(new Error("commit unavailable")),
-      committedAt: "2026-01-01T00:00:02.000Z",
       commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
       heartbeat: () => Promise.resolve({ status: "refreshed" }),
       issueSlot: (request) =>
         issueStoredCoordinatorSlotFromRequest({
@@ -405,8 +405,8 @@ describe("runtime publisher upload step", () => {
 
     const step = await runRuntimePublisherUploadStep({
       commit: () => Promise.resolve({ status: "rejected" }),
-      committedAt: "2026-01-01T00:00:02.000Z",
       commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
       issueSlot: (request) =>
         issueStoredCoordinatorSlotFromRequest({
           request,
@@ -442,8 +442,8 @@ describe("runtime publisher upload step", () => {
 
     const step = await runRuntimePublisherUploadStep({
       commit: () => Promise.resolve({ status: "idempotent" }),
-      committedAt: "2026-01-01T00:00:02.000Z",
       commitId: "commit_3810",
+      committedAt: "2026-01-01T00:00:02.000Z",
       issueSlot: (request) =>
         issueStoredCoordinatorSlotFromRequest({
           request,
@@ -536,9 +536,9 @@ function slotPayload(options: SlotPayloadOptions) {
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: options.kind,
     maxBytes: options.maxBytes,
-    sequenceNumber: options.sequenceNumber,
     profile: { duration: options.duration },
-    trackId: "v1080",
+    sequenceNumber: options.sequenceNumber,
     slotId: options.slotId,
+    trackId: "v1080",
   };
 }

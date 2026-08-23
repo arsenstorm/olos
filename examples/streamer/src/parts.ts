@@ -40,7 +40,7 @@ export function collectNextSegmentBatch(
   if (parts.length === 0) {
     return;
   }
-  return { sequenceNumber: targetMsn, parts };
+  return { parts, sequenceNumber: targetMsn };
 }
 
 export async function assembleSegment(

@@ -124,8 +124,8 @@ export const providerApiSchema = {
 export const providerConsistencySchema = {
   additionalProperties: false,
   properties: {
-    observeAfterCreate: stringEnum(PROVIDER_CONSISTENCY_LEVELS),
     listAfterCreate: stringEnum(PROVIDER_CONSISTENCY_LEVELS),
+    observeAfterCreate: stringEnum(PROVIDER_CONSISTENCY_LEVELS),
     readAfterCreate: stringEnum(PROVIDER_CONSISTENCY_LEVELS),
   },
   required: ["observeAfterCreate", "readAfterCreate"],

@@ -8,20 +8,20 @@ const validCommit: Commit = {
   committedAt: "2026-06-08T12:00:01.820Z",
   deliveryUrl:
     "https://media.example.com/media/tenant/sess/e1/v1080/s3812/p3.m4s",
+  epoch: 1,
+  etag: '"9b2cf535f27731c974343645a3985328"',
+  objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
+  partNumber: 3,
   profile: {
     duration: 0.5,
     independent: false,
     programDateTime: "2026-06-08T12:00:05.500Z",
   },
-  epoch: 1,
-  etag: '"9b2cf535f27731c974343645a3985328"',
   sequenceNumber: 3812,
-  objectKey: "media/tenant/sess/e1/v1080/s3812/p3.m4s",
-  partNumber: 3,
-  trackId: "v1080",
   sessionId: "sess_01JZLIVE",
   size: 312_500,
   slotId: "slot_01JZ",
+  trackId: "v1080",
 };
 
 describe("commit validation", () => {
@@ -126,7 +126,7 @@ describe("commit validation", () => {
       "commit.profile must be an object"
     );
     expect(() =>
-      assertCommit({ ...validCommit, profile: { duration: 0, anything: [] } })
+      assertCommit({ ...validCommit, profile: { anything: [], duration: 0 } })
     ).not.toThrow();
     expect(() => assertCommit({ ...validCommit, etag: 123 })).toThrow(
       "commit.etag must be a non-empty string"

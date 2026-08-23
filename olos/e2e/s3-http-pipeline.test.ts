@@ -34,9 +34,9 @@ const session = {
     partTarget: latency.partTarget,
     segmentTarget: latency.segmentTarget,
   },
-  tracks: [v1080Track()],
   sessionId: "session_1",
   state: "live",
+  tracks: [v1080Track()],
 } satisfies MediaSession;
 
 function v1080Track() {
@@ -96,8 +96,8 @@ describe("S3 HTTP pipeline", () => {
         duration: 1,
         kind: "init",
         maxBytes: 2048,
-        sequenceNumber: 0,
         objectKey: "media/v1080/init.mp4",
+        sequenceNumber: 0,
         slotId: "slot_init",
       }),
       sessionId: session.sessionId,
@@ -110,8 +110,8 @@ describe("S3 HTTP pipeline", () => {
         duration: 2,
         kind: "segment",
         maxBytes: 100_000,
-        sequenceNumber: 3810,
         objectKey: "media/v1080/s3810.m4s",
+        sequenceNumber: 3810,
         slotId: "slot_3810",
       }),
       sessionId: session.sessionId,
@@ -132,8 +132,8 @@ describe("S3 HTTP pipeline", () => {
       payload: {
         commitId: "commit_3810",
         committedAt: "2026-01-01T00:00:02.000Z",
-        profile: { independent: true },
         objectKey: segmentGrant.slot.objectKey,
+        profile: { independent: true },
       },
       sessionId: session.sessionId,
       slotId: segmentGrant.slot.slotId,
@@ -177,8 +177,8 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3811,
           objectKey: "media/v1080/s3811.m4s",
+          sequenceNumber: 3811,
           slotId: "slot_3811",
         })
       )
@@ -235,8 +235,8 @@ describe("S3 HTTP pipeline", () => {
           duration: 1,
           kind: "init",
           maxBytes: 2048,
-          sequenceNumber: 0,
           objectKey: "media/v1080/init.mp4",
+          sequenceNumber: 0,
           slotId: "slot_init",
         })
       )
@@ -249,8 +249,8 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "media/v1080/s3810.m4s",
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -307,8 +307,8 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3811,
           objectKey: "media/v1080/s3811.m4s",
+          sequenceNumber: 3811,
           slotId: "slot_3811",
         })
       )
@@ -351,10 +351,10 @@ describe("S3 HTTP pipeline", () => {
   test("publishes multiple S3 tracks through coherent HLS manifests", async () => {
     const { handle, headObjectInputs } = createS3HttpPipeline({
       objectSizes: {
-        "media/v1080/s3810.m4s": 98_304,
-        "media/v1080/init.mp4": 1024,
-        "media/v720/s3810.m4s": 64_000,
         "media/v720/init.mp4": 1024,
+        "media/v720/s3810.m4s": 64_000,
+        "media/v1080/init.mp4": 1024,
+        "media/v1080/s3810.m4s": 98_304,
       },
     });
 
@@ -447,8 +447,8 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "media/v1080/s3810.m4s",
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -509,8 +509,8 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "media/v1080/s3810.m4s",
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -578,8 +578,8 @@ describe("S3 HTTP pipeline", () => {
           duration: 1,
           kind: "init",
           maxBytes: 2048,
-          sequenceNumber: 0,
           objectKey: "media/v1080/init.mp4",
+          sequenceNumber: 0,
           slotId: "slot_init",
         })
       )
@@ -592,8 +592,8 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "media/v1080/s3810.m4s",
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -683,8 +683,8 @@ describe("S3 HTTP pipeline", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3811,
           objectKey: "media/v1080/s3811.m4s",
+          sequenceNumber: 3811,
           slotId: "slot_3811",
         })
       )
@@ -932,10 +932,10 @@ function trackObject(
     duration: kind === "init" ? 1 : 2,
     kind,
     maxBytes: kind === "init" ? 2048 : 100_000,
-    sequenceNumber: kind === "init" ? 0 : 3810,
     objectKey,
-    trackId,
+    sequenceNumber: kind === "init" ? 0 : 3810,
     slotId: `slot_${trackId}_${slotSuffix}`,
+    trackId,
   };
 }
 
@@ -945,12 +945,12 @@ function slotPayload(options: SlotPayloadOptions) {
     expiresAt: "2026-01-01T00:00:05.000Z",
     extension: options.kind === "init" ? "mp4" : "m4s",
     kind: options.kind,
+    maxBytes: options.maxBytes,
     objectKeyPrefix: "media",
     profile: { duration: options.duration },
-    maxBytes: options.maxBytes,
     sequenceNumber: options.sequenceNumber,
-    trackId: options.trackId ?? "v1080",
     slotId: options.slotId,
+    trackId: options.trackId ?? "v1080",
   };
 }
 
@@ -1032,9 +1032,9 @@ function createS3HttpPipeline(options: S3HttpPipelineOptions = {}) {
 
 function defaultS3ObjectSizes(): Record<string, number> {
   return {
+    "media/v1080/init.mp4": 1024,
     "media/v1080/s3810.m4s": 98_304,
     "media/v1080/s3811.m4s": 98_304,
-    "media/v1080/init.mp4": 1024,
   };
 }
 
@@ -1077,8 +1077,8 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
       duration: 1,
       kind: "init",
       maxBytes: 2048,
-      sequenceNumber: 0,
       objectKey: "media/v1080/init.mp4",
+      sequenceNumber: 0,
       slotId: "slot_init",
     },
     {
@@ -1087,8 +1087,8 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
       duration: 2,
       kind: "segment",
       maxBytes: 100_000,
-      sequenceNumber: 3810,
       objectKey: "media/v1080/s3810.m4s",
+      sequenceNumber: 3810,
       slotId: "slot_3810",
     },
     {
@@ -1097,8 +1097,8 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
       duration: 2,
       kind: "segment",
       maxBytes: 100_000,
-      sequenceNumber: 3811,
       objectKey: "media/v1080/s3811.m4s",
+      sequenceNumber: 3811,
       slotId: "slot_3811",
     },
     {
@@ -1108,8 +1108,8 @@ function retentionObjects(): (SlotPayloadOptions & { commitId: string })[] {
       kind: "segment",
       maxBytes: 100_000,
       maxSegments: 2,
-      sequenceNumber: 3812,
       objectKey: "media/v1080/s3812.m4s",
+      sequenceNumber: 3812,
       slotId: "slot_3812",
     },
   ];
@@ -1119,10 +1119,10 @@ function createRetentionPipeline(options: { failingDeleteKey?: string } = {}) {
   const deleteInputs: unknown[] = [];
   const { handle, store } = createS3HttpPipeline({
     objectSizes: {
+      "media/v1080/init.mp4": 1024,
       "media/v1080/s3810.m4s": 98_304,
       "media/v1080/s3811.m4s": 98_304,
       "media/v1080/s3812.m4s": 98_304,
-      "media/v1080/init.mp4": 1024,
     },
     retentionClient: createTestDeleteObjectClient(
       deleteInputs,

@@ -76,10 +76,8 @@ const committedWindow: CommittedWindow = {
         objectKey: "media/v1080/init.mp4",
         slotId: "slot_init",
       },
-      trackId: "v1080",
       segments: [
         {
-          sequenceNumber: 3810,
           segment: {
             commitId: "commit_3810",
             deliveryUrl: "https://media.example.com/media/3810.m4s",
@@ -87,8 +85,10 @@ const committedWindow: CommittedWindow = {
             profile: { duration: 2 },
             slotId: "slot_3810",
           },
+          sequenceNumber: 3810,
         },
       ],
+      trackId: "v1080",
     },
   },
 };
@@ -114,11 +114,9 @@ const advancedCommittedWindow: CommittedWindow = {
   tracks: {
     v1080: {
       init: committedWindow.tracks.v1080?.init ?? missingInit(),
-      trackId: "v1080",
       segments: [
         ...(committedWindow.tracks.v1080?.segments ?? []),
         {
-          sequenceNumber: 3811,
           segment: {
             commitId: "commit_3811",
             deliveryUrl: "https://media.example.com/media/3811.m4s",
@@ -126,8 +124,10 @@ const advancedCommittedWindow: CommittedWindow = {
             profile: { duration: 2 },
             slotId: "slot_3811",
           },
+          sequenceNumber: 3811,
         },
       ],
+      trackId: "v1080",
     },
   },
 };
@@ -170,10 +170,8 @@ const groupedCommittedWindow: CommittedWindow = {
         objectKey: "media/a128/init.mp4",
         slotId: "slot_init_a128",
       },
-      trackId: "a128",
       segments: [
         {
-          sequenceNumber: 3810,
           segment: {
             commitId: "commit_a128_3810",
             deliveryUrl: "https://media.example.com/media/a128/3810.m4s",
@@ -181,8 +179,10 @@ const groupedCommittedWindow: CommittedWindow = {
             profile: { duration: 2 },
             slotId: "slot_a128_3810",
           },
+          sequenceNumber: 3810,
         },
       ],
+      trackId: "a128",
     },
   },
 };
@@ -208,7 +208,6 @@ function groupedAudioTrackWindow() {
 }
 
 const audioSegment3811 = {
-  sequenceNumber: 3811,
   segment: {
     commitId: "commit_a128_3811",
     deliveryUrl: "https://media.example.com/media/a128/3811.m4s",
@@ -216,6 +215,7 @@ const audioSegment3811 = {
     profile: { duration: 2 },
     slotId: "slot_a128_3811",
   },
+  sequenceNumber: 3811,
 };
 
 // v1080 has reached 3811 while the grouped audio track still ends at

@@ -15,6 +15,8 @@ export const conformanceSession = {
     partTarget: latency.partTarget,
     segmentTarget: latency.segmentTarget,
   },
+  sessionId: "sess_01JZLIVE",
+  state: "live",
   tracks: [
     {
       profile: {
@@ -49,8 +51,6 @@ export const conformanceSession = {
       trackId: "a128",
     },
   ],
-  sessionId: "sess_01JZLIVE",
-  state: "live",
 } satisfies MediaSession;
 
 export const conformanceCommittedWindow = {
@@ -67,10 +67,8 @@ export const conformanceCommittedWindow = {
           "media/tenant_acme/sess_01JZLIVE/e1/v1080/init-slot_init_v1080.mp4",
         slotId: "slot_init_v1080",
       },
-      trackId: "v1080",
       segments: [
         {
-          sequenceNumber: 3810,
           segment: {
             commitId: "commit_3810",
             deliveryUrl:
@@ -83,9 +81,9 @@ export const conformanceCommittedWindow = {
             },
             slotId: "slot_s3810",
           },
+          sequenceNumber: 3810,
         },
         {
-          sequenceNumber: 3811,
           segment: {
             commitId: "commit_3811",
             deliveryUrl:
@@ -98,9 +96,9 @@ export const conformanceCommittedWindow = {
             },
             slotId: "slot_s3811",
           },
+          sequenceNumber: 3811,
         },
         {
-          sequenceNumber: 3812,
           parts: [
             {
               commitId: "commit_3812_0",
@@ -127,8 +125,10 @@ export const conformanceCommittedWindow = {
               slotId: "slot_3812_1",
             },
           ],
+          sequenceNumber: 3812,
         },
       ],
+      trackId: "v1080",
     },
   },
 } satisfies CommittedWindow;

@@ -131,14 +131,14 @@ async function publishFragment(
   const timestamps = usingParts
     ? await olos.publishPart({
         bytes,
-        sequenceNumber: msn,
         partNumber,
         partSeconds: FRAGMENT_SECONDS,
+        sequenceNumber: msn,
       })
     : await olos.publishSegment({
         bytes,
-        sequenceNumber: msn,
         segmentSeconds: FRAGMENT_SECONDS,
+        sequenceNumber: msn,
       });
   progress.publishTimings.set(fragmentKey(msn, partNumber), timestamps);
   progress.nextFragment = index + 1;

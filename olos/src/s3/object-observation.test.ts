@@ -94,8 +94,8 @@ describe("s3 object observation", () => {
   test("uses injected now when no observation time or LastModified are provided", () => {
     expect(
       createObservedUploadFromS3HeadObject({
-        objectKey: "media/v1080/s3810.m4s",
         now: "2026-01-01T00:00:03.000Z",
+        objectKey: "media/v1080/s3810.m4s",
         output: {
           $metadata: {},
           ContentLength: 98_304,
@@ -109,8 +109,8 @@ describe("s3 object observation", () => {
   test("uses injected clock when no observation time, now, or LastModified are provided", () => {
     expect(
       createObservedUploadFromS3HeadObject({
-        objectKey: "media/v1080/s3810.m4s",
         clock: () => "2026-01-01T00:00:04.000Z",
+        objectKey: "media/v1080/s3810.m4s",
         output: {
           $metadata: {},
           ContentLength: 98_304,
@@ -124,9 +124,9 @@ describe("s3 object observation", () => {
   test("prefers injected now over injected clock", () => {
     expect(
       createObservedUploadFromS3HeadObject({
-        objectKey: "media/v1080/s3810.m4s",
         clock: () => "2026-01-01T00:00:05.000Z",
         now: "2026-01-01T00:00:04.000Z",
+        objectKey: "media/v1080/s3810.m4s",
         output: {
           $metadata: {},
           ContentLength: 98_304,

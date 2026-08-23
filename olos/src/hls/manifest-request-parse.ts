@@ -75,9 +75,7 @@ function parseAbsoluteRequestPath(value: string): string | undefined {
     }
 
     return url.pathname;
-  } catch {
-    return;
-  }
+  } catch {}
 }
 
 function isHttpRequestUrl(url: URL): boolean {

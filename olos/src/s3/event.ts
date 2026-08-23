@@ -254,9 +254,7 @@ function objectKey(value: unknown): string | undefined {
     assertSafeObjectKey(decoded, "s3 object key");
 
     return decoded;
-  } catch {
-    return;
-  }
+  } catch {}
 }
 
 function isObjectCreatedEventName(value: unknown): boolean {

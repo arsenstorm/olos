@@ -27,9 +27,9 @@ export const multibar = HAS_TTY
         barCompleteChar: "█",
         barIncompleteChar: "░",
         clearOnComplete: false,
+        forceRedraw: true,
         format:
           "  [{bar}] {name} | {value}/{total} ({percentage}%) | p50 {p50}ms p95 {p95}ms",
-        forceRedraw: true,
         hideCursor: true,
       },
       cliProgress.Presets.shades_classic

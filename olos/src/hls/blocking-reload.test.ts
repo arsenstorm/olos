@@ -20,10 +20,8 @@ const cursor: Cursor = {
           objectKey: "media/v1080/init.mp4",
           slotId: "slot_init",
         },
-        trackId: "v1080",
         segments: [
           {
-            sequenceNumber: 3812,
             parts: [
               {
                 commitId: "commit_3812_0",
@@ -42,8 +40,10 @@ const cursor: Cursor = {
                 slotId: "slot_3812_1",
               },
             ],
+            sequenceNumber: 3812,
           },
         ],
+        trackId: "v1080",
       },
     },
   },
@@ -56,8 +56,8 @@ const cursor: Cursor = {
   updatedAt: "2026-01-01T00:00:02.000Z",
   window: {
     firstSequenceNumber: 3810,
-    lastSequenceNumber: 3812,
     lastPartNumber: 1,
+    lastSequenceNumber: 3812,
   },
 };
 
@@ -82,7 +82,6 @@ const advancedCursor: Cursor = {
         segments: [
           ...validTrack().segments,
           {
-            sequenceNumber: 3813,
             parts: [
               {
                 commitId: "commit_3813_0",
@@ -93,6 +92,7 @@ const advancedCursor: Cursor = {
                 slotId: "slot_3813_0",
               },
             ],
+            sequenceNumber: 3813,
           },
         ],
       },
@@ -101,8 +101,8 @@ const advancedCursor: Cursor = {
   updatedAt: "2026-01-01T00:00:02.500Z",
   window: {
     ...cursor.window,
-    lastSequenceNumber: 3813,
     lastPartNumber: 0,
+    lastSequenceNumber: 3813,
   },
 };
 
@@ -121,10 +121,8 @@ const laggingAudioCursor: Cursor = {
           objectKey: "media/a128/init.mp4",
           slotId: "slot_init_a128",
         },
-        trackId: "a128",
         segments: [
           {
-            sequenceNumber: 3811,
             segment: {
               commitId: "commit_a128_3811",
               deliveryUrl: "/media/a128/3811.m4s",
@@ -132,8 +130,10 @@ const laggingAudioCursor: Cursor = {
               profile: { duration: 2 },
               slotId: "slot_a128_3811",
             },
+            sequenceNumber: 3811,
           },
         ],
+        trackId: "a128",
       },
     },
   },
@@ -160,7 +160,6 @@ const caughtUpAudioCursor: Cursor = {
         segments: [
           ...laggingAudioTrack().segments,
           {
-            sequenceNumber: 3812,
             segment: {
               commitId: "commit_a128_3812",
               deliveryUrl: "/media/a128/3812.m4s",
@@ -168,6 +167,7 @@ const caughtUpAudioCursor: Cursor = {
               profile: { duration: 2 },
               slotId: "slot_a128_3812",
             },
+            sequenceNumber: 3812,
           },
         ],
       },
@@ -183,8 +183,8 @@ describe("HLS blocking reload", () => {
         "/v1/live/session_1/v1080/media.m3u8?_HLS_msn=3812&_HLS_part=1"
       )
     ).toEqual({
-      sequenceNumber: 3812,
       partNumber: 1,
+      sequenceNumber: 3812,
     });
   });
 
@@ -198,13 +198,13 @@ describe("HLS blocking reload", () => {
   test("returns ready for positions already covered by the cursor", () => {
     expect(
       resolveHlsBlockingReload(cursor, {
-        sequenceNumber: 3812,
         partNumber: 1,
+        sequenceNumber: 3812,
       })
     ).toEqual({
       request: {
-        sequenceNumber: 3812,
         partNumber: 1,
+        sequenceNumber: 3812,
       },
       status: "ready",
     });
@@ -213,13 +213,13 @@ describe("HLS blocking reload", () => {
   test("returns ready for older media sequences regardless of requested part", () => {
     expect(
       resolveHlsBlockingReload(cursor, {
-        sequenceNumber: 3811,
         partNumber: 999,
+        sequenceNumber: 3811,
       })
     ).toEqual({
       request: {
-        sequenceNumber: 3811,
         partNumber: 999,
+        sequenceNumber: 3811,
       },
       status: "ready",
     });
@@ -228,13 +228,13 @@ describe("HLS blocking reload", () => {
   test("blocks when the request is beyond the live cursor", () => {
     expect(
       resolveHlsBlockingReload(cursor, {
-        sequenceNumber: 3812,
         partNumber: 2,
+        sequenceNumber: 3812,
       })
     ).toEqual({
       request: {
-        sequenceNumber: 3812,
         partNumber: 2,
+        sequenceNumber: 3812,
       },
       status: "block",
     });
@@ -266,7 +266,6 @@ describe("HLS blocking reload", () => {
                 ...validTrack(),
                 segments: [
                   {
-                    sequenceNumber: 3812,
                     segment: {
                       commitId: "commit_3812",
                       deliveryUrl: "/media/3812.m4s",
@@ -274,6 +273,7 @@ describe("HLS blocking reload", () => {
                       profile: { duration: 2 },
                       slotId: "slot_3812",
                     },
+                    sequenceNumber: 3812,
                   },
                 ],
               },
@@ -282,14 +282,14 @@ describe("HLS blocking reload", () => {
           window: segmentOnlyWindow,
         },
         {
-          sequenceNumber: 3812,
           partNumber: 0,
+          sequenceNumber: 3812,
         }
       )
     ).toEqual({
       request: {
-        sequenceNumber: 3812,
         partNumber: 0,
+        sequenceNumber: 3812,
       },
       status: "ready",
     });
@@ -338,14 +338,14 @@ describe("HLS blocking reload", () => {
     // is a full segment — part requests at its live edge never block.
     expect(
       resolveHlsBlockingReload(laggingAudioCursor, {
-        sequenceNumber: 3811,
         partNumber: 4,
+        sequenceNumber: 3811,
         trackId: "a128",
       })
     ).toEqual({
       request: {
-        sequenceNumber: 3811,
         partNumber: 4,
+        sequenceNumber: 3811,
         trackId: "a128",
       },
       status: "ready",
@@ -450,8 +450,8 @@ describe("HLS blocking reload", () => {
     const result = await waitForHlsBlockingReload({
       cursor,
       request: {
-        sequenceNumber: 3813,
         partNumber: 0,
+        sequenceNumber: 3813,
       },
       timeoutMs: 100,
       waitForCursor: (context) => {
@@ -464,8 +464,8 @@ describe("HLS blocking reload", () => {
     expect(result).toEqual({
       cursor: advancedCursor,
       request: {
-        sequenceNumber: 3813,
         partNumber: 0,
+        sequenceNumber: 3813,
       },
       status: "ready",
     });
@@ -475,8 +475,8 @@ describe("HLS blocking reload", () => {
     const result = await waitForHlsBlockingReload({
       cursor,
       request: {
-        sequenceNumber: 3812,
         partNumber: 1,
+        sequenceNumber: 3812,
       },
       timeoutMs: 100,
       waitForCursor: () =>
@@ -549,15 +549,15 @@ describe("HLS blocking reload", () => {
 
     const result = await waitForHlsBlockingReload({
       cursor,
-      request: {
-        sequenceNumber: 3813,
-      },
-      timeoutMs: 100,
       now: () => {
         nowCalls += 1;
 
         return nowCalls === 1 ? 1000 : 2000;
       },
+      request: {
+        sequenceNumber: 3813,
+      },
+      timeoutMs: 100,
       waitForCursor: () =>
         Promise.reject(new Error("waiter should not be called")),
     });
@@ -577,11 +577,10 @@ describe("HLS blocking reload", () => {
 
     const result = await waitForHlsBlockingReload({
       cursor,
+      now: () => 1000,
       request: {
         sequenceNumber: 3813,
       },
-      timeoutMs: 100,
-      now: () => 1000,
       sleep: (durationMs, signal) => {
         sleepCalls += 1;
 
@@ -591,6 +590,7 @@ describe("HLS blocking reload", () => {
 
         return Promise.resolve();
       },
+      timeoutMs: 100,
       waitForCursor: () => Promise.resolve(undefined),
     });
 
@@ -630,20 +630,20 @@ describe("HLS blocking reload", () => {
 
     const result = await waitForHlsBlockingReload({
       cursor,
-      request: {
-        sequenceNumber: 3813,
-      },
-      timeoutMs: 100,
       now: () => {
         nowCalls += 1;
 
         return nowCalls === 1 ? 1000 : 1025;
+      },
+      request: {
+        sequenceNumber: 3813,
       },
       sleep: (durationMs) => {
         sleepDurationMs = durationMs;
 
         return Promise.resolve();
       },
+      timeoutMs: 100,
       waitForCursor: () => Promise.resolve(undefined),
     });
 

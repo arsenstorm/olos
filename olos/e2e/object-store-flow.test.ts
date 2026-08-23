@@ -71,9 +71,9 @@ const session = {
     partTarget: latency.partTarget,
     segmentTarget: latency.segmentTarget,
   },
-  tracks: [v1080Track()],
   sessionId: "session_1",
   state: "live",
+  tracks: [v1080Track()],
 } satisfies MediaSession;
 
 function v1080Track() {
@@ -135,12 +135,12 @@ describe("object-store flow", () => {
       client: createTestHeadObjectClient(headObjectInputs, 98_304),
       commitId: issued.segmentPlan.commitId,
       committedAt: "2026-01-01T00:00:02.000Z",
-      profile: { independent: true },
       manifest: {
         allowedDeliveryOrigins: ["https://media.example.com"],
         ...manifestOptions.manifest,
         response: manifestOptions.response,
       },
+      profile: { independent: true },
       providerId: "s3_primary",
       sessionId: session.sessionId,
       slotId: issued.segmentPlan.slot.slotId,
@@ -259,22 +259,22 @@ describe("object-store flow", () => {
       cursorWindow: storedBeforeStep?.state.cursor?.window,
       defaults: publisherDefaults,
       headObjectClient: createTestHeadObjectClient(headObjectInputs, 98_304),
-      profile: { independent: true },
       manifest: {
         allowedDeliveryOrigins: ["https://media.example.com"],
         ...manifestOptions.manifest,
       },
+      minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
       now: publishNow,
       objectKeyNonce: "slot_next_s3811",
       objectKeyPrefix: "media",
+      profile: { independent: true },
       providerId: "s3_primary",
       publicationMode: "direct-public",
-      trackId: "v1080",
       sessionId: session.sessionId,
       startSequenceNumber: 3810,
       store,
-      minTtlSeconds: publisherOptions.expiry.minTtlSeconds,
       targetLatency: publisherOptions.expiry.targetLatency,
+      trackId: "v1080",
       upload: (grant, plan) => {
         uploadedUrls.push(grant.url);
         expect(grant.slotId).toBe(plan.slot.slotId);
@@ -540,8 +540,8 @@ describe("object-store flow", () => {
         slot.kind === "init"
           ? "2026-01-01T00:00:01.000Z"
           : `2026-01-01T00:00:0${slot.sequenceNumber - 3808}.000Z`,
-      profile: (slot) => ({ independent: slot.kind === "segment" }),
       maxSegments: 2,
+      profile: (slot) => ({ independent: slot.kind === "segment" }),
       providerId: "s3_primary",
       sessionId: session.sessionId,
       store,
@@ -675,11 +675,11 @@ describe("object-store flow", () => {
         event.event.object.size
       ),
       event,
-      profile: { independent: true },
       manifest: {
         allowedDeliveryOrigins: ["https://media.example.com"],
         ...manifestOptions.manifest,
       },
+      profile: { independent: true },
       providerId: event.event.object.providerId,
       sessionId: session.sessionId,
       store,
@@ -793,8 +793,8 @@ describe("object-store flow", () => {
 
     expect(cursor.window).toEqual({
       firstSequenceNumber: 3810,
-      lastSequenceNumber: 3811,
       lastPartNumber: 1,
+      lastSequenceNumber: 3811,
     });
     expect(latency.targetLatency).toBeLessThanOrEqual(4);
     expect(manifestOptions.response.maxAgeSeconds).toBeLessThanOrEqual(
@@ -980,11 +980,11 @@ describe("object-store flow", () => {
       client: createTestHeadObjectClient(headObjectInputs, 64_000),
       commitId: issued.v720SegmentPlan.commitId,
       committedAt: "2026-01-01T00:00:02.000Z",
-      profile: { independent: true },
       manifest: {
         allowedDeliveryOrigins: ["https://media.example.com"],
         ...manifestOptions.manifest,
       },
+      profile: { independent: true },
       providerId: "s3_primary",
       sessionId: multiTrackSession.sessionId,
       slotId: issued.v720SegmentPlan.slot.slotId,
@@ -1091,14 +1091,14 @@ async function issueLowLatencySlots(
   const part0Plan = createUploadPlan({
     kind: "part",
     maxBytes: 25_000,
-    sequenceNumber: 3811,
     partNumber: 0,
+    sequenceNumber: 3811,
   });
   const part1Plan = createUploadPlan({
     kind: "part",
     maxBytes: 25_000,
-    sequenceNumber: 3811,
     partNumber: 1,
+    sequenceNumber: 3811,
   });
   const part0 = await issuePlannedUploadGrant({ plan: part0Plan, store });
   const part1 = await issuePlannedUploadGrant({ plan: part1Plan, store });
@@ -1172,14 +1172,14 @@ async function issueMultiTrackSlots(
   });
 
   return {
-    v1080Init,
-    v1080InitPlan,
-    v1080Segment,
-    v1080SegmentPlan,
     v720Init,
     v720InitPlan,
     v720Segment,
     v720SegmentPlan,
+    v1080Init,
+    v1080InitPlan,
+    v1080Segment,
+    v1080SegmentPlan,
   };
 }
 
@@ -1204,12 +1204,12 @@ function createUploadPlan(options: {
     extension: options.kind === "init" ? "mp4" : "m4s",
     kind: options.kind,
     maxBytes: options.maxBytes,
-    sequenceNumber: options.sequenceNumber,
     objectKeyNonce: objectKeyNonceForPlan(options),
     objectKeyPrefix: "media",
     partNumber: options.partNumber,
     profile: { duration },
     publicationMode: "direct-public",
+    sequenceNumber: options.sequenceNumber,
     trackId: options.trackId ?? "v1080",
   });
 }
@@ -1278,7 +1278,6 @@ function publisherLoopOptions(options: {
       options.headObjectInputs,
       options.size
     ),
-    profile: { independent: true },
     manifest: {
       allowedDeliveryOrigins: ["https://media.example.com"],
       ...manifestOptions.manifest,
@@ -1287,13 +1286,14 @@ function publisherLoopOptions(options: {
     now: publishNow,
     objectKeyNonce: "slot_next_s3810",
     objectKeyPrefix: "media",
+    profile: { independent: true },
     providerId: "s3_primary",
     publicationMode: "direct-public" as const,
-    trackId: "v1080",
     sessionId: session.sessionId,
     startSequenceNumber: 3810,
     store: options.store,
     targetLatency: publisherOptions.expiry.targetLatency,
+    trackId: "v1080",
     upload: (grant: { url: string }) => {
       options.uploadedUrls.push(grant.url);
 

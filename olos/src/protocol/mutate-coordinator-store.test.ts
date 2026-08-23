@@ -53,19 +53,17 @@ describe("runStoredCoordinatorMutation", () => {
       Attempt,
       StoredMutationResult
     >({
-      maxAttempts: undefined,
-      sessionId: "session_1",
-      store,
       decide: (attempt) => ({
         attempt,
-        status: "save",
         state: createEmptyCoordinatorState(),
-      }),
-      mutate: () => ({
-        state: "terminal",
+        status: "save",
       }),
       mapSaved: (savedAttempt) => ({
         outcome: `saved:${savedAttempt.etag}`,
+      }),
+      maxAttempts: undefined,
+      mutate: () => ({
+        state: "terminal",
       }),
       onConflictOrExhausted: () => ({
         outcome: "conflict",
@@ -73,6 +71,8 @@ describe("runStoredCoordinatorMutation", () => {
       onMissing: () => ({
         outcome: "not_found",
       }),
+      sessionId: "session_1",
+      store,
     });
 
     expect(result).toEqual({ outcome: "saved:2" });
@@ -85,23 +85,16 @@ describe("runStoredCoordinatorMutation", () => {
         Attempt,
         StoredMutationResult
       >({
-        maxAttempts: 0,
-        sessionId: "missing",
-        store: {
-          load: async () => undefined,
-          save: async () => ({
-            status: "conflict",
-          }),
-        },
         decide: () => ({
-          status: "terminal",
           result: { outcome: "terminal" },
-        }),
-        mutate: () => ({
-          state: "unused",
+          status: "terminal",
         }),
         mapSaved: () => ({
           outcome: "unexpected-saved",
+        }),
+        maxAttempts: 0,
+        mutate: () => ({
+          state: "unused",
         }),
         onConflictOrExhausted: () => ({
           outcome: "conflict",
@@ -109,6 +102,13 @@ describe("runStoredCoordinatorMutation", () => {
         onMissing: () => ({
           outcome: "not_found",
         }),
+        sessionId: "missing",
+        store: {
+          load: async () => undefined,
+          save: async () => ({
+            status: "conflict",
+          }),
+        },
       });
       throw new Error("expected maxAttempts validation failure");
     } catch (error) {
@@ -133,22 +133,14 @@ describe("runStoredCoordinatorMutation", () => {
       StoredMutationResult
     >({
       attempts: 2,
-      mutate: () => ({
-        state: "unused",
-      }),
-      sessionId: "missing",
-      store,
       decide: (attempt) => ({
-        status: "terminal",
         result: {
           outcome: attempt.state,
         },
+        status: "terminal",
       }),
-      onMissing: () => ({
-        outcome: "not_found",
-      }),
-      onSaved: (saved) => ({
-        outcome: `saved:${saved.etag}`,
+      mutate: () => ({
+        state: "unused",
       }),
       onConflict: () => ({
         outcome: "conflict",
@@ -156,6 +148,14 @@ describe("runStoredCoordinatorMutation", () => {
       onExhausted: () => ({
         outcome: "exhausted",
       }),
+      onMissing: () => ({
+        outcome: "not_found",
+      }),
+      onSaved: (saved) => ({
+        outcome: `saved:${saved.etag}`,
+      }),
+      sessionId: "missing",
+      store,
     });
 
     expect(result).toEqual({ outcome: "not_found" });
@@ -178,22 +178,14 @@ describe("runStoredCoordinatorMutation", () => {
     await expect(
       runStoredCoordinatorMutation<Attempt, Attempt, StoredMutationResult>({
         attempts: 1,
-        mutate: () => ({
-          state: "invalid",
-        }),
-        sessionId: "session_1",
-        store,
         decide: () => ({
-          status: "terminal",
           result: {
             outcome: "should-not-save",
           },
+          status: "terminal",
         }),
-        onMissing: () => ({
-          outcome: "not_found",
-        }),
-        onSaved: () => ({
-          outcome: "saved",
+        mutate: () => ({
+          state: "invalid",
         }),
         onConflict: () => ({
           outcome: "conflict",
@@ -201,6 +193,14 @@ describe("runStoredCoordinatorMutation", () => {
         onExhausted: () => ({
           outcome: "exhausted",
         }),
+        onMissing: () => ({
+          outcome: "not_found",
+        }),
+        onSaved: () => ({
+          outcome: "saved",
+        }),
+        sessionId: "session_1",
+        store,
       })
     ).rejects.toThrow(
       "coordinator pipeline state commits must contain valid commit at index 0"
@@ -215,7 +215,6 @@ describe("runStoredCoordinatorMutation", () => {
     const store: CoordinatorPipelineStore = {
       load: async () => snapshot,
       save: async () => ({
-        status: "conflict",
         current: {
           etag: "2",
           state: {
@@ -223,27 +222,20 @@ describe("runStoredCoordinatorMutation", () => {
             cursor: "not-a-cursor",
           } as unknown as CoordinatorPipelineState,
         },
+        status: "conflict",
       }),
     };
 
     await expect(
       runStoredCoordinatorMutation<Attempt, Attempt, StoredMutationResult>({
         attempts: 2,
-        mutate: () => ({
-          state: "retrying",
-        }),
-        sessionId: "session_1",
-        store,
         decide: (attempt) => ({
           attempt,
-          status: "save",
           state: createEmptyCoordinatorState(),
+          status: "save",
         }),
-        onMissing: () => ({
-          outcome: "not_found",
-        }),
-        onSaved: () => ({
-          outcome: "saved",
+        mutate: () => ({
+          state: "retrying",
         }),
         onConflict: () => ({
           outcome: "conflict",
@@ -251,6 +243,14 @@ describe("runStoredCoordinatorMutation", () => {
         onExhausted: () => ({
           outcome: "exhausted",
         }),
+        onMissing: () => ({
+          outcome: "not_found",
+        }),
+        onSaved: () => ({
+          outcome: "saved",
+        }),
+        sessionId: "session_1",
+        store,
       })
     ).rejects.toThrow("coordinator pipeline state cursor must be an object");
   });
@@ -271,16 +271,20 @@ describe("runStoredCoordinatorMutation", () => {
       StoredMutationResult
     >({
       attempts: 3,
-      mutate: () => ({
-        state: "terminal",
-      }),
-      sessionId: "session_1",
-      store,
       decide: () => ({
-        status: "terminal",
         result: {
           outcome: "short-circuit",
         },
+        status: "terminal",
+      }),
+      mutate: () => ({
+        state: "terminal",
+      }),
+      onConflict: () => ({
+        outcome: "conflict",
+      }),
+      onExhausted: () => ({
+        outcome: "exhausted",
       }),
       onMissing: () => ({
         outcome: "not_found",
@@ -289,12 +293,8 @@ describe("runStoredCoordinatorMutation", () => {
         savedCalls += 1;
         return { outcome: "unexpected-save" };
       },
-      onConflict: () => ({
-        outcome: "conflict",
-      }),
-      onExhausted: () => ({
-        outcome: "exhausted",
-      }),
+      sessionId: "session_1",
+      store,
     });
 
     expect(result).toEqual({ outcome: "short-circuit" });
@@ -311,11 +311,11 @@ describe("runStoredCoordinatorMutation", () => {
       save: (options) => {
         if (options.expectedEtag === "1") {
           return Promise.resolve({
-            status: "conflict",
             current: {
               etag: "2",
               state: alternate,
             },
+            status: "conflict",
           });
         }
 
@@ -334,6 +334,11 @@ describe("runStoredCoordinatorMutation", () => {
       StoredMutationResult
     >({
       attempts: 2,
+      decide: (attempt) => ({
+        attempt,
+        state: createEmptyCoordinatorState(),
+        status: "save",
+      }),
       mutate: () => {
         mutations += 1;
 
@@ -341,25 +346,20 @@ describe("runStoredCoordinatorMutation", () => {
           state: mutations === 1 ? "initial" : "after-conflict",
         };
       },
-      decide: (attempt) => ({
-        attempt,
-        status: "save",
-        state: createEmptyCoordinatorState(),
-      }),
       onConflict: () => ({
         outcome: "conflict",
-      }),
-      sessionId: "session_1",
-      store,
-      onSaved: (saved) => ({
-        outcome: `saved:${saved.etag}`,
-      }),
-      onMissing: () => ({
-        outcome: "not_found",
       }),
       onExhausted: () => ({
         outcome: "exhausted",
       }),
+      onMissing: () => ({
+        outcome: "not_found",
+      }),
+      onSaved: (saved) => ({
+        outcome: `saved:${saved.etag}`,
+      }),
+      sessionId: "session_1",
+      store,
     });
 
     expect(result).toEqual({ outcome: "saved:3" });
@@ -378,11 +378,11 @@ describe("runStoredCoordinatorMutation", () => {
       save: (options) => {
         if (options.expectedEtag === "1") {
           return Promise.resolve({
-            status: "conflict",
             current: {
               etag: "2",
               state: currentState,
             },
+            status: "conflict",
           });
         }
 
@@ -400,6 +400,11 @@ describe("runStoredCoordinatorMutation", () => {
       StoredMutationResult
     >({
       attempts: 2,
+      decide: (attempt) => ({
+        attempt,
+        state: createEmptyCoordinatorState(),
+        status: "save",
+      }),
       mutate: (state) => {
         seenSlotCounts.push(state.slots.length);
 
@@ -407,11 +412,6 @@ describe("runStoredCoordinatorMutation", () => {
           state: `slots:${state.slots.length}`,
         };
       },
-      decide: (attempt) => ({
-        attempt,
-        status: "save",
-        state: createEmptyCoordinatorState(),
-      }),
       onConflict: () => ({
         outcome: "conflict",
       }),
@@ -445,8 +445,8 @@ describe("runStoredCoordinatorMutation", () => {
     const store: CoordinatorPipelineStore = {
       load: async () => snapshot,
       save: async () => ({
-        status: "conflict",
         current: snapshot,
+        status: "conflict",
       }),
     };
 
@@ -457,21 +457,13 @@ describe("runStoredCoordinatorMutation", () => {
       StoredMutationResult
     >({
       attempts: 2,
-      mutate: () => ({
-        state: "retrying",
-      }),
-      sessionId: "session_1",
-      store,
       decide: (attempt) => ({
         attempt,
-        status: "save",
         state: createEmptyCoordinatorState(),
+        status: "save",
       }),
-      onMissing: () => ({
-        outcome: "not_found",
-      }),
-      onSaved: () => ({
-        outcome: "saved",
+      mutate: () => ({
+        state: "retrying",
       }),
       onConflict: () => ({
         outcome: "conflict",
@@ -484,6 +476,14 @@ describe("runStoredCoordinatorMutation", () => {
           outcome: "exhausted",
         };
       },
+      onMissing: () => ({
+        outcome: "not_found",
+      }),
+      onSaved: () => ({
+        outcome: "saved",
+      }),
+      sessionId: "session_1",
+      store,
     });
 
     expect(result).toEqual({ outcome: "exhausted" });
@@ -508,21 +508,13 @@ describe("runStoredCoordinatorMutation", () => {
       StoredMutationResult
     >({
       attempts: 2,
-      mutate: () => ({
-        state: "retrying",
-      }),
-      sessionId: "session_1",
-      store,
       decide: (attempt) => ({
         attempt,
-        status: "save",
         state: createEmptyCoordinatorState(),
+        status: "save",
       }),
-      onMissing: () => ({
-        outcome: "not_found",
-      }),
-      onSaved: () => ({
-        outcome: "saved",
+      mutate: () => ({
+        state: "retrying",
       }),
       onConflict: () => {
         conflictCalls += 1;
@@ -534,6 +526,14 @@ describe("runStoredCoordinatorMutation", () => {
       onExhausted: () => ({
         outcome: "exhausted",
       }),
+      onMissing: () => ({
+        outcome: "not_found",
+      }),
+      onSaved: () => ({
+        outcome: "saved",
+      }),
+      sessionId: "session_1",
+      store,
     });
 
     expect(result).toEqual({ outcome: "conflict" });
@@ -556,26 +556,21 @@ describe("runStoredCoordinatorMutation", () => {
       StoredMutationResult
     >({
       attempts: 3,
-      mutate: () => ({
-        state: "terminal",
-      }),
-      sessionId: "session_1",
-      store,
       decide: (attempt) => {
         terminalMapCalls += 1;
 
         return {
-          status: "terminal",
           result: {
             outcome: `terminal:${attempt.state}`,
           },
+          status: "terminal",
         };
       },
-      onMissing: () => ({
-        outcome: "not_found",
-      }),
       mapSaved: () => ({
         outcome: "unexpected-saved",
+      }),
+      mutate: () => ({
+        state: "terminal",
       }),
       onConflict: () => ({
         outcome: "conflict",
@@ -583,6 +578,11 @@ describe("runStoredCoordinatorMutation", () => {
       onExhausted: () => ({
         outcome: "exhausted",
       }),
+      onMissing: () => ({
+        outcome: "not_found",
+      }),
+      sessionId: "session_1",
+      store,
     });
 
     expect(result).toEqual({ outcome: "terminal:terminal" });
@@ -605,15 +605,10 @@ describe("runStoredCoordinatorMutation", () => {
       StoredMutationResult
     >({
       attempts: 2,
-      mutate: () => ({
-        state: createCoordinatorStateWithIssuedSegment(),
-      }),
-      sessionId: "session_1",
-      store,
       decide: (attempt) => ({
         attempt,
-        status: "save",
         state: attempt.state,
+        status: "save",
       }),
       mapSaved: (savedAttempt) => {
         savedMapCalls += 1;
@@ -622,8 +617,8 @@ describe("runStoredCoordinatorMutation", () => {
           outcome: `saved:${savedAttempt.etag}`,
         };
       },
-      onMissing: () => ({
-        outcome: "not_found",
+      mutate: () => ({
+        state: createCoordinatorStateWithIssuedSegment(),
       }),
       onConflict: () => ({
         outcome: "conflict",
@@ -631,6 +626,11 @@ describe("runStoredCoordinatorMutation", () => {
       onExhausted: () => ({
         outcome: "exhausted",
       }),
+      onMissing: () => ({
+        outcome: "not_found",
+      }),
+      sessionId: "session_1",
+      store,
     });
 
     expect(result).toEqual({ outcome: "saved:2" });
@@ -651,8 +651,8 @@ describe("runStoredCoordinatorMutation", () => {
     const exhaustionStore: CoordinatorPipelineStore = {
       load: async () => snapshot,
       save: async () => ({
-        status: "conflict",
         current: snapshot,
+        status: "conflict",
       }),
     };
 
@@ -686,24 +686,24 @@ describe("runStoredCoordinatorMutation", () => {
         Attempt,
         StoredMutationResult
       >({
-        maxAttempts: 2,
-        mutate: () => ({
-          state: "retrying",
-        }),
-        sessionId: "session_1",
-        store: conflictStore,
         decide: (attempt) => ({
           attempt,
-          status: "save",
           state: createEmptyCoordinatorState(),
+          status: "save",
         }),
         mapSaved: () => ({
           outcome: "unexpected-saved",
         }),
+        maxAttempts: 2,
+        mutate: () => ({
+          state: "retrying",
+        }),
+        onConflictOrExhausted: sharedHandler,
         onMissing: () => ({
           outcome: "not_found",
         }),
-        onConflictOrExhausted: sharedHandler,
+        sessionId: "session_1",
+        store: conflictStore,
       });
 
     const exhaustedResult =
@@ -712,24 +712,24 @@ describe("runStoredCoordinatorMutation", () => {
         Attempt,
         StoredMutationResult
       >({
-        maxAttempts: 2,
-        mutate: () => ({
-          state: "retrying",
-        }),
-        sessionId: "session_1",
-        store: exhaustionStore,
         decide: (attempt) => ({
           attempt,
-          status: "save",
           state: createEmptyCoordinatorState(),
+          status: "save",
         }),
         mapSaved: () => ({
           outcome: "unexpected-saved",
         }),
+        maxAttempts: 2,
+        mutate: () => ({
+          state: "retrying",
+        }),
+        onConflictOrExhausted: sharedHandler,
         onMissing: () => ({
           outcome: "not_found",
         }),
-        onConflictOrExhausted: sharedHandler,
+        sessionId: "session_1",
+        store: exhaustionStore,
       });
 
     expect(conflictResult).toEqual({ outcome: "conflict" });

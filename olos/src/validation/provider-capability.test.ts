@@ -10,8 +10,8 @@ const capability: ProviderCapabilityDocument = {
     family: "s3-compatible",
   },
   consistency: {
-    observeAfterCreate: "strong",
     listAfterCreate: "strong",
+    observeAfterCreate: "strong",
     readAfterCreate: "strong",
   },
   delivery: {
@@ -315,14 +315,14 @@ describe("provider capability validation", () => {
           ...capability.consistency,
           observeAfterCreate: "eventual",
         },
+        delivery: {
+          ...capability.delivery,
+          negativeCachingPolicyDeclared: false,
+        },
         publication: {
           ...capability.publication,
           directObjectPublication: false,
           readGateAvailable: true,
-        },
-        delivery: {
-          ...capability.delivery,
-          negativeCachingPolicyDeclared: false,
         },
       })
     ).not.toThrow();

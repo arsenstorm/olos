@@ -18,18 +18,18 @@ import {
 const slot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl: "/objects/tenant/session/v1080/3810.m4s",
-  profile: { duration: 2 },
   epoch: 0,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  sequenceNumber: 3810,
   minBytes: 1,
   objectKey: "tenant/session/v1080/3810.m4s",
-  trackId: "v1080",
+  profile: { duration: 2 },
+  sequenceNumber: 3810,
   sessionId: "session_1",
   slotId: "slot_1",
   state: "upload_observed",
+  trackId: "v1080",
 };
 
 const mediaObject: StorageObject = {
@@ -53,6 +53,8 @@ const session: Session = {
   epoch: 0,
   olos: "1.0",
   profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
+  sessionId: "session_1",
+  state: "live",
   tracks: [
     {
       profile: {
@@ -64,8 +66,6 @@ const session: Session = {
       trackId: "v1080",
     },
   ],
-  sessionId: "session_1",
-  state: "live",
 };
 
 const cursor: Cursor = {
@@ -81,36 +81,36 @@ const cursor: Cursor = {
           objectKey: "tenant/session/v1080/init.mp4",
           slotId: "slot_init",
         },
-        trackId: "v1080",
         segments: [
           {
-            sequenceNumber: 3811,
             parts: [
               {
                 commitId: "commit_3811_0",
                 deliveryUrl: "/objects/tenant/session/v1080/3811.0.m4s",
-                profile: { duration: 0.5 },
                 objectKey: "tenant/session/v1080/3811.0.m4s",
                 partNumber: 0,
+                profile: { duration: 0.5 },
                 slotId: "slot_3811_0",
               },
             ],
+            sequenceNumber: 3811,
           },
         ],
+        trackId: "v1080",
       },
     },
   },
+  deliveryBaseUrl: "https://media.example.com",
   epoch: 0,
   olos: "1.0",
-  deliveryBaseUrl: "https://media.example.com",
   profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
   sessionId: "session_1",
   state: "live",
   updatedAt: "2026-01-01T00:00:03.000Z",
   window: {
     firstSequenceNumber: 3810,
-    lastSequenceNumber: 3811,
     lastPartNumber: 0,
+    lastSequenceNumber: 3811,
   },
 };
 
@@ -120,30 +120,30 @@ describe("commit builder", () => {
       createCommit({
         commitId: "commit_1",
         committedAt: "2026-01-01T00:00:02.000Z",
+        mediaObject,
         profile: {
           independent: true,
           programDateTime: "2026-01-01T00:00:00.000Z",
         },
-        mediaObject,
         slot,
       })
     ).toEqual({
       commitId: "commit_1",
       committedAt: "2026-01-01T00:00:02.000Z",
       deliveryUrl: "/objects/tenant/session/v1080/3810.m4s",
+      epoch: 0,
+      etag: '"abc123"',
+      objectKey: "tenant/session/v1080/3810.m4s",
       profile: {
         duration: 2,
         independent: true,
         programDateTime: "2026-01-01T00:00:00.000Z",
       },
-      epoch: 0,
-      etag: '"abc123"',
       sequenceNumber: 3810,
-      objectKey: "tenant/session/v1080/3810.m4s",
-      trackId: "v1080",
       sessionId: "session_1",
       size: 98_304,
       slotId: "slot_1",
+      trackId: "v1080",
     });
   });
 
@@ -277,15 +277,15 @@ describe("upload commit resolution", () => {
         commitId: "commit_1",
         committedAt: "2026-01-01T00:00:02.000Z",
         deliveryUrl: "/objects/tenant/session/v1080/3810.m4s",
-        profile: { duration: 2 },
         epoch: 0,
         etag: '"abc123"',
-        sequenceNumber: 3810,
         objectKey: "tenant/session/v1080/3810.m4s",
-        trackId: "v1080",
+        profile: { duration: 2 },
+        sequenceNumber: 3810,
         sessionId: "session_1",
         size: 98_304,
         slotId: "slot_1",
+        trackId: "v1080",
       },
       slot: {
         ...slot,
@@ -548,11 +548,11 @@ describe("commit attempt resolution", () => {
         error: {
           code: "olos.invalid_state",
           details: {
-            trackLastSequenceNumber: 3811,
-            trackLastPartNumber: 0,
-            sequenceNumber: 3810,
             partNumber: undefined,
+            sequenceNumber: 3810,
             slotId: "slot_1",
+            trackLastPartNumber: 0,
+            trackLastSequenceNumber: 3811,
           },
           message: "object is behind the current cursor",
         },
@@ -579,8 +579,8 @@ describe("commit attempt resolution", () => {
     const currentSegmentSlot = {
       ...slot,
       deliveryUrl: "/objects/tenant/session/v1080/3811.m4s",
-      sequenceNumber: 3811,
       objectKey: "tenant/session/v1080/3811.m4s",
+      sequenceNumber: 3811,
       slotId: "slot_3811",
     };
 
@@ -604,10 +604,10 @@ describe("commit attempt resolution", () => {
     const partSlot = {
       ...slot,
       deliveryUrl: "/objects/tenant/session/v1080/3811.0.m4s",
-      profile: { duration: 0.5 },
-      sequenceNumber: 3811,
       objectKey: "tenant/session/v1080/3811.0.m4s",
       partNumber: 0,
+      profile: { duration: 0.5 },
+      sequenceNumber: 3811,
       slotId: "slot_3811_0",
     };
 
@@ -634,11 +634,11 @@ describe("observed upload commit builder", () => {
       commitObservedUpload({
         commitId: "commit_1",
         committedAt: "2026-01-01T00:00:02.000Z",
+        object: observedUpload,
         profile: {
           independent: true,
           programDateTime: "2026-01-01T00:00:00.000Z",
         },
-        object: observedUpload,
         slot: { ...slot, state: "issued" },
       })
     ).toEqual({
@@ -646,19 +646,19 @@ describe("observed upload commit builder", () => {
         commitId: "commit_1",
         committedAt: "2026-01-01T00:00:02.000Z",
         deliveryUrl: "/objects/tenant/session/v1080/3810.m4s",
+        epoch: 0,
+        etag: '"abc123"',
+        objectKey: "tenant/session/v1080/3810.m4s",
         profile: {
           duration: 2,
           independent: true,
           programDateTime: "2026-01-01T00:00:00.000Z",
         },
-        epoch: 0,
-        etag: '"abc123"',
         sequenceNumber: 3810,
-        objectKey: "tenant/session/v1080/3810.m4s",
-        trackId: "v1080",
         sessionId: "session_1",
         size: 98_304,
         slotId: "slot_1",
+        trackId: "v1080",
       },
       slot: {
         ...slot,

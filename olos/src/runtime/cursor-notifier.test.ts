@@ -95,14 +95,14 @@ describe("runtime cursor notifier", () => {
     const controller = new AbortController();
     const waiting = notifier.waitForCursor({
       cursor: cursorAt(3810, 1, 0),
-      request: { sequenceNumber: 3810, partNumber: 1 },
+      request: { partNumber: 1, sequenceNumber: 3810 },
       signal: controller.signal,
     });
 
     notifier.notify(cursorAt(3810, 1, 1));
 
     await expect(waiting).resolves.toMatchObject({
-      window: { lastSequenceNumber: 3810, lastPartNumber: 1 },
+      window: { lastPartNumber: 1, lastSequenceNumber: 3810 },
     });
   });
 
@@ -221,10 +221,8 @@ function withAudioTrack(base: Cursor): Cursor {
             objectKey: "media/a128/init.mp4",
             slotId: "slot_init_a128",
           },
-          trackId: "a128",
           segments: [
             {
-              sequenceNumber,
               segment: {
                 commitId: `commit_a128_${sequenceNumber}`,
                 deliveryUrl: `https://media.example.com/a128/${sequenceNumber}.m4s`,
@@ -232,8 +230,10 @@ function withAudioTrack(base: Cursor): Cursor {
                 profile: { duration: 2 },
                 slotId: `slot_a128_${sequenceNumber}`,
               },
+              sequenceNumber,
             },
           ],
+          trackId: "a128",
         },
       },
     },
@@ -259,11 +259,9 @@ function cursorAt(
             objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
-          trackId: "v1080",
           segments: [
             lastPartNumber === undefined
               ? {
-                  sequenceNumber,
                   segment: {
                     commitId: `commit_${sequenceNumber}`,
                     deliveryUrl: `https://media.example.com/${sequenceNumber}.m4s`,
@@ -271,9 +269,9 @@ function cursorAt(
                     profile: { duration: 2 },
                     slotId: `slot_${sequenceNumber}`,
                   },
+                  sequenceNumber,
                 }
               : {
-                  sequenceNumber,
                   // The window must show every claimed part (§3.8).
                   parts: Array.from(
                     { length: lastPartNumber + 1 },
@@ -289,14 +287,16 @@ function cursorAt(
                       slotId: `slot_${sequenceNumber}_${partNumber}`,
                     })
                   ),
+                  sequenceNumber,
                 },
           ],
+          trackId: "v1080",
         },
       },
     },
+    deliveryBaseUrl: "https://media.example.com",
     epoch,
     olos: "1.0",
-    deliveryBaseUrl: "https://media.example.com",
     profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
     sessionId: "session_1",
     state: "live",

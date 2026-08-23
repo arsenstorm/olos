@@ -816,7 +816,7 @@ schema; the profile schemas in A.2 constrain its contents.
     "consistency": {
       "additionalProperties": false,
       "properties": {
-        "observeAfterCreate": {
+        "listAfterCreate": {
           "enum": [
             "strong",
             "eventual",
@@ -824,7 +824,7 @@ schema; the profile schemas in A.2 constrain its contents.
           ],
           "type": "string"
         },
-        "listAfterCreate": {
+        "observeAfterCreate": {
           "enum": [
             "strong",
             "eventual",

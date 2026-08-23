@@ -41,6 +41,8 @@ const session = {
     partTarget: latency.partTarget,
     segmentTarget: latency.segmentTarget,
   },
+  sessionId: "session_1",
+  state: "live",
   tracks: [
     {
       profile: {
@@ -54,8 +56,6 @@ const session = {
       trackId: "v1080",
     },
   ],
-  sessionId: "session_1",
-  state: "live",
 } satisfies MediaSession;
 
 const deliveryBaseUrl = "https://media.example.com";
@@ -110,8 +110,8 @@ describe("runtime pipeline", () => {
       now: publishNow,
       objectKeyNonce: initNonce,
       objectKeyPrefix: "media",
-      trackId: "v1080",
       targetLatency: publisherOptions.expiry.targetLatency,
+      trackId: "v1080",
     });
     const next = createRuntimePublisherNextObjectPlan({
       defaults,
@@ -120,9 +120,9 @@ describe("runtime pipeline", () => {
       now: publishNow,
       objectKeyNonce: segmentNonce,
       objectKeyPrefix: "media",
-      trackId: "v1080",
       startSequenceNumber: 3810,
       targetLatency: publisherOptions.expiry.targetLatency,
+      trackId: "v1080",
     });
 
     await createStoredCoordinatorSession({
@@ -235,10 +235,10 @@ async function expectStoredCoordinatorLifecycle(
     extension: "mp4",
     kind: "init",
     maxBytes: 2048,
-    sequenceNumber: 0,
     objectKeyNonce: "slot_init",
     objectKeyPrefix: "media",
     profile: { duration: 1 },
+    sequenceNumber: 0,
     trackId: "v1080",
   });
   const segmentPlan = createRuntimePublisherObjectPlan({
@@ -247,10 +247,10 @@ async function expectStoredCoordinatorLifecycle(
     extension: "m4s",
     kind: "segment",
     maxBytes: 100_000,
-    sequenceNumber: 3810,
     objectKeyNonce: "slot_s3810",
     objectKeyPrefix: "media",
     profile: { duration: 2 },
+    sequenceNumber: 3810,
     trackId: "v1080",
   });
   const nextPlan = createRuntimePublisherObjectPlan({
@@ -259,10 +259,10 @@ async function expectStoredCoordinatorLifecycle(
     extension: "m4s",
     kind: "segment",
     maxBytes: 100_000,
-    sequenceNumber: 3811,
     objectKeyNonce: "slot_s3811",
     objectKeyPrefix: "media",
     profile: { duration: 2 },
+    sequenceNumber: 3811,
     trackId: "v1080",
   });
 

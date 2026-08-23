@@ -38,17 +38,17 @@ function makePart(
     },
     commitId: `commit_${index}`,
     deliveryUrl: `https://media.example.com/live/session/v1080/part-${index}.m4s`,
-    profile: { duration: 0.5, independent: true },
     objectKey: `live/session/v1080/part-${index}.m4s`,
     partNumber: index,
+    profile: { duration: 0.5, independent: true },
     slotId: `slot_${index}`,
   };
 }
 
 function makeCursor(parts: readonly CommittedPart[]): Cursor {
   const segment: CommittedSegment = {
-    sequenceNumber: 0,
     parts: [...parts],
+    sequenceNumber: 0,
   };
   return {
     committedWindow: {
@@ -63,8 +63,8 @@ function makeCursor(parts: readonly CommittedPart[]): Cursor {
             objectKey: "media/v1080/init.mp4",
             slotId: "slot_init",
           },
-          trackId: "v1080",
           segments: [segment],
+          trackId: "v1080",
         },
       },
     },
@@ -77,8 +77,8 @@ function makeCursor(parts: readonly CommittedPart[]): Cursor {
     updatedAt: "2026-06-26T00:00:00.000Z",
     window: {
       firstSequenceNumber: 0,
-      lastSequenceNumber: 0,
       lastPartNumber: parts.at(-1)?.partNumber,
+      lastSequenceNumber: 0,
     },
   };
 }
@@ -189,12 +189,12 @@ function createStallingS3(chunk: Uint8Array): {
   const body = {
     transformToWebStream(): ReadableStream<Uint8Array> {
       return new ReadableStream({
+        cancel() {
+          resolveCancelled();
+        },
         start(controller) {
           controller.enqueue(chunk);
           // No close: the next read stalls until the stream is cancelled.
-        },
-        cancel() {
-          resolveCancelled();
         },
       });
     },
@@ -215,14 +215,16 @@ async function seedStore(
     state: {
       commits: [],
       cursor: makeCursor(parts),
-      initCommits: [],
       deliveryBaseUrl: "https://media.example.com",
+      initCommits: [],
       publisherLeases: [],
       session: {
         createdAt: "2026-06-26T00:00:00.000Z",
         epoch: 1,
         olos: "1.0",
         profile: { id: "cmaf-llhls", partTarget: 0.5, segmentTarget: 2 },
+        sessionId: SESSION_ID,
+        state: "live",
         tracks: [
           {
             profile: {
@@ -236,8 +238,6 @@ async function seedStore(
             trackId: "v1080",
           },
         ],
-        sessionId: SESSION_ID,
-        state: "live",
       },
       slots: [],
     },

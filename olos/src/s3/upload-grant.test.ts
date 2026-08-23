@@ -11,17 +11,17 @@ import {
 const slot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-  profile: { duration: 2 },
   epoch: 0,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  sequenceNumber: 3810,
   objectKey: "objects/v1080/s3810",
-  trackId: "v1080",
+  profile: { duration: 2 },
+  sequenceNumber: 3810,
   sessionId: "session_1",
   slotId: "slot_1",
   state: "issued",
+  trackId: "v1080",
 };
 
 const signedOlosMetadataHeaders =
@@ -31,9 +31,9 @@ const requiredOlosS3Headers = {
   "x-amz-meta-olos-epoch": "0",
   "x-amz-meta-olos-kind": "segment",
   "x-amz-meta-olos-sequence-number": "3810",
-  "x-amz-meta-olos-track-id": "v1080",
   "x-amz-meta-olos-session-id": "session_1",
   "x-amz-meta-olos-slot-id": "slot_1",
+  "x-amz-meta-olos-track-id": "v1080",
 };
 
 const S3_BUCKET = "media";
@@ -86,8 +86,8 @@ describe("s3 upload grants", () => {
       bucket: S3_BUCKET,
       client: createTestS3Client(),
       clock: () => "2026-01-01T00:00:02.000Z",
-      now: "2026-01-01T00:00:01.000Z",
       expiresInSeconds: S3_GRANT_TTL_SECONDS,
+      now: "2026-01-01T00:00:01.000Z",
       slot,
     });
 

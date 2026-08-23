@@ -25,7 +25,6 @@ describe("production object pipeline wiring", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredS3CoordinatorRuntimeHandler({
       allowedDeliveryOrigins: ["https://media.example.com"],
-      publicationMode: "read-gated",
       blockingReload: {
         timeoutMs: latency.blockingReloadTimeoutMs,
         waitForCursor: (context) => notifier.waitForCursor(context),
@@ -38,13 +37,14 @@ describe("production object pipeline wiring", () => {
       now: () => now,
       objectClient: createTestHeadObjectClientFor(
         {
+          "media/v1080/init.mp4": 1024,
           "media/v1080/s3810.m4s": 98_304,
           "media/v1080/s3811.m4s": 98_304,
-          "media/v1080/init.mp4": 1024,
         },
         headInputs
       ),
       providerId: "s3_primary",
+      publicationMode: "read-gated",
       response: manifestOptions.response,
       retentionClient: createTestDeleteObjectClient(deleteInputs),
       store,
@@ -169,6 +169,8 @@ const session = {
     partTarget: latency.partTarget,
     segmentTarget: latency.segmentTarget,
   },
+  sessionId: "session_1",
+  state: "live",
   tracks: [
     {
       profile: {
@@ -182,8 +184,6 @@ const session = {
       trackId: "v1080",
     },
   ],
-  sessionId: "session_1",
-  state: "live",
 } satisfies MediaSession;
 
 const deliveryBaseUrl = "https://media.example.com";
@@ -206,8 +206,8 @@ const initObject: ObjectFixture = {
   duration: 1,
   kind: "init",
   maxBytes: 2048,
-  sequenceNumber: 0,
   objectKey: "media/v1080/init.mp4",
+  sequenceNumber: 0,
   slotId: "slot_init",
 };
 
@@ -218,8 +218,8 @@ const firstSegment: ObjectFixture = {
   kind: "segment",
   maxBytes: 100_000,
   maxSegments: 1,
-  sequenceNumber: 3810,
   objectKey: "media/v1080/s3810.m4s",
+  sequenceNumber: 3810,
   slotId: "slot_3810",
 };
 
@@ -230,8 +230,8 @@ const secondSegment: ObjectFixture = {
   kind: "segment",
   maxBytes: 100_000,
   maxSegments: 1,
-  sequenceNumber: 3811,
   objectKey: "media/v1080/s3811.m4s",
+  sequenceNumber: 3811,
   slotId: "slot_3811",
 };
 
@@ -245,12 +245,12 @@ async function issueObject(
       expiresAt: "2026-01-01T00:00:05.000Z",
       extension: object.kind === "init" ? "mp4" : "m4s",
       kind: object.kind,
+      maxBytes: object.maxBytes,
       objectKeyPrefix: "media",
       profile: { duration: object.duration },
-      maxBytes: object.maxBytes,
       sequenceNumber: object.sequenceNumber,
-      trackId: "v1080",
       slotId: object.slotId,
+      trackId: "v1080",
     })
   );
 
@@ -271,8 +271,8 @@ async function publishObject(
     jsonRequest("https://edge.example.com/sessions/session_1/s3/commits", {
       commitId: object.commitId,
       committedAt: "2026-01-01T00:00:02.000Z",
-      profile: { independent: object.kind === "segment" },
       maxSegments: object.maxSegments,
+      profile: { independent: object.kind === "segment" },
       slotId: object.slotId,
     })
   );

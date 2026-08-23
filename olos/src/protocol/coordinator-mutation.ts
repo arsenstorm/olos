@@ -32,17 +32,17 @@ export async function mutateCoordinatorPipeline(
     CoordinatorPipelineMutation
   >({
     attempts,
-    mutate: async (state) => ({ state: await options.mutate(state) }),
-    sessionId: options.sessionId,
-    store: options.store,
-    decide: (attempt) => ({ attempt, status: "save", state: attempt.state }),
-    onMissing: () => missingCoordinatorPipelineMutation(),
+    decide: (attempt) => ({ attempt, state: attempt.state, status: "save" }),
     mapSaved: (saved) => saved,
+    mutate: async (state) => ({ state: await options.mutate(state) }),
     onConflict: (current) =>
       current === undefined
         ? { status: "conflict" }
         : conflictingCoordinatorPipelineMutation(current),
     onExhausted: (snapshot) => conflictingCoordinatorPipelineMutation(snapshot),
+    onMissing: () => missingCoordinatorPipelineMutation(),
+    sessionId: options.sessionId,
+    store: options.store,
   });
 }
 

@@ -35,13 +35,13 @@ const slot: UploadSlot = {
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  sequenceNumber: 3810,
   objectKey: "media/v1080/s3810.m4s",
   profile: { duration: 2 },
-  trackId: "v1080",
+  sequenceNumber: 3810,
   sessionId: "session_1",
   slotId: "slot_3810",
   state: "upload_observed",
+  trackId: "v1080",
 };
 
 const mediaObject: StorageObject = createObservedUpload({
@@ -97,9 +97,9 @@ describe("protocol flow", () => {
         deliveryUrl: "/media/v1080/init.mp4",
         kind: "init",
         maxBytes: 2048,
-        sequenceNumber: 0,
         objectKey: "media/v1080/init.mp4",
         profile: { duration: 1 },
+        sequenceNumber: 0,
         slotId: "slot_init",
       },
     });
@@ -160,9 +160,9 @@ describe("protocol flow", () => {
       deliveryUrl: "https://media.example.com/media/v1080/init.mp4",
       kind: "init" as const,
       maxBytes: 2048,
-      sequenceNumber: 0,
       objectKey: "media/v1080/init.mp4",
       profile: { duration: 1 },
+      sequenceNumber: 0,
       slotId: "slot_init",
     };
 
@@ -180,8 +180,8 @@ describe("protocol flow", () => {
     const { commit: mediaCommit } = commitObservedUpload({
       commitId: "commit_3810",
       committedAt: "2026-01-01T00:00:02.000Z",
-      profile: { independent: true },
       object: mediaObject,
+      profile: { independent: true },
       slot: { ...directPublicSlot, state: "issued" },
     });
 

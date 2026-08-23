@@ -135,9 +135,9 @@ function observedUploadFromS3HeadObjectOptions(
 ): CreateObservedUploadFromS3HeadObjectOptions {
   return {
     clock: options.clock,
+    now: options.now,
     objectKey: options.objectKey,
     observedAt: options.observedAt,
-    now: options.now,
     output,
     providerId: options.providerId,
   };

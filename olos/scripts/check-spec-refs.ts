@@ -211,7 +211,5 @@ async function checkGeneratedAppendix(
 async function readOptionalFile(path: string): Promise<string | undefined> {
   try {
     return await readFile(path, "utf8");
-  } catch {
-    return;
-  }
+  } catch {}
 }

@@ -104,6 +104,14 @@ export function createByterangeStream(
   const demand = createDemandSignal(abort.signal);
 
   return new ReadableStream<Uint8Array>({
+    cancel() {
+      // Consumer cancelled the body. Abort so in-flight S3 part reads and
+      // cursor waits release instead of holding their sockets open.
+      abort.abort();
+    },
+    pull() {
+      demand.wake();
+    },
     start(controller) {
       // Not awaited: the drain runs for the life of the stream and parks on
       // `demand` while the queue is full; `pull` is its wake-up call.
@@ -119,14 +127,6 @@ export function createByterangeStream(
         state,
         abort
       );
-    },
-    pull() {
-      demand.wake();
-    },
-    cancel() {
-      // Consumer cancelled the body. Abort so in-flight S3 part reads and
-      // cursor waits release instead of holding their sockets open.
-      abort.abort();
     },
   });
 }

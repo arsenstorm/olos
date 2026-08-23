@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
     <title>OLOS Player</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
     <style>
@@ -196,23 +196,23 @@
       </div>
     </div>
     <div class="player" id="player" tabindex="-1">
-      <video id="video" autoplay muted playsinline></video>
+      <video autoplay id="video" muted playsinline></video>
       <div class="controls" id="controls">
-        <button id="play-pause" type="button" aria-label="Play / pause">
+        <button aria-label="Play / pause" id="play-pause" type="button">
           ⏸
         </button>
-        <button id="mute" type="button" aria-label="Mute / unmute">🔇</button>
+        <button aria-label="Mute / unmute" id="mute" type="button">🔇</button>
         <span
-          class="live-pill"
-          id="live-pill"
-          data-live="false"
           aria-label="Live"
+          class="live-pill"
+          data-live="false"
+          id="live-pill"
         >
           <span class="dot"></span>
           <span class="label">LIVE</span>
         </span>
         <span class="spacer"></span>
-        <button id="fullscreen" type="button" aria-label="Fullscreen">⛶</button>
+        <button aria-label="Fullscreen" id="fullscreen" type="button">⛶</button>
       </div>
     </div>
     <div class="stats">
@@ -358,18 +358,18 @@
           }
         }
         hls = new window.Hls({
-          loader: RewritingLoader,
-          lowLatencyMode: true,
+          backBufferLength: 30,
+          liveMaxLatencyDuration: 5,
           // Match the server's PART-HOLD-BACK (1.5 s = 3 × 0.5 s partTarget).
           // hls.js will not chase tighter than what the server advertises, so
           // setting this any lower has no effect — the gain has to come from
           // the manifest's #EXT-X-SERVER-CONTROL line.
           liveSyncDuration: 1.5,
-          liveMaxLatencyDuration: 5,
-          maxLiveSyncPlaybackRate: 1.5,
-          maxBufferLength: 6,
-          backBufferLength: 30,
+          loader: RewritingLoader,
+          lowLatencyMode: true,
           maxBufferHole: 0.5,
+          maxBufferLength: 6,
+          maxLiveSyncPlaybackRate: 1.5,
           nudgeMaxRetry: 10,
         });
         hls.on(window.Hls.Events.ERROR, (_, data) => {

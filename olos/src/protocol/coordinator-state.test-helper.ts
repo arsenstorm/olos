@@ -48,8 +48,8 @@ export function createCoordinatorStateWithIssuedSegment(): CoordinatorPipelineSt
     commitId: "commit_init",
     contentType: "video/mp4",
     kind: "init",
-    profile: { duration: 1 },
     maxBytes: 2048,
+    profile: { duration: 1 },
     sequenceNumber: 0,
     size: 1024,
     slotId: "slot_init",
@@ -148,8 +148,8 @@ function issueTestCoordinatorSlot(
     maxBytes: slot.maxBytes,
     profile: slot.profile,
     sequenceNumber: slot.sequenceNumber,
-    trackId: "v1080",
     slotId: slot.slotId,
     state,
+    trackId: "v1080",
   });
 }

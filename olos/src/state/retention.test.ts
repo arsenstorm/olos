@@ -10,45 +10,45 @@ import {
 const slot: UploadSlot = {
   contentType: "video/mp4",
   deliveryUrl: "https://media.example.com/media/3810.m4s",
-  profile: { duration: 2 },
   epoch: 1,
   expiresAt: "2026-01-01T00:00:05.000Z",
   kind: "segment",
   maxBytes: 100_000,
-  sequenceNumber: 3810,
   objectKey: "media/3810.m4s",
-  trackId: "v1080",
+  profile: { duration: 2 },
+  sequenceNumber: 3810,
   sessionId: "session_1",
   slotId: "slot_3810",
   state: "issued",
+  trackId: "v1080",
 };
 
 const initCommit: Commit = {
   commitId: "commit_init",
   committedAt: "2026-01-01T00:00:00.000Z",
   deliveryUrl: "/media/v1080/init.mp4",
-  profile: { duration: 1 },
   epoch: 1,
-  sequenceNumber: 0,
   objectKey: "media/v1080/init.mp4",
-  trackId: "v1080",
+  profile: { duration: 1 },
+  sequenceNumber: 0,
   sessionId: "session_1",
   size: 1024,
   slotId: "slot_init",
+  trackId: "v1080",
 };
 
 const segmentCommit: Commit = {
   commitId: "commit_3810",
   committedAt: "2026-01-01T00:00:02.000Z",
   deliveryUrl: "/media/3810.m4s",
-  profile: { duration: 2 },
   epoch: 1,
-  sequenceNumber: 3810,
   objectKey: "media/3810.m4s",
-  trackId: "v1080",
+  profile: { duration: 2 },
+  sequenceNumber: 3810,
   sessionId: "session_1",
   size: 98_304,
   slotId: "slot_3810",
+  trackId: "v1080",
 };
 
 describe("retention planning", () => {
@@ -117,15 +117,15 @@ describe("retention planning", () => {
       {
         ...segmentCommit,
         commitId: "commit_3811",
-        sequenceNumber: 3811,
         objectKey: "media/3811.m4s",
+        sequenceNumber: 3811,
         slotId: "slot_3811",
       },
       {
         ...segmentCommit,
         commitId: "commit_3812",
-        sequenceNumber: 3812,
         objectKey: "media/3812.m4s",
+        sequenceNumber: 3812,
         slotId: "slot_3812",
       },
     ];
@@ -157,31 +157,31 @@ describe("retention planning", () => {
       commitId: "commit_init_a128",
       deliveryUrl: "/media/a128/init.mp4",
       objectKey: "media/a128/init.mp4",
-      trackId: "a128",
       slotId: "slot_init_a128",
+      trackId: "a128",
     };
     const audioSegmentCommit: Commit = {
       ...segmentCommit,
       commitId: "commit_a128_3810",
       deliveryUrl: "/media/a128/3810.m4s",
       objectKey: "media/a128/3810.m4s",
-      trackId: "a128",
       slotId: "slot_a128_3810",
+      trackId: "a128",
     };
     const commits = [
       segmentCommit,
       {
         ...segmentCommit,
         commitId: "commit_3811",
-        sequenceNumber: 3811,
         objectKey: "media/3811.m4s",
+        sequenceNumber: 3811,
         slotId: "slot_3811",
       },
       {
         ...segmentCommit,
         commitId: "commit_3812",
-        sequenceNumber: 3812,
         objectKey: "media/3812.m4s",
+        sequenceNumber: 3812,
         slotId: "slot_3812",
       },
       audioSegmentCommit,
@@ -217,8 +217,8 @@ describe("retention planning", () => {
       commitId: "commit_init_a128",
       deliveryUrl: "/media/a128/init.mp4",
       objectKey: "media/a128/init.mp4",
-      trackId: "a128",
       slotId: "slot_init_a128",
+      trackId: "a128",
     };
     // Audio's only commit is an out-of-order part below the window-global
     // first media sequence, so audio is absent from the window; the commit
@@ -227,12 +227,12 @@ describe("retention planning", () => {
       ...segmentCommit,
       commitId: "commit_a128_3809_1",
       deliveryUrl: "/media/a128/3809.1.m4s",
-      profile: { duration: 0.5 },
-      sequenceNumber: 3809,
       objectKey: "media/a128/3809.1.m4s",
       partNumber: 1,
-      trackId: "a128",
+      profile: { duration: 0.5 },
+      sequenceNumber: 3809,
       slotId: "slot_a128_3809_1",
+      trackId: "a128",
     };
     const retainedWindow = createCommittedWindow({
       commits: [segmentCommit, audioPartCommit],
@@ -271,9 +271,9 @@ describe("retention planning", () => {
     const partCommit = {
       ...segmentCommit,
       commitId: "commit_3810_0",
-      profile: { duration: 0.5 },
       objectKey: "media/3810.0.m4s",
       partNumber: 0,
+      profile: { duration: 0.5 },
       slotId: "slot_3810_0",
     };
     const retainedWindow = createCommittedWindow({

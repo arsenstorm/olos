@@ -96,8 +96,8 @@ describe("stored coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       now: () => "2026-01-01T00:00:06.000Z",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -119,8 +119,8 @@ describe("stored coordinator runtime handler", () => {
           duration: 1,
           kind: "init",
           maxBytes: 2048,
-          sequenceNumber: 0,
           objectKey: "objects/v1080/init.mp4",
+          sequenceNumber: 0,
           slotId: "slot_init",
         })
       )
@@ -133,8 +133,8 @@ describe("stored coordinator runtime handler", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -147,8 +147,8 @@ describe("stored coordinator runtime handler", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3811,
           objectKey: "objects/v1080/s3811.m4s",
+          sequenceNumber: 3811,
           slotId: "slot_3811",
         })
       )
@@ -245,8 +245,8 @@ describe("stored coordinator runtime handler", () => {
           duration: 1,
           kind: "init",
           maxBytes: 2048,
-          sequenceNumber: 0,
           objectKey: "objects/v1080/init.mp4",
+          sequenceNumber: 0,
           slotId: "slot_init",
         })
       )
@@ -269,8 +269,8 @@ describe("stored coordinator runtime handler", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -473,8 +473,8 @@ describe("stored coordinator runtime handler", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         }),
         padding: "x".repeat(256),
@@ -525,8 +525,8 @@ describe("stored coordinator runtime handler", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         }),
         padding: "x".repeat(256),
@@ -710,8 +710,8 @@ describe("stored coordinator runtime handler", () => {
     });
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       publicationControl: createPublicationKillSwitch("incident"),
+      publicationMode: "read-gated",
       store,
     });
 
@@ -730,8 +730,8 @@ describe("stored coordinator runtime handler", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3810,
           objectKey: "objects/v1080/s3810.m4s",
+          sequenceNumber: 3810,
           slotId: "slot_3810",
         })
       )
@@ -758,8 +758,8 @@ describe("stored coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       now: () => "2026-01-01T00:00:02.000Z",
+      publicationMode: "read-gated",
       publisherLeaseTtlMs: 3000,
       store,
     });
@@ -808,8 +808,8 @@ describe("stored coordinator runtime handler", () => {
 
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       now: () => "2026-01-01T00:00:06.500Z",
+      publicationMode: "read-gated",
       store,
     });
 
@@ -831,8 +831,8 @@ describe("stored coordinator runtime handler", () => {
     const store = createMemoryCoordinatorStore();
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       now: () => "2026-01-01T00:00:02.000Z",
+      publicationMode: "read-gated",
       publisherLeaseTtlMs: 3000,
       store,
     });
@@ -975,7 +975,6 @@ describe("stored coordinator runtime handler", () => {
 
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       blockingReload: {
         timeoutMs: 100,
         waitForCursor: () => {
@@ -983,6 +982,7 @@ describe("stored coordinator runtime handler", () => {
           return Promise.resolve(advancedCursor);
         },
       },
+      publicationMode: "read-gated",
       store,
     });
 
@@ -1005,7 +1005,6 @@ describe("stored coordinator runtime handler", () => {
     let waits = 0;
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       blockingReload: {
         timeoutMs: 1000,
         waitForCursor: (context) => {
@@ -1014,6 +1013,7 @@ describe("stored coordinator runtime handler", () => {
         },
       },
       cursorNotifier: notifier,
+      publicationMode: "read-gated",
       store,
     });
 
@@ -1026,8 +1026,8 @@ describe("stored coordinator runtime handler", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3811,
           objectKey: "objects/v1080/s3811.m4s",
+          sequenceNumber: 3811,
           slotId: "slot_3811",
         })
       )
@@ -1067,7 +1067,6 @@ describe("stored coordinator runtime handler", () => {
     let waits = 0;
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       blockingReload: {
         // Far beyond the test timeout: a waiter that misses the session-end
         // notification hangs the test instead of passing via the deadline.
@@ -1078,6 +1077,7 @@ describe("stored coordinator runtime handler", () => {
         },
       },
       cursorNotifier: notifier,
+      publicationMode: "read-gated",
       store,
     });
 
@@ -1121,8 +1121,8 @@ describe("stored coordinator runtime handler", () => {
     const notifier = createMemoryRuntimeCursorNotifier();
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       cursorNotifier: notifier,
+      publicationMode: "read-gated",
       store,
     });
     const seededCursor = await seedRuntimeStore(store, 3810);
@@ -1135,8 +1135,8 @@ describe("stored coordinator runtime handler", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3811,
           objectKey: "objects/v1080/s3811.m4s",
+          sequenceNumber: 3811,
           slotId: "slot_3811",
         })
       )
@@ -1186,7 +1186,6 @@ describe("stored coordinator runtime handler", () => {
 
     const handle = createStoredCoordinatorRuntimeHandler({
       allowedDeliveryOrigins: [MEDIA_ORIGIN],
-      publicationMode: "read-gated",
       commitPolicy: () => ({
         error: {
           error: {
@@ -1201,6 +1200,7 @@ describe("stored coordinator runtime handler", () => {
         waitForCursor: () =>
           Promise.reject(new Error("waiter should not be called")),
       },
+      publicationMode: "read-gated",
       store,
     });
 
@@ -1212,8 +1212,8 @@ describe("stored coordinator runtime handler", () => {
           duration: 2,
           kind: "segment",
           maxBytes: 100_000,
-          sequenceNumber: 3811,
           objectKey: "objects/v1080/s3811.m4s",
+          sequenceNumber: 3811,
           slotId: "slot_3811",
         })
       )
@@ -1267,14 +1267,14 @@ interface SlotPayloadOptions {
 function slotPayload(options: SlotPayloadOptions) {
   return {
     contentType: "video/mp4",
-    profile: { duration: options.duration },
     expiresAt: "2026-01-01T00:00:05.000Z",
     extension: options.kind === "init" ? "mp4" : "m4s",
     kind: options.kind,
     maxBytes: options.maxBytes,
+    profile: { duration: options.duration },
     sequenceNumber: options.sequenceNumber,
-    trackId: "v1080",
     slotId: options.slotId,
+    trackId: "v1080",
   };
 }
 
@@ -1327,8 +1327,8 @@ async function seedRuntimeStore(
       duration: 1,
       kind: "init",
       maxBytes: 2048,
-      sequenceNumber: 0,
       objectKey: "objects/v1080/init.mp4",
+      sequenceNumber: 0,
       slotId: "slot_init",
     },
     {
@@ -1336,8 +1336,8 @@ async function seedRuntimeStore(
       duration: 2,
       kind: "segment",
       maxBytes: 100_000,
-      sequenceNumber: 3810,
       objectKey: "objects/v1080/s3810.m4s",
+      sequenceNumber: 3810,
       slotId: "slot_3810",
     },
     {
@@ -1345,8 +1345,8 @@ async function seedRuntimeStore(
       duration: 2,
       kind: "segment",
       maxBytes: 100_000,
-      sequenceNumber: 3811,
       objectKey: "objects/v1080/s3811.m4s",
+      sequenceNumber: 3811,
       slotId: "slot_3811",
     },
   ];

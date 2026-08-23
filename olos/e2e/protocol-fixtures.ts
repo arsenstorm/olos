@@ -24,6 +24,8 @@ export function createTestSession(
       partTarget: latency.partTarget,
       segmentTarget: latency.segmentTarget,
     },
+    sessionId: "session_1",
+    state: options.state ?? "live",
     tracks: [
       {
         profile: {
@@ -37,7 +39,5 @@ export function createTestSession(
         trackId: "v1080",
       },
     ],
-    sessionId: "session_1",
-    state: options.state ?? "live",
   };
 }

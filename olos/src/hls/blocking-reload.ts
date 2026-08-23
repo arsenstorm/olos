@@ -174,8 +174,6 @@ function settleBlockingReload(
   if (isEndOfStreamSessionState(cursor.state)) {
     return timeoutHlsBlockingReloadResult(cursor, options.request);
   }
-
-  return;
 }
 
 /**

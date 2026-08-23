@@ -171,9 +171,9 @@ async function assertUpdateConformance(
     kind: "init",
     maxBytes: 2048,
     sequenceNumber: 0,
-    trackId: "track_1",
     slotId: "slot_init",
     state: loaded.state,
+    trackId: "track_1",
   });
   const second = await store.save({
     expectedEtag: savedEtag,

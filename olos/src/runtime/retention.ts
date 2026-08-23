@@ -286,6 +286,11 @@ export async function applyStoredCoordinatorRetention(
     CoordinatorRetentionApplication,
     StoredRuntimeRetentionApplication
   >({
+    decide: (applied, snapshot) =>
+      applied.state === snapshot.state
+        ? { result: storedRetentionUnchanged(applied), status: "terminal" }
+        : { attempt: applied, state: applied.state, status: "save" },
+    mapSaved: (saved, applied) => storedRetentionApplied(saved, applied),
     maxAttempts: options.maxAttempts,
     mutate: (state) =>
       applyCoordinatorRetention({
@@ -293,15 +298,10 @@ export async function applyStoredCoordinatorRetention(
         now: options.now,
         state,
       }),
+    onConflictOrExhausted: (current) => storedRetentionConflict(current),
+    onMissing: notFound,
     sessionId: options.sessionId,
     store: options.store,
-    decide: (applied, snapshot) =>
-      applied.state === snapshot.state
-        ? { status: "terminal", result: storedRetentionUnchanged(applied) }
-        : { attempt: applied, status: "save", state: applied.state },
-    onMissing: notFound,
-    mapSaved: (saved, applied) => storedRetentionApplied(saved, applied),
-    onConflictOrExhausted: (current) => storedRetentionConflict(current),
   });
 }
 

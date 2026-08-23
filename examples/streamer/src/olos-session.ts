@@ -43,8 +43,8 @@ export async function createSession(
 ): Promise<void> {
   await createRuntimeSession({
     baseUrl: options.baseUrl,
-    fetch: ingestFetch,
     deliveryBaseUrl: options.mediaOrigin,
+    fetch: ingestFetch,
     session: buildSession(options, sessionOptions),
   });
 }
@@ -74,12 +74,12 @@ function buildSession(
       partTarget: sessionOptions.partTarget,
       segmentTarget: sessionOptions.segmentTarget,
     },
+    sessionId: options.sessionId,
+    state: "live",
     tracks: [
       videoTrack(options, sessionOptions),
       ...audioTracks(options, sessionOptions.audioCodec),
     ],
-    sessionId: options.sessionId,
-    state: "live",
   };
 }
 

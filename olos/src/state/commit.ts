@@ -53,16 +53,16 @@ export function createCommit(options: CreateCommitOptions): Commit {
     ...(options.mediaObject.etag === undefined
       ? {}
       : { etag: options.mediaObject.etag }),
-    sequenceNumber: options.slot.sequenceNumber,
     objectKey: options.slot.objectKey,
+    sequenceNumber: options.slot.sequenceNumber,
     ...(options.slot.partNumber === undefined
       ? {}
       : { partNumber: options.slot.partNumber }),
     ...(profile === undefined ? {} : { profile }),
-    trackId: options.slot.trackId,
     sessionId: options.slot.sessionId,
     size: options.mediaObject.size,
     slotId: options.slot.slotId,
+    trackId: options.slot.trackId,
   };
 
   assertCommit(commit);
@@ -247,11 +247,11 @@ function lateObjectCommitAttempt(
       "olos.invalid_state",
       "object is behind the current cursor",
       {
-        trackLastSequenceNumber: edge?.lastSequenceNumber,
-        trackLastPartNumber: edge?.lastPartNumber,
-        sequenceNumber: options.slot.sequenceNumber,
         partNumber: options.slot.partNumber,
+        sequenceNumber: options.slot.sequenceNumber,
         slotId: options.slot.slotId,
+        trackLastPartNumber: edge?.lastPartNumber,
+        trackLastSequenceNumber: edge?.lastSequenceNumber,
       }
     ),
     status: "late_object",

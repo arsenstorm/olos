@@ -66,5 +66,5 @@ export function createTransitionRules<State extends string>(
     throw new Error(`Invalid ${noun} transition: ${from} -> ${to}`);
   };
 
-  return { allowed, can, assert };
+  return { allowed, assert, can };
 }

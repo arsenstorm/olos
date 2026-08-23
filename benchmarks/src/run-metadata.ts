@@ -42,5 +42,4 @@ export function gitCommit(): string | undefined {
   } catch {
     // not a git checkout
   }
-  return;
 }

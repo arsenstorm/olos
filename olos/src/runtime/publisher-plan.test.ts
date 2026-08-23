@@ -9,10 +9,10 @@ describe("runtime publisher object plan", () => {
       extension: "m4s",
       kind: "segment",
       maxBytes: 100_000,
-      sequenceNumber: 3810,
       objectKeyPrefix: "media/session_1",
       profile: { duration: 2 },
       publicationMode: "read-gated",
+      sequenceNumber: 3810,
       trackId: "v1080",
     });
 
@@ -25,11 +25,11 @@ describe("runtime publisher object plan", () => {
         extension: "m4s",
         kind: "segment",
         maxBytes: 100_000,
-        sequenceNumber: 3810,
         objectKeyPrefix: "media/session_1",
         profile: { duration: 2 },
-        trackId: "v1080",
+        sequenceNumber: 3810,
         slotId: "slot_v1080_s3810",
+        trackId: "v1080",
       },
     });
   });
@@ -41,12 +41,12 @@ describe("runtime publisher object plan", () => {
       extension: "m4s",
       kind: "part",
       maxBytes: 25_000,
-      sequenceNumber: 3810,
       objectKeyPrefix: "media/session_1",
       partNumber: 2,
       publicationMode: "read-gated",
-      trackId: "v1080",
+      sequenceNumber: 3810,
       slotIdPrefix: "upload",
+      trackId: "v1080",
     });
 
     expect(plan.commitId).toBe("commit_v1080_s3810_p2");
@@ -63,8 +63,8 @@ describe("runtime publisher object plan", () => {
       ...validSegmentPlan(),
       extension: "mp4",
       kind: "init",
-      sequenceNumber: 0,
       objectKeyNonce: "slot_01JZ",
+      sequenceNumber: 0,
     });
     const segment = createRuntimePublisherObjectPlan({
       ...validSegmentPlan(),
@@ -108,9 +108,9 @@ describe("runtime publisher object plan", () => {
       extension: "mp4",
       kind: "init",
       maxBytes: 2048,
-      sequenceNumber: 0,
       objectKeyPrefix: "media/session_1",
       publicationMode: "read-gated",
+      sequenceNumber: 0,
       trackId: "v1080",
     });
 
@@ -124,8 +124,8 @@ describe("runtime publisher object plan", () => {
     const plan = createRuntimePublisherObjectPlan({
       ...validSegmentPlan(),
       extension: undefined,
-      publicationMode: "read-gated",
       objectKeyNonce: undefined,
+      publicationMode: "read-gated",
     });
 
     expect(plan.objectKey).toBe("media/session_1/v1080/s3810");
@@ -217,10 +217,10 @@ function validSegmentPlan() {
     extension: "m4s",
     kind: "segment" as const,
     maxBytes: 100_000,
-    sequenceNumber: 3810,
     objectKeyNonce: "slot_01JZ",
     objectKeyPrefix: "media/session_1",
     publicationMode: "direct-public" as const,
+    sequenceNumber: 3810,
     trackId: "v1080",
   };
 }

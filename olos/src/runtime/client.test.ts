@@ -37,8 +37,8 @@ describe("runtime HTTP client", () => {
 
     const created = await createRuntimeSession({
       baseUrl: RUNTIME_BASE_URL,
-      fetch: clientFetch,
       deliveryBaseUrl,
+      fetch: clientFetch,
       session: { ...session, state: "live" },
     });
     const issued = await issueRuntimeSlot({
@@ -50,10 +50,10 @@ describe("runtime HTTP client", () => {
         extension: "mp4",
         kind: "init",
         maxBytes: 2048,
-        sequenceNumber: 0,
         objectKeyNonce: "slot_1",
-        trackId: "v1080",
+        sequenceNumber: 0,
         slotId: "slot_init",
+        trackId: "v1080",
       },
       sessionId: session.sessionId,
     });
@@ -104,8 +104,8 @@ describe("runtime HTTP client", () => {
 
     await createRuntimeSession({
       baseUrl: RUNTIME_BASE_URL,
-      fetch: clientFetch,
       deliveryBaseUrl,
+      fetch: clientFetch,
       session: { ...session, state: "live" },
     });
     const issuedInit = await issueRuntimeSlot({
@@ -117,10 +117,10 @@ describe("runtime HTTP client", () => {
         extension: "mp4",
         kind: "init",
         maxBytes: 2048,
-        sequenceNumber: 0,
         objectKeyNonce: "slot_1",
-        trackId: "v1080",
+        sequenceNumber: 0,
         slotId: "slot_init",
+        trackId: "v1080",
       },
       sessionId: session.sessionId,
     });
@@ -150,11 +150,11 @@ describe("runtime HTTP client", () => {
         extension: "m4s",
         kind: "segment",
         maxBytes: 200_000,
+        objectKeyNonce: "slot_2",
         profile: { duration: 2 },
         sequenceNumber: 0,
-        objectKeyNonce: "slot_2",
-        trackId: "v1080",
         slotId: "slot_seg",
+        trackId: "v1080",
       },
       sessionId: session.sessionId,
     });
@@ -272,8 +272,8 @@ describe("runtime HTTP client", () => {
       hlsMsn: 3810,
       hlsPart: 3,
       livePath: "/live",
-      trackId: "v1080",
       sessionId: session.sessionId,
+      trackId: "v1080",
     });
 
     expect(media.playlist).toBe("#EXTM3U\n");
@@ -291,8 +291,8 @@ describe("runtime HTTP client", () => {
 
     await createRuntimeSession({
       baseUrl: "https://host/api/",
-      fetch: clientFetch,
       deliveryBaseUrl,
+      fetch: clientFetch,
       session,
     }).catch(() => undefined);
     await issueRuntimeSlot({
@@ -304,8 +304,8 @@ describe("runtime HTTP client", () => {
         kind: "init",
         maxBytes: 2048,
         sequenceNumber: 0,
-        trackId: "v1080",
         slotId: "slot_init",
+        trackId: "v1080",
       },
       sessionId: session.sessionId,
     }).catch(() => undefined);
@@ -332,8 +332,8 @@ describe("runtime HTTP client", () => {
         kind: "init",
         maxBytes: 2048,
         sequenceNumber: 0,
-        trackId: "v1080",
         slotId: "slot_init",
+        trackId: "v1080",
       },
       sessionId: session.sessionId,
       sessionPath: "coord",
@@ -353,8 +353,8 @@ describe("runtime HTTP client", () => {
     const options = {
       baseUrl: RUNTIME_BASE_URL,
       fetch: clientFetch,
-      trackId: "v1080",
       sessionId: session.sessionId,
+      trackId: "v1080",
     };
 
     await expect(
@@ -416,8 +416,8 @@ describe("runtime HTTP client", () => {
     await expect(
       createRuntimeSession({
         baseUrl: RUNTIME_BASE_URL,
-        fetch: clientFetch,
         deliveryBaseUrl,
+        fetch: clientFetch,
         session,
       })
     ).rejects.toThrow("session create failed with status 404");
@@ -441,8 +441,8 @@ describe("runtime HTTP client", () => {
           kind: "init",
           maxBytes: 2048,
           sequenceNumber: 0,
-          trackId: "v1080",
           slotId: "slot_init",
+          trackId: "v1080",
         },
         sessionId: session.sessionId,
       })
@@ -496,8 +496,8 @@ describe("runtime HTTP client", () => {
       getRuntimeMediaPlaylist({
         baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,
-        trackId: "v1080",
         sessionId: session.sessionId,
+        trackId: "v1080",
       })
     ).rejects.toThrow("media playlist failed with status 404");
   });
@@ -547,8 +547,8 @@ describe("runtime HTTP client", () => {
           kind: "init",
           maxBytes: 2048,
           sequenceNumber: 0,
-          trackId: "v1080",
           slotId: "slot_init",
+          trackId: "v1080",
         },
         sessionId: session.sessionId,
       })

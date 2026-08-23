@@ -46,8 +46,8 @@ async function main(): Promise<void> {
     baseUrl: BASE_URL,
     ingestKey: INGEST_KEY,
     mediaOrigin: MEDIA_ORIGIN,
-    trackId: TRACK_ID,
     sessionId: SESSION_ID,
+    trackId: TRACK_ID,
   });
 
   const outDir = await mkdtemp(join(tmpdir(), "olos-streamer-"));
@@ -73,7 +73,7 @@ async function main(): Promise<void> {
   try {
     await olos.endSession();
   } finally {
-    await rm(outDir, { recursive: true, force: true });
+    await rm(outDir, { force: true, recursive: true });
   }
 }
 
@@ -314,8 +314,8 @@ function partGrant(
     duration: PART_SECONDS,
     // OBS keyframe interval = 0.5s → every micro-segment is keyframe-aligned.
     independent: true,
-    sequenceNumber: batch.sequenceNumber,
     partNumber,
+    sequenceNumber: batch.sequenceNumber,
   };
 }
 

@@ -89,8 +89,6 @@ function resolveMediaSequenceReloadStatus(
   if (request.sequenceNumber < bounds.lastSequenceNumber) {
     return "ready";
   }
-
-  return;
 }
 
 export function timeoutHlsBlockingReloadResult(

@@ -58,8 +58,8 @@ function segmentObjectKey(msn: number): string {
   return createPublisherObjectKey({
     extension: OBJECT_EXTENSIONS.segment,
     kind: "segment",
-    sequenceNumber: msn,
     objectKeyNonce: segmentNonce(msn),
+    sequenceNumber: msn,
     trackId: TRACK_ID,
   });
 }
@@ -115,6 +115,8 @@ async function createSession(): Promise<void> {
       partTarget: PART_SECONDS,
       segmentTarget: SEGMENT_SECONDS,
     },
+    sessionId: SESSION_ID,
+    state: "live",
     tracks: [
       {
         profile: {
@@ -128,8 +130,6 @@ async function createSession(): Promise<void> {
         trackId: TRACK_ID,
       },
     ],
-    sessionId: SESSION_ID,
-    state: "live",
   };
 
   const response = await fetch(`${BASE_URL}/sessions`, {
@@ -189,8 +189,8 @@ async function issueGrant(object: ObjectFixture): Promise<{
         ? {}
         : { partNumber: object.partNumber }),
       profile: { duration: object.duration },
-      trackId: TRACK_ID,
       slotId: object.slotId,
+      trackId: TRACK_ID,
     },
     sessionId: SESSION_ID,
   });
@@ -340,9 +340,9 @@ function partObject(
     independent: true,
     kind: "part",
     maxBytes: PART_BYTES_LENGTH,
-    sequenceNumber: msn,
     objectKeyNonce: segmentNonce(msn),
     partNumber,
+    sequenceNumber: msn,
     slotId: `${SESSION_ID}_slot_${msn}_part_${partNumber}`,
   };
 }
@@ -360,8 +360,8 @@ function makeSegmentObject(msn: number, totalBytes: number): ObjectFixture {
     independent: true,
     kind: "segment",
     maxBytes: totalBytes,
-    sequenceNumber: msn,
     objectKeyNonce: segmentNonce(msn),
+    sequenceNumber: msn,
     slotId: `${SESSION_ID}_slot_${msn}`,
   };
 }
