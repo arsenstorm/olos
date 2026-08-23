@@ -499,7 +499,7 @@ describe("coordinator pipeline", () => {
       state,
       trackId: "v1080",
     });
-    state = initIssue.state;
+    ({ state } = initIssue);
 
     const initCommit = commitCoordinatorUpload({
       commitId: "commit_init",
@@ -520,7 +520,7 @@ describe("coordinator pipeline", () => {
     }
 
     expect(initCommit.cursor).toBeUndefined();
-    state = initCommit.state;
+    ({ state } = initCommit);
 
     const segmentIssue = issueCoordinatorSlot({
       contentType: "video/mp4",
@@ -533,7 +533,7 @@ describe("coordinator pipeline", () => {
       state,
       trackId: "v1080",
     });
-    state = segmentIssue.state;
+    ({ state } = segmentIssue);
 
     const segmentCommit = commitCoordinatorUpload({
       commitId: "commit_3810",
@@ -595,7 +595,7 @@ describe("coordinator pipeline", () => {
       state,
       trackId: "v1080",
     });
-    state = initIssue.state;
+    ({ state } = initIssue);
 
     const initCommit = commitCoordinatorUpload({
       commitId: "commit_init",
@@ -613,7 +613,7 @@ describe("coordinator pipeline", () => {
     if (initCommit.status !== "committed") {
       throw new Error("expected init commit");
     }
-    state = initCommit.state;
+    ({ state } = initCommit);
 
     const retired: string[] = [];
     for (let msn = 3810; msn < 3818; msn += 1) {
@@ -629,7 +629,7 @@ describe("coordinator pipeline", () => {
         state,
         trackId: "v1080",
       });
-      state = issued.state;
+      ({ state } = issued);
 
       const committed = commitCoordinatorUpload({
         commitId: `commit_${msn}`,
@@ -652,7 +652,7 @@ describe("coordinator pipeline", () => {
       for (const object of committed.retiredObjects ?? []) {
         retired.push(object.slotId);
       }
-      state = committed.state;
+      ({ state } = committed);
     }
 
     expect(state.commits).toHaveLength(3);
@@ -683,7 +683,7 @@ describe("coordinator pipeline", () => {
       state,
       trackId: "v1080",
     });
-    state = issued.state;
+    ({ state } = issued);
 
     const committed = commitCoordinatorUpload({
       commitId: "commit_3810",
@@ -791,7 +791,7 @@ describe("coordinator pipeline", () => {
       state,
       trackId: "v1080",
     });
-    state = issued.state;
+    ({ state } = issued);
 
     const committed = commitCoordinatorUpload({
       commitId: "commit_init",
@@ -848,7 +848,7 @@ describe("coordinator pipeline", () => {
       state,
       trackId: "v1080",
     });
-    state = issued.state;
+    ({ state } = issued);
 
     const committed = commitCoordinatorUpload({
       commitId: "commit_3810_1",
@@ -1052,7 +1052,7 @@ describe("coordinator pipeline", () => {
       slotId: "slot_3811_1",
     });
 
-    const cursor = state.cursor;
+    const { cursor } = state;
 
     if (cursor === undefined) {
       throw new Error("expected low-latency cursor");
@@ -1135,7 +1135,7 @@ describe("coordinator pipeline", () => {
         state,
         trackId: "v1080",
       });
-      state = issued.state;
+      ({ state } = issued);
 
       const committed = commitCoordinatorUpload({
         commitId: `commit_3811_${partNumber}`,
@@ -1155,7 +1155,7 @@ describe("coordinator pipeline", () => {
         throw new Error(`expected commit at part ${partNumber}`);
       }
       expect(committed.retiredObjects ?? []).toEqual([]);
-      state = committed.state;
+      ({ state } = committed);
 
       if (partNumber === 3) {
         expect(state.cursor?.window).toEqual({
@@ -1276,7 +1276,7 @@ describe("coordinator pipeline", () => {
       slotId: "slot_3812",
     });
 
-    state = issueCoordinatorSlot({
+    ({ state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -1286,7 +1286,7 @@ describe("coordinator pipeline", () => {
       slotId: "slot_3813",
       state,
       trackId: "v1080",
-    }).state;
+    }));
 
     const plan = planCoordinatorRetention({
       now: "2026-01-01T00:00:06.000Z",
@@ -1328,7 +1328,7 @@ describe("coordinator pipeline", () => {
   });
 
   test("rejects uploads smaller than slot minimum bytes", () => {
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -1339,7 +1339,7 @@ describe("coordinator pipeline", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
 
     const result = commitCoordinatorUpload({
       commitId: "commit_3810",
@@ -1373,7 +1373,7 @@ describe("coordinator pipeline", () => {
   });
 
   test("applies app-owned commit policy before new commits", () => {
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -1383,7 +1383,7 @@ describe("coordinator pipeline", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
     const result = commitCoordinatorUpload({
       commitId: "commit_3810",
       commitPolicy: ({ slot }) => ({
@@ -1483,7 +1483,7 @@ describe("coordinator pipeline", () => {
 
   // CORE-SLOT-006 (§4.2): slot identifiers are unique within a session.
   test("rejects duplicate slot ids when issuing slots", () => {
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -1493,7 +1493,7 @@ describe("coordinator pipeline", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
 
     expect(() =>
       issueCoordinatorSlot({
@@ -1511,7 +1511,7 @@ describe("coordinator pipeline", () => {
   });
 
   test("rejects issuing a second open slot at the same position", () => {
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -1521,7 +1521,7 @@ describe("coordinator pipeline", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
 
     expect(() =>
       issueCoordinatorSlot({
@@ -1660,7 +1660,7 @@ describe("coordinator pipeline", () => {
     if (revoked.status !== "revoked") {
       throw new Error("expected revoked slot");
     }
-    state = revoked.state;
+    ({ state } = revoked);
 
     const result = commitCoordinatorUpload({
       commitId: "commit_3810",
@@ -1881,7 +1881,7 @@ describe("coordinator pipeline", () => {
       retired.push(
         ...(committed.retiredObjects ?? []).map((object) => object.slotId)
       );
-      state = committed.state;
+      ({ state } = committed);
     }
 
     // Video's trimmed msn 0-4 retire despite audio pinning the window's

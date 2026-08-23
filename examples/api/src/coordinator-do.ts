@@ -114,7 +114,9 @@ function cursorFromView(view: SerializedCursorViewRecord): Cursor | undefined {
   try {
     const parsed = JSON.parse(view.view) as { cursor?: Cursor };
     return parsed.cursor;
-  } catch {}
+  } catch {
+    // malformed cursor view; caller falls back to no cursor
+  }
 }
 
 function cursorViewFromRecord(
@@ -129,5 +131,7 @@ function cursorViewFromRecord(
       session: snapshot.state.session,
     };
     return { etag: record.etag, view: JSON.stringify(view) };
-  } catch {}
+  } catch {
+    // malformed snapshot; caller treats the record as having no cursor view
+  }
 }

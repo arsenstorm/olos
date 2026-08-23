@@ -154,6 +154,7 @@ export async function runStoredCoordinatorMutation<
     attemptCount < options.attempts;
     attemptCount += 1
   ) {
+    // biome-ignore lint/performance/noAwaitInLoops: each retry must mutate the snapshot the previous attempt read back after its etag conflict.
     const attemptResult = await options.mutate(currentSnapshot.state);
     const progress = await runStoredCoordinatorMutationAttempt({
       attempt: attemptResult,

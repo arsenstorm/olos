@@ -270,6 +270,7 @@ export function timestampString(value: unknown, name: string): string {
   const timestamp = stringValue(value, name);
   const match = RFC3339_TIMESTAMP_PATTERN.exec(timestamp);
 
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp.exec returns null on no match; biome infers a non-nullable RegExpExecArray here.
   if (match === null || !isCalendarDate(match)) {
     throw new Error(`${name} must be a valid timestamp`);
   }

@@ -43,7 +43,11 @@ function getObjectOrUndefined(
 }
 
 function undefinedIfNoSuchKey(error: unknown): undefined {
-  if (error instanceof NoSuchKey || (error as Error)?.name === "NoSuchKey") {
+  const name =
+    typeof error === "object" && error !== null
+      ? (error as { name?: unknown }).name
+      : undefined;
+  if (error instanceof NoSuchKey || name === "NoSuchKey") {
     return;
   }
   throw error;

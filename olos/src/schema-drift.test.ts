@@ -488,11 +488,10 @@ const suites: readonly DriftSuite[] = [
                   ...validCommittedWindow.tracks.v1080.segments[2],
                   parts: [
                     {
-                      ...validCommittedWindow.tracks.v1080.segments[2]
-                        ?.parts?.[0],
+                      ...validCommittedWindow.tracks.v1080.segments[2].parts[0],
                       extra: 1,
                     },
-                    validCommittedWindow.tracks.v1080.segments[2]?.parts?.[1],
+                    validCommittedWindow.tracks.v1080.segments[2].parts[1],
                   ],
                 },
               ],

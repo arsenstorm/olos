@@ -54,8 +54,10 @@ function readLiveS3Endpoint(env: LiveS3Env): string | undefined {
 
   try {
     url = new URL(endpoint);
-  } catch {
-    throw new Error("OLOS_LIVE_S3_ENDPOINT must be an absolute HTTP(S) URL");
+  } catch (error) {
+    throw new Error("OLOS_LIVE_S3_ENDPOINT must be an absolute HTTP(S) URL", {
+      cause: error,
+    });
   }
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {

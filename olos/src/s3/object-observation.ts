@@ -151,10 +151,12 @@ function normalizeS3Metadata(
   }
 
   const slotId =
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: S3 metadata keys are optional; tsc types them as string | undefined under noUncheckedIndexedAccess, which biome does not model.
     metadata["x-olos-slot-id"] ??
     metadata["olos-slot-id"] ??
     metadata["x-amz-meta-olos-slot-id"];
 
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: same noUncheckedIndexedAccess gap; the header may be absent.
   if (slotId === undefined || metadata["x-olos-slot-id"] !== undefined) {
     return metadata;
   }

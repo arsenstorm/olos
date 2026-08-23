@@ -31,6 +31,7 @@ const failures: string[] = [];
 const claims = new Map<string, SpecAnchorClaim>();
 
 for (const file of await listSpecFiles()) {
+  // biome-ignore lint/performance/noAwaitInLoops: anchors are registered against the claims map the previous file filled, so duplicate reports name the first claimant.
   await collectFileAnchors(file);
 }
 
@@ -211,5 +212,7 @@ async function checkGeneratedAppendix(
 async function readOptionalFile(path: string): Promise<string | undefined> {
   try {
     return await readFile(path, "utf8");
-  } catch {}
+  } catch {
+    // a generated appendix that has not been committed yet reads as absent
+  }
 }

@@ -62,8 +62,8 @@ function parseRangeHeader(
     return "invalid";
   }
 
-  const start = Number(match[1]);
-  const endRaw = match[2];
+  const [, startRaw, endRaw] = match;
+  const start = Number(startRaw);
   if (endRaw === "") {
     return { start };
   }

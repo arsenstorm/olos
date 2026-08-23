@@ -107,7 +107,7 @@ function validTrack() {
 }
 
 function validInit(): CommittedObject {
-  const init = validTrack().init;
+  const { init } = validTrack();
 
   if (!init) {
     throw new Error("missing v1080 init fixture");

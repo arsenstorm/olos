@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1" name="viewport">
     <title>OLOS Player</title>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
     <style>
     :root {
       color-scheme: dark;
@@ -25,7 +25,8 @@
       font-weight: 400;
       letter-spacing: -0.02em;
     }
-    label {
+    label,
+    .label-spacer {
       display: block;
       margin: 0 0 0.25rem;
       font-size: 0.78rem;
@@ -191,7 +192,7 @@
         <input id="track" value="v1080">
       </div>
       <div>
-        <label>&nbsp;</label>
+        <span class="label-spacer">&nbsp;</span>
         <button id="play" type="button">Play</button>
       </div>
     </div>
@@ -207,6 +208,7 @@
           class="live-pill"
           data-live="false"
           id="live-pill"
+          role="status"
         >
           <span class="dot"></span>
           <span class="label">LIVE</span>
@@ -325,7 +327,7 @@
       livePill.dataset.live = String(live);
 
       statLatency.textContent = `${drift.toFixed(2)}s`;
-      const buffered = video.buffered;
+      const { buffered } = video;
       const ahead =
         buffered.length > 0
           ? Math.max(0, buffered.end(buffered.length - 1) - video.currentTime)

@@ -216,6 +216,7 @@ function tagCompletionHintObservationFailures(
       try {
         return await client.send(command);
       } catch (error) {
+        // biome-ignore lint/style/useErrorCause: S3CompletionHintObservationError passes the argument through as `cause`.
         throw new S3CompletionHintObservationError(error);
       }
     },

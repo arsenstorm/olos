@@ -85,6 +85,7 @@ async function main(): Promise<void> {
     let bytePos = 0;
     for (let pn = 0; pn < PARTS_PER_SEGMENT; pn += 1) {
       const part = partObject(msn, pn, bytePos);
+      // biome-ignore lint/performance/noAwaitInLoops: each part's byterange starts at the running bytePos left by the previous part.
       await publish(part);
       bytePos += part.bytes.length;
     }
@@ -251,6 +252,7 @@ async function runBlockingReload(): Promise<void> {
   let bytePos = 0;
   for (let pn = 0; pn < PARTS_PER_SEGMENT; pn += 1) {
     const part = partObject(nextMsn, pn, bytePos);
+    // biome-ignore lint/performance/noAwaitInLoops: each part's byterange starts at the running bytePos left by the previous part.
     await publish(part);
     bytePos += part.bytes.length;
   }

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { trackWindow } from "../state/committed-window.test-helper";
 import type { Cursor } from "../types/cursor";
 import { assertCursor, isCursor, parseCursor } from "./cursor";
 
@@ -54,11 +55,7 @@ const validCursor: Cursor = {
   },
 };
 
-const validTrack = validCursor.committedWindow.tracks.v1080;
-
-if (validTrack === undefined) {
-  throw new Error("missing v1080 fixture");
-}
+const validTrack = trackWindow(validCursor.committedWindow, "v1080");
 
 const cursorWithVisibleParts: Cursor = {
   ...validCursor,
@@ -238,13 +235,12 @@ describe("tolerant cursor parsing", () => {
   });
 
   test("strips unknown fields at every nesting level", () => {
-    const track = cursorWithVisibleParts.committedWindow.tracks.v1080;
-    const partsSegment = track?.segments[1];
+    const track = trackWindow(cursorWithVisibleParts.committedWindow, "v1080");
+    const [, partsSegment] = track.segments;
     const firstPart = partsSegment?.parts?.[0];
     const secondPart = partsSegment?.parts?.[1];
 
     if (
-      track === undefined ||
       partsSegment === undefined ||
       firstPart === undefined ||
       secondPart === undefined

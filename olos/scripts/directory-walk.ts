@@ -28,6 +28,7 @@ export async function listDirectoryEntries(
       continue;
     }
 
+    // biome-ignore lint/performance/noAwaitInLoops: each iteration reads a directory the previous iteration pushed onto `pending`.
     const children = await listChildEntries(current);
     entries.push(...children);
     pending.push(...children.filter((child) => child.isDirectory));

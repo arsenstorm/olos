@@ -124,7 +124,7 @@ export function withAuditEvent(
   commit: RejectedS3CoordinatorUploadCommit,
   occurredAt: string
 ): StoredS3CoordinatorUploadRejection {
-  const details = commit.error.error.details;
+  const { details } = commit.error.error;
 
   if (
     commit.error.error.code !== "olos.object_too_large" ||

@@ -91,5 +91,7 @@ function parseAbsoluteUrl(value: string): URL | undefined {
     return url.protocol === "http:" || url.protocol === "https:"
       ? url
       : undefined;
-  } catch {}
+  } catch {
+    // a value the URL parser rejects is not an absolute URL
+  }
 }

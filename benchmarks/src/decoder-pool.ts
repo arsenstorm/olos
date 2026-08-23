@@ -98,6 +98,7 @@ async function decodeUntilEmpty(
   opts: DecodeOptions
 ): Promise<void> {
   for (let s = state.queue.shift(); s; s = state.queue.shift()) {
+    // biome-ignore lint/performance/noAwaitInLoops: this worker drains the shared queue one sample at a time on purpose, bounding concurrency to `opts.concurrency` parallel workers.
     await decodeSampleQuietly(s, state.finals, opts);
   }
   opts.onIdle();

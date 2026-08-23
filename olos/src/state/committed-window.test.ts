@@ -6,6 +6,7 @@ import {
   trackWindowBounds,
   tryCreateCommittedWindow,
 } from "./committed-window";
+import { trackWindow } from "./committed-window.test-helper";
 
 const initCommit: Commit = {
   commitId: "commit_init",
@@ -131,10 +132,10 @@ describe("committed window builder", () => {
 
     expect(window.firstSequenceNumber).toBe(3811);
     expect(window.lastSequenceNumber).toBe(3811);
-    expect(window.tracks.v1080?.segments).toHaveLength(1);
+    expect(trackWindow(window, "v1080").segments).toHaveLength(1);
     // Commits carry no discontinuity markers, so trimming accrues no track
     // window profile.
-    expect(window.tracks.v1080?.profile).toBeUndefined();
+    expect(trackWindow(window, "v1080").profile).toBeUndefined();
   });
 
   test("rejects invalid committed window segment limits", () => {
@@ -158,7 +159,7 @@ describe("committed window builder", () => {
     });
 
     expect(window.lastSequenceNumber).toBe(3810);
-    expect(window.tracks.v1080?.segments).toEqual([
+    expect(trackWindow(window, "v1080").segments).toEqual([
       {
         segment: {
           commitId: "commit_3810",
@@ -182,7 +183,7 @@ describe("committed window builder", () => {
 
     expect(window.firstSequenceNumber).toBe(3811);
     expect(window.lastSequenceNumber).toBe(3811);
-    expect(window.tracks.v1080?.segments).toEqual([
+    expect(trackWindow(window, "v1080").segments).toEqual([
       {
         parts: [
           {
@@ -206,8 +207,7 @@ describe("committed window builder", () => {
       initCommits: [initCommit],
       sessionId: "session_1",
     });
-
-    expect(window.tracks.v1080?.segments).toEqual([
+    expect(trackWindow(window, "v1080").segments).toEqual([
       {
         parts: [
           {
@@ -231,9 +231,8 @@ describe("committed window builder", () => {
       initCommits: [],
       sessionId: "session_1",
     });
-
-    expect(window.tracks.v1080?.init).toBeUndefined();
-    expect(window.tracks.v1080?.segments).toHaveLength(1);
+    expect(trackWindow(window, "v1080").init).toBeUndefined();
+    expect(trackWindow(window, "v1080").segments).toHaveLength(1);
   });
 
   test("rejects empty media commits", () => {
@@ -276,9 +275,8 @@ describe("committed window builder", () => {
       initCommits: [initCommit],
       sessionId: "session_1",
     });
-
-    expect(window.tracks.v720?.init).toBeUndefined();
-    expect(window.tracks.v720?.segments).toHaveLength(1);
+    expect(trackWindow(window, "v720").init).toBeUndefined();
+    expect(trackWindow(window, "v720").segments).toHaveLength(1);
   });
 
   test("rejects duplicate init commits for one track", () => {
@@ -400,12 +398,14 @@ describe("committed window builder", () => {
     });
 
     expect(
-      window.tracks.v1080?.segments[0]?.parts?.map((part) => part.profile)
+      trackWindow(window, "v1080").segments[0]?.parts?.map(
+        (part) => part.profile
+      )
     ).toEqual([
       { duration: 0.5, independent: true },
       { duration: 0.5, independent: false },
     ]);
-    expect(window.tracks.v1080?.segments[0]?.segment).toBeUndefined();
+    expect(trackWindow(window, "v1080").segments[0]?.segment).toBeUndefined();
     expect(lastVisiblePartNumber(window)).toBe(1);
   });
 
@@ -426,8 +426,7 @@ describe("committed window builder", () => {
       initCommits: [initCommit],
       sessionId: "session_1",
     });
-
-    expect(window.tracks.v1080?.segments).toEqual([
+    expect(trackWindow(window, "v1080").segments).toEqual([
       expect.objectContaining({
         segment: expect.objectContaining({ profile: { duration: 2 } }),
         sequenceNumber: 3811,

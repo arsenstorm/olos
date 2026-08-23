@@ -156,10 +156,13 @@ async function refreshPublisherLease(
   const result = await mutateCoordinatorPipeline({
     maxAttempts: options.maxAttempts,
     mutate: (state) => {
-      const next = heartbeatState(state, options);
-      lease = next.lease;
+      const { lease: nextLease, state: nextState } = heartbeatState(
+        state,
+        options
+      );
+      lease = nextLease;
 
-      return next.state;
+      return nextState;
     },
     sessionId: options.sessionId,
     store: options.store,
@@ -223,10 +226,10 @@ interface StoredSessionInvalidRequest {
 
 function rejectedOrRethrow<Result>(
   error: unknown,
-  rejected: (error: StoredSessionRejectionError) => Result
+  onRejected: (error: StoredSessionRejectionError) => Result
 ): Result {
   if (error instanceof StoredSessionRejectionError) {
-    return rejected(error);
+    return onRejected(error);
   }
 
   throw error;

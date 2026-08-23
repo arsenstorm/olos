@@ -40,24 +40,19 @@ export async function largeFileReport(
   options: FileSizeReportOptions
 ): Promise<LargeFileReportEntry[]> {
   const resolvedOptions = resolveFileSizeReportOptions(options);
-  const report: LargeFileReportEntry[] = [];
-
-  for (const entry of await listDirectoryEntries(resolvedOptions.root)) {
-    if (!isReportableFileEntry(entry, resolvedOptions)) {
-      continue;
-    }
-
-    const lines = countLines(await readFile(entry.absolutePath, "utf8"));
-
-    if (lines > resolvedOptions.maxLines) {
-      report.push({
-        lines,
+  const entries = await listDirectoryEntries(resolvedOptions.root);
+  const measured = await Promise.all(
+    entries
+      .filter((entry) => isReportableFileEntry(entry, resolvedOptions))
+      .map(async (entry) => ({
+        lines: countLines(await readFile(entry.absolutePath, "utf8")),
         relativePath: relative(resolvedOptions.root, entry.absolutePath),
-      });
-    }
-  }
+      }))
+  );
 
-  return report.sort(compareLargeFileReportEntries);
+  return measured
+    .filter((entry) => entry.lines > resolvedOptions.maxLines)
+    .sort(compareLargeFileReportEntries);
 }
 
 function isReportableFileEntry(

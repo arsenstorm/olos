@@ -137,7 +137,8 @@ function retentionExpiredSlotPayload(
     return parseUploadSlot(value);
   } catch (error) {
     throw new Error(
-      `${indexedFieldContext(S3_RETENTION_PLAN_EXPIRED_SLOTS_CONTEXT, index)} must be valid: ${errorMessage(error, String(error))}`
+      `${indexedFieldContext(S3_RETENTION_PLAN_EXPIRED_SLOTS_CONTEXT, index)} must be valid: ${errorMessage(error, String(error))}`,
+      { cause: error }
     );
   }
 }

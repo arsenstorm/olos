@@ -537,6 +537,7 @@ describe("S3 runtime HTTP client", () => {
         slotId: "slot_3811",
       },
     ]) {
+      // biome-ignore lint/performance/noAwaitInLoops: each object must be issued and committed in sequence-number order against the shared session cursor
       await issueS3RuntimeUploadGrant({
         baseUrl: RUNTIME_BASE_URL,
         fetch: clientFetch,

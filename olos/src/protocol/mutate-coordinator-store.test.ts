@@ -468,9 +468,9 @@ describe("runStoredCoordinatorMutation", () => {
       onConflict: () => ({
         outcome: "conflict",
       }),
-      onExhausted: (snapshot) => {
+      onExhausted: (exhaustedSnapshot) => {
         exhaustedCalls += 1;
-        expect(snapshot.etag).toBe("1");
+        expect(exhaustedSnapshot.etag).toBe("1");
 
         return {
           outcome: "exhausted",

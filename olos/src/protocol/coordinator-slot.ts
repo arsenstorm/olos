@@ -242,7 +242,7 @@ function isSlotInCursor(
   state: CoordinatorPipelineState,
   slot: UploadSlot
 ): boolean {
-  const cursor = state.cursor;
+  const { cursor } = state;
 
   if (cursor === undefined) {
     return false;

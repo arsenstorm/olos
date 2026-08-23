@@ -108,7 +108,9 @@ function parseWorkerMessage(line: string): WorkerMessage | undefined {
   }
   try {
     return JSON.parse(line) as WorkerMessage;
-  } catch {}
+  } catch {
+    // malformed JSON is noise; fall through to the implicit undefined return
+  }
 }
 
 function handleWorkerMessage(status: WorkerStatus, msg: WorkerMessage): void {

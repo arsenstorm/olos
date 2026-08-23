@@ -321,7 +321,7 @@ describe("object-store flow", () => {
       firstSequenceNumber: 3810,
       lastSequenceNumber: 3810,
     });
-    expect(media?.body).toContain(step.slot?.deliveryUrl);
+    expect(media?.body).toContain(step.slot.deliveryUrl);
     expect(uploadedUrls).toHaveLength(1);
     expect(headObjectInputs).toEqual([
       {

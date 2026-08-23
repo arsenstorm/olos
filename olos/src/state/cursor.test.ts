@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { CommittedWindow } from "../types/committed-window";
+import { trackWindow } from "./committed-window.test-helper";
 import { createCursor, resolveCursorUpdate } from "./cursor";
 
 const committedWindow: CommittedWindow = {
@@ -53,19 +54,13 @@ const options = {
   updatedAt: "2026-06-08T12:00:01.820Z",
 } as const;
 
-const v1080 = committedWindow.tracks.v1080;
+const v1080 = trackWindow(committedWindow, "v1080");
 
-if (v1080 === undefined) {
-  throw new Error("missing v1080 fixture");
-}
-
-const firstSegment = v1080.segments[0];
+const [firstSegment, secondSegment] = v1080.segments;
 
 if (firstSegment === undefined) {
   throw new Error("missing first segment fixture");
 }
-
-const secondSegment = v1080.segments[1];
 
 if (secondSegment === undefined) {
   throw new Error("missing second segment fixture");
@@ -197,7 +192,7 @@ describe("cursor update resolution", () => {
         v1080,
       },
     };
-    const currentCursor = createCursor({
+    const equivalentCurrentCursor = createCursor({
       ...options,
       committedWindow: firstWindow,
     });
@@ -210,10 +205,10 @@ describe("cursor update resolution", () => {
     expect(
       resolveCursorUpdate({
         candidateCursor,
-        currentCursor,
+        currentCursor: equivalentCurrentCursor,
       })
     ).toEqual({
-      cursor: currentCursor,
+      cursor: equivalentCurrentCursor,
       status: "idempotent",
     });
   });
@@ -279,11 +274,7 @@ describe("cursor update resolution", () => {
   });
 
   test("accepts same-position candidates with changed track window profile", () => {
-    const track = committedWindow.tracks.v1080;
-
-    if (track === undefined) {
-      throw new Error("fixture track missing");
-    }
+    const track = trackWindow(committedWindow, "v1080");
 
     const candidateCursor = createCursor({
       ...options,

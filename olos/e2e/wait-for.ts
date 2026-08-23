@@ -18,6 +18,7 @@ export async function waitFor(
       return;
     }
 
+    // biome-ignore lint/performance/noAwaitInLoops: each attempt must re-check the condition only after the previous interval has elapsed.
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
 

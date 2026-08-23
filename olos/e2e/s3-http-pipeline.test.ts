@@ -371,6 +371,7 @@ describe("S3 HTTP pipeline", () => {
       trackObject("v1080", "segment"),
       trackObject("v720", "segment"),
     ]) {
+      // biome-ignore lint/performance/noAwaitInLoops: each slot request must commit against the snapshot etag the previous commit saved.
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/session_1/s3/slots",
@@ -757,6 +758,7 @@ describe("S3 HTTP pipeline", () => {
     );
 
     for (const object of retentionObjects()) {
+      // biome-ignore lint/performance/noAwaitInLoops: each slot request must commit against the snapshot etag the previous commit saved.
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/session_1/s3/slots",
@@ -833,6 +835,7 @@ describe("S3 HTTP pipeline", () => {
     );
 
     for (const object of retentionObjects()) {
+      // biome-ignore lint/performance/noAwaitInLoops: each slot request must commit against the snapshot etag the previous commit saved.
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/session_1/s3/slots",

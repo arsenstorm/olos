@@ -172,7 +172,7 @@ function segmentSlotIds(segment: CommittedSegment): string[] {
 function isoTimestampMs(value: string, name: string): number {
   try {
     return validTimestampMs(value, name);
-  } catch {
-    throw new Error(`${name} must be an ISO timestamp`);
+  } catch (error) {
+    throw new Error(`${name} must be an ISO timestamp`, { cause: error });
   }
 }

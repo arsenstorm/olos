@@ -285,7 +285,7 @@ describe("s3 coordinator uploads", () => {
   test("observes the issued S3 object before committing", async () => {
     const headObjectInputs: unknown[] = [];
     let state = createEmptyCoordinatorState();
-    state = issueCoordinatorSlot({
+    ({ state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
@@ -295,7 +295,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_init",
       state,
       trackId: "v1080",
-    }).state;
+    }));
 
     const initCommit = await commitS3CoordinatorUpload({
       bucket: "media",
@@ -311,8 +311,8 @@ describe("s3 coordinator uploads", () => {
       throw new Error("expected init commit");
     }
 
-    state = initCommit.state;
-    state = issueCoordinatorSlot({
+    ({ state } = initCommit);
+    ({ state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -322,7 +322,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state,
       trackId: "v1080",
-    }).state;
+    }));
 
     const segmentCommit = await commitS3CoordinatorUpload({
       bucket: "media",
@@ -361,7 +361,7 @@ describe("s3 coordinator uploads", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     let state = createEmptyCoordinatorState();
-    state = issueCoordinatorSlot({
+    ({ state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
@@ -371,8 +371,8 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_init",
       state,
       trackId: "v1080",
-    }).state;
-    state = issueCoordinatorSlot({
+    }));
+    ({ state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -382,7 +382,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state,
       trackId: "v1080",
-    }).state;
+    }));
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -439,7 +439,7 @@ describe("s3 coordinator uploads", () => {
 
   test("rejects a commit as slot_expired when S3's LastModified is late even though committedAt is not", async () => {
     let state = createEmptyCoordinatorState();
-    state = issueCoordinatorSlot({
+    ({ state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -449,7 +449,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state,
       trackId: "v1080",
-    }).state;
+    }));
 
     const client: S3HeadObjectClient = {
       send(): Promise<HeadObjectCommandOutput> {
@@ -484,7 +484,7 @@ describe("s3 coordinator uploads", () => {
 
   test("falls back to committedAt as the observation time when S3 reports no LastModified", async () => {
     let state = createEmptyCoordinatorState();
-    state = issueCoordinatorSlot({
+    ({ state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -494,7 +494,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state,
       trackId: "v1080",
-    }).state;
+    }));
 
     const client: S3HeadObjectClient = {
       send(): Promise<HeadObjectCommandOutput> {
@@ -669,7 +669,7 @@ describe("s3 coordinator uploads", () => {
   test("rejects oversized stored S3 uploads without committing them", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -679,7 +679,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -737,7 +737,7 @@ describe("s3 coordinator uploads", () => {
   test("rejects stored S3 uploads with mismatched content types", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -747,7 +747,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -797,10 +797,10 @@ describe("s3 coordinator uploads", () => {
   test("rejects stored S3 uploads with mismatched slot metadata", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       ...segmentSlot(),
       state: createEmptyCoordinatorState(),
-    }).state;
+    });
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -850,7 +850,7 @@ describe("s3 coordinator uploads", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     let state = createEmptyCoordinatorState();
-    state = issueCoordinatorSlot({
+    ({ state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "init",
@@ -860,8 +860,8 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_init",
       state,
       trackId: "v1080",
-    }).state;
-    state = issueCoordinatorSlot({
+    }));
+    ({ state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -871,7 +871,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state,
       trackId: "v1080",
-    }).state;
+    }));
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -934,7 +934,7 @@ describe("s3 coordinator uploads", () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
     let state = createEmptyCoordinatorState();
-    state = issueCoordinatorSlot({
+    ({ state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -944,7 +944,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state,
       trackId: "v1080",
-    }).state;
+    }));
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -973,7 +973,7 @@ describe("s3 coordinator uploads", () => {
 
   test("rejects stored S3 completion hints with mismatched object keys", async () => {
     const store = createMemoryCoordinatorStore();
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -983,7 +983,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -1023,7 +1023,7 @@ describe("s3 coordinator uploads", () => {
   test("completes stored S3 uploads by object key", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -1033,7 +1033,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -1117,7 +1117,7 @@ describe("s3 coordinator uploads", () => {
   test("routes object-created events to object-key S3 completion", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -1127,7 +1127,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -1170,7 +1170,7 @@ describe("s3 coordinator uploads", () => {
   test("rejects object-created events blocked by commit policy", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -1180,7 +1180,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -1243,7 +1243,7 @@ describe("s3 coordinator uploads", () => {
   test("routes upload-completed hints to keyed S3 completion", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -1253,7 +1253,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -1294,7 +1294,7 @@ describe("s3 coordinator uploads", () => {
   test("rejects upload-completed hints while the kill switch is active", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -1304,7 +1304,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
     await store.save({
       sessionId: session.sessionId,
       state,
@@ -1346,7 +1346,7 @@ describe("s3 coordinator uploads", () => {
   test("ignores object-created events while the kill switch is active", async () => {
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -1356,7 +1356,7 @@ describe("s3 coordinator uploads", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
     await store.save({
       sessionId: session.sessionId,
       state,

@@ -171,7 +171,7 @@ function presignPutObjectUrl(
 
   command.middlewareStack.add(
     (next) => (args) => {
-      const request = args.request;
+      const { request } = args;
 
       if (isHeaderRequest(request)) {
         request.headers = { ...request.headers, ...requiredHeaders };

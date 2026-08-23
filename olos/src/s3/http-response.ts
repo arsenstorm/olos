@@ -28,11 +28,14 @@ export function eventRouteResult(
   result: StoredS3CoordinatorUploadEventRoute
 ): StoredS3CoordinatorEventRouteResponseResult {
   switch (result.status) {
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: StoredS3CoordinatorUploadCommit is built with Extract<>, which biome cannot evaluate, so it misreads the commit statuses as unreachable.
     case "committed":
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: same Extract<> limitation as the case above.
     case "idempotent":
       return successfulEventRouteResult(result.commit, result.status);
     case "invalid_event":
       return invalidEventRouteResult(result.error);
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: same Extract<> limitation as the cases above.
     case "rejected":
       return rejectedEventRouteResult(result);
     case "conflict":

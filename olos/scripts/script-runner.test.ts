@@ -59,7 +59,7 @@ test("runCommandAndCapture includes captured output in failure message", async (
     {
       forwardOutput: false,
     }
-  ).catch((caught: unknown) => caught);
+  ).catch((rejection: unknown) => rejection);
 
   const caught = await error;
 

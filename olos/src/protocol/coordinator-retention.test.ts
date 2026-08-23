@@ -12,7 +12,7 @@ const RETENTION_NOW = "2026-01-01T00:00:06.000Z";
 
 describe("coordinator retention application", () => {
   test("prunes expired issued upload slots outside the commit path", () => {
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -22,7 +22,7 @@ describe("coordinator retention application", () => {
       slotId: "slot_3813",
       state: committedWindowState().state,
       trackId: "v1080",
-    }).state;
+    });
 
     const applied = applyCoordinatorRetention({ now: RETENTION_NOW, state });
 
@@ -38,7 +38,7 @@ describe("coordinator retention application", () => {
   });
 
   test("keeps unexpired issued slots when applying retention", () => {
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -48,7 +48,7 @@ describe("coordinator retention application", () => {
       slotId: "slot_3813",
       state: committedWindowState().state,
       trackId: "v1080",
-    }).state;
+    });
 
     const applied = applyCoordinatorRetention({
       now: "2026-01-01T00:00:04.000Z",
@@ -60,7 +60,7 @@ describe("coordinator retention application", () => {
   });
 
   test("keeps issued slots within the late tolerance and prunes past it", () => {
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -70,7 +70,7 @@ describe("coordinator retention application", () => {
       slotId: "slot_3813",
       state: committedWindowState().state,
       trackId: "v1080",
-    }).state;
+    });
 
     const tolerated = applyCoordinatorRetention({
       lateToleranceMs: 5000,
@@ -172,7 +172,7 @@ describe("coordinator retention application", () => {
   });
 
   test("prunes expired slots without a cursor and keeps retiredObjects empty", () => {
-    const state = issueCoordinatorSlot({
+    const { state } = issueCoordinatorSlot({
       contentType: "video/mp4",
       expiresAt: "2026-01-01T00:00:05.000Z",
       kind: "segment",
@@ -182,7 +182,7 @@ describe("coordinator retention application", () => {
       slotId: "slot_3810",
       state: createEmptyCoordinatorState(),
       trackId: "v1080",
-    }).state;
+    });
 
     const applied = applyCoordinatorRetention({ now: RETENTION_NOW, state });
 

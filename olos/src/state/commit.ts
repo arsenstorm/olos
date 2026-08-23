@@ -130,7 +130,7 @@ export function resolveUploadCommit(
 export function resolveCommitAttempt(
   options: ResolveCommitAttemptOptions
 ): CommitAttemptResolution {
-  const slot = options.slot;
+  const { slot } = options;
 
   if (slot === undefined) {
     return unknownSlotCommitAttempt(options.slotId);

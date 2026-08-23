@@ -64,17 +64,19 @@ describe("runtime slot adapter", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const result = await issueCoordinatorSlotFromRequest({
-        request: slotRequest({
-          ...slotPayload(),
-          [testCase.field]: "../unsafe",
-        }),
-        state: createEmptyCoordinatorState(),
-      });
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const result = await issueCoordinatorSlotFromRequest({
+          request: slotRequest({
+            ...slotPayload(),
+            [testCase.field]: "../unsafe",
+          }),
+          state: createEmptyCoordinatorState(),
+        });
 
-      expect(invalidResultMessage(result)).toBe(testCase.expected);
-    }
+        expect(invalidResultMessage(result)).toBe(testCase.expected);
+      })
+    );
   });
 
   test("returns invalid responses for invalid JSON slot numbers", async () => {
@@ -101,17 +103,19 @@ describe("runtime slot adapter", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const result = await issueCoordinatorSlotFromRequest({
-        request: slotRequest({
-          ...slotPayload(),
-          [testCase.field]: testCase.value,
-        }),
-        state: createEmptyCoordinatorState(),
-      });
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const result = await issueCoordinatorSlotFromRequest({
+          request: slotRequest({
+            ...slotPayload(),
+            [testCase.field]: testCase.value,
+          }),
+          state: createEmptyCoordinatorState(),
+        });
 
-      expect(invalidResultMessage(result)).toBe(testCase.expected);
-    }
+        expect(invalidResultMessage(result)).toBe(testCase.expected);
+      })
+    );
   });
 
   test("returns invalid responses for invalid JSON object kinds", async () => {

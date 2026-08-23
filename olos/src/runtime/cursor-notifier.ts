@@ -106,7 +106,7 @@ function waitForAdvancedCursor(
   context: HlsCursorWaitContext
 ): Promise<Cursor | undefined> {
   return new Promise((resolve) => {
-    const sessionId = context.cursor.sessionId;
+    const { sessionId } = context.cursor;
     const sessionWaiters = waitersForSession(waiters, sessionId);
 
     function abort(): void {

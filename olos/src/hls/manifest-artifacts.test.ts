@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { MediaSessionProfile } from "../media/types";
+import { trackWindow } from "../state/committed-window.test-helper";
 import type { CommittedWindow } from "../types/committed-window";
 import type { Cursor } from "../types/cursor";
 import type { Session } from "../types/session";
@@ -113,9 +114,9 @@ const advancedCommittedWindow: CommittedWindow = {
   lastSequenceNumber: 3811,
   tracks: {
     v1080: {
-      init: committedWindow.tracks.v1080?.init ?? missingInit(),
+      init: trackWindow(committedWindow, "v1080").init,
       segments: [
-        ...(committedWindow.tracks.v1080?.segments ?? []),
+        ...trackWindow(committedWindow, "v1080").segments,
         {
           segment: {
             commitId: "commit_3811",
@@ -383,7 +384,7 @@ describe("HLS manifest artifacts", () => {
     const audioOnlyWindow: CommittedWindow = {
       ...groupedCommittedWindow,
       tracks: {
-        a128: groupedCommittedWindow.tracks.a128 ?? missingTrack(),
+        a128: trackWindow(groupedCommittedWindow, "a128"),
       },
     };
 
@@ -1093,12 +1094,4 @@ function requiredManifestArtifact(
   }
 
   return artifact;
-}
-
-function missingInit(): never {
-  throw new Error("missing v1080 init fixture");
-}
-
-function missingTrack(): never {
-  throw new Error("missing a128 track fixture");
 }

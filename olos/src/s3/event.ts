@@ -254,7 +254,9 @@ function objectKey(value: unknown): string | undefined {
     assertSafeObjectKey(decoded, "s3 object key");
 
     return decoded;
-  } catch {}
+  } catch {
+    // a key that fails to decode, or decodes to an unsafe path, is not usable
+  }
 }
 
 function isObjectCreatedEventName(value: unknown): boolean {

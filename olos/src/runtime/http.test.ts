@@ -1376,6 +1376,7 @@ async function seedRuntimeStore(
   const seedCount = through === 3810 ? 2 : 3;
 
   for (const slot of slots.slice(0, seedCount)) {
+    // biome-ignore lint/performance/noAwaitInLoops: slots must be issued against the shared session state in sequence-number order
     await handle(
       jsonRequest(
         "https://edge.example.com/sessions/session_1/slots",
@@ -1385,6 +1386,7 @@ async function seedRuntimeStore(
   }
 
   for (const commit of commits.slice(0, seedCount)) {
+    // biome-ignore lint/performance/noAwaitInLoops: each commit needs the cursor state left by the previous commit
     await handle(
       jsonRequest("https://edge.example.com/sessions/session_1/commits", {
         ...commitPayload(commit),
@@ -1408,6 +1410,7 @@ async function waitFor(predicate: () => boolean): Promise<void> {
       return;
     }
 
+    // biome-ignore lint/performance/noAwaitInLoops: polls the predicate once per tick until it passes or the attempts are exhausted
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
 

@@ -1316,29 +1316,31 @@ describe("stored S3 coordinator runtime handler", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const response = await handle(
-        jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", {
-          ...slotPayload({
-            deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-            kind: "segment",
-            maxBytes: 100_000,
-            objectKey: "objects/v1080/s3810.m4s",
-            profile: { duration: 2 },
-            sequenceNumber: 3810,
-            slotId: "slot_3810",
-          }),
-          [testCase.field]: "../unsafe",
-        })
-      );
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const response = await handle(
+          jsonRequest("https://edge.example.com/sessions/session_1/s3/slots", {
+            ...slotPayload({
+              deliveryUrl: "https://media.example.com/objects/v1080/s3810",
+              kind: "segment",
+              maxBytes: 100_000,
+              objectKey: "objects/v1080/s3810.m4s",
+              profile: { duration: 2 },
+              sequenceNumber: 3810,
+              slotId: "slot_3810",
+            }),
+            [testCase.field]: "../unsafe",
+          })
+        );
 
-      await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
-        body: {
-          error: { code: "olos.invalid_request", message: testCase.expected },
-        },
-        status: 400,
-      });
-    }
+        await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+          body: {
+            error: { code: "olos.invalid_request", message: testCase.expected },
+          },
+          status: 400,
+        });
+      })
+    );
   });
 
   test("rejects invalid S3 slot payload numbers", async () => {
@@ -1386,30 +1388,32 @@ describe("stored S3 coordinator runtime handler", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const response = await handle(
-        jsonRequest(
-          "https://edge.example.com/sessions/session_1/s3/slots",
-          slotPayload({
-            deliveryUrl: "https://media.example.com/objects/v1080/s3810",
-            kind: "segment",
-            maxBytes: 100_000,
-            objectKey: "objects/v1080/s3810.m4s",
-            profile: { duration: 2 },
-            sequenceNumber: 3810,
-            slotId: "slot_3810",
-            [testCase.field]: testCase.value,
-          })
-        )
-      );
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const response = await handle(
+          jsonRequest(
+            "https://edge.example.com/sessions/session_1/s3/slots",
+            slotPayload({
+              deliveryUrl: "https://media.example.com/objects/v1080/s3810",
+              kind: "segment",
+              maxBytes: 100_000,
+              objectKey: "objects/v1080/s3810.m4s",
+              profile: { duration: 2 },
+              sequenceNumber: 3810,
+              slotId: "slot_3810",
+              [testCase.field]: testCase.value,
+            })
+          )
+        );
 
-      await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
-        body: {
-          error: { code: "olos.invalid_request", message: testCase.expected },
-        },
-        status: 400,
-      });
-    }
+        await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+          body: {
+            error: { code: "olos.invalid_request", message: testCase.expected },
+          },
+          status: 400,
+        });
+      })
+    );
   });
 
   test("rejects invalid S3 slot media object kinds", async () => {
@@ -1838,18 +1842,20 @@ describe("stored S3 coordinator runtime handler", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const response = await handle(
-        jsonRequest(testCase.url, testCase.payload)
-      );
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const response = await handle(
+          jsonRequest(testCase.url, testCase.payload)
+        );
 
-      await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
-        body: {
-          error: { code: "olos.invalid_request", message: testCase.expected },
-        },
-        status: 400,
-      });
-    }
+        await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+          body: {
+            error: { code: "olos.invalid_request", message: testCase.expected },
+          },
+          status: 400,
+        });
+      })
+    );
   });
 
   test("rejects invalid S3 commit and reconciliation numbers", async () => {
@@ -1987,18 +1993,20 @@ describe("stored S3 coordinator runtime handler", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const response = await handle(
-        jsonRequest(testCase.url, testCase.payload)
-      );
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const response = await handle(
+          jsonRequest(testCase.url, testCase.payload)
+        );
 
-      await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
-        body: {
-          error: { code: "olos.invalid_request", message: testCase.expected },
-        },
-        status: 400,
-      });
-    }
+        await expect(jsonResponseStatusAndBody(response)).resolves.toEqual({
+          body: {
+            error: { code: "olos.invalid_request", message: testCase.expected },
+          },
+          status: 400,
+        });
+      })
+    );
   });
 
   test("rejects S3 slot grant and commit request bodies above the configured byte cap with 413", async () => {
@@ -2628,7 +2636,7 @@ describe("stored S3 coordinator runtime handler", () => {
   test("retries S3 object-created events after store conflicts", async () => {
     const headObjectInputs: unknown[] = [];
     const innerStore = createMemoryCoordinatorStore();
-    let failNextSave = false;
+    let failNextSave = false as boolean;
     let saves = 0;
     const store: CoordinatorPipelineStore = {
       load: (sessionId) => innerStore.load(sessionId),
@@ -3325,6 +3333,7 @@ describe("stored S3 coordinator runtime handler", () => {
     );
 
     for (const object of retentionObjects()) {
+      // biome-ignore lint/performance/noAwaitInLoops: each object's slot and commit must be issued in sequence-number order against the shared session cursor
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/session_1/s3/slots",
@@ -3383,7 +3392,7 @@ describe("stored S3 coordinator runtime handler", () => {
     const deleteInputs: unknown[] = [];
     const headObjectInputs: unknown[] = [];
     const store = createMemoryCoordinatorStore();
-    let conflictSaves = false;
+    let conflictSaves = false as boolean;
     const racingStore: CoordinatorPipelineStore = {
       load: (sessionId) => store.load(sessionId),
       save: (options) =>
@@ -3414,6 +3423,7 @@ describe("stored S3 coordinator runtime handler", () => {
     );
 
     for (const object of retentionObjects()) {
+      // biome-ignore lint/performance/noAwaitInLoops: each object's slot and commit must be issued in sequence-number order against the shared session cursor
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/session_1/s3/slots",
@@ -3476,6 +3486,7 @@ describe("stored S3 coordinator runtime handler", () => {
     );
 
     for (const object of retentionObjects()) {
+      // biome-ignore lint/performance/noAwaitInLoops: each object's slot and commit must be issued in sequence-number order against the shared session cursor
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/session_1/s3/slots",
@@ -3543,6 +3554,7 @@ describe("stored S3 coordinator runtime handler", () => {
     );
 
     for (const object of retentionObjects()) {
+      // biome-ignore lint/performance/noAwaitInLoops: each object's slot and commit must be issued in sequence-number order against the shared session cursor
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/session_1/s3/slots",
@@ -3634,6 +3646,7 @@ describe("stored S3 coordinator runtime handler", () => {
     );
 
     for (const object of retentionObjects()) {
+      // biome-ignore lint/performance/noAwaitInLoops: each object's slot and commit must be issued in sequence-number order against the shared session cursor
       await handle(
         jsonRequest(
           "https://edge.example.com/sessions/session_1/s3/slots",

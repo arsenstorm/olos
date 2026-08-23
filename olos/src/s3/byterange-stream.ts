@@ -209,6 +209,7 @@ async function drainByterange(
 
     const next = nextPartCovering(state.parts, state.position);
     if (next !== undefined) {
+      // biome-ignore lint/performance/noAwaitInLoops: each part is streamed from the position the previous part left off at.
       state.position += await streamPartForward(context, next, state.position);
       continue;
     }
@@ -290,7 +291,7 @@ async function streamPart(
   part: CommittedPart,
   position: number
 ): Promise<number> {
-  const byterange = part.byterange;
+  const { byterange } = part;
   if (byterange === undefined) {
     throw new Error("part committed without byterange");
   }
@@ -375,6 +376,7 @@ async function enqueueClampedBytes(
       (context.controller.desiredSize ?? 1) <= 0 &&
       !context.signal.aborted
     ) {
+      // biome-ignore lint/performance/noAwaitInLoops: backpressure: each wait resumes only once the consumer drained what the previous chunk enqueued.
       await context.demand.wait();
     }
     if (context.signal.aborted) {

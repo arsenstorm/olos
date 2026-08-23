@@ -48,6 +48,7 @@ export async function runProducer(
   while (
     !(progress.shutdown || progress.ffmpegExited || progress.targetReached)
   ) {
+    // biome-ignore lint/performance/noAwaitInLoops: each poll must drain fully before the next sleep, or fragments would be checked out of order.
     await drain(outDir, olos);
     await sleep(POLL_MS);
   }
@@ -99,6 +100,7 @@ async function drain(outDir: string, olos: LocalOlos): Promise<void> {
     if (index !== progress.nextFragment) {
       continue;
     }
+    // biome-ignore lint/performance/noAwaitInLoops: fragments must publish in ascending index order; progress.nextFragment tracks the next expected index.
     const published = await publishFragment(olos, outDir, index);
     if (!published) {
       return;
@@ -161,6 +163,7 @@ export async function runConsumer(
   };
 
   while (consumerShouldContinue(cursor)) {
+    // biome-ignore lint/performance/noAwaitInLoops: the blocking-reload cursor chases fragments in order; each round trip advances cursor.nextFragment for the next one.
     await consumeNextFragment(olos, decoder, cursor);
   }
 

@@ -122,6 +122,7 @@ function runSlotIssueMutation(
       try {
         return issueCoordinatorSlot({ ...slotIssueOptions(rest), state });
       } catch (error) {
+        // biome-ignore lint/style/useErrorCause: S3SlotIssueError passes the argument through as `cause`.
         throw new S3SlotIssueError(error);
       }
     },

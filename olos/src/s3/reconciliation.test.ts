@@ -467,7 +467,7 @@ async function saveReconciliationState(
 function stateWithSlots(): CoordinatorPipelineState {
   let state = createEmptyCoordinatorState();
 
-  state = issueCoordinatorSlot({
+  ({ state } = issueCoordinatorSlot({
     contentType: "video/mp4",
     expiresAt: "2026-01-01T00:00:05.000Z",
     kind: "init",
@@ -477,7 +477,7 @@ function stateWithSlots(): CoordinatorPipelineState {
     slotId: "slot_init",
     state,
     trackId: "v1080",
-  }).state;
+  }));
 
   return issueCoordinatorSlot({
     contentType: "video/mp4",

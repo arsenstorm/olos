@@ -90,7 +90,7 @@ export function createHlsManifestArtifacts(
 export function createCoordinatorManifestArtifacts(
   options: CreateCoordinatorManifestArtifactsOptions
 ): CoordinatorManifestArtifacts {
-  const cursor = options.state.cursor;
+  const { cursor } = options.state;
 
   if (cursor === undefined) {
     return { artifacts: [] };

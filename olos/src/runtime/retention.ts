@@ -172,6 +172,7 @@ export async function deleteRetiredCoordinatorObjects(
     { length: Math.min(concurrency, queue.length) },
     async () => {
       for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
+        // biome-ignore lint/performance/noAwaitInLoops: each worker drains the shared queue one object at a time, bounding concurrency to `concurrency` parallel workers.
         outcomes[next.index] = await deleteRetiredCoordinatorObject(
           options,
           next.object

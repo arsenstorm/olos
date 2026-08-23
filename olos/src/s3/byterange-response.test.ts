@@ -97,7 +97,7 @@ function createFakeS3(parts: readonly CommittedPart[]): FakeS3 {
       if (!(command instanceof GetObjectCommand)) {
         throw new Error("expected GetObjectCommand");
       }
-      const input = command.input;
+      const { input } = command;
       inputs.push(input);
       const part = partsByKey.get(input.Key ?? "");
       if (part?.byterange === undefined) {
@@ -519,7 +519,7 @@ describe("createByterangeSegmentResponse", () => {
       store,
     });
 
-    const body = response.body;
+    const { body } = response;
     if (body === null) {
       throw new Error("expected a response body");
     }
@@ -547,7 +547,7 @@ describe("createByterangeSegmentResponse", () => {
       store,
     });
 
-    const body = response.body;
+    const { body } = response;
     if (body === null) {
       throw new Error("expected a response body");
     }
@@ -654,7 +654,7 @@ describe("createByterangeSegmentResponse", () => {
       store,
     });
 
-    const body = response.body;
+    const { body } = response;
     if (body === null) {
       throw new Error("expected a response body");
     }
@@ -672,6 +672,7 @@ describe("createByterangeSegmentResponse", () => {
 
     const chunks = [first.value];
     for (;;) {
+      // biome-ignore lint/performance/noAwaitInLoops: each read continues the stream from where the previous read left off
       const next = await reader.read();
       if (next.done) {
         break;
@@ -707,7 +708,7 @@ describe("createByterangeSegmentResponse", () => {
       store,
     });
 
-    const body = response.body;
+    const { body } = response;
     if (body === null) {
       throw new Error("expected a response body");
     }

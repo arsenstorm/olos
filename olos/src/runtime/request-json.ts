@@ -82,6 +82,7 @@ async function readBoundedChunks(
   let byteLength = 0;
 
   for (;;) {
+    // biome-ignore lint/performance/noAwaitInLoops: each read continues the body stream from where the previous read left off.
     const { done, value } = await reader.read();
 
     if (done === true || value === undefined) {

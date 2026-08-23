@@ -8,6 +8,7 @@ export async function resolveWorkspaceBin(
   for (const root of roots) {
     const candidate = workspaceBinPath(root, name);
 
+    // biome-ignore lint/performance/noAwaitInLoops: roots are probed in priority order and the first existing candidate wins.
     if (await pathExists(candidate)) {
       return candidate;
     }

@@ -1,3 +1,5 @@
+// biome-ignore-all lint/suspicious/noMisplacedAssertion: the assertions sit inside test.skipIf(...)(...), which biome does not recognise as a test call.
+
 import { randomUUID } from "node:crypto";
 import {
   createPresignedS3UploadGrant,

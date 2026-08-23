@@ -75,7 +75,9 @@ function parseAbsoluteRequestPath(value: string): string | undefined {
     }
 
     return url.pathname;
-  } catch {}
+  } catch {
+    // a value the URL parser rejects is not an absolute request path
+  }
 }
 
 function isHttpRequestUrl(url: URL): boolean {

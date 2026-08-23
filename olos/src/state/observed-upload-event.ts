@@ -31,7 +31,7 @@ export function normalizeUploadEvent(
     return invalidUploadEvent("upload event must be an object");
   }
 
-  const event = options.event;
+  const { event } = options;
 
   try {
     return normalizeUploadEventPayload(event);

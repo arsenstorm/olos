@@ -65,25 +65,26 @@ describe("runtime commit adapter", () => {
   });
 
   test("returns invalid responses for unsafe JSON object keys", async () => {
-    for (const objectKey of [
-      "media/../secret.m4s",
-      "https://publisher.example.net/injected.m4s",
-    ]) {
-      const result = await commitCoordinatorUploadFromRequest({
-        request: commitRequest({
-          ...commitPayload(),
-          object: {
-            ...commitPayload().object,
-            objectKey,
-          },
-        }),
-        state: createCoordinatorStateWithIssuedSegment(),
-      });
+    await Promise.all(
+      ["media/../secret.m4s", "https://publisher.example.net/injected.m4s"].map(
+        async (objectKey) => {
+          const result = await commitCoordinatorUploadFromRequest({
+            request: commitRequest({
+              ...commitPayload(),
+              object: {
+                ...commitPayload().object,
+                objectKey,
+              },
+            }),
+            state: createCoordinatorStateWithIssuedSegment(),
+          });
 
-      expect(invalidResultMessage(result)).toBe(
-        "object.objectKey must be a safe relative object key"
-      );
-    }
+          expect(invalidResultMessage(result)).toBe(
+            "object.objectKey must be a safe relative object key"
+          );
+        }
+      )
+    );
   });
 
   test("returns invalid responses for unsafe JSON identifiers", async () => {
@@ -108,14 +109,16 @@ describe("runtime commit adapter", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const result = await commitCoordinatorUploadFromRequest({
-        request: commitRequest(testCase.payload),
-        state: createCoordinatorStateWithIssuedSegment(),
-      });
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const result = await commitCoordinatorUploadFromRequest({
+          request: commitRequest(testCase.payload),
+          state: createCoordinatorStateWithIssuedSegment(),
+        });
 
-      expect(invalidResultMessage(result)).toBe(testCase.expected);
-    }
+        expect(invalidResultMessage(result)).toBe(testCase.expected);
+      })
+    );
   });
 
   test("returns invalid responses for non-positive object sizes", async () => {
@@ -189,14 +192,16 @@ describe("runtime commit adapter", () => {
       },
     ] as const;
 
-    for (const testCase of cases) {
-      const result = await commitCoordinatorUploadFromRequest({
-        request: commitRequest(testCase.payload),
-        state: createCoordinatorStateWithIssuedSegment(),
-      });
+    await Promise.all(
+      cases.map(async (testCase) => {
+        const result = await commitCoordinatorUploadFromRequest({
+          request: commitRequest(testCase.payload),
+          state: createCoordinatorStateWithIssuedSegment(),
+        });
 
-      expect(invalidResultMessage(result)).toBe(testCase.expected);
-    }
+        expect(invalidResultMessage(result)).toBe(testCase.expected);
+      })
+    );
   });
 
   test("returns protocol rejection responses", async () => {

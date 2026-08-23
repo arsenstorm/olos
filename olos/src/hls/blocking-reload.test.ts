@@ -522,26 +522,28 @@ describe("HLS blocking reload", () => {
   });
 
   test("resolves immediately for terminal sessions without waiting", async () => {
-    for (const state of ["ended", "aborted"] as const) {
-      const terminalCursor = { ...cursor, state };
-      const result = await waitForHlsBlockingReload({
-        cursor: terminalCursor,
-        request: {
-          sequenceNumber: 3813,
-        },
-        timeoutMs: 100,
-        waitForCursor: () =>
-          Promise.reject(new Error("waiter should not be called")),
-      });
+    await Promise.all(
+      (["ended", "aborted"] as const).map(async (state) => {
+        const terminalCursor = { ...cursor, state };
+        const result = await waitForHlsBlockingReload({
+          cursor: terminalCursor,
+          request: {
+            sequenceNumber: 3813,
+          },
+          timeoutMs: 100,
+          waitForCursor: () =>
+            Promise.reject(new Error("waiter should not be called")),
+        });
 
-      expect(result).toEqual({
-        cursor: terminalCursor,
-        request: {
-          sequenceNumber: 3813,
-        },
-        status: "timeout",
-      });
-    }
+        expect(result).toEqual({
+          cursor: terminalCursor,
+          request: {
+            sequenceNumber: 3813,
+          },
+          status: "timeout",
+        });
+      })
+    );
   });
 
   test("uses injected clock for timeout calculations", async () => {
