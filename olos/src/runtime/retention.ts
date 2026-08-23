@@ -32,7 +32,9 @@ export interface DeleteRetiredCoordinatorObjectsOptions {
   /** Max deletes in flight at once; defaults to 1 (sequential). */
   concurrency?: number;
   /** Deletes one object from storage; a throw marks that object failed. */
-  deleteObject(object: RetiredCoordinatorObjectDeletion): Promise<void> | void;
+  deleteObject: (
+    object: RetiredCoordinatorObjectDeletion
+  ) => Promise<void> | void;
   objects: readonly RetiredCoordinatorObjectDeletion[];
 }
 

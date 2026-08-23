@@ -61,14 +61,16 @@ export interface PublishSegmentOptions {
 }
 
 export interface LocalOlos {
-  createSession(): Promise<void>;
+  createSession: () => Promise<void>;
   deliveryBaseUrl: string;
-  handle(request: Request): Promise<Response>;
-  publishInit(bytes: Uint8Array): Promise<PublishTimestamps>;
-  publishPart(options: PublishPartOptions): Promise<PublishTimestamps>;
-  publishSegment(options: PublishSegmentOptions): Promise<PublishTimestamps>;
+  handle: (request: Request) => Promise<Response>;
+  publishInit: (bytes: Uint8Array) => Promise<PublishTimestamps>;
+  publishPart: (options: PublishPartOptions) => Promise<PublishTimestamps>;
+  publishSegment: (
+    options: PublishSegmentOptions
+  ) => Promise<PublishTimestamps>;
   sessionId: string;
-  stop(): Promise<void>;
+  stop: () => Promise<void>;
   trackId: string;
 }
 
@@ -170,7 +172,7 @@ function benchSession(fps: number): MediaSession {
 async function serveByteStore(
   port: number,
   byteStore: Map<string, Uint8Array>
-): Promise<{ stop(): Promise<void> }> {
+): Promise<{ stop: () => Promise<void> }> {
   const certDir = await mkdtemp(join(tmpdir(), "olos-bench-cert-"));
   const { certPath, keyPath } = generateSelfSignedCert(certDir);
   const server = serve({

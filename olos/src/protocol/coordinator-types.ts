@@ -83,13 +83,17 @@ export interface CreateCoordinatorPipelineOptions {
  * `olos/conformance`.
  */
 export interface CoordinatorPipelineStore {
-  load(sessionId: OlosId): Promise<CoordinatorPipelineSnapshot | undefined>;
+  load: (sessionId: OlosId) => Promise<CoordinatorPipelineSnapshot | undefined>;
   /**
    * Optional fast path for manifest reads: returns only the cursor view so
    * implementations can avoid loading and parsing the full snapshot.
    */
-  loadCursor?(sessionId: OlosId): Promise<CoordinatorCursorView | undefined>;
-  save(options: SaveCoordinatorPipelineOptions): Promise<CoordinatorStoreSave>;
+  loadCursor?: (
+    sessionId: OlosId
+  ) => Promise<CoordinatorCursorView | undefined>;
+  save: (
+    options: SaveCoordinatorPipelineOptions
+  ) => Promise<CoordinatorStoreSave>;
 }
 
 /** Options for `CoordinatorPipelineStore.save`. */
@@ -133,9 +137,9 @@ export interface MutateCoordinatorPipelineOptions {
    * input. May run more than once when a save conflict triggers a retry, so
    * external side effects should be avoided.
    */
-  mutate(
+  mutate: (
     state: CoordinatorPipelineState
-  ): CoordinatorPipelineState | Promise<CoordinatorPipelineState>;
+  ) => CoordinatorPipelineState | Promise<CoordinatorPipelineState>;
   sessionId: OlosId;
   store: CoordinatorPipelineStore;
 }

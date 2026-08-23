@@ -47,7 +47,7 @@ import { progress, runConsumer, runProducer } from "./session";
 import { stopProgressBar } from "./telemetry";
 
 interface Cleanable {
-  encoder?: { kill(signal: NodeJS.Signals): boolean };
+  encoder?: { kill: (signal: NodeJS.Signals) => boolean };
   frameTimer?: ReturnType<typeof setInterval>;
   olos?: LocalOlos;
   outDir?: string;

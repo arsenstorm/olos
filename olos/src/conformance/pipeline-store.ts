@@ -26,7 +26,9 @@ const CONFORMANCE_SESSION: Session = {
 /** Options for `assertCoordinatorPipelineStoreConformance`. */
 export interface AssertCoordinatorPipelineStoreConformanceOptions {
   /** Factory producing a fresh, empty store for the conformance run. */
-  createStore(): CoordinatorPipelineStore | Promise<CoordinatorPipelineStore>;
+  createStore: () =>
+    | CoordinatorPipelineStore
+    | Promise<CoordinatorPipelineStore>;
 }
 
 /**

@@ -70,7 +70,7 @@ async function boundedBodyText(
  * result type, so the read loop narrows `value` explicitly.
  */
 interface BodyChunkReader {
-  read(): Promise<{ done?: boolean; value?: Uint8Array }>;
+  read: () => Promise<{ done?: boolean; value?: Uint8Array }>;
 }
 
 /** Drain the body, throwing as soon as it passes `maxBodyBytes`. */

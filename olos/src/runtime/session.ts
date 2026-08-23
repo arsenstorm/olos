@@ -183,12 +183,12 @@ async function refreshPublisherLease(
 }
 
 interface StoredSessionMutationSteps<Result> {
-  apply(): Promise<Result>;
+  apply: () => Promise<Result>;
   /** Validates the request shape; any throw becomes a 400 `olos.invalid_request`. */
-  assert(): void;
+  assert: () => void;
   invalidMessage: string;
   /** Maps a `StoredSessionRejectionError` to the 409 `olos.invalid_state` result. */
-  rejected(error: StoredSessionRejectionError): Result;
+  rejected: (error: StoredSessionRejectionError) => Result;
 }
 
 /**

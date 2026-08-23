@@ -16,7 +16,7 @@ import { assertS3BucketName } from "./bucket";
  * `S3Client`.
  */
 export interface S3DeleteObjectClient {
-  send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput>;
+  send: (command: DeleteObjectCommand) => Promise<DeleteObjectCommandOutput>;
 }
 
 /** Options for {@link deleteRetiredS3CoordinatorObjects}. */

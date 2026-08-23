@@ -21,7 +21,7 @@ type S3HeadObjectCommandInput = ConstructorParameters<
  * `@aws-sdk/client-s3` `S3Client`.
  */
 export interface S3HeadObjectClient {
-  send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput>;
+  send: (command: HeadObjectCommand) => Promise<HeadObjectCommandOutput>;
 }
 
 /** Options for {@link observeS3Object}. */

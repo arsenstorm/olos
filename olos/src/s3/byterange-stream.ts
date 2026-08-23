@@ -32,8 +32,8 @@ interface ByterangeStreamContext {
 }
 
 interface DemandSignal {
-  wait(): Promise<void>;
-  wake(): void;
+  wait: () => Promise<void>;
+  wake: () => void;
 }
 
 /**
@@ -78,8 +78,8 @@ function createDemandSignal(signal: AbortSignal): DemandSignal {
  * name. `read()` keeps its discriminated result so `done` narrows `value`.
  */
 interface PartBodyReader {
-  cancel(): Promise<unknown>;
-  read(): Promise<
+  cancel: () => Promise<unknown>;
+  read: () => Promise<
     { done: false; value: Uint8Array } | { done: true; value?: undefined }
   >;
 }

@@ -13,7 +13,7 @@ import type { Cursor } from "../types/cursor";
  * full `@aws-sdk/client-s3` `S3Client`.
  */
 export interface S3GetObjectClient {
-  send(command: GetObjectCommandType): Promise<GetObjectCommandOutput>;
+  send: (command: GetObjectCommandType) => Promise<GetObjectCommandOutput>;
 }
 
 /** Parsed byte range from an HTTP `Range: bytes=start-end` request header. */

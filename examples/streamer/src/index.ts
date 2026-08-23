@@ -78,7 +78,7 @@ async function main(): Promise<void> {
 }
 
 interface RunningFfmpeg {
-  exited(): boolean;
+  exited: () => boolean;
 }
 
 // The session is created from the init segment, not before it: the
