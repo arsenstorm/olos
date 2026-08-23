@@ -7,11 +7,12 @@ OLOS is a protocol for live adaptive media. Publishers upload encoded media
 as immutable, time-indexed CMAF objects. The objects land on an
 S3-compatible object store (S3, R2, GCS-S3, MinIO) as exact-key uploads. A
 coordinator turns the uploads into stream state. Viewers play the stream
-over LL-HLS with blocking reload. The wire version is `1.0`. The
-specification is a draft. The npm package
-[`@arsenstorm/olos`](./olos/README.md) is the reference implementation.
+over LL-HLS with blocking reload.
 
-## How it flows
+The npm package [`@arsenstorm/olos`](./olos/README.md) is the reference
+implementation. The [specification](./spec/README.md) is a draft.
+
+## How it works
 
 ```mermaid
 flowchart LR
@@ -25,10 +26,15 @@ flowchart LR
   M --> V[Viewer]
 ```
 
-> **Core invariant:** an object in storage is not part of the stream state.
-> An object becomes part of the stream only after the coordinator accepts
-> its commit and the cursor advances. Manifests render only the committed
-> window.
+An object in storage is not part of the stream. It becomes part of the
+stream only after the coordinator accepts its commit and the cursor
+advances. Manifests render only the committed window.
+
+## Install
+
+```bash
+npm install @arsenstorm/olos @aws-sdk/client-s3
+```
 
 ## Quick start
 
@@ -56,13 +62,15 @@ const handleOlos = createStoredS3CoordinatorRuntimeHandler({
 export default { fetch: (req: Request) => handleOlos(req) };
 ```
 
-A publisher creates a session, then repeats three steps: get a presigned
-slot, PUT the media bytes to S3, and post a commit. Viewers GET the HLS
-manifests. The handler serves all of these routes. See
-[`olos/README.md`](./olos/README.md) for the full API, the mounted routes,
-and the subpath export table (`@arsenstorm/olos/runtime`, `/s3`, `/hls`,
-`/protocol`, `/state`, `/schema`, `/validation`, `/types`, `/config`,
-`/conformance`).
+The handler serves every route. A publisher creates a session, then repeats
+three steps:
+
+1. Get a presigned upload slot.
+2. PUT the media bytes to S3.
+3. Post a commit.
+
+Viewers GET the HLS manifests. See [`olos/README.md`](./olos/README.md) for
+the full API, the mounted routes, and the subpath exports.
 
 ## Layers
 
@@ -70,9 +78,9 @@ and the subpath export table (`@arsenstorm/olos/runtime`, `/s3`, `/hls`,
   The core has no HLS, S3, or HTTP concepts.
 - **LL-HLS profile**: renders the committed window into an LL-HLS manifest
   with blocking reload.
-- **S3-compatible binding**: what a storage backend must provide.
-  This is exact-key uploads, conditional create, `HeadObject` consistency,
-  and optional event notifications.
+- **S3-compatible binding**: what a storage backend must provide. This is
+  exact-key uploads, conditional create, `HeadObject` consistency, and
+  optional event notifications.
 - **Direct-public deployment profile**: the media origin serves committed
   media bytes directly, and the manifest controls what is visible.
 - **Runtime guidance**: heartbeats, retention, reconciliation, live health,
@@ -95,12 +103,10 @@ and the subpath export table (`@arsenstorm/olos/runtime`, `/s3`, `/hls`,
 
 - **Wire version:** `1.0`. Every session carries this value in its `olos`
   field.
-- **Specification:** [`spec/`](./spec/README.md), status `draft-v1.0.0`.
-  Each spec section maps to conformance assertions in
-  `@arsenstorm/olos/conformance`. A generated appendix reproduces the JSON
-  Schemas from `@arsenstorm/olos/schema`.
-- **Package:** [`@arsenstorm/olos`](https://www.npmjs.com/package/@arsenstorm/olos),
-  released with Changesets. See [`olos/CHANGELOG.md`](./olos/CHANGELOG.md).
+- **Specification:** `draft-v1.0.0`. Each spec section maps to conformance
+  assertions in `@arsenstorm/olos/conformance`.
+- **Package:** [`@arsenstorm/olos`](https://www.npmjs.com/package/@arsenstorm/olos)
+  on npm, released with Changesets.
 
 ## Development
 
@@ -114,11 +120,12 @@ bun run check      # Ultracite/Biome lint + format check
 bun run check-types # typecheck every workspace against the built package
 ```
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the full workflow. If a
-change is visible to package users, add a changeset with `bun changeset`.
+If a change is visible to package users, add a changeset with
+`bun changeset`. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the full
+workflow.
 
 ## License
 
-OLOS is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+MIT. See [LICENSE](LICENSE).
 
 <sub>Copyright © 2026 Arsen Shkrumelyak. All rights reserved.</sub>
