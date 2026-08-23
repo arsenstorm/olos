@@ -7,14 +7,14 @@ import { repoRoot } from "./script-paths";
 import { runCommand } from "./script-runner";
 import {
   optionalPeerDependencySpecs,
-  smokeRuntime,
-  writeSmokeConsumerFiles,
-} from "./smoke-consumer";
+  testRuntime,
+  writeTestConsumerFiles,
+} from "./test-consumer";
 
 const RETRIES = 12;
 const RETRY_DELAY_MS = 5000;
 
-const workRoot = join(repoRoot, "out", "published-package-smoke");
+const workRoot = join(repoRoot, "out", "published-package-test");
 const consumerRoot = join(workRoot, "consumer");
 const version = process.argv[2] ?? packageJson.version;
 
@@ -22,7 +22,7 @@ assertPublishedPackageVersion(version);
 
 await rm(workRoot, { force: true, recursive: true });
 await mkdir(consumerRoot, { recursive: true });
-await writeSmokeConsumerFiles(consumerRoot);
+await writeTestConsumerFiles(consumerRoot);
 
 // Retry: registry propagation of a just-published version can lag. The
 // optional `@aws-sdk` peers are installed alongside so `./s3` loads.
@@ -30,7 +30,7 @@ await installWithRetries(
   `@arsenstorm/olos@${version}`,
   await optionalPeerDependencySpecs()
 );
-await runCommand(smokeRuntime(), ["smoke.mjs"], { cwd: consumerRoot });
+await runCommand(testRuntime(), ["test.mjs"], { cwd: consumerRoot });
 
 async function installWithRetries(
   specifier: string,

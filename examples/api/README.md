@@ -60,7 +60,7 @@ ffmpeg micro-segments) plus 2 s segment finalisations, so the Worker
 serves a real `#EXT-X-PART` manifest and hls.js's LL-HLS blocking-reload
 path is what closes the loop. See those READMEs for setup.
 
-**No external dependencies (smoke test):** run the publish-demo script in
+**No external dependencies (fixture test):** run the publish-demo script in
 another shell:
 
 ```bash
@@ -155,7 +155,7 @@ routes.
 - `src/virtual-segment-proxy.ts` — `GET /v/:session/:track/:msn.m4s`;
   aggregates committed byterange parts into the logical segment, honoring
   Range requests and holding responses for not-yet-committed ranges.
-- `scripts/publish-demo.ts` — smoke test: publishes fixture bytes and asserts
+- `scripts/publish-demo.ts` — publishes fixture bytes and asserts
   the LL-HLS blocking-reload path returns when the next commit lands.
 - `scripts/reset.ts` — one-shot local reset: wipes the MinIO volume and the
   Worker's Durable Object state, then restarts MinIO.

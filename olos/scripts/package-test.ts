@@ -5,12 +5,12 @@ import { packageRoot, repoRoot } from "./script-paths";
 import { runCommand } from "./script-runner";
 import {
   optionalPeerDependencySpecs,
-  smokeRuntime,
-  writeSmokeConsumerFiles,
-} from "./smoke-consumer";
+  testRuntime,
+  writeTestConsumerFiles,
+} from "./test-consumer";
 
-const workRoot = join(repoRoot, "out", "package-smoke");
-const tarball = join(workRoot, "olos-smoke.tgz");
+const workRoot = join(repoRoot, "out", "package-test");
+const tarball = join(workRoot, "olos-test.tgz");
 const consumerRoot = join(workRoot, "consumer");
 
 await rm(workRoot, { force: true, recursive: true });
@@ -19,9 +19,9 @@ await mkdir(consumerRoot, { recursive: true });
 await runCommand("bun", ["pm", "pack", "--filename", tarball, "--quiet"], {
   cwd: packageRoot,
 });
-await writeSmokeConsumerFiles(consumerRoot);
+await writeTestConsumerFiles(consumerRoot);
 await installTarball();
-await runCommand(smokeRuntime(), ["smoke.mjs"], { cwd: consumerRoot });
+await runCommand(testRuntime(), ["test.mjs"], { cwd: consumerRoot });
 
 // Prefer npm so the tarball resolves the way real consumers install it; npm
 // is unavailable on bun-only machines, where `bun add` covers the same

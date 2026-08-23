@@ -27,14 +27,14 @@ The `Package` job runs per Node version (22 and 24):
 - Vitest E2E tests against `dist`
 - `pack:check` — `publint --strict` plus `@arethetypeswrong/cli` against the
   packed tarball
-- `pack:smoke` — installs the packed tarball into a scratch consumer and
+- `pack:test` — installs the packed tarball into a scratch consumer and
   imports every export subpath under Node
 - package artifact generation (Node 24 leg only)
 
 `publish:check` is the single-command local equivalent. It runs the
 conformance checks, the type checks, the unit tests, the build,
 `check-types:dist` (the E2E suite against the generated `dist/*.d.ts`), the
-E2E tests, `pack:check`, and `pack:smoke`.
+E2E tests, `pack:check`, and `pack:test`.
 
 `publish:check` is deterministic and needs no live cloud credentials. It
 proves the package build, the public exports, the protocol behavior, and

@@ -119,8 +119,8 @@ jobs:
       - name: Package checks
         run: bun --filter '@arsenstorm/olos' pack:check
 
-      - name: Package smoke test
-        run: bun --filter '@arsenstorm/olos' pack:smoke
+      - name: Packed package test
+        run: bun --filter '@arsenstorm/olos' pack:test
 
       - name: Create package artifact
         if: matrix.node == 24

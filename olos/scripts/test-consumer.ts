@@ -6,7 +6,7 @@ import { packageRoot } from "./script-paths";
 // Subpaths come from the installed export map so a new export needs no edit
 // here; KNOWN_SYMBOLS spot-checks one value per subpath. Export-map shape is
 // publint/attw's job (`pack:check`), presence is `check-types:dist`'s.
-const SMOKE_FILE = `import assert from "node:assert/strict";
+const TEST_FILE = `import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
@@ -46,29 +46,29 @@ for (const subpath of subpaths) {
 }
 
 console.log(
-  \`package smoke passed for \${subpaths.length} subpaths on node \${process.version}\`
+  \`packed-package test passed for \${subpaths.length} subpaths on node \${process.version}\`
 );
 `;
 
-export async function writeSmokeConsumerFiles(
+export async function writeTestConsumerFiles(
   consumerRoot: string
 ): Promise<void> {
   await writeFile(
     join(consumerRoot, "package.json"),
     `${JSON.stringify({ private: true, type: "module" }, null, 2)}\n`
   );
-  await writeFile(join(consumerRoot, "smoke.mjs"), SMOKE_FILE);
+  await writeFile(join(consumerRoot, "test.mjs"), TEST_FILE);
 }
 
-// The smoke run prefers node — the package declares engines.node >= 22 and
+// The test run prefers node — the package declares engines.node >= 22 and
 // CI provides it via setup-node — but falls back to bun on node-less
 // development machines so publish:check stays runnable everywhere.
-export function smokeRuntime(): string {
+export function testRuntime(): string {
   const node = which("node");
 
   if (node === null) {
     console.warn(
-      "node not found on PATH; running the package smoke under bun instead"
+      "node not found on PATH; running the packed-package test under bun instead"
     );
     return "bun";
   }
@@ -79,7 +79,7 @@ export function smokeRuntime(): string {
 // `./s3` needs `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`, but
 // they are optional peer dependencies, so npm/bun never install them
 // alongside the tarball on their own — install them explicitly, at the
-// versions the package itself declares, so the smoke run exercises `./s3`.
+// versions the package itself declares, so the test run exercises `./s3`.
 export async function optionalPeerDependencySpecs(): Promise<string[]> {
   const manifest = JSON.parse(
     await readFile(join(packageRoot, "package.json"), "utf8")

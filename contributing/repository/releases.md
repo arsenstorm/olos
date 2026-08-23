@@ -82,7 +82,7 @@ bun run publish:check
 `publish:check` runs the conformance checks, the type checks (source and
 generated `dist` declarations), the Bun unit tests, the build, the Vitest
 E2E tests, `publint` + `@arethetypeswrong/cli` against the packed tarball,
-and the packed-package smoke test. It is the deterministic release gate. It
+and the packed-package test. It is the deterministic release gate. It
 does not contact a live S3-compatible provider.
 
 There is no `prepublishOnly` hook: a local `npm publish` runs no gates and
