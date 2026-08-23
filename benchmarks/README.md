@@ -121,26 +121,31 @@ harness at a remote origin.
 
 ## Reference numbers
 
-Reference numbers come from a curated, committed baseline. There is no
-committed baseline yet, so the table below is a skeleton.
+The committed baseline is `results/baseline.json`. It comes from one run
+of `bun run benchmark` with default knobs (1000 samples, 30 fps, 500 ms
+segments, 100 ms parts, CRF 18, concurrency 1) on an idle machine:
 
-_pending first curated baseline run_
+- Apple M1 Pro, 10 cores, 16 GB, macOS 15.7.8 (arm64)
+- Bun 1.3.14, ffmpeg 8.1.2
+- commit `e432023` (0.6.0), run `2026-08-23T10:33:29.865Z`
 
-| Stage | p50 | p95 | p99 |
-| --- | --- | --- | --- |
-| capture → uploaded (encode fill) | — | — | — |
-| uploaded → committed (publish) | — | — | — |
-| committed → playlist-visible (wake) | — | — | — |
-| playlist-visible → rendered (fetch) | — | — | — |
-| glass-to-glass | — | — | — |
+| Stage | p50 | p95 |
+| --- | --- | --- |
+| capture → uploaded (encode fill) | 122.4 ms | 144.0 ms |
+| uploaded → committed (publish) | 2.0 ms | 76.9 ms |
+| committed → playlist-visible (wake) | 0.01 ms | 0.02 ms |
+| playlist-visible → rendered (fetch) | 0.3 ms | 1.3 ms |
+| glass-to-glass | 128.2 ms | 219.2 ms |
 
-To create or refresh the baseline:
+Glass-to-glass p99 is 388.4 ms and the mean is 139.6 ms. The encode fill
+stage is the 100 ms part duration plus x264 lookahead, so OLOS overhead at
+p50 is about 28 ms. The `publish` p95 tail is event-loop contention between
+the producer and consumer in one process. Production deploys split them.
+
+To refresh the baseline:
 
 1. Run `bun run benchmark` on an otherwise idle machine with default knobs.
-2. Copy the run sidecar from `runs/<runId>.json` to
-   `benchmarks/results/baseline.json`.
-3. Record the machine spec alongside it: CPU model, RAM, OS, Bun version,
-   ffmpeg version, the config knobs used, and the commit SHA (the sidecar
-   already captures most of these).
-4. Update the table above from the sidecar's aggregated percentiles and
-   remove the pending marker.
+2. Copy `runs/<runId>-aggregate.json` to `results/baseline.json`. Replace
+   absolute paths with relative ones, and add `machine.os` and
+   `machine.ffmpeg`.
+3. Update the table and the machine list above from the sidecar.
