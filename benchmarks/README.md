@@ -1,6 +1,6 @@
 # OLOS benchmarks
 
-Glass-to-glass latency harness for OLOS. It measures the time a video
+End-to-end latency harness for OLOS. It measures the time a video
 frame takes from capture to render. The frame travels through a real
 encode → publish → LL-HLS → decode pipeline. The harness timestamps every
 OLOS stage on the way.
@@ -34,7 +34,7 @@ need encoder start-clock calibration. Every sample records five timestamps:
 | publish | `committedAt − uploadedAt` |
 | wake | `playlistVisibleAt − committedAt` |
 | fetch | `renderedAt − playlistVisibleAt` |
-| glass-to-glass | `renderedAt − captureAt` |
+| end-to-end | `renderedAt − captureAt` |
 
 Everything runs on one machine. The harness needs no S3/R2 account,
 credentials, or egress. The S3 client presigns URLs locally and sends no
@@ -135,9 +135,9 @@ segments, 100 ms parts, CRF 18, concurrency 1) on an idle machine:
 | uploaded → committed (publish) | 2.0 ms | 76.9 ms |
 | committed → playlist-visible (wake) | 0.01 ms | 0.02 ms |
 | playlist-visible → rendered (fetch) | 0.3 ms | 1.3 ms |
-| glass-to-glass | 128.2 ms | 219.2 ms |
+| end-to-end | 128.2 ms | 219.2 ms |
 
-Glass-to-glass p99 is 388.4 ms and the mean is 139.6 ms. The encode fill
+End-to-end p99 is 388.4 ms and the mean is 139.6 ms. The encode fill
 stage is the 100 ms part duration plus x264 lookahead, so OLOS overhead at
 p50 is about 28 ms. The `publish` p95 tail is event-loop contention between
 the producer and consumer in one process. Production deploys split them.

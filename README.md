@@ -95,7 +95,7 @@ the full API, the mounted routes, and the subpath exports.
 | [`examples/api`](./examples/api/README.md) | Cloudflare Worker that mounts the OLOS S3 runtime handler over a Durable Object coordinator store. Uses MinIO locally and R2 in production. |
 | [`examples/streamer`](./examples/streamer/README.md) | OBS → RTMP → ffmpeg → LL-HLS → OLOS bridge. Publishes micro-segments as byterange parts and assembled segments. |
 | [`examples/player`](./examples/player/README.md) | Minimal browser player. Uses hls.js with LL-HLS enabled against the `examples/api` Worker. |
-| [`benchmarks/`](./benchmarks/README.md) | Glass-to-glass latency harness: barcode-in-frame timestamps through a local, loopback-only OLOS stack. |
+| [`benchmarks/`](./benchmarks/README.md) | End-to-end latency harness: barcode-in-frame timestamps through a local, loopback-only OLOS stack. |
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | How to set up, test, and submit changes. |
 | [`olos/CHANGELOG.md`](./olos/CHANGELOG.md) | Package changelog (the root `CHANGELOG.md` is a pointer to it). |
 
