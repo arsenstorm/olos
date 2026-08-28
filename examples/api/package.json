@@ -19,7 +19,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1116.0"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.52.1",
+    "@cloudflare/vite-plugin": "^1.53.1",
     "@smithy/fetch-http-handler": "^5.5.2",
     "typescript": "^7",
     "vite": "^8",
