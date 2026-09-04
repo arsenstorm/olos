@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@arsenstorm/olos": "workspace:*",
-    "@aws-sdk/client-s3": "^3.1116.0",
+    "@aws-sdk/client-s3": "^3.1120.0",
     "asciichart": "^1.5.25",
     "cli-progress": "^3.12.0"
   },

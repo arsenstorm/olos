@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@arsenstorm/olos": "workspace:*",
-    "@aws-sdk/client-s3": "^3.1116.0",
-    "@aws-sdk/s3-request-presigner": "^3.1116.0"
+    "@aws-sdk/client-s3": "^3.1120.0",
+    "@aws-sdk/s3-request-presigner": "^3.1120.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.52.1",
