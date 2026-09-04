@@ -110,7 +110,7 @@
     "ajv-formats": "^3.0.1",
     "publint": "^0.3.22",
     "typescript": "^7",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "@aws-sdk/client-s3": "^3.1116.0",
